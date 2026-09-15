@@ -45,6 +45,7 @@
             top: 0;
             bottom: 0;
             box-shadow: 5px 0 20px rgba(0,0,0,0.05);
+            z-index: 20;
         }
 
         .brand {
@@ -326,14 +327,26 @@
             color: #374151;
         }
 
+        .btn-light:hover {
+            background: #e5e7eb;
+        }
+
         .btn-green {
             background: #dcfce7;
             color: #166534;
         }
 
+        .btn-green:hover {
+            background: #bbf7d0;
+        }
+
         .btn-red {
             background: #fee2e2;
             color: #991b1b;
+        }
+
+        .btn-red:hover {
+            background: #fecaca;
         }
 
         .actions {
@@ -365,7 +378,15 @@
         .provider-id {
             color: #6b7280;
             font-size: 11px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            word-break: break-all;
+        }
+
+        .provider-actions {
+            display: flex;
+            gap: 7px;
+            flex-wrap: wrap;
+            margin-top: 15px;
         }
 
         /* FORM */
@@ -385,13 +406,24 @@
         }
 
         .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             width: 100%;
-            height: 40px;
             border: 1px solid #d1d5db;
             border-radius: 8px;
-            padding: 0 10px;
+            padding: 10px;
             outline: none;
+            font-family: inherit;
+        }
+
+        .form-group input,
+        .form-group select {
+            height: 40px;
+        }
+
+        .form-group textarea {
+            min-height: 90px;
+            resize: vertical;
         }
 
         /* EMPTY */
@@ -416,7 +448,8 @@
             font-size: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.18);
             display: none;
-            z-index: 100;
+            z-index: 1000;
+            max-width: 420px;
         }
 
         /* MODAL */
@@ -428,13 +461,13 @@
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 90;
+            z-index: 900;
             padding: 20px;
         }
 
         .modal {
             width: 100%;
-            max-width: 420px;
+            max-width: 500px;
             background: white;
             border-radius: 15px;
             padding: 25px;
@@ -443,12 +476,17 @@
 
         .modal h3 {
             margin-bottom: 7px;
+            color: #111827;
         }
 
         .modal p {
             font-size: 12px;
             color: #6b7280;
             margin-bottom: 20px;
+        }
+
+        .modal .form-group {
+            margin-bottom: 14px;
         }
 
         .modal-actions {
@@ -458,9 +496,24 @@
             margin-top: 20px;
         }
 
+        .default-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: #374151;
+        }
+
+        .default-check input {
+            width: 16px;
+            height: 16px;
+        }
+
         /* MOBILE */
 
         @media (max-width: 900px) {
+
             .sidebar {
                 width: 200px;
             }
@@ -480,6 +533,7 @@
         }
 
         @media (max-width: 650px) {
+
             .sidebar {
                 position: relative;
                 width: 100%;
@@ -558,7 +612,9 @@
 
         <div class="header">
             <h2>ADMIN PANEL</h2>
-            <p>Kelola pengguna, provider, model, kredit dan konfigurasi GEN-Z.AI.</p>
+            <p>
+                Kelola pengguna, provider, model, kredit dan konfigurasi GEN-Z.AI.
+            </p>
         </div>
 
 
@@ -589,9 +645,7 @@
         </div>
 
 
-        <!-- ================================================= -->
         <!-- USERS -->
-        <!-- ================================================= -->
 
         <section id="users" class="section active">
 
@@ -641,6 +695,7 @@
                     <table>
 
                         <thead>
+
                             <tr>
                                 <th>Email</th>
                                 <th>Name</th>
@@ -650,6 +705,7 @@
                                 <th>Created</th>
                                 <th>Action</th>
                             </tr>
+
                         </thead>
 
                         <tbody id="usersTable">
@@ -671,9 +727,7 @@
         </section>
 
 
-        <!-- ================================================= -->
         <!-- PROVIDERS -->
-        <!-- ================================================= -->
 
         <section id="providers" class="section">
 
@@ -683,14 +737,26 @@
 
                     <h3>AI PROVIDERS</h3>
 
-                    <button
-                        class="btn btn-dark"
-                        onclick="loadProviders()"
-                    >
-                        REFRESH
-                    </button>
+                    <div class="actions">
+
+                        <button
+                            class="btn btn-light"
+                            onclick="openProviderModal()"
+                        >
+                            + ADD PROVIDER
+                        </button>
+
+                        <button
+                            class="btn btn-dark"
+                            onclick="loadProviders()"
+                        >
+                            REFRESH
+                        </button>
+
+                    </div>
 
                 </div>
+
 
                 <div id="providersContainer" class="provider-grid">
 
@@ -705,9 +771,7 @@
         </section>
 
 
-        <!-- ================================================= -->
         <!-- MODELS -->
-        <!-- ================================================= -->
 
         <section id="models" class="section">
 
@@ -762,9 +826,7 @@
         </section>
 
 
-        <!-- ================================================= -->
         <!-- CREDIT -->
-        <!-- ================================================= -->
 
         <section id="credit" class="section">
 
@@ -778,9 +840,7 @@
 
                     <div class="form-group">
 
-                        <label>
-                            USER ID
-                        </label>
+                        <label>USER ID</label>
 
                         <input
                             type="text"
@@ -793,9 +853,7 @@
 
                     <div class="form-group">
 
-                        <label>
-                            JUMLAH CREDIT
-                        </label>
+                        <label>JUMLAH CREDIT</label>
 
                         <input
                             type="number"
@@ -809,7 +867,7 @@
                 </div>
 
 
-                <div style="margin-top:18px; display:flex; gap:8px;">
+                <div style="margin-top:18px;display:flex;gap:8px;">
 
                     <button
                         class="btn btn-dark"
@@ -833,6 +891,7 @@
             <div class="panel">
 
                 <div class="panel-header">
+
                     <h3>RECENT CREDIT TRANSACTIONS</h3>
 
                     <button
@@ -841,6 +900,7 @@
                     >
                         REFRESH
                     </button>
+
                 </div>
 
 
@@ -881,9 +941,7 @@
         </section>
 
 
-        <!-- ================================================= -->
         <!-- SYSTEM -->
-        <!-- ================================================= -->
 
         <section id="system" class="section">
 
@@ -993,6 +1051,125 @@
 </div>
 
 
+<!-- PROVIDER MODAL -->
+
+<div id="providerModal" class="modal-overlay">
+
+    <div class="modal">
+
+        <h3 id="providerModalTitle">
+            ADD PROVIDER
+        </h3>
+
+        <p>
+            Kelola identitas dan status provider AI.
+        </p>
+
+        <input
+            type="hidden"
+            id="providerEditId"
+        >
+
+
+        <div class="form-group">
+
+            <label>PROVIDER ID</label>
+
+            <input
+                type="text"
+                id="providerId"
+                placeholder="Contoh: chinaapi"
+                autocomplete="off"
+            >
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label>PROVIDER NAME</label>
+
+            <input
+                type="text"
+                id="providerName"
+                placeholder="Contoh: ByteDance"
+                autocomplete="off"
+            >
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label>DESCRIPTION</label>
+
+            <textarea
+                id="providerDescription"
+                placeholder="Deskripsi provider..."
+            ></textarea>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label>STATUS</label>
+
+            <select id="providerStatus">
+
+                <option value="active">
+                    ACTIVE
+                </option>
+
+                <option value="inactive">
+                    INACTIVE
+                </option>
+
+                <option value="maintenance">
+                    MAINTENANCE
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <label class="default-check">
+
+            <input
+                type="checkbox"
+                id="providerDefault"
+            >
+
+            Jadikan provider default
+
+        </label>
+
+
+        <div class="modal-actions">
+
+            <button
+                class="btn btn-light"
+                onclick="closeProviderModal()"
+            >
+                BATAL
+            </button>
+
+            <button
+                class="btn btn-dark"
+                id="providerSaveButton"
+                onclick="saveProvider()"
+            >
+                SIMPAN
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
 <script>
 
 const supabaseClient = window.supabase.createClient(
@@ -1000,9 +1177,13 @@ const supabaseClient = window.supabase.createClient(
     GENZ_CONFIG.SUPABASE_KEY
 );
 
+
 let currentUser = null;
 let currentProfile = null;
+
 let allUsers = [];
+
+let providerCache = [];
 
 let creditAction = null;
 let selectedUserId = null;
@@ -1014,14 +1195,19 @@ let selectedUserId = null;
 
 function showMessage(text) {
 
-    const message = document.getElementById("message");
+    const message =
+        document.getElementById("message");
 
     message.textContent = text;
     message.style.display = "block";
 
-    setTimeout(() => {
+    clearTimeout(window.messageTimer);
+
+    window.messageTimer = setTimeout(() => {
+
         message.style.display = "none";
-    }, 3000);
+
+    }, 3500);
 }
 
 
@@ -1037,12 +1223,17 @@ async function checkAuth() {
         }
     } = await supabaseClient.auth.getSession();
 
+
     if (!session) {
+
         window.location.href = "../index.html";
+
         return false;
     }
 
+
     currentUser = session.user;
+
 
     const {
         data: profile,
@@ -1053,27 +1244,41 @@ async function checkAuth() {
         .eq("id", currentUser.id)
         .single();
 
+
     if (error || !profile) {
+
         await supabaseClient.auth.signOut();
+
         window.location.href = "../index.html";
+
         return false;
     }
 
+
     currentProfile = profile;
+
 
     if (
         profile.role !== "ADMIN" &&
         profile.role !== "OWNER"
     ) {
-        window.location.href = "../user/dashboard.html";
+
+        window.location.href =
+            "../user/dashboard.html";
+
         return false;
     }
 
+
     if (profile.status !== "active") {
+
         await supabaseClient.auth.signOut();
+
         window.location.href = "../index.html";
+
         return false;
     }
+
 
     return true;
 }
@@ -1085,7 +1290,9 @@ async function checkAuth() {
 
 async function loadUsers() {
 
-    const table = document.getElementById("usersTable");
+    const table =
+        document.getElementById("usersTable");
+
 
     table.innerHTML = `
         <tr>
@@ -1094,6 +1301,7 @@ async function loadUsers() {
             </td>
         </tr>
     `;
+
 
     const {
         data,
@@ -1113,12 +1321,14 @@ async function loadUsers() {
             ascending: false
         });
 
+
     if (error) {
 
         table.innerHTML = `
             <tr>
                 <td colspan="7" class="empty">
-                    Gagal memuat pengguna: ${escapeHtml(error.message)}
+                    Gagal memuat pengguna:
+                    ${escapeHtml(error.message)}
                 </td>
             </tr>
         `;
@@ -1126,9 +1336,11 @@ async function loadUsers() {
         return;
     }
 
+
     allUsers = data || [];
 
     updateUserStats(allUsers);
+
     renderUsers(allUsers);
 }
 
@@ -1137,9 +1349,11 @@ function updateUserStats(users) {
 
     const total = users.length;
 
+
     const active = users.filter(
         user => user.status === "active"
     ).length;
+
 
     const admins = users.filter(
         user =>
@@ -1147,25 +1361,41 @@ function updateUserStats(users) {
             user.role === "OWNER"
     ).length;
 
+
     const credits = users.reduce(
-        (sum, user) => sum + Number(user.credits || 0),
+        (sum, user) =>
+            sum + Number(user.credits || 0),
         0
     );
 
-    document.getElementById("totalUsers").textContent = total;
 
-    document.getElementById("activeUsers").textContent = active;
+    document.getElementById(
+        "totalUsers"
+    ).textContent = total;
 
-    document.getElementById("adminUsers").textContent = admins;
 
-    document.getElementById("totalCredits").textContent =
+    document.getElementById(
+        "activeUsers"
+    ).textContent = active;
+
+
+    document.getElementById(
+        "adminUsers"
+    ).textContent = admins;
+
+
+    document.getElementById(
+        "totalCredits"
+    ).textContent =
         credits.toLocaleString("id-ID");
 }
 
 
 function renderUsers(users) {
 
-    const table = document.getElementById("usersTable");
+    const table =
+        document.getElementById("usersTable");
+
 
     if (!users.length) {
 
@@ -1180,6 +1410,7 @@ function renderUsers(users) {
         return;
     }
 
+
     table.innerHTML = users.map(user => {
 
         const roleClass =
@@ -1189,10 +1420,12 @@ function renderUsers(users) {
                     ? "badge-admin"
                     : "badge-user";
 
+
         const statusClass =
             user.status === "active"
                 ? "badge-active"
                 : "badge-suspended";
+
 
         return `
             <tr>
@@ -1219,7 +1452,9 @@ function renderUsers(users) {
 
                 <td>
                     <strong>
-                        ${Number(user.credits || 0).toLocaleString("id-ID")}
+                        ${Number(
+                            user.credits || 0
+                        ).toLocaleString("id-ID")}
                     </strong>
                 </td>
 
@@ -1234,7 +1469,7 @@ function renderUsers(users) {
                         <button
                             class="btn btn-dark"
                             onclick="openCreditModal(
-                                '${user.id}',
+                                '${escapeJs(user.id)}',
                                 '${escapeJs(user.email || user.id)}',
                                 'add'
                             )"
@@ -1245,7 +1480,7 @@ function renderUsers(users) {
                         <button
                             class="btn btn-red"
                             onclick="openCreditModal(
-                                '${user.id}',
+                                '${escapeJs(user.id)}',
                                 '${escapeJs(user.email || user.id)}',
                                 'remove'
                             )"
@@ -1265,38 +1500,54 @@ function renderUsers(users) {
 
 
 /* =========================================================
-   SEARCH
+   USER SEARCH
 ========================================================= */
 
-document.getElementById("userSearch").addEventListener(
+document.getElementById(
+    "userSearch"
+).addEventListener(
     "input",
     function () {
 
-        const keyword = this.value
-            .toLowerCase()
-            .trim();
+        const keyword =
+            this.value
+                .toLowerCase()
+                .trim();
+
 
         if (!keyword) {
+
             renderUsers(allUsers);
+
             return;
         }
 
-        const filtered = allUsers.filter(user => {
 
-            const email =
-                String(user.email || "").toLowerCase();
+        const filtered =
+            allUsers.filter(user => {
 
-            const name =
-                String(user.name || "").toLowerCase();
+                const email =
+                    String(
+                        user.email || ""
+                    ).toLowerCase();
 
-            return (
-                email.includes(keyword) ||
-                name.includes(keyword)
-            );
 
-        });
+                const name =
+                    String(
+                        user.name || ""
+                    ).toLowerCase();
+
+
+                return (
+                    email.includes(keyword) ||
+                    name.includes(keyword)
+                );
+
+            });
+
 
         renderUsers(filtered);
+
     }
 );
 
@@ -1305,93 +1556,154 @@ document.getElementById("userSearch").addEventListener(
    CREDIT MODAL
 ========================================================= */
 
-function openCreditModal(userId, email, action) {
+function openCreditModal(
+    userId,
+    email,
+    action
+) {
 
     selectedUserId = userId;
+
     creditAction = action;
 
-    document.getElementById("modalCreditAmount").value = "";
 
-    document.getElementById("creditModalText").textContent =
-        `${action === "add" ? "Tambah" : "Kurangi"} credit untuk ${email}`;
+    document.getElementById(
+        "modalCreditAmount"
+    ).value = "";
 
-    document.getElementById("creditModal").style.display = "flex";
+
+    document.getElementById(
+        "creditModalText"
+    ).textContent =
+        `${
+            action === "add"
+                ? "Tambah"
+                : "Kurangi"
+        } credit untuk ${email}`;
+
+
+    document.getElementById(
+        "creditModal"
+    ).style.display = "flex";
 }
 
 
 function closeCreditModal() {
 
-    document.getElementById("creditModal").style.display = "none";
+    document.getElementById(
+        "creditModal"
+    ).style.display = "none";
+
 
     selectedUserId = null;
+
     creditAction = null;
 }
 
 
 async function confirmCreditAction() {
 
-    const amount = Number(
-        document.getElementById("modalCreditAmount").value
-    );
+    const amount =
+        Number(
+            document.getElementById(
+                "modalCreditAmount"
+            ).value
+        );
 
-    if (!Number.isInteger(amount) || amount <= 0) {
 
-        showMessage("Jumlah credit tidak valid.");
+    if (
+        !Number.isInteger(amount) ||
+        amount <= 0
+    ) {
+
+        showMessage(
+            "Jumlah credit tidak valid."
+        );
 
         return;
     }
 
-    if (!selectedUserId || !creditAction) {
 
-        showMessage("Data credit tidak valid.");
+    if (
+        !selectedUserId ||
+        !creditAction
+    ) {
+
+        showMessage(
+            "Data credit tidak valid."
+        );
 
         return;
     }
+
 
     let result;
 
+
     if (creditAction === "add") {
 
-        result = await supabaseClient.rpc(
-            "add_credit",
-            {
-                target_user_id: selectedUserId,
-                credit_amount: amount,
-                transaction_type: "admin_add",
-                transaction_description:
-                    "Credit ditambahkan melalui Admin Panel"
-            }
-        );
+        result =
+            await supabaseClient.rpc(
+                "add_credit",
+                {
+                    target_user_id:
+                        selectedUserId,
+
+                    credit_amount:
+                        amount,
+
+                    transaction_type:
+                        "admin_add",
+
+                    transaction_description:
+                        "Credit ditambahkan melalui Admin Panel"
+                }
+            );
 
     } else {
 
-        result = await supabaseClient.rpc(
-            "admin_remove_credit",
-            {
-                target_user_id: selectedUserId,
-                credit_amount: amount,
-                transaction_description:
-                    "Credit dikurangi melalui Admin Panel"
-            }
-        );
+        result =
+            await supabaseClient.rpc(
+                "admin_remove_credit",
+                {
+                    target_user_id:
+                        selectedUserId,
+
+                    credit_amount:
+                        amount,
+
+                    transaction_description:
+                        "Credit dikurangi melalui Admin Panel"
+                }
+            );
     }
+
 
     if (result.error) {
 
         showMessage(
-            "Gagal: " + result.error.message
+            "Gagal: " +
+            result.error.message
         );
 
         return;
     }
 
+
     showMessage(
-        `Credit berhasil ${creditAction === "add" ? "ditambahkan" : "dikurangi"}.`
+        `Credit berhasil ${
+            creditAction === "add"
+                ? "ditambahkan"
+                : "dikurangi"
+        }.`
     );
+
 
     closeCreditModal();
 
+
     await loadUsers();
+
     await loadTransactions();
 }
 
@@ -1403,17 +1715,32 @@ async function confirmCreditAction() {
 async function addCredit() {
 
     const userId =
-        document.getElementById("creditUserId").value.trim();
+        document.getElementById(
+            "creditUserId"
+        ).value.trim();
+
 
     const amount =
-        Number(document.getElementById("creditAmount").value);
+        Number(
+            document.getElementById(
+                "creditAmount"
+            ).value
+        );
 
-    if (!userId || !Number.isInteger(amount) || amount <= 0) {
 
-        showMessage("User ID dan jumlah credit wajib diisi.");
+    if (
+        !userId ||
+        !Number.isInteger(amount) ||
+        amount <= 0
+    ) {
+
+        showMessage(
+            "User ID dan jumlah credit wajib diisi."
+        );
 
         return;
     }
+
 
     const {
         data,
@@ -1429,19 +1756,26 @@ async function addCredit() {
         }
     );
 
+
     if (error) {
 
-        showMessage("Gagal: " + error.message);
+        showMessage(
+            "Gagal: " +
+            error.message
+        );
 
         return;
     }
+
 
     showMessage(
         "Credit berhasil ditambahkan. Saldo: " +
         Number(data).toLocaleString("id-ID")
     );
 
+
     await loadUsers();
+
     await loadTransactions();
 }
 
@@ -1449,17 +1783,32 @@ async function addCredit() {
 async function removeCredit() {
 
     const userId =
-        document.getElementById("creditUserId").value.trim();
+        document.getElementById(
+            "creditUserId"
+        ).value.trim();
+
 
     const amount =
-        Number(document.getElementById("creditAmount").value);
+        Number(
+            document.getElementById(
+                "creditAmount"
+            ).value
+        );
 
-    if (!userId || !Number.isInteger(amount) || amount <= 0) {
 
-        showMessage("User ID dan jumlah credit wajib diisi.");
+    if (
+        !userId ||
+        !Number.isInteger(amount) ||
+        amount <= 0
+    ) {
+
+        showMessage(
+            "User ID dan jumlah credit wajib diisi."
+        );
 
         return;
     }
+
 
     const {
         data,
@@ -1474,19 +1823,26 @@ async function removeCredit() {
         }
     );
 
+
     if (error) {
 
-        showMessage("Gagal: " + error.message);
+        showMessage(
+            "Gagal: " +
+            error.message
+        );
 
         return;
     }
+
 
     showMessage(
         "Credit berhasil dikurangi. Saldo: " +
         Number(data).toLocaleString("id-ID")
     );
 
+
     await loadUsers();
+
     await loadTransactions();
 }
 
@@ -1498,7 +1854,10 @@ async function removeCredit() {
 async function loadTransactions() {
 
     const table =
-        document.getElementById("transactionsTable");
+        document.getElementById(
+            "transactionsTable"
+        );
+
 
     const {
         data,
@@ -1520,6 +1879,7 @@ async function loadTransactions() {
         })
         .limit(50);
 
+
     if (error) {
 
         table.innerHTML = `
@@ -1534,6 +1894,7 @@ async function loadTransactions() {
         return;
     }
 
+
     if (!data || !data.length) {
 
         table.innerHTML = `
@@ -1547,61 +1908,73 @@ async function loadTransactions() {
         return;
     }
 
-    table.innerHTML = data.map(transaction => {
 
-        return `
-            <tr>
+    table.innerHTML =
+        data.map(transaction => {
 
-                <td>
-                    ${escapeHtml(
-                        getUserEmail(transaction.user_id)
-                    )}
-                </td>
+            return `
+                <tr>
 
-                <td>
-                    ${escapeHtml(transaction.type)}
-                </td>
+                    <td>
+                        ${escapeHtml(
+                            getUserEmail(
+                                transaction.user_id
+                            )
+                        )}
+                    </td>
 
-                <td>
-                    <strong>
-                        ${Number(transaction.amount).toLocaleString("id-ID")}
-                    </strong>
-                </td>
+                    <td>
+                        ${escapeHtml(
+                            transaction.type
+                        )}
+                    </td>
 
-                <td>
-                    ${Number(
-                        transaction.balance_before || 0
-                    ).toLocaleString("id-ID")}
-                </td>
+                    <td>
+                        <strong>
+                            ${Number(
+                                transaction.amount
+                            ).toLocaleString("id-ID")}
+                        </strong>
+                    </td>
 
-                <td>
-                    ${Number(
-                        transaction.balance_after || 0
-                    ).toLocaleString("id-ID")}
-                </td>
+                    <td>
+                        ${Number(
+                            transaction.balance_before || 0
+                        ).toLocaleString("id-ID")}
+                    </td>
 
-                <td>
-                    ${escapeHtml(
-                        transaction.description || "-"
-                    )}
-                </td>
+                    <td>
+                        ${Number(
+                            transaction.balance_after || 0
+                        ).toLocaleString("id-ID")}
+                    </td>
 
-                <td>
-                    ${formatDate(transaction.created_at)}
-                </td>
+                    <td>
+                        ${escapeHtml(
+                            transaction.description || "-"
+                        )}
+                    </td>
 
-            </tr>
-        `;
+                    <td>
+                        ${formatDate(
+                            transaction.created_at
+                        )}
+                    </td>
 
-    }).join("");
+                </tr>
+            `;
+
+        }).join("");
 }
 
 
 function getUserEmail(userId) {
 
-    const user = allUsers.find(
-        item => item.id === userId
-    );
+    const user =
+        allUsers.find(
+            item => item.id === userId
+        );
+
 
     return user
         ? user.email || user.id
@@ -1616,7 +1989,17 @@ function getUserEmail(userId) {
 async function loadProviders() {
 
     const container =
-        document.getElementById("providersContainer");
+        document.getElementById(
+            "providersContainer"
+        );
+
+
+    container.innerHTML = `
+        <div class="empty">
+            Memuat provider...
+        </div>
+    `;
+
 
     const {
         data,
@@ -1629,11 +2012,14 @@ async function loadProviders() {
             provider_name,
             description,
             status,
-            is_default
+            is_default,
+            created_at,
+            updated_at
         `)
         .order("created_at", {
             ascending: true
         });
+
 
     if (error) {
 
@@ -1647,7 +2033,11 @@ async function loadProviders() {
         return;
     }
 
-    if (!data || !data.length) {
+
+    providerCache = data || [];
+
+
+    if (!providerCache.length) {
 
         container.innerHTML = `
             <div class="empty">
@@ -1658,49 +2048,614 @@ async function loadProviders() {
         return;
     }
 
-    container.innerHTML = data.map(provider => {
 
-        return `
-            <div class="provider-card">
+    container.innerHTML =
+        providerCache.map(provider => {
 
-                <h4>
-                    ${escapeHtml(provider.provider_name)}
-                </h4>
+            const statusClass =
+                provider.status === "active"
+                    ? "badge-active"
+                    : "badge-suspended";
 
-                <div class="provider-id">
-                    ID: ${escapeHtml(provider.provider_id)}
+
+            return `
+                <div class="provider-card">
+
+                    <h4>
+                        ${escapeHtml(
+                            provider.provider_name
+                        )}
+                    </h4>
+
+
+                    <div class="provider-id">
+
+                        ID:
+                        ${escapeHtml(
+                            provider.provider_id
+                        )}
+
+                    </div>
+
+
+                    <p style="
+                        font-size:12px;
+                        color:#6b7280;
+                        margin-bottom:12px;
+                        line-height:1.5;
+                    ">
+
+                        ${escapeHtml(
+                            provider.description || "-"
+                        )}
+
+                    </p>
+
+
+                    <div style="
+                        display:flex;
+                        gap:7px;
+                        align-items:center;
+                        flex-wrap:wrap;
+                    ">
+
+                        <span class="badge ${statusClass}">
+
+                            ${escapeHtml(
+                                provider.status
+                            )}
+
+                        </span>
+
+
+                        ${
+                            provider.is_default
+                                ? `
+                                    <span class="badge badge-owner">
+                                        DEFAULT
+                                    </span>
+                                `
+                                : ""
+                        }
+
+                    </div>
+
+
+                    <div class="provider-actions">
+
+                        <button
+                            class="btn btn-dark"
+                            onclick="openProviderModal(
+                                '${escapeJs(provider.id)}'
+                            )"
+                        >
+                            EDIT
+                        </button>
+
+
+                        <button
+                            class="btn btn-red"
+                            onclick="deleteProvider(
+                                '${escapeJs(provider.id)}',
+                                '${escapeJs(provider.provider_name)}'
+                            )"
+                        >
+                            HAPUS
+                        </button>
+
+                    </div>
+
                 </div>
+            `;
 
-                <p style="font-size:12px;color:#6b7280;margin-bottom:12px;">
-                    ${escapeHtml(provider.description || "-")}
-                </p>
+        }).join("");
+}
 
-                <div style="display:flex;gap:7px;align-items:center;">
 
-                    <span class="badge ${
-                        provider.status === "active"
-                            ? "badge-active"
-                            : "badge-suspended"
-                    }">
-                        ${escapeHtml(provider.status)}
-                    </span>
+/* =========================================================
+   PROVIDER MODAL
+========================================================= */
 
-                    ${
-                        provider.is_default
-                            ? `
-                                <span class="badge badge-owner">
-                                    DEFAULT
-                                </span>
-                            `
-                            : ""
+function openProviderModal(providerUuid = null) {
+
+    const modal =
+        document.getElementById(
+            "providerModal"
+        );
+
+
+    const title =
+        document.getElementById(
+            "providerModalTitle"
+        );
+
+
+    const editId =
+        document.getElementById(
+            "providerEditId"
+        );
+
+
+    const providerId =
+        document.getElementById(
+            "providerId"
+        );
+
+
+    const providerName =
+        document.getElementById(
+            "providerName"
+        );
+
+
+    const description =
+        document.getElementById(
+            "providerDescription"
+        );
+
+
+    const status =
+        document.getElementById(
+            "providerStatus"
+        );
+
+
+    const isDefault =
+        document.getElementById(
+            "providerDefault"
+        );
+
+
+    editId.value = "";
+
+    providerId.value = "";
+
+    providerName.value = "";
+
+    description.value = "";
+
+    status.value = "active";
+
+    isDefault.checked = false;
+
+
+    if (providerUuid) {
+
+        const provider =
+            providerCache.find(
+                item => item.id === providerUuid
+            );
+
+
+        if (!provider) {
+
+            showMessage(
+                "Provider tidak ditemukan."
+            );
+
+            return;
+        }
+
+
+        title.textContent =
+            "EDIT PROVIDER";
+
+
+        editId.value =
+            provider.id;
+
+
+        providerId.value =
+            provider.provider_id || "";
+
+
+        providerName.value =
+            provider.provider_name || "";
+
+
+        description.value =
+            provider.description || "";
+
+
+        status.value =
+            provider.status || "active";
+
+
+        isDefault.checked =
+            Boolean(
+                provider.is_default
+            );
+
+    } else {
+
+        title.textContent =
+            "ADD PROVIDER";
+
+    }
+
+
+    modal.style.display = "flex";
+
+
+    setTimeout(() => {
+
+        providerName.focus();
+
+    }, 50);
+}
+
+
+function closeProviderModal() {
+
+    document.getElementById(
+        "providerModal"
+    ).style.display = "none";
+}
+
+
+/* =========================================================
+   PROVIDER SAVE
+========================================================= */
+
+async function saveProvider() {
+
+    const editId =
+        document.getElementById(
+            "providerEditId"
+        ).value.trim();
+
+
+    const providerId =
+        document.getElementById(
+            "providerId"
+        ).value.trim();
+
+
+    const providerName =
+        document.getElementById(
+            "providerName"
+        ).value.trim();
+
+
+    const description =
+        document.getElementById(
+            "providerDescription"
+        ).value.trim();
+
+
+    const status =
+        document.getElementById(
+            "providerStatus"
+        ).value;
+
+
+    const isDefault =
+        document.getElementById(
+            "providerDefault"
+        ).checked;
+
+
+    if (!providerId) {
+
+        showMessage(
+            "Provider ID wajib diisi."
+        );
+
+        return;
+    }
+
+
+    if (!providerName) {
+
+        showMessage(
+            "Provider Name wajib diisi."
+        );
+
+        return;
+    }
+
+
+    if (
+        ![
+            "active",
+            "inactive",
+            "maintenance"
+        ].includes(status)
+    ) {
+
+        showMessage(
+            "Status provider tidak valid."
+        );
+
+        return;
+    }
+
+
+    const saveButton =
+        document.getElementById(
+            "providerSaveButton"
+        );
+
+
+    const originalText =
+        saveButton.textContent;
+
+
+    saveButton.disabled = true;
+
+    saveButton.textContent =
+        "MENYIMPAN...";
+
+
+    try {
+
+        let result;
+
+
+        /*
+         * EDIT
+         *
+         * RPC:
+         * admin_update_provider(
+         *   uuid,
+         *   text,
+         *   text,
+         *   text,
+         *   text,
+         *   boolean
+         * )
+         */
+
+        if (editId) {
+
+            result =
+                await supabaseClient.rpc(
+                    "admin_update_provider",
+                    {
+                        p_id:
+                            editId,
+
+                        p_provider_id:
+                            providerId,
+
+                        p_provider_name:
+                            providerName,
+
+                        p_description:
+                            description || null,
+
+                        p_status:
+                            status,
+
+                        p_is_default:
+                            isDefault
                     }
+                );
 
-                </div>
+        }
 
-            </div>
-        `;
+        /*
+         * CREATE
+         *
+         * RPC:
+         * admin_create_provider(
+         *   text,
+         *   text,
+         *   text,
+         *   text,
+         *   boolean
+         * )
+         */
 
-    }).join("");
+        else {
+
+            result =
+                await supabaseClient.rpc(
+                    "admin_create_provider",
+                    {
+                        p_provider_id:
+                            providerId,
+
+                        p_provider_name:
+                            providerName,
+
+                        p_description:
+                            description || null,
+
+                        p_status:
+                            status,
+
+                        p_is_default:
+                            isDefault
+                    }
+                );
+
+        }
+
+
+        if (result.error) {
+
+            console.error(
+                "Provider save error:",
+                result.error
+            );
+
+
+            showMessage(
+                "Gagal menyimpan provider: " +
+                result.error.message
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            editId
+                ? "Provider berhasil diperbarui."
+                : "Provider berhasil ditambahkan."
+        );
+
+
+        closeProviderModal();
+
+
+        await loadProviders();
+
+        await cacheProviders();
+
+    } catch (error) {
+
+        console.error(
+            "Unexpected provider error:",
+            error
+        );
+
+
+        showMessage(
+            "Terjadi kesalahan: " +
+            error.message
+        );
+
+    } finally {
+
+        saveButton.disabled = false;
+
+        saveButton.textContent =
+            originalText;
+    }
+}
+
+
+/* =========================================================
+   PROVIDER DELETE
+========================================================= */
+
+async function deleteProvider(
+    providerUuid,
+    providerName
+) {
+
+    if (!providerUuid) {
+
+        showMessage(
+            "ID provider tidak valid."
+        );
+
+        return;
+    }
+
+
+    const confirmed =
+        window.confirm(
+            `Hapus provider "${providerName}"?\n\n` +
+            `Tindakan ini tidak dapat dibatalkan.`
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const {
+            error
+        } = await supabaseClient.rpc(
+            "admin_delete_provider",
+            {
+                p_id:
+                    providerUuid
+            }
+        );
+
+
+        if (error) {
+
+            console.error(
+                "Provider delete error:",
+                error
+            );
+
+
+            showMessage(
+                "Gagal menghapus provider: " +
+                error.message
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            "Provider berhasil dihapus."
+        );
+
+
+        await loadProviders();
+
+        await cacheProviders();
+
+
+    } catch (error) {
+
+        console.error(
+            "Unexpected delete error:",
+            error
+        );
+
+
+        showMessage(
+            "Terjadi kesalahan: " +
+            error.message
+        );
+    }
+}
+
+
+/* =========================================================
+   PROVIDER CACHE
+========================================================= */
+
+async function cacheProviders() {
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("providers")
+        .select(
+            "id,provider_name,provider_id"
+        );
+
+
+    if (error) {
+
+        console.error(
+            "Provider cache error:",
+            error
+        );
+
+        return;
+    }
+
+
+    providerCache = data || [];
+}
+
+
+function getProviderName(providerId) {
+
+    const provider =
+        providerCache.find(
+            item => item.id === providerId
+        );
+
+
+    return provider
+        ? provider.provider_name
+        : providerId;
 }
 
 
@@ -1711,7 +2666,19 @@ async function loadProviders() {
 async function loadModels() {
 
     const table =
-        document.getElementById("modelsTable");
+        document.getElementById(
+            "modelsTable"
+        );
+
+
+    table.innerHTML = `
+        <tr>
+            <td colspan="6" class="empty">
+                Memuat model...
+            </td>
+        </tr>
+    `;
+
 
     const {
         data,
@@ -1732,6 +2699,7 @@ async function loadModels() {
             ascending: true
         });
 
+
     if (error) {
 
         table.innerHTML = `
@@ -1746,6 +2714,7 @@ async function loadModels() {
         return;
     }
 
+
     if (!data || !data.length) {
 
         table.innerHTML = `
@@ -1759,79 +2728,65 @@ async function loadModels() {
         return;
     }
 
-    table.innerHTML = data.map(model => {
 
-        return `
-            <tr>
+    table.innerHTML =
+        data.map(model => {
 
-                <td>
-                    ${escapeHtml(
-                        getProviderName(model.provider_id)
-                    )}
-                </td>
+            return `
+                <tr>
 
-                <td>
-                    ${escapeHtml(model.model_id)}
-                </td>
+                    <td>
+                        ${escapeHtml(
+                            getProviderName(
+                                model.provider_id
+                            )
+                        )}
+                    </td>
 
-                <td>
-                    ${escapeHtml(model.model_name)}
-                </td>
+                    <td>
+                        ${escapeHtml(
+                            model.model_id
+                        )}
+                    </td>
 
-                <td>
-                    ${Number(
-                        model.credit_cost || 0
-                    ).toLocaleString("id-ID")}
-                </td>
+                    <td>
+                        ${escapeHtml(
+                            model.model_name
+                        )}
+                    </td>
 
-                <td>
-                    ${model.min_duration || "-"}
-                    -
-                    ${model.max_duration || "-"}
-                </td>
+                    <td>
+                        ${Number(
+                            model.credit_cost || 0
+                        ).toLocaleString("id-ID")}
+                    </td>
 
-                <td>
-                    <span class="badge ${
-                        model.status === "active"
-                            ? "badge-active"
-                            : "badge-suspended"
-                    }">
-                        ${escapeHtml(model.status)}
-                    </span>
-                </td>
+                    <td>
+                        ${model.min_duration || "-"}
+                        -
+                        ${model.max_duration || "-"}
+                    </td>
 
-            </tr>
-        `;
+                    <td>
 
-    }).join("");
-}
+                        <span class="badge ${
+                            model.status === "active"
+                                ? "badge-active"
+                                : "badge-suspended"
+                        }">
 
+                            ${escapeHtml(
+                                model.status
+                            )}
 
-let providerCache = [];
+                        </span>
 
+                    </td>
 
-async function cacheProviders() {
+                </tr>
+            `;
 
-    const {
-        data
-    } = await supabaseClient
-        .from("providers")
-        .select("id,provider_name,provider_id");
-
-    providerCache = data || [];
-}
-
-
-function getProviderName(providerId) {
-
-    const provider =
-        providerCache.find(
-            item => item.id === providerId
-        );
-
-    return provider
-        ? provider.provider_name
-        : providerId;
+        }).join("");
 }
 
 
@@ -1842,7 +2797,10 @@ function getProviderName(providerId) {
 async function loadSystemSettings() {
 
     const table =
-        document.getElementById("settingsTable");
+        document.getElementById(
+            "settingsTable"
+        );
+
 
     const {
         data,
@@ -1857,19 +2815,21 @@ async function loadSystemSettings() {
         `)
         .order("setting_key");
 
+
     if (error) {
 
         table.innerHTML = `
             <tr>
                 <td colspan="4" class="empty">
-                    System settings hanya dapat dibaca
-                    melalui backend.
+                    System settings tidak dapat
+                    dibaca dari browser.
                 </td>
             </tr>
         `;
 
         return;
     }
+
 
     if (!data || !data.length) {
 
@@ -1884,33 +2844,43 @@ async function loadSystemSettings() {
         return;
     }
 
-    table.innerHTML = data.map(setting => {
 
-        return `
-            <tr>
+    table.innerHTML =
+        data.map(setting => {
 
-                <td>
-                    <strong>
-                        ${escapeHtml(setting.setting_key)}
-                    </strong>
-                </td>
+            return `
+                <tr>
 
-                <td>
-                    ${escapeHtml(setting.setting_value || "-")}
-                </td>
+                    <td>
+                        <strong>
+                            ${escapeHtml(
+                                setting.setting_key
+                            )}
+                        </strong>
+                    </td>
 
-                <td>
-                    ${escapeHtml(setting.description || "-")}
-                </td>
+                    <td>
+                        ${escapeHtml(
+                            setting.setting_value || "-"
+                        )}
+                    </td>
 
-                <td>
-                    ${formatDate(setting.updated_at)}
-                </td>
+                    <td>
+                        ${escapeHtml(
+                            setting.description || "-"
+                        )}
+                    </td>
 
-            </tr>
-        `;
+                    <td>
+                        ${formatDate(
+                            setting.updated_at
+                        )}
+                    </td>
 
-    }).join("");
+                </tr>
+            `;
+
+        }).join("");
 }
 
 
@@ -1918,63 +2888,175 @@ async function loadSystemSettings() {
    TABS
 ========================================================= */
 
-document.querySelectorAll(".tab").forEach(tab => {
+document.querySelectorAll(
+    ".tab"
+).forEach(tab => {
 
-    tab.addEventListener("click", async function () {
+    tab.addEventListener(
+        "click",
+        async function () {
 
-        document.querySelectorAll(".tab")
-            .forEach(item =>
-                item.classList.remove("active")
+            document.querySelectorAll(
+                ".tab"
+            ).forEach(item => {
+
+                item.classList.remove(
+                    "active"
+                );
+
+            });
+
+
+            document.querySelectorAll(
+                ".section"
+            ).forEach(section => {
+
+                section.classList.remove(
+                    "active"
+                );
+
+            });
+
+
+            this.classList.add(
+                "active"
             );
 
-        document.querySelectorAll(".section")
-            .forEach(section =>
-                section.classList.remove("active")
+
+            const target =
+                document.getElementById(
+                    this.dataset.tab
+                );
+
+
+            target.classList.add(
+                "active"
             );
 
-        this.classList.add("active");
 
-        const target =
-            document.getElementById(
-                this.dataset.tab
-            );
+            if (
+                this.dataset.tab ===
+                "providers"
+            ) {
 
-        target.classList.add("active");
+                await cacheProviders();
 
-        if (this.dataset.tab === "providers") {
-            await loadProviders();
+                await loadProviders();
+
+            }
+
+
+            if (
+                this.dataset.tab ===
+                "models"
+            ) {
+
+                await cacheProviders();
+
+                await loadModels();
+
+            }
+
+
+            if (
+                this.dataset.tab ===
+                "credit"
+            ) {
+
+                await loadTransactions();
+
+            }
+
+
+            if (
+                this.dataset.tab ===
+                "system"
+            ) {
+
+                await loadSystemSettings();
+
+            }
+
         }
-
-        if (this.dataset.tab === "models") {
-            await cacheProviders();
-            await loadModels();
-        }
-
-        if (this.dataset.tab === "credit") {
-            await loadTransactions();
-        }
-
-        if (this.dataset.tab === "system") {
-            await loadSystemSettings();
-        }
-
-    });
+    );
 
 });
+
+
+/* =========================================================
+   CLOSE MODALS WHEN CLICK OUTSIDE
+========================================================= */
+
+document.getElementById(
+    "providerModal"
+).addEventListener(
+    "click",
+    function (event) {
+
+        if (event.target === this) {
+
+            closeProviderModal();
+
+        }
+
+    }
+);
+
+
+document.getElementById(
+    "creditModal"
+).addEventListener(
+    "click",
+    function (event) {
+
+        if (event.target === this) {
+
+            closeCreditModal();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   ESC KEY
+========================================================= */
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key !== "Escape") {
+            return;
+        }
+
+
+        closeProviderModal();
+
+        closeCreditModal();
+
+    }
+);
 
 
 /* =========================================================
    LOGOUT
 ========================================================= */
 
-document.getElementById("logoutButton")
-    .addEventListener("click", async function () {
+document.getElementById(
+    "logoutButton"
+).addEventListener(
+    "click",
+    async function () {
 
         await supabaseClient.auth.signOut();
 
-        window.location.href = "../index.html";
+        window.location.href =
+            "../index.html";
 
-    });
+    }
+);
 
 
 /* =========================================================
@@ -1987,32 +3069,70 @@ function formatDate(value) {
         return "-";
     }
 
-    return new Date(value).toLocaleString(
-        "id-ID",
-        {
-            dateStyle: "short",
-            timeStyle: "short"
-        }
-    );
+
+    try {
+
+        return new Date(value)
+            .toLocaleString(
+                "id-ID",
+                {
+                    dateStyle: "short",
+                    timeStyle: "short"
+                }
+            );
+
+    } catch {
+
+        return "-";
+    }
 }
 
 
 function escapeHtml(value) {
 
-    return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 }
 
 
 function escapeJs(value) {
 
-    return String(value ?? "")
-        .replace(/\\/g, "\\\\")
-        .replace(/'/g, "\\'");
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /\\/g,
+            "\\\\"
+        )
+        .replace(
+            /'/g,
+            "\\'"
+        )
+        .replace(
+            /\r?\n/g,
+            "\\n"
+        );
 }
 
 
@@ -2022,18 +3142,21 @@ function escapeJs(value) {
 
 (async function init() {
 
-    const authenticated = await checkAuth();
+    const authenticated =
+        await checkAuth();
+
 
     if (!authenticated) {
         return;
     }
+
 
     await loadUsers();
 
     await cacheProviders();
 
 })();
-
+    
 </script>
 
 </body>
