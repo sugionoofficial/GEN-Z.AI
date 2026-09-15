@@ -90,22 +90,189 @@
 
             </form>
 
+
+            <!-- =================================================
+                 REGISTER
+                 ================================================= -->
+
+            <div class="register-section">
+
+                <div class="register-divider">
+                    <span></span>
+                    <small>ATAU</small>
+                    <span></span>
+                </div>
+
+
+                <p class="register-text">
+                    Belum memiliki akun?
+                </p>
+
+
+                <a
+                    href="register.html"
+                    class="register-button"
+                >
+                    DAFTAR SEKARANG
+                </a>
+
+            </div>
+
         </section>
 
     </main>
 
 
-    <!-- SUPABASE -->
+    <!-- =========================================================
+         REGISTER STYLE
+         Dibuat di sini agar langsung bekerja tanpa perlu
+         mengubah assets/css/login.css
+         ========================================================= -->
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+
+        .register-section {
+            margin-top: 22px;
+            text-align: center;
+        }
 
 
-    <!-- CONFIG -->
+        .register-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            margin-bottom: 17px;
+        }
+
+
+        .register-divider span {
+            flex: 1;
+
+            height: 1px;
+
+            background:
+                rgba(0,0,0,.09);
+        }
+
+
+        .register-divider small {
+            font-size: 8px;
+            font-weight: 800;
+
+            letter-spacing: .12em;
+
+            color:
+                #98a2b3;
+        }
+
+
+        .register-text {
+            margin-bottom: 10px;
+
+            font-size: 10px;
+
+            color:
+                #667085;
+        }
+
+
+        .register-button {
+            width: 100%;
+
+            min-height: 44px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border:
+                1px solid
+                #d0d5dd;
+
+            border-radius: 11px;
+
+            background:
+                #ffffff;
+
+            color:
+                #101828;
+
+            font-size: 10px;
+            font-weight: 850;
+
+            letter-spacing: .05em;
+
+            text-decoration: none;
+
+            transition:
+                background .18s ease,
+                color .18s ease,
+                border-color .18s ease,
+                transform .18s ease,
+                box-shadow .18s ease;
+        }
+
+
+        .register-button:hover {
+            transform:
+                translateY(-2px);
+
+            background:
+                #111827;
+
+            border-color:
+                #111827;
+
+            color:
+                #ffffff;
+
+            box-shadow:
+                0 10px 25px
+                rgba(15,23,42,.12);
+        }
+
+
+        .register-button:active {
+            transform:
+                translateY(0);
+        }
+
+
+        @media (max-width: 480px) {
+
+            .register-section {
+                margin-top: 18px;
+            }
+
+            .register-button {
+                min-height: 42px;
+            }
+
+        }
+
+    </style>
+
+
+    <!-- =========================================================
+         SUPABASE
+         ========================================================= -->
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
+
+    <!-- =========================================================
+         CONFIG
+         ========================================================= -->
 
     <script src="assets/js/config.js"></script>
 
 
-    <!-- AUTHENTICATION -->
+    <!-- =========================================================
+         AUTHENTICATION
+         ========================================================= -->
 
     <script src="assets/js/auth.js"></script>
 
