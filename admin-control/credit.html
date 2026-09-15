@@ -10,7 +10,6 @@
     <script src="../assets/js/config.js"></script>
 
     <style>
-        <link rel="stylesheet" href="../assets/css/admin-premium.css">
         * {
             box-sizing: border-box;
         }
@@ -377,19 +376,31 @@
     <aside class="sidebar">
 
         <div class="brand">GEN-Z.AI</div>
-        <div class="brand-sub">ADMIN CONTROL</div>
+
+        <div class="brand-sub">
+            ADMIN CONTROL
+        </div>
 
         <nav class="nav">
-            <a href="dashboard.html">DASHBOARD</a>
-            <a href="generate.html">GENERATE</a>
-            <a href="history.html">HISTORY</a>
-            <a href="admin-panel.html">ADMIN PANEL</a>
-            <a href="models.html">MODELS</a>
-            <a href="providers.html">PROVIDERS</a>
-            <a href="credit.html" class="active">CREDIT</a>
+
+            <a href="admin-panel.html">
+                DASHBOARD
+            </a>
+
+            <a href="../generate/index.html">
+                GENERATE
+            </a>
+
+            <a href="../history/index.html">
+                HISTORY
+            </a>
+
         </nav>
 
-        <button class="logout" onclick="logout()">
+        <button
+            class="logout"
+            onclick="logout()"
+        >
             LOG OUT
         </button>
 
@@ -400,14 +411,21 @@
         <div class="topbar">
 
             <div>
-                <h1 class="page-title">CREDIT MANAGEMENT</h1>
+
+                <h1 class="page-title">
+                    CREDIT MANAGEMENT
+                </h1>
 
                 <div class="page-subtitle">
                     Kelola saldo kredit pengguna GEN-Z.AI
                 </div>
+
             </div>
 
-            <div class="user-info" id="userInfo">
+            <div
+                class="user-info"
+                id="userInfo"
+            >
                 Memuat...
             </div>
 
@@ -416,6 +434,7 @@
         <div class="stats">
 
             <div class="stat-card">
+
                 <div class="stat-label">
                     TOTAL USERS
                 </div>
@@ -426,9 +445,11 @@
                 >
                     0
                 </div>
+
             </div>
 
             <div class="stat-card">
+
                 <div class="stat-label">
                     TOTAL CREDIT
                 </div>
@@ -439,6 +460,7 @@
                 >
                     0
                 </div>
+
             </div>
 
         </div>
@@ -448,6 +470,7 @@
             <div class="card-header">
 
                 <div>
+
                     <h2 class="card-title">
                         USER CREDIT
                     </h2>
@@ -455,6 +478,7 @@
                     <div class="card-subtitle">
                         Tambah atau kurangi kredit pengguna.
                     </div>
+
                 </div>
 
                 <button
@@ -630,6 +654,7 @@ async function loadCredit() {
     `;
 
     refreshButton.disabled = true;
+
     refreshButton.textContent =
         "LOADING...";
 
@@ -690,10 +715,15 @@ async function loadCredit() {
 
             container.innerHTML = `
                 <div class="empty">
-                    <strong>BELUM ADA USER</strong>
+
+                    <strong>
+                        BELUM ADA USER
+                    </strong>
+
                     <span>
                         Belum ada data pengguna.
                     </span>
+
                 </div>
             `;
 
@@ -745,31 +775,43 @@ async function loadCredit() {
                     </td>
 
                     <td>
+
                         <span class="role">
+
                             ${escapeHtml(
                                 user.role || "USER"
                             )}
+
                         </span>
+
                     </td>
 
                     <td>
+
                         <span class="credit">
+
                             ${Number(
                                 user.credits || 0
                             ).toLocaleString(
                                 "id-ID"
                             )}
+
                         </span>
+
                     </td>
 
                     <td>
+
                         <span
                             class="status ${status}"
                         >
+
                             ${escapeHtml(
                                 status
                             )}
+
                         </span>
+
                     </td>
 
                     <td>
@@ -819,6 +861,7 @@ async function loadCredit() {
 
         container.innerHTML = `
             <div class="empty">
+
                 <strong>
                     GAGAL MEMUAT CREDIT
                 </strong>
@@ -829,6 +872,7 @@ async function loadCredit() {
                         "Terjadi kesalahan."
                     )}
                 </span>
+
             </div>
         `;
 
