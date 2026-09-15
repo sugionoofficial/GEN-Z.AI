@@ -10,310 +10,911 @@
     <script src="../assets/js/config.js"></script>
 
     <style>
-        <link rel="stylesheet" href="../assets/css/admin-premium.css">
+        :root {
+            --bg: #f4f6fa;
+            --surface: rgba(255, 255, 255, 0.82);
+            --surface-solid: #ffffff;
+            --text: #111827;
+            --text-secondary: #344054;
+            --muted: #667085;
+            --border: rgba(15, 23, 42, 0.08);
+            --border-strong: #d9dee7;
+            --primary: #111827;
+            --primary-hover: #1f2937;
+            --success: #15803d;
+            --success-bg: #ecfdf3;
+            --warning: #b45309;
+            --warning-bg: #fffaeb;
+            --danger: #b42318;
+            --danger-bg: #fef3f2;
+            --info: #175cd3;
+            --info-bg: #eff8ff;
+            --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.05);
+            --shadow: 0 12px 40px rgba(15, 23, 42, 0.07);
+            --shadow-lg: 0 20px 55px rgba(15, 23, 42, 0.12);
+            --radius-sm: 10px;
+            --radius-md: 14px;
+            --radius-lg: 18px;
+            --radius-xl: 24px;
+            --transition: 180ms cubic-bezier(.2, .8, .2, 1);
+        }
+
         * {
             box-sizing: border-box;
         }
 
-        body {
-            margin: 0;
-            font-family: Arial, Helvetica, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa, #e9edf2);
-            color: #111827;
+        html {
+            scroll-behavior: smooth;
         }
 
-        .layout {
+        body {
+            margin: 0;
             min-height: 100vh;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(
+                    circle at 10% 0%,
+                    rgba(255, 255, 255, 0.95),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 100% 0%,
+                    rgba(226, 232, 240, 0.8),
+                    transparent 32%
+                ),
+                linear-gradient(
+                    180deg,
+                    #f8fafc 0%,
+                    var(--bg) 55%,
+                    #eef2f7 100%
+                );
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body.menu-open {
+            overflow: hidden;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
+
+        button {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        ::selection {
+            background: #111827;
+            color: #ffffff;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+
+        /* =====================================================
+           TOP BAR
+           ===================================================== */
+
+        .topbar {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            right: 18px;
+            z-index: 500;
+            height: 64px;
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px 0 8px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            background: rgba(255, 255, 255, 0.76);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .topbar-left,
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-button {
+            width: 46px;
+            height: 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            border-radius: 13px;
+            background: #111827;
+            color: #ffffff;
+            cursor: pointer;
+            transition:
+                transform var(--transition),
+                background var(--transition),
+                box-shadow var(--transition);
+            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.16);
+        }
+
+        .menu-button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .menu-icon {
+            width: 20px;
+            height: 16px;
+            position: relative;
+        }
+
+        .menu-icon span {
+            position: absolute;
+            left: 0;
+            width: 20px;
+            height: 2px;
+            border-radius: 99px;
+            background: #ffffff;
+            transition: all var(--transition);
+        }
+
+        .menu-icon span:nth-child(1) {
+            top: 0;
+        }
+
+        .menu-icon span:nth-child(2) {
+            top: 7px;
+        }
+
+        .menu-icon span:nth-child(3) {
+            top: 14px;
+        }
+
+        .menu-button.active .menu-icon span:nth-child(1) {
+            top: 7px;
+            transform: rotate(45deg);
+        }
+
+        .menu-button.active .menu-icon span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-button.active .menu-icon span:nth-child(3) {
+            top: 7px;
+            transform: rotate(-45deg);
+        }
+
+        .topbar-brand {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
+        .topbar-brand strong {
+            font-size: 15px;
+            font-weight: 850;
+            letter-spacing: -0.02em;
+        }
+
+        .topbar-brand span {
+            margin-top: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.12em;
+        }
+
+        .back-button {
+            min-height: 42px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.88);
+            color: var(--text);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 800;
+            transition:
+                background var(--transition),
+                transform var(--transition),
+                box-shadow var(--transition);
+        }
+
+        .back-button:hover {
+            background: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* =====================================================
+           SIDEBAR
+           ===================================================== */
+
+        .menu-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 600;
+            background: rgba(15, 23, 42, 0.25);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition);
+            backdrop-filter: blur(2px);
+        }
+
+        .menu-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .sidebar {
-            width: 240px;
-            min-height: 100vh;
-            background: #fff;
-            border-right: 1px solid #e5e7eb;
-            padding: 22px 16px;
             position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
+            top: 18px;
+            left: 18px;
+            bottom: 18px;
+            z-index: 700;
+            width: 270px;
+            padding: 22px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, 0.97),
+                    rgba(248, 250, 252, 0.95)
+                );
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            transform: translateX(calc(-100% - 30px));
+            transition: transform 220ms cubic-bezier(.2, .8, .2, 1);
+            display: flex;
+            flex-direction: column;
         }
 
-        .brand {
-            font-size: 24px;
+        .sidebar.show {
+            transform: translateX(0);
+        }
+
+        .sidebar-brand {
+            padding: 10px 12px 22px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 18px;
+        }
+
+        .sidebar-brand strong {
+            display: block;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+        }
+
+        .sidebar-brand span {
+            display: block;
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 10px;
             font-weight: 800;
-            margin-bottom: 5px;
-        }
-
-        .brand-sub {
-            font-size: 11px;
-            color: #6b7280;
-            margin-bottom: 28px;
-            letter-spacing: 1px;
+            letter-spacing: 0.14em;
         }
 
         .nav {
             display: flex;
             flex-direction: column;
-            gap: 7px;
+            gap: 6px;
         }
 
-        .nav a {
-            text-decoration: none;
-            color: #374151;
-            padding: 12px 13px;
-            border-radius: 9px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .nav a:hover {
-            background: #f3f4f6;
-        }
-
-        .nav a.active {
-            background: #111827;
-            color: #fff;
-        }
-
-        .logout {
-            margin-top: 25px;
+        .nav a,
+        .nav button {
             width: 100%;
+            min-height: 46px;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 0 13px;
             border: 0;
-            background: #f3f4f6;
-            color: #111827;
-            padding: 11px;
-            border-radius: 9px;
+            border-radius: 12px;
+            background: transparent;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 750;
+            text-align: left;
             cursor: pointer;
-            font-weight: 700;
+            transition:
+                background var(--transition),
+                color var(--transition),
+                transform var(--transition);
         }
+
+        .nav a:hover,
+        .nav button:hover {
+            background: #f1f3f6;
+            color: var(--text);
+            transform: translateX(2px);
+        }
+
+        .nav-icon {
+            width: 19px;
+            height: 19px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 19px;
+            color: currentColor;
+        }
+
+        .nav-divider {
+            height: 1px;
+            margin: 12px 8px;
+            background: var(--border);
+        }
+
+        .logout-button {
+            margin-top: auto;
+            color: #991b1b !important;
+            background: #fff5f5 !important;
+        }
+
+        .logout-button:hover {
+            background: #fee2e2 !important;
+        }
+
+        /* =====================================================
+           MAIN
+           ===================================================== */
 
         .main {
-            margin-left: 240px;
-            width: calc(100% - 240px);
-            padding: 30px;
+            width: 100%;
+            min-height: 100vh;
+            padding: 110px 28px 40px;
         }
 
-        .topbar {
+        .content {
+            width: min(1380px, 100%);
+            margin: 0 auto;
+        }
+
+        .page-header {
             display: flex;
+            align-items: flex-end;
             justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
             align-items: center;
-            margin-bottom: 25px;
-            gap: 15px;
+            gap: 7px;
+            margin-bottom: 10px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 850;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .eyebrow-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #111827;
+            box-shadow: 0 0 0 5px rgba(17, 24, 39, 0.07);
         }
 
         .page-title {
             margin: 0;
-            font-size: 28px;
-            font-weight: 800;
+            font-size: clamp(28px, 4vw, 42px);
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: -0.055em;
         }
 
         .page-subtitle {
-            margin-top: 6px;
-            color: #6b7280;
+            max-width: 700px;
+            margin: 12px 0 0;
+            color: var(--muted);
             font-size: 14px;
+            line-height: 1.7;
         }
 
-        .user-info {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 10px 14px;
-            font-size: 13px;
-        }
-
-        .card {
-            background: rgba(255, 255, 255, .96);
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            box-shadow: 0 8px 25px rgba(15, 23, 42, .05);
-            overflow: hidden;
-        }
-
-        .card-header {
-            padding: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .card-title {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 800;
-        }
-
-        .card-subtitle {
-            margin-top: 5px;
-            color: #6b7280;
-            font-size: 13px;
-        }
-
-        .btn {
-            border: 0;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .btn-dark {
-            background: #111827;
-            color: #fff;
-        }
-
-        .btn-edit {
-            background: #f3f4f6;
-            color: #111827;
-        }
-
-        .btn-delete {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .btn:disabled {
-            opacity: .5;
-            cursor: not-allowed;
-        }
-
-        .message {
-            margin: 18px 20px 0;
+        .admin-user {
+            min-width: 190px;
             padding: 12px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            display: none;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--surface);
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(18px);
         }
 
-        .message.success {
-            display: block;
-            background: #ecfdf5;
-            color: #047857;
-            border: 1px solid #a7f3d0;
-        }
-
-        .message.error {
-            display: block;
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-        }
-
-        .table-wrap {
-            width: 100%;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 900px;
-        }
-
-        th,
-        td {
-            padding: 14px 18px;
-            text-align: left;
-            border-bottom: 1px solid #eef0f3;
-            font-size: 13px;
-        }
-
-        th {
-            background: #f9fafb;
-            color: #6b7280;
-            font-size: 11px;
-            letter-spacing: .5px;
+        .admin-user-label {
+            color: var(--muted);
+            font-size: 9px;
             font-weight: 800;
-        }
-
-        tr:hover td {
-            background: #fafafa;
-        }
-
-        .provider-name {
-            font-weight: 800;
-        }
-
-        .provider-id {
-            display: inline-block;
-            font-family: monospace;
-            background: #f3f4f6;
-            padding: 5px 7px;
-            border-radius: 5px;
-            font-size: 12px;
-        }
-
-        .status {
-            display: inline-block;
-            padding: 5px 9px;
-            border-radius: 999px;
-            font-size: 10px;
-            font-weight: 800;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
         }
 
+        .admin-user-value {
+            margin-top: 5px;
+            overflow: hidden;
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 800;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* =====================================================
+           HERO / SUMMARY
+           ===================================================== */
+
+        .hero-card {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255, 255, 255, 0.94),
+                    rgba(245, 247, 250, 0.86)
+                );
+            box-shadow: var(--shadow);
+        }
+
+        .hero-card::after {
+            content: "";
+            position: absolute;
+            width: 240px;
+            height: 240px;
+            right: -100px;
+            top: -120px;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle,
+                rgba(148, 163, 184, 0.16),
+                transparent 68%
+            );
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 25px;
+        }
+
+        .hero-copy h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 850;
+            letter-spacing: -0.025em;
+        }
+
+        .hero-copy p {
+            max-width: 650px;
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .add-provider-button {
+            min-height: 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-shrink: 0;
+            padding: 0 17px;
+            border: 0;
+            border-radius: 13px;
+            background: linear-gradient(135deg, #111827, #293241);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(17, 24, 39, 0.17);
+            transition:
+                transform var(--transition),
+                box-shadow var(--transition);
+        }
+
+        .add-provider-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 30px rgba(17, 24, 39, 0.22);
+        }
+
+        /* =====================================================
+           STATS
+           ===================================================== */
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            background: var(--surface);
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(18px);
+        }
+
+        .stat-card::after {
+            content: "";
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            right: -45px;
+            top: -45px;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle,
+                rgba(148, 163, 184, 0.13),
+                transparent 70%
+            );
+        }
+
+        .stat-label {
+            position: relative;
+            z-index: 1;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .stat-value {
+            position: relative;
+            z-index: 1;
+            margin-top: 8px;
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+        }
+
+        /* =====================================================
+           PROVIDER PANEL
+           ===================================================== */
+
+        .panel {
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 20px 22px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 850;
+            letter-spacing: -0.02em;
+        }
+
+        .panel-subtitle {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .provider-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            padding: 20px;
+        }
+
+        .provider-card {
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            background: rgba(255, 255, 255, 0.72);
+            transition:
+                transform var(--transition),
+                box-shadow var(--transition),
+                border-color var(--transition);
+        }
+
+        .provider-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(15, 23, 42, 0.13);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .provider-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .provider-identity {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .provider-logo {
+            width: 46px;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border-radius: 14px;
+            background: #111827;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 900;
+            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.14);
+        }
+
+        .provider-name {
+            overflow: hidden;
+            font-size: 15px;
+            font-weight: 850;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .provider-id {
+            margin-top: 4px;
+            overflow: hidden;
+            color: var(--muted);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 10px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            padding: 6px 9px;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
         .status.active {
-            background: #dcfce7;
-            color: #166534;
+            color: var(--success);
+            background: var(--success-bg);
         }
 
         .status.inactive {
-            background: #f3f4f6;
-            color: #4b5563;
+            color: #475467;
+            background: #f2f4f7;
         }
 
         .status.maintenance {
-            background: #fef3c7;
-            color: #92400e;
+            color: var(--warning);
+            background: var(--warning-bg);
         }
 
-        .default-badge {
-            display: inline-block;
-            margin-left: 6px;
-            padding: 4px 7px;
-            border-radius: 999px;
-            background: #dbeafe;
-            color: #1d4ed8;
+        .provider-description {
+            min-height: 42px;
+            margin: 16px 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .provider-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .meta-box {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        .meta-label {
+            color: var(--muted);
             font-size: 9px;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .meta-value {
+            margin-top: 5px;
+            font-size: 11px;
             font-weight: 800;
         }
 
-        .actions {
+        .provider-actions {
             display: flex;
             gap: 7px;
             flex-wrap: wrap;
         }
 
-        .empty {
-            padding: 60px 20px;
-            text-align: center;
-            color: #6b7280;
+        .action-button {
+            min-height: 35px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 0 11px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #ffffff;
+            color: var(--text-secondary);
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            transition:
+                background var(--transition),
+                color var(--transition),
+                transform var(--transition);
         }
 
-        .empty strong {
+        .action-button:hover {
+            background: #f8fafc;
+            color: var(--text);
+            transform: translateY(-1px);
+        }
+
+        .action-button.danger {
+            color: var(--danger);
+            background: var(--danger-bg);
+            border-color: rgba(180, 35, 24, 0.08);
+        }
+
+        /* =====================================================
+           EMPTY STATE
+           ===================================================== */
+
+        .empty-state {
+            padding: 70px 25px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            background: #f1f3f6;
+            color: #475467;
+        }
+
+        .empty-state h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 850;
+        }
+
+        .empty-state p {
+            max-width: 470px;
+            margin: 8px auto 20px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        /* =====================================================
+           MESSAGE
+           ===================================================== */
+
+        .message {
+            display: none;
+            margin: 16px 20px 0;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .message.show {
             display: block;
-            color: #111827;
-            margin-bottom: 8px;
         }
 
-        .loading {
-            padding: 50px;
-            text-align: center;
-            color: #6b7280;
+        .message.success {
+            color: var(--success);
+            background: var(--success-bg);
+            border: 1px solid rgba(21, 128, 61, 0.1);
         }
+
+        .message.error {
+            color: var(--danger);
+            background: var(--danger-bg);
+            border: 1px solid rgba(180, 35, 24, 0.1);
+        }
+
+        /* =====================================================
+           MODAL
+           ===================================================== */
 
         .modal {
             position: fixed;
             inset: 0;
-            background: rgba(15, 23, 42, .45);
+            z-index: 1000;
             display: none;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            z-index: 1000;
+            background: rgba(15, 23, 42, 0.42);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
         }
 
         .modal.show {
@@ -321,135 +922,256 @@
         }
 
         .modal-box {
-            width: 100%;
-            max-width: 560px;
-            background: #fff;
-            border-radius: 14px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, .2);
-            overflow: hidden;
+            width: min(560px, 100%);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: var(--radius-xl);
+            background: rgba(255, 255, 255, 0.97);
+            box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
         }
 
         .modal-header {
-            padding: 20px;
-            border-bottom: 1px solid #e5e7eb;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 20px 22px;
+            border-bottom: 1px solid var(--border);
         }
 
         .modal-title {
             margin: 0;
-            font-size: 18px;
-            font-weight: 800;
+            font-size: 17px;
+            font-weight: 850;
         }
 
-        .close {
+        .modal-subtitle {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
             border: 0;
-            background: transparent;
-            font-size: 22px;
+            border-radius: 10px;
+            background: #f2f4f7;
+            color: #475467;
+            font-size: 20px;
             cursor: pointer;
-            color: #6b7280;
         }
 
         .form {
-            padding: 20px;
+            padding: 22px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
         }
 
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 15px;
         }
 
-        .form-group label {
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .form-label {
             display: block;
-            font-size: 12px;
-            font-weight: 800;
             margin-bottom: 7px;
-            color: #374151;
+            color: var(--text-secondary);
+            font-size: 10px;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
         }
 
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
+        .form-control {
             width: 100%;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 11px 12px;
-            font-family: inherit;
-            font-size: 13px;
+            min-height: 44px;
+            padding: 0 12px;
+            border: 1px solid var(--border-strong);
+            border-radius: 11px;
             outline: none;
+            background: #ffffff;
+            color: var(--text);
+            font-size: 12px;
+            transition:
+                border-color var(--transition),
+                box-shadow var(--transition);
         }
 
-        .form-group textarea {
-            resize: vertical;
+        textarea.form-control {
             min-height: 90px;
+            padding: 12px;
+            resize: vertical;
         }
 
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            border-color: #111827;
+        .form-control:focus {
+            border-color: #98a2b3;
+            box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.05);
         }
 
-        .checkbox-row {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            margin-bottom: 18px;
-            font-size: 13px;
+        .api-key-wrap {
+            position: relative;
         }
 
-        .checkbox-row input {
-            width: 16px;
-            height: 16px;
+        .api-key-wrap .form-control {
+            padding-right: 48px;
+        }
+
+        .toggle-key {
+            position: absolute;
+            right: 7px;
+            top: 7px;
+            width: 31px;
+            height: 30px;
+            border: 0;
+            border-radius: 8px;
+            background: #f2f4f7;
+            color: #475467;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .form-hint {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.5;
         }
 
         .modal-footer {
-            padding: 15px 20px;
-            border-top: 1px solid #e5e7eb;
             display: flex;
             justify-content: flex-end;
             gap: 8px;
+            padding: 16px 22px;
+            border-top: 1px solid var(--border);
         }
 
-        @media (max-width: 800px) {
-            .sidebar {
-                width: 190px;
-            }
-
-            .main {
-                margin-left: 190px;
-                width: calc(100% - 190px);
-                padding: 20px;
-            }
+        .modal-button {
+            min-height: 40px;
+            padding: 0 15px;
+            border: 0;
+            border-radius: 11px;
+            font-size: 11px;
+            font-weight: 850;
+            cursor: pointer;
         }
 
-        @media (max-width: 600px) {
-            .layout {
-                display: block;
+        .modal-button.cancel {
+            background: #f2f4f7;
+            color: #344054;
+        }
+
+        .modal-button.save {
+            background: #111827;
+            color: #ffffff;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+
+        @media (max-width: 900px) {
+            .stats {
+                grid-template-columns: 1fr 1fr 1fr;
             }
 
-            .sidebar {
-                position: relative;
-                width: 100%;
-                min-height: auto;
-                border-right: 0;
-                border-bottom: 1px solid #e5e7eb;
+            .provider-grid {
+                grid-template-columns: 1fr;
             }
 
-            .nav {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .main {
-                margin-left: 0;
-                width: 100%;
-                padding: 15px;
-            }
-
-            .topbar {
-                flex-direction: column;
+            .page-header {
                 align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .admin-user {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 650px) {
+            .topbar {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                height: 58px;
+            }
+
+            .topbar-brand {
+                display: none;
+            }
+
+            .back-button {
+                min-height: 38px;
+                padding: 0 11px;
+                font-size: 10px;
+            }
+
+            .main {
+                padding: 88px 13px 28px;
+            }
+
+            .page-title {
+                font-size: 30px;
+            }
+
+            .page-subtitle {
+                font-size: 12px;
+            }
+
+            .hero-card {
+                padding: 18px;
+            }
+
+            .hero-content {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .add-provider-button {
+                width: 100%;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .panel-header {
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 18px;
+            }
+
+            .provider-grid {
+                padding: 13px;
+            }
+
+            .provider-card {
+                padding: 16px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .form-group.full {
+                grid-column: auto;
+            }
+
+            .sidebar {
+                top: 10px;
+                left: 10px;
+                bottom: 10px;
+                width: min(290px, calc(100vw - 20px));
             }
         }
     </style>
@@ -457,951 +1179,913 @@
 
 <body>
 
-<div class="layout">
+    <!-- =====================================================
+         TOP BAR
+         ===================================================== -->
 
-    <aside class="sidebar">
+    <header class="topbar">
 
-        <div class="brand">GEN-Z.AI</div>
-        <div class="brand-sub">ADMIN CONTROL</div>
+        <div class="topbar-left">
+
+            <button
+                class="menu-button"
+                id="menuButton"
+                type="button"
+                aria-label="Buka menu"
+                onclick="toggleMenu()"
+            >
+                <span class="menu-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+            </button>
+
+            <div class="topbar-brand">
+                <strong>GEN-Z.AI</strong>
+                <span>ADMIN CONTROL</span>
+            </div>
+
+        </div>
+
+        <div class="topbar-right">
+
+            <a
+                class="back-button"
+                href="admin-panel.html"
+            >
+                <span>←</span>
+                <span>Back to Admin Panel</span>
+            </a>
+
+        </div>
+
+    </header>
+
+
+    <!-- =====================================================
+         MENU OVERLAY
+         ===================================================== -->
+
+    <div
+        class="menu-overlay"
+        id="menuOverlay"
+        onclick="closeMenu()"
+    ></div>
+
+
+    <!-- =====================================================
+         SIDEBAR
+         ===================================================== -->
+
+    <aside
+        class="sidebar"
+        id="sidebar"
+    >
+
+        <div class="sidebar-brand">
+            <strong>GEN-Z.AI</strong>
+            <span>ADMIN CONTROL</span>
+        </div>
 
         <nav class="nav">
-            <a href="dashboard.html">DASHBOARD</a>
-            <a href="generate.html">GENERATE</a>
-            <a href="history.html">HISTORY</a>
-            <a href="admin-panel.html">ADMIN PANEL</a>
-            <a href="models.html">MODELS</a>
-            <a href="providers.html" class="active">PROVIDERS</a>
-            <a href="credit.html">CREDIT</a>
+
+            <a href="dashboard.html">
+                <span class="nav-icon">⌂</span>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="generate.html">
+                <span class="nav-icon">✦</span>
+                <span>Generate</span>
+            </a>
+
+            <a href="history.html">
+                <span class="nav-icon">◷</span>
+                <span>History</span>
+            </a>
+
         </nav>
 
-        <button class="logout" onclick="logout()">
-            LOG OUT
+        <div class="nav-divider"></div>
+
+        <button
+            class="nav-button logout-button"
+            type="button"
+            onclick="logout()"
+        >
+            <span class="nav-icon">↪</span>
+            <span>Log Out</span>
         </button>
 
     </aside>
 
+
+    <!-- =====================================================
+         MAIN
+         ===================================================== -->
+
     <main class="main">
 
-        <div class="topbar">
+        <div class="content">
 
-            <div>
-                <h1 class="page-title">PROVIDER MANAGEMENT</h1>
+            <section class="page-header">
 
-                <div class="page-subtitle">
-                    Kelola provider AI yang digunakan GEN-Z.AI
+                <div>
+
+                    <div class="eyebrow">
+                        <span class="eyebrow-dot"></span>
+                        PROVIDER CONTROL
+                    </div>
+
+                    <h1 class="page-title">
+                        Providers
+                    </h1>
+
+                    <p class="page-subtitle">
+                        Kelola koneksi provider AI yang digunakan
+                        oleh GEN-Z.AI. Setiap provider nantinya dapat
+                        memiliki konfigurasi dan API key sendiri.
+                    </p>
+
                 </div>
-            </div>
 
-            <div class="user-info" id="userInfo">
-                Memuat...
-            </div>
+                <div class="admin-user">
+
+                    <div class="admin-user-label">
+                        Administrator
+                    </div>
+
+                    <div
+                        class="admin-user-value"
+                        id="userInfo"
+                    >
+                        Memuat...
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 HERO
+                 ================================================= -->
+
+            <section class="hero-card">
+
+                <div class="hero-content">
+
+                    <div class="hero-copy">
+
+                        <h2>
+                            AI Provider Management
+                        </h2>
+
+                        <p>
+                            Tambahkan provider baru, atur status
+                            koneksi, dan siapkan API key provider
+                            tanpa mencampurkan konfigurasi antar provider.
+                        </p>
+
+                    </div>
+
+                    <button
+                        class="add-provider-button"
+                        type="button"
+                        onclick="openProviderModal()"
+                    >
+                        <span>＋</span>
+                        <span>Tambah Provider</span>
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 STATS
+                 ================================================= -->
+
+            <section class="stats">
+
+                <div class="stat-card">
+
+                    <div class="stat-label">
+                        Total Provider
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="totalProviders"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+                <div class="stat-card">
+
+                    <div class="stat-label">
+                        Active
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="activeProviders"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+                <div class="stat-card">
+
+                    <div class="stat-label">
+                        Maintenance
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="maintenanceProviders"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 PROVIDER PANEL
+                 ================================================= -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <h2 class="panel-title">
+                            Connected Providers
+                        </h2>
+
+                        <div class="panel-subtitle">
+                            Daftar provider yang tersedia di sistem.
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div
+                    class="message"
+                    id="message"
+                ></div>
+
+                <div
+                    class="provider-grid"
+                    id="providerGrid"
+                >
+
+                    <div
+                        class="empty-state"
+                        style="grid-column: 1 / -1;"
+                    >
+
+                        <div class="empty-icon">
+
+                            <svg
+                                width="28"
+                                height="28"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.7"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <rect
+                                    x="3"
+                                    y="3"
+                                    width="18"
+                                    height="18"
+                                    rx="4"
+                                ></rect>
+
+                                <path d="M8 12h8"></path>
+                                <path d="M12 8v8"></path>
+                            </svg>
+
+                        </div>
+
+                        <h3>
+                            Belum ada provider
+                        </h3>
+
+                        <p>
+                            Belum ada konfigurasi provider yang ditampilkan.
+                            Gunakan tombol Tambah Provider untuk menyiapkan
+                            provider pertama.
+                        </p>
+
+                        <button
+                            class="add-provider-button"
+                            type="button"
+                            onclick="openProviderModal()"
+                        >
+                            <span>＋</span>
+                            <span>Tambah Provider</span>
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </section>
 
         </div>
 
-        <section class="card">
+    </main>
 
-            <div class="card-header">
+
+    <!-- =====================================================
+         PROVIDER MODAL
+         ===================================================== -->
+
+    <div
+        class="modal"
+        id="providerModal"
+        onclick="handleModalBackdrop(event)"
+    >
+
+        <div class="modal-box">
+
+            <div class="modal-header">
 
                 <div>
-                    <h2 class="card-title">
-                        AI PROVIDERS
-                    </h2>
 
-                    <div class="card-subtitle">
-                        Provider ID digunakan oleh sistem backend.
+                    <h3
+                        class="modal-title"
+                        id="modalTitle"
+                    >
+                        Tambah Provider
+                    </h3>
+
+                    <div class="modal-subtitle">
+                        Siapkan konfigurasi dasar provider AI.
                     </div>
+
                 </div>
 
                 <button
-                    class="btn btn-dark"
-                    onclick="openCreateProvider()"
+                    class="modal-close"
+                    type="button"
+                    onclick="closeProviderModal()"
+                    aria-label="Tutup"
                 >
-                    + PROVIDER
+                    ×
                 </button>
 
             </div>
 
-            <div
-                id="message"
-                class="message"
-            ></div>
 
-            <div id="providerContainer">
+            <form
+                class="form"
+                id="providerForm"
+                onsubmit="saveProvider(event)"
+            >
 
-                <div class="loading">
-                    Memuat provider...
+                <div class="form-grid">
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="providerName"
+                        >
+                            Nama Provider
+                        </label>
+
+                        <input
+                            class="form-control"
+                            type="text"
+                            id="providerName"
+                            autocomplete="off"
+                            placeholder="Contoh: ChinaAPI"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="providerId"
+                        >
+                            Provider ID
+                        </label>
+
+                        <input
+                            class="form-control"
+                            type="text"
+                            id="providerId"
+                            autocomplete="off"
+                            placeholder="Contoh: chinaapi"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group full">
+
+                        <label
+                            class="form-label"
+                            for="providerApiKey"
+                        >
+                            API Key
+                        </label>
+
+                        <div class="api-key-wrap">
+
+                            <input
+                                class="form-control"
+                                type="password"
+                                id="providerApiKey"
+                                autocomplete="new-password"
+                                placeholder="Masukkan API key provider"
+                            >
+
+                            <button
+                                class="toggle-key"
+                                type="button"
+                                onclick="toggleApiKey()"
+                                aria-label="Tampilkan API key"
+                            >
+                                ◉
+                            </button>
+
+                        </div>
+
+                        <div class="form-hint">
+                            API key nantinya akan disimpan melalui backend
+                            provider yang terpisah.
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="providerStatus"
+                        >
+                            Status
+                        </label>
+
+                        <select
+                            class="form-control"
+                            id="providerStatus"
+                        >
+
+                            <option value="active">
+                                Active
+                            </option>
+
+                            <option value="inactive">
+                                Inactive
+                            </option>
+
+                            <option value="maintenance">
+                                Maintenance
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="providerDescription"
+                        >
+                            Keterangan
+                        </label>
+
+                        <input
+                            class="form-control"
+                            type="text"
+                            id="providerDescription"
+                            autocomplete="off"
+                            placeholder="Contoh: Video generation provider"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group full">
+
+                        <label
+                            class="form-label"
+                            for="providerNotes"
+                        >
+                            Catatan
+                        </label>
+
+                        <textarea
+                            class="form-control"
+                            id="providerNotes"
+                            placeholder="Catatan konfigurasi provider..."
+                        ></textarea>
+
+                    </div>
+
                 </div>
 
-            </div>
-
-        </section>
-
-    </main>
-
-</div>
+            </form>
 
 
-<div
-    class="modal"
-    id="providerModal"
->
+            <div class="modal-footer">
 
-    <div class="modal-box">
-
-        <div class="modal-header">
-
-            <h3
-                class="modal-title"
-                id="modalTitle"
-            >
-                TAMBAH PROVIDER
-            </h3>
-
-            <button
-                class="close"
-                onclick="closeProviderModal()"
-            >
-                ×
-            </button>
-
-        </div>
-
-        <div class="form">
-
-            <div class="form-group">
-
-                <label for="providerId">
-                    PROVIDER ID
-                </label>
-
-                <input
-                    type="text"
-                    id="providerId"
-                    placeholder="contoh: chinaapi"
+                <button
+                    class="modal-button cancel"
+                    type="button"
+                    onclick="closeProviderModal()"
                 >
+                    Batal
+                </button>
 
-            </div>
-
-            <div class="form-group">
-
-                <label for="providerName">
-                    PROVIDER NAME
-                </label>
-
-                <input
-                    type="text"
-                    id="providerName"
-                    placeholder="contoh: ByteDance"
+                <button
+                    class="modal-button save"
+                    type="submit"
+                    form="providerForm"
                 >
+                    Simpan Provider
+                </button>
 
             </div>
-
-            <div class="form-group">
-
-                <label for="providerDescription">
-                    DESCRIPTION
-                </label>
-
-                <textarea
-                    id="providerDescription"
-                    placeholder="Deskripsi provider..."
-                ></textarea>
-
-            </div>
-
-            <div class="form-group">
-
-                <label for="providerStatus">
-                    STATUS
-                </label>
-
-                <select id="providerStatus">
-
-                    <option value="active">
-                        Active
-                    </option>
-
-                    <option value="inactive">
-                        Inactive
-                    </option>
-
-                    <option value="maintenance">
-                        Maintenance
-                    </option>
-
-                </select>
-
-            </div>
-
-            <div class="checkbox-row">
-
-                <input
-                    type="checkbox"
-                    id="providerDefault"
-                >
-
-                <label for="providerDefault">
-                    Jadikan default provider
-                </label>
-
-            </div>
-
-        </div>
-
-        <div class="modal-footer">
-
-            <button
-                class="btn"
-                onclick="closeProviderModal()"
-            >
-                BATAL
-            </button>
-
-            <button
-                class="btn btn-dark"
-                id="providerSaveButton"
-                onclick="saveProvider()"
-            >
-                SIMPAN
-            </button>
 
         </div>
 
     </div>
 
-</div>
 
+    <script>
+        let editingProvider = null;
 
-<script>
+        function toggleMenu() {
 
-const supabaseClient = supabase.createClient(
-    GENZ_CONFIG.SUPABASE_URL,
-    GENZ_CONFIG.SUPABASE_KEY
-);
+            const sidebar =
+                document.getElementById("sidebar");
 
-let currentUser = null;
-let editId = null;
+            const overlay =
+                document.getElementById("menuOverlay");
 
-function escapeHtml(value) {
+            const button =
+                document.getElementById("menuButton");
 
-    if (
-        value === null ||
-        value === undefined
-    ) {
-        return "";
-    }
+            const isOpen =
+                sidebar.classList.contains("show");
 
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+            if (isOpen) {
 
-}
+                closeMenu();
 
-function showMessage(text, type) {
+            } else {
 
-    const message =
-        document.getElementById("message");
+                sidebar.classList.add("show");
+                overlay.classList.add("show");
+                button.classList.add("active");
+                document.body.classList.add("menu-open");
 
-    message.textContent = text;
-
-    message.className =
-        "message " + type;
-
-}
-
-function clearMessage() {
-
-    const message =
-        document.getElementById("message");
-
-    message.textContent = "";
-
-    message.className =
-        "message";
-
-}
-
-async function checkAuth() {
-
-    const {
-        data: {
-            session
-        }
-    } = await supabaseClient.auth.getSession();
-
-    if (
-        !session ||
-        !session.user
-    ) {
-
-        window.location.href =
-            "../index.html";
-
-        return false;
-
-    }
-
-    currentUser =
-        session.user;
-
-    const {
-        data: profile,
-        error
-    } = await supabaseClient
-        .from("profiles")
-        .select(
-            "id,email,name,role,status,credits"
-        )
-        .eq(
-            "id",
-            currentUser.id
-        )
-        .single();
-
-    if (
-        error ||
-        !profile
-    ) {
-
-        await supabaseClient.auth.signOut();
-
-        window.location.href =
-            "../index.html";
-
-        return false;
-
-    }
-
-    if (
-        !["ADMIN", "OWNER"].includes(
-            profile.role
-        ) ||
-        profile.status !== "active"
-    ) {
-
-        window.location.href =
-            "../user/dashboard.html";
-
-        return false;
-
-    }
-
-    document.getElementById(
-        "userInfo"
-    ).textContent =
-        profile.email +
-        " • " +
-        profile.role;
-
-    return true;
-
-}
-
-async function loadProviders() {
-
-    const container =
-        document.getElementById(
-            "providerContainer"
-        );
-
-    container.innerHTML = `
-        <div class="loading">
-            Memuat provider...
-        </div>
-    `;
-
-    try {
-
-        const {
-            data,
-            error
-        } = await supabaseClient
-            .from("providers")
-            .select(`
-                id,
-                provider_id,
-                provider_name,
-                description,
-                status,
-                is_default,
-                created_at,
-                updated_at
-            `)
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-        if (error) {
-
-            throw error;
+            }
 
         }
 
-        if (
-            !data ||
-            data.length === 0
-        ) {
 
-            container.innerHTML = `
-                <div class="empty">
+        function closeMenu() {
 
-                    <strong>
-                        BELUM ADA PROVIDER
-                    </strong>
+            const sidebar =
+                document.getElementById("sidebar");
 
-                    <span>
-                        Tambahkan provider AI pertama.
-                    </span>
+            const overlay =
+                document.getElementById("menuOverlay");
 
-                </div>
-            `;
+            const button =
+                document.getElementById("menuButton");
 
-            return;
+            sidebar.classList.remove("show");
+            overlay.classList.remove("show");
+            button.classList.remove("active");
+            document.body.classList.remove("menu-open");
 
         }
 
-        let html = `
-            <div class="table-wrap">
 
-                <table>
+        document.querySelectorAll(".nav a").forEach(function(link) {
 
-                    <thead>
+            link.addEventListener("click", function() {
 
-                        <tr>
-                            <th>PROVIDER</th>
-                            <th>PROVIDER ID</th>
-                            <th>DESCRIPTION</th>
-                            <th>STATUS</th>
-                            <th>DEFAULT</th>
-                            <th>ACTION</th>
-                        </tr>
+                closeMenu();
 
-                    </thead>
-
-                    <tbody>
-        `;
-
-        data.forEach(provider => {
-
-            const status =
-                String(
-                    provider.status ||
-                    "inactive"
-                ).toLowerCase();
-
-            html += `
-                <tr>
-
-                    <td>
-
-                        <div class="provider-name">
-                            ${escapeHtml(
-                                provider.provider_name
-                            )}
-                        </div>
-
-                    </td>
-
-                    <td>
-
-                        <span class="provider-id">
-                            ${escapeHtml(
-                                provider.provider_id
-                            )}
-                        </span>
-
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            provider.description ||
-                            "-"
-                        )}
-                    </td>
-
-                    <td>
-
-                        <span
-                            class="status ${status}"
-                        >
-                            ${escapeHtml(status)}
-                        </span>
-
-                    </td>
-
-                    <td>
-
-                        ${
-                            provider.is_default
-                            ? `
-                                <span class="default-badge">
-                                    DEFAULT
-                                </span>
-                            `
-                            : "-"
-                        }
-
-                    </td>
-
-                    <td>
-
-                        <div class="actions">
-
-                            <button
-                                class="btn btn-edit"
-                                onclick="editProvider(
-                                    '${provider.id}',
-                                    '${escapeAttribute(provider.provider_id)}',
-                                    '${escapeAttribute(provider.provider_name)}',
-                                    '${escapeAttribute(provider.description || "")}',
-                                    '${escapeAttribute(provider.status)}',
-                                    ${provider.is_default ? "true" : "false"}
-                                )"
-                            >
-                                EDIT
-                            </button>
-
-                            <button
-                                class="btn btn-delete"
-                                onclick="deleteProvider(
-                                    '${provider.id}',
-                                    '${escapeAttribute(provider.provider_name)}'
-                                )"
-                            >
-                                HAPUS
-                            </button>
-
-                        </div>
-
-                    </td>
-
-                </tr>
-            `;
+            });
 
         });
 
-        html += `
-                    </tbody>
 
-                </table>
+        function openProviderModal(provider = null) {
 
-            </div>
-        `;
+            editingProvider = provider;
 
-        container.innerHTML =
-            html;
+            const modal =
+                document.getElementById("providerModal");
 
-    } catch (error) {
+            const title =
+                document.getElementById("modalTitle");
 
-        console.error(
-            "PROVIDER ERROR:",
-            error
-        );
+            const name =
+                document.getElementById("providerName");
 
-        container.innerHTML = `
-            <div class="empty">
+            const id =
+                document.getElementById("providerId");
 
-                <strong>
-                    GAGAL MEMUAT PROVIDER
-                </strong>
+            const apiKey =
+                document.getElementById("providerApiKey");
 
-                <span>
-                    ${escapeHtml(
-                        error.message ||
-                        "Terjadi kesalahan."
-                    )}
-                </span>
+            const status =
+                document.getElementById("providerStatus");
 
-            </div>
-        `;
+            const description =
+                document.getElementById("providerDescription");
 
-        showMessage(
-            "Gagal mengambil data provider.",
-            "error"
-        );
+            const notes =
+                document.getElementById("providerNotes");
 
-    }
 
-}
+            if (provider) {
 
-function escapeAttribute(value) {
+                title.textContent =
+                    "Edit Provider";
 
-    if (
-        value === null ||
-        value === undefined
-    ) {
-        return "";
-    }
+                name.value =
+                    provider.name || "";
 
-    return String(value)
-        .replace(/\\/g, "\\\\")
-        .replace(/'/g, "\\'")
-        .replace(/\r/g, "\\r")
-        .replace(/\n/g, "\\n");
+                id.value =
+                    provider.id || "";
 
-}
+                apiKey.value =
+                    "";
 
-function openCreateProvider() {
+                status.value =
+                    provider.status || "active";
 
-    editId = null;
+                description.value =
+                    provider.description || "";
 
-    document.getElementById(
-        "modalTitle"
-    ).textContent =
-        "TAMBAH PROVIDER";
+                notes.value =
+                    provider.notes || "";
 
-    document.getElementById(
-        "providerId"
-    ).value = "";
+            } else {
 
-    document.getElementById(
-        "providerName"
-    ).value = "";
+                title.textContent =
+                    "Tambah Provider";
 
-    document.getElementById(
-        "providerDescription"
-    ).value = "";
+                document
+                    .getElementById("providerForm")
+                    .reset();
 
-    document.getElementById(
-        "providerStatus"
-    ).value =
-        "active";
+                status.value =
+                    "active";
 
-    document.getElementById(
-        "providerDefault"
-    ).checked =
-        false;
+            }
 
-    document.getElementById(
-        "providerModal"
-    ).classList.add("show");
 
-}
+            modal.classList.add("show");
 
-function editProvider(
-    id,
-    providerId,
-    providerName,
-    description,
-    status,
-    isDefault
-) {
+            setTimeout(function() {
 
-    editId = id;
+                name.focus();
 
-    document.getElementById(
-        "modalTitle"
-    ).textContent =
-        "EDIT PROVIDER";
-
-    document.getElementById(
-        "providerId"
-    ).value =
-        providerId;
-
-    document.getElementById(
-        "providerName"
-    ).value =
-        providerName;
-
-    document.getElementById(
-        "providerDescription"
-    ).value =
-        description;
-
-    document.getElementById(
-        "providerStatus"
-    ).value =
-        status;
-
-    document.getElementById(
-        "providerDefault"
-    ).checked =
-        isDefault;
-
-    document.getElementById(
-        "providerModal"
-    ).classList.add("show");
-
-}
-
-function closeProviderModal() {
-
-    document.getElementById(
-        "providerModal"
-    ).classList.remove("show");
-
-    editId = null;
-
-}
-
-async function saveProvider() {
-
-    clearMessage();
-
-    const button =
-        document.getElementById(
-            "providerSaveButton"
-        );
-
-    const providerId =
-        document.getElementById(
-            "providerId"
-        ).value.trim();
-
-    const providerName =
-        document.getElementById(
-            "providerName"
-        ).value.trim();
-
-    const description =
-        document.getElementById(
-            "providerDescription"
-        ).value.trim();
-
-    const status =
-        document.getElementById(
-            "providerStatus"
-        ).value;
-
-    const isDefault =
-        document.getElementById(
-            "providerDefault"
-        ).checked;
-
-    if (!providerId) {
-
-        showMessage(
-            "Provider ID wajib diisi.",
-            "error"
-        );
-
-        return;
-
-    }
-
-    if (!providerName) {
-
-        showMessage(
-            "Provider Name wajib diisi.",
-            "error"
-        );
-
-        return;
-
-    }
-
-    button.disabled = true;
-    button.textContent =
-        "MENYIMPAN...";
-
-    try {
-
-        let result;
-
-        if (editId) {
-
-            result =
-                await supabaseClient
-                    .rpc(
-                        "admin_update_provider",
-                        {
-                            p_id: editId,
-                            p_provider_id:
-                                providerId,
-                            p_provider_name:
-                                providerName,
-                            p_description:
-                                description ||
-                                null,
-                            p_status:
-                                status,
-                            p_is_default:
-                                isDefault
-                        }
-                    );
-
-        } else {
-
-            result =
-                await supabaseClient
-                    .rpc(
-                        "admin_create_provider",
-                        {
-                            p_provider_id:
-                                providerId,
-                            p_provider_name:
-                                providerName,
-                            p_description:
-                                description ||
-                                null,
-                            p_status:
-                                status,
-                            p_is_default:
-                                isDefault
-                        }
-                    );
+            }, 80);
 
         }
 
-        if (result.error) {
 
-            throw result.error;
+        function closeProviderModal() {
+
+            const modal =
+                document.getElementById("providerModal");
+
+            modal.classList.remove("show");
+
+            editingProvider = null;
 
         }
 
-        closeProviderModal();
 
-        showMessage(
-            editId
-                ? "Provider berhasil diperbarui."
-                : "Provider berhasil ditambahkan.",
-            "success"
-        );
+        function handleModalBackdrop(event) {
 
-        await loadProviders();
+            if (
+                event.target ===
+                document.getElementById("providerModal")
+            ) {
 
-    } catch (error) {
+                closeProviderModal();
 
-        console.error(
-            "SAVE PROVIDER ERROR:",
-            error
-        );
+            }
 
-        showMessage(
-            "Gagal menyimpan provider: " +
-            (
-                error.message ||
-                "Terjadi kesalahan."
-            ),
-            "error"
-        );
+        }
 
-    } finally {
 
-        button.disabled = false;
-        button.textContent =
-            "SIMPAN";
+        function toggleApiKey() {
 
-    }
+            const input =
+                document.getElementById("providerApiKey");
 
-}
+            if (input.type === "password") {
 
-async function deleteProvider(
-    id,
-    providerName
-) {
+                input.type = "text";
 
-    const confirmed =
-        window.confirm(
-            "Hapus provider \"" +
-            providerName +
-            "\"?"
-        );
+            } else {
 
-    if (!confirmed) {
+                input.type = "password";
 
-        return;
+            }
 
-    }
+        }
 
-    clearMessage();
 
-    try {
+        function saveProvider(event) {
 
-        const {
-            error
-        } = await supabaseClient
-            .rpc(
-                "admin_delete_provider",
-                {
-                    p_id: id
-                }
+            event.preventDefault();
+
+            showMessage(
+                "success",
+                editingProvider
+                    ? "Tampilan edit provider sudah siap. Backend provider akan dihubungkan pada tahap berikutnya."
+                    : "Tampilan tambah provider sudah siap. Backend provider akan dihubungkan pada tahap berikutnya."
             );
-
-        if (error) {
-
-            throw error;
-
-        }
-
-        showMessage(
-            "Provider berhasil dihapus.",
-            "success"
-        );
-
-        await loadProviders();
-
-    } catch (error) {
-
-        console.error(
-            "DELETE PROVIDER ERROR:",
-            error
-        );
-
-        showMessage(
-            "Gagal menghapus provider: " +
-            (
-                error.message ||
-                "Terjadi kesalahan."
-            ),
-            "error"
-        );
-
-    }
-
-}
-
-async function logout() {
-
-    await supabaseClient.auth.signOut();
-
-    window.location.href =
-        "../index.html";
-
-}
-
-async function init() {
-
-    const authenticated =
-        await checkAuth();
-
-    if (!authenticated) {
-
-        return;
-
-    }
-
-    await loadProviders();
-
-}
-
-document.getElementById(
-    "providerModal"
-).addEventListener(
-    "click",
-    function(event) {
-
-        if (
-            event.target === this
-        ) {
 
             closeProviderModal();
 
         }
 
-    }
-);
 
-init();
+        function showMessage(type, text) {
 
-</script>
+            const message =
+                document.getElementById("message");
+
+            message.className =
+                "message show " + type;
+
+            message.textContent =
+                text;
+
+            setTimeout(function() {
+
+                message.className =
+                    "message";
+
+                message.textContent =
+                    "";
+
+            }, 5000);
+
+        }
+
+
+        function logout() {
+
+            try {
+
+                if (
+                    window.supabase &&
+                    window.GENZ_CONFIG
+                ) {
+
+                    const client =
+                        window.supabase.createClient(
+                            GENZ_CONFIG.SUPABASE_URL,
+                            GENZ_CONFIG.SUPABASE_KEY
+                        );
+
+                    client.auth.signOut().finally(function() {
+
+                        window.location.href =
+                            "../login.html";
+
+                    });
+
+                    return;
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "Logout error:",
+                    error
+                );
+
+            }
+
+            window.location.href =
+                "../login.html";
+
+        }
+
+
+        async function loadCurrentUser() {
+
+            const userInfo =
+                document.getElementById("userInfo");
+
+            try {
+
+                if (
+                    !window.supabase ||
+                    !window.GENZ_CONFIG
+                ) {
+
+                    userInfo.textContent =
+                        "Administrator";
+
+                    return;
+
+                }
+
+                const client =
+                    window.supabase.createClient(
+                        GENZ_CONFIG.SUPABASE_URL,
+                        GENZ_CONFIG.SUPABASE_KEY
+                    );
+
+                const result =
+                    await client.auth.getUser();
+
+                const user =
+                    result?.data?.user;
+
+                if (user?.email) {
+
+                    userInfo.textContent =
+                        user.email;
+
+                } else {
+
+                    userInfo.textContent =
+                        "Administrator";
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "User info error:",
+                    error
+                );
+
+                userInfo.textContent =
+                    "Administrator";
+
+            }
+
+        }
+
+
+        document.addEventListener(
+            "keydown",
+            function(event) {
+
+                if (event.key === "Escape") {
+
+                    closeMenu();
+                    closeProviderModal();
+
+                }
+
+            }
+        );
+
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            function() {
+
+                loadCurrentUser();
+
+            }
+        );
+    </script>
 
 </body>
 </html>
