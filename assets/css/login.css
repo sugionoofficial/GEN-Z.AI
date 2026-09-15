@@ -7,8 +7,6 @@
 :root {
     --bg: #f4f7fb;
     --surface: rgba(255, 255, 255, 0.88);
-    --surface-solid: #ffffff;
-
     --text: #101828;
     --text-soft: #475467;
     --muted: #667085;
@@ -167,8 +165,7 @@ body::after {
 
     padding: 42px;
 
-    background:
-        var(--surface);
+    background: var(--surface);
 
     border:
         1px solid rgba(255, 255, 255, 0.85);
@@ -189,7 +186,7 @@ body::after {
 }
 
 
-/* top shine */
+/* Top shine */
 
 .login-card::before {
     content: "";
@@ -459,7 +456,7 @@ body::after {
 
 
 /* =========================================================
-   MESSAGE
+   LOGIN MESSAGE
    ========================================================= */
 
 .login-message {
