@@ -8,7 +8,10 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
 
     <style>
         :root {
@@ -18,7 +21,6 @@
             --muted: #6b7280;
             --border: #e5e7eb;
             --dark: #111827;
-            --dark-soft: #1f2937;
             --accent: #6366f1;
             --accent-2: #8b5cf6;
             --success: #16a34a;
@@ -36,15 +38,38 @@
         body {
             font-family: "Inter", sans-serif;
             background:
-                radial-gradient(circle at 15% 10%, rgba(99,102,241,.10), transparent 30%),
-                radial-gradient(circle at 85% 20%, rgba(139,92,246,.08), transparent 30%),
+                radial-gradient(
+                    circle at 15% 10%,
+                    rgba(99,102,241,.10),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 85% 20%,
+                    rgba(139,92,246,.08),
+                    transparent 30%
+                ),
                 var(--bg);
             color: var(--text);
             min-height: 100vh;
         }
 
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
         /* =========================
-           MENU BUTTON
+           MENU
         ========================= */
 
         .menu-button {
@@ -62,7 +87,6 @@
             justify-content: center;
             flex-direction: column;
             gap: 5px;
-            cursor: pointer;
             z-index: 1200;
             box-shadow: 0 12px 30px rgba(0,0,0,.18);
             transition: .25s ease;
@@ -88,7 +112,11 @@
             inset: 0 auto 0 0;
             width: 285px;
             background:
-                linear-gradient(180deg, #111827 0%, #0b1220 100%);
+                linear-gradient(
+                    180deg,
+                    #111827 0%,
+                    #0b1220 100%
+                );
             color: white;
             z-index: 1100;
             transform: translateX(-105%);
@@ -179,7 +207,6 @@
             color: #d1d5db;
             padding: 12px;
             border-radius: 13px;
-            cursor: pointer;
             font-weight: 600;
         }
 
@@ -263,7 +290,12 @@
             position: relative;
             overflow: hidden;
             background:
-                linear-gradient(120deg, #111827, #312e81 60%, #6d28d9);
+                linear-gradient(
+                    120deg,
+                    #111827,
+                    #312e81 60%,
+                    #6d28d9
+                );
             color: white;
             border-radius: 28px;
             padding: 42px;
@@ -328,17 +360,59 @@
             padding: 15px 22px;
             border-radius: 14px;
             font-weight: 800;
-            cursor: pointer;
-            transition: .25s ease;
             box-shadow: 0 12px 30px rgba(0,0,0,.15);
+            transition: .25s ease;
         }
 
         .generate-btn:hover {
             transform: translateY(-3px);
         }
 
-        .generate-btn:active {
-            transform: translateY(0);
+        /* =========================
+           EDIT MODE
+        ========================= */
+
+        .edit-banner {
+            margin-bottom: 25px;
+            padding: 17px 20px;
+            border-radius: 18px;
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(99,102,241,.10),
+                    rgba(139,92,246,.10)
+                );
+            border: 1px solid rgba(99,102,241,.18);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .edit-banner strong {
+            display: block;
+            font-size: 14px;
+        }
+
+        .edit-banner span {
+            display: block;
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .add-video-btn {
+            border: 0;
+            background: var(--dark);
+            color: white;
+            padding: 11px 16px;
+            border-radius: 11px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .add-video-btn:hover {
+            background: #1f2937;
         }
 
         /* =========================
@@ -392,7 +466,6 @@
             color: #4b5563;
             font-size: 11px;
             font-weight: 700;
-            cursor: pointer;
             transition: .2s ease;
         }
 
@@ -432,9 +505,27 @@
             aspect-ratio: 16 / 10;
             overflow: hidden;
             background:
-                radial-gradient(circle at 30% 30%, rgba(139,92,246,.7), transparent 35%),
-                radial-gradient(circle at 70% 70%, rgba(59,130,246,.65), transparent 35%),
+                radial-gradient(
+                    circle at 30% 30%,
+                    rgba(139,92,246,.7),
+                    transparent 35%
+                ),
+                radial-gradient(
+                    circle at 70% 70%,
+                    rgba(59,130,246,.65),
+                    transparent 35%
+                ),
                 #111827;
+        }
+
+        .video-preview video,
+        .video-preview img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
         }
 
         .video-preview::before {
@@ -448,6 +539,7 @@
             font-size: 24px;
             font-weight: 800;
             letter-spacing: 2px;
+            z-index: 0;
         }
 
         .play {
@@ -466,6 +558,7 @@
             font-size: 15px;
             padding-left: 2px;
             box-shadow: 0 8px 25px rgba(0,0,0,.2);
+            z-index: 3;
         }
 
         .video-type {
@@ -479,6 +572,7 @@
             color: white;
             font-size: 9px;
             font-weight: 700;
+            z-index: 3;
         }
 
         .video-info {
@@ -494,12 +588,14 @@
             color: var(--muted);
             font-size: 11px;
             line-height: 1.5;
+            min-height: 33px;
         }
 
         .video-meta {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 10px;
             margin-top: 13px;
             padding-top: 12px;
             border-top: 1px solid var(--border);
@@ -508,6 +604,226 @@
         .video-meta span {
             color: #9ca3af;
             font-size: 10px;
+        }
+
+        .edit-actions {
+            display: flex;
+            gap: 7px;
+        }
+
+        .edit-action {
+            border: 0;
+            padding: 7px 9px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .edit-action.edit {
+            background: #eef2ff;
+            color: #4f46e5;
+        }
+
+        .edit-action.delete {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        /* =========================
+           EMPTY / LOADING
+        ========================= */
+
+        .state-box {
+            grid-column: 1 / -1;
+            padding: 50px 20px;
+            text-align: center;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        .state-box strong {
+            display: block;
+            font-size: 14px;
+        }
+
+        .state-box span {
+            display: block;
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        /* =========================
+           MODAL
+        ========================= */
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,.55);
+            backdrop-filter: blur(6px);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-card {
+            width: min(560px, 100%);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 30px 90px rgba(0,0,0,.25);
+            padding: 25px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 22px;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+        }
+
+        .modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: #f3f4f6;
+            color: #374151;
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            padding: 11px 12px;
+            outline: none;
+            background: white;
+            color: var(--text);
+            font-size: 12px;
+        }
+
+        .form-group textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99,102,241,.10);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: 5px;
+        }
+
+        .checkbox-row input {
+            width: auto;
+        }
+
+        .checkbox-row label {
+            margin: 0;
+            font-size: 11px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 9px;
+            margin-top: 22px;
+        }
+
+        .modal-btn {
+            border: 0;
+            padding: 11px 16px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .modal-btn.cancel {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .modal-btn.save {
+            background: var(--dark);
+            color: white;
+        }
+
+        .modal-btn.save:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+        }
+
+        /* =========================
+           TOAST
+        ========================= */
+
+        .toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 5000;
+            max-width: 340px;
+            padding: 13px 16px;
+            border-radius: 12px;
+            background: #111827;
+            color: white;
+            box-shadow: 0 15px 40px rgba(0,0,0,.2);
+            font-size: 11px;
+            transform: translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: .25s ease;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: #166534;
+        }
+
+        .toast.error {
+            background: #991b1b;
         }
 
         /* =========================
@@ -550,6 +866,15 @@
             .video-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            .edit-banner {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .add-video-btn {
+                width: 100%;
+            }
         }
 
         @media (max-width: 520px) {
@@ -568,7 +893,6 @@
                 padding-left: 58px;
                 align-items: flex-start;
                 flex-direction: column;
-                margin-bottom: 22px;
             }
 
             .credit-card {
@@ -576,28 +900,20 @@
             }
 
             .hero {
-                border-radius: 22px;
                 padding: 25px;
-            }
-
-            .hero h2 {
-                font-size: 27px;
+                border-radius: 22px;
             }
 
             .video-grid {
                 grid-template-columns: 1fr;
             }
 
-            .section-header {
-                align-items: flex-start;
+            .form-row {
+                grid-template-columns: 1fr;
             }
 
-            .view-all {
-                display: none;
-            }
-
-            .sidebar {
-                width: 275px;
+            .modal-card {
+                padding: 20px;
             }
         }
     </style>
@@ -605,35 +921,30 @@
 
 <body>
 
-    <!-- MENU -->
     <button
         class="menu-button"
         id="menuButton"
         type="button"
-        aria-label="Buka navigasi"
-        aria-controls="sidebar"
-        aria-expanded="false"
+        aria-label="Buka menu"
     >
         <span></span>
         <span></span>
         <span></span>
     </button>
 
-    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
 
         <div class="brand">
             <h2>GEN-Z.AI</h2>
-            <span>AI VIDEO GENERATION</span>
+            <span>AI VIDEO STUDIO</span>
         </div>
 
-        <!-- =========================
-             USER NAVIGATION
-             TEPAT 5 MENU
-        ========================= -->
         <nav class="nav">
 
-            <a href="./dashboard.html" class="active">
+            <a
+                href="./dashboard.html"
+                class="active"
+            >
                 Dashboard
             </a>
 
@@ -645,11 +956,11 @@
                 History
             </a>
 
-            <a href="./topup.html">
+            <a href="../topup/index.html">
                 Top Up
             </a>
 
-            <a href="./hub-admin.html">
+            <a href="../admin-control/admin-panel.html">
                 Hub Admin
             </a>
 
@@ -658,7 +969,7 @@
         <div class="sidebar-bottom">
 
             <div class="user-mini">
-                <small>ACCOUNT</small>
+                <small>LOGIN AS</small>
                 <strong id="sidebarEmail">Loading...</strong>
             </div>
 
@@ -667,34 +978,45 @@
                 id="logoutButton"
                 type="button"
             >
-                LOG OUT
+                Logout
             </button>
 
         </div>
+
     </aside>
 
-    <div class="overlay" id="overlay"></div>
+    <div
+        class="overlay"
+        id="overlay"
+    ></div>
 
-    <!-- MAIN -->
     <main class="main">
 
-        <header class="topbar">
+        <div class="topbar">
 
             <div class="welcome">
                 <h1>Welcome back.</h1>
+
                 <p>
-                    Jelajahi contoh video dan mulai membuat karya AI kamu.
+                    Jelajahi contoh video AI yang tersedia
+                    di GEN-Z.AI.
                 </p>
             </div>
 
             <div class="credit-card">
-                <small>AVAILABLE CREDITS</small>
-                <strong id="creditBalance">0</strong>
+
+                <small>
+                    AVAILABLE CREDITS
+                </small>
+
+                <strong id="creditValue">
+                    —
+                </strong>
+
             </div>
 
-        </header>
+        </div>
 
-        <!-- HERO -->
         <section class="hero">
 
             <div class="hero-content">
@@ -704,13 +1026,13 @@
                 </span>
 
                 <h2>
-                    Turn your ideas<br>
-                    into videos.
+                    Turn your ideas into videos.
                 </h2>
 
                 <p>
-                    Buat video AI berkualitas tinggi dari teks, gambar,
-                    karakter, produk, dan berbagai konsep kreatif lainnya.
+                    Buat video menggunakan teknologi AI
+                    dan ubah ide kreatif Anda menjadi
+                    visual yang menarik.
                 </p>
 
             </div>
@@ -720,30 +1042,63 @@
                 id="generateButton"
                 type="button"
             >
-                + GENERATE VIDEO
+                Generate Video →
             </button>
 
         </section>
 
-        <!-- EXAMPLES -->
+        <section
+            class="edit-banner hidden"
+            id="editBanner"
+        >
+
+            <div>
+                <strong>
+                    Dashboard Edit Mode
+                </strong>
+
+                <span>
+                    ADMIN / OWNER dapat menambah,
+                    mengedit, mengaktifkan, dan
+                    menghapus video dashboard.
+                </span>
+            </div>
+
+            <button
+                class="add-video-btn"
+                id="addVideoButton"
+                type="button"
+            >
+                + Tambah Video
+            </button>
+
+        </section>
+
         <section>
 
             <div class="section-header">
 
                 <div>
-                    <h2>Video Examples</h2>
+                    <h2>
+                        Video Examples
+                    </h2>
+
                     <p>
-                        Inspirasi berdasarkan jenis video.
+                        Pilih kategori untuk melihat
+                        contoh video.
                     </p>
                 </div>
 
                 <span class="view-all">
-                    EXPLORE ALL
+                    GEN-Z.AI
                 </span>
 
             </div>
 
-            <div class="categories" id="categories">
+            <div
+                class="categories"
+                id="categories"
+            >
 
                 <button
                     class="category active"
@@ -819,167 +1174,22 @@
 
             </div>
 
-            <div class="video-grid" id="videoGrid">
+            <div
+                class="video-grid"
+                id="videoGrid"
+            >
 
-                <article class="video-card" data-category="text">
-                    <div class="video-preview">
-                        <span class="video-type">TEXT TO VIDEO</span>
-                        <span class="play">▶</span>
-                    </div>
+                <div class="state-box">
 
-                    <div class="video-info">
-                        <h3>Cinematic AI Scene</h3>
+                    <strong>
+                        Memuat video...
+                    </strong>
 
-                        <p>
-                            Konsep video cinematic dari prompt teks.
-                        </p>
+                    <span>
+                        Mengambil data dari dashboard.
+                    </span>
 
-                        <div class="video-meta">
-                            <span>16:9</span>
-                            <span>AI VIDEO</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="video-card" data-category="image">
-                    <div class="video-preview">
-                        <span class="video-type">IMAGE TO VIDEO</span>
-                        <span class="play">▶</span>
-                    </div>
-
-                    <div class="video-info">
-                        <h3>Image Motion</h3>
-
-                        <p>
-                            Mengubah gambar statis menjadi video dinamis.
-                        </p>
-
-                        <div class="video-meta">
-                            <span>9:16</span>
-                            <span>AI VIDEO</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="video-card" data-category="character">
-                    <div class="video-preview">
-                        <span class="video-type">CHARACTER</span>
-                        <span class="play">▶</span>
-                    </div>
-
-                    <div class="video-info">
-                        <h3>AI Character</h3>
-
-                        <p>
-                            Karakter AI dengan ekspresi dan gerakan natural.
-                        </p>
-
-                        <div class="video-meta">
-                            <span>9:16</span>
-                            <span>CHARACTER</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="video-card" data-category="product">
-                    <div class="video-preview">
-                        <span class="video-type">PRODUCT</span>
-                        <span class="play">▶</span>
-                    </div>
-
-                    <div class="video-info">
-                        <h3>Product Showcase</h3>
-
-                        <p>
-                            Video promosi produk untuk kebutuhan marketing.
-                        </p>
-
-                        <div class="video-meta">
-                            <span>9:16</span>
-                            <span>PRODUCT</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="video-card" data-category="fashion">
-                    <div class="video-preview">
-                        <span class="video-type">FASHION</span>
-                        <span class="play">▶</span>
-                    </div>
-
-                    <div class="video-info">
-                        <h3>Fashion Showcase</h3>
-
-                        <p>
-                            Konsep fashion video dengan visual premium.
-                        </p>
-
-                        <div class="video-meta">
-                            <span>9:16</span>
-                            <span>FASHION</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="video-card" data-category="cinematic">
-                    <div class="video-preview">
-                        <span class="video-type">CINEMATIC</span>
-                        <span class="play">▶</span>
-                    </div>
-
-                    <div class="video-info">
-                        <h3>Cinematic Story</h3>
-
-                        <p>
-                            Visual sinematik dengan camera movement.
-                        </p>
-
-                        <div class="video-meta">
-                            <span>16:9</span>
-                            <span>CINEMATIC</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="video-card" data-category="social">
-                    <div class="video-preview">
-                        <span class="video-type">SOCIAL MEDIA</span>
-                        <span class="play">▶</span>
-                    </div>
-
-                    <div class="video-info">
-                        <h3>Short Viral Video</h3>
-
-                        <p>
-                            Format pendek untuk TikTok, Reels, dan Shorts.
-                        </p>
-
-                        <div class="video-meta">
-                            <span>9:16</span>
-                            <span>SOCIAL</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="video-card" data-category="story">
-                    <div class="video-preview">
-                        <span class="video-type">STORY</span>
-                        <span class="play">▶</span>
-                    </div>
-
-                    <div class="video-info">
-                        <h3>AI Storytelling</h3>
-
-                        <p>
-                            Membangun cerita visual menggunakan AI.
-                        </p>
-
-                        <div class="video-meta">
-                            <span>16:9</span>
-                            <span>STORY</span>
-                        </div>
-                    </div>
-                </article>
+                </div>
 
             </div>
 
@@ -987,242 +1197,1503 @@
 
     </main>
 
-    <!-- SUPABASE -->
+    <!-- =========================
+         VIDEO EDIT MODAL
+    ========================= -->
+
+    <div
+        class="modal hidden"
+        id="videoModal"
+    >
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <h3 id="modalTitle">
+                    Tambah Video
+                </h3>
+
+                <button
+                    class="modal-close"
+                    id="modalClose"
+                    type="button"
+                    aria-label="Tutup"
+                >
+                    ×
+                </button>
+
+            </div>
+
+            <form id="videoForm">
+
+                <input
+                    type="hidden"
+                    id="videoId"
+                >
+
+                <div class="form-group">
+
+                    <label for="videoTitle">
+                        Judul Video
+                    </label>
+
+                    <input
+                        id="videoTitle"
+                        type="text"
+                        maxlength="150"
+                        placeholder="Masukkan judul video"
+                        required
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="videoDescription">
+                        Deskripsi
+                    </label>
+
+                    <textarea
+                        id="videoDescription"
+                        maxlength="500"
+                        placeholder="Masukkan deskripsi video"
+                    ></textarea>
+
+                </div>
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="videoCategory">
+                            Kategori
+                        </label>
+
+                        <select id="videoCategory">
+
+                            <option value="text">
+                                TEXT TO VIDEO
+                            </option>
+
+                            <option value="image">
+                                IMAGE TO VIDEO
+                            </option>
+
+                            <option value="character">
+                                CHARACTER
+                            </option>
+
+                            <option value="product">
+                                PRODUCT
+                            </option>
+
+                            <option value="fashion">
+                                FASHION
+                            </option>
+
+                            <option value="cinematic">
+                                CINEMATIC
+                            </option>
+
+                            <option value="social">
+                                SOCIAL MEDIA
+                            </option>
+
+                            <option value="story">
+                                STORY
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="videoRatio">
+                            Aspect Ratio
+                        </label>
+
+                        <select id="videoRatio">
+
+                            <option value="16:9">
+                                16:9
+                            </option>
+
+                            <option value="9:16">
+                                9:16
+                            </option>
+
+                            <option value="1:1">
+                                1:1
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="videoPath">
+                            Video Path / URL
+                        </label>
+
+                        <input
+                            id="videoPath"
+                            type="text"
+                            placeholder="contoh: videos/example.mp4"
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="thumbnailPath">
+                            Thumbnail Path / URL
+                        </label>
+
+                        <input
+                            id="thumbnailPath"
+                            type="text"
+                            placeholder="opsional"
+                        >
+
+                    </div>
+
+                </div>
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="videoSortOrder">
+                            Urutan
+                        </label>
+
+                        <input
+                            id="videoSortOrder"
+                            type="number"
+                            min="0"
+                            value="0"
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label>
+                            Status
+                        </label>
+
+                        <div class="checkbox-row">
+
+                            <input
+                                id="videoActive"
+                                type="checkbox"
+                                checked
+                            >
+
+                            <label for="videoActive">
+                                Tampilkan di dashboard user
+                            </label>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-actions">
+
+                    <button
+                        class="modal-btn cancel"
+                        id="cancelModalButton"
+                        type="button"
+                    >
+                        Batal
+                    </button>
+
+                    <button
+                        class="modal-btn save"
+                        id="saveVideoButton"
+                        type="submit"
+                    >
+                        Simpan Video
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <div
+        class="toast"
+        id="toast"
+    ></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
 
     <script>
-        let supabaseClient = null;
+        "use strict";
 
-        const menuButton =
-            document.getElementById("menuButton");
+        /*
+         * =====================================================
+         * GEN-Z.AI USER DASHBOARD
+         * =====================================================
+         *
+         * USER:
+         * - Melihat video aktif
+         * - Filter kategori
+         * - Tidak dapat edit
+         *
+         * ADMIN / OWNER:
+         * - Dapat menggunakan ?edit=1
+         * - Menambah video
+         * - Mengedit judul
+         * - Mengedit deskripsi
+         * - Mengedit kategori
+         * - Mengedit aspect ratio
+         * - Mengubah video path
+         * - Mengubah thumbnail
+         * - Mengubah urutan
+         * - Mengaktifkan / menonaktifkan video
+         * - Menghapus video
+         *
+         * Keamanan sebenarnya tetap dilakukan oleh
+         * Supabase RLS. Frontend hanya mengatur tampilan.
+         * =====================================================
+         */
 
-        const sidebar =
-            document.getElementById("sidebar");
+        const CONFIG =
+            window.GENZ_CONFIG || {};
 
-        const overlay =
-            document.getElementById("overlay");
+        const SUPABASE_URL =
+            CONFIG.SUPABASE_URL;
 
-        const generateButton =
-            document.getElementById("generateButton");
+        const SUPABASE_KEY =
+            CONFIG.SUPABASE_KEY;
 
-        const logoutButton =
-            document.getElementById("logoutButton");
-
-        /* =========================
-           SIDEBAR
-        ========================= */
-
-        menuButton.addEventListener("click", () => {
-
-            const isOpen =
-                sidebar.classList.contains("open");
-
-            if (isOpen) {
-                closeSidebar();
-            } else {
-
-                sidebar.classList.add("open");
-                overlay.classList.add("active");
-
-                menuButton.setAttribute(
-                    "aria-expanded",
-                    "true"
-                );
-            }
-        });
-
-        overlay.addEventListener(
-            "click",
-            closeSidebar
-        );
-
-        function closeSidebar() {
-
-            sidebar.classList.remove("open");
-            overlay.classList.remove("active");
-
-            menuButton.setAttribute(
-                "aria-expanded",
-                "false"
+        if (
+            !SUPABASE_URL ||
+            !SUPABASE_KEY
+        ) {
+            console.error(
+                "GENZ_CONFIG SUPABASE_URL / SUPABASE_KEY tidak tersedia."
             );
         }
 
-        /* =========================
-           INITIALIZE
-        ========================= */
+        const {
+            createClient
+        } = window.supabase;
 
-        async function init() {
+        const supabaseClient =
+            createClient(
+                SUPABASE_URL,
+                SUPABASE_KEY
+            );
 
-            try {
+        const EDIT_MODE =
+            new URLSearchParams(
+                window.location.search
+            ).get("edit") === "1";
 
-                if (!window.supabase) {
-                    window.location.replace("../login.html");
-                    return;
-                }
+        let currentUser = null;
+        let currentProfile = null;
+        let isAdmin = false;
+        let videos = [];
+        let activeCategory = "all";
 
-                if (
-                    !window.GENZ_CONFIG ||
-                    !GENZ_CONFIG.SUPABASE_URL ||
-                    !GENZ_CONFIG.SUPABASE_KEY
-                ) {
-                    window.location.replace("../login.html");
-                    return;
-                }
+        const elements = {
+            menuButton:
+                document.getElementById("menuButton"),
 
-                supabaseClient =
-                    window.supabase.createClient(
-                        GENZ_CONFIG.SUPABASE_URL,
-                        GENZ_CONFIG.SUPABASE_KEY
-                    );
+            sidebar:
+                document.getElementById("sidebar"),
 
-                const {
-                    data: { session },
-                    error: sessionError
-                } =
-                    await supabaseClient.auth.getSession();
+            overlay:
+                document.getElementById("overlay"),
 
-                if (sessionError || !session) {
-                    window.location.replace("../login.html");
-                    return;
-                }
+            logoutButton:
+                document.getElementById("logoutButton"),
 
-                const {
-                    data: profile,
-                    error
-                } =
-                    await supabaseClient
-                        .from("profiles")
-                        .select(
-                            "id,email,name,role,credits,status"
-                        )
-                        .eq("id", session.user.id)
-                        .single();
+            sidebarEmail:
+                document.getElementById("sidebarEmail"),
 
-                if (error || !profile) {
+            creditValue:
+                document.getElementById("creditValue"),
 
-                    await supabaseClient.auth.signOut();
+            generateButton:
+                document.getElementById("generateButton"),
 
-                    window.location.replace("../login.html");
-                    return;
-                }
+            editBanner:
+                document.getElementById("editBanner"),
 
-                if (profile.status !== "active") {
+            addVideoButton:
+                document.getElementById("addVideoButton"),
 
-                    await supabaseClient.auth.signOut();
+            categories:
+                document.getElementById("categories"),
 
-                    window.location.replace("../login.html");
-                    return;
-                }
+            videoGrid:
+                document.getElementById("videoGrid"),
 
-                /*
-                 * ADMIN / OWNER TIDAK BOLEH
-                 * BERADA DI DASHBOARD USER.
-                 */
+            videoModal:
+                document.getElementById("videoModal"),
 
-                if (
-                    profile.role === "ADMIN" ||
-                    profile.role === "OWNER"
-                ) {
+            modalTitle:
+                document.getElementById("modalTitle"),
 
-                    window.location.replace(
-                        "../admin/dashboard.html"
-                    );
+            modalClose:
+                document.getElementById("modalClose"),
 
-                    return;
-                }
+            cancelModalButton:
+                document.getElementById(
+                    "cancelModalButton"
+                ),
 
-                /*
-                 * USER SAJA YANG DAPAT
-                 * MELANJUTKAN KE DASHBOARD INI.
-                 */
+            videoForm:
+                document.getElementById("videoForm"),
 
-                if (profile.role !== "USER") {
+            videoId:
+                document.getElementById("videoId"),
 
-                    await supabaseClient.auth.signOut();
+            videoTitle:
+                document.getElementById("videoTitle"),
 
-                    window.location.replace("../login.html");
-                    return;
-                }
+            videoDescription:
+                document.getElementById(
+                    "videoDescription"
+                ),
 
-                document
-                    .getElementById("creditBalance")
-                    .textContent =
-                    Number(
-                        profile.credits || 0
-                    ).toLocaleString("id-ID");
+            videoCategory:
+                document.getElementById(
+                    "videoCategory"
+                ),
 
-                document
-                    .getElementById("sidebarEmail")
-                    .textContent =
-                    profile.email ||
-                    session.user.email ||
-                    "User";
+            videoRatio:
+                document.getElementById(
+                    "videoRatio"
+                ),
 
-            } catch (error) {
+            videoPath:
+                document.getElementById(
+                    "videoPath"
+                ),
 
-                console.error(
-                    "GEN-Z.AI Dashboard Error:",
-                    error
-                );
+            thumbnailPath:
+                document.getElementById(
+                    "thumbnailPath"
+                ),
 
-                window.location.replace("../login.html");
-            }
+            videoSortOrder:
+                document.getElementById(
+                    "videoSortOrder"
+                ),
+
+            videoActive:
+                document.getElementById(
+                    "videoActive"
+                ),
+
+            saveVideoButton:
+                document.getElementById(
+                    "saveVideoButton"
+                ),
+
+            toast:
+                document.getElementById("toast")
+        };
+
+        /* =====================================================
+           MENU
+        ===================================================== */
+
+        function openMenu() {
+            elements.sidebar.classList.add("open");
+            elements.overlay.classList.add("active");
         }
 
-        /* =========================
-           GENERATE VIDEO
-           USER -> SHARED GENERATOR
-        ========================= */
+        function closeMenu() {
+            elements.sidebar.classList.remove("open");
+            elements.overlay.classList.remove("active");
+        }
 
-        generateButton.addEventListener(
+        elements.menuButton.addEventListener(
             "click",
-            function () {
-
-                window.location.assign(
-                    "../generate/index.html"
-                );
+            () => {
+                if (
+                    elements.sidebar.classList.contains(
+                        "open"
+                    )
+                ) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
             }
         );
 
-        /* =========================
-           CLOSE SIDEBAR
-           WHEN NAVIGATION CLICKED
-        ========================= */
+        elements.overlay.addEventListener(
+            "click",
+            closeMenu
+        );
 
-        document
-            .querySelectorAll(".nav a")
-            .forEach(link => {
+        /* =====================================================
+           TOAST
+        ===================================================== */
 
-                link.addEventListener(
-                    "click",
-                    function () {
-                        closeSidebar();
+        let toastTimer = null;
+
+        function showToast(
+            message,
+            type = "success"
+        ) {
+            elements.toast.textContent =
+                message;
+
+            elements.toast.className =
+                "toast " +
+                type +
+                " show";
+
+            clearTimeout(toastTimer);
+
+            toastTimer = setTimeout(
+                () => {
+                    elements.toast.classList.remove(
+                        "show"
+                    );
+                },
+                3000
+            );
+        }
+
+        /* =====================================================
+           AUTH
+        ===================================================== */
+
+        async function getSession() {
+            const {
+                data,
+                error
+            } =
+                await supabaseClient.auth.getSession();
+
+            if (error) {
+                console.error(
+                    "Session error:",
+                    error
+                );
+                return null;
+            }
+
+            return data.session;
+        }
+
+        async function loadProfile(userId) {
+            const {
+                data,
+                error
+            } =
+                await supabaseClient
+                    .from("profiles")
+                    .select(
+                        "id,email,name,role,credits,status"
+                    )
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .single();
+
+            if (error) {
+                throw error;
+            }
+
+            return data;
+        }
+
+        async function initAuth() {
+            const session =
+                await getSession();
+
+            if (!session) {
+                window.location.replace(
+                    "../login.html"
+                );
+                return false;
+            }
+
+            currentUser =
+                session.user;
+
+            try {
+                currentProfile =
+                    await loadProfile(
+                        currentUser.id
+                    );
+            } catch (error) {
+                console.error(
+                    "Profile error:",
+                    error
+                );
+
+                await supabaseClient.auth.signOut();
+
+                window.location.replace(
+                    "../login.html"
+                );
+
+                return false;
+            }
+
+            if (
+                !currentProfile ||
+                String(
+                    currentProfile.status || ""
+                ).toUpperCase() !==
+                    "ACTIVE"
+            ) {
+                await supabaseClient.auth.signOut();
+
+                window.location.replace(
+                    "../login.html"
+                );
+
+                return false;
+            }
+
+            const role =
+                String(
+                    currentProfile.role || ""
+                ).toUpperCase();
+
+            isAdmin =
+                role === "ADMIN" ||
+                role === "OWNER";
+
+            /*
+             * USER biasa tidak boleh membuka edit mode.
+             *
+             * Jika USER mencoba:
+             * dashboard.html?edit=1
+             *
+             * tetap diarahkan ke dashboard biasa.
+             */
+            if (
+                EDIT_MODE &&
+                !isAdmin
+            ) {
+                window.location.replace(
+                    "./dashboard.html"
+                );
+
+                return false;
+            }
+
+            /*
+             * ADMIN / OWNER boleh masuk dashboard
+             * yang sama.
+             *
+             * Edit mode hanya aktif jika ?edit=1.
+             */
+
+            elements.sidebarEmail.textContent =
+                currentProfile.email ||
+                currentUser.email ||
+                "User";
+
+            elements.creditValue.textContent =
+                Number(
+                    currentProfile.credits || 0
+                ).toLocaleString(
+                    "id-ID"
+                );
+
+            if (
+                EDIT_MODE &&
+                isAdmin
+            ) {
+                elements.editBanner.classList.remove(
+                    "hidden"
+                );
+            }
+
+            return true;
+        }
+
+        /* =====================================================
+           VIDEO DATA
+        ===================================================== */
+
+        async function loadVideos() {
+            renderLoading();
+
+            let query =
+                supabaseClient
+                    .from("dashboard_videos")
+                    .select(
+                        [
+                            "id",
+                            "title",
+                            "description",
+                            "category",
+                            "aspect_ratio",
+                            "video_path",
+                            "thumbnail_path",
+                            "sort_order",
+                            "is_active",
+                            "created_at",
+                            "updated_at"
+                        ].join(",")
+                    )
+                    .order(
+                        "sort_order",
+                        {
+                            ascending: true
+                        }
+                    )
+                    .order(
+                        "created_at",
+                        {
+                            ascending: true
+                        }
+                    );
+
+            /*
+             * USER hanya mengambil video aktif.
+             *
+             * ADMIN/OWNER edit mode dapat melihat
+             * video aktif maupun nonaktif.
+             */
+            if (
+                !(
+                    EDIT_MODE &&
+                    isAdmin
+                )
+            ) {
+                query =
+                    query.eq(
+                        "is_active",
+                        true
+                    );
+            }
+
+            const {
+                data,
+                error
+            } = await query;
+
+            if (error) {
+                console.error(
+                    "Dashboard videos error:",
+                    error
+                );
+
+                renderError(
+                    "Video dashboard belum dapat dimuat.",
+                    error.message
+                );
+
+                return;
+            }
+
+            videos =
+                Array.isArray(data)
+                    ? data
+                    : [];
+
+            renderVideos();
+        }
+
+        function renderLoading() {
+            elements.videoGrid.innerHTML = `
+                <div class="state-box">
+                    <strong>Memuat video...</strong>
+                    <span>
+                        Mengambil data dari dashboard.
+                    </span>
+                </div>
+            `;
+        }
+
+        function renderError(
+            title,
+            detail
+        ) {
+            elements.videoGrid.innerHTML = `
+                <div class="state-box">
+                    <strong>${escapeHtml(title)}</strong>
+                    <span>${escapeHtml(detail || "")}</span>
+                </div>
+            `;
+        }
+
+        function renderEmpty() {
+            elements.videoGrid.innerHTML = `
+                <div class="state-box">
+                    <strong>
+                        Belum ada video.
+                    </strong>
+
+                    <span>
+                        Video dashboard belum tersedia.
+                    </span>
+                </div>
+            `;
+        }
+
+        /* =====================================================
+           VIDEO URL
+        ===================================================== */
+
+        function resolveVideoUrl(
+            path
+        ) {
+            if (!path) {
+                return "";
+            }
+
+            const value =
+                String(path).trim();
+
+            if (
+                value.startsWith("http://") ||
+                value.startsWith("https://") ||
+                value.startsWith("blob:")
+            ) {
+                return value;
+            }
+
+            /*
+             * Jika video_path nanti berisi path
+             * Supabase Storage bucket:
+             *
+             * dashboard-videos/videos/example.mp4
+             *
+             * maka kita ubah menjadi public URL.
+             *
+             * Untuk bucket private, bagian ini nanti
+             * akan diganti signed URL.
+             */
+
+            const {
+                data
+            } =
+                supabaseClient.storage
+                    .from("dashboard-videos")
+                    .getPublicUrl(value);
+
+            return (
+                data &&
+                data.publicUrl
+            ) || value;
+        }
+
+        function resolveThumbnailUrl(
+            path
+        ) {
+            if (!path) {
+                return "";
+            }
+
+            const value =
+                String(path).trim();
+
+            if (
+                value.startsWith("http://") ||
+                value.startsWith("https://") ||
+                value.startsWith("blob:")
+            ) {
+                return value;
+            }
+
+            const {
+                data
+            } =
+                supabaseClient.storage
+                    .from("dashboard-videos")
+                    .getPublicUrl(value);
+
+            return (
+                data &&
+                data.publicUrl
+            ) || value;
+        }
+
+        /* =====================================================
+           RENDER VIDEOS
+        ===================================================== */
+
+        function renderVideos() {
+            let filtered =
+                videos.filter(
+                    (video) => {
+
+                        if (
+                            activeCategory ===
+                            "all"
+                        ) {
+                            return true;
+                        }
+
+                        return (
+                            String(
+                                video.category ||
+                                ""
+                            ).toLowerCase() ===
+                            activeCategory
+                        );
                     }
                 );
 
-            });
+            if (!filtered.length) {
+                renderEmpty();
+                return;
+            }
 
-        /* =========================
-           LOGOUT
-        ========================= */
+            elements.videoGrid.innerHTML =
+                filtered
+                    .map(
+                        renderVideoCard
+                    )
+                    .join("");
+        }
 
-        logoutButton.addEventListener(
+        function renderVideoCard(
+            video
+        ) {
+            const title =
+                escapeHtml(
+                    video.title ||
+                    "Untitled Video"
+                );
+
+            const description =
+                escapeHtml(
+                    video.description ||
+                    "AI generated video."
+                );
+
+            const category =
+                categoryLabel(
+                    video.category
+                );
+
+            const ratio =
+                escapeHtml(
+                    video.aspect_ratio ||
+                    "16:9"
+                );
+
+            const videoUrl =
+                resolveVideoUrl(
+                    video.video_path
+                );
+
+            const thumbnailUrl =
+                resolveThumbnailUrl(
+                    video.thumbnail_path
+                );
+
+            const status =
+                video.is_active
+                    ? "ACTIVE"
+                    : "HIDDEN";
+
+            const media =
+                thumbnailUrl
+                    ? `
+                        <img
+                            src="${escapeAttribute(
+                                thumbnailUrl
+                            )}"
+                            alt="${title}"
+                            loading="lazy"
+                        >
+                    `
+                    : videoUrl
+                        ? `
+                            <video
+                                src="${escapeAttribute(
+                                    videoUrl
+                                )}"
+                                preload="metadata"
+                                muted
+                                playsinline
+                            ></video>
+                        `
+                        : "";
+
+            const editActions =
+                EDIT_MODE &&
+                isAdmin
+                    ? `
+                        <div class="edit-actions">
+
+                            <button
+                                class="edit-action edit"
+                                type="button"
+                                data-action="edit"
+                                data-id="${escapeAttribute(
+                                    video.id
+                                )}"
+                            >
+                                Edit
+                            </button>
+
+                            <button
+                                class="edit-action delete"
+                                type="button"
+                                data-action="delete"
+                                data-id="${escapeAttribute(
+                                    video.id
+                                )}"
+                            >
+                                Hapus
+                            </button>
+
+                        </div>
+                    `
+                    : "";
+
+            return `
+                <article
+                    class="video-card"
+                    data-category="${escapeAttribute(
+                        video.category || ""
+                    )}"
+                >
+
+                    <div class="video-preview">
+
+                        ${media}
+
+                        <div class="video-type">
+                            ${category}
+                        </div>
+
+                        ${
+                            videoUrl
+                                ? `
+                                    <a
+                                        class="play"
+                                        href="${escapeAttribute(
+                                            videoUrl
+                                        )}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label="Buka video"
+                                    >
+                                        ▶
+                                    </a>
+                                `
+                                : `
+                                    <div class="play">
+                                        ▶
+                                    </div>
+                                `
+                        }
+
+                    </div>
+
+                    <div class="video-info">
+
+                        <h3>
+                            ${title}
+                        </h3>
+
+                        <p>
+                            ${description}
+                        </p>
+
+                        <div class="video-meta">
+
+                            <span>
+                                ${ratio}
+                                ·
+                                ${status}
+                            </span>
+
+                            ${editActions}
+
+                        </div>
+
+                    </div>
+
+                </article>
+            `;
+        }
+
+        function categoryLabel(
+            category
+        ) {
+            const labels = {
+                text:
+                    "TEXT TO VIDEO",
+
+                image:
+                    "IMAGE TO VIDEO",
+
+                character:
+                    "CHARACTER",
+
+                product:
+                    "PRODUCT",
+
+                fashion:
+                    "FASHION",
+
+                cinematic:
+                    "CINEMATIC",
+
+                social:
+                    "SOCIAL MEDIA",
+
+                story:
+                    "STORY"
+            };
+
+            return escapeHtml(
+                labels[
+                    String(
+                        category || ""
+                    ).toLowerCase()
+                ] ||
+                String(
+                    category || "VIDEO"
+                ).toUpperCase()
+            );
+        }
+
+        /* =====================================================
+           CATEGORY FILTER
+        ===================================================== */
+
+        elements.categories
+            .addEventListener(
+                "click",
+                (event) => {
+
+                    const button =
+                        event.target.closest(
+                            ".category"
+                        );
+
+                    if (!button) {
+                        return;
+                    }
+
+                    activeCategory =
+                        button.dataset.category ||
+                        "all";
+
+                    document
+                        .querySelectorAll(
+                            ".category"
+                        )
+                        .forEach(
+                            (item) => {
+                                item.classList.toggle(
+                                    "active",
+                                    item === button
+                                );
+                            }
+                        );
+
+                    renderVideos();
+                }
+            );
+
+        /* =====================================================
+           EDIT MODAL
+        ===================================================== */
+
+        function openAddModal() {
+            elements.videoForm.reset();
+
+            elements.videoId.value = "";
+
+            elements.modalTitle.textContent =
+                "Tambah Video";
+
+            elements.videoActive.checked =
+                true;
+
+            elements.videoSortOrder.value =
+                videos.length + 1;
+
+            elements.videoCategory.value =
+                "text";
+
+            elements.videoRatio.value =
+                "16:9";
+
+            elements.videoModal.classList.remove(
+                "hidden"
+            );
+        }
+
+        function openEditModal(
+            videoId
+        ) {
+            const video =
+                videos.find(
+                    (item) =>
+                        String(item.id) ===
+                        String(videoId)
+                );
+
+            if (!video) {
+                showToast(
+                    "Video tidak ditemukan.",
+                    "error"
+                );
+                return;
+            }
+
+            elements.modalTitle.textContent =
+                "Edit Video";
+
+            elements.videoId.value =
+                video.id || "";
+
+            elements.videoTitle.value =
+                video.title || "";
+
+            elements.videoDescription.value =
+                video.description || "";
+
+            elements.videoCategory.value =
+                video.category || "text";
+
+            elements.videoRatio.value =
+                video.aspect_ratio ||
+                "16:9";
+
+            elements.videoPath.value =
+                video.video_path || "";
+
+            elements.thumbnailPath.value =
+                video.thumbnail_path || "";
+
+            elements.videoSortOrder.value =
+                Number(
+                    video.sort_order || 0
+                );
+
+            elements.videoActive.checked =
+                Boolean(
+                    video.is_active
+                );
+
+            elements.videoModal.classList.remove(
+                "hidden"
+            );
+        }
+
+        function closeModal() {
+            elements.videoModal.classList.add(
+                "hidden"
+            );
+        }
+
+        elements.addVideoButton.addEventListener(
             "click",
-            async function () {
+            openAddModal
+        );
+
+        elements.modalClose.addEventListener(
+            "click",
+            closeModal
+        );
+
+        elements.cancelModalButton.addEventListener(
+            "click",
+            closeModal
+        );
+
+        elements.videoModal.addEventListener(
+            "click",
+            (event) => {
+                if (
+                    event.target ===
+                    elements.videoModal
+                ) {
+                    closeModal();
+                }
+            }
+        );
+
+        /* =====================================================
+           EDIT / DELETE ACTION
+        ===================================================== */
+
+        elements.videoGrid.addEventListener(
+            "click",
+            async (event) => {
+
+                const button =
+                    event.target.closest(
+                        "[data-action]"
+                    );
+
+                if (!button) {
+                    return;
+                }
+
+                if (
+                    !EDIT_MODE ||
+                    !isAdmin
+                ) {
+                    return;
+                }
+
+                const id =
+                    button.dataset.id;
+
+                const action =
+                    button.dataset.action;
+
+                if (
+                    action === "edit"
+                ) {
+                    openEditModal(id);
+                    return;
+                }
+
+                if (
+                    action === "delete"
+                ) {
+                    await deleteVideo(id);
+                }
+            }
+        );
+
+        /* =====================================================
+           SAVE VIDEO
+        ===================================================== */
+
+        elements.videoForm.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+                if (
+                    !EDIT_MODE ||
+                    !isAdmin
+                ) {
+                    showToast(
+                        "Anda tidak memiliki izin edit.",
+                        "error"
+                    );
+                    return;
+                }
+
+                const id =
+                    elements.videoId.value.trim();
+
+                const payload = {
+                    title:
+                        elements.videoTitle.value.trim(),
+
+                    description:
+                        elements.videoDescription.value.trim(),
+
+                    category:
+                        elements.videoCategory.value,
+
+                    aspect_ratio:
+                        elements.videoRatio.value,
+
+                    video_path:
+                        elements.videoPath.value.trim() ||
+                        null,
+
+                    thumbnail_path:
+                        elements.thumbnailPath.value.trim() ||
+                        null,
+
+                    sort_order:
+                        Number(
+                            elements.videoSortOrder.value ||
+                            0
+                        ),
+
+                    is_active:
+                        elements.videoActive.checked
+                };
+
+                if (!payload.title) {
+                    showToast(
+                        "Judul video wajib diisi.",
+                        "error"
+                    );
+                    return;
+                }
+
+                elements.saveVideoButton.disabled =
+                    true;
 
                 try {
 
-                    if (supabaseClient) {
-                        await supabaseClient.auth.signOut();
+                    let result;
+
+                    if (id) {
+
+                        result =
+                            await supabaseClient
+                                .from(
+                                    "dashboard_videos"
+                                )
+                                .update(
+                                    payload
+                                )
+                                .eq(
+                                    "id",
+                                    id
+                                );
+
+                    } else {
+
+                        result =
+                            await supabaseClient
+                                .from(
+                                    "dashboard_videos"
+                                )
+                                .insert(
+                                    payload
+                                );
+
                     }
+
+                    if (result.error) {
+                        throw result.error;
+                    }
+
+                    closeModal();
+
+                    showToast(
+                        id
+                            ? "Video berhasil diperbarui."
+                            : "Video berhasil ditambahkan.",
+                        "success"
+                    );
+
+                    await loadVideos();
 
                 } catch (error) {
 
                     console.error(
-                        "Logout error:",
+                        "Save video error:",
                         error
                     );
+
+                    showToast(
+                        error.message ||
+                        "Gagal menyimpan video.",
+                        "error"
+                    );
+
+                } finally {
+
+                    elements.saveVideoButton.disabled =
+                        false;
+                }
+            }
+        );
+
+        /* =====================================================
+           DELETE VIDEO
+        ===================================================== */
+
+        async function deleteVideo(
+            videoId
+        ) {
+            const video =
+                videos.find(
+                    (item) =>
+                        String(item.id) ===
+                        String(videoId)
+                );
+
+            if (!video) {
+                return;
+            }
+
+            const confirmed =
+                window.confirm(
+                    `Hapus video "${video.title}"?`
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+
+                const {
+                    error
+                } =
+                    await supabaseClient
+                        .from(
+                            "dashboard_videos"
+                        )
+                        .delete()
+                        .eq(
+                            "id",
+                            videoId
+                        );
+
+                if (error) {
+                    throw error;
+                }
+
+                showToast(
+                    "Video berhasil dihapus.",
+                    "success"
+                );
+
+                await loadVideos();
+
+            } catch (error) {
+
+                console.error(
+                    "Delete video error:",
+                    error
+                );
+
+                showToast(
+                    error.message ||
+                    "Gagal menghapus video.",
+                    "error"
+                );
+            }
+        }
+
+        /* =====================================================
+           LOGOUT
+        ===================================================== */
+
+        elements.logoutButton.addEventListener(
+            "click",
+            async () => {
+
+                elements.logoutButton.disabled =
+                    true;
+
+                try {
+
+                    await supabaseClient.auth.signOut();
 
                 } finally {
 
@@ -1233,56 +2704,86 @@
             }
         );
 
-        /* =========================
-           CATEGORY FILTER
-        ========================= */
+        /* =====================================================
+           GENERATE
+        ===================================================== */
 
-        const categoryButtons =
-            document.querySelectorAll(".category");
+        elements.generateButton.addEventListener(
+            "click",
+            () => {
+                window.location.href =
+                    "../generate/index.html";
+            }
+        );
 
-        const videoCards =
-            document.querySelectorAll(".video-card");
+        /* =====================================================
+           ESCAPE HTML
+        ===================================================== */
 
-        categoryButtons.forEach(button => {
+        function escapeHtml(
+            value
+        ) {
+            return String(
+                value ?? ""
+            )
+                .replace(
+                    /&/g,
+                    "&amp;"
+                )
+                .replace(
+                    /</g,
+                    "&lt;"
+                )
+                .replace(
+                    />/g,
+                    "&gt;"
+                )
+                .replace(
+                    /"/g,
+                    "&quot;"
+                )
+                .replace(
+                    /'/g,
+                    "&#039;"
+                );
+        }
 
-            button.addEventListener(
-                "click",
-                function () {
+        function escapeAttribute(
+            value
+        ) {
+            return escapeHtml(value);
+        }
 
-                    categoryButtons.forEach(item =>
-                        item.classList.remove("active")
-                    );
-
-                    button.classList.add("active");
-
-                    const category =
-                        button.dataset.category;
-
-                    videoCards.forEach(card => {
-
-                        if (
-                            category === "all" ||
-                            card.dataset.category === category
-                        ) {
-
-                            card.style.display = "";
-
-                        } else {
-
-                            card.style.display = "none";
-
-                        }
-
-                    });
-
-                }
-            );
-
-        });
-
-        /* =========================
+        /* =====================================================
            START
-        ========================= */
+        ===================================================== */
+
+        async function init() {
+
+            try {
+
+                const authenticated =
+                    await initAuth();
+
+                if (!authenticated) {
+                    return;
+                }
+
+                await loadVideos();
+
+            } catch (error) {
+
+                console.error(
+                    "Dashboard initialization error:",
+                    error
+                );
+
+                renderError(
+                    "Dashboard gagal dimuat.",
+                    error.message
+                );
+            }
+        }
 
         init();
     </script>
