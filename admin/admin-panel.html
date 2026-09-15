@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>GEN-Z.AI - Admin Panel</title>
+    <title>Admin Panel - GEN-Z.AI</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
@@ -14,671 +14,192 @@
             box-sizing: border-box;
         }
 
-        html,
         body {
             margin: 0;
-            padding: 0;
-            min-height: 100%;
             font-family: Arial, Helvetica, sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 45%, #ffffff 100%);
-            color: #111827;
+            background: linear-gradient(135deg, #f5f7fa, #ffffff);
+            color: #222;
         }
 
-        body {
-            min-height: 100vh;
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 24px;
         }
 
-        button,
-        input,
-        select,
-        textarea {
-            font: inherit;
-        }
-
-        button {
-            cursor: pointer;
-        }
-
-        .layout {
-            min-height: 100vh;
-            display: flex;
-        }
-
-        .sidebar {
-            width: 250px;
-            min-height: 100vh;
-            background: #111827;
-            color: white;
-            padding: 24px 16px;
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            z-index: 20;
+        .header {
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 22px;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
         }
 
         .brand {
-            font-size: 24px;
+            font-size: 25px;
             font-weight: 800;
-            padding: 0 10px;
-            margin-bottom: 6px;
         }
 
-        .brand-subtitle {
-            color: #9ca3af;
-            font-size: 12px;
-            padding: 0 10px;
-            margin-bottom: 28px;
-        }
-
-        .nav-title {
-            font-size: 11px;
-            color: #6b7280;
-            font-weight: 700;
-            padding: 0 10px;
-            margin-bottom: 8px;
-            letter-spacing: .8px;
-        }
-
-        .nav-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .nav-item {
-            width: 100%;
-            border: 0;
-            background: transparent;
-            color: #d1d5db;
-            text-align: left;
-            padding: 12px;
-            border-radius: 9px;
+        .subtitle {
+            margin-top: 4px;
+            color: #777;
             font-size: 14px;
-            transition: .2s;
         }
 
-        .nav-item:hover {
-            background: #1f2937;
-            color: white;
-        }
-
-        .nav-item.active {
-            background: #374151;
-            color: white;
-        }
-
-        .nav-logout {
-            margin-top: 18px;
-            color: #fca5a5;
-        }
-
-        .main {
-            width: calc(100% - 250px);
-            margin-left: 250px;
-            min-height: 100vh;
-            padding: 30px;
-        }
-
-        .topbar {
+        .nav {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .nav a,
+        .nav button {
+            border: 0;
+            text-decoration: none;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #f1f3f5;
+            color: #333;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .nav a:hover,
+        .nav button:hover {
+            background: #e5e7eb;
+        }
+
+        .nav .active {
+            background: #111;
+            color: #fff;
         }
 
         .page-title {
-            margin: 0;
-            font-size: 28px;
+            margin: 28px 0 5px;
+            font-size: 25px;
             font-weight: 800;
         }
 
         .page-description {
-            margin: 7px 0 0;
-            color: #6b7280;
-            font-size: 14px;
-        }
-
-        .account {
-            background: rgba(255,255,255,.8);
-            border: 1px solid #e5e7eb;
-            padding: 11px 15px;
-            border-radius: 10px;
-            text-align: right;
-        }
-
-        .account-email {
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .account-role {
-            margin-top: 3px;
-            font-size: 11px;
-            color: #6b7280;
-        }
-
-        .admin-tabs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            background: rgba(255,255,255,.92);
-            border: 1px solid #e5e7eb;
-            padding: 8px;
-            border-radius: 12px;
+            color: #777;
             margin-bottom: 22px;
         }
 
-        .admin-tab {
-            border: 0;
-            background: transparent;
-            color: #6b7280;
-            padding: 11px 17px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 800;
-            transition: .2s;
-        }
-
-        .admin-tab:hover {
-            background: #f3f4f6;
-            color: #111827;
-        }
-
-        .admin-tab.active {
-            background: #111827;
-            color: white;
-        }
-
-        .section {
-            display: none;
-        }
-
-        .section.active {
-            display: block;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        .stat-card {
-            background: rgba(255,255,255,.92);
+        .admin-info {
+            background: #fff;
             border: 1px solid #e5e7eb;
             border-radius: 14px;
-            padding: 20px;
-            box-shadow: 0 5px 20px rgba(15,23,42,.04);
+            padding: 15px 18px;
+            margin-bottom: 22px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.03);
         }
 
-        .stat-label {
-            color: #6b7280;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .stat-value {
-            margin-top: 9px;
-            font-size: 27px;
-            font-weight: 800;
-        }
-
-        .card {
-            background: rgba(255,255,255,.94);
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 22px;
-            box-shadow: 0 5px 20px rgba(15,23,42,.04);
-            margin-bottom: 20px;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 18px;
-        }
-
-        .card-title {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 800;
-        }
-
-        .card-description {
-            margin: 5px 0 0;
-            color: #6b7280;
-            font-size: 13px;
-        }
-
-        .toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .input,
-        .select,
-        .textarea {
-            width: 100%;
-            border: 1px solid #d1d5db;
-            background: white;
-            border-radius: 9px;
-            padding: 10px 12px;
-            outline: none;
-            transition: .2s;
-        }
-
-        .input:focus,
-        .select:focus,
-        .textarea:focus {
-            border-color: #6b7280;
-            box-shadow: 0 0 0 3px rgba(107,114,128,.1);
-        }
-
-        .search-input {
-            width: 280px;
-        }
-
-        .textarea {
-            min-height: 90px;
-            resize: vertical;
-        }
-
-        .btn {
-            border: 0;
-            border-radius: 9px;
-            padding: 10px 15px;
-            font-weight: 700;
-            font-size: 13px;
-            transition: .2s;
-        }
-
-        .btn:hover {
-            transform: translateY(-1px);
-        }
-
-        .btn:disabled {
-            opacity: .55;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-dark {
-            background: #111827;
-            color: white;
-        }
-
-        .btn-light {
-            background: #f3f4f6;
-            color: #111827;
-        }
-
-        .btn-danger {
-            background: #dc2626;
-            color: white;
-        }
-
-        .btn-small {
-            padding: 7px 10px;
-            font-size: 12px;
-        }
-
-        .table-wrap {
-            width: 100%;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 750px;
-        }
-
-        th,
-        td {
-            padding: 12px 10px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 13px;
-            vertical-align: middle;
-        }
-
-        th {
-            color: #6b7280;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: .4px;
-            background: #f9fafb;
-        }
-
-        tr:last-child td {
-            border-bottom: 0;
+        .admin-info strong {
+            color: #111;
         }
 
         .badge {
-            display: inline-flex;
-            align-items: center;
-            border-radius: 999px;
+            display: inline-block;
+            margin-left: 6px;
             padding: 5px 9px;
-            font-size: 10px;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-
-        .badge-active {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .badge-inactive {
-            background: #f3f4f6;
-            color: #4b5563;
-        }
-
-        .badge-maintenance {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .badge-danger {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .badge-owner {
-            background: #ede9fe;
-            color: #6d28d9;
-        }
-
-        .provider-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 16px;
-        }
-
-        .provider-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 17px;
-            background: #fff;
-        }
-
-        .provider-card-top {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            align-items: flex-start;
-        }
-
-        .provider-name {
-            font-size: 17px;
-            font-weight: 800;
-        }
-
-        .provider-id {
-            margin-top: 5px;
-            color: #6b7280;
-            font-size: 12px;
-            word-break: break-word;
-        }
-
-        .provider-description {
-            margin-top: 14px;
-            color: #4b5563;
-            font-size: 13px;
-            min-height: 38px;
-        }
-
-        .provider-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            margin-top: 16px;
-            padding-top: 13px;
-            border-top: 1px solid #f0f0f0;
-        }
-
-        .provider-default {
+            border-radius: 999px;
+            background: #eef2f7;
+            color: #444;
             font-size: 11px;
-            color: #059669;
             font-weight: 700;
         }
 
-        .provider-actions {
-            display: flex;
-            gap: 7px;
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 45px 20px;
-            color: #6b7280;
-        }
-
-        .empty-state strong {
+        .menu-card {
             display: block;
-            color: #374151;
-            margin-bottom: 5px;
+            text-decoration: none;
+            color: inherit;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 22px;
+            min-height: 160px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+            transition:
+                transform 0.15s ease,
+                box-shadow 0.15s ease,
+                border-color 0.15s ease;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-3px);
+            border-color: #d1d5db;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
+        }
+
+        .menu-icon {
+            font-size: 28px;
+            margin-bottom: 14px;
+        }
+
+        .menu-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 7px;
+        }
+
+        .menu-description {
+            font-size: 13px;
+            line-height: 1.5;
+            color: #777;
+        }
+
+        .footer {
+            margin-top: 24px;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
         }
 
         .loading {
             text-align: center;
-            padding: 35px;
-            color: #6b7280;
+            padding: 50px;
+            color: #777;
         }
 
-        .message {
+        .error {
+            background: #fff1f2;
+            color: #b42318;
+            border: 1px solid #fecdd3;
+            border-radius: 12px;
+            padding: 14px;
             display: none;
-            padding: 12px 14px;
-            border-radius: 9px;
-            margin-bottom: 15px;
-            font-size: 13px;
-            font-weight: 600;
+            margin-bottom: 20px;
         }
 
-        .message.show {
-            display: block;
-        }
-
-        .message.success {
-            background: #dcfce7;
-            color: #166534;
-            border: 1px solid #bbf7d0;
-        }
-
-        .message.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-
-        .message.info {
-            background: #dbeafe;
-            color: #1e40af;
-            border: 1px solid #bfdbfe;
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(15,23,42,.5);
-            z-index: 100;
-            padding: 20px;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-overlay.show {
-            display: flex;
-        }
-
-        .modal {
-            width: 100%;
-            max-width: 560px;
-            max-height: calc(100vh - 40px);
-            overflow-y: auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 25px 70px rgba(0,0,0,.2);
-        }
-
-        .modal-header {
-            padding: 20px 22px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title {
-            margin: 0;
-            font-size: 19px;
-            font-weight: 800;
-        }
-
-        .modal-close {
-            border: 0;
-            background: #f3f4f6;
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-            font-size: 20px;
-            color: #374151;
-        }
-
-        .modal-body {
-            padding: 22px;
-        }
-
-        .modal-footer {
-            padding: 16px 22px;
-            border-top: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 7px;
-            font-size: 12px;
-            font-weight: 800;
-            color: #374151;
-        }
-
-        .checkbox-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .checkbox-row input {
-            width: 16px;
-            height: 16px;
-        }
-
-        .system-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px;
-        }
-
-        .info-box {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 15px;
-        }
-
-        .info-label {
-            color: #6b7280;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .info-value {
-            margin-top: 6px;
-            font-size: 14px;
-            font-weight: 700;
-            word-break: break-word;
-        }
-
-        @media (max-width: 1100px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .provider-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+        @media (max-width: 850px) {
+            .menu-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
-        @media (max-width: 800px) {
-            .sidebar {
-                position: static;
-                width: 100%;
-                min-height: auto;
+        @media (max-width: 560px) {
+            .container {
+                padding: 14px;
             }
 
-            .layout {
-                display: block;
+            .header {
+                padding: 17px;
             }
 
-            .main {
-                width: 100%;
-                margin-left: 0;
-                padding: 20px;
-            }
-
-            .topbar {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .account {
-                text-align: left;
-            }
-
-            .provider-grid,
-            .system-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 550px) {
-            .stats-grid {
+            .menu-grid {
                 grid-template-columns: 1fr;
             }
 
-            .search-input {
-                width: 100%;
-            }
-
-            .toolbar {
-                width: 100%;
-            }
-
-            .admin-tabs {
-                overflow-x: auto;
-                flex-wrap: nowrap;
-            }
-
-            .admin-tab {
-                white-space: nowrap;
+            .page-title {
+                font-size: 22px;
             }
         }
     </style>
@@ -686,706 +207,178 @@
 
 <body>
 
-<div class="layout">
+<div class="container">
 
-    <aside class="sidebar">
+    <div class="header">
 
         <div class="brand">
             GEN-Z.AI
         </div>
 
-        <div class="brand-subtitle">
-            ADMIN CONTROL PANEL
+        <div class="subtitle">
+            ADMIN CONTROL
         </div>
 
-        <div class="nav-title">
-            NAVIGATION
-        </div>
+        <div class="nav">
 
-        <div class="nav-menu">
-
-            <button
-                class="nav-item"
-                onclick="goToPage('../admin/dashboard.html')"
-            >
+            <a href="dashboard.html">
                 DASHBOARD
-            </button>
+            </a>
 
-            <button
-                class="nav-item"
-                onclick="goToPage('../admin/generate.html')"
-            >
+            <a href="generate.html">
                 GENERATE
-            </button>
+            </a>
 
-            <button
-                class="nav-item"
-                onclick="goToPage('../admin/history.html')"
-            >
+            <a href="history.html">
                 HISTORY
-            </button>
+            </a>
 
-            <button
-                class="nav-item active"
-                onclick="showSection('users', document.getElementById('tabUsers'))"
-            >
+            <a href="admin-panel.html" class="active">
                 ADMIN PANEL
-            </button>
+            </a>
 
-            <button
-                class="nav-item nav-logout"
-                onclick="logout()"
-            >
+            <button onclick="logout()">
                 LOG OUT
             </button>
 
         </div>
 
-    </aside>
+    </div>
 
 
-    <main class="main">
+    <div id="errorBox" class="error"></div>
 
-        <div class="topbar">
 
-            <div>
+    <div id="loadingBox" class="loading">
+        Memeriksa akses admin...
+    </div>
 
-                <h1 class="page-title">
-                    ADMIN PANEL
-                </h1>
 
-                <p class="page-description">
-                    Kelola pengguna, provider, model, kredit, dan konfigurasi sistem GEN-Z.AI.
-                </p>
+    <div id="adminContent" style="display:none;">
 
-            </div>
+        <div class="page-title">
+            ADMIN PANEL
+        </div>
 
-            <div class="account">
+        <div class="page-description">
+            Pusat pengelolaan sistem GEN-Z.AI
+        </div>
 
-                <div
-                    class="account-email"
-                    id="accountEmail"
-                >
-                    Memuat...
-                </div>
 
-                <div
-                    class="account-role"
-                    id="accountRole"
-                >
-                    -
-                </div>
+        <div class="admin-info">
 
-            </div>
+            Login sebagai:
+
+            <strong id="adminEmail">
+                -
+            </strong>
+
+            <span class="badge" id="adminRole">
+                -
+            </span>
 
         </div>
 
 
-        <!-- ADMIN PANEL NAVIGATION -->
+        <div class="menu-grid">
 
-        <div class="admin-tabs">
 
-            <button
-                id="tabUsers"
-                class="admin-tab active"
-                onclick="showSection('users', this)"
-            >
-                USERS
-            </button>
+            <a href="users.html" class="menu-card">
 
-            <button
-                id="tabProviders"
-                class="admin-tab"
-                onclick="showSection('providers', this)"
-            >
-                PROVIDERS
-            </button>
+                <div class="menu-icon">
+                    👥
+                </div>
 
-            <button
-                id="tabModels"
-                class="admin-tab"
-                onclick="showSection('models', this)"
-            >
-                MODELS
-            </button>
+                <div class="menu-title">
+                    User Management
+                </div>
 
-            <button
-                id="tabCredit"
-                class="admin-tab"
-                onclick="showSection('credit', this)"
-            >
-                CREDIT
-            </button>
+                <div class="menu-description">
+                    Kelola pengguna, role, status akun,
+                    dan informasi kredit pengguna.
+                </div>
 
-            <button
-                id="tabSystem"
-                class="admin-tab"
-                onclick="showSection('system', this)"
-            >
-                SYSTEM
-            </button>
+            </a>
+
+
+            <a href="providers.html" class="menu-card">
+
+                <div class="menu-icon">
+                    ⚙️
+                </div>
+
+                <div class="menu-title">
+                    Provider Management
+                </div>
+
+                <div class="menu-description">
+                    Kelola provider AI, identitas provider,
+                    status, dan provider default.
+                </div>
+
+            </a>
+
+
+            <a href="models.html" class="menu-card">
+
+                <div class="menu-icon">
+                    🤖
+                </div>
+
+                <div class="menu-title">
+                    Model Management
+                </div>
+
+                <div class="menu-description">
+                    Kelola model AI, biaya kredit,
+                    status, dan provider model.
+                </div>
+
+            </a>
+
+
+            <a href="credit.html" class="menu-card">
+
+                <div class="menu-icon">
+                    💳
+                </div>
+
+                <div class="menu-title">
+                    Credit Management
+                </div>
+
+                <div class="menu-description">
+                    Kelola kredit pengguna,
+                    penambahan, pengurangan,
+                    dan transaksi kredit.
+                </div>
+
+            </a>
+
+
+            <a href="system.html" class="menu-card">
+
+                <div class="menu-icon">
+                    🛠️
+                </div>
+
+                <div class="menu-title">
+                    System Settings
+                </div>
+
+                <div class="menu-description">
+                    Melihat konfigurasi dan pengaturan
+                    sistem GEN-Z.AI.
+                </div>
+
+            </a>
+
 
         </div>
 
 
-        <div
-            id="globalMessage"
-            class="message"
-        ></div>
-
-
-        <!-- USERS -->
-
-        <section
-            id="section-users"
-            class="section active"
-        >
-
-            <div class="stats-grid">
-
-                <div class="stat-card">
-
-                    <div class="stat-label">
-                        Total Users
-                    </div>
-
-                    <div
-                        class="stat-value"
-                        id="totalUsers"
-                    >
-                        0
-                    </div>
-
-                </div>
-
-                <div class="stat-card">
-
-                    <div class="stat-label">
-                        Active
-                    </div>
-
-                    <div
-                        class="stat-value"
-                        id="activeUsers"
-                    >
-                        0
-                    </div>
-
-                </div>
-
-                <div class="stat-card">
-
-                    <div class="stat-label">
-                        Suspended
-                    </div>
-
-                    <div
-                        class="stat-value"
-                        id="suspendedUsers"
-                    >
-                        0
-                    </div>
-
-                </div>
-
-                <div class="stat-card">
-
-                    <div class="stat-label">
-                        Banned
-                    </div>
-
-                    <div
-                        class="stat-value"
-                        id="bannedUsers"
-                    >
-                        0
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2 class="card-title">
-                            USER MANAGEMENT
-                        </h2>
-
-                        <p class="card-description">
-                            Daftar akun yang terdaftar pada GEN-Z.AI.
-                        </p>
-
-                    </div>
-
-                    <input
-                        type="text"
-                        id="userSearch"
-                        class="input search-input"
-                        placeholder="Cari email atau nama..."
-                        oninput="filterUsers()"
-                    >
-
-                </div>
-
-
-                <div class="table-wrap">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-                                <th>EMAIL</th>
-                                <th>NAMA</th>
-                                <th>ROLE</th>
-                                <th>CREDIT</th>
-                                <th>STATUS</th>
-                                <th>CREATED</th>
-                            </tr>
-
-                        </thead>
-
-                        <tbody id="usersTableBody">
-
-                            <tr>
-
-                                <td colspan="6">
-
-                                    <div class="loading">
-                                        Memuat users...
-                                    </div>
-
-                                </td>
-
-                            </tr>
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- PROVIDERS -->
-
-        <section
-            id="section-providers"
-            class="section"
-        >
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2 class="card-title">
-                            PROVIDER MANAGEMENT
-                        </h2>
-
-                        <p class="card-description">
-                            Kelola provider AI yang digunakan GEN-Z.AI.
-                        </p>
-
-                    </div>
-
-                    <div class="toolbar">
-
-                        <button
-                            class="btn btn-light"
-                            onclick="loadProviders()"
-                        >
-                            REFRESH
-                        </button>
-
-                        <button
-                            class="btn btn-dark"
-                            onclick="openProviderModal()"
-                        >
-                            + ADD PROVIDER
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-                <div
-                    id="providerMessage"
-                    class="message"
-                ></div>
-
-
-                <div
-                    id="providersContainer"
-                    class="provider-grid"
-                >
-
-                    <div class="loading">
-                        Memuat provider...
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- MODELS -->
-
-        <section
-            id="section-models"
-            class="section"
-        >
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2 class="card-title">
-                            MODEL MANAGEMENT
-                        </h2>
-
-                        <p class="card-description">
-                            Kelola model AI berdasarkan provider.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="empty-state">
-
-                    <strong>
-                        MODEL MANAGER
-                    </strong>
-
-                    <span>
-                        Modul model siap dilanjutkan setelah Provider Manager.
-                    </span>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- CREDIT -->
-
-        <section
-            id="section-credit"
-            class="section"
-        >
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2 class="card-title">
-                            CREDIT MANAGEMENT
-                        </h2>
-
-                        <p class="card-description">
-                            Pengelolaan kredit pengguna GEN-Z.AI.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="empty-state">
-
-                    <strong>
-                        CREDIT SYSTEM
-                    </strong>
-
-                    <span>
-                        Sistem transaksi kredit sudah tersedia di database.
-                    </span>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- SYSTEM -->
-
-        <section
-            id="section-system"
-            class="section"
-        >
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2 class="card-title">
-                            SYSTEM
-                        </h2>
-
-                        <p class="card-description">
-                            Informasi sistem GEN-Z.AI.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="system-grid">
-
-                    <div class="info-box">
-
-                        <div class="info-label">
-                            APPLICATION
-                        </div>
-
-                        <div class="info-value">
-                            GEN-Z.AI
-                        </div>
-
-                    </div>
-
-                    <div class="info-box">
-
-                        <div class="info-label">
-                            AUTHENTICATION
-                        </div>
-
-                        <div class="info-value">
-                            Supabase Auth
-                        </div>
-
-                    </div>
-
-                    <div class="info-box">
-
-                        <div class="info-label">
-                            DATABASE
-                        </div>
-
-                        <div class="info-value">
-                            Supabase PostgreSQL
-                        </div>
-
-                    </div>
-
-                    <div class="info-box">
-
-                        <div class="info-label">
-                            ENVIRONMENT
-                        </div>
-
-                        <div class="info-value">
-                            Production
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-    </main>
-
-</div>
-
-
-<!-- PROVIDER MODAL -->
-
-<div
-    id="providerModal"
-    class="modal-overlay"
->
-
-    <div class="modal">
-
-        <div class="modal-header">
-
-            <h2
-                id="providerModalTitle"
-                class="modal-title"
-            >
-                ADD PROVIDER
-            </h2>
-
-            <button
-                class="modal-close"
-                onclick="closeProviderModal()"
-                type="button"
-            >
-                ×
-            </button>
-
-        </div>
-
-
-        <div class="modal-body">
-
-            <input
-                type="hidden"
-                id="providerEditId"
-            >
-
-
-            <div class="form-group">
-
-                <label
-                    class="form-label"
-                    for="providerId"
-                >
-                    PROVIDER ID
-                </label>
-
-                <input
-                    type="text"
-                    id="providerId"
-                    class="input"
-                    placeholder="contoh: chinaapi"
-                    autocomplete="off"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label
-                    class="form-label"
-                    for="providerName"
-                >
-                    PROVIDER NAME
-                </label>
-
-                <input
-                    type="text"
-                    id="providerName"
-                    class="input"
-                    placeholder="contoh: ByteDance"
-                    autocomplete="off"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label
-                    class="form-label"
-                    for="providerDescription"
-                >
-                    DESCRIPTION
-                </label>
-
-                <textarea
-                    id="providerDescription"
-                    class="textarea"
-                    placeholder="Deskripsi provider..."
-                ></textarea>
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label
-                    class="form-label"
-                    for="providerStatus"
-                >
-                    STATUS
-                </label>
-
-                <select
-                    id="providerStatus"
-                    class="select"
-                >
-
-                    <option value="active">
-                        Active
-                    </option>
-
-                    <option value="inactive">
-                        Inactive
-                    </option>
-
-                    <option value="maintenance">
-                        Maintenance
-                    </option>
-
-                </select>
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label class="checkbox-row">
-
-                    <input
-                        type="checkbox"
-                        id="providerDefault"
-                    >
-
-                    <span>
-                        Jadikan provider default
-                    </span>
-
-                </label>
-
-            </div>
-
-
-            <div
-                id="providerModalMessage"
-                class="message"
-            ></div>
-
-        </div>
-
-
-        <div class="modal-footer">
-
-            <button
-                type="button"
-                class="btn btn-light"
-                onclick="closeProviderModal()"
-                id="providerCancelButton"
-            >
-                BATAL
-            </button>
-
-            <button
-                type="button"
-                class="btn btn-dark"
-                id="providerSaveButton"
-                onclick="saveProvider()"
-            >
-                SIMPAN
-            </button>
-
+        <div class="footer">
+            GEN-Z.AI Admin Control
         </div>
 
     </div>
@@ -1395,1678 +388,109 @@
 
 <script>
 
-    let supabaseClient = null;
-
-    let currentUser = null;
-    let currentProfile = null;
-
-    let usersCache = [];
-    let providerCache = [];
-
-    let editingProviderId = null;
+    const supabaseClient = supabase.createClient(
+        GENZ_CONFIG.SUPABASE_URL,
+        GENZ_CONFIG.SUPABASE_KEY
+    );
 
 
-    function getSupabaseClient() {
-
-        if (
-            typeof GENZ_CONFIG === "undefined"
-        ) {
-
-            throw new Error(
-                "GENZ_CONFIG tidak ditemukan. Periksa assets/js/config.js."
-            );
-        }
-
-        const url =
-            GENZ_CONFIG.SUPABASE_URL;
-
-        const key =
-            GENZ_CONFIG.SUPABASE_KEY;
-
-        if (
-            !url ||
-            !key
-        ) {
-
-            throw new Error(
-                "Konfigurasi Supabase tidak lengkap."
-            );
-        }
-
-        return window.supabase.createClient(
-            url,
-            key
-        );
-    }
-
-
-    function showMessage(
-        elementId,
-        message,
-        type = "info"
-    ) {
-
-        const element =
-            document.getElementById(
-                elementId
-            );
-
-        if (!element) {
-            return;
-        }
-
-        element.className =
-            "message show " +
-            type;
-
-        element.textContent =
-            message;
-    }
-
-
-    function hideMessage(
-        elementId
-    ) {
-
-        const element =
-            document.getElementById(
-                elementId
-            );
-
-        if (!element) {
-            return;
-        }
-
-        element.className =
-            "message";
-
-        element.textContent =
-            "";
-    }
-
-
-    function goToPage(
-        url
-    ) {
-
-        window.location.href =
-            url;
-    }
-
-
-    function showSection(
-        sectionName,
-        buttonElement
-    ) {
-
-        document
-            .querySelectorAll(".section")
-            .forEach(
-                section => {
-                    section.classList.remove(
-                        "active"
-                    );
-                }
-            );
-
-        const section =
-            document.getElementById(
-                "section-" +
-                sectionName
-            );
-
-        if (section) {
-
-            section.classList.add(
-                "active"
-            );
-        }
-
-
-        document
-            .querySelectorAll(".admin-tab")
-            .forEach(
-                button => {
-                    button.classList.remove(
-                        "active"
-                    );
-                }
-            );
-
-        if (buttonElement) {
-
-            buttonElement.classList.add(
-                "active"
-            );
-        }
-
-
-        if (
-            sectionName ===
-            "users"
-        ) {
-
-            loadUsers();
-
-        } else if (
-            sectionName ===
-            "providers"
-        ) {
-
-            loadProviders();
-
-        } else if (
-            sectionName ===
-            "models"
-        ) {
-
-            loadModels();
-
-        } else if (
-            sectionName ===
-            "credit"
-        ) {
-
-            loadCredit();
-
-        } else if (
-            sectionName ===
-            "system"
-        ) {
-
-            loadSystem();
-        }
-    }
-
-
-    async function checkAuth() {
+    async function checkAdminAccess() {
 
         try {
 
-            supabaseClient =
-                getSupabaseClient();
-
-
             const {
-                data,
-                error
-            } =
-                await supabaseClient
-                    .auth
-                    .getSession();
+                data: {
+                    session
+                }
+            } = await supabaseClient.auth.getSession();
 
 
-            if (error) {
-                throw error;
+            if (!session) {
+
+                window.location.href = "../index.html";
+
+                return;
+
             }
-
-
-            const session =
-                data?.session;
-
-
-            if (
-                !session ||
-                !session.user
-            ) {
-
-                window.location.href =
-                    "../index.html";
-
-                return false;
-            }
-
-
-            currentUser =
-                session.user;
 
 
             const {
                 data: profile,
-                error: profileError
-            } =
-                await supabaseClient
-                    .from("profiles")
-                    .select(`
-                        id,
-                        email,
-                        name,
-                        role,
-                        credits,
-                        status,
-                        created_at
-                    `)
-                    .eq(
-                        "id",
-                        currentUser.id
-                    )
-                    .single();
+                error
+            } = await supabaseClient
+                .from("profiles")
+                .select("email, name, role, status")
+                .eq("id", session.user.id)
+                .single();
 
 
-            if (profileError) {
-                throw profileError;
+            if (error) {
+                throw error;
             }
 
 
             if (
                 !profile ||
-                ![
-                    "ADMIN",
-                    "OWNER"
-                ].includes(
-                    profile.role
-                )
+                !["ADMIN", "OWNER"].includes(profile.role) ||
+                profile.status !== "active"
             ) {
 
-                window.location.href =
-                    "../user/dashboard.html";
+                window.location.href = "../index.html";
 
-                return false;
+                return;
+
             }
 
 
-            if (
-                profile.status !==
-                "active"
-            ) {
-
-                await supabaseClient
-                    .auth
-                    .signOut();
-
-                window.location.href =
-                    "../index.html";
-
-                return false;
-            }
+            document.getElementById("adminEmail").textContent =
+                profile.email || "-";
 
 
-            currentProfile =
-                profile;
-
-
-            document.getElementById(
-                "accountEmail"
-            ).textContent =
-                profile.email ||
-                currentUser.email ||
-                "-";
-
-
-            document.getElementById(
-                "accountRole"
-            ).textContent =
-                "ROLE " +
+            document.getElementById("adminRole").textContent =
                 profile.role;
 
 
-            return true;
+            document.getElementById("loadingBox").style.display =
+                "none";
+
+
+            document.getElementById("adminContent").style.display =
+                "block";
+
 
         } catch (error) {
 
-            console.error(
-                "AUTH ERROR:",
-                error
-            );
+            document.getElementById("loadingBox").style.display =
+                "none";
 
-            showMessage(
-                "globalMessage",
-                error.message ||
-                "Gagal memeriksa autentikasi.",
-                "error"
-            );
 
-            return false;
+            const errorBox =
+                document.getElementById("errorBox");
+
+
+            errorBox.textContent =
+                "Gagal memeriksa akses admin: " +
+                (error.message || error);
+
+
+            errorBox.style.display =
+                "block";
+
         }
+
     }
 
 
     async function logout() {
 
-        try {
+        await supabaseClient.auth.signOut();
 
-            if (supabaseClient) {
+        window.location.href = "../index.html";
 
-                await supabaseClient
-                    .auth
-                    .signOut();
-            }
-
-        } catch (error) {
-
-            console.error(
-                "LOGOUT ERROR:",
-                error
-            );
-        }
-
-        window.location.href =
-            "../index.html";
     }
 
 
-    async function loadUsers() {
-
-        const tableBody =
-            document.getElementById(
-                "usersTableBody"
-            );
-
-        if (!tableBody) {
-            return;
-        }
-
-
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="6">
-                    <div class="loading">
-                        Memuat users...
-                    </div>
-                </td>
-            </tr>
-        `;
-
-
-        try {
-
-            const {
-                data,
-                error
-            } =
-                await supabaseClient
-                    .from("profiles")
-                    .select(`
-                        id,
-                        email,
-                        name,
-                        role,
-                        credits,
-                        status,
-                        created_at
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-
-            if (error) {
-                throw error;
-            }
-
-
-            usersCache =
-                data || [];
-
-
-            updateUserStats();
-
-            renderUsers(
-                usersCache
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "LOAD USERS ERROR:",
-                error
-            );
-
-
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="6">
-                        <div class="empty-state">
-                            <strong>
-                                Gagal memuat users
-                            </strong>
-
-                            <span>
-                                ${escapeHtml(
-                                    error.message ||
-                                    "Terjadi kesalahan."
-                                )}
-                            </span>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
-    }
-
-
-    function updateUserStats() {
-
-        document.getElementById(
-            "totalUsers"
-        ).textContent =
-            usersCache.length;
-
-
-        document.getElementById(
-            "activeUsers"
-        ).textContent =
-            usersCache.filter(
-                user =>
-                    user.status ===
-                    "active"
-            ).length;
-
-
-        document.getElementById(
-            "suspendedUsers"
-        ).textContent =
-            usersCache.filter(
-                user =>
-                    user.status ===
-                    "suspended"
-            ).length;
-
-
-        document.getElementById(
-            "bannedUsers"
-        ).textContent =
-            usersCache.filter(
-                user =>
-                    user.status ===
-                    "banned"
-            ).length;
-    }
-
-
-    function renderUsers(
-        users
-    ) {
-
-        const tableBody =
-            document.getElementById(
-                "usersTableBody"
-            );
-
-
-        if (!users.length) {
-
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="6">
-                        <div class="empty-state">
-
-                            <strong>
-                                Belum ada user
-                            </strong>
-
-                            <span>
-                                Tidak ada data user yang tersedia.
-                            </span>
-
-                        </div>
-                    </td>
-                </tr>
-            `;
-
-            return;
-        }
-
-
-        tableBody.innerHTML =
-            users
-                .map(
-                    user => {
-
-                        const roleClass =
-                            user.role ===
-                            "OWNER"
-                                ? "badge-owner"
-                                : "badge-active";
-
-
-                        const statusClass =
-                            getStatusBadgeClass(
-                                user.status
-                            );
-
-
-                        return `
-                            <tr>
-
-                                <td>
-                                    ${escapeHtml(
-                                        user.email ||
-                                        "-"
-                                    )}
-                                </td>
-
-                                <td>
-                                    ${escapeHtml(
-                                        user.name ||
-                                        "-"
-                                    )}
-                                </td>
-
-                                <td>
-                                    <span class="badge ${roleClass}">
-                                        ${escapeHtml(
-                                            user.role ||
-                                            "USER"
-                                        )}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    ${Number(
-                                        user.credits ||
-                                        0
-                                    ).toLocaleString(
-                                        "id-ID"
-                                    )}
-                                </td>
-
-                                <td>
-                                    <span class="badge ${statusClass}">
-                                        ${escapeHtml(
-                                            user.status ||
-                                            "-"
-                                        )}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    ${formatDate(
-                                        user.created_at
-                                    )}
-                                </td>
-
-                            </tr>
-                        `;
-                    }
-                )
-                .join("");
-    }
-
-
-    function filterUsers() {
-
-        const keyword =
-            (
-                document.getElementById(
-                    "userSearch"
-                ).value ||
-                ""
-            )
-                .trim()
-                .toLowerCase();
-
-
-        if (!keyword) {
-
-            renderUsers(
-                usersCache
-            );
-
-            return;
-        }
-
-
-        renderUsers(
-            usersCache.filter(
-                user =>
-                    String(
-                        user.email ||
-                        ""
-                    )
-                        .toLowerCase()
-                        .includes(
-                            keyword
-                        ) ||
-
-                    String(
-                        user.name ||
-                        ""
-                    )
-                        .toLowerCase()
-                        .includes(
-                            keyword
-                        ) ||
-
-                    String(
-                        user.role ||
-                        ""
-                    )
-                        .toLowerCase()
-                        .includes(
-                            keyword
-                        )
-            )
-        );
-    }
-
-
-    async function cacheProviders() {
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient
-                .from("providers")
-                .select(`
-                    id,
-                    provider_id,
-                    provider_name,
-                    description,
-                    status,
-                    is_default,
-                    created_at,
-                    updated_at
-                `)
-                .order(
-                    "created_at",
-                    {
-                        ascending: true
-                    }
-                );
-
-
-        if (error) {
-            throw error;
-        }
-
-
-        providerCache =
-            data || [];
-
-
-        return providerCache;
-    }
-
-
-    async function loadProviders() {
-
-        const container =
-            document.getElementById(
-                "providersContainer"
-            );
-
-
-        if (!container) {
-            return;
-        }
-
-
-        container.innerHTML = `
-            <div class="loading">
-                Memuat provider...
-            </div>
-        `;
-
-
-        hideMessage(
-            "providerMessage"
-        );
-
-
-        try {
-
-            const providers =
-                await cacheProviders();
-
-
-            if (!providers.length) {
-
-                container.innerHTML = `
-                    <div
-                        class="empty-state"
-                        style="grid-column:1/-1;"
-                    >
-
-                        <strong>
-                            Provider belum tersedia
-                        </strong>
-
-                        <span>
-                            Tidak ada provider yang dapat ditampilkan.
-                        </span>
-
-                    </div>
-                `;
-
-                return;
-            }
-
-
-            renderProviders(
-                providers
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "LOAD PROVIDERS ERROR:",
-                error
-            );
-
-
-            container.innerHTML = `
-                <div
-                    class="empty-state"
-                    style="grid-column:1/-1;"
-                >
-
-                    <strong>
-                        Gagal memuat provider
-                    </strong>
-
-                    <span>
-                        ${escapeHtml(
-                            error.message ||
-                            "Terjadi kesalahan."
-                        )}
-                    </span>
-
-                </div>
-            `;
-
-
-            showMessage(
-                "providerMessage",
-                error.message ||
-                "Gagal memuat provider.",
-                "error"
-            );
-        }
-    }
-
-
-    function renderProviders(
-        providers
-    ) {
-
-        const container =
-            document.getElementById(
-                "providersContainer"
-            );
-
-
-        if (!providers.length) {
-
-            container.innerHTML = `
-                <div
-                    class="empty-state"
-                    style="grid-column:1/-1;"
-                >
-
-                    <strong>
-                        Provider belum tersedia
-                    </strong>
-
-                </div>
-            `;
-
-            return;
-        }
-
-
-        container.innerHTML =
-            providers
-                .map(
-                    provider => {
-
-                        const statusClass =
-                            getProviderStatusClass(
-                                provider.status
-                            );
-
-
-                        return `
-                            <div class="provider-card">
-
-                                <div class="provider-card-top">
-
-                                    <div>
-
-                                        <div class="provider-name">
-                                            ${escapeHtml(
-                                                provider.provider_name ||
-                                                "-"
-                                            )}
-                                        </div>
-
-                                        <div class="provider-id">
-                                            ID:
-                                            ${escapeHtml(
-                                                provider.provider_id ||
-                                                "-"
-                                            )}
-                                        </div>
-
-                                    </div>
-
-                                    <span class="badge ${statusClass}">
-                                        ${escapeHtml(
-                                            provider.status ||
-                                            "-"
-                                        )}
-                                    </span>
-
-                                </div>
-
-
-                                <div class="provider-description">
-                                    ${escapeHtml(
-                                        provider.description ||
-                                        "Tidak ada deskripsi."
-                                    )}
-                                </div>
-
-
-                                <div class="provider-meta">
-
-                                    <div>
-
-                                        ${
-                                            provider.is_default
-                                                ? `
-                                                    <span class="provider-default">
-                                                        ● DEFAULT
-                                                    </span>
-                                                `
-                                                : `
-                                                    <span style="font-size:11px;color:#9ca3af;">
-                                                        Provider
-                                                    </span>
-                                                `
-                                        }
-
-                                    </div>
-
-
-                                    <div class="provider-actions">
-
-                                        <button
-                                            type="button"
-                                            class="btn btn-light btn-small"
-                                            onclick="openProviderModal('${escapeJs(
-                                                provider.id
-                                            )}')"
-                                        >
-                                            EDIT
-                                        </button>
-
-
-                                        <button
-                                            type="button"
-                                            class="btn btn-danger btn-small"
-                                            onclick="deleteProvider('${escapeJs(
-                                                provider.id
-                                            )}')"
-                                        >
-                                            HAPUS
-                                        </button>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-                        `;
-                    }
-                )
-                .join("");
-    }
-
-
-    function openProviderModal(
-        providerId = null
-    ) {
-
-        editingProviderId =
-            providerId || null;
-
-
-        const modal =
-            document.getElementById(
-                "providerModal"
-            );
-
-
-        const title =
-            document.getElementById(
-                "providerModalTitle"
-            );
-
-
-        const editId =
-            document.getElementById(
-                "providerEditId"
-            );
-
-
-        const providerIdInput =
-            document.getElementById(
-                "providerId"
-            );
-
-
-        const providerNameInput =
-            document.getElementById(
-                "providerName"
-            );
-
-
-        const descriptionInput =
-            document.getElementById(
-                "providerDescription"
-            );
-
-
-        const statusInput =
-            document.getElementById(
-                "providerStatus"
-            );
-
-
-        const defaultInput =
-            document.getElementById(
-                "providerDefault"
-            );
-
-
-        const saveButton =
-            document.getElementById(
-                "providerSaveButton"
-            );
-
-
-        hideMessage(
-            "providerModalMessage"
-        );
-
-
-        if (providerId) {
-
-            const provider =
-                providerCache.find(
-                    item =>
-                        String(item.id) ===
-                        String(providerId)
-                );
-
-
-            if (!provider) {
-
-                showMessage(
-                    "providerMessage",
-                    "Data provider tidak ditemukan.",
-                    "error"
-                );
-
-                return;
-            }
-
-
-            title.textContent =
-                "EDIT PROVIDER";
-
-
-            editId.value =
-                provider.id;
-
-
-            providerIdInput.value =
-                provider.provider_id ||
-                "";
-
-
-            providerNameInput.value =
-                provider.provider_name ||
-                "";
-
-
-            descriptionInput.value =
-                provider.description ||
-                "";
-
-
-            statusInput.value =
-                provider.status ||
-                "active";
-
-
-            defaultInput.checked =
-                Boolean(
-                    provider.is_default
-                );
-
-
-            saveButton.textContent =
-                "SIMPAN PERUBAHAN";
-
-
-        } else {
-
-            title.textContent =
-                "ADD PROVIDER";
-
-
-            editId.value =
-                "";
-
-
-            providerIdInput.value =
-                "";
-
-
-            providerNameInput.value =
-                "";
-
-
-            descriptionInput.value =
-                "";
-
-
-            statusInput.value =
-                "active";
-
-
-            defaultInput.checked =
-                false;
-
-
-            saveButton.textContent =
-                "SIMPAN";
-        }
-
-
-        modal.classList.add(
-            "show"
-        );
-
-
-        setTimeout(
-            () => {
-                providerIdInput.focus();
-            },
-            50
-        );
-    }
-
-
-    function closeProviderModal() {
-
-        document
-            .getElementById(
-                "providerModal"
-            )
-            .classList.remove(
-                "show"
-            );
-
-
-        editingProviderId =
-            null;
-
-
-        document.getElementById(
-            "providerEditId"
-        ).value =
-            "";
-    }
-
-
-    async function saveProvider() {
-
-        const button =
-            document.getElementById(
-                "providerSaveButton"
-            );
-
-
-        const cancelButton =
-            document.getElementById(
-                "providerCancelButton"
-            );
-
-
-        const editId =
-            document.getElementById(
-                "providerEditId"
-            ).value.trim();
-
-
-        const providerId =
-            document.getElementById(
-                "providerId"
-            ).value.trim();
-
-
-        const providerName =
-            document.getElementById(
-                "providerName"
-            ).value.trim();
-
-
-        const description =
-            document.getElementById(
-                "providerDescription"
-            ).value.trim();
-
-
-        const status =
-            document.getElementById(
-                "providerStatus"
-            ).value;
-
-
-        const isDefault =
-            document.getElementById(
-                "providerDefault"
-            ).checked;
-
-
-        hideMessage(
-            "providerModalMessage"
-        );
-
-
-        if (!providerId) {
-
-            showMessage(
-                "providerModalMessage",
-                "Provider ID wajib diisi.",
-                "error"
-            );
-
-            return;
-        }
-
-
-        if (!providerName) {
-
-            showMessage(
-                "providerModalMessage",
-                "Provider Name wajib diisi.",
-                "error"
-            );
-
-            return;
-        }
-
-
-        button.disabled =
-            true;
-
-        cancelButton.disabled =
-            true;
-
-
-        const originalText =
-            button.textContent;
-
-
-        button.textContent =
-            "MENYIMPAN...";
-
-
-        try {
-
-            let result;
-
-
-            if (editId) {
-
-                result =
-                    await supabaseClient.rpc(
-                        "admin_update_provider",
-                        {
-                            p_id:
-                                editId,
-
-                            p_provider_id:
-                                providerId,
-
-                            p_provider_name:
-                                providerName,
-
-                            p_description:
-                                description ||
-                                null,
-
-                            p_status:
-                                status,
-
-                            p_is_default:
-                                isDefault
-                        }
-                    );
-
-
-            } else {
-
-                result =
-                    await supabaseClient.rpc(
-                        "admin_create_provider",
-                        {
-                            p_provider_id:
-                                providerId,
-
-                            p_provider_name:
-                                providerName,
-
-                            p_description:
-                                description ||
-                                null,
-
-                            p_status:
-                                status,
-
-                            p_is_default:
-                                isDefault
-                        }
-                    );
-            }
-
-
-            if (result.error) {
-                throw result.error;
-            }
-
-
-            await cacheProviders();
-
-
-            renderProviders(
-                providerCache
-            );
-
-
-            closeProviderModal();
-
-
-            showMessage(
-                "providerMessage",
-                editId
-                    ? "Provider berhasil diperbarui."
-                    : "Provider berhasil ditambahkan.",
-                "success"
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "SAVE PROVIDER ERROR:",
-                error
-            );
-
-
-            showMessage(
-                "providerModalMessage",
-                error.message ||
-                "Gagal menyimpan provider.",
-                "error"
-            );
-
-
-        } finally {
-
-            button.disabled =
-                false;
-
-            cancelButton.disabled =
-                false;
-
-            button.textContent =
-                originalText;
-        }
-    }
-
-
-    async function deleteProvider(
-        providerId
-    ) {
-
-        const provider =
-            providerCache.find(
-                item =>
-                    String(item.id) ===
-                    String(providerId)
-            );
-
-
-        if (!provider) {
-
-            showMessage(
-                "providerMessage",
-                "Provider tidak ditemukan.",
-                "error"
-            );
-
-            return;
-        }
-
-
-        const confirmed =
-            window.confirm(
-                "Hapus provider \"" +
-                (
-                    provider.provider_name ||
-                    provider.provider_id
-                ) +
-                "\"?\n\nTindakan ini tidak dapat dibatalkan."
-            );
-
-
-        if (!confirmed) {
-            return;
-        }
-
-
-        try {
-
-            showMessage(
-                "providerMessage",
-                "Menghapus provider...",
-                "info"
-            );
-
-
-            const {
-                error
-            } =
-                await supabaseClient.rpc(
-                    "admin_delete_provider",
-                    {
-                        p_id:
-                            providerId
-                    }
-                );
-
-
-            if (error) {
-                throw error;
-            }
-
-
-            await cacheProviders();
-
-
-            renderProviders(
-                providerCache
-            );
-
-
-            showMessage(
-                "providerMessage",
-                "Provider berhasil dihapus.",
-                "success"
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "DELETE PROVIDER ERROR:",
-                error
-            );
-
-
-            showMessage(
-                "providerMessage",
-                error.message ||
-                "Gagal menghapus provider.",
-                "error"
-            );
-        }
-    }
-
-
-    function loadModels() {
-
-        console.log(
-            "MODEL MANAGER siap."
-        );
-    }
-
-
-    function loadCredit() {
-
-        console.log(
-            "CREDIT MANAGER siap."
-        );
-    }
-
-
-    function loadSystem() {
-
-        console.log(
-            "SYSTEM MANAGER siap."
-        );
-    }
-
-
-    function getProviderStatusClass(
-        status
-    ) {
-
-        if (
-            status ===
-            "active"
-        ) {
-            return "badge-active";
-        }
-
-
-        if (
-            status ===
-            "maintenance"
-        ) {
-            return "badge-maintenance";
-        }
-
-
-        return "badge-inactive";
-    }
-
-
-    function getStatusBadgeClass(
-        status
-    ) {
-
-        if (
-            status ===
-            "active"
-        ) {
-            return "badge-active";
-        }
-
-
-        if (
-            status ===
-            "suspended"
-        ) {
-            return "badge-maintenance";
-        }
-
-
-        if (
-            status ===
-            "banned"
-        ) {
-            return "badge-danger";
-        }
-
-
-        return "badge-inactive";
-    }
-
-
-    function formatDate(
-        value
-    ) {
-
-        if (!value) {
-            return "-";
-        }
-
-
-        try {
-
-            return new Date(
-                value
-            ).toLocaleString(
-                "id-ID",
-                {
-                    dateStyle:
-                        "medium",
-
-                    timeStyle:
-                        "short"
-                }
-            );
-
-        } catch {
-
-            return "-";
-        }
-    }
-
-
-    function escapeHtml(
-        value
-    ) {
-
-        return String(
-            value ?? ""
-        )
-            .replaceAll(
-                "&",
-                "&amp;"
-            )
-            .replaceAll(
-                "<",
-                "&lt;"
-            )
-            .replaceAll(
-                ">",
-                "&gt;"
-            )
-            .replaceAll(
-                '"',
-                "&quot;"
-            )
-            .replaceAll(
-                "'",
-                "&#039;"
-            );
-    }
-
-
-    function escapeJs(
-        value
-    ) {
-
-        return String(
-            value ?? ""
-        )
-            .replaceAll(
-                "\\",
-                "\\\\"
-            )
-            .replaceAll(
-                "'",
-                "\\'"
-            )
-            .replaceAll(
-                "\n",
-                "\\n"
-            )
-            .replaceAll(
-                "\r",
-                "\\r"
-            );
-    }
-
-
-    document
-        .getElementById(
-            "providerModal"
-        )
-        .addEventListener(
-            "click",
-            function(event) {
-
-                if (
-                    event.target ===
-                    this
-                ) {
-
-                    closeProviderModal();
-                }
-            }
-        );
-
-
-    document
-        .addEventListener(
-            "keydown",
-            function(event) {
-
-                if (
-                    event.key ===
-                    "Escape"
-                ) {
-
-                    const modal =
-                        document.getElementById(
-                            "providerModal"
-                        );
-
-
-                    if (
-                        modal.classList.contains(
-                            "show"
-                        )
-                    ) {
-
-                        closeProviderModal();
-                    }
-                }
-            }
-        );
-
-
-    (async function init() {
-
-        const authenticated =
-            await checkAuth();
-
-
-        if (!authenticated) {
-            return;
-        }
-
-
-        await loadUsers();
-
-
-        try {
-
-            await cacheProviders();
-
-        } catch (error) {
-
-            console.error(
-                "INITIAL PROVIDER CACHE ERROR:",
-                error
-            );
-        }
-
-    })();
+    checkAdminAccess();
 
 </script>
 
