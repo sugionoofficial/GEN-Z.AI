@@ -8,6 +8,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
         rel="stylesheet"
@@ -53,7 +54,7 @@
         }
 
         /* =========================
-           MENU
+           MENU BUTTON
         ========================= */
 
         .menu-button {
@@ -180,6 +181,14 @@
             white-space: nowrap;
         }
 
+        .user-mini-role {
+            margin-top: 5px;
+            font-size: 9px;
+            font-weight: 700;
+            color: #a5b4fc;
+            letter-spacing: .8px;
+        }
+
         .logout {
             width: 100%;
             border: 1px solid rgba(255,255,255,.1);
@@ -264,7 +273,7 @@
         }
 
         /* =========================
-           CONTENT
+           HISTORY CARD
         ========================= */
 
         .history-card {
@@ -408,6 +417,20 @@
 
         .credits {
             font-weight: 800;
+        }
+
+        .user-cell {
+            font-size: 10px;
+            color: #6b7280;
+            max-width: 180px;
+        }
+
+        .user-cell strong {
+            display: block;
+            color: #374151;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         /* =========================
@@ -732,7 +755,10 @@
 
 <body>
 
-    <!-- MENU -->
+    <!-- =========================
+         MENU
+    ========================= -->
+
     <button
         class="menu-button"
         id="menuButton"
@@ -746,46 +772,48 @@
         <span></span>
     </button>
 
-    <!-- SIDEBAR -->
+    <!-- =========================
+         SIDEBAR
+    ========================= -->
+
     <aside class="sidebar" id="sidebar">
 
         <div class="brand">
+
             <h2>GEN-Z.AI</h2>
-            <span>AI VIDEO GENERATION</span>
+
+            <span>
+                AI VIDEO GENERATION
+            </span>
+
         </div>
 
-        <nav class="nav">
-
-            <a href="./dashboard.html">
-                Dashboard
-            </a>
-
-            <a href="../generate/index.html">
-                Generate
-            </a>
-
-            <a href="./history.html" class="active">
-                History
-            </a>
-
-            <a href="./topup.html">
-                Top Up
-            </a>
-
-            <a href="./hub-admin.html">
-                Hub Admin
-            </a>
-
+        <nav
+            class="nav"
+            id="navigation"
+        >
+            <!-- Navigation dibuat berdasarkan role -->
         </nav>
 
         <div class="sidebar-bottom">
 
             <div class="user-mini">
-                <small>ACCOUNT</small>
+
+                <small>
+                    ACCOUNT
+                </small>
 
                 <strong id="sidebarEmail">
                     Loading...
                 </strong>
+
+                <div
+                    class="user-mini-role"
+                    id="sidebarRole"
+                >
+                    --
+                </div>
+
             </div>
 
             <button
@@ -805,16 +833,21 @@
         id="overlay"
     ></div>
 
-    <!-- MAIN -->
+    <!-- =========================
+         MAIN
+    ========================= -->
+
     <main class="main">
 
         <header class="topbar">
 
             <div class="welcome">
 
-                <h1>History</h1>
+                <h1>
+                    History
+                </h1>
 
-                <p>
+                <p id="historySubtitle">
                     Riwayat generate yang terkait dengan akun kamu.
                 </p>
 
@@ -822,7 +855,9 @@
 
             <div class="credit-card">
 
-                <small>AVAILABLE CREDITS</small>
+                <small>
+                    AVAILABLE CREDITS
+                </small>
 
                 <strong id="creditBalance">
                     0
@@ -858,7 +893,10 @@
 
             </div>
 
-            <!-- FILTER -->
+            <!-- =========================
+                 FILTER
+            ========================= -->
+
             <div class="filters">
 
                 <button
@@ -903,23 +941,34 @@
 
             </div>
 
-            <!-- MESSAGE -->
+            <!-- =========================
+                 MESSAGE
+            ========================= -->
+
             <div
                 class="message"
                 id="message"
             ></div>
 
-            <!-- LOADING -->
+            <!-- =========================
+                 LOADING
+            ========================= -->
+
             <div
                 class="loading"
                 id="loadingState"
             >
+
                 <div class="spinner"></div>
 
                 Memuat history...
+
             </div>
 
-            <!-- TABLE -->
+            <!-- =========================
+                 TABLE
+            ========================= -->
+
             <div
                 class="table-wrap"
                 id="tableWrap"
@@ -934,6 +983,13 @@
 
                             <th>
                                 Tanggal
+                            </th>
+
+                            <th
+                                id="userColumnHeader"
+                                style="display:none;"
+                            >
+                                User
                             </th>
 
                             <th>
@@ -971,7 +1027,10 @@
 
             </div>
 
-            <!-- EMPTY -->
+            <!-- =========================
+                 EMPTY
+            ========================= -->
+
             <div
                 class="empty-state"
                 id="emptyState"
@@ -1007,7 +1066,10 @@
 
     </main>
 
-    <!-- DETAIL MODAL -->
+    <!-- =========================
+         DETAIL MODAL
+    ========================= -->
+
     <div
         class="modal"
         id="detailModal"
@@ -1034,28 +1096,38 @@
             <div
                 class="modal-body"
                 id="modalBody"
-            >
-            </div>
+            ></div>
 
         </div>
 
     </div>
 
-    <!-- SUPABASE -->
+    <!-- =========================
+         SUPABASE
+    ========================= -->
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
 
     <script>
 
+        /* =========================================================
+           GLOBAL STATE
+        ========================================================= */
+
         let supabaseClient = null;
+
         let currentUser = null;
 
+        let currentProfile = null;
+
         let historyData = [];
+
         let currentFilter = "all";
 
-        /* =========================
+        /* =========================================================
            ELEMENTS
-        ========================= */
+        ========================================================= */
 
         const menuButton =
             document.getElementById("menuButton");
@@ -1065,6 +1137,9 @@
 
         const overlay =
             document.getElementById("overlay");
+
+        const navigation =
+            document.getElementById("navigation");
 
         const logoutButton =
             document.getElementById("logoutButton");
@@ -1087,6 +1162,9 @@
         const historyCount =
             document.getElementById("historyCount");
 
+        const historySubtitle =
+            document.getElementById("historySubtitle");
+
         const message =
             document.getElementById("message");
 
@@ -1099,9 +1177,47 @@
         const closeModal =
             document.getElementById("closeModal");
 
-        /* =========================
+        const creditBalance =
+            document.getElementById("creditBalance");
+
+        const sidebarEmail =
+            document.getElementById("sidebarEmail");
+
+        const sidebarRole =
+            document.getElementById("sidebarRole");
+
+        const userColumnHeader =
+            document.getElementById("userColumnHeader");
+
+        /* =========================================================
+           ROLE
+        ========================================================= */
+
+        function normalizeRole(role) {
+
+            return String(
+                role || ""
+            ).trim().toUpperCase();
+
+        }
+
+        function isAdminOrOwner() {
+
+            const role =
+                normalizeRole(
+                    currentProfile?.role
+                );
+
+            return (
+                role === "ADMIN" ||
+                role === "OWNER"
+            );
+
+        }
+
+        /* =========================================================
            SIDEBAR
-        ========================= */
+        ========================================================= */
 
         menuButton.addEventListener(
             "click",
@@ -1124,6 +1240,7 @@
                         "aria-expanded",
                         "true"
                     );
+
                 }
 
             }
@@ -1133,17 +1250,6 @@
             "click",
             closeSidebar
         );
-
-        document
-            .querySelectorAll(".nav a")
-            .forEach(link => {
-
-                link.addEventListener(
-                    "click",
-                    closeSidebar
-                );
-
-            });
 
         function closeSidebar() {
 
@@ -1155,18 +1261,129 @@
                 "aria-expanded",
                 "false"
             );
+
         }
 
-        /* =========================
+        /* =========================================================
+           BUILD NAVIGATION
+        ========================================================= */
+
+        function buildNavigation() {
+
+            if (!currentProfile) {
+                return;
+            }
+
+            const role =
+                normalizeRole(
+                    currentProfile.role
+                );
+
+            let html = "";
+
+            if (role === "USER") {
+
+                html = `
+
+                    <a
+                        href="../user/dashboard.html"
+                    >
+                        Dashboard
+                    </a>
+
+                    <a
+                        href="../generate/index.html"
+                    >
+                        Generate
+                    </a>
+
+                    <a
+                        href="../history/index.html"
+                        class="active"
+                    >
+                        History
+                    </a>
+
+                    <a
+                        href="../user/topup.html"
+                    >
+                        Top Up
+                    </a>
+
+                    <a
+                        href="../user/hub-admin.html"
+                    >
+                        Hub Admin
+                    </a>
+
+                `;
+
+            } else if (
+                role === "ADMIN" ||
+                role === "OWNER"
+            ) {
+
+                html = `
+
+                    <a
+                        href="../admin/dashboard.html"
+                    >
+                        Dashboard
+                    </a>
+
+                    <a
+                        href="../generate/index.html"
+                    >
+                        Generate
+                    </a>
+
+                    <a
+                        href="../history/index.html"
+                        class="active"
+                    >
+                        History
+                    </a>
+
+                    <a
+                        href="../admin-control/admin-panel.html"
+                    >
+                        Admin Panel
+                    </a>
+
+                `;
+
+            } else {
+
+                html = "";
+
+            }
+
+            navigation.innerHTML = html;
+
+            navigation
+                .querySelectorAll("a")
+                .forEach(link => {
+
+                    link.addEventListener(
+                        "click",
+                        closeSidebar
+                    );
+
+                });
+
+        }
+
+        /* =========================================================
            MESSAGE
-        ========================= */
+        ========================================================= */
 
         function showMessage(
             text,
             type = "info"
         ) {
 
-            message.textContent = text;
+            message.textContent =
+                text;
 
             message.className =
                 "message show " + type;
@@ -1175,15 +1392,17 @@
 
         function hideMessage() {
 
-            message.textContent = "";
+            message.textContent =
+                "";
 
-            message.className = "message";
+            message.className =
+                "message";
 
         }
 
-        /* =========================
-           FORMAT DATE
-        ========================= */
+        /* =========================================================
+           DATE
+        ========================================================= */
 
         function formatDate(value) {
 
@@ -1194,7 +1413,11 @@
             const date =
                 new Date(value);
 
-            if (Number.isNaN(date.getTime())) {
+            if (
+                Number.isNaN(
+                    date.getTime()
+                )
+            ) {
                 return "-";
             }
 
@@ -1208,11 +1431,12 @@
                     minute: "2-digit"
                 }
             );
+
         }
 
-        /* =========================
-           FORMAT STATUS
-        ========================= */
+        /* =========================================================
+           STATUS
+        ========================================================= */
 
         function normalizeStatus(status) {
 
@@ -1252,11 +1476,17 @@
                 normalizeStatus(status);
 
             const allowed = [
+
                 "completed",
+
                 "processing",
+
                 "failed",
+
                 "pending",
+
                 "cancelled"
+
             ];
 
             return allowed.includes(value)
@@ -1265,30 +1495,53 @@
 
         }
 
-        /* =========================
+        /* =========================================================
            ESCAPE HTML
-        ========================= */
+        ========================================================= */
 
         function escapeHtml(value) {
 
-            if (value === null ||
-                value === undefined) {
+            if (
+                value === null ||
+                value === undefined
+            ) {
 
                 return "";
 
             }
 
             return String(value)
-                .replaceAll("&", "&amp;")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll('"', "&quot;")
-                .replaceAll("'", "&#039;");
+
+                .replaceAll(
+                    "&",
+                    "&amp;"
+                )
+
+                .replaceAll(
+                    "<",
+                    "&lt;"
+                )
+
+                .replaceAll(
+                    ">",
+                    "&gt;"
+                )
+
+                .replaceAll(
+                    '"',
+                    "&quot;"
+                )
+
+                .replaceAll(
+                    "'",
+                    "&#039;"
+                );
+
         }
 
-        /* =========================
+        /* =========================================================
            NAVIGATION
-        ========================= */
+        ========================================================= */
 
         function goToGenerate() {
 
@@ -1297,9 +1550,9 @@
 
         }
 
-        /* =========================
+        /* =========================================================
            LOAD PROFILE
-        ========================= */
+        ========================================================= */
 
         async function loadProfile() {
 
@@ -1322,7 +1575,15 @@
 
                     .single();
 
-            if (error || !profile) {
+            if (
+                error ||
+                !profile
+            ) {
+
+                console.error(
+                    "Profile error:",
+                    error
+                );
 
                 throw new Error(
                     "Profil pengguna tidak ditemukan."
@@ -1330,25 +1591,30 @@
 
             }
 
-            if (
-                profile.role === "ADMIN" ||
-                profile.role === "OWNER"
-            ) {
-
-                window.location.replace(
-                    "../admin/dashboard.html"
+            const role =
+                normalizeRole(
+                    profile.role
                 );
 
-                return false;
-
-            }
+            /*
+             * History sekarang adalah halaman
+             * bersama untuk USER, ADMIN, OWNER.
+             *
+             * Tidak ada redirect ADMIN/OWNER
+             * ke dashboard.
+             */
 
             if (
-                profile.role !== "USER" ||
-                profile.status !== "active"
+                ![
+                    "USER",
+                    "ADMIN",
+                    "OWNER"
+                ].includes(role)
             ) {
 
-                await supabaseClient.auth.signOut();
+                await supabaseClient
+                    .auth
+                    .signOut();
 
                 window.location.replace(
                     "../login.html"
@@ -1358,26 +1624,73 @@
 
             }
 
-            document
-                .getElementById("creditBalance")
-                .textContent =
+            if (
+                profile.status !== "active"
+            ) {
+
+                await supabaseClient
+                    .auth
+                    .signOut();
+
+                window.location.replace(
+                    "../login.html"
+                );
+
+                return false;
+
+            }
+
+            currentProfile =
+                profile;
+
+            creditBalance.textContent =
                 Number(
                     profile.credits || 0
-                ).toLocaleString("id-ID");
+                ).toLocaleString(
+                    "id-ID"
+                );
 
-            document
-                .getElementById("sidebarEmail")
-                .textContent =
+            sidebarEmail.textContent =
                 profile.email ||
                 currentUser.email ||
                 "User";
 
+            sidebarRole.textContent =
+                role;
+
+            buildNavigation();
+
+            /*
+             * Admin/Owner melihat halaman history
+             * yang sama, tetapi query database tetap
+             * tunduk pada Row Level Security Supabase.
+             */
+
+            if (isAdminOrOwner()) {
+
+                historySubtitle.textContent =
+                    "Riwayat generate seluruh aplikasi.";
+
+                userColumnHeader.style.display =
+                    "table-cell";
+
+            } else {
+
+                historySubtitle.textContent =
+                    "Riwayat generate yang terkait dengan akun kamu.";
+
+                userColumnHeader.style.display =
+                    "none";
+
+            }
+
             return true;
+
         }
 
-        /* =========================
+        /* =========================================================
            LOAD HISTORY
-        ========================= */
+        ========================================================= */
 
         async function loadHistory() {
 
@@ -1392,28 +1705,12 @@
 
             hideMessage();
 
-            /*
-             * USER HANYA BOLEH MELIHAT
-             * HISTORY MILIK USER TERSEBUT.
-             *
-             * Filter user_id menggunakan
-             * currentUser.id.
-             */
-
-            const {
-                data,
-                error
-            } =
-                await supabaseClient
+            let query =
+                supabaseClient
 
                     .from("generation_history")
 
                     .select("*")
-
-                    .eq(
-                        "user_id",
-                        currentUser.id
-                    )
 
                     .order(
                         "created_at",
@@ -1421,6 +1718,33 @@
                             ascending: false
                         }
                     );
+
+            /*
+             * USER:
+             * hanya history miliknya.
+             *
+             * ADMIN/OWNER:
+             * tidak diberi filter user_id.
+             * Supabase RLS menentukan apakah
+             * role tersebut boleh melihat semua
+             * history.
+             */
+
+            if (!isAdminOrOwner()) {
+
+                query =
+                    query.eq(
+                        "user_id",
+                        currentUser.id
+                    );
+
+            }
+
+            const {
+                data,
+                error
+            } =
+                await query;
 
             if (error) {
 
@@ -1445,9 +1769,26 @@
 
         }
 
-        /* =========================
+        /* =========================================================
+           USER DISPLAY
+        ========================================================= */
+
+        function getHistoryUser(item) {
+
+            return (
+                item.user_email ||
+                item.email ||
+                item.user_name ||
+                item.name ||
+                item.user_id ||
+                "-"
+            );
+
+        }
+
+        /* =========================================================
            RENDER HISTORY
-        ========================= */
+        ========================================================= */
 
         function renderHistory() {
 
@@ -1456,18 +1797,23 @@
 
             const filtered =
                 currentFilter === "all"
+
                     ? historyData
+
                     : historyData.filter(
                         item =>
                             normalizeStatus(
                                 item.status
-                            ) === currentFilter
+                            ) ===
+                            currentFilter
                     );
 
             historyCount.textContent =
                 `${filtered.length.toLocaleString("id-ID")} riwayat`;
 
-            if (filtered.length === 0) {
+            if (
+                filtered.length === 0
+            ) {
 
                 tableWrap.style.display =
                     "none";
@@ -1480,31 +1826,45 @@
                     currentFilter !== "all"
                 ) {
 
-                    emptyState.querySelector("h3")
+                    emptyState
+                        .querySelector("h3")
                         .textContent =
                         "Tidak ada hasil";
 
-                    emptyState.querySelector("p")
+                    emptyState
+                        .querySelector("p")
                         .textContent =
                         "Tidak ada history dengan status tersebut.";
 
-                    emptyState.querySelector(
-                        ".generate-button"
-                    ).style.display = "none";
+                    emptyState
+                        .querySelector(
+                            ".generate-button"
+                        )
+                        .style.display =
+                        "none";
 
                 } else {
 
-                    emptyState.querySelector("h3")
+                    emptyState
+                        .querySelector("h3")
                         .textContent =
                         "Belum ada riwayat";
 
-                    emptyState.querySelector("p")
+                    emptyState
+                        .querySelector("p")
                         .textContent =
-                        "Kamu belum melakukan generate video.";
+                        isAdminOrOwner()
+                            ? "Belum ada aktivitas generate di aplikasi."
+                            : "Kamu belum melakukan generate video.";
 
-                    emptyState.querySelector(
-                        ".generate-button"
-                    ).style.display = "inline-block";
+                    emptyState
+                        .querySelector(
+                            ".generate-button"
+                        )
+                        .style.display =
+                        isAdminOrOwner()
+                            ? "none"
+                            : "inline-block";
 
                 }
 
@@ -1518,10 +1878,11 @@
             tableWrap.style.display =
                 "block";
 
-            historyBody.innerHTML = "";
+            historyBody.innerHTML =
+                "";
 
             filtered.forEach(
-                (item, index) => {
+                item => {
 
                     const provider =
                         item.provider_name ||
@@ -1552,7 +1913,45 @@
                         );
 
                     const row =
-                        document.createElement("tr");
+                        document.createElement(
+                            "tr"
+                        );
+
+                    const userCell =
+                        isAdminOrOwner()
+
+                            ? `
+
+                                <td class="user-cell">
+
+                                    <strong
+                                        title="${escapeHtml(
+                                            getHistoryUser(item)
+                                        )}"
+                                    >
+                                        ${escapeHtml(
+                                            getHistoryUser(item)
+                                        )}
+                                    </strong>
+
+                                    ${
+                                        item.user_id
+                                            ? escapeHtml(
+                                                String(
+                                                    item.user_id
+                                                ).slice(
+                                                    0,
+                                                    8
+                                                ) + "..."
+                                            )
+                                            : ""
+                                    }
+
+                                </td>
+
+                            `
+
+                            : "";
 
                     row.innerHTML = `
 
@@ -1564,25 +1963,39 @@
                             )}
                         </td>
 
+                        ${userCell}
+
                         <td>
+
                             <span class="provider">
-                                ${escapeHtml(provider)}
+                                ${escapeHtml(
+                                    provider
+                                )}
                             </span>
+
                         </td>
 
                         <td>
+
                             <span class="model">
-                                ${escapeHtml(model)}
+                                ${escapeHtml(
+                                    model
+                                )}
                             </span>
+
                         </td>
 
                         <td class="prompt-cell">
 
                             <div
                                 class="prompt-text"
-                                title="${escapeHtml(prompt)}"
+                                title="${escapeHtml(
+                                    prompt
+                                )}"
                             >
-                                ${escapeHtml(prompt)}
+                                ${escapeHtml(
+                                    prompt
+                                )}
                             </div>
 
                         </td>
@@ -1592,7 +2005,9 @@
                             <span class="credits">
                                 ${Number(
                                     credits || 0
-                                ).toLocaleString("id-ID")}
+                                ).toLocaleString(
+                                    "id-ID"
+                                )}
                             </span>
 
                         </td>
@@ -1600,12 +2015,21 @@
                         <td>
 
                             <span
-                                class="status ${statusClass(status)}"
+                                class="status ${statusClass(
+                                    status
+                                )}"
                             >
-                                <span class="status-dot"></span>
+
+                                <span
+                                    class="status-dot"
+                                ></span>
+
                                 ${escapeHtml(
-                                    statusLabel(status)
+                                    statusLabel(
+                                        status
+                                    )
                                 )}
+
                             </span>
 
                         </td>
@@ -1615,7 +2039,6 @@
                             <button
                                 class="view-button"
                                 type="button"
-                                data-index="${index}"
                             >
                                 DETAIL
                             </button>
@@ -1623,12 +2046,6 @@
                         </td>
 
                     `;
-
-                    /*
-                     * Simpan reference item asli
-                     * agar detail tidak bergantung
-                     * pada index setelah filter.
-                     */
 
                     const button =
                         row.querySelector(
@@ -1644,16 +2061,18 @@
                         }
                     );
 
-                    historyBody.appendChild(row);
+                    historyBody.appendChild(
+                        row
+                    );
 
                 }
             );
 
         }
 
-        /* =========================
+        /* =========================================================
            DETAIL
-        ========================= */
+        ========================================================= */
 
         function showDetail(item) {
 
@@ -1691,7 +2110,32 @@
                 item.result_url ||
                 "";
 
+            const user =
+                getHistoryUser(item);
+
             modalBody.innerHTML = `
+
+                ${
+                    isAdminOrOwner()
+                        ? `
+
+                            <div class="detail-row">
+
+                                <div class="detail-label">
+                                    User
+                                </div>
+
+                                <div class="detail-value">
+                                    ${escapeHtml(
+                                        user
+                                    )}
+                                </div>
+
+                            </div>
+
+                        `
+                        : ""
+                }
 
                 <div class="detail-row">
 
@@ -1716,7 +2160,9 @@
                     </div>
 
                     <div class="detail-value">
-                        ${escapeHtml(provider)}
+                        ${escapeHtml(
+                            provider
+                        )}
                     </div>
 
                 </div>
@@ -1728,7 +2174,9 @@
                     </div>
 
                     <div class="detail-value">
-                        ${escapeHtml(model)}
+                        ${escapeHtml(
+                            model
+                        )}
                     </div>
 
                 </div>
@@ -1740,7 +2188,9 @@
                     </div>
 
                     <div class="detail-value">
-                        ${escapeHtml(prompt)}
+                        ${escapeHtml(
+                            prompt
+                        )}
                     </div>
 
                 </div>
@@ -1754,7 +2204,9 @@
                     <div class="detail-value">
                         ${Number(
                             credits || 0
-                        ).toLocaleString("id-ID")}
+                        ).toLocaleString(
+                            "id-ID"
+                        )}
                     </div>
 
                 </div>
@@ -1768,12 +2220,21 @@
                     <div class="detail-value">
 
                         <span
-                            class="status ${statusClass(status)}"
+                            class="status ${statusClass(
+                                status
+                            )}"
                         >
-                            <span class="status-dot"></span>
+
+                            <span
+                                class="status-dot"
+                            ></span>
+
                             ${escapeHtml(
-                                statusLabel(status)
+                                statusLabel(
+                                    status
+                                )
                             )}
+
                         </span>
 
                     </div>
@@ -1781,8 +2242,31 @@
                 </div>
 
                 ${
+                    item.user_id
+                        ? `
+
+                            <div class="detail-row">
+
+                                <div class="detail-label">
+                                    User ID
+                                </div>
+
+                                <div class="detail-value">
+                                    ${escapeHtml(
+                                        item.user_id
+                                    )}
+                                </div>
+
+                            </div>
+
+                        `
+                        : ""
+                }
+
+                ${
                     videoUrl
                         ? `
+
                             <div class="detail-row">
 
                                 <div class="detail-label">
@@ -1792,7 +2276,9 @@
                                 <div class="detail-value">
 
                                     <a
-                                        href="${escapeHtml(videoUrl)}"
+                                        href="${escapeHtml(
+                                            videoUrl
+                                        )}"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         style="
@@ -1807,6 +2293,7 @@
                                 </div>
 
                             </div>
+
                         `
                         : ""
                 }
@@ -1814,6 +2301,7 @@
                 ${
                     item.error_message
                         ? `
+
                             <div class="detail-row">
 
                                 <div class="detail-label">
@@ -1830,19 +2318,22 @@
                                 </div>
 
                             </div>
+
                         `
                         : ""
                 }
 
             `;
 
-            detailModal.classList.add("show");
+            detailModal.classList.add(
+                "show"
+            );
 
         }
 
-        /* =========================
+        /* =========================================================
            CLOSE MODAL
-        ========================= */
+        ========================================================= */
 
         closeModal.addEventListener(
             "click",
@@ -1860,7 +2351,8 @@
             function (event) {
 
                 if (
-                    event.target === detailModal
+                    event.target ===
+                    detailModal
                 ) {
 
                     detailModal.classList.remove(
@@ -1877,7 +2369,8 @@
             function (event) {
 
                 if (
-                    event.key === "Escape"
+                    event.key ===
+                    "Escape"
                 ) {
 
                     detailModal.classList.remove(
@@ -1889,48 +2382,54 @@
             }
         );
 
-        /* =========================
+        /* =========================================================
            FILTER
-        ========================= */
+        ========================================================= */
 
         document
-            .querySelectorAll(".filter-button")
-            .forEach(button => {
+            .querySelectorAll(
+                ".filter-button"
+            )
+            .forEach(
+                button => {
 
-                button.addEventListener(
-                    "click",
-                    function () {
+                    button.addEventListener(
+                        "click",
+                        function () {
 
-                        document
-                            .querySelectorAll(
-                                ".filter-button"
-                            )
-                            .forEach(item => {
+                            document
+                                .querySelectorAll(
+                                    ".filter-button"
+                                )
+                                .forEach(
+                                    item => {
 
-                                item.classList.remove(
-                                    "active"
+                                        item.classList.remove(
+                                            "active"
+                                        );
+
+                                    }
                                 );
 
-                            });
+                            this.classList.add(
+                                "active"
+                            );
 
-                        this.classList.add(
-                            "active"
-                        );
+                            currentFilter =
+                                this.dataset.filter ||
+                                "all";
 
-                        currentFilter =
-                            this.dataset.filter ||
-                            "all";
+                            renderHistory();
 
-                        renderHistory();
+                        }
+                    );
 
-                    }
-                );
+                }
+            );
 
-            });
-
-        /* =========================
+        /* =========================================================
            REFRESH
-        ========================= */
+        ========================================================= */
 
         refreshButton.addEventListener(
             "click",
@@ -1949,6 +2448,11 @@
                     await loadHistory();
 
                 } catch (error) {
+
+                    console.error(
+                        "Refresh error:",
+                        error
+                    );
 
                     showMessage(
                         error.message ||
@@ -1969,9 +2473,9 @@
             }
         );
 
-        /* =========================
+        /* =========================================================
            LOGOUT
-        ========================= */
+        ========================================================= */
 
         logoutButton.addEventListener(
             "click",
@@ -1979,9 +2483,13 @@
 
                 try {
 
-                    if (supabaseClient) {
+                    if (
+                        supabaseClient
+                    ) {
 
-                        await supabaseClient.auth.signOut();
+                        await supabaseClient
+                            .auth
+                            .signOut();
 
                     }
 
@@ -2003,21 +2511,24 @@
             }
         );
 
-        /* =========================
+        /* =========================================================
            INIT
-        ========================= */
+        ========================================================= */
 
         async function init() {
 
             try {
 
-                if (!window.supabase) {
+                if (
+                    !window.supabase
+                ) {
 
                     window.location.replace(
                         "../login.html"
                     );
 
                     return;
+
                 }
 
                 if (
@@ -2031,6 +2542,7 @@
                     );
 
                     return;
+
                 }
 
                 supabaseClient =
@@ -2045,7 +2557,9 @@
                     },
                     error
                 } =
-                    await supabaseClient.auth.getSession();
+                    await supabaseClient
+                        .auth
+                        .getSession();
 
                 if (
                     error ||
@@ -2057,6 +2571,7 @@
                     );
 
                     return;
+
                 }
 
                 currentUser =
