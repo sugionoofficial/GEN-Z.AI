@@ -221,6 +221,40 @@
             font-size:13px;
         }
 
+        .topbar-actions {
+            display:flex;
+            align-items:center;
+            justify-content:flex-end;
+            gap:10px;
+            flex-wrap:wrap;
+        }
+
+        .admin-back-button {
+            display:none;
+            border:0;
+            background:#fff;
+            color:#111827;
+            padding:12px 15px;
+            border-radius:13px;
+            font-size:11px;
+            font-weight:800;
+            box-shadow:0 10px 25px rgba(15,23,42,.08);
+            border:1px solid var(--border);
+            text-decoration:none;
+            white-space:nowrap;
+        }
+
+        .admin-back-button:hover {
+            background:#f9fafb;
+            transform:translateY(-1px);
+        }
+
+        body.edit-mode .admin-back-button {
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+        }
+
         .credit-card {
             min-width:190px;
             background:var(--dark);
@@ -773,6 +807,15 @@
                 padding-left:62px;
             }
 
+            .topbar-actions {
+                width:100%;
+                justify-content:flex-start;
+            }
+
+            .admin-back-button {
+                flex:1;
+            }
+
             .hero {
                 padding:30px;
                 flex-direction:column;
@@ -806,6 +849,15 @@
                 padding-left:58px;
                 align-items:flex-start;
                 flex-direction:column;
+            }
+
+            .topbar-actions {
+                width:100%;
+            }
+
+            .admin-back-button {
+                width:100%;
+                flex:none;
             }
 
             .credit-card {
@@ -850,8 +902,22 @@
         <a href="./dashboard.html" class="active">Dashboard</a>
         <a href="../generate/index.html">Generate</a>
         <a href="../history/index.html">History</a>
-        <a href="../topup/index.html">Top Up</a>
-        <a href="./hub-admin.html">Hub Admin</a>
+
+        <a href="../topup/index.html" id="topupNav">
+            Top Up
+        </a>
+
+        <a href="./hub-admin.html" id="hubAdminNav">
+            Hub Admin
+        </a>
+
+        <a
+            href="../admin-control/admin-panel.html"
+            id="adminPanelNav"
+            class="hidden"
+        >
+            Admin Panel
+        </a>
     </nav>
 
     <div class="sidebar-bottom">
@@ -876,9 +942,21 @@
             <p>Jelajahi contoh video AI yang tersedia di GEN-Z.AI.</p>
         </div>
 
-        <div class="credit-card">
-            <small>AVAILABLE CREDITS</small>
-            <strong id="creditValue">—</strong>
+        <div class="topbar-actions">
+
+            <a
+                href="../admin-control/admin-panel.html"
+                class="admin-back-button"
+                id="adminBackButton"
+            >
+                ← Back to Admin Panel
+            </a>
+
+            <div class="credit-card">
+                <small>AVAILABLE CREDITS</small>
+                <strong id="creditValue">—</strong>
+            </div>
+
         </div>
     </div>
 
@@ -1144,7 +1222,9 @@ const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
 const STORAGE_BUCKET = "dashboard-videos";
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.error("GENZ_CONFIG SUPABASE_URL / SUPABASE_KEY tidak tersedia.");
+    console.error(
+        "GENZ_CONFIG SUPABASE_URL / SUPABASE_KEY tidak tersedia."
+    );
 }
 
 const { createClient } = window.supabase;
@@ -1156,6 +1236,10 @@ const supabaseClient = createClient(
 
 const EDIT_MODE =
     new URLSearchParams(window.location.search).get("edit") === "1";
+
+if (EDIT_MODE) {
+    document.body.classList.add("edit-mode");
+}
 
 let currentUser = null;
 let currentProfile = null;
@@ -1197,7 +1281,11 @@ const elements = {
     progressPercent: document.getElementById("progressPercent"),
     progressBar: document.getElementById("progressBar"),
     saveVideoButton: document.getElementById("saveVideoButton"),
-    toast: document.getElementById("toast")
+    toast: document.getElementById("toast"),
+    topupNav: document.getElementById("topupNav"),
+    hubAdminNav: document.getElementById("hubAdminNav"),
+    adminPanelNav: document.getElementById("adminPanelNav"),
+    adminBackButton: document.getElementById("adminBackButton")
 };
 
 
@@ -1223,15 +1311,22 @@ elements.menuButton.addEventListener("click", () => {
     }
 });
 
-elements.overlay.addEventListener("click", closeMenu);
+elements.overlay.addEventListener(
+    "click",
+    closeMenu
+);
 
 
 /* ============================================================
    TOAST
 ============================================================ */
 
-function showToast(message, type = "success") {
-    elements.toast.textContent = message;
+function showToast(
+    message,
+    type = "success"
+) {
+    elements.toast.textContent =
+        message;
 
     elements.toast.className =
         "toast " +
@@ -1240,9 +1335,68 @@ function showToast(message, type = "success") {
 
     clearTimeout(toastTimer);
 
-    toastTimer = setTimeout(() => {
-        elements.toast.classList.remove("show");
-    }, 3500);
+    toastTimer =
+        setTimeout(() => {
+            elements.toast.classList.remove(
+                "show"
+            );
+        }, 3500);
+}
+
+
+/* ============================================================
+   NAVIGATION MODE
+============================================================ */
+
+function applyNavigationMode() {
+
+    if (
+        EDIT_MODE &&
+        isAdmin
+    ) {
+
+        elements.topupNav.classList.add(
+            "hidden"
+        );
+
+        elements.hubAdminNav.classList.add(
+            "hidden"
+        );
+
+        elements.adminPanelNav.classList.remove(
+            "hidden"
+        );
+
+        elements.adminBackButton.classList.remove(
+            "hidden"
+        );
+
+        document.body.classList.add(
+            "edit-mode"
+        );
+
+        return;
+    }
+
+    elements.topupNav.classList.remove(
+        "hidden"
+    );
+
+    elements.hubAdminNav.classList.remove(
+        "hidden"
+    );
+
+    elements.adminPanelNav.classList.add(
+        "hidden"
+    );
+
+    elements.adminBackButton.classList.add(
+        "hidden"
+    );
+
+    document.body.classList.remove(
+        "edit-mode"
+    );
 }
 
 
@@ -1251,13 +1405,19 @@ function showToast(message, type = "success") {
 ============================================================ */
 
 async function getSession() {
+
     const {
         data,
         error
-    } = await supabaseClient.auth.getSession();
+    } =
+        await supabaseClient.auth.getSession();
 
     if (error) {
-        console.error("Session error:", error);
+        console.error(
+            "Session error:",
+            error
+        );
+
         return null;
     }
 
@@ -1265,14 +1425,21 @@ async function getSession() {
 }
 
 async function loadProfile(userId) {
+
     const {
         data,
         error
-    } = await supabaseClient
-        .from("profiles")
-        .select("id,email,name,role,credits,status")
-        .eq("id", userId)
-        .single();
+    } =
+        await supabaseClient
+            .from("profiles")
+            .select(
+                "id,email,name,role,credits,status"
+            )
+            .eq(
+                "id",
+                userId
+            )
+            .single();
 
     if (error) {
         throw error;
@@ -1282,48 +1449,79 @@ async function loadProfile(userId) {
 }
 
 async function initAuth() {
-    const session = await getSession();
+
+    const session =
+        await getSession();
 
     if (!session) {
-        window.location.replace("../login.html");
+
+        window.location.replace(
+            "../login.html"
+        );
+
         return false;
     }
 
-    currentUser = session.user;
+    currentUser =
+        session.user;
 
     try {
+
         currentProfile =
-            await loadProfile(currentUser.id);
+            await loadProfile(
+                currentUser.id
+            );
+
     } catch (error) {
-        console.error("Profile error:", error);
+
+        console.error(
+            "Profile error:",
+            error
+        );
 
         await supabaseClient.auth.signOut();
 
-        window.location.replace("../login.html");
+        window.location.replace(
+            "../login.html"
+        );
 
         return false;
     }
 
     if (
         !currentProfile ||
-        String(currentProfile.status || "").toUpperCase() !== "ACTIVE"
+        String(
+            currentProfile.status || ""
+        ).toUpperCase() !== "ACTIVE"
     ) {
+
         await supabaseClient.auth.signOut();
 
-        window.location.replace("../login.html");
+        window.location.replace(
+            "../login.html"
+        );
 
         return false;
     }
 
     const role =
-        String(currentProfile.role || "").toUpperCase();
+        String(
+            currentProfile.role || ""
+        ).toUpperCase();
 
     isAdmin =
         role === "ADMIN" ||
         role === "OWNER";
 
-    if (EDIT_MODE && !isAdmin) {
-        window.location.replace("./dashboard.html");
+    if (
+        EDIT_MODE &&
+        !isAdmin
+    ) {
+
+        window.location.replace(
+            "./dashboard.html"
+        );
+
         return false;
     }
 
@@ -1333,11 +1531,22 @@ async function initAuth() {
         "User";
 
     elements.creditValue.textContent =
-        Number(currentProfile.credits || 0)
-            .toLocaleString("id-ID");
+        Number(
+            currentProfile.credits || 0
+        ).toLocaleString(
+            "id-ID"
+        );
 
-    if (EDIT_MODE && isAdmin) {
-        elements.editBanner.classList.remove("hidden");
+    applyNavigationMode();
+
+    if (
+        EDIT_MODE &&
+        isAdmin
+    ) {
+
+        elements.editBanner.classList.remove(
+            "hidden"
+        );
     }
 
     return true;
@@ -1349,6 +1558,7 @@ async function initAuth() {
 ============================================================ */
 
 async function loadVideos() {
+
     renderLoading();
 
     let query =
@@ -1369,24 +1579,45 @@ async function loadVideos() {
                     "updated_at"
                 ].join(",")
             )
-            .order("sort_order", {
-                ascending:true
-            })
-            .order("created_at", {
-                ascending:true
-            });
+            .order(
+                "sort_order",
+                {
+                    ascending:true
+                }
+            )
+            .order(
+                "created_at",
+                {
+                    ascending:true
+                }
+            );
 
-    if (!(EDIT_MODE && isAdmin)) {
-        query = query.eq("is_active", true);
+    if (
+        !(
+            EDIT_MODE &&
+            isAdmin
+        )
+    ) {
+
+        query =
+            query.eq(
+                "is_active",
+                true
+            );
     }
 
     const {
         data,
         error
-    } = await query;
+    } =
+        await query;
 
     if (error) {
-        console.error("Dashboard videos error:", error);
+
+        console.error(
+            "Dashboard videos error:",
+            error
+        );
 
         renderError(
             "Video dashboard belum dapat dimuat.",
@@ -1396,12 +1627,16 @@ async function loadVideos() {
         return;
     }
 
-    videos = Array.isArray(data) ? data : [];
+    videos =
+        Array.isArray(data)
+            ? data
+            : [];
 
     renderVideos();
 }
 
 function renderLoading() {
+
     elements.videoGrid.innerHTML = `
         <div class="state-box">
             <strong>Memuat video...</strong>
@@ -1410,7 +1645,11 @@ function renderLoading() {
     `;
 }
 
-function renderError(title, detail) {
+function renderError(
+    title,
+    detail
+) {
+
     elements.videoGrid.innerHTML = `
         <div class="state-box">
             <strong>${escapeHtml(title)}</strong>
@@ -1420,6 +1659,7 @@ function renderError(title, detail) {
 }
 
 function renderEmpty() {
+
     elements.videoGrid.innerHTML = `
         <div class="state-box">
             <strong>Belum ada video.</strong>
@@ -1434,11 +1674,13 @@ function renderEmpty() {
 ============================================================ */
 
 function resolveStorageUrl(path) {
+
     if (!path) {
         return "";
     }
 
-    const value = String(path).trim();
+    const value =
+        String(path).trim();
 
     if (
         value.startsWith("http://") ||
@@ -1450,11 +1692,17 @@ function resolveStorageUrl(path) {
 
     const {
         data
-    } = supabaseClient.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(value);
+    } =
+        supabaseClient.storage
+            .from(
+                STORAGE_BUCKET
+            )
+            .getPublicUrl(
+                value
+            );
 
-    return data && data.publicUrl
+    return data &&
+        data.publicUrl
         ? data.publicUrl
         : "";
 }
@@ -1465,49 +1713,77 @@ function resolveStorageUrl(path) {
 ============================================================ */
 
 function renderVideos() {
-    const filtered =
-        videos.filter(video => {
-            if (activeCategory === "all") {
-                return true;
-            }
 
-            return String(video.category || "")
-                .toLowerCase() === activeCategory;
-        });
+    const filtered =
+        videos.filter(
+            video => {
+
+                if (
+                    activeCategory ===
+                    "all"
+                ) {
+                    return true;
+                }
+
+                return String(
+                    video.category || ""
+                )
+                    .toLowerCase() ===
+                    activeCategory;
+            }
+        );
 
     if (!filtered.length) {
+
         renderEmpty();
+
         return;
     }
 
     elements.videoGrid.innerHTML =
-        filtered.map(renderVideoCard).join("");
+        filtered
+            .map(
+                renderVideoCard
+            )
+            .join("");
 }
 
-function renderVideoCard(video) {
+function renderVideoCard(
+    video
+) {
+
     const title =
         escapeHtml(
-            video.title || "Untitled Video"
+            video.title ||
+            "Untitled Video"
         );
 
     const description =
         escapeHtml(
-            video.description || "AI generated video."
+            video.description ||
+            "AI generated video."
         );
 
     const category =
-        categoryLabel(video.category);
+        categoryLabel(
+            video.category
+        );
 
     const ratio =
         escapeHtml(
-            video.aspect_ratio || "16:9"
+            video.aspect_ratio ||
+            "16:9"
         );
 
     const videoUrl =
-        resolveStorageUrl(video.video_path);
+        resolveStorageUrl(
+            video.video_path
+        );
 
     const thumbnailUrl =
-        resolveStorageUrl(video.thumbnail_path);
+        resolveStorageUrl(
+            video.thumbnail_path
+        );
 
     const status =
         video.is_active
@@ -1517,6 +1793,7 @@ function renderVideoCard(video) {
     let media = "";
 
     if (thumbnailUrl) {
+
         media = `
             <img
                 src="${escapeAttribute(thumbnailUrl)}"
@@ -1524,7 +1801,9 @@ function renderVideoCard(video) {
                 loading="lazy"
             >
         `;
+
     } else if (videoUrl) {
+
         media = `
             <video
                 src="${escapeAttribute(videoUrl)}"
@@ -1536,7 +1815,8 @@ function renderVideoCard(video) {
     }
 
     const editActions =
-        EDIT_MODE && isAdmin
+        EDIT_MODE &&
+        isAdmin
             ? `
                 <div class="edit-actions">
 
@@ -1624,7 +1904,10 @@ function renderVideoCard(video) {
     `;
 }
 
-function categoryLabel(category) {
+function categoryLabel(
+    category
+) {
+
     const labels = {
         text:"TEXT TO VIDEO",
         image:"IMAGE TO VIDEO",
@@ -1637,8 +1920,15 @@ function categoryLabel(category) {
     };
 
     return escapeHtml(
-        labels[String(category || "").toLowerCase()] ||
-        String(category || "VIDEO").toUpperCase()
+        labels[
+            String(
+                category || ""
+            ).toLowerCase()
+        ] ||
+        String(
+            category ||
+            "VIDEO"
+        ).toUpperCase()
     );
 }
 
@@ -1647,28 +1937,40 @@ function categoryLabel(category) {
    CATEGORY FILTER
 ============================================================ */
 
-elements.categories.addEventListener("click", event => {
-    const button =
-        event.target.closest(".category");
+elements.categories.addEventListener(
+    "click",
+    event => {
 
-    if (!button) {
-        return;
-    }
-
-    activeCategory =
-        button.dataset.category || "all";
-
-    document
-        .querySelectorAll(".category")
-        .forEach(item => {
-            item.classList.toggle(
-                "active",
-                item === button
+        const button =
+            event.target.closest(
+                ".category"
             );
-        });
 
-    renderVideos();
-});
+        if (!button) {
+            return;
+        }
+
+        activeCategory =
+            button.dataset.category ||
+            "all";
+
+        document
+            .querySelectorAll(
+                ".category"
+            )
+            .forEach(
+                item => {
+
+                    item.classList.toggle(
+                        "active",
+                        item === button
+                    );
+                }
+            );
+
+        renderVideos();
+    }
+);
 
 
 /* ============================================================
@@ -1676,22 +1978,40 @@ elements.categories.addEventListener("click", event => {
 ============================================================ */
 
 function resetFileInputs() {
-    elements.videoFile.value = "";
-    elements.thumbnailFile.value = "";
 
-    elements.currentVideoFile.classList.add("hidden");
-    elements.currentThumbnailFile.classList.add("hidden");
+    elements.videoFile.value =
+        "";
 
-    elements.currentVideoFile.textContent = "";
-    elements.currentThumbnailFile.textContent = "";
+    elements.thumbnailFile.value =
+        "";
+
+    elements.currentVideoFile
+        .classList.add(
+            "hidden"
+        );
+
+    elements.currentThumbnailFile
+        .classList.add(
+            "hidden"
+        );
+
+    elements.currentVideoFile
+        .textContent =
+        "";
+
+    elements.currentThumbnailFile
+        .textContent =
+        "";
 }
 
 function openAddModal() {
+
     elements.videoForm.reset();
 
     resetFileInputs();
 
-    elements.videoId.value = "";
+    elements.videoId.value =
+        "";
 
     elements.modalTitle.textContent =
         "Tambah Video";
@@ -1710,10 +2030,15 @@ function openAddModal() {
 
     hideProgress();
 
-    elements.videoModal.classList.remove("hidden");
+    elements.videoModal.classList.remove(
+        "hidden"
+    );
 }
 
-function openEditModal(videoId) {
+function openEditModal(
+    videoId
+) {
+
     const video =
         videos.find(
             item =>
@@ -1722,10 +2047,12 @@ function openEditModal(videoId) {
         );
 
     if (!video) {
+
         showToast(
             "Video tidak ditemukan.",
             "error"
         );
+
         return;
     }
 
@@ -1748,40 +2075,55 @@ function openEditModal(videoId) {
         video.aspect_ratio || "16:9";
 
     elements.videoSortOrder.value =
-        Number(video.sort_order || 0);
+        Number(
+            video.sort_order || 0
+        );
 
     elements.videoActive.checked =
-        Boolean(video.is_active);
+        Boolean(
+            video.is_active
+        );
 
     resetFileInputs();
 
     if (video.video_path) {
-        elements.currentVideoFile.textContent =
+
+        elements.currentVideoFile
+            .textContent =
             "Video saat ini: " +
             video.video_path;
 
-        elements.currentVideoFile.classList.remove(
-            "hidden"
-        );
+        elements.currentVideoFile
+            .classList.remove(
+                "hidden"
+            );
     }
 
     if (video.thumbnail_path) {
-        elements.currentThumbnailFile.textContent =
+
+        elements.currentThumbnailFile
+            .textContent =
             "Thumbnail saat ini: " +
             video.thumbnail_path;
 
-        elements.currentThumbnailFile.classList.remove(
-            "hidden"
-        );
+        elements.currentThumbnailFile
+            .classList.remove(
+                "hidden"
+            );
     }
 
     hideProgress();
 
-    elements.videoModal.classList.remove("hidden");
+    elements.videoModal.classList.remove(
+        "hidden"
+    );
 }
 
 function closeModal() {
-    elements.videoModal.classList.add("hidden");
+
+    elements.videoModal.classList.add(
+        "hidden"
+    );
 }
 
 elements.addVideoButton.addEventListener(
@@ -1802,6 +2144,7 @@ elements.cancelModalButton.addEventListener(
 elements.videoModal.addEventListener(
     "click",
     event => {
+
         if (
             event.target ===
             elements.videoModal
@@ -1834,36 +2177,60 @@ const IMAGE_TYPES = [
     "image/webp"
 ];
 
-function validateVideoFile(file) {
+function validateVideoFile(
+    file
+) {
+
     if (!file) {
         return;
     }
 
-    if (!VIDEO_TYPES.includes(file.type)) {
+    if (
+        !VIDEO_TYPES.includes(
+            file.type
+        )
+    ) {
+
         throw new Error(
             "Format video tidak didukung. Gunakan MP4, WebM, atau MOV."
         );
     }
 
-    if (file.size > MAX_VIDEO_SIZE) {
+    if (
+        file.size >
+        MAX_VIDEO_SIZE
+    ) {
+
         throw new Error(
             "Ukuran video maksimal 500 MB."
         );
     }
 }
 
-function validateThumbnailFile(file) {
+function validateThumbnailFile(
+    file
+) {
+
     if (!file) {
         return;
     }
 
-    if (!IMAGE_TYPES.includes(file.type)) {
+    if (
+        !IMAGE_TYPES.includes(
+            file.type
+        )
+    ) {
+
         throw new Error(
             "Format thumbnail tidak didukung. Gunakan JPG, PNG, atau WebP."
         );
     }
 
-    if (file.size > MAX_THUMBNAIL_SIZE) {
+    if (
+        file.size >
+        MAX_THUMBNAIL_SIZE
+    ) {
+
         throw new Error(
             "Ukuran thumbnail maksimal 10 MB."
         );
@@ -1876,10 +2243,13 @@ function validateThumbnailFile(file) {
 ============================================================ */
 
 function randomId() {
+
     if (
         window.crypto &&
-        typeof window.crypto.randomUUID === "function"
+        typeof window.crypto.randomUUID ===
+        "function"
     ) {
+
         return window.crypto.randomUUID();
     }
 
@@ -1888,13 +2258,18 @@ function randomId() {
         "-" +
         Math.random()
             .toString(36)
-            .slice(2, 12)
+            .slice(2,12)
     );
 }
 
-function extensionFromFile(file) {
+function extensionFromFile(
+    file
+) {
+
     const name =
-        String(file.name || "");
+        String(
+            file.name || ""
+        );
 
     const index =
         name.lastIndexOf(".");
@@ -1906,19 +2281,31 @@ function extensionFromFile(file) {
     return name
         .slice(index + 1)
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
+        .replace(
+            /[^a-z0-9]/g,
+            ""
+        );
 }
 
 function createStoragePath(
     folder,
     file
 ) {
+
     const extension =
-        extensionFromFile(file);
+        extensionFromFile(
+            file
+        );
 
     const safeUserId =
-        String(currentUser?.id || "admin")
-            .replace(/[^a-zA-Z0-9_-]/g, "");
+        String(
+            currentUser?.id ||
+            "admin"
+        )
+            .replace(
+                /[^a-zA-Z0-9_-]/g,
+                ""
+            );
 
     const id =
         randomId();
@@ -1929,7 +2316,11 @@ function createStoragePath(
         safeUserId +
         "/" +
         id +
-        (extension ? "." + extension : "")
+        (
+            extension
+                ? "." + extension
+                : ""
+        )
     );
 }
 
@@ -1938,10 +2329,14 @@ function createStoragePath(
    PROGRESS
 ============================================================ */
 
-function showProgress(label) {
-    elements.uploadProgress.classList.remove(
-        "hidden"
-    );
+function showProgress(
+    label
+) {
+
+    elements.uploadProgress
+        .classList.remove(
+            "hidden"
+        );
 
     elements.progressLabel.textContent =
         label;
@@ -1957,6 +2352,7 @@ function updateProgress(
     label,
     percent
 ) {
+
     const value =
         Math.max(
             0,
@@ -1970,16 +2366,20 @@ function updateProgress(
         label;
 
     elements.progressPercent.textContent =
-        Math.round(value) + "%";
+        Math.round(value) +
+        "%";
 
     elements.progressBar.style.width =
-        value + "%";
+        value +
+        "%";
 }
 
 function hideProgress() {
-    elements.uploadProgress.classList.add(
-        "hidden"
-    );
+
+    elements.uploadProgress
+        .classList.add(
+            "hidden"
+        );
 
     elements.progressBar.style.width =
         "0%";
@@ -1995,6 +2395,7 @@ async function uploadFile(
     folder,
     label
 ) {
+
     if (!file) {
         return null;
     }
@@ -2005,7 +2406,9 @@ async function uploadFile(
             file
         );
 
-    showProgress(label);
+    showProgress(
+        label
+    );
 
     updateProgress(
         label,
@@ -2016,7 +2419,9 @@ async function uploadFile(
         error
     } =
         await supabaseClient.storage
-            .from(STORAGE_BUCKET)
+            .from(
+                STORAGE_BUCKET
+            )
             .upload(
                 path,
                 file,
@@ -2044,7 +2449,10 @@ async function uploadFile(
    STORAGE DELETE
 ============================================================ */
 
-function cleanStoragePath(path) {
+function cleanStoragePath(
+    path
+) {
+
     if (!path) {
         return null;
     }
@@ -2060,9 +2468,13 @@ function cleanStoragePath(path) {
         value.startsWith("http://") ||
         value.startsWith("https://")
     ) {
+
         try {
+
             const url =
-                new URL(value);
+                new URL(
+                    value
+                );
 
             const marker =
                 "/storage/v1/object/public/" +
@@ -2070,32 +2482,42 @@ function cleanStoragePath(path) {
                 "/";
 
             const index =
-                url.pathname.indexOf(marker);
+                url.pathname.indexOf(
+                    marker
+                );
 
             if (index !== -1) {
+
                 return decodeURIComponent(
                     url.pathname.slice(
-                        index + marker.length
+                        index +
+                        marker.length
                     )
                 );
             }
 
             return null;
+
         } catch {
+
             return null;
         }
     }
 
-    return value
-        .replace(
-            /^\/+/,
-            ""
-        );
+    return value.replace(
+        /^\/+/,
+        ""
+    );
 }
 
-async function removeStorageFile(path) {
+async function removeStorageFile(
+    path
+) {
+
     const cleanPath =
-        cleanStoragePath(path);
+        cleanStoragePath(
+            path
+        );
 
     if (!cleanPath) {
         return;
@@ -2105,12 +2527,15 @@ async function removeStorageFile(path) {
         error
     } =
         await supabaseClient.storage
-            .from(STORAGE_BUCKET)
+            .from(
+                STORAGE_BUCKET
+            )
             .remove([
                 cleanPath
             ]);
 
     if (error) {
+
         console.warn(
             "Storage delete warning:",
             error
@@ -2149,13 +2574,24 @@ elements.videoGrid.addEventListener(
         const action =
             button.dataset.action;
 
-        if (action === "edit") {
-            openEditModal(id);
+        if (
+            action === "edit"
+        ) {
+
+            openEditModal(
+                id
+            );
+
             return;
         }
 
-        if (action === "delete") {
-            await deleteVideo(id);
+        if (
+            action === "delete"
+        ) {
+
+            await deleteVideo(
+                id
+            );
         }
     }
 );
@@ -2175,10 +2611,12 @@ elements.videoForm.addEventListener(
             !EDIT_MODE ||
             !isAdmin
         ) {
+
             showToast(
                 "Anda tidak memiliki izin edit.",
                 "error"
             );
+
             return;
         }
 
@@ -2199,34 +2637,48 @@ elements.videoForm.addEventListener(
 
         const sortOrder =
             Number(
-                elements.videoSortOrder.value || 0
+                elements.videoSortOrder.value ||
+                0
             );
 
         const isActive =
             elements.videoActive.checked;
 
         const videoFile =
-            elements.videoFile.files[0] || null;
+            elements.videoFile.files[0] ||
+            null;
 
         const thumbnailFile =
-            elements.thumbnailFile.files[0] || null;
+            elements.thumbnailFile.files[0] ||
+            null;
 
         if (!title) {
+
             showToast(
                 "Judul video wajib diisi.",
                 "error"
             );
+
             return;
         }
 
         try {
-            validateVideoFile(videoFile);
-            validateThumbnailFile(thumbnailFile);
+
+            validateVideoFile(
+                videoFile
+            );
+
+            validateThumbnailFile(
+                thumbnailFile
+            );
+
         } catch (error) {
+
             showToast(
                 error.message,
                 "error"
             );
+
             return;
         }
 
@@ -2239,8 +2691,12 @@ elements.videoForm.addEventListener(
                 id
                     ? videos.find(
                         item =>
-                            String(item.id) ===
-                            String(id)
+                            String(
+                                item.id
+                            ) ===
+                            String(
+                                id
+                            )
                     )
                     : null;
 
@@ -2274,16 +2730,24 @@ elements.videoForm.addEventListener(
 
             const payload = {
                 title,
-                description:description || null,
+                description:
+                    description ||
+                    null,
                 category,
-                aspect_ratio:ratio,
-                video_path:newVideoPath,
-                thumbnail_path:newThumbnailPath,
+                aspect_ratio:
+                    ratio,
+                video_path:
+                    newVideoPath,
+                thumbnail_path:
+                    newThumbnailPath,
                 sort_order:
-                    Number.isFinite(sortOrder)
+                    Number.isFinite(
+                        sortOrder
+                    )
                         ? sortOrder
                         : 0,
-                is_active:isActive
+                is_active:
+                    isActive
             };
 
             showProgress(
@@ -2301,34 +2765,41 @@ elements.videoForm.addEventListener(
 
                 result =
                     await supabaseClient
-                        .from("dashboard_videos")
-                        .update(payload)
-                        .eq("id", id);
+                        .from(
+                            "dashboard_videos"
+                        )
+                        .update(
+                            payload
+                        )
+                        .eq(
+                            "id",
+                            id
+                        );
 
             } else {
 
                 result =
                     await supabaseClient
-                        .from("dashboard_videos")
-                        .insert(payload);
-
+                        .from(
+                            "dashboard_videos"
+                        )
+                        .insert(
+                            payload
+                        );
             }
 
             if (result.error) {
                 throw result.error;
             }
 
-            /*
-             * Setelah database berhasil disimpan,
-             * hapus file lama yang sudah diganti.
-             */
-
             if (
                 existing &&
                 videoFile &&
                 existing.video_path &&
-                existing.video_path !== newVideoPath
+                existing.video_path !==
+                newVideoPath
             ) {
+
                 await removeStorageFile(
                     existing.video_path
                 );
@@ -2338,8 +2809,10 @@ elements.videoForm.addEventListener(
                 existing &&
                 thumbnailFile &&
                 existing.thumbnail_path &&
-                existing.thumbnail_path !== newThumbnailPath
+                existing.thumbnail_path !==
+                newThumbnailPath
             ) {
+
                 await removeStorageFile(
                     existing.thumbnail_path
                 );
@@ -2386,13 +2859,19 @@ elements.videoForm.addEventListener(
    DELETE VIDEO
 ============================================================ */
 
-async function deleteVideo(videoId) {
+async function deleteVideo(
+    videoId
+) {
 
     const video =
         videos.find(
             item =>
-                String(item.id) ===
-                String(videoId)
+                String(
+                    item.id
+                ) ===
+                String(
+                    videoId
+                )
         );
 
     if (!video) {
@@ -2414,9 +2893,14 @@ async function deleteVideo(videoId) {
             error
         } =
             await supabaseClient
-                .from("dashboard_videos")
+                .from(
+                    "dashboard_videos"
+                )
                 .delete()
-                .eq("id", videoId);
+                .eq(
+                    "id",
+                    videoId
+                );
 
         if (error) {
             throw error;
@@ -2470,10 +2954,15 @@ elements.videoFile.addEventListener(
         }
 
         try {
-            validateVideoFile(file);
+
+            validateVideoFile(
+                file
+            );
+
         } catch (error) {
 
-            elements.videoFile.value = "";
+            elements.videoFile.value =
+                "";
 
             showToast(
                 error.message,
@@ -2487,7 +2976,9 @@ elements.videoFile.addEventListener(
             "File baru: " +
             file.name +
             " · " +
-            formatBytes(file.size);
+            formatBytes(
+                file.size
+            );
 
         elements.currentVideoFile.classList.remove(
             "hidden"
@@ -2507,10 +2998,15 @@ elements.thumbnailFile.addEventListener(
         }
 
         try {
-            validateThumbnailFile(file);
+
+            validateThumbnailFile(
+                file
+            );
+
         } catch (error) {
 
-            elements.thumbnailFile.value = "";
+            elements.thumbnailFile.value =
+                "";
 
             showToast(
                 error.message,
@@ -2524,7 +3020,9 @@ elements.thumbnailFile.addEventListener(
             "File baru: " +
             file.name +
             " · " +
-            formatBytes(file.size);
+            formatBytes(
+                file.size
+            );
 
         elements.currentThumbnailFile.classList.remove(
             "hidden"
@@ -2545,8 +3043,11 @@ elements.logoutButton.addEventListener(
             true;
 
         try {
+
             await supabaseClient.auth.signOut();
+
         } finally {
+
             window.location.replace(
                 "../login.html"
             );
@@ -2562,6 +3063,7 @@ elements.logoutButton.addEventListener(
 elements.generateButton.addEventListener(
     "click",
     () => {
+
         window.location.href =
             "../generate/index.html";
     }
@@ -2572,7 +3074,10 @@ elements.generateButton.addEventListener(
    HELPERS
 ============================================================ */
 
-function formatBytes(bytes) {
+function formatBytes(
+    bytes
+) {
+
     if (!bytes) {
         return "0 B";
     }
@@ -2593,26 +3098,56 @@ function formatBytes(bytes) {
     return (
         Number(
             bytes /
-            Math.pow(1024,index)
+            Math.pow(
+                1024,
+                index
+            )
         ).toFixed(
-            index === 0 ? 0 : 1
+            index === 0
+                ? 0
+                : 1
         ) +
         " " +
         units[index]
     );
 }
 
-function escapeHtml(value) {
-    return String(value ?? "")
-        .replace(/&/g,"&amp;")
-        .replace(/</g,"&lt;")
-        .replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;")
-        .replace(/'/g,"&#039;");
+function escapeHtml(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 }
 
-function escapeAttribute(value) {
-    return escapeHtml(value);
+function escapeAttribute(
+    value
+) {
+
+    return escapeHtml(
+        value
+    );
 }
 
 
