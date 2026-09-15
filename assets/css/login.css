@@ -7,8 +7,13 @@
 body {
     min-height: 100vh;
     font-family: Arial, Helvetica, sans-serif;
-    background: #0b0b0f;
-    color: #ffffff;
+    background: linear-gradient(
+        135deg,
+        #cfd3d8 0%,
+        #e5e7eb 45%,
+        #ffffff 100%
+    );
+    color: #1f2937;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -21,11 +26,14 @@ body {
 }
 
 .login-card {
-    background: #15151c;
-    border: 1px solid #292933;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.95);
     border-radius: 18px;
     padding: 35px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.12),
+        0 4px 15px rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(10px);
 }
 
 .brand {
@@ -37,11 +45,12 @@ body {
     font-size: 32px;
     font-weight: 800;
     letter-spacing: 1px;
+    color: #111827;
 }
 
 .brand p {
     margin-top: 8px;
-    color: #9696a5;
+    color: #6b7280;
     font-size: 14px;
 }
 
@@ -55,6 +64,7 @@ body {
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.8px;
+    color: #374151;
 }
 
 .input-group input {
@@ -62,19 +72,21 @@ body {
     height: 48px;
     padding: 0 14px;
     border-radius: 10px;
-    border: 1px solid #33333f;
-    background: #0e0e13;
-    color: #ffffff;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1f2937;
     outline: none;
     font-size: 14px;
+    transition: 0.2s ease;
 }
 
 .input-group input:focus {
-    border-color: #ffffff;
+    border-color: #6b7280;
+    box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.12);
 }
 
 .input-group input::placeholder {
-    color: #666674;
+    color: #9ca3af;
 }
 
 #loginButton {
@@ -83,21 +95,32 @@ body {
     margin-top: 5px;
     border: none;
     border-radius: 10px;
-    background: #ffffff;
-    color: #000000;
+    background: linear-gradient(
+        135deg,
+        #374151 0%,
+        #111827 100%
+    );
+    color: #ffffff;
     font-size: 14px;
     font-weight: 800;
     cursor: pointer;
     transition: 0.2s ease;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
 }
 
 #loginButton:hover {
-    opacity: 0.88;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+#loginButton:active {
+    transform: translateY(0);
 }
 
 #loginButton:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
 }
 
 .login-message {
@@ -105,7 +128,7 @@ body {
     margin-top: 15px;
     text-align: center;
     font-size: 13px;
-    color: #ff7070;
+    color: #dc2626;
 }
 
 @media (max-width: 480px) {
