@@ -1298,76 +1298,52 @@
 
         function buildNavigation() {
 
-            const role =
-                currentProfile.role;
+    const role = currentProfile.role;
 
-            let html = "";
+    let html = "";
 
-            if (role === "USER") {
+    if (role === "USER") {
 
-                html += `
-                    <a href="../user/dashboard.html">
-                        Dashboard
-                    </a>
+        html = `
+            <a href="../user/dashboard.html">
+                Dashboard
+            </a>
 
-                    <a
-                        href="../generate/index.html"
-                        class="active"
-                    >
-                        Generate
-                    </a>
+            <a href="../user/history.html">
+                History
+            </a>
 
-                    <a href="../user/history.html">
-                        History
-                    </a>
-                `;
+            <a href="../user/topup.html">
+                Top Up
+            </a>
 
-            } else {
+            <a href="../user/hub-admin.html">
+                Hub Admin
+            </a>
+        `;
 
-                html += `
-                    <a href="../admin/dashboard.html">
-                        Dashboard
-                    </a>
+    } else if (
+        role === "ADMIN" ||
+        role === "OWNER"
+    ) {
 
-                    <a
-                        href="../generate/index.html"
-                        class="active"
-                    >
-                        Generate
-                    </a>
+        html = `
+            <a href="../admin/dashboard.html">
+                Dashboard
+            </a>
 
-                    <a href="../admin/history.html">
-                        History
-                    </a>
+            <a href="../admin/history.html">
+                History
+            </a>
 
-                    <a href="../admin/admin-panel.html">
-                        Admin Panel
-                    </a>
+            <a href="../admin/admin-panel.html">
+                Admin Panel
+            </a>
+        `;
+    }
 
-                    <a href="../admin/users.html">
-                        Users
-                    </a>
-
-                    <a href="../admin/providers.html">
-                        Providers
-                    </a>
-
-                    <a href="../admin/models.html">
-                        Models
-                    </a>
-
-                    <a href="../admin/credit.html">
-                        Credit
-                    </a>
-
-                    <a href="../admin/system.html">
-                        System
-                    </a>
-                `;
-            }
-
-            elements.navigation.innerHTML = html;
-        }
+    elements.navigation.innerHTML = html;
+}
 
 
         /* ==========================================================
