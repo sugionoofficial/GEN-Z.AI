@@ -1,1293 +1,1291 @@
 <!DOCTYPE html>
-
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>GEN-Z.AI | User Dashboard</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-<style>
-    :root {
-        --bg: #f4f6f8;
-        --card: #ffffff;
-        --text: #111827;
-        --muted: #6b7280;
-        --border: #e5e7eb;
-        --dark: #111827;
-        --dark-soft: #1f2937;
-        --accent: #6366f1;
-        --accent-2: #8b5cf6;
-        --success: #16a34a;
-        --danger: #dc2626;
-        --shadow: 0 20px 50px rgba(15, 23, 42, .08);
-        --radius: 22px;
-    }
-
-    * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-    }
-
-    body {
-        font-family: "Inter", sans-serif;
-        background:
-            radial-gradient(circle at 15% 10%, rgba(99,102,241,.10), transparent 30%),
-            radial-gradient(circle at 85% 20%, rgba(139,92,246,.08), transparent 30%),
-            var(--bg);
-        color: var(--text);
-        min-height: 100vh;
-    }
-
-    /* =========================
-       MENU BUTTON
-    ========================= */
-
-    .menu-button {
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        width: 48px;
-        height: 48px;
-        border: 1px solid rgba(255,255,255,.15);
-        border-radius: 15px;
-        background: rgba(17,24,39,.94);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 5px;
-        cursor: pointer;
-        z-index: 1200;
-        box-shadow: 0 12px 30px rgba(0,0,0,.18);
-        transition: .25s ease;
-    }
-
-    .menu-button:hover {
-        transform: translateY(-2px);
-    }
-
-    .menu-button span {
-        width: 19px;
-        height: 2px;
-        background: white;
-        border-radius: 10px;
-    }
-
-    /* =========================
-       SIDEBAR
-    ========================= */
-
-    .sidebar {
-        position: fixed;
-        inset: 0 auto 0 0;
-        width: 285px;
-        background:
-            linear-gradient(180deg, #111827 0%, #0b1220 100%);
-        color: white;
-        z-index: 1100;
-        transform: translateX(-105%);
-        transition: transform .3s ease;
-        padding: 28px 18px;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 25px 0 70px rgba(0,0,0,.25);
-    }
-
-    .sidebar.open {
-        transform: translateX(0);
-    }
-
-    .brand {
-        padding: 5px 14px 28px;
-    }
-
-    .brand h2 {
-        font-size: 22px;
-        font-weight: 800;
-        letter-spacing: -.7px;
-    }
-
-    .brand span {
-        display: block;
-        margin-top: 5px;
-        font-size: 11px;
-        color: #9ca3af;
-        letter-spacing: 1.6px;
-    }
-
-    .nav {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .nav a {
-        text-decoration: none;
-        color: #9ca3af;
-        padding: 13px 14px;
-        border-radius: 13px;
-        font-size: 13px;
-        font-weight: 600;
-        transition: .2s ease;
-    }
-
-    .nav a:hover,
-    .nav a.active {
-        color: white;
-        background: rgba(255,255,255,.08);
-    }
-
-    .nav a.active {
-        box-shadow: inset 3px 0 0 var(--accent);
-    }
-
-    .sidebar-bottom {
-        margin-top: auto;
-    }
-
-    .user-mini {
-        padding: 14px;
-        border-radius: 16px;
-        background: rgba(255,255,255,.06);
-        margin-bottom: 10px;
-    }
-
-    .user-mini small {
-        color: #9ca3af;
-        font-size: 10px;
-    }
-
-    .user-mini strong {
-        display: block;
-        margin-top: 5px;
-        font-size: 12px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .logout {
-        width: 100%;
-        border: 1px solid rgba(255,255,255,.1);
-        background: transparent;
-        color: #d1d5db;
-        padding: 12px;
-        border-radius: 13px;
-        cursor: pointer;
-        font-weight: 600;
-    }
-
-    .logout:hover {
-        background: rgba(255,255,255,.08);
-    }
-
-    .overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(15,23,42,.35);
-        backdrop-filter: blur(4px);
-        z-index: 1000;
-        opacity: 0;
-        pointer-events: none;
-        transition: .3s ease;
-    }
-
-    .overlay.active {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-    /* =========================
-       MAIN
-    ========================= */
-
-    .main {
-        min-height: 100vh;
-        padding: 30px;
-        max-width: 1500px;
-        margin: auto;
-    }
-
-    .topbar {
-        padding-left: 70px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-
-    .welcome h1 {
-        font-size: 30px;
-        letter-spacing: -.9px;
-    }
-
-    .welcome p {
-        margin-top: 7px;
-        color: var(--muted);
-        font-size: 13px;
-    }
-
-    .credit-card {
-        min-width: 190px;
-        background: var(--dark);
-        color: white;
-        padding: 15px 18px;
-        border-radius: 18px;
-        box-shadow: 0 14px 35px rgba(17,24,39,.18);
-    }
-
-    .credit-card small {
-        color: #9ca3af;
-        font-size: 10px;
-        letter-spacing: 1px;
-    }
-
-    .credit-card strong {
-        display: block;
-        margin-top: 5px;
-        font-size: 22px;
-    }
-
-    /* =========================
-       HERO
-    ========================= */
-
-    .hero {
-        position: relative;
-        overflow: hidden;
-        background:
-            linear-gradient(120deg, #111827, #312e81 60%, #6d28d9);
-        color: white;
-        border-radius: 28px;
-        padding: 42px;
-        min-height: 255px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 30px;
-        box-shadow: 0 25px 60px rgba(49,46,129,.18);
-        margin-bottom: 35px;
-    }
-
-    .hero::after {
-        content: "";
-        position: absolute;
-        width: 360px;
-        height: 360px;
-        border-radius: 50%;
-        background: rgba(255,255,255,.07);
-        right: -100px;
-        top: -150px;
-    }
-
-    .hero-content {
-        position: relative;
-        z-index: 2;
-        max-width: 700px;
-    }
-
-    .hero-label {
-        display: inline-block;
-        padding: 7px 11px;
-        border: 1px solid rgba(255,255,255,.15);
-        background: rgba(255,255,255,.08);
-        border-radius: 999px;
-        font-size: 10px;
-        letter-spacing: 1.4px;
-        margin-bottom: 15px;
-    }
-
-    .hero h2 {
-        font-size: clamp(26px, 4vw, 42px);
-        line-height: 1.05;
-        letter-spacing: -1.4px;
-    }
-
-    .hero p {
-        color: #d1d5db;
-        margin-top: 12px;
-        line-height: 1.6;
-        font-size: 13px;
-        max-width: 620px;
-    }
-
-    .generate-btn {
-        position: relative;
-        z-index: 2;
-        flex-shrink: 0;
-        border: 0;
-        background: white;
-        color: #111827;
-        padding: 15px 22px;
-        border-radius: 14px;
-        font-weight: 800;
-        cursor: pointer;
-        transition: .25s ease;
-        box-shadow: 0 12px 30px rgba(0,0,0,.15);
-    }
-
-    .generate-btn:hover {
-        transform: translateY(-3px);
-    }
-
-    .generate-btn:active {
-        transform: translateY(0);
-    }
-
-    /* =========================
-       SECTION
-    ========================= */
-
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: end;
-        gap: 15px;
-        margin-bottom: 17px;
-    }
-
-    .section-header h2 {
-        font-size: 20px;
-        letter-spacing: -.5px;
-    }
-
-    .section-header p {
-        margin-top: 5px;
-        font-size: 12px;
-        color: var(--muted);
-    }
-
-    .view-all {
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--accent);
-    }
-
-    /* =========================
-       CATEGORY
-    ========================= */
-
-    .categories {
-        display: flex;
-        gap: 9px;
-        overflow-x: auto;
-        padding-bottom: 8px;
-        margin-bottom: 25px;
-        scrollbar-width: thin;
-    }
-
-    .category {
-        white-space: nowrap;
-        padding: 10px 14px;
-        border-radius: 999px;
-        border: 1px solid var(--border);
-        background: white;
-        color: #4b5563;
-        font-size: 11px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: .2s ease;
-    }
-
-    .category:hover,
-    .category.active {
-        background: var(--dark);
-        border-color: var(--dark);
-        color: white;
-    }
-
-    /* =========================
-       VIDEO GRID
-    ========================= */
-
-    .video-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 18px;
-    }
-
-    .video-card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(15,23,42,.04);
-        transition: .25s ease;
-    }
-
-    .video-card:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow);
-    }
-
-    .video-preview {
-        position: relative;
-        aspect-ratio: 16 / 10;
-        overflow: hidden;
-        background:
-            radial-gradient(circle at 30% 30%, rgba(139,92,246,.7), transparent 35%),
-            radial-gradient(circle at 70% 70%, rgba(59,130,246,.65), transparent 35%),
-            #111827;
-    }
-
-    .video-preview::before {
-        content: "GEN-Z.AI";
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: rgba(255,255,255,.14);
-        font-size: 24px;
-        font-weight: 800;
-        letter-spacing: 2px;
-    }
-
-    .play {
-        position: absolute;
-        width: 45px;
-        height: 45px;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        border-radius: 50%;
-        background: rgba(255,255,255,.92);
-        color: #111827;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 15px;
-        padding-left: 2px;
-        box-shadow: 0 8px 25px rgba(0,0,0,.2);
-    }
-
-    .video-type {
-        position: absolute;
-        left: 10px;
-        top: 10px;
-        padding: 6px 9px;
-        border-radius: 8px;
-        background: rgba(17,24,39,.72);
-        backdrop-filter: blur(8px);
-        color: white;
-        font-size: 9px;
-        font-weight: 700;
-    }
-
-    .video-info {
-        padding: 15px;
-    }
-
-    .video-info h3 {
-        font-size: 13px;
-        margin-bottom: 6px;
-    }
-
-    .video-info p {
-        color: var(--muted);
-        font-size: 11px;
-        line-height: 1.5;
-    }
-
-    .video-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 13px;
-        padding-top: 12px;
-        border-top: 1px solid var(--border);
-    }
-
-    .video-meta span {
-        color: #9ca3af;
-        font-size: 10px;
-    }
-
-    /* =========================
-       MOBILE
-    ========================= */
-
-    @media (max-width: 1100px) {
-        .video-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+    <title>GEN-Z.AI | User Dashboard</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #f4f6f8;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --dark: #111827;
+            --dark-soft: #1f2937;
+            --accent: #6366f1;
+            --accent-2: #8b5cf6;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --shadow: 0 20px 50px rgba(15, 23, 42, .08);
+            --radius: 22px;
         }
-    }
 
-    @media (max-width: 800px) {
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            background:
+                radial-gradient(circle at 15% 10%, rgba(99,102,241,.10), transparent 30%),
+                radial-gradient(circle at 85% 20%, rgba(139,92,246,.08), transparent 30%),
+                var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* =========================
+           MENU BUTTON
+        ========================= */
+
+        .menu-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 48px;
+            height: 48px;
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 15px;
+            background: rgba(17,24,39,.94);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            z-index: 1200;
+            box-shadow: 0 12px 30px rgba(0,0,0,.18);
+            transition: .25s ease;
+        }
+
+        .menu-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .menu-button span {
+            width: 19px;
+            height: 2px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        /* =========================
+           SIDEBAR
+        ========================= */
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: 285px;
+            background:
+                linear-gradient(180deg, #111827 0%, #0b1220 100%);
+            color: white;
+            z-index: 1100;
+            transform: translateX(-105%);
+            transition: transform .3s ease;
+            padding: 28px 18px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 25px 0 70px rgba(0,0,0,.25);
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .brand {
+            padding: 5px 14px 28px;
+        }
+
+        .brand h2 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -.7px;
+        }
+
+        .brand span {
+            display: block;
+            margin-top: 5px;
+            font-size: 11px;
+            color: #9ca3af;
+            letter-spacing: 1.6px;
+        }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: #9ca3af;
+            padding: 13px 14px;
+            border-radius: 13px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: .2s ease;
+        }
+
+        .nav a:hover,
+        .nav a.active {
+            color: white;
+            background: rgba(255,255,255,.08);
+        }
+
+        .nav a.active {
+            box-shadow: inset 3px 0 0 var(--accent);
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+        }
+
+        .user-mini {
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255,255,255,.06);
+            margin-bottom: 10px;
+        }
+
+        .user-mini small {
+            color: #9ca3af;
+            font-size: 10px;
+        }
+
+        .user-mini strong {
+            display: block;
+            margin-top: 5px;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .logout {
+            width: 100%;
+            border: 1px solid rgba(255,255,255,.1);
+            background: transparent;
+            color: #d1d5db;
+            padding: 12px;
+            border-radius: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .logout:hover {
+            background: rgba(255,255,255,.08);
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,.35);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: .3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* =========================
+           MAIN
+        ========================= */
+
         .main {
-            padding: 20px;
+            min-height: 100vh;
+            padding: 30px;
+            max-width: 1500px;
+            margin: auto;
         }
 
         .topbar {
-            padding-left: 62px;
+            padding-left: 70px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
         }
 
         .welcome h1 {
-            font-size: 24px;
+            font-size: 30px;
+            letter-spacing: -.9px;
+        }
+
+        .welcome p {
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: 13px;
         }
 
         .credit-card {
-            min-width: 150px;
+            min-width: 190px;
+            background: var(--dark);
+            color: white;
+            padding: 15px 18px;
+            border-radius: 18px;
+            box-shadow: 0 14px 35px rgba(17,24,39,.18);
         }
+
+        .credit-card small {
+            color: #9ca3af;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .credit-card strong {
+            display: block;
+            margin-top: 5px;
+            font-size: 22px;
+        }
+
+        /* =========================
+           HERO
+        ========================= */
 
         .hero {
-            padding: 30px;
-            flex-direction: column;
-            align-items: flex-start;
+            position: relative;
+            overflow: hidden;
+            background:
+                linear-gradient(120deg, #111827, #312e81 60%, #6d28d9);
+            color: white;
+            border-radius: 28px;
+            padding: 42px;
+            min-height: 255px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 30px;
+            box-shadow: 0 25px 60px rgba(49,46,129,.18);
+            margin-bottom: 35px;
         }
 
-        .generate-btn {
-            width: 100%;
+        .hero::after {
+            content: "";
+            position: absolute;
+            width: 360px;
+            height: 360px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.07);
+            right: -100px;
+            top: -150px;
         }
 
-        .video-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-
-    @media (max-width: 520px) {
-        .menu-button {
-            top: 14px;
-            left: 14px;
-            width: 44px;
-            height: 44px;
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 700px;
         }
 
-        .main {
-            padding: 15px;
-        }
-
-        .topbar {
-            padding-left: 58px;
-            align-items: flex-start;
-            flex-direction: column;
-            margin-bottom: 22px;
-        }
-
-        .credit-card {
-            width: 100%;
-        }
-
-        .hero {
-            border-radius: 22px;
-            padding: 25px;
+        .hero-label {
+            display: inline-block;
+            padding: 7px 11px;
+            border: 1px solid rgba(255,255,255,.15);
+            background: rgba(255,255,255,.08);
+            border-radius: 999px;
+            font-size: 10px;
+            letter-spacing: 1.4px;
+            margin-bottom: 15px;
         }
 
         .hero h2 {
-            font-size: 27px;
+            font-size: clamp(26px, 4vw, 42px);
+            line-height: 1.05;
+            letter-spacing: -1.4px;
         }
 
-        .video-grid {
-            grid-template-columns: 1fr;
+        .hero p {
+            color: #d1d5db;
+            margin-top: 12px;
+            line-height: 1.6;
+            font-size: 13px;
+            max-width: 620px;
         }
+
+        .generate-btn {
+            position: relative;
+            z-index: 2;
+            flex-shrink: 0;
+            border: 0;
+            background: white;
+            color: #111827;
+            padding: 15px 22px;
+            border-radius: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: .25s ease;
+            box-shadow: 0 12px 30px rgba(0,0,0,.15);
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-3px);
+        }
+
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+
+        /* =========================
+           SECTION
+        ========================= */
 
         .section-header {
-            align-items: flex-start;
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 15px;
+            margin-bottom: 17px;
+        }
+
+        .section-header h2 {
+            font-size: 20px;
+            letter-spacing: -.5px;
+        }
+
+        .section-header p {
+            margin-top: 5px;
+            font-size: 12px;
+            color: var(--muted);
         }
 
         .view-all {
-            display: none;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent);
         }
 
-        .sidebar {
-            width: 275px;
-        }
-    }
-</style>
-```
+        /* =========================
+           CATEGORY
+        ========================= */
 
+        .categories {
+            display: flex;
+            gap: 9px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 25px;
+            scrollbar-width: thin;
+        }
+
+        .category {
+            white-space: nowrap;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: white;
+            color: #4b5563;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .2s ease;
+        }
+
+        .category:hover,
+        .category.active {
+            background: var(--dark);
+            border-color: var(--dark);
+            color: white;
+        }
+
+        /* =========================
+           VIDEO GRID
+        ========================= */
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .video-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(15,23,42,.04);
+            transition: .25s ease;
+        }
+
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+
+        .video-preview {
+            position: relative;
+            aspect-ratio: 16 / 10;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 30% 30%, rgba(139,92,246,.7), transparent 35%),
+                radial-gradient(circle at 70% 70%, rgba(59,130,246,.65), transparent 35%),
+                #111827;
+        }
+
+        .video-preview::before {
+            content: "GEN-Z.AI";
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,.14);
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        .play {
+            position: absolute;
+            width: 45px;
+            height: 45px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: rgba(255,255,255,.92);
+            color: #111827;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            padding-left: 2px;
+            box-shadow: 0 8px 25px rgba(0,0,0,.2);
+        }
+
+        .video-type {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            padding: 6px 9px;
+            border-radius: 8px;
+            background: rgba(17,24,39,.72);
+            backdrop-filter: blur(8px);
+            color: white;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .video-info {
+            padding: 15px;
+        }
+
+        .video-info h3 {
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .video-info p {
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .video-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 13px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .video-meta span {
+            color: #9ca3af;
+            font-size: 10px;
+        }
+
+        /* =========================
+           MOBILE
+        ========================= */
+
+        @media (max-width: 1100px) {
+            .video-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 800px) {
+            .main {
+                padding: 20px;
+            }
+
+            .topbar {
+                padding-left: 62px;
+            }
+
+            .welcome h1 {
+                font-size: 24px;
+            }
+
+            .credit-card {
+                min-width: 150px;
+            }
+
+            .hero {
+                padding: 30px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .generate-btn {
+                width: 100%;
+            }
+
+            .video-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 520px) {
+            .menu-button {
+                top: 14px;
+                left: 14px;
+                width: 44px;
+                height: 44px;
+            }
+
+            .main {
+                padding: 15px;
+            }
+
+            .topbar {
+                padding-left: 58px;
+                align-items: flex-start;
+                flex-direction: column;
+                margin-bottom: 22px;
+            }
+
+            .credit-card {
+                width: 100%;
+            }
+
+            .hero {
+                border-radius: 22px;
+                padding: 25px;
+            }
+
+            .hero h2 {
+                font-size: 27px;
+            }
+
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-header {
+                align-items: flex-start;
+            }
+
+            .view-all {
+                display: none;
+            }
+
+            .sidebar {
+                width: 275px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-```
-<!-- MENU -->
-<button
-    class="menu-button"
-    id="menuButton"
-    type="button"
-    aria-label="Buka navigasi"
-    aria-controls="sidebar"
-    aria-expanded="false"
->
-    <span></span>
-    <span></span>
-    <span></span>
-</button>
+    <!-- MENU -->
+    <button
+        class="menu-button"
+        id="menuButton"
+        type="button"
+        aria-label="Buka navigasi"
+        aria-controls="sidebar"
+        aria-expanded="false"
+    >
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
 
-<!-- SIDEBAR -->
-<aside class="sidebar" id="sidebar">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
 
-    <div class="brand">
-        <h2>GEN-Z.AI</h2>
-        <span>AI VIDEO GENERATION</span>
-    </div>
-
-    <nav class="nav">
-
-        <a href="./dashboard.html" class="active">
-            Dashboard
-        </a>
-
-        <!-- USER DAN ADMIN/OWNER MENGGUNAKAN GENERATOR YANG SAMA -->
-        <a href="../generate/index.html">
-            Generate Video
-        </a>
-
-        <a href="./history.html">
-            History
-        </a>
-
-    </nav>
-
-    <div class="sidebar-bottom">
-
-        <div class="user-mini">
-            <small>ACCOUNT</small>
-            <strong id="sidebarEmail">Loading...</strong>
+        <div class="brand">
+            <h2>GEN-Z.AI</h2>
+            <span>AI VIDEO GENERATION</span>
         </div>
 
-        <button
-            class="logout"
-            id="logoutButton"
-            type="button"
-        >
-            LOG OUT
-        </button>
+        <!-- =========================
+             USER NAVIGATION
+             TEPAT 5 MENU
+        ========================= -->
+        <nav class="nav">
 
-    </div>
-</aside>
+            <a href="./dashboard.html" class="active">
+                Dashboard
+            </a>
 
-<div class="overlay" id="overlay"></div>
+            <a href="../generate/index.html">
+                Generate
+            </a>
 
-<!-- MAIN -->
-<main class="main">
+            <a href="./history.html">
+                History
+            </a>
 
-    <header class="topbar">
+            <a href="./topup.html">
+                Top Up
+            </a>
 
-        <div class="welcome">
-            <h1>Welcome back.</h1>
-            <p>
-                Jelajahi contoh video dan mulai membuat karya AI kamu.
-            </p>
-        </div>
+            <a href="./hub-admin.html">
+                Hub Admin
+            </a>
 
-        <div class="credit-card">
-            <small>AVAILABLE CREDITS</small>
-            <strong id="creditBalance">0</strong>
-        </div>
+        </nav>
 
-    </header>
+        <div class="sidebar-bottom">
 
-    <!-- HERO -->
-    <section class="hero">
+            <div class="user-mini">
+                <small>ACCOUNT</small>
+                <strong id="sidebarEmail">Loading...</strong>
+            </div>
 
-        <div class="hero-content">
-
-            <span class="hero-label">
-                AI VIDEO STUDIO
-            </span>
-
-            <h2>
-                Turn your ideas<br>
-                into videos.
-            </h2>
-
-            <p>
-                Buat video AI berkualitas tinggi dari teks, gambar,
-                karakter, produk, dan berbagai konsep kreatif lainnya.
-            </p>
+            <button
+                class="logout"
+                id="logoutButton"
+                type="button"
+            >
+                LOG OUT
+            </button>
 
         </div>
+    </aside>
 
-        <!-- LANGSUNG KE SHARED GENERATOR -->
-        <button
-            class="generate-btn"
-            id="generateButton"
-            type="button"
-        >
-            + GENERATE VIDEO
-        </button>
+    <div class="overlay" id="overlay"></div>
 
-    </section>
+    <!-- MAIN -->
+    <main class="main">
 
-    <!-- EXAMPLES -->
-    <section>
+        <header class="topbar">
 
-        <div class="section-header">
-
-            <div>
-                <h2>Video Examples</h2>
+            <div class="welcome">
+                <h1>Welcome back.</h1>
                 <p>
-                    Inspirasi berdasarkan jenis video.
+                    Jelajahi contoh video dan mulai membuat karya AI kamu.
                 </p>
             </div>
 
-            <span class="view-all">
-                EXPLORE ALL
-            </span>
+            <div class="credit-card">
+                <small>AVAILABLE CREDITS</small>
+                <strong id="creditBalance">0</strong>
+            </div>
 
-        </div>
+        </header>
 
-        <div class="categories" id="categories">
+        <!-- HERO -->
+        <section class="hero">
 
-            <button
-                class="category active"
-                data-category="all"
-                type="button"
-            >
-                ALL
-            </button>
+            <div class="hero-content">
 
-            <button
-                class="category"
-                data-category="text"
-                type="button"
-            >
-                TEXT TO VIDEO
-            </button>
+                <span class="hero-label">
+                    AI VIDEO STUDIO
+                </span>
 
-            <button
-                class="category"
-                data-category="image"
-                type="button"
-            >
-                IMAGE TO VIDEO
-            </button>
+                <h2>
+                    Turn your ideas<br>
+                    into videos.
+                </h2>
+
+                <p>
+                    Buat video AI berkualitas tinggi dari teks, gambar,
+                    karakter, produk, dan berbagai konsep kreatif lainnya.
+                </p>
+
+            </div>
 
             <button
-                class="category"
-                data-category="character"
+                class="generate-btn"
+                id="generateButton"
                 type="button"
             >
-                CHARACTER
+                + GENERATE VIDEO
             </button>
 
-            <button
-                class="category"
-                data-category="product"
-                type="button"
-            >
-                PRODUCT
-            </button>
+        </section>
 
-            <button
-                class="category"
-                data-category="fashion"
-                type="button"
-            >
-                FASHION
-            </button>
+        <!-- EXAMPLES -->
+        <section>
 
-            <button
-                class="category"
-                data-category="cinematic"
-                type="button"
-            >
-                CINEMATIC
-            </button>
+            <div class="section-header">
 
-            <button
-                class="category"
-                data-category="social"
-                type="button"
-            >
-                SOCIAL MEDIA
-            </button>
-
-            <button
-                class="category"
-                data-category="story"
-                type="button"
-            >
-                STORY
-            </button>
-
-        </div>
-
-        <div class="video-grid" id="videoGrid">
-
-            <article class="video-card" data-category="text">
-                <div class="video-preview">
-                    <span class="video-type">TEXT TO VIDEO</span>
-                    <span class="play">▶</span>
-                </div>
-
-                <div class="video-info">
-                    <h3>Cinematic AI Scene</h3>
-
+                <div>
+                    <h2>Video Examples</h2>
                     <p>
-                        Konsep video cinematic dari prompt teks.
+                        Inspirasi berdasarkan jenis video.
                     </p>
+                </div>
 
-                    <div class="video-meta">
-                        <span>16:9</span>
-                        <span>AI VIDEO</span>
+                <span class="view-all">
+                    EXPLORE ALL
+                </span>
+
+            </div>
+
+            <div class="categories" id="categories">
+
+                <button
+                    class="category active"
+                    data-category="all"
+                    type="button"
+                >
+                    ALL
+                </button>
+
+                <button
+                    class="category"
+                    data-category="text"
+                    type="button"
+                >
+                    TEXT TO VIDEO
+                </button>
+
+                <button
+                    class="category"
+                    data-category="image"
+                    type="button"
+                >
+                    IMAGE TO VIDEO
+                </button>
+
+                <button
+                    class="category"
+                    data-category="character"
+                    type="button"
+                >
+                    CHARACTER
+                </button>
+
+                <button
+                    class="category"
+                    data-category="product"
+                    type="button"
+                >
+                    PRODUCT
+                </button>
+
+                <button
+                    class="category"
+                    data-category="fashion"
+                    type="button"
+                >
+                    FASHION
+                </button>
+
+                <button
+                    class="category"
+                    data-category="cinematic"
+                    type="button"
+                >
+                    CINEMATIC
+                </button>
+
+                <button
+                    class="category"
+                    data-category="social"
+                    type="button"
+                >
+                    SOCIAL MEDIA
+                </button>
+
+                <button
+                    class="category"
+                    data-category="story"
+                    type="button"
+                >
+                    STORY
+                </button>
+
+            </div>
+
+            <div class="video-grid" id="videoGrid">
+
+                <article class="video-card" data-category="text">
+                    <div class="video-preview">
+                        <span class="video-type">TEXT TO VIDEO</span>
+                        <span class="play">▶</span>
                     </div>
-                </div>
-            </article>
 
-            <article class="video-card" data-category="image">
-                <div class="video-preview">
-                    <span class="video-type">IMAGE TO VIDEO</span>
-                    <span class="play">▶</span>
-                </div>
+                    <div class="video-info">
+                        <h3>Cinematic AI Scene</h3>
 
-                <div class="video-info">
-                    <h3>Image Motion</h3>
+                        <p>
+                            Konsep video cinematic dari prompt teks.
+                        </p>
 
-                    <p>
-                        Mengubah gambar statis menjadi video dinamis.
-                    </p>
-
-                    <div class="video-meta">
-                        <span>9:16</span>
-                        <span>AI VIDEO</span>
+                        <div class="video-meta">
+                            <span>16:9</span>
+                            <span>AI VIDEO</span>
+                        </div>
                     </div>
-                </div>
-            </article>
+                </article>
 
-            <article class="video-card" data-category="character">
-                <div class="video-preview">
-                    <span class="video-type">CHARACTER</span>
-                    <span class="play">▶</span>
-                </div>
-
-                <div class="video-info">
-                    <h3>AI Character</h3>
-
-                    <p>
-                        Karakter AI dengan ekspresi dan gerakan natural.
-                    </p>
-
-                    <div class="video-meta">
-                        <span>9:16</span>
-                        <span>CHARACTER</span>
+                <article class="video-card" data-category="image">
+                    <div class="video-preview">
+                        <span class="video-type">IMAGE TO VIDEO</span>
+                        <span class="play">▶</span>
                     </div>
-                </div>
-            </article>
 
-            <article class="video-card" data-category="product">
-                <div class="video-preview">
-                    <span class="video-type">PRODUCT</span>
-                    <span class="play">▶</span>
-                </div>
+                    <div class="video-info">
+                        <h3>Image Motion</h3>
 
-                <div class="video-info">
-                    <h3>Product Showcase</h3>
+                        <p>
+                            Mengubah gambar statis menjadi video dinamis.
+                        </p>
 
-                    <p>
-                        Video promosi produk untuk kebutuhan marketing.
-                    </p>
-
-                    <div class="video-meta">
-                        <span>9:16</span>
-                        <span>PRODUCT</span>
+                        <div class="video-meta">
+                            <span>9:16</span>
+                            <span>AI VIDEO</span>
+                        </div>
                     </div>
-                </div>
-            </article>
+                </article>
 
-            <article class="video-card" data-category="fashion">
-                <div class="video-preview">
-                    <span class="video-type">FASHION</span>
-                    <span class="play">▶</span>
-                </div>
-
-                <div class="video-info">
-                    <h3>Fashion Showcase</h3>
-
-                    <p>
-                        Konsep fashion video dengan visual premium.
-                    </p>
-
-                    <div class="video-meta">
-                        <span>9:16</span>
-                        <span>FASHION</span>
+                <article class="video-card" data-category="character">
+                    <div class="video-preview">
+                        <span class="video-type">CHARACTER</span>
+                        <span class="play">▶</span>
                     </div>
-                </div>
-            </article>
 
-            <article class="video-card" data-category="cinematic">
-                <div class="video-preview">
-                    <span class="video-type">CINEMATIC</span>
-                    <span class="play">▶</span>
-                </div>
+                    <div class="video-info">
+                        <h3>AI Character</h3>
 
-                <div class="video-info">
-                    <h3>Cinematic Story</h3>
+                        <p>
+                            Karakter AI dengan ekspresi dan gerakan natural.
+                        </p>
 
-                    <p>
-                        Visual sinematik dengan camera movement.
-                    </p>
-
-                    <div class="video-meta">
-                        <span>16:9</span>
-                        <span>CINEMATIC</span>
+                        <div class="video-meta">
+                            <span>9:16</span>
+                            <span>CHARACTER</span>
+                        </div>
                     </div>
-                </div>
-            </article>
+                </article>
 
-            <article class="video-card" data-category="social">
-                <div class="video-preview">
-                    <span class="video-type">SOCIAL MEDIA</span>
-                    <span class="play">▶</span>
-                </div>
-
-                <div class="video-info">
-                    <h3>Short Viral Video</h3>
-
-                    <p>
-                        Format pendek untuk TikTok, Reels, dan Shorts.
-                    </p>
-
-                    <div class="video-meta">
-                        <span>9:16</span>
-                        <span>SOCIAL</span>
+                <article class="video-card" data-category="product">
+                    <div class="video-preview">
+                        <span class="video-type">PRODUCT</span>
+                        <span class="play">▶</span>
                     </div>
-                </div>
-            </article>
 
-            <article class="video-card" data-category="story">
-                <div class="video-preview">
-                    <span class="video-type">STORY</span>
-                    <span class="play">▶</span>
-                </div>
+                    <div class="video-info">
+                        <h3>Product Showcase</h3>
 
-                <div class="video-info">
-                    <h3>AI Storytelling</h3>
+                        <p>
+                            Video promosi produk untuk kebutuhan marketing.
+                        </p>
 
-                    <p>
-                        Membangun cerita visual menggunakan AI.
-                    </p>
-
-                    <div class="video-meta">
-                        <span>16:9</span>
-                        <span>STORY</span>
+                        <div class="video-meta">
+                            <span>9:16</span>
+                            <span>PRODUCT</span>
+                        </div>
                     </div>
-                </div>
-            </article>
+                </article>
 
-        </div>
+                <article class="video-card" data-category="fashion">
+                    <div class="video-preview">
+                        <span class="video-type">FASHION</span>
+                        <span class="play">▶</span>
+                    </div>
 
-    </section>
+                    <div class="video-info">
+                        <h3>Fashion Showcase</h3>
 
-</main>
+                        <p>
+                            Konsep fashion video dengan visual premium.
+                        </p>
 
-<!-- SUPABASE -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../assets/js/config.js"></script>
+                        <div class="video-meta">
+                            <span>9:16</span>
+                            <span>FASHION</span>
+                        </div>
+                    </div>
+                </article>
 
-<script>
-    let supabaseClient = null;
+                <article class="video-card" data-category="cinematic">
+                    <div class="video-preview">
+                        <span class="video-type">CINEMATIC</span>
+                        <span class="play">▶</span>
+                    </div>
 
-    const menuButton =
-        document.getElementById("menuButton");
+                    <div class="video-info">
+                        <h3>Cinematic Story</h3>
 
-    const sidebar =
-        document.getElementById("sidebar");
+                        <p>
+                            Visual sinematik dengan camera movement.
+                        </p>
 
-    const overlay =
-        document.getElementById("overlay");
+                        <div class="video-meta">
+                            <span>16:9</span>
+                            <span>CINEMATIC</span>
+                        </div>
+                    </div>
+                </article>
 
-    const generateButton =
-        document.getElementById("generateButton");
+                <article class="video-card" data-category="social">
+                    <div class="video-preview">
+                        <span class="video-type">SOCIAL MEDIA</span>
+                        <span class="play">▶</span>
+                    </div>
 
-    const logoutButton =
-        document.getElementById("logoutButton");
+                    <div class="video-info">
+                        <h3>Short Viral Video</h3>
 
-    /* =========================
-       SIDEBAR
-    ========================= */
+                        <p>
+                            Format pendek untuk TikTok, Reels, dan Shorts.
+                        </p>
 
-    menuButton.addEventListener("click", () => {
+                        <div class="video-meta">
+                            <span>9:16</span>
+                            <span>SOCIAL</span>
+                        </div>
+                    </div>
+                </article>
 
-        const isOpen =
-            sidebar.classList.contains("open");
+                <article class="video-card" data-category="story">
+                    <div class="video-preview">
+                        <span class="video-type">STORY</span>
+                        <span class="play">▶</span>
+                    </div>
 
-        if (isOpen) {
-            closeSidebar();
-        } else {
-            sidebar.classList.add("open");
-            overlay.classList.add("active");
+                    <div class="video-info">
+                        <h3>AI Storytelling</h3>
+
+                        <p>
+                            Membangun cerita visual menggunakan AI.
+                        </p>
+
+                        <div class="video-meta">
+                            <span>16:9</span>
+                            <span>STORY</span>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../assets/js/config.js"></script>
+
+    <script>
+        let supabaseClient = null;
+
+        const menuButton =
+            document.getElementById("menuButton");
+
+        const sidebar =
+            document.getElementById("sidebar");
+
+        const overlay =
+            document.getElementById("overlay");
+
+        const generateButton =
+            document.getElementById("generateButton");
+
+        const logoutButton =
+            document.getElementById("logoutButton");
+
+        /* =========================
+           SIDEBAR
+        ========================= */
+
+        menuButton.addEventListener("click", () => {
+
+            const isOpen =
+                sidebar.classList.contains("open");
+
+            if (isOpen) {
+                closeSidebar();
+            } else {
+
+                sidebar.classList.add("open");
+                overlay.classList.add("active");
+
+                menuButton.setAttribute(
+                    "aria-expanded",
+                    "true"
+                );
+            }
+        });
+
+        overlay.addEventListener(
+            "click",
+            closeSidebar
+        );
+
+        function closeSidebar() {
+
+            sidebar.classList.remove("open");
+            overlay.classList.remove("active");
 
             menuButton.setAttribute(
                 "aria-expanded",
-                "true"
+                "false"
             );
         }
-    });
 
-    overlay.addEventListener(
-        "click",
-        closeSidebar
-    );
+        /* =========================
+           INITIALIZE
+        ========================= */
 
-    function closeSidebar() {
+        async function init() {
 
-        sidebar.classList.remove("open");
-        overlay.classList.remove("active");
+            try {
 
-        menuButton.setAttribute(
-            "aria-expanded",
-            "false"
+                if (!window.supabase) {
+                    window.location.replace("../login.html");
+                    return;
+                }
+
+                if (
+                    !window.GENZ_CONFIG ||
+                    !GENZ_CONFIG.SUPABASE_URL ||
+                    !GENZ_CONFIG.SUPABASE_KEY
+                ) {
+                    window.location.replace("../login.html");
+                    return;
+                }
+
+                supabaseClient =
+                    window.supabase.createClient(
+                        GENZ_CONFIG.SUPABASE_URL,
+                        GENZ_CONFIG.SUPABASE_KEY
+                    );
+
+                const {
+                    data: { session },
+                    error: sessionError
+                } =
+                    await supabaseClient.auth.getSession();
+
+                if (sessionError || !session) {
+                    window.location.replace("../login.html");
+                    return;
+                }
+
+                const {
+                    data: profile,
+                    error
+                } =
+                    await supabaseClient
+                        .from("profiles")
+                        .select(
+                            "id,email,name,role,credits,status"
+                        )
+                        .eq("id", session.user.id)
+                        .single();
+
+                if (error || !profile) {
+
+                    await supabaseClient.auth.signOut();
+
+                    window.location.replace("../login.html");
+                    return;
+                }
+
+                if (profile.status !== "active") {
+
+                    await supabaseClient.auth.signOut();
+
+                    window.location.replace("../login.html");
+                    return;
+                }
+
+                /*
+                 * ADMIN / OWNER TIDAK BOLEH
+                 * BERADA DI DASHBOARD USER.
+                 */
+
+                if (
+                    profile.role === "ADMIN" ||
+                    profile.role === "OWNER"
+                ) {
+
+                    window.location.replace(
+                        "../admin/dashboard.html"
+                    );
+
+                    return;
+                }
+
+                /*
+                 * USER SAJA YANG DAPAT
+                 * MELANJUTKAN KE DASHBOARD INI.
+                 */
+
+                if (profile.role !== "USER") {
+
+                    await supabaseClient.auth.signOut();
+
+                    window.location.replace("../login.html");
+                    return;
+                }
+
+                document
+                    .getElementById("creditBalance")
+                    .textContent =
+                    Number(
+                        profile.credits || 0
+                    ).toLocaleString("id-ID");
+
+                document
+                    .getElementById("sidebarEmail")
+                    .textContent =
+                    profile.email ||
+                    session.user.email ||
+                    "User";
+
+            } catch (error) {
+
+                console.error(
+                    "GEN-Z.AI Dashboard Error:",
+                    error
+                );
+
+                window.location.replace("../login.html");
+            }
+        }
+
+        /* =========================
+           GENERATE VIDEO
+           USER -> SHARED GENERATOR
+        ========================= */
+
+        generateButton.addEventListener(
+            "click",
+            function () {
+
+                window.location.assign(
+                    "../generate/index.html"
+                );
+            }
         );
-    }
 
-    /* =========================
-       INITIALIZE
-    ========================= */
+        /* =========================
+           CLOSE SIDEBAR
+           WHEN NAVIGATION CLICKED
+        ========================= */
 
-    async function init() {
+        document
+            .querySelectorAll(".nav a")
+            .forEach(link => {
 
-        try {
-
-            if (!window.supabase) {
-                window.location.replace("../login.html");
-                return;
-            }
-
-            if (
-                !window.GENZ_CONFIG ||
-                !GENZ_CONFIG.SUPABASE_URL ||
-                !GENZ_CONFIG.SUPABASE_KEY
-            ) {
-                window.location.replace("../login.html");
-                return;
-            }
-
-            supabaseClient =
-                window.supabase.createClient(
-                    GENZ_CONFIG.SUPABASE_URL,
-                    GENZ_CONFIG.SUPABASE_KEY
+                link.addEventListener(
+                    "click",
+                    function () {
+                        closeSidebar();
+                    }
                 );
 
-            const {
-                data: { session },
-                error: sessionError
-            } =
-                await supabaseClient.auth.getSession();
+            });
 
-            if (sessionError || !session) {
-                window.location.replace("../login.html");
-                return;
+        /* =========================
+           LOGOUT
+        ========================= */
+
+        logoutButton.addEventListener(
+            "click",
+            async function () {
+
+                try {
+
+                    if (supabaseClient) {
+                        await supabaseClient.auth.signOut();
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "Logout error:",
+                        error
+                    );
+
+                } finally {
+
+                    window.location.replace(
+                        "../login.html"
+                    );
+                }
             }
+        );
 
-            const {
-                data: profile,
-                error
-            } =
-                await supabaseClient
-                    .from("profiles")
-                    .select(
-                        "id,email,name,role,credits,status"
-                    )
-                    .eq("id", session.user.id)
-                    .single();
+        /* =========================
+           CATEGORY FILTER
+        ========================= */
 
-            if (error || !profile) {
+        const categoryButtons =
+            document.querySelectorAll(".category");
 
-                await supabaseClient.auth.signOut();
+        const videoCards =
+            document.querySelectorAll(".video-card");
 
-                window.location.replace("../login.html");
-                return;
-            }
+        categoryButtons.forEach(button => {
 
-            if (profile.status !== "active") {
-
-                await supabaseClient.auth.signOut();
-
-                window.location.replace("../login.html");
-                return;
-            }
-
-            /*
-             * ADMIN / OWNER TIDAK BOLEH
-             * BERADA DI DASHBOARD USER.
-             */
-
-            if (
-                profile.role === "ADMIN" ||
-                profile.role === "OWNER"
-            ) {
-
-                window.location.replace(
-                    "../admin/dashboard.html"
-                );
-
-                return;
-            }
-
-            /*
-             * USER SAJA YANG DAPAT
-             * MELANJUTKAN KE DASHBOARD INI.
-             */
-
-            if (profile.role !== "USER") {
-
-                await supabaseClient.auth.signOut();
-
-                window.location.replace("../login.html");
-                return;
-            }
-
-            document
-                .getElementById("creditBalance")
-                .textContent =
-                Number(
-                    profile.credits || 0
-                ).toLocaleString("id-ID");
-
-            document
-                .getElementById("sidebarEmail")
-                .textContent =
-                profile.email ||
-                session.user.email ||
-                "User";
-
-        } catch (error) {
-
-            console.error(
-                "GEN-Z.AI Dashboard Error:",
-                error
-            );
-
-            window.location.replace("../login.html");
-        }
-    }
-
-    /* =========================
-       GENERATE VIDEO
-       USER -> SHARED GENERATOR
-       ========================= */
-
-    generateButton.addEventListener(
-        "click",
-        function () {
-
-            /*
-             * PENTING:
-             * Jangan arahkan USER ke admin/generate.html.
-             *
-             * Generator sekarang berada di:
-             * ../generate/index.html
-             */
-
-            window.location.assign(
-                "../generate/index.html"
-            );
-        }
-    );
-
-    /* =========================
-       SIDEBAR GENERATE LINK
-       ========================= */
-
-    document
-        .querySelectorAll(
-            'a[href="../generate/index.html"]'
-        )
-        .forEach(link => {
-
-            link.addEventListener(
+            button.addEventListener(
                 "click",
                 function () {
-                    closeSidebar();
+
+                    categoryButtons.forEach(item =>
+                        item.classList.remove("active")
+                    );
+
+                    button.classList.add("active");
+
+                    const category =
+                        button.dataset.category;
+
+                    videoCards.forEach(card => {
+
+                        if (
+                            category === "all" ||
+                            card.dataset.category === category
+                        ) {
+
+                            card.style.display = "";
+
+                        } else {
+
+                            card.style.display = "none";
+
+                        }
+
+                    });
+
                 }
             );
 
         });
 
-    /* =========================
-       LOGOUT
-       ========================= */
+        /* =========================
+           START
+        ========================= */
 
-    logoutButton.addEventListener(
-        "click",
-        async function () {
-
-            try {
-
-                if (supabaseClient) {
-                    await supabaseClient.auth.signOut();
-                }
-
-            } catch (error) {
-
-                console.error(
-                    "Logout error:",
-                    error
-                );
-
-            } finally {
-
-                window.location.replace(
-                    "../login.html"
-                );
-            }
-        }
-    );
-
-    /* =========================
-       CATEGORY FILTER
-       ========================= */
-
-    const categoryButtons =
-        document.querySelectorAll(".category");
-
-    const videoCards =
-        document.querySelectorAll(".video-card");
-
-    categoryButtons.forEach(button => {
-
-        button.addEventListener(
-            "click",
-            function () {
-
-                categoryButtons.forEach(item =>
-                    item.classList.remove("active")
-                );
-
-                button.classList.add("active");
-
-                const category =
-                    button.dataset.category;
-
-                videoCards.forEach(card => {
-
-                    if (
-                        category === "all" ||
-                        card.dataset.category === category
-                    ) {
-
-                        card.style.display = "";
-
-                    } else {
-
-                        card.style.display = "none";
-
-                    }
-
-                });
-
-            }
-        );
-
-    });
-
-    /* =========================
-       START
-       ========================= */
-
-    init();
-</script>
+        init();
+    </script>
 
 </body>
 </html>
