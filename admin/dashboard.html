@@ -16,8 +16,14 @@
         body {
             min-height: 100vh;
             font-family: Arial, Helvetica, sans-serif;
-            background: #0b0b0f;
-            color: #ffffff;
+            background:
+                linear-gradient(
+                    135deg,
+                    #cfd3d8 0%,
+                    #e5e7eb 45%,
+                    #ffffff 100%
+                );
+            color: #1f2937;
         }
 
         .layout {
@@ -25,11 +31,21 @@
             min-height: 100vh;
         }
 
+        /* =========================
+           SIDEBAR
+        ========================= */
+
         .sidebar {
             width: 240px;
-            background: #15151c;
-            border-right: 1px solid #292933;
+            background:
+                linear-gradient(
+                    180deg,
+                    #f3f4f6 0%,
+                    #ffffff 100%
+                );
+            border-right: 1px solid #d1d5db;
             padding: 25px 15px;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.05);
         }
 
         .logo {
@@ -40,12 +56,15 @@
         .logo h1 {
             font-size: 24px;
             letter-spacing: 1px;
+            color: #111827;
         }
 
         .logo p {
-            color: #777784;
+            color: #6b7280;
             font-size: 11px;
             margin-top: 5px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
 
         .nav {
@@ -60,25 +79,41 @@
             width: 100%;
             padding: 13px 14px;
             border-radius: 9px;
-            color: #aaaab7;
+            color: #4b5563;
             text-decoration: none;
             background: transparent;
             border: none;
             text-align: left;
             font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s ease;
         }
 
         .nav a:hover,
         .nav a.active,
         .logout-btn:hover {
-            background: #24242d;
-            color: #ffffff;
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .nav a.active {
+            box-shadow:
+                inset 3px 0 0 #374151;
         }
 
         .logout-btn {
             margin-top: 25px;
         }
+
+        .logout-btn:hover {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        /* =========================
+           MAIN
+        ========================= */
 
         .main {
             flex: 1;
@@ -94,12 +129,23 @@
 
         .topbar h2 {
             font-size: 25px;
+            color: #111827;
+            letter-spacing: 0.5px;
         }
 
         .admin-info {
-            color: #888894;
+            color: #6b7280;
             font-size: 13px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            padding: 9px 14px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
+
+        /* =========================
+           CARDS
+        ========================= */
 
         .cards {
             display: grid;
@@ -108,48 +154,79 @@
         }
 
         .card {
-            background: #15151c;
-            border: 1px solid #292933;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.95);
             border-radius: 14px;
             padding: 22px;
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.08),
+                0 2px 8px rgba(0, 0, 0, 0.04);
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 14px 35px rgba(0, 0, 0, 0.10),
+                0 3px 10px rgba(0, 0, 0, 0.05);
         }
 
         .card-label {
-            color: #888894;
+            color: #6b7280;
             font-size: 12px;
             margin-bottom: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
         }
 
         .card-value {
             font-size: 27px;
             font-weight: 700;
+            color: #111827;
         }
+
+        /* =========================
+           WELCOME
+        ========================= */
 
         .welcome {
             margin-top: 20px;
-            background: #15151c;
-            border: 1px solid #292933;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.95);
             border-radius: 14px;
             padding: 25px;
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.08),
+                0 2px 8px rgba(0, 0, 0, 0.04);
+            backdrop-filter: blur(8px);
         }
 
         .welcome h3 {
             margin-bottom: 10px;
+            color: #111827;
         }
 
         .welcome p {
-            color: #9696a5;
+            color: #6b7280;
             font-size: 14px;
             line-height: 1.6;
         }
 
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
         @media (max-width: 900px) {
+
             .cards {
                 grid-template-columns: repeat(2, 1fr);
             }
+
         }
 
         @media (max-width: 600px) {
+
             .layout {
                 display: block;
             }
@@ -157,7 +234,8 @@
             .sidebar {
                 width: 100%;
                 border-right: none;
-                border-bottom: 1px solid #292933;
+                border-bottom: 1px solid #d1d5db;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
             }
 
             .nav {
@@ -178,9 +256,16 @@
                 padding: 20px;
             }
 
+            .topbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
             .cards {
                 grid-template-columns: 1fr;
             }
+
         }
     </style>
 </head>
