@@ -16,10 +16,9 @@
 
         :root {
             --bg: #070b14;
-            --panel: rgba(15, 23, 42, 0.82);
-            --panel-strong: rgba(17, 24, 39, 0.96);
-            --border: rgba(148, 163, 184, 0.14);
-            --border-hover: rgba(148, 163, 184, 0.25);
+            --panel: rgba(15, 23, 42, .82);
+            --border: rgba(148, 163, 184, .14);
+            --border-hover: rgba(148, 163, 184, .27);
             --text: #f8fafc;
             --muted: #94a3b8;
             --muted-2: #64748b;
@@ -27,7 +26,6 @@
             --accent-2: #6366f1;
             --green: #22c55e;
             --red: #ef4444;
-            --yellow: #f59e0b;
         }
 
         html {
@@ -38,6 +36,7 @@
         body {
             margin: 0;
             min-height: 100vh;
+            color: var(--text);
             font-family:
                 Inter,
                 ui-sans-serif,
@@ -46,16 +45,15 @@
                 BlinkMacSystemFont,
                 "Segoe UI",
                 sans-serif;
-            color: var(--text);
             background:
                 radial-gradient(
-                    circle at 10% 0%,
-                    rgba(99, 102, 241, 0.18),
+                    circle at 8% 0%,
+                    rgba(99, 102, 241, .18),
                     transparent 30%
                 ),
                 radial-gradient(
-                    circle at 90% 10%,
-                    rgba(139, 92, 246, 0.14),
+                    circle at 92% 8%,
+                    rgba(139, 92, 246, .14),
                     transparent 28%
                 ),
                 linear-gradient(
@@ -79,22 +77,20 @@
             min-height: 100vh;
         }
 
-        /* =========================================
+        /* ========================================
            TOPBAR
-        ========================================= */
+        ======================================== */
 
         .topbar {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            inset: 0 0 auto 0;
             height: 76px;
             z-index: 100;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 28px;
-            background: rgba(7, 11, 20, 0.78);
+            background: rgba(7, 11, 20, .78);
             border-bottom: 1px solid var(--border);
             backdrop-filter: blur(22px);
             -webkit-backdrop-filter: blur(22px);
@@ -115,7 +111,7 @@
             justify-content: center;
             border: 1px solid var(--border);
             border-radius: 13px;
-            background: rgba(15, 23, 42, 0.76);
+            background: rgba(15, 23, 42, .76);
             color: #fff;
             cursor: pointer;
             transition:
@@ -125,7 +121,7 @@
         }
 
         .menu-button:hover {
-            background: rgba(30, 41, 59, 0.95);
+            background: rgba(30, 41, 59, .95);
             border-color: var(--border-hover);
             transform: translateY(-1px);
         }
@@ -139,9 +135,9 @@
         }
 
         .menu-icon span {
-            display: block;
             width: 100%;
             height: 2px;
+            display: block;
             border-radius: 2px;
             background: #fff;
         }
@@ -166,14 +162,14 @@
         }
 
         .back-button {
+            min-height: 42px;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            min-height: 42px;
             padding: 0 15px;
             border: 1px solid var(--border);
             border-radius: 12px;
-            background: rgba(15, 23, 42, 0.76);
+            background: rgba(15, 23, 42, .76);
             color: #e2e8f0;
             text-decoration: none;
             font-size: 12px;
@@ -185,7 +181,7 @@
         }
 
         .back-button:hover {
-            background: rgba(30, 41, 59, 0.95);
+            background: rgba(30, 41, 59, .95);
             border-color: var(--border-hover);
             transform: translateY(-1px);
         }
@@ -195,15 +191,15 @@
             line-height: 1;
         }
 
-        /* =========================================
+        /* ========================================
            SIDEBAR
-        ========================================= */
+        ======================================== */
 
         .sidebar-overlay {
             position: fixed;
             inset: 0;
             z-index: 150;
-            background: rgba(0, 0, 0, 0.58);
+            background: rgba(0, 0, 0, .58);
             opacity: 0;
             visibility: hidden;
             transition:
@@ -218,9 +214,7 @@
 
         .sidebar {
             position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
+            inset: 0 auto 0 0;
             z-index: 200;
             width: 285px;
             padding: 24px 18px;
@@ -276,10 +270,6 @@
             color: #cbd5e1;
             cursor: pointer;
             font-size: 20px;
-        }
-
-        .close-sidebar:hover {
-            background: rgba(30, 41, 59, .95);
         }
 
         .nav-label {
@@ -348,16 +338,13 @@
             background: rgba(127, 29, 29, .22);
         }
 
-        /* =========================================
+        /* ========================================
            MAIN
-        ========================================= */
+        ======================================== */
 
         .main {
             width: 100%;
-            padding:
-                112px
-                28px
-                50px;
+            padding: 112px 28px 50px;
         }
 
         .content {
@@ -410,7 +397,6 @@
             font-size: 10px;
             font-weight: 900;
             letter-spacing: 1.7px;
-            text-transform: uppercase;
         }
 
         .eyebrow-dot {
@@ -436,14 +422,13 @@
             line-height: 1.7;
         }
 
-        /* =========================================
+        /* ========================================
            STATS
-        ========================================= */
+        ======================================== */
 
         .stats {
             display: grid;
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 16px;
             margin-bottom: 22px;
         }
@@ -515,9 +500,9 @@
             font-size: 11px;
         }
 
-        /* =========================================
-           CREDIT CARD
-        ========================================= */
+        /* ========================================
+           CARD
+        ======================================== */
 
         .card {
             overflow: hidden;
@@ -536,10 +521,6 @@
             gap: 20px;
             padding: 23px 24px;
             border-bottom: 1px solid var(--border);
-        }
-
-        .card-title-wrap {
-            min-width: 0;
         }
 
         .card-title {
@@ -809,11 +790,12 @@
             text-align: center;
         }
 
-        /* =========================================
+        /* ========================================
            RESPONSIVE
-        ========================================= */
+        ======================================== */
 
         @media (max-width: 800px) {
+
             .topbar {
                 padding: 0 17px;
             }
@@ -827,10 +809,7 @@
             }
 
             .main {
-                padding:
-                    100px
-                    16px
-                    35px;
+                padding: 100px 16px 35px;
             }
 
             .hero {
@@ -845,9 +824,11 @@
             .card-header {
                 align-items: flex-start;
             }
+
         }
 
         @media (max-width: 560px) {
+
             .topbar {
                 height: 68px;
             }
@@ -894,6 +875,7 @@
             .sidebar {
                 width: min(300px, 88vw);
             }
+
         }
     </style>
 </head>
@@ -902,7 +884,10 @@
 
 <div class="app">
 
-    <!-- TOPBAR -->
+    <!-- ========================================
+         TOPBAR
+    ======================================== -->
+
     <header class="topbar">
 
         <div class="topbar-left">
@@ -910,7 +895,6 @@
             <button
                 type="button"
                 class="menu-button"
-                id="menuButton"
                 aria-label="Open navigation"
                 onclick="openSidebar()"
             >
@@ -922,6 +906,7 @@
             </button>
 
             <div class="top-brand">
+
                 <div class="top-brand-title">
                     GEN-Z.AI
                 </div>
@@ -929,6 +914,7 @@
                 <div class="top-brand-subtitle">
                     ADMIN CONTROL
                 </div>
+
             </div>
 
         </div>
@@ -947,14 +933,22 @@
 
     </header>
 
-    <!-- SIDEBAR OVERLAY -->
+
+    <!-- ========================================
+         SIDEBAR OVERLAY
+    ======================================== -->
+
     <div
         class="sidebar-overlay"
         id="sidebarOverlay"
         onclick="closeSidebar()"
     ></div>
 
-    <!-- SIDEBAR -->
+
+    <!-- ========================================
+         SIDEBAR
+    ======================================== -->
+
     <aside
         class="sidebar"
         id="sidebar"
@@ -1019,12 +1013,15 @@
 
     </aside>
 
-    <!-- MAIN -->
+
+    <!-- ========================================
+         MAIN
+    ======================================== -->
+
     <main class="main">
 
         <div class="content">
 
-            <!-- HERO -->
             <section class="hero">
 
                 <div class="hero-content">
@@ -1047,7 +1044,11 @@
 
             </section>
 
-            <!-- STATS -->
+
+            <!-- ====================================
+                 STATS
+            ==================================== -->
+
             <section class="stats">
 
                 <div class="stat-card">
@@ -1076,6 +1077,7 @@
                     </div>
 
                 </div>
+
 
                 <div class="stat-card">
 
@@ -1106,12 +1108,16 @@
 
             </section>
 
-            <!-- CREDIT TABLE -->
+
+            <!-- ====================================
+                 CREDIT TABLE
+            ==================================== -->
+
             <section class="card">
 
                 <div class="card-header">
 
-                    <div class="card-title-wrap">
+                    <div>
 
                         <h2 class="card-title">
                             User Credit
@@ -1134,10 +1140,12 @@
 
                 </div>
 
+
                 <div
                     id="message"
                     class="message"
                 ></div>
+
 
                 <div id="creditContainer">
 
@@ -1149,6 +1157,7 @@
 
             </section>
 
+
             <div class="footer-note">
                 GEN-Z.AI • Admin Credit Management
             </div>
@@ -1159,14 +1168,22 @@
 
 </div>
 
+
 <script>
 
-const supabaseClient = supabase.createClient(
-    GENZ_CONFIG.SUPABASE_URL,
-    GENZ_CONFIG.SUPABASE_KEY
-);
+const supabaseClient =
+    supabase.createClient(
+        GENZ_CONFIG.SUPABASE_URL,
+        GENZ_CONFIG.SUPABASE_KEY
+    );
 
-let currentUser = null;
+
+let currentSession = null;
+
+
+/* ========================================
+   ESCAPE HTML
+======================================== */
 
 function escapeHtml(value) {
 
@@ -1186,6 +1203,11 @@ function escapeHtml(value) {
 
 }
 
+
+/* ========================================
+   SIDEBAR
+======================================== */
+
 function openSidebar() {
 
     document
@@ -1197,6 +1219,7 @@ function openSidebar() {
         .classList.add("open");
 
 }
+
 
 function closeSidebar() {
 
@@ -1210,6 +1233,7 @@ function closeSidebar() {
 
 }
 
+
 document.addEventListener(
     "keydown",
     function(event) {
@@ -1217,24 +1241,36 @@ document.addEventListener(
         if (
             event.key === "Escape"
         ) {
+
             closeSidebar();
+
         }
 
     }
 );
 
+
 document.querySelectorAll(
     ".nav a"
-).forEach(function(link) {
+).forEach(
+    function(link) {
 
-    link.addEventListener(
-        "click",
-        function() {
-            closeSidebar();
-        }
-    );
+        link.addEventListener(
+            "click",
+            function() {
 
-});
+                closeSidebar();
+
+            }
+        );
+
+    }
+);
+
+
+/* ========================================
+   MESSAGE
+======================================== */
 
 function showMessage(
     text,
@@ -1246,12 +1282,14 @@ function showMessage(
             "message"
         );
 
-    message.textContent = text;
+    message.textContent =
+        text;
 
     message.className =
         "message " + type;
 
 }
+
 
 function clearMessage() {
 
@@ -1260,12 +1298,18 @@ function clearMessage() {
             "message"
         );
 
-    message.textContent = "";
+    message.textContent =
+        "";
 
     message.className =
         "message";
 
 }
+
+
+/* ========================================
+   AUTH
+======================================== */
 
 async function checkAuth() {
 
@@ -1273,7 +1317,11 @@ async function checkAuth() {
         data: {
             session
         }
-    } = await supabaseClient.auth.getSession();
+    } =
+        await supabaseClient
+            .auth
+            .getSession();
+
 
     if (
         !session ||
@@ -1287,29 +1335,35 @@ async function checkAuth() {
 
     }
 
-    currentUser =
-        session.user;
+
+    currentSession =
+        session;
+
 
     const {
         data: profile,
         error
-    } = await supabaseClient
-        .from("profiles")
-        .select(
-            "id,email,name,role,status,credits"
-        )
-        .eq(
-            "id",
-            currentUser.id
-        )
-        .single();
+    } =
+        await supabaseClient
+            .from("profiles")
+            .select(
+                "id,email,name,role,status,credits"
+            )
+            .eq(
+                "id",
+                session.user.id
+            )
+            .single();
+
 
     if (
         error ||
         !profile
     ) {
 
-        await supabaseClient.auth.signOut();
+        await supabaseClient
+            .auth
+            .signOut();
 
         window.location.href =
             "../index.html";
@@ -1318,13 +1372,25 @@ async function checkAuth() {
 
     }
 
+
+    const role =
+        String(
+            profile.role || ""
+        ).toUpperCase();
+
+
+    const status =
+        String(
+            profile.status || ""
+        ).toLowerCase();
+
+
     if (
-        !["ADMIN", "OWNER"].includes(
-            String(
-                profile.role || ""
-            ).toUpperCase()
-        ) ||
-        profile.status !== "active"
+        ![
+            "ADMIN",
+            "OWNER"
+        ].includes(role) ||
+        status !== "active"
     ) {
 
         window.location.href =
@@ -1334,23 +1400,148 @@ async function checkAuth() {
 
     }
 
+
     return true;
 
 }
 
+
+/* ========================================
+   AUTH TOKEN
+======================================== */
+
+async function getAccessToken() {
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .auth
+            .getSession();
+
+
+    if (
+        error ||
+        !data ||
+        !data.session
+    ) {
+
+        return null;
+
+    }
+
+
+    currentSession =
+        data.session;
+
+
+    return data.session.access_token;
+
+}
+
+
+/* ========================================
+   API REQUEST
+======================================== */
+
+async function creditApi(
+    payload
+) {
+
+    const token =
+        await getAccessToken();
+
+
+    if (!token) {
+
+        throw new Error(
+            "Session admin tidak ditemukan. Silakan login kembali."
+        );
+
+    }
+
+
+    const response =
+        await fetch(
+            "/api/admin-credit",
+            {
+
+                method:
+                    "POST",
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Authorization":
+                        `Bearer ${token}`
+
+                },
+
+                body:
+                    JSON.stringify(
+                        payload
+                    )
+
+            }
+        );
+
+
+    let data = null;
+
+
+    try {
+
+        data =
+            await response.json();
+
+    } catch {
+
+        data = {};
+
+    }
+
+
+    if (
+        !response.ok ||
+        !data.success
+    ) {
+
+        throw new Error(
+            data.error ||
+            "Gagal memproses credit."
+        );
+
+    }
+
+
+    return data;
+
+}
+
+
+/* ========================================
+   LOAD CREDIT
+======================================== */
+
 async function loadCredit() {
 
     clearMessage();
+
 
     const container =
         document.getElementById(
             "creditContainer"
         );
 
+
     const refreshButton =
         document.getElementById(
             "refreshButton"
         );
+
 
     container.innerHTML = `
         <div class="loading">
@@ -1358,41 +1549,94 @@ async function loadCredit() {
         </div>
     `;
 
-    refreshButton.disabled = true;
+
+    refreshButton.disabled =
+        true;
 
     refreshButton.textContent =
         "LOADING...";
 
+
     try {
 
-        const {
-            data,
-            error
-        } = await supabaseClient
-            .from("profiles")
-            .select(
-                "id,email,name,role,credits,status"
-            )
-            .order(
-                "created_at",
+        const token =
+            await getAccessToken();
+
+
+        if (!token) {
+
+            throw new Error(
+                "Session admin tidak ditemukan."
+            );
+
+        }
+
+
+        const response =
+            await fetch(
+                "/api/admin-credit",
                 {
-                    ascending: false
+
+                    method:
+                        "GET",
+
+                    headers: {
+
+                        "Authorization":
+                            `Bearer ${token}`
+
+                    }
+
                 }
             );
 
-        if (error) {
-            throw error;
+
+        let result = null;
+
+
+        try {
+
+            result =
+                await response.json();
+
+        } catch {
+
+            result = {};
+
         }
 
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+
+            throw new Error(
+                result.error ||
+                "Gagal mengambil data credit."
+            );
+
+        }
+
+
         const users =
-            data || [];
+            Array.isArray(
+                result.users
+            )
+                ? result.users
+                : [];
+
 
         const totalUsers =
             users.length;
 
+
         const totalCredits =
             users.reduce(
-                function(total, user) {
+                function(
+                    total,
+                    user
+                ) {
 
                     return (
                         total +
@@ -1405,6 +1649,7 @@ async function loadCredit() {
                 0
             );
 
+
         document.getElementById(
             "totalUsers"
         ).textContent =
@@ -1412,12 +1657,14 @@ async function loadCredit() {
                 "id-ID"
             );
 
+
         document.getElementById(
             "totalCredits"
         ).textContent =
             totalCredits.toLocaleString(
                 "id-ID"
             );
+
 
         if (!users.length) {
 
@@ -1434,7 +1681,9 @@ async function loadCredit() {
 
         }
 
+
         let rows = "";
+
 
         users.forEach(
             function(user) {
@@ -1443,22 +1692,27 @@ async function loadCredit() {
                     user.name ||
                     "Unnamed User";
 
+
                 const email =
                     user.email ||
                     "-";
+
 
                 const role =
                     user.role ||
                     "USER";
 
+
                 const status =
                     user.status ||
                     "active";
+
 
                 const credits =
                     Number(
                         user.credits || 0
                     );
+
 
                 const initial =
                     escapeHtml(
@@ -1469,10 +1723,12 @@ async function loadCredit() {
                         "U"
                     );
 
+
                 rows += `
                     <tr>
 
                         <td>
+
                             <div class="name-cell">
 
                                 <div class="avatar">
@@ -1492,25 +1748,36 @@ async function loadCredit() {
                                 </div>
 
                             </div>
+
                         </td>
 
+
                         <td>
+
                             <span class="role">
                                 ${escapeHtml(role)}
                             </span>
+
                         </td>
 
+
                         <td>
+
                             <span class="status ${escapeHtml(String(status).toLowerCase())}">
                                 ${escapeHtml(status)}
                             </span>
+
                         </td>
 
+
                         <td>
+
                             <span class="credit-value">
                                 ${credits.toLocaleString("id-ID")}
                             </span>
+
                         </td>
+
 
                         <td>
 
@@ -1526,6 +1793,7 @@ async function loadCredit() {
                                 >
                                     + CREDIT
                                 </button>
+
 
                                 <button
                                     type="button"
@@ -1548,6 +1816,7 @@ async function loadCredit() {
 
             }
         );
+
 
         container.innerHTML = `
             <div class="table-wrap">
@@ -1582,14 +1851,20 @@ async function loadCredit() {
             error
         );
 
+
         container.innerHTML = `
             <div class="empty">
+
                 <strong>
                     Gagal memuat data
                 </strong>
-                Silakan tekan Refresh dan coba lagi.
+
+                Silakan tekan Refresh
+                dan coba lagi.
+
             </div>
         `;
+
 
         showMessage(
             error.message ||
@@ -1609,6 +1884,11 @@ async function loadCredit() {
 
 }
 
+
+/* ========================================
+   ADD CREDIT
+======================================== */
+
 async function addCredit(
     userId,
     userName
@@ -1619,16 +1899,21 @@ async function addCredit(
             "Masukkan jumlah credit yang ingin ditambahkan:"
         );
 
+
     if (
         amountInput === null
     ) {
+
         return;
+
     }
+
 
     const amount =
         Number(
             amountInput
         );
+
 
     if (
         !Number.isFinite(amount) ||
@@ -1644,6 +1929,7 @@ async function addCredit(
 
     }
 
+
     if (
         !Number.isInteger(amount)
     ) {
@@ -1657,6 +1943,7 @@ async function addCredit(
 
     }
 
+
     const confirmed =
         window.confirm(
             "Tambahkan " +
@@ -1666,35 +1953,41 @@ async function addCredit(
             "?"
         );
 
+
     if (!confirmed) {
+
         return;
+
     }
+
 
     try {
 
         clearMessage();
 
-        const {
-            error
-        } = await supabaseClient.rpc(
-            "add_credit",
-            {
-                p_user_id: userId,
-                p_amount: amount,
-                p_type: "admin_add",
-                p_description:
-                    "Credit added by admin"
-            }
-        );
 
-        if (error) {
-            throw error;
-        }
+        await creditApi({
+
+            action:
+                "add",
+
+            user_id:
+                userId,
+
+            amount:
+                amount,
+
+            description:
+                "Credit added by admin"
+
+        });
+
 
         showMessage(
             "Credit berhasil ditambahkan.",
             "success"
         );
+
 
         await loadCredit();
 
@@ -1705,6 +1998,7 @@ async function addCredit(
             error
         );
 
+
         showMessage(
             error.message ||
             "Gagal menambahkan credit.",
@@ -1714,6 +2008,11 @@ async function addCredit(
     }
 
 }
+
+
+/* ========================================
+   REMOVE CREDIT
+======================================== */
 
 async function removeCredit(
     userId,
@@ -1726,16 +2025,21 @@ async function removeCredit(
             "Masukkan jumlah credit yang ingin dikurangi:"
         );
 
+
     if (
         amountInput === null
     ) {
+
         return;
+
     }
+
 
     const amount =
         Number(
             amountInput
         );
+
 
     if (
         !Number.isFinite(amount) ||
@@ -1751,6 +2055,7 @@ async function removeCredit(
 
     }
 
+
     if (
         !Number.isInteger(amount)
     ) {
@@ -1764,8 +2069,10 @@ async function removeCredit(
 
     }
 
+
     if (
-        amount > Number(currentCredits)
+        amount >
+        Number(currentCredits)
     ) {
 
         showMessage(
@@ -1777,6 +2084,7 @@ async function removeCredit(
 
     }
 
+
     const confirmed =
         window.confirm(
             "Kurangi " +
@@ -1786,34 +2094,41 @@ async function removeCredit(
             "?"
         );
 
+
     if (!confirmed) {
+
         return;
+
     }
+
 
     try {
 
         clearMessage();
 
-        const {
-            error
-        } = await supabaseClient.rpc(
-            "admin_remove_credit",
-            {
-                p_user_id: userId,
-                p_amount: amount,
-                p_description:
-                    "Credit removed by admin"
-            }
-        );
 
-        if (error) {
-            throw error;
-        }
+        await creditApi({
+
+            action:
+                "remove",
+
+            user_id:
+                userId,
+
+            amount:
+                amount,
+
+            description:
+                "Credit removed by admin"
+
+        });
+
 
         showMessage(
             "Credit berhasil dikurangi.",
             "success"
         );
+
 
         await loadCredit();
 
@@ -1823,6 +2138,7 @@ async function removeCredit(
             "removeCredit error:",
             error
         );
+
 
         showMessage(
             error.message ||
@@ -1834,11 +2150,18 @@ async function removeCredit(
 
 }
 
+
+/* ========================================
+   LOGOUT
+======================================== */
+
 async function logout() {
 
     try {
 
-        await supabaseClient.auth.signOut();
+        await supabaseClient
+            .auth
+            .signOut();
 
     } catch (error) {
 
@@ -1849,23 +2172,34 @@ async function logout() {
 
     }
 
+
     window.location.href =
         "../index.html";
 
 }
+
+
+/* ========================================
+   INIT
+======================================== */
 
 async function init() {
 
     const authorized =
         await checkAuth();
 
+
     if (!authorized) {
+
         return;
+
     }
+
 
     await loadCredit();
 
 }
+
 
 init();
 
