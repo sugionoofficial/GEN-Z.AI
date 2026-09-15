@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>System Settings - GEN-Z.AI</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../assets/js/config.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #ffffff);
+            color: #222;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 24px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .brand {
+            font-size: 25px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: #777;
+            font-size: 14px;
+        }
+
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .nav a,
+        .nav button {
+            border: 0;
+            text-decoration: none;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #f1f3f5;
+            color: #333;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .nav a:hover,
+        .nav button:hover {
+            background: #e5e7eb;
+        }
+
+        .nav .active {
+            background: #111;
+            color: #fff;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 25px 0 5px;
+        }
+
+        .description {
+            color: #777;
+            margin-bottom: 20px;
+        }
+
+        .status-box {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .btn-dark {
+            background: #111;
+            color: #fff;
+        }
+
+        .btn-dark:hover {
+            background: #333;
+        }
+
+        .table-wrapper {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            overflow-x: auto;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        th,
+        td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .key {
+            font-weight: 700;
+            color: #111;
+        }
+
+        .value {
+            max-width: 320px;
+            word-break: break-word;
+            color: #333;
+        }
+
+        .description-cell {
+            color: #777;
+            max-width: 300px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #777;
+        }
+
+        .error {
+            background: #fff1f2;
+            color: #b42318;
+            border: 1px solid #fecdd3;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 18px;
+            display: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: #eef2f7;
+            color: #555;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 700px) {
+            .container {
+                padding: 14px;
+            }
+
+            .header {
+                padding: 17px;
+            }
+
+            .title {
+                font-size: 21px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+
+        <div class="brand">GEN-Z.AI</div>
+
+        <div class="subtitle">
+            ADMIN CONTROL
+        </div>
+
+        <div class="nav">
+            <a href="dashboard.html">DASHBOARD</a>
+            <a href="generate.html">GENERATE</a>
+            <a href="history.html">HISTORY</a>
+            <a href="admin-panel.html">ADMIN PANEL</a>
+            <a href="users.html">USERS</a>
+            <a href="providers.html">PROVIDERS</a>
+            <a href="models.html">MODELS</a>
+            <a href="credit.html">CREDIT</a>
+            <a href="system.html" class="active">SYSTEM</a>
+            <button onclick="logout()">LOG OUT</button>
+        </div>
+
+    </div>
+
+    <div class="title">
+        SYSTEM SETTINGS
+    </div>
+
+    <div class="description">
+        Konfigurasi sistem GEN-Z.AI
+    </div>
+
+    <div id="errorBox" class="error"></div>
+
+    <div class="status-box">
+
+        <div class="status-text" id="userInfo">
+            Memeriksa akses admin...
+        </div>
+
+        <button class="btn btn-dark" onclick="loadSettings()">
+            REFRESH
+        </button>
+
+    </div>
+
+    <div class="table-wrapper">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Setting Key</th>
+                    <th>Value</th>
+                    <th>Description</th>
+                    <th>Updated</th>
+                </tr>
+            </thead>
+
+            <tbody id="settingsTable">
+
+                <tr>
+                    <td colspan="4" class="loading">
+                        Memuat system settings...
+                    </td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+
+    const supabaseClient = supabase.createClient(
+        GENZ_CONFIG.SUPABASE_URL,
+        GENZ_CONFIG.SUPABASE_KEY
+    );
+
+    async function checkAccess() {
+
+        try {
+
+            const {
+                data: {
+                    session
+                }
+            } = await supabaseClient.auth.getSession();
+
+            if (!session) {
+                window.location.href = "../index.html";
+                return false;
+            }
+
+            const {
+                data: profile,
+                error
+            } = await supabaseClient
+                .from("profiles")
+                .select("email, name, role, status")
+                .eq("id", session.user.id)
+                .single();
+
+            if (error) {
+                throw error;
+            }
+
+            if (
+                !profile ||
+                !["ADMIN", "OWNER"].includes(profile.role) ||
+                profile.status !== "active"
+            ) {
+                window.location.href = "../index.html";
+                return false;
+            }
+
+            document.getElementById("userInfo").innerHTML =
+                `<strong>${escapeHtml(profile.email || "")}</strong>
+                 &nbsp; | &nbsp;
+                 ROLE <span class="badge">${escapeHtml(profile.role)}</span>
+                 &nbsp; | &nbsp;
+                 STATUS <span class="badge">ACTIVE</span>`;
+
+            return true;
+
+        } catch (error) {
+
+            showError(
+                "Gagal memeriksa akses admin: " +
+                (error.message || error)
+            );
+
+            return false;
+        }
+    }
+
+
+    async function loadSettings() {
+
+        const table = document.getElementById("settingsTable");
+
+        table.innerHTML = `
+            <tr>
+                <td colspan="4" class="loading">
+                    Memuat system settings...
+                </td>
+            </tr>
+        `;
+
+        hideError();
+
+        try {
+
+            const {
+                data,
+                error
+            } = await supabaseClient
+                .from("system_settings")
+                .select(
+                    "setting_key, setting_value, description, updated_at"
+                )
+                .order("setting_key", {
+                    ascending: true
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            if (!data || data.length === 0) {
+
+                table.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="empty">
+                            Belum ada system settings.
+                        </td>
+                    </tr>
+                `;
+
+                return;
+            }
+
+            table.innerHTML = data.map(setting => {
+
+                const updated =
+                    setting.updated_at
+                        ? new Date(setting.updated_at).toLocaleString(
+                            "id-ID",
+                            {
+                                dateStyle: "medium",
+                                timeStyle: "short"
+                            }
+                        )
+                        : "-";
+
+                return `
+                    <tr>
+
+                        <td class="key">
+                            ${escapeHtml(setting.setting_key || "-")}
+                        </td>
+
+                        <td class="value">
+                            ${escapeHtml(
+                                setting.setting_value ?? "-"
+                            )}
+                        </td>
+
+                        <td class="description-cell">
+                            ${escapeHtml(
+                                setting.description || "-"
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(updated)}
+                        </td>
+
+                    </tr>
+                `;
+
+            }).join("");
+
+        } catch (error) {
+
+            table.innerHTML = `
+                <tr>
+                    <td colspan="4" class="empty">
+                        Gagal memuat system settings.
+                    </td>
+                </tr>
+            `;
+
+            showError(
+                "Gagal mengambil system settings: " +
+                (error.message || error)
+            );
+        }
+    }
+
+
+    function escapeHtml(value) {
+
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+
+    function showError(message) {
+
+        const box = document.getElementById("errorBox");
+
+        box.textContent = message;
+        box.style.display = "block";
+    }
+
+
+    function hideError() {
+
+        const box = document.getElementById("errorBox");
+
+        box.textContent = "";
+        box.style.display = "none";
+    }
+
+
+    async function logout() {
+
+        await supabaseClient.auth.signOut();
+
+        window.location.href = "../index.html";
+    }
+
+
+    async function init() {
+
+        const allowed = await checkAccess();
+
+        if (!allowed) {
+            return;
+        }
+
+        await loadSettings();
+    }
+
+
+    init();
+
+</script>
+
+</body>
+</html>
