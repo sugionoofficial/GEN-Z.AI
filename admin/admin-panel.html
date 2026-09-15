@@ -12,20 +12,37 @@
     <style>
         * {
             box-sizing: border-box;
+        }
+
+        html,
+        body {
             margin: 0;
             padding: 0;
+            min-height: 100%;
+            font-family: Arial, Helvetica, sans-serif;
+            background:
+                linear-gradient(
+                    135deg,
+                    #f8fafc 0%,
+                    #eef2f7 45%,
+                    #ffffff 100%
+                );
+            color: #111827;
         }
 
         body {
             min-height: 100vh;
-            font-family: Arial, Helvetica, sans-serif;
-            background: linear-gradient(
-                135deg,
-                #cfd3d8 0%,
-                #e5e7eb 45%,
-                #ffffff 100%
-            );
-            color: #1f2937;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
         }
 
         .layout {
@@ -34,117 +51,119 @@
         }
 
         .sidebar {
-            width: 240px;
-            background: rgba(255,255,255,0.94);
-            border-right: 1px solid #e5e7eb;
-            padding: 25px 15px;
+            width: 250px;
+            min-height: 100vh;
+            background: #111827;
+            color: white;
+            padding: 24px 16px;
             position: fixed;
             left: 0;
             top: 0;
             bottom: 0;
-            box-shadow: 5px 0 20px rgba(0,0,0,0.05);
             z-index: 20;
         }
 
         .brand {
-            padding: 0 12px 30px;
-        }
-
-        .brand h1 {
-            font-size: 23px;
+            font-size: 24px;
             font-weight: 800;
-            color: #111827;
+            letter-spacing: .5px;
+            padding: 0 10px;
+            margin-bottom: 6px;
         }
 
-        .brand span {
-            display: block;
-            margin-top: 5px;
-            color: #6b7280;
+        .brand-subtitle {
+            color: #9ca3af;
+            font-size: 12px;
+            padding: 0 10px;
+            margin-bottom: 28px;
+        }
+
+        .nav-title {
             font-size: 11px;
+            color: #6b7280;
             font-weight: 700;
-            letter-spacing: 1px;
+            padding: 0 10px;
+            margin-bottom: 8px;
+            letter-spacing: .8px;
         }
 
-        .nav {
+        .nav-menu {
             display: flex;
             flex-direction: column;
-            gap: 7px;
+            gap: 5px;
         }
 
-        .nav a,
-        .logout-btn {
+        .nav-item {
             width: 100%;
-            padding: 12px 14px;
-            border-radius: 9px;
-            text-decoration: none;
-            color: #4b5563;
-            font-size: 13px;
-            font-weight: 700;
-            border: none;
+            border: 0;
             background: transparent;
+            color: #d1d5db;
             text-align: left;
-            cursor: pointer;
+            padding: 12px 12px;
+            border-radius: 9px;
+            font-size: 14px;
+            transition: .2s;
         }
 
-        .nav a:hover,
-        .logout-btn:hover {
-            background: #f3f4f6;
-            color: #111827;
+        .nav-item:hover {
+            background: #1f2937;
+            color: white;
         }
 
-        .nav a.active {
-            background: #111827;
-            color: #ffffff;
+        .nav-item.active {
+            background: #374151;
+            color: white;
         }
 
-        .logout-btn {
-            margin-top: 20px;
-            color: #dc2626;
+        .nav-logout {
+            margin-top: 18px;
+            color: #fca5a5;
         }
 
         .main {
-            margin-left: 240px;
-            width: calc(100% - 240px);
-            padding: 35px;
+            width: calc(100% - 250px);
+            margin-left: 250px;
+            min-height: 100vh;
+            padding: 30px;
         }
 
-        .header {
-            margin-bottom: 25px;
-        }
-
-        .header h2 {
-            font-size: 28px;
-            color: #111827;
-        }
-
-        .header p {
-            margin-top: 7px;
-            color: #6b7280;
-            font-size: 13px;
-        }
-
-        .tabs {
+        .topbar {
             display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 28px;
         }
 
-        .tab {
-            border: 1px solid #d1d5db;
-            background: rgba(255,255,255,0.8);
-            padding: 10px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 12px;
+        .page-title {
+            margin: 0;
+            font-size: 28px;
             font-weight: 800;
-            color: #4b5563;
         }
 
-        .tab.active {
-            background: #111827;
-            color: #ffffff;
-            border-color: #111827;
+        .page-description {
+            margin: 7px 0 0;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .account {
+            background: rgba(255,255,255,.8);
+            border: 1px solid #e5e7eb;
+            padding: 11px 15px;
+            border-radius: 10px;
+            text-align: right;
+        }
+
+        .account-email {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .account-role {
+            margin-top: 3px;
+            font-size: 11px;
+            color: #6b7280;
         }
 
         .section {
@@ -155,151 +174,115 @@
             display: block;
         }
 
-        .stats {
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
         .stat-card {
-            background: rgba(255,255,255,0.92);
+            background: rgba(255,255,255,.92);
             border: 1px solid #e5e7eb;
-            border-radius: 13px;
+            border-radius: 14px;
             padding: 20px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+            box-shadow: 0 5px 20px rgba(15, 23, 42, .04);
         }
 
-        .stat-card span {
-            display: block;
-            font-size: 11px;
-            font-weight: 700;
+        .stat-label {
             color: #6b7280;
+            font-size: 12px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: .5px;
         }
 
-        .stat-card strong {
-            display: block;
-            margin-top: 8px;
-            font-size: 25px;
-            color: #111827;
+        .stat-value {
+            margin-top: 9px;
+            font-size: 27px;
+            font-weight: 800;
         }
 
-        .panel {
-            background: rgba(255,255,255,0.94);
+        .card {
+            background: rgba(255,255,255,.94);
             border: 1px solid #e5e7eb;
             border-radius: 14px;
             padding: 22px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+            box-shadow: 0 5px 20px rgba(15, 23, 42, .04);
             margin-bottom: 20px;
         }
 
-        .panel-header {
+        .card-header {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             gap: 15px;
             margin-bottom: 18px;
         }
 
-        .panel-header h3 {
-            font-size: 17px;
-            color: #111827;
-        }
-
-        .search-box {
-            width: 260px;
-            height: 38px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 0 12px;
-            outline: none;
-        }
-
-        .search-box:focus {
-            border-color: #6b7280;
-        }
-
-        .table-wrapper {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 800px;
-        }
-
-        th {
-            text-align: left;
-            padding: 12px 10px;
-            border-bottom: 1px solid #e5e7eb;
-            color: #6b7280;
-            font-size: 11px;
-            text-transform: uppercase;
-        }
-
-        td {
-            padding: 13px 10px;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 12px;
-        }
-
-        tr:hover td {
-            background: #f9fafb;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 5px 9px;
-            border-radius: 999px;
-            font-size: 10px;
+        .card-title {
+            margin: 0;
+            font-size: 18px;
             font-weight: 800;
         }
 
-        .badge-active {
-            background: #dcfce7;
-            color: #166534;
+        .card-description {
+            margin: 5px 0 0;
+            color: #6b7280;
+            font-size: 13px;
         }
 
-        .badge-admin {
-            background: #e0e7ff;
-            color: #3730a3;
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
         }
 
-        .badge-owner {
-            background: #fef3c7;
-            color: #92400e;
+        .input,
+        .select,
+        .textarea {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 9px;
+            padding: 10px 12px;
+            outline: none;
+            transition: .2s;
         }
 
-        .badge-user {
-            background: #f3f4f6;
-            color: #374151;
+        .input:focus,
+        .select:focus,
+        .textarea:focus {
+            border-color: #6b7280;
+            box-shadow: 0 0 0 3px rgba(107,114,128,.1);
         }
 
-        .badge-suspended,
-        .badge-banned {
-            background: #fee2e2;
-            color: #991b1b;
+        .search-input {
+            width: 280px;
         }
 
-        button {
-            font-family: inherit;
+        .textarea {
+            min-height: 90px;
+            resize: vertical;
         }
 
         .btn {
-            border: none;
-            border-radius: 7px;
-            padding: 8px 11px;
-            font-size: 11px;
-            font-weight: 800;
-            cursor: pointer;
+            border: 0;
+            border-radius: 9px;
+            padding: 10px 15px;
+            font-weight: 700;
+            font-size: 13px;
+            transition: .2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
         }
 
         .btn:disabled {
-            opacity: .6;
+            opacity: .55;
             cursor: not-allowed;
+            transform: none;
         }
 
         .btn-dark {
@@ -307,210 +290,331 @@
             color: white;
         }
 
-        .btn-dark:hover {
-            background: #374151;
-        }
-
         .btn-light {
             background: #f3f4f6;
-            color: #374151;
+            color: #111827;
         }
 
-        .btn-light:hover {
-            background: #e5e7eb;
+        .btn-danger {
+            background: #dc2626;
+            color: white;
         }
 
-        .btn-green {
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+
+        .btn-small {
+            padding: 7px 10px;
+            font-size: 12px;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 750px;
+        }
+
+        th,
+        td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        th {
+            color: #6b7280;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            background: #f9fafb;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 5px 9px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .badge-active {
             background: #dcfce7;
             color: #166534;
         }
 
-        .btn-green:hover {
-            background: #bbf7d0;
+        .badge-inactive {
+            background: #f3f4f6;
+            color: #4b5563;
         }
 
-        .btn-red {
+        .badge-maintenance {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-danger {
             background: #fee2e2;
             color: #991b1b;
         }
 
-        .btn-red:hover {
-            background: #fecaca;
-        }
-
-        .actions {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
+        .badge-owner {
+            background: #ede9fe;
+            color: #6d28d9;
         }
 
         .provider-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
         }
 
         .provider-card {
             border: 1px solid #e5e7eb;
             border-radius: 12px;
-            padding: 20px;
-            background: #ffffff;
+            padding: 17px;
+            background: #fff;
         }
 
-        .provider-card h4 {
-            font-size: 16px;
-            margin-bottom: 5px;
+        .provider-card-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .provider-name {
+            font-size: 17px;
+            font-weight: 800;
         }
 
         .provider-id {
+            margin-top: 5px;
             color: #6b7280;
+            font-size: 12px;
+            word-break: break-word;
+        }
+
+        .provider-description {
+            margin-top: 14px;
+            color: #4b5563;
+            font-size: 13px;
+            min-height: 38px;
+        }
+
+        .provider-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 16px;
+            padding-top: 13px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .provider-default {
             font-size: 11px;
-            margin-bottom: 12px;
-            word-break: break-all;
+            color: #059669;
+            font-weight: 700;
         }
 
         .provider-actions {
             display: flex;
             gap: 7px;
-            flex-wrap: wrap;
-            margin-top: 15px;
         }
 
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
+        .empty-state {
+            text-align: center;
+            padding: 45px 20px;
+            color: #6b7280;
         }
 
-        .form-group label {
+        .empty-state strong {
             display: block;
-            margin-bottom: 7px;
-            font-size: 11px;
-            font-weight: 800;
             color: #374151;
+            margin-bottom: 5px;
         }
 
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 10px;
-            outline: none;
-            font-family: inherit;
-        }
-
-        .form-group input,
-        .form-group select {
-            height: 40px;
-        }
-
-        .form-group textarea {
-            min-height: 90px;
-            resize: vertical;
-        }
-
-        .empty {
+        .loading {
             text-align: center;
             padding: 35px;
-            color: #9ca3af;
-            font-size: 13px;
+            color: #6b7280;
         }
 
-        #message {
-            position: fixed;
-            right: 25px;
-            bottom: 25px;
-            background: #111827;
-            color: #ffffff;
-            padding: 13px 18px;
-            border-radius: 9px;
-            font-size: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+        .message {
             display: none;
-            z-index: 1000;
-            max-width: 420px;
+            padding: 12px 14px;
+            border-radius: 9px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .message.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
         }
 
         .modal-overlay {
+            display: none;
             position: fixed;
             inset: 0;
-            background: rgba(17,24,39,0.45);
-            display: none;
+            background: rgba(15,23,42,.5);
+            z-index: 100;
+            padding: 20px;
             align-items: center;
             justify-content: center;
-            z-index: 900;
-            padding: 20px;
+        }
+
+        .modal-overlay.show {
+            display: flex;
         }
 
         .modal {
             width: 100%;
-            max-width: 500px;
+            max-width: 560px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
             background: white;
             border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 25px 60px rgba(0,0,0,.2);
+            box-shadow: 0 25px 70px rgba(0,0,0,.2);
         }
 
-        .modal h3 {
-            margin-bottom: 7px;
-            color: #111827;
-        }
-
-        .modal p {
-            font-size: 12px;
-            color: #6b7280;
-            margin-bottom: 20px;
-        }
-
-        .modal .form-group {
-            margin-bottom: 14px;
-        }
-
-        .modal-actions {
+        .modal-header {
+            padding: 20px 22px;
+            border-bottom: 1px solid #e5e7eb;
             display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-top: 20px;
-        }
-
-        .default-check {
-            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
-            margin-top: 12px;
-            font-size: 12px;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 19px;
+            font-weight: 800;
+        }
+
+        .modal-close {
+            border: 0;
+            background: #f3f4f6;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            font-size: 20px;
             color: #374151;
         }
 
-        .default-check input {
+        .modal-body {
+            padding: 22px;
+        }
+
+        .modal-footer {
+            padding: 16px 22px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #374151;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-row input {
             width: 16px;
             height: 16px;
         }
 
-        @media (max-width: 900px) {
-            .sidebar {
-                width: 200px;
-            }
+        .system-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
 
-            .main {
-                margin-left: 200px;
-                width: calc(100% - 200px);
-            }
+        .info-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 15px;
+        }
 
-            .stats {
-                grid-template-columns: repeat(2, 1fr);
+        .info-label {
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            margin-top: 6px;
+            font-size: 14px;
+            font-weight: 700;
+            word-break: break-word;
+        }
+
+        @media (max-width: 1100px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .provider-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
 
-        @media (max-width: 650px) {
+        @media (max-width: 800px) {
             .sidebar {
-                position: relative;
+                position: static;
                 width: 100%;
                 min-height: auto;
             }
@@ -520,25 +624,36 @@
             }
 
             .main {
-                margin-left: 0;
                 width: 100%;
+                margin-left: 0;
                 padding: 20px;
             }
 
-            .stats {
-                grid-template-columns: 1fr;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .panel-header {
+            .topbar {
                 align-items: flex-start;
                 flex-direction: column;
             }
 
-            .search-box {
+            .account {
+                text-align: left;
+            }
+
+            .provider-grid,
+            .system-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 550px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-input {
+                width: 100%;
+            }
+
+            .toolbar {
                 width: 100%;
             }
         }
@@ -552,134 +667,210 @@
     <aside class="sidebar">
 
         <div class="brand">
-            <h1>GEN-Z.AI</h1>
-            <span>ADMIN CONTROL</span>
+            GEN-Z.AI
         </div>
 
-        <nav class="nav">
+        <div class="brand-subtitle">
+            ADMIN CONTROL PANEL
+        </div>
 
-            <a href="dashboard.html">DASHBOARD</a>
+        <div class="nav-title">
+            NAVIGATION
+        </div>
 
-            <a href="generate.html">GENERATE</a>
+        <div class="nav-menu">
 
-            <a href="history.html">HISTORY</a>
+            <button
+                class="nav-item"
+                onclick="goToPage('../admin/dashboard.html')"
+            >
+                DASHBOARD
+            </button>
 
-            <a href="admin-panel.html" class="active">
+            <button
+                class="nav-item"
+                onclick="goToPage('../admin/generate.html')"
+            >
+                GENERATE
+            </button>
+
+            <button
+                class="nav-item"
+                onclick="goToPage('../admin/history.html')"
+            >
+                HISTORY
+            </button>
+
+            <button
+                class="nav-item active"
+                onclick="showSection('users', this)"
+            >
                 ADMIN PANEL
-            </a>
+            </button>
 
-            <button class="logout-btn" id="logoutButton">
+            <button
+                class="nav-item nav-logout"
+                onclick="logout()"
+            >
                 LOG OUT
             </button>
 
-        </nav>
+        </div>
 
     </aside>
 
-
     <main class="main">
 
-        <div class="header">
-            <h2>ADMIN PANEL</h2>
-            <p>
-                Kelola pengguna, provider, model, kredit dan konfigurasi GEN-Z.AI.
-            </p>
-        </div>
+        <div class="topbar">
 
+            <div>
+                <h1 class="page-title">
+                    ADMIN PANEL
+                </h1>
 
-        <div class="tabs">
+                <p class="page-description">
+                    Kelola pengguna, provider, model, kredit, dan konfigurasi sistem GEN-Z.AI.
+                </p>
+            </div>
 
-            <button class="tab active" data-tab="users">
-                USERS
-            </button>
+            <div class="account">
 
-            <button class="tab" data-tab="providers">
-                PROVIDERS
-            </button>
-
-            <button class="tab" data-tab="models">
-                MODELS
-            </button>
-
-            <button class="tab" data-tab="credit">
-                CREDIT
-            </button>
-
-            <button class="tab" data-tab="system">
-                SYSTEM
-            </button>
-
-        </div>
-
-
-        <!-- USERS -->
-
-        <section id="users" class="section active">
-
-            <div class="stats">
-
-                <div class="stat-card">
-                    <span>Total Users</span>
-                    <strong id="totalUsers">0</strong>
+                <div
+                    class="account-email"
+                    id="accountEmail"
+                >
+                    Memuat...
                 </div>
 
-                <div class="stat-card">
-                    <span>Active Users</span>
-                    <strong id="activeUsers">0</strong>
-                </div>
-
-                <div class="stat-card">
-                    <span>Admin / Owner</span>
-                    <strong id="adminUsers">0</strong>
-                </div>
-
-                <div class="stat-card">
-                    <span>Total Credit</span>
-                    <strong id="totalCredits">0</strong>
+                <div
+                    class="account-role"
+                    id="accountRole"
+                >
+                    -
                 </div>
 
             </div>
 
+        </div>
 
-            <div class="panel">
+        <div
+            id="globalMessage"
+            class="message"
+        ></div>
 
-                <div class="panel-header">
+        <!-- USERS -->
 
-                    <h3>USER MANAGEMENT</h3>
+        <section
+            id="section-users"
+            class="section active"
+        >
 
-                    <input
-                        type="text"
-                        id="userSearch"
-                        class="search-box"
-                        placeholder="Cari email atau nama..."
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <div class="stat-label">
+                        Total Users
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="totalUsers"
                     >
+                        0
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">
+                        Active
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="activeUsers"
+                    >
+                        0
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">
+                        Suspended
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="suspendedUsers"
+                    >
+                        0
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">
+                        Banned
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="bannedUsers"
+                    >
+                        0
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <div class="card-header">
+
+                    <div>
+                        <h2 class="card-title">
+                            USER MANAGEMENT
+                        </h2>
+
+                        <p class="card-description">
+                            Daftar akun yang terdaftar pada GEN-Z.AI.
+                        </p>
+                    </div>
+
+                    <div class="toolbar">
+
+                        <input
+                            type="text"
+                            id="userSearch"
+                            class="input search-input"
+                            placeholder="Cari email atau nama..."
+                            oninput="filterUsers()"
+                        >
+
+                    </div>
 
                 </div>
 
-
-                <div class="table-wrapper">
+                <div class="table-wrap">
 
                     <table>
 
                         <thead>
-
                             <tr>
-                                <th>Email</th>
-                                <th>Name</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Credit</th>
-                                <th>Created</th>
-                                <th>Action</th>
+                                <th>EMAIL</th>
+                                <th>NAMA</th>
+                                <th>ROLE</th>
+                                <th>CREDIT</th>
+                                <th>STATUS</th>
+                                <th>CREATED</th>
                             </tr>
-
                         </thead>
 
-                        <tbody id="usersTable">
+                        <tbody id="usersTableBody">
 
                             <tr>
-                                <td colspan="7" class="empty">
-                                    Memuat pengguna...
+                                <td colspan="6">
+                                    <div class="loading">
+                                        Memuat users...
+                                    </div>
                                 </td>
                             </tr>
 
@@ -696,43 +887,53 @@
 
         <!-- PROVIDERS -->
 
-        <section id="providers" class="section">
+        <section
+            id="section-providers"
+            class="section"
+        >
 
-            <div class="panel">
+            <div class="card">
 
-                <div class="panel-header">
+                <div class="card-header">
 
-                    <h3>AI PROVIDERS</h3>
+                    <div>
+                        <h2 class="card-title">
+                            PROVIDER MANAGEMENT
+                        </h2>
 
-                    <div class="actions">
+                        <p class="card-description">
+                            Kelola provider AI yang digunakan GEN-Z.AI.
+                        </p>
+                    </div>
+
+                    <div class="toolbar">
 
                         <button
-                            type="button"
                             class="btn btn-light"
-                            onclick="openProviderModal()"
-                        >
-                            + ADD PROVIDER
-                        </button>
-
-                        <button
-                            type="button"
-                            class="btn btn-dark"
                             onclick="loadProviders()"
                         >
                             REFRESH
+                        </button>
+
+                        <button
+                            class="btn btn-dark"
+                            onclick="openProviderModal()"
+                        >
+                            + ADD PROVIDER
                         </button>
 
                     </div>
 
                 </div>
 
+                <div id="providerMessage"></div>
 
                 <div
                     id="providersContainer"
                     class="provider-grid"
                 >
 
-                    <div class="empty">
+                    <div class="loading">
                         Memuat provider...
                     </div>
 
@@ -745,52 +946,36 @@
 
         <!-- MODELS -->
 
-        <section id="models" class="section">
+        <section
+            id="section-models"
+            class="section"
+        >
 
-            <div class="panel">
+            <div class="card">
 
-                <div class="panel-header">
+                <div class="card-header">
 
-                    <h3>AI MODELS</h3>
+                    <div>
+                        <h2 class="card-title">
+                            MODEL MANAGEMENT
+                        </h2>
 
-                    <button
-                        type="button"
-                        class="btn btn-dark"
-                        onclick="loadModels()"
-                    >
-                        REFRESH
-                    </button>
+                        <p class="card-description">
+                            Daftar model AI yang tersedia untuk provider.
+                        </p>
+                    </div>
 
                 </div>
 
-                <div class="table-wrapper">
+                <div class="empty-state">
 
-                    <table>
+                    <strong>
+                        MODEL MANAGER
+                    </strong>
 
-                        <thead>
-
-                            <tr>
-                                <th>Provider</th>
-                                <th>Model ID</th>
-                                <th>Name</th>
-                                <th>Credit</th>
-                                <th>Duration</th>
-                                <th>Status</th>
-                            </tr>
-
-                        </thead>
-
-                        <tbody id="modelsTable">
-
-                            <tr>
-                                <td colspan="6" class="empty">
-                                    Memuat model...
-                                </td>
-                            </tr>
-
-                        </tbody>
-
-                    </table>
+                    <span>
+                        Modul model akan dihubungkan setelah Provider Manager stabil.
+                    </span>
 
                 </div>
 
@@ -801,114 +986,36 @@
 
         <!-- CREDIT -->
 
-        <section id="credit" class="section">
+        <section
+            id="section-credit"
+            class="section"
+        >
 
-            <div class="panel">
+            <div class="card">
 
-                <div class="panel-header">
-                    <h3>CREDIT MANAGEMENT</h3>
-                </div>
+                <div class="card-header">
 
-                <div class="form-grid">
+                    <div>
+                        <h2 class="card-title">
+                            CREDIT MANAGEMENT
+                        </h2>
 
-                    <div class="form-group">
-
-                        <label>USER ID</label>
-
-                        <input
-                            type="text"
-                            id="creditUserId"
-                            placeholder="UUID user"
-                        >
-
-                    </div>
-
-
-                    <div class="form-group">
-
-                        <label>JUMLAH CREDIT</label>
-
-                        <input
-                            type="number"
-                            id="creditAmount"
-                            min="1"
-                            placeholder="Contoh: 100"
-                        >
-
+                        <p class="card-description">
+                            Pengelolaan kredit pengguna.
+                        </p>
                     </div>
 
                 </div>
 
+                <div class="empty-state">
 
-                <div style="margin-top:18px;display:flex;gap:8px;">
+                    <strong>
+                        CREDIT SYSTEM
+                    </strong>
 
-                    <button
-                        type="button"
-                        class="btn btn-dark"
-                        onclick="addCredit()"
-                    >
-                        TAMBAH CREDIT
-                    </button>
-
-                    <button
-                        type="button"
-                        class="btn btn-red"
-                        onclick="removeCredit()"
-                    >
-                        KURANGI CREDIT
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <div class="panel">
-
-                <div class="panel-header">
-
-                    <h3>RECENT CREDIT TRANSACTIONS</h3>
-
-                    <button
-                        type="button"
-                        class="btn btn-dark"
-                        onclick="loadTransactions()"
-                    >
-                        REFRESH
-                    </button>
-
-                </div>
-
-
-                <div class="table-wrapper">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-                                <th>User</th>
-                                <th>Type</th>
-                                <th>Amount</th>
-                                <th>Before</th>
-                                <th>After</th>
-                                <th>Description</th>
-                                <th>Date</th>
-                            </tr>
-
-                        </thead>
-
-                        <tbody id="transactionsTable">
-
-                            <tr>
-                                <td colspan="7" class="empty">
-                                    Memuat transaksi...
-                                </td>
-                            </tr>
-
-                        </tbody>
-
-                    </table>
+                    <span>
+                        Sistem transaksi kredit sudah tersedia di database.
+                    </span>
 
                 </div>
 
@@ -919,51 +1026,76 @@
 
         <!-- SYSTEM -->
 
-        <section id="system" class="section">
+        <section
+            id="section-system"
+            class="section"
+        >
 
-            <div class="panel">
+            <div class="card">
 
-                <div class="panel-header">
+                <div class="card-header">
 
-                    <h3>SYSTEM SETTINGS</h3>
+                    <div>
+                        <h2 class="card-title">
+                            SYSTEM
+                        </h2>
 
-                    <button
-                        type="button"
-                        class="btn btn-dark"
-                        onclick="loadSystemSettings()"
-                    >
-                        REFRESH
-                    </button>
+                        <p class="card-description">
+                            Informasi konfigurasi sistem GEN-Z.AI.
+                        </p>
+                    </div>
 
                 </div>
 
+                <div class="system-grid">
 
-                <div class="table-wrapper">
+                    <div class="info-box">
 
-                    <table>
+                        <div class="info-label">
+                            Application
+                        </div>
 
-                        <thead>
+                        <div class="info-value">
+                            GEN-Z.AI
+                        </div>
 
-                            <tr>
-                                <th>Setting</th>
-                                <th>Value</th>
-                                <th>Description</th>
-                                <th>Updated</th>
-                            </tr>
+                    </div>
 
-                        </thead>
+                    <div class="info-box">
 
-                        <tbody id="settingsTable">
+                        <div class="info-label">
+                            Authentication
+                        </div>
 
-                            <tr>
-                                <td colspan="4" class="empty">
-                                    Memuat konfigurasi...
-                                </td>
-                            </tr>
+                        <div class="info-value">
+                            Supabase Auth
+                        </div>
 
-                        </tbody>
+                    </div>
 
-                    </table>
+                    <div class="info-box">
+
+                        <div class="info-label">
+                            Database
+                        </div>
+
+                        <div class="info-value">
+                            Supabase PostgreSQL
+                        </div>
+
+                    </div>
+
+                    <div class="info-box">
+
+                        <div class="info-label">
+                            Environment
+                        </div>
+
+                        <div class="info-value">
+                            Production
+                        </div>
+
+                    </div>
 
                 </div>
 
@@ -976,158 +1108,160 @@
 </div>
 
 
-<div id="message"></div>
-
-
-<!-- CREDIT MODAL -->
-
-<div id="creditModal" class="modal-overlay">
-
-    <div class="modal">
-
-        <h3>Kelola Credit</h3>
-
-        <p id="creditModalText">
-            Masukkan jumlah credit.
-        </p>
-
-        <input
-            type="number"
-            id="modalCreditAmount"
-            min="1"
-            placeholder="Jumlah credit"
-            style="
-                width:100%;
-                height:42px;
-                border:1px solid #d1d5db;
-                border-radius:8px;
-                padding:0 10px;
-            "
-        >
-
-        <div class="modal-actions">
-
-            <button
-                type="button"
-                class="btn btn-light"
-                onclick="closeCreditModal()"
-            >
-                BATAL
-            </button>
-
-            <button
-                type="button"
-                class="btn btn-dark"
-                onclick="confirmCreditAction()"
-            >
-                KONFIRMASI
-            </button>
-
-        </div>
-
-    </div>
-
-</div>
-
-
 <!-- PROVIDER MODAL -->
 
-<div id="providerModal" class="modal-overlay">
+<div
+    id="providerModal"
+    class="modal-overlay"
+>
 
     <div class="modal">
 
-        <h3 id="providerModalTitle">
-            ADD PROVIDER
-        </h3>
+        <div class="modal-header">
 
-        <p>
-            Kelola identitas dan status provider AI.
-        </p>
+            <h2
+                id="providerModalTitle"
+                class="modal-title"
+            >
+                ADD PROVIDER
+            </h2>
 
-        <input
-            type="hidden"
-            id="providerEditId"
-        >
+            <button
+                class="modal-close"
+                onclick="closeProviderModal()"
+                type="button"
+            >
+                ×
+            </button>
 
+        </div>
 
-        <div class="form-group">
-
-            <label>PROVIDER ID</label>
+        <div class="modal-body">
 
             <input
-                type="text"
-                id="providerId"
-                placeholder="Contoh: chinaapi"
-                autocomplete="off"
+                type="hidden"
+                id="providerEditId"
             >
 
+            <div class="form-group">
+
+                <label
+                    class="form-label"
+                    for="providerId"
+                >
+                    PROVIDER ID
+                </label>
+
+                <input
+                    type="text"
+                    id="providerId"
+                    class="input"
+                    placeholder="contoh: chinaapi"
+                    autocomplete="off"
+                >
+
+            </div>
+
+            <div class="form-group">
+
+                <label
+                    class="form-label"
+                    for="providerName"
+                >
+                    PROVIDER NAME
+                </label>
+
+                <input
+                    type="text"
+                    id="providerName"
+                    class="input"
+                    placeholder="contoh: ByteDance"
+                    autocomplete="off"
+                >
+
+            </div>
+
+            <div class="form-group">
+
+                <label
+                    class="form-label"
+                    for="providerDescription"
+                >
+                    DESCRIPTION
+                </label>
+
+                <textarea
+                    id="providerDescription"
+                    class="textarea"
+                    placeholder="Deskripsi provider..."
+                ></textarea>
+
+            </div>
+
+            <div class="form-group">
+
+                <label
+                    class="form-label"
+                    for="providerStatus"
+                >
+                    STATUS
+                </label>
+
+                <select
+                    id="providerStatus"
+                    class="select"
+                >
+                    <option value="active">
+                        Active
+                    </option>
+
+                    <option value="inactive">
+                        Inactive
+                    </option>
+
+                    <option value="maintenance">
+                        Maintenance
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="form-group">
+
+                <label class="checkbox-row">
+
+                    <input
+                        type="checkbox"
+                        id="providerDefault"
+                    >
+
+                    <span>
+                        Jadikan provider default
+                    </span>
+
+                </label>
+
+            </div>
+
+            <div
+                id="providerModalMessage"
+                class="message"
+            ></div>
+
         </div>
 
-
-        <div class="form-group">
-
-            <label>PROVIDER NAME</label>
-
-            <input
-                type="text"
-                id="providerName"
-                placeholder="Contoh: ByteDance"
-                autocomplete="off"
-            >
-
-        </div>
-
-
-        <div class="form-group">
-
-            <label>DESCRIPTION</label>
-
-            <textarea
-                id="providerDescription"
-                placeholder="Deskripsi provider..."
-            ></textarea>
-
-        </div>
-
-
-        <div class="form-group">
-
-            <label>STATUS</label>
-
-            <select id="providerStatus">
-
-                <option value="active">ACTIVE</option>
-                <option value="inactive">INACTIVE</option>
-                <option value="maintenance">MAINTENANCE</option>
-
-            </select>
-
-        </div>
-
-
-        <label class="default-check">
-
-            <input
-                type="checkbox"
-                id="providerDefault"
-            >
-
-            Jadikan provider default
-
-        </label>
-
-
-        <div class="modal-actions">
+        <div class="modal-footer">
 
             <button
                 type="button"
                 class="btn btn-light"
                 onclick="closeProviderModal()"
+                id="providerCancelButton"
             >
                 BATAL
             </button>
 
-            <!-- ID DIPERBAIKI -->
             <button
                 type="button"
                 class="btn btn-dark"
@@ -1146,1793 +1280,1481 @@
 
 <script>
 
-const supabaseClient = window.supabase.createClient(
-    GENZ_CONFIG.SUPABASE_URL,
-    GENZ_CONFIG.SUPABASE_KEY
-);
+    let supabaseClient = null;
 
-let currentUser = null;
-let currentProfile = null;
+    let currentUser = null;
+    let currentProfile = null;
 
-let allUsers = [];
-let providerCache = [];
+    let usersCache = [];
+    let providerCache = [];
 
-let creditAction = null;
-let selectedUserId = null;
+    let editingProviderId = null;
 
 
-/* =========================================================
-   MESSAGE
-========================================================= */
+    /* =========================
+       CONFIG
+    ========================= */
 
-function showMessage(text) {
+    function getSupabaseClient() {
 
-    const message = document.getElementById("message");
-
-    message.textContent = text;
-    message.style.display = "block";
-
-    clearTimeout(window.messageTimer);
-
-    window.messageTimer = setTimeout(() => {
-        message.style.display = "none";
-    }, 3500);
-}
-
-
-/* =========================================================
-   AUTH
-========================================================= */
-
-async function checkAuth() {
-
-    const {
-        data: {
-            session
+        if (typeof GENZ_CONFIG === "undefined") {
+            throw new Error(
+                "GENZ_CONFIG tidak ditemukan. Periksa assets/js/config.js."
+            );
         }
-    } = await supabaseClient.auth.getSession();
 
-    if (!session) {
-        window.location.href = "../index.html";
-        return false;
+        const url =
+            GENZ_CONFIG.SUPABASE_URL ||
+            GENZ_CONFIG.supabaseUrl;
+
+        const key =
+            GENZ_CONFIG.SUPABASE_PUBLISHABLE_KEY ||
+            GENZ_CONFIG.SUPABASE_ANON_KEY ||
+            GENZ_CONFIG.supabaseAnonKey;
+
+        if (!url || !key) {
+            throw new Error(
+                "Konfigurasi Supabase tidak lengkap."
+            );
+        }
+
+        return window.supabase.createClient(
+            url,
+            key
+        );
     }
 
-    currentUser = session.user;
 
-    const {
-        data: profile,
-        error
-    } = await supabaseClient
-        .from("profiles")
-        .select("id,email,name,role,credits,status")
-        .eq("id", currentUser.id)
-        .single();
+    /* =========================
+       MESSAGE
+    ========================= */
 
-    if (error || !profile) {
-
-        await supabaseClient.auth.signOut();
-        window.location.href = "../index.html";
-
-        return false;
-    }
-
-    currentProfile = profile;
-
-    if (
-        profile.role !== "ADMIN" &&
-        profile.role !== "OWNER"
+    function showMessage(
+        elementId,
+        message,
+        type = "info"
     ) {
 
-        window.location.href =
-            "../user/dashboard.html";
+        const element =
+            document.getElementById(elementId);
 
-        return false;
+        if (!element) {
+            return;
+        }
+
+        element.className =
+            "message show " + type;
+
+        element.textContent =
+            message;
     }
 
-    if (profile.status !== "active") {
 
-        await supabaseClient.auth.signOut();
+    function hideMessage(elementId) {
+
+        const element =
+            document.getElementById(elementId);
+
+        if (!element) {
+            return;
+        }
+
+        element.className =
+            "message";
+
+        element.textContent = "";
+    }
+
+
+    /* =========================
+       NAVIGATION
+    ========================= */
+
+    function goToPage(url) {
+
+        window.location.href = url;
+    }
+
+
+    function showSection(sectionName, buttonElement) {
+
+        document
+            .querySelectorAll(".section")
+            .forEach(section => {
+                section.classList.remove("active");
+            });
+
+        const section =
+            document.getElementById(
+                "section-" + sectionName
+            );
+
+        if (section) {
+            section.classList.add("active");
+        }
+
+        document
+            .querySelectorAll(".nav-item")
+            .forEach(button => {
+                button.classList.remove("active");
+            });
+
+        if (buttonElement) {
+            buttonElement.classList.add("active");
+        }
+
+        if (sectionName === "users") {
+            loadUsers();
+        }
+
+        if (sectionName === "providers") {
+            loadProviders();
+        }
+
+    }
+
+
+    /* =========================
+       AUTH
+    ========================= */
+
+    async function checkAuth() {
+
+        try {
+
+            supabaseClient =
+                getSupabaseClient();
+
+            const {
+                data: sessionData,
+                error: sessionError
+            } =
+                await supabaseClient.auth.getSession();
+
+            if (sessionError) {
+                throw sessionError;
+            }
+
+            const session =
+                sessionData?.session;
+
+            if (!session?.user) {
+
+                window.location.href =
+                    "../index.html";
+
+                return false;
+            }
+
+            currentUser =
+                session.user;
+
+            const {
+                data: profile,
+                error: profileError
+            } =
+                await supabaseClient
+                    .from("profiles")
+                    .select(`
+                        id,
+                        email,
+                        name,
+                        role,
+                        credits,
+                        status,
+                        created_at
+                    `)
+                    .eq("id", currentUser.id)
+                    .single();
+
+            if (profileError) {
+                throw profileError;
+            }
+
+            if (
+                !profile ||
+                !["ADMIN", "OWNER"].includes(
+                    profile.role
+                )
+            ) {
+
+                window.location.href =
+                    "../user/dashboard.html";
+
+                return false;
+            }
+
+            if (profile.status !== "active") {
+
+                await supabaseClient.auth.signOut();
+
+                window.location.href =
+                    "../index.html";
+
+                return false;
+            }
+
+            currentProfile =
+                profile;
+
+            document.getElementById(
+                "accountEmail"
+            ).textContent =
+                profile.email ||
+                currentUser.email ||
+                "-";
+
+            document.getElementById(
+                "accountRole"
+            ).textContent =
+                "ROLE " +
+                profile.role;
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "AUTH ERROR:",
+                error
+            );
+
+            showMessage(
+                "globalMessage",
+                error.message ||
+                "Gagal memeriksa autentikasi.",
+                "error"
+            );
+
+            return false;
+        }
+    }
+
+
+    async function logout() {
+
+        try {
+
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut();
+            }
+
+        } catch (error) {
+
+            console.error(
+                "LOGOUT ERROR:",
+                error
+            );
+
+        }
 
         window.location.href =
             "../index.html";
-
-        return false;
     }
 
-    return true;
-}
 
+    /* =========================
+       USERS
+    ========================= */
 
-/* =========================================================
-   USERS
-========================================================= */
+    async function loadUsers() {
 
-async function loadUsers() {
+        const tableBody =
+            document.getElementById(
+                "usersTableBody"
+            );
 
-    const table =
-        document.getElementById("usersTable");
+        if (!tableBody) {
+            return;
+        }
 
-    table.innerHTML = `
-        <tr>
-            <td colspan="7" class="empty">
-                Memuat pengguna...
-            </td>
-        </tr>
-    `;
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("profiles")
-        .select(`
-            id,
-            email,
-            name,
-            role,
-            credits,
-            status,
-            created_at
-        `)
-        .order("created_at", {
-            ascending: false
-        });
-
-    if (error) {
-
-        table.innerHTML = `
+        tableBody.innerHTML = `
             <tr>
-                <td colspan="7" class="empty">
-                    Gagal memuat pengguna:
-                    ${escapeHtml(error.message)}
-                </td>
-            </tr>
-        `;
-
-        return;
-    }
-
-    allUsers = data || [];
-
-    updateUserStats(allUsers);
-    renderUsers(allUsers);
-}
-
-
-function updateUserStats(users) {
-
-    document.getElementById("totalUsers").textContent =
-        users.length;
-
-    document.getElementById("activeUsers").textContent =
-        users.filter(
-            user => user.status === "active"
-        ).length;
-
-    document.getElementById("adminUsers").textContent =
-        users.filter(
-            user =>
-                user.role === "ADMIN" ||
-                user.role === "OWNER"
-        ).length;
-
-    const credits = users.reduce(
-        (sum, user) =>
-            sum + Number(user.credits || 0),
-        0
-    );
-
-    document.getElementById("totalCredits").textContent =
-        credits.toLocaleString("id-ID");
-}
-
-
-function renderUsers(users) {
-
-    const table =
-        document.getElementById("usersTable");
-
-    if (!users.length) {
-
-        table.innerHTML = `
-            <tr>
-                <td colspan="7" class="empty">
-                    Belum ada pengguna.
-                </td>
-            </tr>
-        `;
-
-        return;
-    }
-
-    table.innerHTML = users.map(user => {
-
-        const roleClass =
-            user.role === "OWNER"
-                ? "badge-owner"
-                : user.role === "ADMIN"
-                    ? "badge-admin"
-                    : "badge-user";
-
-        const statusClass =
-            user.status === "active"
-                ? "badge-active"
-                : "badge-suspended";
-
-        return `
-            <tr>
-
-                <td>
-                    ${escapeHtml(user.email || "-")}
-                </td>
-
-                <td>
-                    ${escapeHtml(user.name || "-")}
-                </td>
-
-                <td>
-                    <span class="badge ${roleClass}">
-                        ${escapeHtml(user.role)}
-                    </span>
-                </td>
-
-                <td>
-                    <span class="badge ${statusClass}">
-                        ${escapeHtml(user.status)}
-                    </span>
-                </td>
-
-                <td>
-                    <strong>
-                        ${Number(
-                            user.credits || 0
-                        ).toLocaleString("id-ID")}
-                    </strong>
-                </td>
-
-                <td>
-                    ${formatDate(user.created_at)}
-                </td>
-
-                <td>
-
-                    <div class="actions">
-
-                        <button
-                            type="button"
-                            class="btn btn-dark"
-                            onclick="openCreditModal(
-                                '${escapeJs(user.id)}',
-                                '${escapeJs(user.email || user.id)}',
-                                'add'
-                            )"
-                        >
-                            + CREDIT
-                        </button>
-
-                        <button
-                            type="button"
-                            class="btn btn-red"
-                            onclick="openCreditModal(
-                                '${escapeJs(user.id)}',
-                                '${escapeJs(user.email || user.id)}',
-                                'remove'
-                            )"
-                        >
-                            - CREDIT
-                        </button>
-
+                <td colspan="6">
+                    <div class="loading">
+                        Memuat users...
                     </div>
-
                 </td>
-
             </tr>
         `;
 
-    }).join("");
-}
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabaseClient
+                    .from("profiles")
+                    .select(`
+                        id,
+                        email,
+                        name,
+                        role,
+                        credits,
+                        status,
+                        created_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (error) {
+                throw error;
+            }
+
+            usersCache =
+                data || [];
+
+            updateUserStats();
+
+            renderUsers(
+                usersCache
+            );
+
+        } catch (error) {
+
+            console.error(
+                "LOAD USERS ERROR:",
+                error
+            );
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <strong>Gagal memuat users</strong>
+                            <span>${escapeHtml(
+                                error.message ||
+                                "Terjadi kesalahan."
+                            )}</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    }
 
 
-document.getElementById("userSearch").addEventListener(
-    "input",
-    function () {
+    function updateUserStats() {
+
+        const total =
+            usersCache.length;
+
+        const active =
+            usersCache.filter(
+                user =>
+                    user.status === "active"
+            ).length;
+
+        const suspended =
+            usersCache.filter(
+                user =>
+                    user.status === "suspended"
+            ).length;
+
+        const banned =
+            usersCache.filter(
+                user =>
+                    user.status === "banned"
+            ).length;
+
+        document.getElementById(
+            "totalUsers"
+        ).textContent =
+            total;
+
+        document.getElementById(
+            "activeUsers"
+        ).textContent =
+            active;
+
+        document.getElementById(
+            "suspendedUsers"
+        ).textContent =
+            suspended;
+
+        document.getElementById(
+            "bannedUsers"
+        ).textContent =
+            banned;
+    }
+
+
+    function renderUsers(users) {
+
+        const tableBody =
+            document.getElementById(
+                "usersTableBody"
+            );
+
+        if (!users.length) {
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <strong>Belum ada user</strong>
+                            <span>Tidak ada data user yang tersedia.</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        tableBody.innerHTML =
+            users
+                .map(user => {
+
+                    const roleClass =
+                        user.role === "OWNER"
+                            ? "badge-owner"
+                            : "badge-active";
+
+                    const statusClass =
+                        getStatusBadgeClass(
+                            user.status
+                        );
+
+                    return `
+                        <tr>
+
+                            <td>
+                                ${escapeHtml(
+                                    user.email || "-"
+                                )}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(
+                                    user.name || "-"
+                                )}
+                            </td>
+
+                            <td>
+                                <span class="badge ${roleClass}">
+                                    ${escapeHtml(
+                                        user.role || "USER"
+                                    )}
+                                </span>
+                            </td>
+
+                            <td>
+                                ${Number(
+                                    user.credits || 0
+                                ).toLocaleString("id-ID")}
+                            </td>
+
+                            <td>
+                                <span class="badge ${statusClass}">
+                                    ${escapeHtml(
+                                        user.status || "-"
+                                    )}
+                                </span>
+                            </td>
+
+                            <td>
+                                ${formatDate(
+                                    user.created_at
+                                )}
+                            </td>
+
+                        </tr>
+                    `;
+                })
+                .join("");
+    }
+
+
+    function filterUsers() {
+
+        const input =
+            document.getElementById(
+                "userSearch"
+            );
 
         const keyword =
-            this.value.toLowerCase().trim();
+            (input?.value || "")
+                .trim()
+                .toLowerCase();
 
         if (!keyword) {
-            renderUsers(allUsers);
+
+            renderUsers(
+                usersCache
+            );
+
             return;
         }
 
         const filtered =
-            allUsers.filter(user => {
-
-                const email =
+            usersCache.filter(
+                user =>
                     String(
                         user.email || ""
-                    ).toLowerCase();
+                    )
+                        .toLowerCase()
+                        .includes(keyword) ||
 
-                const name =
                     String(
                         user.name || ""
-                    ).toLowerCase();
+                    )
+                        .toLowerCase()
+                        .includes(keyword) ||
 
-                return (
-                    email.includes(keyword) ||
-                    name.includes(keyword)
-                );
-            });
-
-        renderUsers(filtered);
-    }
-);
-
-
-/* =========================================================
-   CREDIT
-========================================================= */
-
-function openCreditModal(userId, email, action) {
-
-    selectedUserId = userId;
-    creditAction = action;
-
-    document.getElementById(
-        "modalCreditAmount"
-    ).value = "";
-
-    document.getElementById(
-        "creditModalText"
-    ).textContent =
-        `${
-            action === "add"
-                ? "Tambah"
-                : "Kurangi"
-        } credit untuk ${email}`;
-
-    document.getElementById(
-        "creditModal"
-    ).style.display = "flex";
-}
-
-
-function closeCreditModal() {
-
-    document.getElementById(
-        "creditModal"
-    ).style.display = "none";
-
-    selectedUserId = null;
-    creditAction = null;
-}
-
-
-async function confirmCreditAction() {
-
-    const amount =
-        Number(
-            document.getElementById(
-                "modalCreditAmount"
-            ).value
-        );
-
-    if (
-        !Number.isInteger(amount) ||
-        amount <= 0
-    ) {
-
-        showMessage(
-            "Jumlah credit tidak valid."
-        );
-
-        return;
-    }
-
-    if (
-        !selectedUserId ||
-        !creditAction
-    ) {
-
-        showMessage(
-            "Data credit tidak valid."
-        );
-
-        return;
-    }
-
-    let result;
-
-    if (creditAction === "add") {
-
-        result =
-            await supabaseClient.rpc(
-                "add_credit",
-                {
-                    target_user_id:
-                        selectedUserId,
-
-                    credit_amount:
-                        amount,
-
-                    transaction_type:
-                        "admin_add",
-
-                    transaction_description:
-                        "Credit ditambahkan melalui Admin Panel"
-                }
+                    String(
+                        user.role || ""
+                    )
+                        .toLowerCase()
+                        .includes(keyword)
             );
 
-    } else {
-
-        result =
-            await supabaseClient.rpc(
-                "admin_remove_credit",
-                {
-                    target_user_id:
-                        selectedUserId,
-
-                    credit_amount:
-                        amount,
-
-                    transaction_description:
-                        "Credit dikurangi melalui Admin Panel"
-                }
-            );
+        renderUsers(
+            filtered
+        );
     }
 
-    if (result.error) {
 
-        showMessage(
-            "Gagal: " +
-            result.error.message
-        );
-
-        return;
-    }
-
-    showMessage(
-        `Credit berhasil ${
-            creditAction === "add"
-                ? "ditambahkan"
-                : "dikurangi"
-        }.`
-    );
-
-    closeCreditModal();
-
-    await loadUsers();
-    await loadTransactions();
-}
-
-
-async function addCredit() {
-
-    const userId =
-        document.getElementById(
-            "creditUserId"
-        ).value.trim();
-
-    const amount =
-        Number(
-            document.getElementById(
-                "creditAmount"
-            ).value
-        );
-
-    if (
-        !userId ||
-        !Number.isInteger(amount) ||
-        amount <= 0
-    ) {
-
-        showMessage(
-            "User ID dan jumlah credit wajib diisi."
-        );
-
-        return;
-    }
-
-    const {
-        data,
-        error
-    } = await supabaseClient.rpc(
-        "add_credit",
-        {
-            target_user_id: userId,
-            credit_amount: amount,
-            transaction_type: "admin_add",
-            transaction_description:
-                "Credit ditambahkan melalui Credit Management"
-        }
-    );
-
-    if (error) {
-
-        showMessage(
-            "Gagal: " +
-            error.message
-        );
-
-        return;
-    }
-
-    showMessage(
-        "Credit berhasil ditambahkan. Saldo: " +
-        Number(data).toLocaleString("id-ID")
-    );
-
-    await loadUsers();
-    await loadTransactions();
-}
-
-
-async function removeCredit() {
-
-    const userId =
-        document.getElementById(
-            "creditUserId"
-        ).value.trim();
-
-    const amount =
-        Number(
-            document.getElementById(
-                "creditAmount"
-            ).value
-        );
-
-    if (
-        !userId ||
-        !Number.isInteger(amount) ||
-        amount <= 0
-    ) {
-
-        showMessage(
-            "User ID dan jumlah credit wajib diisi."
-        );
-
-        return;
-    }
-
-    const {
-        data,
-        error
-    } = await supabaseClient.rpc(
-        "admin_remove_credit",
-        {
-            target_user_id: userId,
-            credit_amount: amount,
-            transaction_description:
-                "Credit dikurangi melalui Credit Management"
-        }
-    );
-
-    if (error) {
-
-        showMessage(
-            "Gagal: " +
-            error.message
-        );
-
-        return;
-    }
-
-    showMessage(
-        "Credit berhasil dikurangi. Saldo: " +
-        Number(data).toLocaleString("id-ID")
-    );
-
-    await loadUsers();
-    await loadTransactions();
-}
-
-
-/* =========================================================
-   TRANSACTIONS
-========================================================= */
-
-async function loadTransactions() {
-
-    const table =
-        document.getElementById(
-            "transactionsTable"
-        );
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("credit_transactions")
-        .select(`
-            id,
-            user_id,
-            type,
-            amount,
-            balance_before,
-            balance_after,
-            description,
-            created_at
-        `)
-        .order("created_at", {
-            ascending: false
-        })
-        .limit(50);
-
-    if (error) {
-
-        table.innerHTML = `
-            <tr>
-                <td colspan="7" class="empty">
-                    Gagal memuat transaksi:
-                    ${escapeHtml(error.message)}
-                </td>
-            </tr>
-        `;
-
-        return;
-    }
-
-    if (!data || !data.length) {
-
-        table.innerHTML = `
-            <tr>
-                <td colspan="7" class="empty">
-                    Belum ada transaksi.
-                </td>
-            </tr>
-        `;
-
-        return;
-    }
-
-    table.innerHTML =
-        data.map(transaction => {
-
-            return `
-                <tr>
-
-                    <td>
-                        ${escapeHtml(
-                            getUserEmail(
-                                transaction.user_id
-                            )
-                        )}
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            transaction.type
-                        )}
-                    </td>
-
-                    <td>
-                        <strong>
-                            ${Number(
-                                transaction.amount
-                            ).toLocaleString("id-ID")}
-                        </strong>
-                    </td>
-
-                    <td>
-                        ${Number(
-                            transaction.balance_before || 0
-                        ).toLocaleString("id-ID")}
-                    </td>
-
-                    <td>
-                        ${Number(
-                            transaction.balance_after || 0
-                        ).toLocaleString("id-ID")}
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            transaction.description || "-"
-                        )}
-                    </td>
-
-                    <td>
-                        ${formatDate(
-                            transaction.created_at
-                        )}
-                    </td>
-
-                </tr>
-            `;
-
-        }).join("");
-}
-
-
-function getUserEmail(userId) {
-
-    const user =
-        allUsers.find(
-            item => item.id === userId
-        );
-
-    return user
-        ? user.email || user.id
-        : userId || "-";
-}
-
-
-/* =========================================================
-   PROVIDERS
-========================================================= */
-
-async function loadProviders() {
-
-    const container =
-        document.getElementById(
-            "providersContainer"
-        );
-
-    if (!container) {
-        console.error(
-            "providersContainer tidak ditemukan."
-        );
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="empty">
-            Memuat provider...
-        </div>
-    `;
-
-    try {
-
-        const {
-            data,
-            error
-        } = await supabaseClient
-            .from("providers")
-            .select(`
-                id,
-                provider_id,
-                provider_name,
-                description,
-                status,
-                is_default,
-                created_at,
-                updated_at
-            `)
-            .order("created_at", {
-                ascending: true
-            });
-
-        if (error) {
+    /* =========================
+       PROVIDERS
+    ========================= */
+
+    async function cacheProviders() {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabaseClient
+                    .from("providers")
+                    .select(`
+                        id,
+                        provider_id,
+                        provider_name,
+                        description,
+                        status,
+                        is_default,
+                        created_at,
+                        updated_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending: true
+                        }
+                    );
+
+            if (error) {
+                throw error;
+            }
+
+            providerCache =
+                data || [];
+
+            return providerCache;
+
+        } catch (error) {
 
             console.error(
-                "Provider load error:",
+                "CACHE PROVIDERS ERROR:",
+                error
+            );
+
+            providerCache =
+                [];
+
+            return [];
+        }
+    }
+
+
+    async function loadProviders() {
+
+        const container =
+            document.getElementById(
+                "providersContainer"
+            );
+
+        if (!container) {
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="loading">
+                Memuat provider...
+            </div>
+        `;
+
+        hideMessage(
+            "providerMessage"
+        );
+
+        try {
+
+            const providers =
+                await cacheProviders();
+
+            if (!providers.length) {
+
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column:1/-1;">
+                        <strong>Provider belum tersedia</strong>
+                        <span>
+                            Tidak ada provider yang dapat ditampilkan.
+                        </span>
+                    </div>
+                `;
+
+                return;
+            }
+
+            renderProviders(
+                providers
+            );
+
+        } catch (error) {
+
+            console.error(
+                "LOAD PROVIDERS ERROR:",
                 error
             );
 
             container.innerHTML = `
-                <div class="empty">
-                    <strong>Gagal memuat provider.</strong>
-                    <br><br>
-                    ${escapeHtml(error.message)}
+                <div class="empty-state" style="grid-column:1/-1;">
+                    <strong>Gagal memuat provider</strong>
+                    <span>
+                        ${escapeHtml(
+                            error.message ||
+                            "Terjadi kesalahan."
+                        )}
+                    </span>
                 </div>
             `;
 
-            return;
+            showMessage(
+                "providerMessage",
+                error.message ||
+                "Gagal memuat provider.",
+                "error"
+            );
         }
+    }
 
-        providerCache = data || [];
 
-        console.log(
-            "Provider dari database:",
-            providerCache
-        );
+    function renderProviders(
+        providers
+    ) {
 
-        if (!providerCache.length) {
+        const container =
+            document.getElementById(
+                "providersContainer"
+            );
 
-            container.innerHTML = `
-                <div class="empty">
-                    Belum ada provider.
-                </div>
-            `;
-
+        if (!container) {
             return;
         }
 
         container.innerHTML =
-            providerCache.map(provider => {
+            providers
+                .map(provider => {
 
-                const statusClass =
-                    provider.status === "active"
-                        ? "badge-active"
-                        : provider.status === "maintenance"
-                            ? "badge-owner"
-                            : "badge-suspended";
+                    const statusClass =
+                        getProviderStatusClass(
+                            provider.status
+                        );
 
-                return `
-                    <div class="provider-card">
+                    return `
+                        <div class="provider-card">
 
-                        <h4>
-                            ${escapeHtml(
-                                provider.provider_name || "-"
-                            )}
-                        </h4>
+                            <div class="provider-card-top">
 
-                        <div class="provider-id">
-                            ID:
-                            ${escapeHtml(
-                                provider.provider_id || "-"
-                            )}
-                        </div>
+                                <div>
 
-                        <p style="
-                            font-size:12px;
-                            color:#6b7280;
-                            margin-bottom:12px;
-                            line-height:1.5;
-                        ">
-                            ${escapeHtml(
-                                provider.description || "-"
-                            )}
-                        </p>
+                                    <div class="provider-name">
+                                        ${escapeHtml(
+                                            provider.provider_name ||
+                                            "-"
+                                        )}
+                                    </div>
 
-                        <div style="
-                            display:flex;
-                            gap:7px;
-                            align-items:center;
-                            flex-wrap:wrap;
-                        ">
+                                    <div class="provider-id">
+                                        ID:
+                                        ${escapeHtml(
+                                            provider.provider_id ||
+                                            "-"
+                                        )}
+                                    </div>
 
-                            <span class="badge ${statusClass}">
+                                </div>
+
+                                <span class="badge ${statusClass}">
+                                    ${escapeHtml(
+                                        provider.status ||
+                                        "-"
+                                    )}
+                                </span>
+
+                            </div>
+
+                            <div class="provider-description">
                                 ${escapeHtml(
-                                    provider.status || "-"
+                                    provider.description ||
+                                    "Tidak ada deskripsi."
                                 )}
-                            </span>
+                            </div>
 
-                            ${
-                                provider.is_default
-                                    ? `
-                                        <span class="badge badge-owner">
-                                            DEFAULT
-                                        </span>
-                                    `
-                                    : ""
-                            }
+                            <div class="provider-meta">
+
+                                <div>
+
+                                    ${
+                                        provider.is_default
+                                            ? `
+                                                <span class="provider-default">
+                                                    ● DEFAULT
+                                                </span>
+                                            `
+                                            : `
+                                                <span style="font-size:11px;color:#9ca3af;">
+                                                    Provider
+                                                </span>
+                                            `
+                                    }
+
+                                </div>
+
+                                <div class="provider-actions">
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-light btn-small"
+                                        onclick="openProviderModal('${escapeJs(
+                                            provider.id
+                                        )}')"
+                                    >
+                                        EDIT
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-danger btn-small"
+                                        onclick="deleteProvider('${escapeJs(
+                                            provider.id
+                                        )}')"
+                                    >
+                                        HAPUS
+                                    </button>
+
+                                </div>
+
+                            </div>
 
                         </div>
-
-                        <div class="provider-actions">
-
-                            <button
-                                type="button"
-                                class="btn btn-dark"
-                                onclick="openProviderModal('${escapeJs(provider.id)}')"
-                            >
-                                EDIT
-                            </button>
-
-                            <button
-                                type="button"
-                                class="btn btn-red"
-                                onclick="deleteProvider(
-                                    '${escapeJs(provider.id)}',
-                                    '${escapeJs(provider.provider_name || "")}'
-                                )"
-                            >
-                                HAPUS
-                            </button>
-
-                        </div>
-
-                    </div>
-                `;
-
-            }).join("");
-
-    } catch (error) {
-
-        console.error(
-            "Unexpected provider load error:",
-            error
-        );
-
-        container.innerHTML = `
-            <div class="empty">
-                Terjadi kesalahan:
-                ${escapeHtml(error.message || error)}
-            </div>
-        `;
+                    `;
+                })
+                .join("");
     }
-}
 
 
-/* =========================================================
-   PROVIDER MODAL
-========================================================= */
+    /* =========================
+       PROVIDER MODAL
+    ========================= */
 
-function openProviderModal(providerUuid = null) {
+    function openProviderModal(
+        providerId = null
+    ) {
 
-    const modal =
-        document.getElementById(
-            "providerModal"
+        editingProviderId =
+            providerId || null;
+
+        const modal =
+            document.getElementById(
+                "providerModal"
+            );
+
+        const title =
+            document.getElementById(
+                "providerModalTitle"
+            );
+
+        const editId =
+            document.getElementById(
+                "providerEditId"
+            );
+
+        const providerIdInput =
+            document.getElementById(
+                "providerId"
+            );
+
+        const providerNameInput =
+            document.getElementById(
+                "providerName"
+            );
+
+        const descriptionInput =
+            document.getElementById(
+                "providerDescription"
+            );
+
+        const statusInput =
+            document.getElementById(
+                "providerStatus"
+            );
+
+        const defaultInput =
+            document.getElementById(
+                "providerDefault"
+            );
+
+        const saveButton =
+            document.getElementById(
+                "providerSaveButton"
+            );
+
+        hideMessage(
+            "providerModalMessage"
         );
 
-    const title =
-        document.getElementById(
-            "providerModalTitle"
+        if (providerId) {
+
+            const provider =
+                providerCache.find(
+                    item =>
+                        String(item.id) ===
+                        String(providerId)
+                );
+
+            if (!provider) {
+
+                showMessage(
+                    "providerMessage",
+                    "Data provider tidak ditemukan. Muat ulang daftar provider.",
+                    "error"
+                );
+
+                return;
+            }
+
+            title.textContent =
+                "EDIT PROVIDER";
+
+            editId.value =
+                provider.id;
+
+            providerIdInput.value =
+                provider.provider_id ||
+                "";
+
+            providerNameInput.value =
+                provider.provider_name ||
+                "";
+
+            descriptionInput.value =
+                provider.description ||
+                "";
+
+            statusInput.value =
+                provider.status ||
+                "active";
+
+            defaultInput.checked =
+                Boolean(
+                    provider.is_default
+                );
+
+            saveButton.textContent =
+                "SIMPAN PERUBAHAN";
+
+        } else {
+
+            title.textContent =
+                "ADD PROVIDER";
+
+            editId.value =
+                "";
+
+            providerIdInput.value =
+                "";
+
+            providerNameInput.value =
+                "";
+
+            descriptionInput.value =
+                "";
+
+            statusInput.value =
+                "active";
+
+            defaultInput.checked =
+                false;
+
+            saveButton.textContent =
+                "SIMPAN";
+        }
+
+        modal.classList.add(
+            "show"
         );
 
-    const editId =
-        document.getElementById(
-            "providerEditId"
+        setTimeout(() => {
+
+            providerIdInput.focus();
+
+        }, 50);
+    }
+
+
+    function closeProviderModal() {
+
+        const modal =
+            document.getElementById(
+                "providerModal"
+            );
+
+        modal.classList.remove(
+            "show"
         );
 
-    const providerId =
-        document.getElementById(
-            "providerId"
+        editingProviderId =
+            null;
+
+        const editId =
+            document.getElementById(
+                "providerEditId"
+            );
+
+        editId.value =
+            "";
+    }
+
+
+    /* =========================
+       SAVE PROVIDER
+    ========================= */
+
+    async function saveProvider() {
+
+        const button =
+            document.getElementById(
+                "providerSaveButton"
+            );
+
+        const cancelButton =
+            document.getElementById(
+                "providerCancelButton"
+            );
+
+        const editId =
+            document.getElementById(
+                "providerEditId"
+            ).value.trim();
+
+        const providerId =
+            document.getElementById(
+                "providerId"
+            ).value.trim();
+
+        const providerName =
+            document.getElementById(
+                "providerName"
+            ).value.trim();
+
+        const description =
+            document.getElementById(
+                "providerDescription"
+            ).value.trim();
+
+        const status =
+            document.getElementById(
+                "providerStatus"
+            ).value;
+
+        const isDefault =
+            document.getElementById(
+                "providerDefault"
+            ).checked;
+
+        hideMessage(
+            "providerModalMessage"
         );
 
-    const providerName =
-        document.getElementById(
-            "providerName"
-        );
+        if (!providerId) {
 
-    const description =
-        document.getElementById(
-            "providerDescription"
-        );
+            showMessage(
+                "providerModalMessage",
+                "Provider ID wajib diisi.",
+                "error"
+            );
 
-    const status =
-        document.getElementById(
-            "providerStatus"
-        );
+            return;
+        }
 
-    const isDefault =
-        document.getElementById(
-            "providerDefault"
-        );
+        if (!providerName) {
 
-    editId.value = "";
-    providerId.value = "";
-    providerName.value = "";
-    description.value = "";
-    status.value = "active";
-    isDefault.checked = false;
+            showMessage(
+                "providerModalMessage",
+                "Provider Name wajib diisi.",
+                "error"
+            );
 
-    if (providerUuid) {
+            return;
+        }
+
+        if (
+            ![
+                "active",
+                "inactive",
+                "maintenance"
+            ].includes(status)
+        ) {
+
+            showMessage(
+                "providerModalMessage",
+                "Status provider tidak valid.",
+                "error"
+            );
+
+            return;
+        }
+
+        if (!supabaseClient) {
+
+            showMessage(
+                "providerModalMessage",
+                "Supabase belum siap.",
+                "error"
+            );
+
+            return;
+        }
+
+        button.disabled =
+            true;
+
+        cancelButton.disabled =
+            true;
+
+        const originalText =
+            button.textContent;
+
+        button.textContent =
+            "MENYIMPAN...";
+
+        try {
+
+            let result;
+
+            if (editId) {
+
+                result =
+                    await supabaseClient.rpc(
+                        "admin_update_provider",
+                        {
+                            p_id:
+                                editId,
+
+                            p_provider_id:
+                                providerId,
+
+                            p_provider_name:
+                                providerName,
+
+                            p_description:
+                                description ||
+                                null,
+
+                            p_status:
+                                status,
+
+                            p_is_default:
+                                isDefault
+                        }
+                    );
+
+            } else {
+
+                result =
+                    await supabaseClient.rpc(
+                        "admin_create_provider",
+                        {
+                            p_provider_id:
+                                providerId,
+
+                            p_provider_name:
+                                providerName,
+
+                            p_description:
+                                description ||
+                                null,
+
+                            p_status:
+                                status,
+
+                            p_is_default:
+                                isDefault
+                        }
+                    );
+            }
+
+            if (result.error) {
+                throw result.error;
+            }
+
+            await cacheProviders();
+
+            renderProviders(
+                providerCache
+            );
+
+            closeProviderModal();
+
+            showMessage(
+                "providerMessage",
+                editId
+                    ? "Provider berhasil diperbarui."
+                    : "Provider berhasil ditambahkan.",
+                "success"
+            );
+
+        } catch (error) {
+
+            console.error(
+                "SAVE PROVIDER ERROR:",
+                error
+            );
+
+            let message =
+                error.message ||
+                "Gagal menyimpan provider.";
+
+            if (
+                message
+                    .toLowerCase()
+                    .includes("duplicate")
+            ) {
+
+                message =
+                    "Provider ID tersebut sudah digunakan.";
+
+            }
+
+            showMessage(
+                "providerModalMessage",
+                message,
+                "error"
+            );
+
+        } finally {
+
+            button.disabled =
+                false;
+
+            cancelButton.disabled =
+                false;
+
+            button.textContent =
+                originalText;
+        }
+    }
+
+
+    /* =========================
+       DELETE PROVIDER
+    ========================= */
+
+    async function deleteProvider(
+        providerId
+    ) {
+
+        if (!providerId) {
+            return;
+        }
 
         const provider =
             providerCache.find(
-                item => item.id === providerUuid
+                item =>
+                    String(item.id) ===
+                    String(providerId)
             );
 
         if (!provider) {
 
             showMessage(
-                "Provider tidak ditemukan. Tekan REFRESH terlebih dahulu."
+                "providerMessage",
+                "Provider tidak ditemukan.",
+                "error"
             );
 
             return;
         }
 
-        title.textContent =
-            "EDIT PROVIDER";
-
-        editId.value =
-            provider.id;
-
-        providerId.value =
-            provider.provider_id || "";
-
-        providerName.value =
-            provider.provider_name || "";
-
-        description.value =
-            provider.description || "";
-
-        status.value =
-            provider.status || "active";
-
-        isDefault.checked =
-            Boolean(
-                provider.is_default
+        const confirmed =
+            window.confirm(
+                "Hapus provider \"" +
+                (
+                    provider.provider_name ||
+                    provider.provider_id
+                ) +
+                "\"?\n\nTindakan ini tidak dapat dibatalkan."
             );
 
-    } else {
+        if (!confirmed) {
+            return;
+        }
 
-        title.textContent =
-            "ADD PROVIDER";
-    }
+        try {
 
-    modal.style.display = "flex";
-
-    setTimeout(() => {
-        providerId.focus();
-    }, 50);
-}
-
-
-function closeProviderModal() {
-
-    document.getElementById(
-        "providerModal"
-    ).style.display = "none";
-}
-
-
-/* =========================================================
-   PROVIDER SAVE
-========================================================= */
-
-async function saveProvider() {
-
-    const editId =
-        document.getElementById(
-            "providerEditId"
-        ).value.trim();
-
-    const providerId =
-        document.getElementById(
-            "providerId"
-        ).value.trim();
-
-    const providerName =
-        document.getElementById(
-            "providerName"
-        ).value.trim();
-
-    const description =
-        document.getElementById(
-            "providerDescription"
-        ).value.trim();
-
-    const status =
-        document.getElementById(
-            "providerStatus"
-        ).value;
-
-    const isDefault =
-        document.getElementById(
-            "providerDefault"
-        ).checked;
-
-    /*
-        ID HARUS SAMA dengan tombol HTML:
-        providerSaveButton
-    */
-    const button =
-        document.getElementById(
-            "providerSaveButton"
-        );
-
-    if (!providerId) {
-
-        showMessage(
-            "Provider ID wajib diisi."
-        );
-
-        return;
-    }
-
-    if (!providerName) {
-
-        showMessage(
-            "Provider Name wajib diisi."
-        );
-
-        return;
-    }
-
-    try {
-
-        button.disabled = true;
-        button.textContent = "MENYIMPAN...";
-
-        let result;
-
-        if (editId) {
-
-            console.log(
-                "UPDATE PROVIDER:",
-                {
-                    id: editId,
-                    provider_id: providerId,
-                    provider_name: providerName,
-                    description,
-                    status,
-                    is_default: isDefault
-                }
+            showMessage(
+                "providerMessage",
+                "Menghapus provider...",
+                "info"
             );
 
-            result =
+            const {
+                error
+            } =
                 await supabaseClient.rpc(
-                    "admin_update_provider",
+                    "admin_delete_provider",
                     {
                         p_id:
-                            editId,
-
-                        p_provider_id:
-                            providerId,
-
-                        p_provider_name:
-                            providerName,
-
-                        p_description:
-                            description || null,
-
-                        p_status:
-                            status,
-
-                        p_is_default:
-                            isDefault
+                            providerId
                     }
                 );
 
-        } else {
+            if (error) {
+                throw error;
+            }
 
-            console.log(
-                "CREATE PROVIDER:",
-                {
-                    provider_id: providerId,
-                    provider_name: providerName,
-                    description,
-                    status,
-                    is_default: isDefault
-                }
-            );
+            await cacheProviders();
 
-            result =
-                await supabaseClient.rpc(
-                    "admin_create_provider",
-                    {
-                        p_provider_id:
-                            providerId,
-
-                        p_provider_name:
-                            providerName,
-
-                        p_description:
-                            description || null,
-
-                        p_status:
-                            status,
-
-                        p_is_default:
-                            isDefault
-                    }
-                );
-        }
-
-        if (result.error) {
-
-            console.error(
-                "Provider save error:",
-                result.error
+            renderProviders(
+                providerCache
             );
 
             showMessage(
-                "Gagal menyimpan provider: " +
-                result.error.message
+                "providerMessage",
+                "Provider berhasil dihapus.",
+                "success"
             );
 
-            return;
-        }
-
-        console.log(
-            "Provider berhasil disimpan:",
-            result.data
-        );
-
-        /*
-            Tutup modal hanya setelah RPC sukses.
-        */
-        closeProviderModal();
-
-        /*
-            Ambil ulang data langsung dari database.
-        */
-        await loadProviders();
-
-        showMessage(
-            editId
-                ? "Provider berhasil diperbarui."
-                : "Provider berhasil ditambahkan."
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Unexpected provider save error:",
-            error
-        );
-
-        showMessage(
-            "Terjadi kesalahan: " +
-            (error.message || error)
-        );
-
-    } finally {
-
-        button.disabled = false;
-        button.textContent = "SIMPAN";
-    }
-}
-
-
-/* =========================================================
-   PROVIDER DELETE
-========================================================= */
-
-async function deleteProvider(
-    providerUuid,
-    providerName
-) {
-
-    if (!providerUuid) {
-
-        showMessage(
-            "ID provider tidak valid."
-        );
-
-        return;
-    }
-
-    const confirmed =
-        window.confirm(
-            `Hapus provider "${providerName}"?\n\n` +
-            `Tindakan ini tidak dapat dibatalkan.`
-        );
-
-    if (!confirmed) {
-        return;
-    }
-
-    try {
-
-        const {
-            error
-        } = await supabaseClient.rpc(
-            "admin_delete_provider",
-            {
-                p_id:
-                    providerUuid
-            }
-        );
-
-        if (error) {
+        } catch (error) {
 
             console.error(
-                "Provider delete error:",
+                "DELETE PROVIDER ERROR:",
                 error
             );
 
             showMessage(
-                "Gagal menghapus provider: " +
-                error.message
+                "providerMessage",
+                error.message ||
+                "Gagal menghapus provider.",
+                "error"
             );
+        }
+    }
 
-            return;
+
+    /* =========================
+       HELPERS
+    ========================= */
+
+    function getProviderStatusClass(
+        status
+    ) {
+
+        if (status === "active") {
+            return "badge-active";
         }
 
-        /*
-            Refresh langsung dari database.
-        */
-        await loadProviders();
-
-        showMessage(
-            "Provider berhasil dihapus."
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Unexpected delete error:",
-            error
-        );
-
-        showMessage(
-            "Terjadi kesalahan: " +
-            (error.message || error)
-        );
-    }
-}
-
-
-/* =========================================================
-   PROVIDER CACHE
-========================================================= */
-
-async function cacheProviders() {
-
-    try {
-
-        const {
-            data,
-            error
-        } = await supabaseClient
-            .from("providers")
-            .select(`
-                id,
-                provider_id,
-                provider_name,
-                description,
-                status,
-                is_default
-            `)
-            .order("created_at", {
-                ascending: true
-            });
-
-        if (error) {
-
-            console.error(
-                "Provider cache error:",
-                error
-            );
-
-            return;
+        if (status === "maintenance") {
+            return "badge-maintenance";
         }
 
-        providerCache =
-            data || [];
-
-        console.log(
-            "Provider cache:",
-            providerCache
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Unexpected provider cache error:",
-            error
-        );
-    }
-}
-
-
-function getProviderName(providerId) {
-
-    const provider =
-        providerCache.find(
-            item => item.id === providerId
-        );
-
-    return provider
-        ? provider.provider_name
-        : providerId;
-}
-
-
-/* =========================================================
-   MODELS
-========================================================= */
-
-async function loadModels() {
-
-    const table =
-        document.getElementById(
-            "modelsTable"
-        );
-
-    table.innerHTML = `
-        <tr>
-            <td colspan="6" class="empty">
-                Memuat model...
-            </td>
-        </tr>
-    `;
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("models")
-        .select(`
-            id,
-            provider_id,
-            model_id,
-            model_name,
-            credit_cost,
-            min_duration,
-            max_duration,
-            status
-        `)
-        .order("created_at", {
-            ascending: true
-        });
-
-    if (error) {
-
-        table.innerHTML = `
-            <tr>
-                <td colspan="6" class="empty">
-                    Gagal memuat model:
-                    ${escapeHtml(error.message)}
-                </td>
-            </tr>
-        `;
-
-        return;
+        return "badge-inactive";
     }
 
-    if (!data || !data.length) {
 
-        table.innerHTML = `
-            <tr>
-                <td colspan="6" class="empty">
-                    Belum ada model.
-                </td>
-            </tr>
-        `;
+    function getStatusBadgeClass(
+        status
+    ) {
 
-        return;
-    }
-
-    table.innerHTML =
-        data.map(model => {
-
-            return `
-                <tr>
-
-                    <td>
-                        ${escapeHtml(
-                            getProviderName(
-                                model.provider_id
-                            )
-                        )}
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            model.model_id
-                        )}
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            model.model_name
-                        )}
-                    </td>
-
-                    <td>
-                        ${Number(
-                            model.credit_cost || 0
-                        ).toLocaleString("id-ID")}
-                    </td>
-
-                    <td>
-                        ${model.min_duration || "-"}
-                        -
-                        ${model.max_duration || "-"}
-                    </td>
-
-                    <td>
-
-                        <span class="badge ${
-                            model.status === "active"
-                                ? "badge-active"
-                                : "badge-suspended"
-                        }">
-
-                            ${escapeHtml(
-                                model.status
-                            )}
-
-                        </span>
-
-                    </td>
-
-                </tr>
-            `;
-
-        }).join("");
-}
-
-
-/* =========================================================
-   SYSTEM SETTINGS
-========================================================= */
-
-async function loadSystemSettings() {
-
-    const table =
-        document.getElementById(
-            "settingsTable"
-        );
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("system_settings")
-        .select(`
-            setting_key,
-            setting_value,
-            description,
-            updated_at
-        `)
-        .order("setting_key");
-
-    if (error) {
-
-        table.innerHTML = `
-            <tr>
-                <td colspan="4" class="empty">
-                    System settings tidak dapat
-                    dibaca dari browser.
-                </td>
-            </tr>
-        `;
-
-        return;
-    }
-
-    if (!data || !data.length) {
-
-        table.innerHTML = `
-            <tr>
-                <td colspan="4" class="empty">
-                    Belum ada system settings.
-                </td>
-            </tr>
-        `;
-
-        return;
-    }
-
-    table.innerHTML =
-        data.map(setting => {
-
-            return `
-                <tr>
-
-                    <td>
-                        <strong>
-                            ${escapeHtml(
-                                setting.setting_key
-                            )}
-                        </strong>
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            setting.setting_value || "-"
-                        )}
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            setting.description || "-"
-                        )}
-                    </td>
-
-                    <td>
-                        ${formatDate(
-                            setting.updated_at
-                        )}
-                    </td>
-
-                </tr>
-            `;
-
-        }).join("");
-}
-
-
-/* =========================================================
-   TABS
-========================================================= */
-
-document.querySelectorAll(
-    ".tab"
-).forEach(tab => {
-
-    tab.addEventListener(
-        "click",
-        async function () {
-
-            document.querySelectorAll(
-                ".tab"
-            ).forEach(item => {
-                item.classList.remove("active");
-            });
-
-            document.querySelectorAll(
-                ".section"
-            ).forEach(section => {
-                section.classList.remove("active");
-            });
-
-            this.classList.add("active");
-
-            const target =
-                document.getElementById(
-                    this.dataset.tab
-                );
-
-            target.classList.add("active");
-
-            if (
-                this.dataset.tab ===
-                "providers"
-            ) {
-
-                /*
-                    Load langsung dari database.
-                    Tidak bergantung pada cache lama.
-                */
-                await loadProviders();
-            }
-
-            if (
-                this.dataset.tab ===
-                "models"
-            ) {
-
-                await cacheProviders();
-                await loadModels();
-            }
-
-            if (
-                this.dataset.tab ===
-                "credit"
-            ) {
-
-                await loadTransactions();
-            }
-
-            if (
-                this.dataset.tab ===
-                "system"
-            ) {
-
-                await loadSystemSettings();
-            }
-
-        }
-    );
-
-});
-
-
-/* =========================================================
-   CLOSE MODALS
-========================================================= */
-
-document.getElementById(
-    "providerModal"
-).addEventListener(
-    "click",
-    function (event) {
-
-        if (event.target === this) {
-            closeProviderModal();
+        if (status === "active") {
+            return "badge-active";
         }
 
-    }
-);
-
-
-document.getElementById(
-    "creditModal"
-).addEventListener(
-    "click",
-    function (event) {
-
-        if (event.target === this) {
-            closeCreditModal();
+        if (status === "suspended") {
+            return "badge-maintenance";
         }
 
-    }
-);
-
-
-/* =========================================================
-   ESC
-========================================================= */
-
-document.addEventListener(
-    "keydown",
-    function (event) {
-
-        if (event.key !== "Escape") {
-            return;
+        if (status === "banned") {
+            return "badge-danger";
         }
 
-        closeProviderModal();
-        closeCreditModal();
-    }
-);
-
-
-/* =========================================================
-   LOGOUT
-========================================================= */
-
-document.getElementById(
-    "logoutButton"
-).addEventListener(
-    "click",
-    async function () {
-
-        await supabaseClient.auth.signOut();
-
-        window.location.href =
-            "../index.html";
-    }
-);
-
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function formatDate(value) {
-
-    if (!value) {
-        return "-";
+        return "badge-inactive";
     }
 
-    try {
 
-        return new Date(value)
-            .toLocaleString(
+    function formatDate(
+        value
+    ) {
+
+        if (!value) {
+            return "-";
+        }
+
+        try {
+
+            return new Date(
+                value
+            ).toLocaleString(
                 "id-ID",
                 {
-                    dateStyle: "short",
+                    dateStyle: "medium",
                     timeStyle: "short"
                 }
             );
 
-    } catch {
+        } catch {
 
-        return "-";
-    }
-}
-
-
-function escapeHtml(value) {
-
-    return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-
-function escapeJs(value) {
-
-    return String(value ?? "")
-        .replace(/\\/g, "\\\\")
-        .replace(/'/g, "\\'")
-        .replace(/\r?\n/g, "\\n");
-}
-
-
-/* =========================================================
-   INIT
-========================================================= */
-
-(async function init() {
-
-    const authenticated =
-        await checkAuth();
-
-    if (!authenticated) {
-        return;
+            return "-";
+        }
     }
 
-    await loadUsers();
 
-    /*
-        Kita tidak perlu memuat provider
-        sebelum tab Providers dibuka.
-    */
+    function escapeHtml(
+        value
+    ) {
 
-})();
-    
+        return String(
+            value ?? ""
+        )
+            .replaceAll(
+                "&",
+                "&amp;"
+            )
+            .replaceAll(
+                "<",
+                "&lt;"
+            )
+            .replaceAll(
+                ">",
+                "&gt;"
+            )
+            .replaceAll(
+                '"',
+                "&quot;"
+            )
+            .replaceAll(
+                "'",
+                "&#039;"
+            );
+    }
+
+
+    function escapeJs(
+        value
+    ) {
+
+        return String(
+            value ?? ""
+        )
+            .replaceAll(
+                "\\",
+                "\\\\"
+            )
+            .replaceAll(
+                "'",
+                "\\'"
+            )
+            .replaceAll(
+                "\n",
+                "\\n"
+            )
+            .replaceAll(
+                "\r",
+                "\\r"
+            );
+    }
+
+
+    /* =========================
+       MODAL EVENTS
+    ========================= */
+
+    document
+        .getElementById(
+            "providerModal"
+        )
+        .addEventListener(
+            "click",
+            function(event) {
+
+                if (
+                    event.target ===
+                    this
+                ) {
+
+                    closeProviderModal();
+                }
+            }
+        );
+
+
+    document
+        .addEventListener(
+            "keydown",
+            function(event) {
+
+                if (
+                    event.key ===
+                    "Escape"
+                ) {
+
+                    const modal =
+                        document.getElementById(
+                            "providerModal"
+                        );
+
+                    if (
+                        modal.classList.contains(
+                            "show"
+                        )
+                    ) {
+
+                        closeProviderModal();
+                    }
+                }
+            }
+        );
+
+
+    /* =========================
+       INIT
+    ========================= */
+
+    (async function init() {
+
+        const authenticated =
+            await checkAuth();
+
+        if (!authenticated) {
+            return;
+        }
+
+        await loadUsers();
+
+        await cacheProviders();
+
+    })();
+
 </script>
 
 </body>
