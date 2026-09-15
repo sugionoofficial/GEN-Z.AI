@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>GEN-Z.AI | Generate</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #0b0b0f;
+            color: #ffffff;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar {
+            width: 240px;
+            background: #15151c;
+            border-right: 1px solid #292933;
+            padding: 25px 15px;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            padding: 10px;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            letter-spacing: 1px;
+        }
+
+        .logo p {
+            color: #777784;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .nav a,
+        .logout-btn {
+            display: block;
+            width: 100%;
+            padding: 13px 14px;
+            border-radius: 9px;
+            color: #aaaab7;
+            text-decoration: none;
+            background: transparent;
+            border: none;
+            text-align: left;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .nav a:hover,
+        .nav a.active,
+        .logout-btn:hover {
+            background: #24242d;
+            color: #ffffff;
+        }
+
+        .logout-btn {
+            margin-top: 25px;
+        }
+
+        /* MAIN */
+
+        .main {
+            flex: 1;
+            padding: 30px;
+            min-width: 0;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .topbar h2 {
+            font-size: 25px;
+        }
+
+        .user-info {
+            color: #888894;
+            font-size: 13px;
+        }
+
+        /* GENERATOR */
+
+        .generator {
+            max-width: 900px;
+        }
+
+        .generator-card {
+            background: #15151c;
+            border: 1px solid #292933;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 18px;
+        }
+
+        .block-number {
+            color: #777784;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 7px;
+            letter-spacing: 1px;
+        }
+
+        .block-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        /* INPUT */
+
+        select,
+        textarea,
+        input[type="file"] {
+            width: 100%;
+            border: 1px solid #33333f;
+            border-radius: 10px;
+            background: #0e0e13;
+            color: #ffffff;
+            font-size: 14px;
+        }
+
+        select {
+            height: 48px;
+            padding: 0 14px;
+            outline: none;
+        }
+
+        select:focus,
+        textarea:focus {
+            border-color: #ffffff;
+        }
+
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+            padding: 14px;
+            outline: none;
+            line-height: 1.5;
+        }
+
+        input[type="file"] {
+            padding: 13px;
+        }
+
+        input[type="file"]::file-selector-button {
+            border: 1px solid #33333f;
+            background: #24242d;
+            color: #ffffff;
+            border-radius: 7px;
+            padding: 8px 12px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .hint {
+            margin-top: 8px;
+            color: #777784;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        /* GRID */
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        /* FILE PREVIEW */
+
+        .preview {
+            display: none;
+            margin-top: 15px;
+            border: 1px solid #292933;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #0e0e13;
+        }
+
+        .preview img {
+            display: block;
+            width: 100%;
+            max-height: 350px;
+            object-fit: contain;
+        }
+
+        .preview-name {
+            padding: 10px;
+            color: #9999a6;
+            font-size: 12px;
+        }
+
+        /* GENERATE */
+
+        .generate-section {
+            background: #15151c;
+            border: 1px solid #292933;
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        #generateButton {
+            width: 100%;
+            height: 52px;
+            border: none;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #000000;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        #generateButton:hover {
+            opacity: 0.88;
+        }
+
+        #generateButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .generate-message {
+            min-height: 22px;
+            margin-top: 15px;
+            text-align: center;
+            color: #9999a6;
+            font-size: 13px;
+        }
+
+        /* MOBILE */
+
+        @media (max-width: 800px) {
+
+            .sidebar {
+                width: 190px;
+            }
+
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+
+            .layout {
+                display: block;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #292933;
+            }
+
+            .nav {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .nav a,
+            .logout-btn {
+                width: auto;
+            }
+
+            .logout-btn {
+                margin-top: 0;
+            }
+
+            .main {
+                padding: 20px;
+            }
+
+            .topbar {
+                align-items: flex-start;
+                gap: 10px;
+                flex-direction: column;
+            }
+
+            .generator-card,
+            .generate-section {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="layout">
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+            <h1>GEN-Z.AI</h1>
+            <p>AI VIDEO GENERATION</p>
+        </div>
+
+        <nav class="nav">
+
+            <a href="dashboard.html">
+                DASHBOARD
+            </a>
+
+            <a href="generate.html" class="active">
+                GENERATE
+            </a>
+
+            <a href="history.html">
+                HISTORY
+            </a>
+
+            <a href="topup.html">
+                TOP UP
+            </a>
+
+            <a href="hub-admin.html">
+                HUB ADMIN
+            </a>
+
+            <button id="logoutButton" class="logout-btn">
+                LOG OUT
+            </button>
+
+        </nav>
+
+    </aside>
+
+
+    <!-- MAIN -->
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <h2>GENERATE VIDEO</h2>
+
+            <div id="userInfo" class="user-info">
+                Loading...
+            </div>
+
+        </header>
+
+
+        <section class="generator">
+
+
+            <!-- 1. PROVIDER -->
+
+            <div class="generator-card">
+
+                <div class="block-number">
+                    BLOCK 01
+                </div>
+
+                <div class="block-title">
+                    PROVIDER
+                </div>
+
+                <select id="provider">
+
+                    <option value="kie_ai">
+                        Kie.ai
+                    </option>
+
+                </select>
+
+                <div class="hint">
+                    Provider yang digunakan untuk proses AI generation.
+                </div>
+
+            </div>
+
+
+            <!-- 2. MODEL -->
+
+            <div class="generator-card">
+
+                <div class="block-number">
+                    BLOCK 02
+                </div>
+
+                <div class="block-title">
+                    MODEL
+                </div>
+
+                <select id="model">
+
+                    <option value="">
+                        Pilih model
+                    </option>
+
+                    <option value="veo_3">
+                        Veo 3
+                    </option>
+
+                    <option value="veo_3_fast">
+                        Veo 3 Fast
+                    </option>
+
+                </select>
+
+                <div class="hint">
+                    Daftar model akan dikembangkan sesuai provider yang tersedia.
+                </div>
+
+            </div>
+
+
+            <!-- 3. IMAGE -->
+
+            <div class="generator-card">
+
+                <div class="block-number">
+                    BLOCK 03
+                </div>
+
+                <div class="block-title">
+                    INPUT GAMBAR REFERENSI
+                </div>
+
+                <input
+                    type="file"
+                    id="imageInput"
+                    accept="image/*"
+                >
+
+                <div class="preview" id="imagePreview">
+
+                    <img id="previewImage" alt="Preview">
+
+                    <div
+                        class="preview-name"
+                        id="imageName">
+                    </div>
+
+                </div>
+
+                <div class="hint">
+                    Upload gambar yang akan digunakan sebagai referensi video.
+                </div>
+
+            </div>
+
+
+            <!-- 4. VIDEO -->
+
+            <div class="generator-card">
+
+                <div class="block-number">
+                    BLOCK 04
+                </div>
+
+                <div class="block-title">
+                    INPUT VIDEO REFERENSI
+                </div>
+
+                <input
+                    type="file"
+                    id="videoInput"
+                    accept="video/*"
+                >
+
+                <div class="hint">
+                    Opsional. Gunakan video referensi jika model mendukungnya.
+                </div>
+
+            </div>
+
+
+            <!-- 5. PROMPT -->
+
+            <div class="generator-card">
+
+                <div class="block-number">
+                    BLOCK 05
+                </div>
+
+                <div class="block-title">
+                    PROMPT
+                </div>
+
+                <textarea
+                    id="prompt"
+                    placeholder="Masukkan prompt video..."
+                ></textarea>
+
+                <div class="hint">
+                    Jelaskan adegan, gerakan, kamera, suasana,
+                    pencahayaan, dan detail lain yang diinginkan.
+                </div>
+
+            </div>
+
+
+            <!-- 6-8 OPTIONS -->
+
+            <div class="generator-card">
+
+                <div class="options-grid">
+
+
+                    <!-- RATIO -->
+
+                    <div>
+
+                        <div class="block-number">
+                            BLOCK 06
+                        </div>
+
+                        <div class="block-title">
+                            RASIO
+                        </div>
+
+                        <select id="ratio">
+
+                            <option value="9:16">
+                                9:16 Portrait
+                            </option>
+
+                            <option value="16:9">
+                                16:9 Landscape
+                            </option>
+
+                            <option value="1:1">
+                                1:1 Square
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- DURATION -->
+
+                    <div>
+
+                        <div class="block-number">
+                            BLOCK 07
+                        </div>
+
+                        <div class="block-title">
+                            DURASI
+                        </div>
+
+                        <select id="duration">
+
+                            <option value="5">
+                                5 Detik
+                            </option>
+
+                            <option value="8">
+                                8 Detik
+                            </option>
+
+                            <option value="10">
+                                10 Detik
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- RESOLUTION -->
+
+                    <div>
+
+                        <div class="block-number">
+                            BLOCK 08
+                        </div>
+
+                        <div class="block-title">
+                            RESOLUSI
+                        </div>
+
+                        <select id="resolution">
+
+                            <option value="720p">
+                                720p
+                            </option>
+
+                            <option value="1080p">
+                                1080p
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- 9. GENERATE -->
+
+            <div class="generate-section">
+
+                <div class="block-number">
+                    BLOCK 09
+                </div>
+
+                <div class="block-title">
+                    GENERATE
+                </div>
+
+                <button
+                    id="generateButton"
+                    type="button"
+                >
+                    GENERATE VIDEO
+                </button>
+
+                <div
+                    id="generateMessage"
+                    class="generate-message">
+                </div>
+
+            </div>
+
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- SUPABASE -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="../assets/js/config.js"></script>
+
+
+<script>
+
+const supabaseClient = window.supabase.createClient(
+    GENZ_CONFIG.SUPABASE_URL,
+    GENZ_CONFIG.SUPABASE_KEY
+);
+
+
+// ========================================
+// SESSION CHECK
+// ========================================
+
+async function checkUser() {
+
+    const {
+        data: {
+            session
+        }
+    } = await supabaseClient.auth.getSession();
+
+
+    if (!session) {
+
+        window.location.href = "../index.html";
+
+        return null;
+    }
+
+
+    const user = session.user;
+
+
+    const {
+        data: profile,
+        error
+    } = await supabaseClient
+        .from("profiles")
+        .select("email,name,role,credits,status")
+        .eq("id", user.id)
+        .single();
+
+
+    if (error || !profile) {
+
+        await supabaseClient.auth.signOut();
+
+        window.location.href = "../index.html";
+
+        return null;
+    }
+
+
+    // Hanya USER
+
+    if (
+        profile.role !== "USER" ||
+        profile.status !== "active"
+    ) {
+
+        window.location.href =
+            "../admin/dashboard.html";
+
+        return null;
+    }
+
+
+    document.getElementById("userInfo").textContent =
+        `${profile.email} | Credit: ${profile.credits}`;
+
+
+    return {
+        user,
+        profile
+    };
+}
+
+
+// ========================================
+// IMAGE PREVIEW
+// ========================================
+
+document
+    .getElementById("imageInput")
+    .addEventListener("change", function () {
+
+        const file = this.files[0];
+
+        const preview =
+            document.getElementById("imagePreview");
+
+        const image =
+            document.getElementById("previewImage");
+
+        const name =
+            document.getElementById("imageName");
+
+
+        if (!file) {
+
+            preview.style.display = "none";
+
+            return;
+        }
+
+
+        const url =
+            URL.createObjectURL(file);
+
+
+        image.src = url;
+
+        name.textContent = file.name;
+
+        preview.style.display = "block";
+
+    });
+
+
+// ========================================
+// GENERATE
+// ========================================
+
+document
+    .getElementById("generateButton")
+    .addEventListener("click", async function () {
+
+        const button = this;
+
+        const message =
+            document.getElementById("generateMessage");
+
+
+        const auth =
+            await checkUser();
+
+
+        if (!auth) {
+            return;
+        }
+
+
+        const model =
+            document.getElementById("model").value;
+
+        const prompt =
+            document.getElementById("prompt").value.trim();
+
+        const ratio =
+            document.getElementById("ratio").value;
+
+        const duration =
+            document.getElementById("duration").value;
+
+        const resolution =
+            document.getElementById("resolution").value;
+
+
+        if (!model) {
+
+            message.textContent =
+                "Pilih model terlebih dahulu.";
+
+            return;
+        }
+
+
+        if (!prompt) {
+
+            message.textContent =
+                "Prompt video belum diisi.";
+
+            return;
+        }
+
+
+        button.disabled = true;
+
+        button.textContent =
+            "MEMPROSES...";
+
+
+        message.textContent =
+            "Permintaan sedang dipersiapkan...";
+
+
+        /*
+         * BACKEND KIE.AI AKAN DISAMBUNGKAN
+         * PADA TAHAP BERIKUTNYA.
+         *
+         * JANGAN menaruh API KEY KIE.AI
+         * di halaman ini.
+         */
+
+
+        const generationData = {
+
+            provider:
+                document.getElementById("provider").value,
+
+            model,
+
+            prompt,
+
+            ratio,
+
+            duration,
+
+            resolution
+
+        };
+
+
+        console.log(
+            "GEN-Z.AI Generation Request:",
+            generationData
+        );
+
+
+        // Sementara hanya simulasi
+
+        setTimeout(function () {
+
+            message.textContent =
+                "Generator backend belum tersambung.";
+
+            button.disabled = false;
+
+            button.textContent =
+                "GENERATE VIDEO";
+
+        }, 1000);
+
+    });
+
+
+// ========================================
+// LOGOUT
+// ========================================
+
+document
+    .getElementById("logoutButton")
+    .addEventListener("click", async function () {
+
+        await supabaseClient.auth.signOut();
+
+        window.location.href =
+            "../index.html";
+
+    });
+
+
+// ========================================
+// START
+// ========================================
+
+checkUser();
+
+</script>
+
+</body>
+</html>
