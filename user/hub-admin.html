@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>GEN-Z.AI | Hub Admin</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
+    <style>
+        :root {
+            --bg: #f4f6f8;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --dark: #111827;
+            --accent: #6366f1;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --shadow: 0 20px 50px rgba(15, 23, 42, .08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            background:
+                radial-gradient(
+                    circle at 15% 10%,
+                    rgba(99, 102, 241, .10),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 85% 20%,
+                    rgba(139, 92, 246, .08),
+                    transparent 30%
+                ),
+                var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* =========================
+           MENU BUTTON
+        ========================= */
+
+        .menu-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 48px;
+            height: 48px;
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 15px;
+            background: rgba(17,24,39,.94);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            z-index: 1200;
+            box-shadow: 0 12px 30px rgba(0,0,0,.18);
+        }
+
+        .menu-button span {
+            width: 19px;
+            height: 2px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        /* =========================
+           SIDEBAR
+        ========================= */
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: 285px;
+            background:
+                linear-gradient(
+                    180deg,
+                    #111827 0%,
+                    #0b1220 100%
+                );
+            color: white;
+            z-index: 1100;
+            transform: translateX(-105%);
+            transition: transform .3s ease;
+            padding: 28px 18px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 25px 0 70px rgba(0,0,0,.25);
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .brand {
+            padding: 5px 14px 28px;
+        }
+
+        .brand h2 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -.7px;
+        }
+
+        .brand span {
+            display: block;
+            margin-top: 5px;
+            font-size: 11px;
+            color: #9ca3af;
+            letter-spacing: 1.6px;
+        }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: #9ca3af;
+            padding: 13px 14px;
+            border-radius: 13px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: .2s ease;
+        }
+
+        .nav a:hover,
+        .nav a.active {
+            color: white;
+            background: rgba(255,255,255,.08);
+        }
+
+        .nav a.active {
+            box-shadow: inset 3px 0 0 var(--accent);
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+        }
+
+        .user-mini {
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255,255,255,.06);
+            margin-bottom: 10px;
+        }
+
+        .user-mini small {
+            color: #9ca3af;
+            font-size: 10px;
+        }
+
+        .user-mini strong {
+            display: block;
+            margin-top: 5px;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .logout {
+            width: 100%;
+            border: 1px solid rgba(255,255,255,.1);
+            background: transparent;
+            color: #d1d5db;
+            padding: 12px;
+            border-radius: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .logout:hover {
+            background: rgba(255,255,255,.08);
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,.35);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: .3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* =========================
+           MAIN
+        ========================= */
+
+        .main {
+            min-height: 100vh;
+            padding: 30px;
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .topbar {
+            padding-left: 70px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .welcome h1 {
+            font-size: 30px;
+            letter-spacing: -.9px;
+        }
+
+        .welcome p {
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .credit-card {
+            min-width: 190px;
+            background: var(--dark);
+            color: white;
+            padding: 15px 18px;
+            border-radius: 18px;
+            box-shadow: 0 14px 35px rgba(17,24,39,.18);
+        }
+
+        .credit-card small {
+            color: #9ca3af;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .credit-card strong {
+            display: block;
+            margin-top: 5px;
+            font-size: 22px;
+        }
+
+        /* =========================
+           GRID
+        ========================= */
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .card.full {
+            grid-column: 1 / -1;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: #eef2ff;
+            color: #4f46e5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header h2 {
+            font-size: 16px;
+        }
+
+        .card-header p {
+            margin-top: 4px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f1f3;
+        }
+
+        .info-row:last-child {
+            border-bottom: 0;
+        }
+
+        .info-row span {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .info-row strong {
+            font-size: 12px;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        /* =========================
+           STATUS
+        ========================= */
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 9px;
+            border-radius: 999px;
+            font-size: 10px !important;
+            font-weight: 700;
+        }
+
+        .status.active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* =========================
+           ACTION CARDS
+        ========================= */
+
+        .action-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .action-button {
+            width: 100%;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            cursor: pointer;
+            text-align: left;
+            transition: .2s ease;
+        }
+
+        .action-button:hover {
+            border-color: #c7d2fe;
+            background: #fafaff;
+            transform: translateY(-1px);
+        }
+
+        .action-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .action-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 11px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .action-text strong {
+            display: block;
+            font-size: 12px;
+        }
+
+        .action-text span {
+            display: block;
+            margin-top: 3px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .arrow {
+            color: #9ca3af;
+            font-size: 18px;
+        }
+
+        /* =========================
+           HELP
+        ========================= */
+
+        .help-content {
+            color: #4b5563;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .help-content strong {
+            color: var(--text);
+        }
+
+        .help-steps {
+            margin-top: 15px;
+            display: grid;
+            gap: 9px;
+        }
+
+        .help-step {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            width: 23px;
+            height: 23px;
+            border-radius: 8px;
+            background: #eef2ff;
+            color: #4f46e5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .help-step span {
+            padding-top: 3px;
+            font-size: 11px;
+            color: #4b5563;
+        }
+
+        /* =========================
+           MESSAGE
+        ========================= */
+
+        .message {
+            display: none;
+            margin-top: 18px;
+            padding: 13px 15px;
+            border-radius: 12px;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.info {
+            background: #eef2ff;
+            color: #3730a3;
+        }
+
+        .message.success {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .message.error {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        /* =========================
+           FOOTER
+        ========================= */
+
+        .footer {
+            margin-top: 25px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 10px;
+            padding-bottom: 15px;
+        }
+
+        /* =========================
+           MOBILE
+        ========================= */
+
+        @media (max-width: 800px) {
+
+            .main {
+                padding: 20px;
+            }
+
+            .topbar {
+                padding-left: 62px;
+                align-items: flex-start;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card.full {
+                grid-column: auto;
+            }
+        }
+
+        @media (max-width: 520px) {
+
+            .menu-button {
+                top: 14px;
+                left: 14px;
+                width: 44px;
+                height: 44px;
+            }
+
+            .main {
+                padding: 15px;
+            }
+
+            .topbar {
+                padding-left: 58px;
+                flex-direction: column;
+            }
+
+            .credit-card {
+                width: 100%;
+            }
+
+            .card {
+                padding: 20px;
+                border-radius: 20px;
+            }
+
+            .sidebar {
+                width: 275px;
+            }
+
+            .info-row {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .info-row strong {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- MENU -->
+    <button
+        class="menu-button"
+        id="menuButton"
+        type="button"
+        aria-label="Buka navigasi"
+        aria-controls="sidebar"
+        aria-expanded="false"
+    >
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="brand">
+            <h2>GEN-Z.AI</h2>
+            <span>AI VIDEO GENERATION</span>
+        </div>
+
+        <nav class="nav">
+
+            <a href="./dashboard.html">
+                Dashboard
+            </a>
+
+            <a href="../generate/index.html">
+                Generate
+            </a>
+
+            <a href="./history.html">
+                History
+            </a>
+
+            <a href="./topup.html">
+                Top Up
+            </a>
+
+            <a href="./hub-admin.html" class="active">
+                Hub Admin
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="user-mini">
+                <small>ACCOUNT</small>
+                <strong id="sidebarEmail">
+                    Loading...
+                </strong>
+            </div>
+
+            <button
+                class="logout"
+                id="logoutButton"
+                type="button"
+            >
+                LOG OUT
+            </button>
+
+        </div>
+
+    </aside>
+
+    <div
+        class="overlay"
+        id="overlay"
+    ></div>
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <header class="topbar">
+
+            <div class="welcome">
+                <h1>Hub Admin</h1>
+
+                <p>
+                    Pusat bantuan dan informasi akun GEN-Z.AI.
+                </p>
+            </div>
+
+            <div class="credit-card">
+
+                <small>AVAILABLE CREDITS</small>
+
+                <strong id="creditBalance">
+                    0
+                </strong>
+
+            </div>
+
+        </header>
+
+        <section class="grid">
+
+            <!-- ACCOUNT -->
+            <div class="card">
+
+                <div class="card-header">
+
+                    <div class="icon">
+                        👤
+                    </div>
+
+                    <div>
+                        <h2>Informasi Akun</h2>
+
+                        <p>
+                            Detail akun GEN-Z.AI kamu
+                        </p>
+                    </div>
+
+                </div>
+
+                <div class="info-list">
+
+                    <div class="info-row">
+
+                        <span>Nama</span>
+
+                        <strong id="profileName">
+                            Loading...
+                        </strong>
+
+                    </div>
+
+                    <div class="info-row">
+
+                        <span>Email</span>
+
+                        <strong id="profileEmail">
+                            Loading...
+                        </strong>
+
+                    </div>
+
+                    <div class="info-row">
+
+                        <span>Role</span>
+
+                        <strong id="profileRole">
+                            USER
+                        </strong>
+
+                    </div>
+
+                    <div class="info-row">
+
+                        <span>Status</span>
+
+                        <strong
+                            id="profileStatus"
+                            class="status active"
+                        >
+                            <span class="status-dot"></span>
+                            Active
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- QUICK ACTION -->
+            <div class="card">
+
+                <div class="card-header">
+
+                    <div class="icon">
+                        ⚡
+                    </div>
+
+                    <div>
+                        <h2>Akses Cepat</h2>
+
+                        <p>
+                            Menu yang sering digunakan
+                        </p>
+                    </div>
+
+                </div>
+
+                <div class="action-list">
+
+                    <button
+                        class="action-button"
+                        type="button"
+                        onclick="goToGenerate()"
+                    >
+
+                        <div class="action-left">
+
+                            <div class="action-icon">
+                                🎬
+                            </div>
+
+                            <div class="action-text">
+
+                                <strong>
+                                    Generate Video
+                                </strong>
+
+                                <span>
+                                    Buat video AI baru
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                        <div class="arrow">
+                            ›
+                        </div>
+
+                    </button>
+
+                    <button
+                        class="action-button"
+                        type="button"
+                        onclick="goToHistory()"
+                    >
+
+                        <div class="action-left">
+
+                            <div class="action-icon">
+                                🕘
+                            </div>
+
+                            <div class="action-text">
+
+                                <strong>
+                                    Generation History
+                                </strong>
+
+                                <span>
+                                    Lihat riwayat generate
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                        <div class="arrow">
+                            ›
+                        </div>
+
+                    </button>
+
+                    <button
+                        class="action-button"
+                        type="button"
+                        onclick="goToTopup()"
+                    >
+
+                        <div class="action-left">
+
+                            <div class="action-icon">
+                                💳
+                            </div>
+
+                            <div class="action-text">
+
+                                <strong>
+                                    Top Up Credit
+                                </strong>
+
+                                <span>
+                                    Tambahkan kredit akun
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                        <div class="arrow">
+                            ›
+                        </div>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+            <!-- HELP -->
+            <div class="card full">
+
+                <div class="card-header">
+
+                    <div class="icon">
+                        🛠️
+                    </div>
+
+                    <div>
+                        <h2>Bantuan Sistem</h2>
+
+                        <p>
+                            Langkah dasar ketika mengalami masalah
+                        </p>
+                    </div>
+
+                </div>
+
+                <div class="help-content">
+
+                    <strong>
+                        Jika terjadi masalah saat menggunakan GEN-Z.AI:
+                    </strong>
+
+                    <div class="help-steps">
+
+                        <div class="help-step">
+
+                            <div class="step-number">
+                                1
+                            </div>
+
+                            <span>
+                                Pastikan akun masih berstatus
+                                <strong>Active</strong>.
+                            </span>
+
+                        </div>
+
+                        <div class="help-step">
+
+                            <div class="step-number">
+                                2
+                            </div>
+
+                            <span>
+                                Periksa jumlah credit sebelum
+                                menjalankan proses generate.
+                            </span>
+
+                        </div>
+
+                        <div class="help-step">
+
+                            <div class="step-number">
+                                3
+                            </div>
+
+                            <span>
+                                Jika proses generate gagal,
+                                periksa kembali provider dan model
+                                yang digunakan.
+                            </span>
+
+                        </div>
+
+                        <div class="help-step">
+
+                            <div class="step-number">
+                                4
+                            </div>
+
+                            <span>
+                                Jika masalah tetap terjadi,
+                                hubungi administrator GEN-Z.AI.
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div
+                    class="message"
+                    id="message"
+                ></div>
+
+            </div>
+
+            <!-- SYSTEM INFO -->
+            <div class="card full">
+
+                <div class="card-header">
+
+                    <div class="icon">
+                        ℹ️
+                    </div>
+
+                    <div>
+                        <h2>GEN-Z.AI</h2>
+
+                        <p>
+                            Informasi sistem
+                        </p>
+                    </div>
+
+                </div>
+
+                <div class="info-list">
+
+                    <div class="info-row">
+
+                        <span>
+                            Platform
+                        </span>
+
+                        <strong>
+                            GEN-Z.AI
+                        </strong>
+
+                    </div>
+
+                    <div class="info-row">
+
+                        <span>
+                            Access Level
+                        </span>
+
+                        <strong>
+                            USER
+                        </strong>
+
+                    </div>
+
+                    <div class="info-row">
+
+                        <span>
+                            Generator
+                        </span>
+
+                        <strong>
+                            Shared Generator
+                        </strong>
+
+                    </div>
+
+                    <div class="info-row">
+
+                        <span>
+                            Account Security
+                        </span>
+
+                        <strong class="status active">
+                            <span class="status-dot"></span>
+                            Protected
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <div class="footer">
+            GEN-Z.AI • AI VIDEO GENERATION PLATFORM
+        </div>
+
+    </main>
+
+    <!-- SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../assets/js/config.js"></script>
+
+    <script>
+
+        let supabaseClient = null;
+        let currentUser = null;
+
+        /* =========================
+           ELEMENTS
+        ========================= */
+
+        const menuButton =
+            document.getElementById("menuButton");
+
+        const sidebar =
+            document.getElementById("sidebar");
+
+        const overlay =
+            document.getElementById("overlay");
+
+        const logoutButton =
+            document.getElementById("logoutButton");
+
+        const message =
+            document.getElementById("message");
+
+        /* =========================
+           SIDEBAR
+        ========================= */
+
+        menuButton.addEventListener(
+            "click",
+            function () {
+
+                const isOpen =
+                    sidebar.classList.contains("open");
+
+                if (isOpen) {
+
+                    closeSidebar();
+
+                } else {
+
+                    sidebar.classList.add("open");
+                    overlay.classList.add("active");
+
+                    menuButton.setAttribute(
+                        "aria-expanded",
+                        "true"
+                    );
+                }
+
+            }
+        );
+
+        overlay.addEventListener(
+            "click",
+            closeSidebar
+        );
+
+        document
+            .querySelectorAll(".nav a")
+            .forEach(link => {
+
+                link.addEventListener(
+                    "click",
+                    closeSidebar
+                );
+
+            });
+
+        function closeSidebar() {
+
+            sidebar.classList.remove("open");
+
+            overlay.classList.remove("active");
+
+            menuButton.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+        }
+
+        /* =========================
+           MESSAGE
+        ========================= */
+
+        function showMessage(
+            text,
+            type = "info"
+        ) {
+
+            message.textContent = text;
+
+            message.className =
+                "message show " + type;
+
+        }
+
+        /* =========================
+           NAVIGATION
+        ========================= */
+
+        function goToGenerate() {
+
+            window.location.href =
+                "../generate/index.html";
+
+        }
+
+        function goToHistory() {
+
+            window.location.href =
+                "./history.html";
+
+        }
+
+        function goToTopup() {
+
+            window.location.href =
+                "./topup.html";
+
+        }
+
+        /* =========================
+           LOAD PROFILE
+        ========================= */
+
+        async function loadProfile() {
+
+            const {
+                data: profile,
+                error
+            } = await supabaseClient
+
+                .from("profiles")
+
+                .select(
+                    "id,email,name,role,credits,status"
+                )
+
+                .eq(
+                    "id",
+                    currentUser.id
+                )
+
+                .single();
+
+            if (error || !profile) {
+
+                throw new Error(
+                    "Profil pengguna tidak ditemukan."
+                );
+
+            }
+
+            /*
+             * ADMIN / OWNER
+             * diarahkan ke dashboard admin.
+             */
+
+            if (
+                profile.role === "ADMIN" ||
+                profile.role === "OWNER"
+            ) {
+
+                window.location.replace(
+                    "../admin/dashboard.html"
+                );
+
+                return false;
+            }
+
+            /*
+             * Hanya USER yang dapat
+             * menggunakan halaman ini.
+             */
+
+            if (profile.role !== "USER") {
+
+                await supabaseClient.auth.signOut();
+
+                window.location.replace(
+                    "../login.html"
+                );
+
+                return false;
+            }
+
+            /*
+             * Status akun.
+             */
+
+            if (profile.status !== "active") {
+
+                await supabaseClient.auth.signOut();
+
+                window.location.replace(
+                    "../login.html"
+                );
+
+                return false;
+            }
+
+            /* =========================
+               DISPLAY DATA
+            ========================= */
+
+            document
+                .getElementById("profileName")
+                .textContent =
+                profile.name ||
+                "User GEN-Z.AI";
+
+            document
+                .getElementById("profileEmail")
+                .textContent =
+                profile.email ||
+                currentUser.email ||
+                "-";
+
+            document
+                .getElementById("profileRole")
+                .textContent =
+                profile.role;
+
+            document
+                .getElementById("creditBalance")
+                .textContent =
+                Number(
+                    profile.credits || 0
+                ).toLocaleString("id-ID");
+
+            document
+                .getElementById("sidebarEmail")
+                .textContent =
+                profile.email ||
+                currentUser.email ||
+                "User";
+
+            const statusElement =
+                document.getElementById(
+                    "profileStatus"
+                );
+
+            if (profile.status === "active") {
+
+                statusElement.className =
+                    "status active";
+
+                statusElement.innerHTML =
+                    '<span class="status-dot"></span> Active';
+
+            } else {
+
+                statusElement.className =
+                    "status inactive";
+
+                statusElement.innerHTML =
+                    '<span class="status-dot"></span> ' +
+                    profile.status;
+
+            }
+
+            return true;
+        }
+
+        /* =========================
+           INIT
+        ========================= */
+
+        async function init() {
+
+            try {
+
+                /*
+                 * Supabase library.
+                 */
+
+                if (!window.supabase) {
+
+                    window.location.replace(
+                        "../login.html"
+                    );
+
+                    return;
+                }
+
+                /*
+                 * Configuration.
+                 */
+
+                if (
+                    !window.GENZ_CONFIG ||
+                    !GENZ_CONFIG.SUPABASE_URL ||
+                    !GENZ_CONFIG.SUPABASE_KEY
+                ) {
+
+                    window.location.replace(
+                        "../login.html"
+                    );
+
+                    return;
+                }
+
+                /*
+                 * Client.
+                 */
+
+                supabaseClient =
+                    window.supabase.createClient(
+                        GENZ_CONFIG.SUPABASE_URL,
+                        GENZ_CONFIG.SUPABASE_KEY
+                    );
+
+                /*
+                 * Session.
+                 */
+
+                const {
+                    data: {
+                        session
+                    },
+                    error
+                } =
+                    await supabaseClient.auth.getSession();
+
+                if (
+                    error ||
+                    !session
+                ) {
+
+                    window.location.replace(
+                        "../login.html"
+                    );
+
+                    return;
+                }
+
+                currentUser =
+                    session.user;
+
+                /*
+                 * Load profile.
+                 */
+
+                await loadProfile();
+
+            } catch (error) {
+
+                console.error(
+                    "GEN-Z.AI Hub Admin Error:",
+                    error
+                );
+
+                showMessage(
+                    error.message ||
+                    "Terjadi kesalahan saat memuat halaman.",
+                    "error"
+                );
+
+            }
+
+        }
+
+        /* =========================
+           LOGOUT
+        ========================= */
+
+        logoutButton.addEventListener(
+            "click",
+            async function () {
+
+                try {
+
+                    if (supabaseClient) {
+
+                        await supabaseClient.auth.signOut();
+
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "Logout error:",
+                        error
+                    );
+
+                } finally {
+
+                    window.location.replace(
+                        "../login.html"
+                    );
+
+                }
+
+            }
+        );
+
+        /* =========================
+           START
+        ========================= */
+
+        init();
+
+    </script>
+
+</body>
+</html>
