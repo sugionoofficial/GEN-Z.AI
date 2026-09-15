@@ -1,1 +1,751 @@
 
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Provider Terminal - GEN-Z.AI</title>
+
+    <style>
+        :root {
+            --bg: #06080c;
+            --panel: rgba(15, 19, 27, 0.88);
+            --panel-soft: rgba(255, 255, 255, 0.035);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.14);
+
+            --text: #f5f7fb;
+            --muted: #8993a3;
+            --muted-2: #667080;
+
+            --accent: #8b5cf6;
+            --accent-2: #6366f1;
+
+            --success: #22c55e;
+            --danger: #ef4444;
+
+            --radius: 22px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            min-height: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+
+            color: var(--text);
+
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            background:
+                radial-gradient(
+                    circle at 20% 0%,
+                    rgba(99, 102, 241, 0.16),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 90% 10%,
+                    rgba(139, 92, 246, 0.13),
+                    transparent 28%
+                ),
+                linear-gradient(
+                    180deg,
+                    #07090d 0%,
+                    #090c12 55%,
+                    #05070a 100%
+                );
+
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        button {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .page {
+            min-height: 100vh;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 28px;
+        }
+
+        .terminal {
+            width: min(680px, 100%);
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(18, 23, 32, 0.92),
+                    rgba(9, 12, 17, 0.94)
+                );
+
+            box-shadow:
+                0 35px 100px rgba(0, 0, 0, 0.48),
+                inset 0 1px 0 rgba(255, 255, 255, 0.035);
+
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            min-height: 66px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 0 20px;
+
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 10px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--accent),
+                    var(--accent-2)
+                );
+
+            box-shadow:
+                0 8px 24px rgba(99, 102, 241, 0.28);
+        }
+
+        .brand-mark svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .brand-text strong {
+            display: block;
+
+            font-size: 13px;
+            font-weight: 850;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-text span {
+            display: block;
+
+            margin-top: 3px;
+
+            color: var(--muted-2);
+
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .terminal-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+
+            padding: 7px 10px;
+
+            border: 1px solid rgba(34, 197, 94, 0.14);
+            border-radius: 999px;
+
+            background: rgba(34, 197, 94, 0.055);
+
+            color: #86efac;
+
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+
+            border-radius: 50%;
+
+            background: var(--success);
+
+            box-shadow:
+                0 0 0 4px rgba(34, 197, 94, 0.08),
+                0 0 12px rgba(34, 197, 94, 0.5);
+        }
+
+        .terminal-body {
+            padding: 34px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+
+            margin-bottom: 13px;
+
+            color: #929cad;
+
+            font-size: 9px;
+            font-weight: 850;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .eyebrow::before {
+            content: "";
+
+            width: 6px;
+            height: 6px;
+
+            border-radius: 50%;
+
+            background: var(--accent);
+
+            box-shadow:
+                0 0 0 5px rgba(139, 92, 246, 0.09),
+                0 0 16px rgba(139, 92, 246, 0.45);
+        }
+
+        h1 {
+            margin: 0;
+
+            font-size: clamp(30px, 6vw, 48px);
+            line-height: 1;
+
+            font-weight: 900;
+            letter-spacing: -0.065em;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #ffffff 15%,
+                    #c9c6ff 85%
+                );
+
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .description {
+            max-width: 560px;
+
+            margin: 15px 0 30px;
+
+            color: var(--muted);
+
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .command-box {
+            padding: 7px;
+
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            border: 1px solid var(--border-strong);
+            border-radius: 15px;
+
+            background:
+                rgba(0, 0, 0, 0.22);
+
+            transition:
+                border-color 180ms ease,
+                box-shadow 180ms ease;
+        }
+
+        .command-box:focus-within {
+            border-color: rgba(139, 92, 246, 0.45);
+
+            box-shadow:
+                0 0 0 4px rgba(139, 92, 246, 0.07);
+        }
+
+        .command-prefix {
+            padding-left: 11px;
+
+            color: var(--accent);
+
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                "Liberation Mono",
+                monospace;
+
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        #providerInput {
+            min-width: 0;
+            flex: 1;
+
+            height: 46px;
+
+            border: 0;
+            outline: 0;
+
+            background: transparent;
+
+            color: #ffffff;
+
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                "Liberation Mono",
+                monospace;
+
+            font-size: 13px;
+        }
+
+        #providerInput::placeholder {
+            color: #515a68;
+        }
+
+        #openButton {
+            height: 46px;
+
+            padding: 0 17px;
+
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 11px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--accent),
+                    var(--accent-2)
+                );
+
+            color: #ffffff;
+
+            font-size: 12px;
+            font-weight: 850;
+
+            cursor: pointer;
+
+            box-shadow:
+                0 8px 24px rgba(99, 102, 241, 0.22);
+
+            transition:
+                transform 180ms ease,
+                box-shadow 180ms ease,
+                opacity 180ms ease;
+        }
+
+        #openButton:hover {
+            transform: translateY(-1px);
+
+            box-shadow:
+                0 12px 30px rgba(99, 102, 241, 0.32);
+        }
+
+        #openButton:active {
+            transform: translateY(0);
+        }
+
+        .message {
+            min-height: 20px;
+
+            margin-top: 14px;
+
+            color: var(--muted);
+
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .message.error {
+            color: #fca5a5;
+        }
+
+        .message.success {
+            color: #86efac;
+        }
+
+        .architecture {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+
+            margin-top: 30px;
+        }
+
+        .architecture-item {
+            min-height: 88px;
+
+            padding: 15px;
+
+            border: 1px solid var(--border);
+            border-radius: 14px;
+
+            background:
+                var(--panel-soft);
+        }
+
+        .architecture-number {
+            display: block;
+
+            margin-bottom: 9px;
+
+            color: var(--accent);
+
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                monospace;
+
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .architecture-title {
+            display: block;
+
+            color: #dce1e9;
+
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .architecture-text {
+            display: block;
+
+            margin-top: 4px;
+
+            color: var(--muted-2);
+
+            font-size: 9px;
+            line-height: 1.45;
+        }
+
+        .footer {
+            padding: 17px 34px;
+
+            border-top: 1px solid var(--border);
+
+            color: #596271;
+
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                monospace;
+
+            font-size: 9px;
+
+            text-align: center;
+        }
+
+        .footer span {
+            color: #7a8391;
+        }
+
+        @media (max-width: 600px) {
+            .page {
+                padding: 14px;
+            }
+
+            .terminal-body {
+                padding: 25px 20px;
+            }
+
+            .terminal-header {
+                padding: 0 15px;
+            }
+
+            .terminal-status {
+                display: none;
+            }
+
+            .command-box {
+                flex-wrap: wrap;
+            }
+
+            .command-prefix {
+                padding-left: 10px;
+            }
+
+            #providerInput {
+                width: calc(100% - 50px);
+            }
+
+            #openButton {
+                width: 100%;
+            }
+
+            .architecture {
+                grid-template-columns: 1fr;
+            }
+
+            .footer {
+                padding: 15px 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="page">
+
+    <main class="terminal">
+
+        <header class="terminal-header">
+
+            <div class="brand">
+
+                <div class="brand-mark">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M4 17l6-6-6-6"></path>
+                        <path d="M12 19h8"></path>
+                    </svg>
+                </div>
+
+                <div class="brand-text">
+                    <strong>GEN-Z.AI</strong>
+                    <span>Provider Terminal</span>
+                </div>
+
+            </div>
+
+            <div class="terminal-status">
+                <span class="status-dot"></span>
+                Ready
+            </div>
+
+        </header>
+
+        <section class="terminal-body">
+
+            <div class="eyebrow">
+                Provider Runtime
+            </div>
+
+            <h1>
+                Provider Terminal
+            </h1>
+
+            <p class="description">
+                Terminal utama untuk membuka workspace provider.
+                Setiap provider memiliki folder, konfigurasi,
+                model, endpoint, autentikasi, payload, dan aturan
+                sendiri tanpa bercampur dengan provider lainnya.
+            </p>
+
+            <div class="command-box">
+
+                <span class="command-prefix">
+                    &gt;
+                </span>
+
+                <input
+                    id="providerInput"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="masukkan provider id..."
+                    aria-label="Provider ID"
+                >
+
+                <button
+                    id="openButton"
+                    type="button"
+                >
+                    Open Provider
+                </button>
+
+            </div>
+
+            <div
+                id="message"
+                class="message"
+                aria-live="polite"
+            ></div>
+
+            <div class="architecture">
+
+                <div class="architecture-item">
+                    <span class="architecture-number">
+                        01
+                    </span>
+
+                    <span class="architecture-title">
+                        Terminal
+                    </span>
+
+                    <span class="architecture-text">
+                        Hanya mengarahkan ke provider.
+                    </span>
+                </div>
+
+                <div class="architecture-item">
+                    <span class="architecture-number">
+                        02
+                    </span>
+
+                    <span class="architecture-title">
+                        Provider
+                    </span>
+
+                    <span class="architecture-text">
+                        Setiap provider punya aturan sendiri.
+                    </span>
+                </div>
+
+                <div class="architecture-item">
+                    <span class="architecture-number">
+                        03
+                    </span>
+
+                    <span class="architecture-title">
+                        Models
+                    </span>
+
+                    <span class="architecture-text">
+                        Model dan parameter tidak dicampur.
+                    </span>
+                </div>
+
+            </div>
+
+        </section>
+
+        <footer class="footer">
+            provider/
+            <span>&lt;provider&gt;/</span>
+            index.html
+        </footer>
+
+    </main>
+
+</div>
+
+<script>
+    const providerInput =
+        document.getElementById("providerInput");
+
+    const openButton =
+        document.getElementById("openButton");
+
+    const message =
+        document.getElementById("message");
+
+    function normalizeProvider(value) {
+        return String(value || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\.html$/i, "")
+            .replace(/^\/+|\/+$/g, "")
+            .replace(/[^a-z0-9_-]/g, "");
+    }
+
+    function openProvider() {
+        const provider =
+            normalizeProvider(providerInput.value);
+
+        if (!provider) {
+            message.className = "message error";
+            message.textContent =
+                "Masukkan provider ID terlebih dahulu.";
+            providerInput.focus();
+            return;
+        }
+
+        message.className = "message success";
+        message.textContent =
+            "Membuka workspace provider: " +
+            provider;
+
+        window.location.href =
+            "./" +
+            encodeURIComponent(provider) +
+            "/index.html";
+    }
+
+    function loadProviderFromUrl() {
+        const params =
+            new URLSearchParams(window.location.search);
+
+        const provider =
+            normalizeProvider(
+                params.get("provider")
+            );
+
+        if (provider) {
+            providerInput.value = provider;
+
+            openProvider();
+        }
+    }
+
+    openButton.addEventListener(
+        "click",
+        openProvider
+    );
+
+    providerInput.addEventListener(
+        "keydown",
+        function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                openProvider();
+            }
+        }
+    );
+
+    loadProviderFromUrl();
+</script>
+
+</body>
+</html>
