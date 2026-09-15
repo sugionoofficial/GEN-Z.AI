@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Credit - GEN-Z.AI</title>
+    <title>Credit Management - GEN-Z.AI</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
@@ -14,218 +14,596 @@
             box-sizing: border-box;
         }
 
-        body {
-            margin: 0;
-            font-family: Arial, Helvetica, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa, #e9edf2);
-            color: #111827;
+        :root {
+            --bg: #070b14;
+            --panel: rgba(15, 23, 42, 0.82);
+            --panel-strong: rgba(17, 24, 39, 0.96);
+            --border: rgba(148, 163, 184, 0.14);
+            --border-hover: rgba(148, 163, 184, 0.25);
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --muted-2: #64748b;
+            --accent: #8b5cf6;
+            --accent-2: #6366f1;
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #f59e0b;
         }
 
-        .layout {
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
+        body {
+            margin: 0;
             min-height: 100vh;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(
+                    circle at 10% 0%,
+                    rgba(99, 102, 241, 0.18),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 90% 10%,
+                    rgba(139, 92, 246, 0.14),
+                    transparent 28%
+                ),
+                linear-gradient(
+                    180deg,
+                    #070b14 0%,
+                    #0a0f1d 55%,
+                    #070b14 100%
+                );
+        }
+
+        button,
+        a {
+            font: inherit;
+        }
+
+        button {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .app {
+            min-height: 100vh;
+        }
+
+        /* =========================================
+           TOPBAR
+        ========================================= */
+
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 76px;
+            z-index: 100;
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            background: rgba(7, 11, 20, 0.78);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+        }
+
+        .topbar-left,
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .menu-button {
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: rgba(15, 23, 42, 0.76);
+            color: #fff;
+            cursor: pointer;
+            transition:
+                background .2s ease,
+                border-color .2s ease,
+                transform .2s ease;
+        }
+
+        .menu-button:hover {
+            background: rgba(30, 41, 59, 0.95);
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+
+        .menu-icon {
+            width: 19px;
+            height: 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .menu-icon span {
+            display: block;
+            width: 100%;
+            height: 2px;
+            border-radius: 2px;
+            background: #fff;
+        }
+
+        .top-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .top-brand-title {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: .4px;
+        }
+
+        .top-brand-subtitle {
+            color: var(--muted-2);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 0 15px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.76);
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 800;
+            transition:
+                background .2s ease,
+                border-color .2s ease,
+                transform .2s ease;
+        }
+
+        .back-button:hover {
+            background: rgba(30, 41, 59, 0.95);
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+
+        .back-arrow {
+            font-size: 17px;
+            line-height: 1;
+        }
+
+        /* =========================================
+           SIDEBAR
+        ========================================= */
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 150;
+            background: rgba(0, 0, 0, 0.58);
+            opacity: 0;
+            visibility: hidden;
+            transition:
+                opacity .25s ease,
+                visibility .25s ease;
+        }
+
+        .sidebar-overlay.open {
+            opacity: 1;
+            visibility: visible;
         }
 
         .sidebar {
-            width: 240px;
-            min-height: 100vh;
-            background: #fff;
-            border-right: 1px solid #e5e7eb;
-            padding: 22px 16px;
             position: fixed;
-            left: 0;
             top: 0;
+            left: 0;
             bottom: 0;
+            z-index: 200;
+            width: 285px;
+            padding: 24px 18px;
+            display: flex;
+            flex-direction: column;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(12, 18, 32, .99),
+                    rgba(7, 11, 20, .99)
+                );
+            border-right: 1px solid var(--border);
+            box-shadow: 20px 0 60px rgba(0, 0, 0, .35);
+            transform: translateX(-105%);
+            transition: transform .28s ease;
         }
 
-        .brand {
-            font-size: 24px;
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 34px;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-brand strong {
+            font-size: 19px;
+            letter-spacing: .3px;
+        }
+
+        .sidebar-brand span {
+            color: var(--muted-2);
+            font-size: 9px;
             font-weight: 800;
-            margin-bottom: 5px;
+            letter-spacing: 1.6px;
         }
 
-        .brand-sub {
-            font-size: 11px;
-            color: #6b7280;
-            margin-bottom: 28px;
-            letter-spacing: 1px;
+        .close-sidebar {
+            width: 38px;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: rgba(15, 23, 42, .8);
+            color: #cbd5e1;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .close-sidebar:hover {
+            background: rgba(30, 41, 59, .95);
+        }
+
+        .nav-label {
+            margin: 0 10px 9px;
+            color: var(--muted-2);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1.6px;
         }
 
         .nav {
             display: flex;
             flex-direction: column;
-            gap: 7px;
+            gap: 6px;
         }
 
-        .nav a {
-            text-decoration: none;
-            color: #374151;
-            padding: 12px 13px;
-            border-radius: 9px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .nav a:hover {
-            background: #f3f4f6;
-        }
-
-        .nav a.active {
-            background: #111827;
-            color: #fff;
-        }
-
-        .logout {
-            margin-top: 25px;
+        .nav a,
+        .nav-logout {
             width: 100%;
-            border: 0;
-            background: #f3f4f6;
-            color: #111827;
-            padding: 11px;
-            border-radius: 9px;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 13px;
+            border: 1px solid transparent;
+            border-radius: 13px;
+            color: #cbd5e1;
+            background: transparent;
+            text-decoration: none;
             cursor: pointer;
-            font-weight: 700;
+            font-size: 13px;
+            font-weight: 750;
+            text-align: left;
+            transition:
+                background .2s ease,
+                border-color .2s ease,
+                color .2s ease,
+                transform .2s ease;
         }
+
+        .nav a:hover,
+        .nav-logout:hover {
+            color: #fff;
+            background: rgba(30, 41, 59, .7);
+            border-color: var(--border);
+            transform: translateX(2px);
+        }
+
+        .nav-icon {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            background: rgba(51, 65, 85, .35);
+            font-size: 14px;
+        }
+
+        .nav-logout {
+            margin-top: auto;
+            color: #fca5a5;
+        }
+
+        .nav-logout .nav-icon {
+            background: rgba(127, 29, 29, .22);
+        }
+
+        /* =========================================
+           MAIN
+        ========================================= */
 
         .main {
-            margin-left: 240px;
-            width: calc(100% - 240px);
+            width: 100%;
+            padding:
+                112px
+                28px
+                50px;
+        }
+
+        .content {
+            width: min(1400px, 100%);
+            margin: 0 auto;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
             padding: 30px;
+            margin-bottom: 22px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(17, 24, 39, .94),
+                    rgba(15, 23, 42, .72)
+                );
+            box-shadow:
+                0 24px 70px rgba(0, 0, 0, .24),
+                inset 0 1px 0 rgba(255, 255, 255, .03);
         }
 
-        .topbar {
-            display: flex;
-            justify-content: space-between;
+        .hero::before {
+            content: "";
+            position: absolute;
+            width: 280px;
+            height: 280px;
+            top: -170px;
+            right: -70px;
+            border-radius: 50%;
+            background: rgba(139, 92, 246, .18);
+            filter: blur(30px);
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .eyebrow {
+            display: inline-flex;
             align-items: center;
-            margin-bottom: 25px;
-            gap: 15px;
+            gap: 8px;
+            margin-bottom: 13px;
+            color: #a78bfa;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 1.7px;
+            text-transform: uppercase;
         }
 
-        .page-title {
+        .eyebrow-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #8b5cf6;
+            box-shadow: 0 0 14px rgba(139, 92, 246, .8);
+        }
+
+        .hero h1 {
             margin: 0;
-            font-size: 28px;
-            font-weight: 800;
+            font-size: clamp(27px, 4vw, 42px);
+            line-height: 1.05;
+            letter-spacing: -.8px;
         }
 
-        .page-subtitle {
-            margin-top: 6px;
-            color: #6b7280;
+        .hero p {
+            max-width: 720px;
+            margin: 13px 0 0;
+            color: var(--muted);
             font-size: 14px;
+            line-height: 1.7;
         }
 
-        .user-info {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 10px 14px;
-            font-size: 13px;
-        }
+        /* =========================================
+           STATS
+        ========================================= */
 
         .stats {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
             gap: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
 
         .stat-card {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 20px;
-            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.05);
+            position: relative;
+            overflow: hidden;
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 19px;
+            background: var(--panel);
+            box-shadow:
+                0 16px 45px rgba(0, 0, 0, .17),
+                inset 0 1px 0 rgba(255, 255, 255, .025);
+        }
+
+        .stat-card::after {
+            content: "";
+            position: absolute;
+            width: 110px;
+            height: 110px;
+            right: -45px;
+            bottom: -55px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, .13);
+            filter: blur(18px);
+        }
+
+        .stat-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
         }
 
         .stat-label {
-            color: #6b7280;
-            font-size: 12px;
-            font-weight: 700;
-            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 850;
+            letter-spacing: 1.3px;
+        }
+
+        .stat-icon {
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(99, 102, 241, .13);
+            color: #a5b4fc;
+            font-size: 16px;
         }
 
         .stat-value {
-            font-size: 28px;
-            font-weight: 800;
+            position: relative;
+            z-index: 1;
+            margin-top: 15px;
+            font-size: 30px;
+            font-weight: 850;
+            letter-spacing: -.5px;
         }
 
+        .stat-description {
+            position: relative;
+            z-index: 1;
+            margin-top: 5px;
+            color: var(--muted-2);
+            font-size: 11px;
+        }
+
+        /* =========================================
+           CREDIT CARD
+        ========================================= */
+
         .card {
-            background: rgba(255, 255, 255, 0.96);
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.05);
             overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            background: var(--panel);
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, .2),
+                inset 0 1px 0 rgba(255, 255, 255, .025);
         }
 
         .card-header {
-            padding: 20px;
-            border-bottom: 1px solid #e5e7eb;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            gap: 15px;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 23px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title-wrap {
+            min-width: 0;
         }
 
         .card-title {
             margin: 0;
-            font-size: 18px;
-            font-weight: 800;
+            font-size: 17px;
+            font-weight: 850;
         }
 
         .card-subtitle {
             margin-top: 5px;
-            color: #6b7280;
-            font-size: 13px;
-        }
-
-        .btn {
-            border: 0;
-            border-radius: 8px;
-            padding: 9px 12px;
+            color: var(--muted);
             font-size: 12px;
-            font-weight: 700;
+        }
+
+        .refresh-button {
+            min-height: 40px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: rgba(30, 41, 59, .65);
+            color: #e2e8f0;
             cursor: pointer;
+            font-size: 11px;
+            font-weight: 850;
+            letter-spacing: .5px;
+            transition:
+                background .2s ease,
+                border-color .2s ease,
+                transform .2s ease;
         }
 
-        .btn-dark {
-            background: #111827;
-            color: #fff;
+        .refresh-button:hover {
+            background: rgba(51, 65, 85, .75);
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
         }
 
-        .btn-add {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .btn-remove {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .btn:disabled {
+        .refresh-button:disabled {
             opacity: .5;
             cursor: not-allowed;
+            transform: none;
         }
 
         .message {
-            margin: 18px 20px 0;
-            padding: 12px 14px;
-            border-radius: 8px;
-            font-size: 13px;
             display: none;
+            margin: 18px 22px 0;
+            padding: 12px 14px;
+            border-radius: 11px;
+            font-size: 12px;
+            line-height: 1.5;
         }
 
         .message.success {
             display: block;
-            background: #ecfdf5;
-            color: #047857;
-            border: 1px solid #a7f3d0;
+            color: #86efac;
+            background: rgba(22, 101, 52, .18);
+            border: 1px solid rgba(34, 197, 94, .25);
         }
 
         .message.error {
             display: block;
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
+            color: #fca5a5;
+            background: rgba(127, 29, 29, .18);
+            border: 1px solid rgba(239, 68, 68, .25);
         }
 
         .table-wrap {
@@ -235,135 +613,286 @@
 
         table {
             width: 100%;
+            min-width: 900px;
             border-collapse: collapse;
-            min-width: 850px;
         }
 
         th,
         td {
-            padding: 14px 18px;
+            padding: 15px 18px;
+            border-bottom: 1px solid rgba(148, 163, 184, .08);
             text-align: left;
-            border-bottom: 1px solid #eef0f3;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         th {
-            background: #f9fafb;
-            color: #6b7280;
-            font-size: 11px;
-            letter-spacing: .5px;
-            font-weight: 800;
+            background: rgba(2, 6, 23, .26);
+            color: var(--muted-2);
+            font-size: 9px;
+            font-weight: 850;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
         }
 
-        tr:hover td {
-            background: #fafafa;
+        td {
+            color: #dbe4f0;
         }
 
-        .credit {
-            font-weight: 800;
-            font-size: 15px;
+        tbody tr {
+            transition: background .18s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(30, 41, 59, .27);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .name-cell {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            min-width: 190px;
+        }
+
+        .avatar {
+            width: 35px;
+            height: 35px;
+            flex: 0 0 35px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 11px;
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(139, 92, 246, .24),
+                    rgba(99, 102, 241, .16)
+                );
+            border: 1px solid rgba(139, 92, 246, .2);
+            color: #c4b5fd;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .name-info {
+            min-width: 0;
+        }
+
+        .name {
+            overflow: hidden;
+            color: #f1f5f9;
+            font-weight: 750;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .email {
+            overflow: hidden;
+            max-width: 240px;
+            margin-top: 3px;
+            color: var(--muted-2);
+            font-size: 10px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .credit-value {
+            color: #c4b5fd;
+            font-size: 16px;
+            font-weight: 850;
         }
 
         .role {
-            display: inline-block;
-            padding: 4px 8px;
+            display: inline-flex;
+            padding: 5px 8px;
+            border: 1px solid var(--border);
             border-radius: 999px;
-            background: #f3f4f6;
-            font-size: 10px;
-            font-weight: 800;
+            color: #cbd5e1;
+            background: rgba(51, 65, 85, .28);
+            font-size: 9px;
+            font-weight: 850;
         }
 
         .status {
-            display: inline-block;
-            padding: 5px 9px;
+            display: inline-flex;
+            padding: 5px 8px;
             border-radius: 999px;
-            font-size: 10px;
-            font-weight: 800;
+            font-size: 9px;
+            font-weight: 850;
             text-transform: uppercase;
         }
 
         .status.active {
-            background: #dcfce7;
-            color: #166534;
+            color: #86efac;
+            background: rgba(22, 101, 52, .18);
+            border: 1px solid rgba(34, 197, 94, .2);
         }
 
         .status.suspended {
-            background: #fef3c7;
-            color: #92400e;
+            color: #fcd34d;
+            background: rgba(146, 64, 14, .18);
+            border: 1px solid rgba(245, 158, 11, .2);
         }
 
         .status.banned {
-            background: #fee2e2;
-            color: #991b1b;
+            color: #fca5a5;
+            background: rgba(127, 29, 29, .18);
+            border: 1px solid rgba(239, 68, 68, .2);
         }
 
         .actions {
             display: flex;
+            align-items: center;
             gap: 7px;
             flex-wrap: wrap;
         }
 
+        .action-button {
+            min-height: 32px;
+            padding: 0 10px;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: 850;
+            letter-spacing: .3px;
+            transition:
+                transform .18s ease,
+                filter .18s ease;
+        }
+
+        .action-button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .action-button:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .add-button {
+            color: #86efac;
+            background: rgba(22, 101, 52, .2);
+            border-color: rgba(34, 197, 94, .2);
+        }
+
+        .remove-button {
+            color: #fca5a5;
+            background: rgba(127, 29, 29, .2);
+            border-color: rgba(239, 68, 68, .2);
+        }
+
+        .loading,
         .empty {
-            padding: 60px 20px;
+            padding: 65px 25px;
             text-align: center;
-            color: #6b7280;
+            color: var(--muted);
+            font-size: 12px;
         }
 
         .empty strong {
             display: block;
-            color: #111827;
-            margin-bottom: 8px;
+            margin-bottom: 7px;
+            color: #e2e8f0;
+            font-size: 14px;
         }
 
-        .loading {
-            padding: 50px;
+        .footer-note {
+            margin-top: 17px;
+            color: var(--muted-2);
+            font-size: 10px;
             text-align: center;
-            color: #6b7280;
         }
+
+        /* =========================================
+           RESPONSIVE
+        ========================================= */
 
         @media (max-width: 800px) {
-            .sidebar {
-                width: 190px;
+            .topbar {
+                padding: 0 17px;
+            }
+
+            .top-brand-subtitle {
+                display: none;
+            }
+
+            .back-button {
+                padding: 0 12px;
             }
 
             .main {
-                margin-left: 190px;
-                width: calc(100% - 190px);
-                padding: 20px;
+                padding:
+                    100px
+                    16px
+                    35px;
+            }
+
+            .hero {
+                padding: 23px;
+                border-radius: 20px;
             }
 
             .stats {
                 grid-template-columns: 1fr;
             }
+
+            .card-header {
+                align-items: flex-start;
+            }
         }
 
-        @media (max-width: 600px) {
-            .sidebar {
-                position: relative;
-                width: 100%;
-                min-height: auto;
-                border-right: 0;
-                border-bottom: 1px solid #e5e7eb;
+        @media (max-width: 560px) {
+            .topbar {
+                height: 68px;
             }
 
-            .layout {
-                display: block;
+            .menu-button {
+                width: 40px;
+                height: 40px;
             }
 
-            .nav {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
+            .top-brand {
+                display: none;
+            }
+
+            .back-button {
+                min-height: 40px;
+                padding: 0 11px;
+                font-size: 10px;
             }
 
             .main {
-                margin-left: 0;
-                width: 100%;
-                padding: 15px;
+                padding-top: 88px;
             }
 
-            .topbar {
+            .hero {
+                padding: 20px;
+            }
+
+            .hero h1 {
+                font-size: 28px;
+            }
+
+            .hero p {
+                font-size: 12px;
+            }
+
+            .card-header {
                 flex-direction: column;
-                align-items: flex-start;
+            }
+
+            .refresh-button {
+                width: 100%;
+            }
+
+            .sidebar {
+                width: min(300px, 88vw);
             }
         }
     </style>
@@ -371,140 +900,260 @@
 
 <body>
 
-<div class="layout">
+<div class="app">
 
-    <aside class="sidebar">
+    <!-- TOPBAR -->
+    <header class="topbar">
 
-        <div class="brand">GEN-Z.AI</div>
+        <div class="topbar-left">
 
-        <div class="brand-sub">
-            ADMIN CONTROL
+            <button
+                type="button"
+                class="menu-button"
+                id="menuButton"
+                aria-label="Open navigation"
+                onclick="openSidebar()"
+            >
+                <span class="menu-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+            </button>
+
+            <div class="top-brand">
+                <div class="top-brand-title">
+                    GEN-Z.AI
+                </div>
+
+                <div class="top-brand-subtitle">
+                    ADMIN CONTROL
+                </div>
+            </div>
+
+        </div>
+
+        <div class="topbar-right">
+
+            <a
+                href="admin-panel.html"
+                class="back-button"
+            >
+                <span class="back-arrow">←</span>
+                <span>BACK TO ADMIN PANEL</span>
+            </a>
+
+        </div>
+
+    </header>
+
+    <!-- SIDEBAR OVERLAY -->
+    <div
+        class="sidebar-overlay"
+        id="sidebarOverlay"
+        onclick="closeSidebar()"
+    ></div>
+
+    <!-- SIDEBAR -->
+    <aside
+        class="sidebar"
+        id="sidebar"
+    >
+
+        <div class="sidebar-head">
+
+            <div class="sidebar-brand">
+
+                <strong>
+                    GEN-Z.AI
+                </strong>
+
+                <span>
+                    ADMIN CONTROL
+                </span>
+
+            </div>
+
+            <button
+                type="button"
+                class="close-sidebar"
+                onclick="closeSidebar()"
+                aria-label="Close navigation"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <div class="nav-label">
+            NAVIGATION
         </div>
 
         <nav class="nav">
 
             <a href="admin-panel.html">
-                DASHBOARD
+                <span class="nav-icon">⌂</span>
+                <span>Dashboard</span>
             </a>
 
             <a href="../generate/index.html">
-                GENERATE
+                <span class="nav-icon">✦</span>
+                <span>Generate</span>
             </a>
 
             <a href="../history/index.html">
-                HISTORY
+                <span class="nav-icon">◷</span>
+                <span>History</span>
             </a>
 
         </nav>
 
         <button
-            class="logout"
+            type="button"
+            class="nav-logout"
             onclick="logout()"
         >
-            LOG OUT
+            <span class="nav-icon">↪</span>
+            <span>Log Out</span>
         </button>
 
     </aside>
 
+    <!-- MAIN -->
     <main class="main">
 
-        <div class="topbar">
+        <div class="content">
 
-            <div>
+            <!-- HERO -->
+            <section class="hero">
 
-                <h1 class="page-title">
-                    CREDIT MANAGEMENT
-                </h1>
+                <div class="hero-content">
 
-                <div class="page-subtitle">
-                    Kelola saldo kredit pengguna GEN-Z.AI
+                    <div class="eyebrow">
+                        <span class="eyebrow-dot"></span>
+                        CREDIT CONTROL
+                    </div>
+
+                    <h1>
+                        Credit Management
+                    </h1>
+
+                    <p>
+                        Kelola saldo kredit pengguna GEN-Z.AI
+                        dengan cepat dan aman dari satu tempat.
+                    </p>
+
                 </div>
 
-            </div>
+            </section>
 
-            <div
-                class="user-info"
-                id="userInfo"
-            >
-                Memuat...
-            </div>
+            <!-- STATS -->
+            <section class="stats">
 
-        </div>
+                <div class="stat-card">
 
-        <div class="stats">
+                    <div class="stat-top">
 
-            <div class="stat-card">
+                        <div class="stat-label">
+                            TOTAL USERS
+                        </div>
 
-                <div class="stat-label">
-                    TOTAL USERS
-                </div>
+                        <div class="stat-icon">
+                            ◉
+                        </div>
 
-                <div
-                    class="stat-value"
-                    id="totalUsers"
-                >
-                    0
-                </div>
+                    </div>
 
-            </div>
+                    <div
+                        class="stat-value"
+                        id="totalUsers"
+                    >
+                        0
+                    </div>
 
-            <div class="stat-card">
-
-                <div class="stat-label">
-                    TOTAL CREDIT
-                </div>
-
-                <div
-                    class="stat-value"
-                    id="totalCredits"
-                >
-                    0
-                </div>
-
-            </div>
-
-        </div>
-
-        <section class="card">
-
-            <div class="card-header">
-
-                <div>
-
-                    <h2 class="card-title">
-                        USER CREDIT
-                    </h2>
-
-                    <div class="card-subtitle">
-                        Tambah atau kurangi kredit pengguna.
+                    <div class="stat-description">
+                        Pengguna terdaftar
                     </div>
 
                 </div>
 
-                <button
-                    class="btn btn-dark"
-                    id="refreshButton"
-                    onclick="loadCredit()"
-                >
-                    REFRESH
-                </button>
+                <div class="stat-card">
 
-            </div>
+                    <div class="stat-top">
 
-            <div
-                id="message"
-                class="message"
-            ></div>
+                        <div class="stat-label">
+                            TOTAL CREDIT
+                        </div>
 
-            <div id="creditContainer">
+                        <div class="stat-icon">
+                            ✦
+                        </div>
 
-                <div class="loading">
-                    Memuat data kredit...
+                    </div>
+
+                    <div
+                        class="stat-value"
+                        id="totalCredits"
+                    >
+                        0
+                    </div>
+
+                    <div class="stat-description">
+                        Total credit seluruh pengguna
+                    </div>
+
                 </div>
 
+            </section>
+
+            <!-- CREDIT TABLE -->
+            <section class="card">
+
+                <div class="card-header">
+
+                    <div class="card-title-wrap">
+
+                        <h2 class="card-title">
+                            User Credit
+                        </h2>
+
+                        <div class="card-subtitle">
+                            Tambah atau kurangi credit pengguna.
+                        </div>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="refresh-button"
+                        id="refreshButton"
+                        onclick="loadCredit()"
+                    >
+                        REFRESH
+                    </button>
+
+                </div>
+
+                <div
+                    id="message"
+                    class="message"
+                ></div>
+
+                <div id="creditContainer">
+
+                    <div class="loading">
+                        Memuat data kredit...
+                    </div>
+
+                </div>
+
+            </section>
+
+            <div class="footer-note">
+                GEN-Z.AI • Admin Credit Management
             </div>
 
-        </section>
+        </div>
 
     </main>
 
@@ -537,10 +1186,65 @@ function escapeHtml(value) {
 
 }
 
-function showMessage(text, type) {
+function openSidebar() {
+
+    document
+        .getElementById("sidebar")
+        .classList.add("open");
+
+    document
+        .getElementById("sidebarOverlay")
+        .classList.add("open");
+
+}
+
+function closeSidebar() {
+
+    document
+        .getElementById("sidebar")
+        .classList.remove("open");
+
+    document
+        .getElementById("sidebarOverlay")
+        .classList.remove("open");
+
+}
+
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+            closeSidebar();
+        }
+
+    }
+);
+
+document.querySelectorAll(
+    ".nav a"
+).forEach(function(link) {
+
+    link.addEventListener(
+        "click",
+        function() {
+            closeSidebar();
+        }
+    );
+
+});
+
+function showMessage(
+    text,
+    type
+) {
 
     const message =
-        document.getElementById("message");
+        document.getElementById(
+            "message"
+        );
 
     message.textContent = text;
 
@@ -552,7 +1256,9 @@ function showMessage(text, type) {
 function clearMessage() {
 
     const message =
-        document.getElementById("message");
+        document.getElementById(
+            "message"
+        );
 
     message.textContent = "";
 
@@ -578,6 +1284,7 @@ async function checkAuth() {
             "../index.html";
 
         return false;
+
     }
 
     currentUser =
@@ -608,11 +1315,14 @@ async function checkAuth() {
             "../index.html";
 
         return false;
+
     }
 
     if (
         !["ADMIN", "OWNER"].includes(
-            profile.role
+            String(
+                profile.role || ""
+            ).toUpperCase()
         ) ||
         profile.status !== "active"
     ) {
@@ -621,16 +1331,11 @@ async function checkAuth() {
             "../user/dashboard.html";
 
         return false;
+
     }
 
-    document.getElementById(
-        "userInfo"
-    ).textContent =
-        profile.email +
-        " • " +
-        profile.role;
-
     return true;
+
 }
 
 async function loadCredit() {
@@ -676,9 +1381,7 @@ async function loadCredit() {
             );
 
         if (error) {
-
             throw error;
-
         }
 
         const users =
@@ -689,11 +1392,16 @@ async function loadCredit() {
 
         const totalCredits =
             users.reduce(
-                (total, user) =>
-                    total +
-                    Number(
-                        user.credits || 0
-                    ),
+                function(total, user) {
+
+                    return (
+                        total +
+                        Number(
+                            user.credits || 0
+                        )
+                    );
+
+                },
                 0
             );
 
@@ -711,26 +1419,137 @@ async function loadCredit() {
                 "id-ID"
             );
 
-        if (users.length === 0) {
+        if (!users.length) {
 
             container.innerHTML = `
                 <div class="empty">
-
                     <strong>
-                        BELUM ADA USER
+                        Belum ada pengguna
                     </strong>
-
-                    <span>
-                        Belum ada data pengguna.
-                    </span>
-
+                    Tidak ada data pengguna yang tersedia.
                 </div>
             `;
 
             return;
+
         }
 
-        let html = `
+        let rows = "";
+
+        users.forEach(
+            function(user) {
+
+                const name =
+                    user.name ||
+                    "Unnamed User";
+
+                const email =
+                    user.email ||
+                    "-";
+
+                const role =
+                    user.role ||
+                    "USER";
+
+                const status =
+                    user.status ||
+                    "active";
+
+                const credits =
+                    Number(
+                        user.credits || 0
+                    );
+
+                const initial =
+                    escapeHtml(
+                        name
+                            .trim()
+                            .charAt(0)
+                            .toUpperCase() ||
+                        "U"
+                    );
+
+                rows += `
+                    <tr>
+
+                        <td>
+                            <div class="name-cell">
+
+                                <div class="avatar">
+                                    ${initial}
+                                </div>
+
+                                <div class="name-info">
+
+                                    <div class="name">
+                                        ${escapeHtml(name)}
+                                    </div>
+
+                                    <div class="email">
+                                        ${escapeHtml(email)}
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="role">
+                                ${escapeHtml(role)}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="status ${escapeHtml(String(status).toLowerCase())}">
+                                ${escapeHtml(status)}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="credit-value">
+                                ${credits.toLocaleString("id-ID")}
+                            </span>
+                        </td>
+
+                        <td>
+
+                            <div class="actions">
+
+                                <button
+                                    type="button"
+                                    class="action-button add-button"
+                                    onclick="addCredit(
+                                        '${escapeHtml(user.id)}',
+                                        '${escapeHtml(name)}'
+                                    )"
+                                >
+                                    + CREDIT
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="action-button remove-button"
+                                    onclick="removeCredit(
+                                        '${escapeHtml(user.id)}',
+                                        '${escapeHtml(name)}',
+                                        ${credits}
+                                    )"
+                                >
+                                    - CREDIT
+                                </button>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+                `;
+
+            }
+        );
+
+        container.innerHTML = `
             <div class="table-wrap">
 
                 <table>
@@ -738,110 +1557,17 @@ async function loadCredit() {
                     <thead>
 
                         <tr>
-                            <th>EMAIL</th>
-                            <th>NAMA</th>
-                            <th>ROLE</th>
-                            <th>CREDIT</th>
-                            <th>STATUS</th>
-                            <th>ACTION</th>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Credit</th>
+                            <th>Actions</th>
                         </tr>
 
                     </thead>
 
                     <tbody>
-        `;
-
-        users.forEach(user => {
-
-            const status =
-                String(
-                    user.status ||
-                    "active"
-                ).toLowerCase();
-
-            html += `
-                <tr>
-
-                    <td>
-                        ${escapeHtml(
-                            user.email || "-"
-                        )}
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            user.name || "-"
-                        )}
-                    </td>
-
-                    <td>
-
-                        <span class="role">
-
-                            ${escapeHtml(
-                                user.role || "USER"
-                            )}
-
-                        </span>
-
-                    </td>
-
-                    <td>
-
-                        <span class="credit">
-
-                            ${Number(
-                                user.credits || 0
-                            ).toLocaleString(
-                                "id-ID"
-                            )}
-
-                        </span>
-
-                    </td>
-
-                    <td>
-
-                        <span
-                            class="status ${status}"
-                        >
-
-                            ${escapeHtml(
-                                status
-                            )}
-
-                        </span>
-
-                    </td>
-
-                    <td>
-
-                        <div class="actions">
-
-                            <button
-                                class="btn btn-add"
-                                onclick="addCredit('${user.id}')"
-                            >
-                                + CREDIT
-                            </button>
-
-                            <button
-                                class="btn btn-remove"
-                                onclick="removeCredit('${user.id}')"
-                            >
-                                - CREDIT
-                            </button>
-
-                        </div>
-
-                    </td>
-
-                </tr>
-            `;
-
-        });
-
-        html += `
+                        ${rows}
                     </tbody>
 
                 </table>
@@ -849,35 +1575,25 @@ async function loadCredit() {
             </div>
         `;
 
-        container.innerHTML =
-            html;
-
     } catch (error) {
 
         console.error(
-            "CREDIT ERROR:",
+            "loadCredit error:",
             error
         );
 
         container.innerHTML = `
             <div class="empty">
-
                 <strong>
-                    GAGAL MEMUAT CREDIT
+                    Gagal memuat data
                 </strong>
-
-                <span>
-                    ${escapeHtml(
-                        error.message ||
-                        "Terjadi kesalahan."
-                    )}
-                </span>
-
+                Silakan tekan Refresh dan coba lagi.
             </div>
         `;
 
         showMessage(
-            "Gagal mengambil data kredit dari database.",
+            error.message ||
+            "Gagal memuat data credit.",
             "error"
         );
 
@@ -893,63 +1609,90 @@ async function loadCredit() {
 
 }
 
-async function addCredit(userId) {
+async function addCredit(
+    userId,
+    userName
+) {
 
-    const value =
+    const amountInput =
         window.prompt(
-            "Masukkan jumlah kredit yang ingin ditambahkan:"
+            "Masukkan jumlah credit yang ingin ditambahkan:"
         );
 
     if (
-        value === null ||
-        value.trim() === ""
+        amountInput === null
     ) {
-
         return;
     }
 
     const amount =
-        Number(value);
+        Number(
+            amountInput
+        );
 
     if (
-        !Number.isInteger(amount) ||
+        !Number.isFinite(amount) ||
         amount <= 0
     ) {
 
         showMessage(
-            "Jumlah kredit harus berupa angka bulat lebih dari 0.",
+            "Jumlah credit harus lebih dari 0.",
             "error"
         );
 
         return;
+
     }
 
-    clearMessage();
+    if (
+        !Number.isInteger(amount)
+    ) {
+
+        showMessage(
+            "Jumlah credit harus berupa angka bulat.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const confirmed =
+        window.confirm(
+            "Tambahkan " +
+            amount.toLocaleString("id-ID") +
+            " credit kepada " +
+            userName +
+            "?"
+        );
+
+    if (!confirmed) {
+        return;
+    }
 
     try {
 
+        clearMessage();
+
         const {
             error
-        } = await supabaseClient
-            .rpc(
-                "add_credit",
-                {
-                    p_user_id: userId,
-                    p_amount: amount,
-                    p_type: "admin_add",
-                    p_description:
-                        "Penambahan kredit oleh admin GEN-Z.AI"
-                }
-            );
+        } = await supabaseClient.rpc(
+            "add_credit",
+            {
+                p_user_id: userId,
+                p_amount: amount,
+                p_type: "admin_add",
+                p_description:
+                    "Credit added by admin"
+            }
+        );
 
         if (error) {
-
             throw error;
-
         }
 
         showMessage(
-            "Kredit berhasil ditambahkan.",
+            "Credit berhasil ditambahkan.",
             "success"
         );
 
@@ -958,16 +1701,13 @@ async function addCredit(userId) {
     } catch (error) {
 
         console.error(
-            "ADD CREDIT ERROR:",
+            "addCredit error:",
             error
         );
 
         showMessage(
-            "Gagal menambahkan kredit: " +
-            (
-                error.message ||
-                "Terjadi kesalahan."
-            ),
+            error.message ||
+            "Gagal menambahkan credit.",
             "error"
         );
 
@@ -975,62 +1715,103 @@ async function addCredit(userId) {
 
 }
 
-async function removeCredit(userId) {
+async function removeCredit(
+    userId,
+    userName,
+    currentCredits
+) {
 
-    const value =
+    const amountInput =
         window.prompt(
-            "Masukkan jumlah kredit yang ingin dikurangi:"
+            "Masukkan jumlah credit yang ingin dikurangi:"
         );
 
     if (
-        value === null ||
-        value.trim() === ""
+        amountInput === null
     ) {
-
         return;
     }
 
     const amount =
-        Number(value);
+        Number(
+            amountInput
+        );
 
     if (
-        !Number.isInteger(amount) ||
+        !Number.isFinite(amount) ||
         amount <= 0
     ) {
 
         showMessage(
-            "Jumlah kredit harus berupa angka bulat lebih dari 0.",
+            "Jumlah credit harus lebih dari 0.",
             "error"
         );
 
         return;
+
     }
 
-    clearMessage();
+    if (
+        !Number.isInteger(amount)
+    ) {
+
+        showMessage(
+            "Jumlah credit harus berupa angka bulat.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    if (
+        amount > Number(currentCredits)
+    ) {
+
+        showMessage(
+            "Credit yang dikurangi tidak boleh melebihi saldo pengguna.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const confirmed =
+        window.confirm(
+            "Kurangi " +
+            amount.toLocaleString("id-ID") +
+            " credit dari " +
+            userName +
+            "?"
+        );
+
+    if (!confirmed) {
+        return;
+    }
 
     try {
 
+        clearMessage();
+
         const {
             error
-        } = await supabaseClient
-            .rpc(
-                "admin_remove_credit",
-                {
-                    p_user_id: userId,
-                    p_amount: amount,
-                    p_description:
-                        "Pengurangan kredit oleh admin GEN-Z.AI"
-                }
-            );
+        } = await supabaseClient.rpc(
+            "admin_remove_credit",
+            {
+                p_user_id: userId,
+                p_amount: amount,
+                p_description:
+                    "Credit removed by admin"
+            }
+        );
 
         if (error) {
-
             throw error;
-
         }
 
         showMessage(
-            "Kredit berhasil dikurangi.",
+            "Credit berhasil dikurangi.",
             "success"
         );
 
@@ -1039,16 +1820,13 @@ async function removeCredit(userId) {
     } catch (error) {
 
         console.error(
-            "REMOVE CREDIT ERROR:",
+            "removeCredit error:",
             error
         );
 
         showMessage(
-            "Gagal mengurangi kredit: " +
-            (
-                error.message ||
-                "Terjadi kesalahan."
-            ),
+            error.message ||
+            "Gagal mengurangi credit.",
             "error"
         );
 
@@ -1058,7 +1836,18 @@ async function removeCredit(userId) {
 
 async function logout() {
 
-    await supabaseClient.auth.signOut();
+    try {
+
+        await supabaseClient.auth.signOut();
+
+    } catch (error) {
+
+        console.error(
+            "Logout error:",
+            error
+        );
+
+    }
 
     window.location.href =
         "../index.html";
@@ -1067,13 +1856,11 @@ async function logout() {
 
 async function init() {
 
-    const authenticated =
+    const authorized =
         await checkAuth();
 
-    if (!authenticated) {
-
+    if (!authorized) {
         return;
-
     }
 
     await loadCredit();
