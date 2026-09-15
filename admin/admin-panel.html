@@ -20,13 +20,12 @@
             padding: 0;
             min-height: 100%;
             font-family: Arial, Helvetica, sans-serif;
-            background:
-                linear-gradient(
-                    135deg,
-                    #f8fafc 0%,
-                    #eef2f7 45%,
-                    #ffffff 100%
-                );
+            background: linear-gradient(
+                135deg,
+                #f8fafc 0%,
+                #eef2f7 45%,
+                #ffffff 100%
+            );
             color: #111827;
         }
 
@@ -66,7 +65,6 @@
         .brand {
             font-size: 24px;
             font-weight: 800;
-            letter-spacing: .5px;
             padding: 0 10px;
             margin-bottom: 6px;
         }
@@ -99,7 +97,7 @@
             background: transparent;
             color: #d1d5db;
             text-align: left;
-            padding: 12px 12px;
+            padding: 12px;
             border-radius: 9px;
             font-size: 14px;
             transition: .2s;
@@ -186,7 +184,7 @@
             border: 1px solid #e5e7eb;
             border-radius: 14px;
             padding: 20px;
-            box-shadow: 0 5px 20px rgba(15, 23, 42, .04);
+            box-shadow: 0 5px 20px rgba(15,23,42,.04);
         }
 
         .stat-label {
@@ -207,7 +205,7 @@
             border: 1px solid #e5e7eb;
             border-radius: 14px;
             padding: 22px;
-            box-shadow: 0 5px 20px rgba(15, 23, 42, .04);
+            box-shadow: 0 5px 20px rgba(15,23,42,.04);
             margin-bottom: 20px;
         }
 
@@ -300,11 +298,6 @@
             color: white;
         }
 
-        .btn-success {
-            background: #059669;
-            color: white;
-        }
-
         .btn-small {
             padding: 7px 10px;
             font-size: 12px;
@@ -365,11 +358,6 @@
         .badge-maintenance {
             background: #fef3c7;
             color: #92400e;
-        }
-
-        .badge-success {
-            background: #dcfce7;
-            color: #166534;
         }
 
         .badge-danger {
@@ -758,8 +746,6 @@
             class="message"
         ></div>
 
-        <!-- USERS -->
-
         <section
             id="section-users"
             class="section active"
@@ -835,17 +821,13 @@
                         </p>
                     </div>
 
-                    <div class="toolbar">
-
-                        <input
-                            type="text"
-                            id="userSearch"
-                            class="input search-input"
-                            placeholder="Cari email atau nama..."
-                            oninput="filterUsers()"
-                        >
-
-                    </div>
+                    <input
+                        type="text"
+                        id="userSearch"
+                        class="input search-input"
+                        placeholder="Cari email atau nama..."
+                        oninput="filterUsers()"
+                    >
 
                 </div>
 
@@ -884,8 +866,6 @@
 
         </section>
 
-
-        <!-- PROVIDERS -->
 
         <section
             id="section-providers"
@@ -926,7 +906,10 @@
 
                 </div>
 
-                <div id="providerMessage"></div>
+                <div
+                    id="providerMessage"
+                    class="message"
+                ></div>
 
                 <div
                     id="providersContainer"
@@ -943,8 +926,6 @@
 
         </section>
 
-
-        <!-- MODELS -->
 
         <section
             id="section-models"
@@ -984,8 +965,6 @@
         </section>
 
 
-        <!-- CREDIT -->
-
         <section
             id="section-credit"
             class="section"
@@ -1024,8 +1003,6 @@
         </section>
 
 
-        <!-- SYSTEM -->
-
         <section
             id="section-system"
             class="section"
@@ -1043,6 +1020,7 @@
                         <p class="card-description">
                             Informasi konfigurasi sistem GEN-Z.AI.
                         </p>
+
                     </div>
 
                 </div>
@@ -1107,8 +1085,6 @@
 
 </div>
 
-
-<!-- PROVIDER MODAL -->
 
 <div
     id="providerModal"
@@ -1211,6 +1187,7 @@
                     id="providerStatus"
                     class="select"
                 >
+
                     <option value="active">
                         Active
                     </option>
@@ -1291,28 +1268,28 @@
     let editingProviderId = null;
 
 
-    /* =========================
-       CONFIG
-    ========================= */
-
     function getSupabaseClient() {
 
-        if (typeof GENZ_CONFIG === "undefined") {
+        if (
+            typeof GENZ_CONFIG === "undefined"
+        ) {
+
             throw new Error(
                 "GENZ_CONFIG tidak ditemukan. Periksa assets/js/config.js."
             );
         }
 
         const url =
-            GENZ_CONFIG.SUPABASE_URL ||
-            GENZ_CONFIG.supabaseUrl;
+            GENZ_CONFIG.SUPABASE_URL;
 
         const key =
-            GENZ_CONFIG.SUPABASE_PUBLISHABLE_KEY ||
-            GENZ_CONFIG.SUPABASE_ANON_KEY ||
-            GENZ_CONFIG.supabaseAnonKey;
+            GENZ_CONFIG.SUPABASE_KEY;
 
-        if (!url || !key) {
+        if (
+            !url ||
+            !key
+        ) {
+
             throw new Error(
                 "Konfigurasi Supabase tidak lengkap."
             );
@@ -1325,10 +1302,6 @@
     }
 
 
-    /* =========================
-       MESSAGE
-    ========================= */
-
     function showMessage(
         elementId,
         message,
@@ -1336,24 +1309,31 @@
     ) {
 
         const element =
-            document.getElementById(elementId);
+            document.getElementById(
+                elementId
+            );
 
         if (!element) {
             return;
         }
 
         element.className =
-            "message show " + type;
+            "message show " +
+            type;
 
         element.textContent =
             message;
     }
 
 
-    function hideMessage(elementId) {
+    function hideMessage(
+        elementId
+    ) {
 
         const element =
-            document.getElementById(elementId);
+            document.getElementById(
+                elementId
+            );
 
         if (!element) {
             return;
@@ -1362,61 +1342,79 @@
         element.className =
             "message";
 
-        element.textContent = "";
+        element.textContent =
+            "";
     }
 
 
-    /* =========================
-       NAVIGATION
-    ========================= */
+    function goToPage(
+        url
+    ) {
 
-    function goToPage(url) {
-
-        window.location.href = url;
+        window.location.href =
+            url;
     }
 
 
-    function showSection(sectionName, buttonElement) {
+    function showSection(
+        sectionName,
+        buttonElement
+    ) {
 
         document
             .querySelectorAll(".section")
-            .forEach(section => {
-                section.classList.remove("active");
-            });
+            .forEach(
+                section => {
+                    section.classList.remove(
+                        "active"
+                    );
+                }
+            );
 
         const section =
             document.getElementById(
-                "section-" + sectionName
+                "section-" +
+                sectionName
             );
 
         if (section) {
-            section.classList.add("active");
+            section.classList.add(
+                "active"
+            );
         }
 
         document
             .querySelectorAll(".nav-item")
-            .forEach(button => {
-                button.classList.remove("active");
-            });
+            .forEach(
+                button => {
+                    button.classList.remove(
+                        "active"
+                    );
+                }
+            );
 
         if (buttonElement) {
-            buttonElement.classList.add("active");
+            buttonElement.classList.add(
+                "active"
+            );
         }
 
-        if (sectionName === "users") {
+        if (
+            sectionName ===
+            "users"
+        ) {
+
             loadUsers();
-        }
 
-        if (sectionName === "providers") {
+        } else if (
+            sectionName ===
+            "providers"
+        ) {
+
             loadProviders();
         }
-
     }
 
-
-    /* =========================
-       AUTH
-    ========================= */
 
     async function checkAuth() {
 
@@ -1426,19 +1424,22 @@
                 getSupabaseClient();
 
             const {
-                data: sessionData,
-                error: sessionError
+                data,
+                error
             } =
                 await supabaseClient.auth.getSession();
 
-            if (sessionError) {
-                throw sessionError;
+            if (error) {
+                throw error;
             }
 
             const session =
-                sessionData?.session;
+                data?.session;
 
-            if (!session?.user) {
+            if (
+                !session ||
+                !session.user
+            ) {
 
                 window.location.href =
                     "../index.html";
@@ -1464,7 +1465,10 @@
                         status,
                         created_at
                     `)
-                    .eq("id", currentUser.id)
+                    .eq(
+                        "id",
+                        currentUser.id
+                    )
                     .single();
 
             if (profileError) {
@@ -1473,7 +1477,10 @@
 
             if (
                 !profile ||
-                !["ADMIN", "OWNER"].includes(
+                ![
+                    "ADMIN",
+                    "OWNER"
+                ].includes(
                     profile.role
                 )
             ) {
@@ -1484,9 +1491,14 @@
                 return false;
             }
 
-            if (profile.status !== "active") {
+            if (
+                profile.status !==
+                "active"
+            ) {
 
-                await supabaseClient.auth.signOut();
+                await supabaseClient
+                    .auth
+                    .signOut();
 
                 window.location.href =
                     "../index.html";
@@ -1536,7 +1548,10 @@
         try {
 
             if (supabaseClient) {
-                await supabaseClient.auth.signOut();
+
+                await supabaseClient
+                    .auth
+                    .signOut();
             }
 
         } catch (error) {
@@ -1545,17 +1560,12 @@
                 "LOGOUT ERROR:",
                 error
             );
-
         }
 
         window.location.href =
             "../index.html";
     }
 
-
-    /* =========================
-       USERS
-    ========================= */
 
     async function loadUsers() {
 
@@ -1627,10 +1637,12 @@
                     <td colspan="6">
                         <div class="empty-state">
                             <strong>Gagal memuat users</strong>
-                            <span>${escapeHtml(
-                                error.message ||
-                                "Terjadi kesalahan."
-                            )}</span>
+                            <span>
+                                ${escapeHtml(
+                                    error.message ||
+                                    "Terjadi kesalahan."
+                                )}
+                            </span>
                         </div>
                     </td>
                 </tr>
@@ -1641,50 +1653,43 @@
 
     function updateUserStats() {
 
-        const total =
-            usersCache.length;
-
-        const active =
-            usersCache.filter(
-                user =>
-                    user.status === "active"
-            ).length;
-
-        const suspended =
-            usersCache.filter(
-                user =>
-                    user.status === "suspended"
-            ).length;
-
-        const banned =
-            usersCache.filter(
-                user =>
-                    user.status === "banned"
-            ).length;
-
         document.getElementById(
             "totalUsers"
         ).textContent =
-            total;
+            usersCache.length;
 
         document.getElementById(
             "activeUsers"
         ).textContent =
-            active;
+            usersCache.filter(
+                user =>
+                    user.status ===
+                    "active"
+            ).length;
 
         document.getElementById(
             "suspendedUsers"
         ).textContent =
-            suspended;
+            usersCache.filter(
+                user =>
+                    user.status ===
+                    "suspended"
+            ).length;
 
         document.getElementById(
             "bannedUsers"
         ).textContent =
-            banned;
+            usersCache.filter(
+                user =>
+                    user.status ===
+                    "banned"
+            ).length;
     }
 
 
-    function renderUsers(users) {
+    function renderUsers(
+        users
+    ) {
 
         const tableBody =
             document.getElementById(
@@ -1698,7 +1703,9 @@
                     <td colspan="6">
                         <div class="empty-state">
                             <strong>Belum ada user</strong>
-                            <span>Tidak ada data user yang tersedia.</span>
+                            <span>
+                                Tidak ada data user yang tersedia.
+                            </span>
                         </div>
                     </td>
                 </tr>
@@ -1709,77 +1716,87 @@
 
         tableBody.innerHTML =
             users
-                .map(user => {
+                .map(
+                    user => {
 
-                    const roleClass =
-                        user.role === "OWNER"
-                            ? "badge-owner"
-                            : "badge-active";
+                        const roleClass =
+                            user.role ===
+                            "OWNER"
+                                ? "badge-owner"
+                                : "badge-active";
 
-                    const statusClass =
-                        getStatusBadgeClass(
-                            user.status
-                        );
+                        const statusClass =
+                            getStatusBadgeClass(
+                                user.status
+                            );
 
-                    return `
-                        <tr>
+                        return `
+                            <tr>
 
-                            <td>
-                                ${escapeHtml(
-                                    user.email || "-"
-                                )}
-                            </td>
-
-                            <td>
-                                ${escapeHtml(
-                                    user.name || "-"
-                                )}
-                            </td>
-
-                            <td>
-                                <span class="badge ${roleClass}">
+                                <td>
                                     ${escapeHtml(
-                                        user.role || "USER"
+                                        user.email ||
+                                        "-"
                                     )}
-                                </span>
-                            </td>
+                                </td>
 
-                            <td>
-                                ${Number(
-                                    user.credits || 0
-                                ).toLocaleString("id-ID")}
-                            </td>
-
-                            <td>
-                                <span class="badge ${statusClass}">
+                                <td>
                                     ${escapeHtml(
-                                        user.status || "-"
+                                        user.name ||
+                                        "-"
                                     )}
-                                </span>
-                            </td>
+                                </td>
 
-                            <td>
-                                ${formatDate(
-                                    user.created_at
-                                )}
-                            </td>
+                                <td>
+                                    <span class="badge ${roleClass}">
+                                        ${escapeHtml(
+                                            user.role ||
+                                            "USER"
+                                        )}
+                                    </span>
+                                </td>
 
-                        </tr>
-                    `;
-                })
+                                <td>
+                                    ${Number(
+                                        user.credits ||
+                                        0
+                                    ).toLocaleString(
+                                        "id-ID"
+                                    )}
+                                </td>
+
+                                <td>
+                                    <span class="badge ${statusClass}">
+                                        ${escapeHtml(
+                                            user.status ||
+                                            "-"
+                                        )}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    ${formatDate(
+                                        user.created_at
+                                    )}
+                                </td>
+
+                            </tr>
+                        `;
+                    }
+                )
                 .join("");
     }
 
 
     function filterUsers() {
 
-        const input =
-            document.getElementById(
-                "userSearch"
-            );
-
         const keyword =
-            (input?.value || "")
+            (
+                document.getElementById(
+                    "userSearch"
+                ).value ||
+                ""
+            )
                 .trim()
                 .toLowerCase();
 
@@ -1792,86 +1809,73 @@
             return;
         }
 
-        const filtered =
+        renderUsers(
             usersCache.filter(
                 user =>
                     String(
-                        user.email || ""
+                        user.email ||
+                        ""
                     )
                         .toLowerCase()
-                        .includes(keyword) ||
+                        .includes(
+                            keyword
+                        ) ||
 
                     String(
-                        user.name || ""
+                        user.name ||
+                        ""
                     )
                         .toLowerCase()
-                        .includes(keyword) ||
+                        .includes(
+                            keyword
+                        ) ||
 
                     String(
-                        user.role || ""
+                        user.role ||
+                        ""
                     )
                         .toLowerCase()
-                        .includes(keyword)
-            );
-
-        renderUsers(
-            filtered
+                        .includes(
+                            keyword
+                        )
+            )
         );
     }
 
 
-    /* =========================
-       PROVIDERS
-    ========================= */
-
     async function cacheProviders() {
 
-        try {
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("providers")
+                .select(`
+                    id,
+                    provider_id,
+                    provider_name,
+                    description,
+                    status,
+                    is_default,
+                    created_at,
+                    updated_at
+                `)
+                .order(
+                    "created_at",
+                    {
+                        ascending: true
+                    }
+                );
 
-            const {
-                data,
-                error
-            } =
-                await supabaseClient
-                    .from("providers")
-                    .select(`
-                        id,
-                        provider_id,
-                        provider_name,
-                        description,
-                        status,
-                        is_default,
-                        created_at,
-                        updated_at
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: true
-                        }
-                    );
-
-            if (error) {
-                throw error;
-            }
-
-            providerCache =
-                data || [];
-
-            return providerCache;
-
-        } catch (error) {
-
-            console.error(
-                "CACHE PROVIDERS ERROR:",
-                error
-            );
-
-            providerCache =
-                [];
-
-            return [];
+        if (error) {
+            throw error;
         }
+
+        providerCache =
+            data || [];
+
+        return providerCache;
     }
 
 
@@ -1904,8 +1908,14 @@
             if (!providers.length) {
 
                 container.innerHTML = `
-                    <div class="empty-state" style="grid-column:1/-1;">
-                        <strong>Provider belum tersedia</strong>
+                    <div
+                        class="empty-state"
+                        style="grid-column:1/-1;"
+                    >
+                        <strong>
+                            Provider belum tersedia
+                        </strong>
+
                         <span>
                             Tidak ada provider yang dapat ditampilkan.
                         </span>
@@ -1927,8 +1937,14 @@
             );
 
             container.innerHTML = `
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <strong>Gagal memuat provider</strong>
+                <div
+                    class="empty-state"
+                    style="grid-column:1/-1;"
+                >
+                    <strong>
+                        Gagal memuat provider
+                    </strong>
+
                     <span>
                         ${escapeHtml(
                             error.message ||
@@ -1957,115 +1973,125 @@
                 "providersContainer"
             );
 
-        if (!container) {
+        if (!providers.length) {
+
+            container.innerHTML = `
+                <div
+                    class="empty-state"
+                    style="grid-column:1/-1;"
+                >
+                    <strong>
+                        Provider belum tersedia
+                    </strong>
+                </div>
+            `;
+
             return;
         }
 
         container.innerHTML =
             providers
-                .map(provider => {
+                .map(
+                    provider => {
 
-                    const statusClass =
-                        getProviderStatusClass(
-                            provider.status
-                        );
+                        const statusClass =
+                            getProviderStatusClass(
+                                provider.status
+                            );
 
-                    return `
-                        <div class="provider-card">
+                        return `
+                            <div class="provider-card">
 
-                            <div class="provider-card-top">
+                                <div class="provider-card-top">
 
-                                <div>
+                                    <div>
 
-                                    <div class="provider-name">
-                                        ${escapeHtml(
-                                            provider.provider_name ||
-                                            "-"
-                                        )}
+                                        <div class="provider-name">
+                                            ${escapeHtml(
+                                                provider.provider_name ||
+                                                "-"
+                                            )}
+                                        </div>
+
+                                        <div class="provider-id">
+                                            ID:
+                                            ${escapeHtml(
+                                                provider.provider_id ||
+                                                "-"
+                                            )}
+                                        </div>
+
                                     </div>
 
-                                    <div class="provider-id">
-                                        ID:
+                                    <span class="badge ${statusClass}">
                                         ${escapeHtml(
-                                            provider.provider_id ||
+                                            provider.status ||
                                             "-"
                                         )}
-                                    </div>
+                                    </span>
 
                                 </div>
 
-                                <span class="badge ${statusClass}">
+                                <div class="provider-description">
                                     ${escapeHtml(
-                                        provider.status ||
-                                        "-"
+                                        provider.description ||
+                                        "Tidak ada deskripsi."
                                     )}
-                                </span>
-
-                            </div>
-
-                            <div class="provider-description">
-                                ${escapeHtml(
-                                    provider.description ||
-                                    "Tidak ada deskripsi."
-                                )}
-                            </div>
-
-                            <div class="provider-meta">
-
-                                <div>
-
-                                    ${
-                                        provider.is_default
-                                            ? `
-                                                <span class="provider-default">
-                                                    ● DEFAULT
-                                                </span>
-                                            `
-                                            : `
-                                                <span style="font-size:11px;color:#9ca3af;">
-                                                    Provider
-                                                </span>
-                                            `
-                                    }
-
                                 </div>
 
-                                <div class="provider-actions">
+                                <div class="provider-meta">
 
-                                    <button
-                                        type="button"
-                                        class="btn btn-light btn-small"
-                                        onclick="openProviderModal('${escapeJs(
-                                            provider.id
-                                        )}')"
-                                    >
-                                        EDIT
-                                    </button>
+                                    <div>
 
-                                    <button
-                                        type="button"
-                                        class="btn btn-danger btn-small"
-                                        onclick="deleteProvider('${escapeJs(
-                                            provider.id
-                                        )}')"
-                                    >
-                                        HAPUS
-                                    </button>
+                                        ${
+                                            provider.is_default
+                                                ? `
+                                                    <span class="provider-default">
+                                                        ● DEFAULT
+                                                    </span>
+                                                `
+                                                : `
+                                                    <span style="font-size:11px;color:#9ca3af;">
+                                                        Provider
+                                                    </span>
+                                                `
+                                        }
+
+                                    </div>
+
+                                    <div class="provider-actions">
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-light btn-small"
+                                            onclick="openProviderModal('${escapeJs(
+                                                provider.id
+                                            )}')"
+                                        >
+                                            EDIT
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-danger btn-small"
+                                            onclick="deleteProvider('${escapeJs(
+                                                provider.id
+                                            )}')"
+                                        >
+                                            HAPUS
+                                        </button>
+
+                                    </div>
 
                                 </div>
 
                             </div>
-
-                        </div>
-                    `;
-                })
+                        `;
+                    }
+                )
                 .join("");
     }
 
-
-    /* =========================
-       PROVIDER MODAL
-    ========================= */
 
     function openProviderModal(
         providerId = null
@@ -2136,7 +2162,7 @@
 
                 showMessage(
                     "providerMessage",
-                    "Data provider tidak ditemukan. Muat ulang daftar provider.",
+                    "Data provider tidak ditemukan.",
                     "error"
                 );
 
@@ -2204,41 +2230,34 @@
             "show"
         );
 
-        setTimeout(() => {
-
-            providerIdInput.focus();
-
-        }, 50);
+        setTimeout(
+            () => {
+                providerIdInput.focus();
+            },
+            50
+        );
     }
 
 
     function closeProviderModal() {
 
-        const modal =
-            document.getElementById(
+        document
+            .getElementById(
                 "providerModal"
+            )
+            .classList.remove(
+                "show"
             );
-
-        modal.classList.remove(
-            "show"
-        );
 
         editingProviderId =
             null;
 
-        const editId =
-            document.getElementById(
-                "providerEditId"
-            );
-
-        editId.value =
+        document.getElementById(
+            "providerEditId"
+        ).value =
             "";
     }
 
-
-    /* =========================
-       SAVE PROVIDER
-    ========================= */
 
     async function saveProvider() {
 
@@ -2302,34 +2321,6 @@
             showMessage(
                 "providerModalMessage",
                 "Provider Name wajib diisi.",
-                "error"
-            );
-
-            return;
-        }
-
-        if (
-            ![
-                "active",
-                "inactive",
-                "maintenance"
-            ].includes(status)
-        ) {
-
-            showMessage(
-                "providerModalMessage",
-                "Status provider tidak valid.",
-                "error"
-            );
-
-            return;
-        }
-
-        if (!supabaseClient) {
-
-            showMessage(
-                "providerModalMessage",
-                "Supabase belum siap.",
                 "error"
             );
 
@@ -2431,24 +2422,10 @@
                 error
             );
 
-            let message =
-                error.message ||
-                "Gagal menyimpan provider.";
-
-            if (
-                message
-                    .toLowerCase()
-                    .includes("duplicate")
-            ) {
-
-                message =
-                    "Provider ID tersebut sudah digunakan.";
-
-            }
-
             showMessage(
                 "providerModalMessage",
-                message,
+                error.message ||
+                "Gagal menyimpan provider.",
                 "error"
             );
 
@@ -2466,17 +2443,9 @@
     }
 
 
-    /* =========================
-       DELETE PROVIDER
-    ========================= */
-
     async function deleteProvider(
         providerId
     ) {
-
-        if (!providerId) {
-            return;
-        }
 
         const provider =
             providerCache.find(
@@ -2562,19 +2531,21 @@
     }
 
 
-    /* =========================
-       HELPERS
-    ========================= */
-
     function getProviderStatusClass(
         status
     ) {
 
-        if (status === "active") {
+        if (
+            status ===
+            "active"
+        ) {
             return "badge-active";
         }
 
-        if (status === "maintenance") {
+        if (
+            status ===
+            "maintenance"
+        ) {
             return "badge-maintenance";
         }
 
@@ -2586,15 +2557,24 @@
         status
     ) {
 
-        if (status === "active") {
+        if (
+            status ===
+            "active"
+        ) {
             return "badge-active";
         }
 
-        if (status === "suspended") {
+        if (
+            status ===
+            "suspended"
+        ) {
             return "badge-maintenance";
         }
 
-        if (status === "banned") {
+        if (
+            status ===
+            "banned"
+        ) {
             return "badge-danger";
         }
 
@@ -2617,8 +2597,11 @@
             ).toLocaleString(
                 "id-ID",
                 {
-                    dateStyle: "medium",
-                    timeStyle: "short"
+                    dateStyle:
+                        "medium",
+
+                    timeStyle:
+                        "short"
                 }
             );
 
@@ -2685,10 +2668,6 @@
     }
 
 
-    /* =========================
-       MODAL EVENTS
-    ========================= */
-
     document
         .getElementById(
             "providerModal"
@@ -2735,10 +2714,6 @@
             }
         );
 
-
-    /* =========================
-       INIT
-    ========================= */
 
     (async function init() {
 
