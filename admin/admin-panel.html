@@ -33,8 +33,6 @@
             display: flex;
         }
 
-        /* SIDEBAR */
-
         .sidebar {
             width: 240px;
             background: rgba(255,255,255,0.94);
@@ -104,8 +102,6 @@
             color: #dc2626;
         }
 
-        /* MAIN */
-
         .main {
             margin-left: 240px;
             width: calc(100% - 240px);
@@ -126,8 +122,6 @@
             color: #6b7280;
             font-size: 13px;
         }
-
-        /* TABS */
 
         .tabs {
             display: flex;
@@ -161,8 +155,6 @@
             display: block;
         }
 
-        /* CARDS */
-
         .stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -193,8 +185,6 @@
             font-size: 25px;
             color: #111827;
         }
-
-        /* PANEL */
 
         .panel {
             background: rgba(255,255,255,0.94);
@@ -231,8 +221,6 @@
             border-color: #6b7280;
         }
 
-        /* TABLE */
-
         .table-wrapper {
             overflow-x: auto;
         }
@@ -261,8 +249,6 @@
         tr:hover td {
             background: #f9fafb;
         }
-
-        /* BADGES */
 
         .badge {
             display: inline-block;
@@ -298,8 +284,6 @@
             color: #991b1b;
         }
 
-        /* BUTTONS */
-
         button {
             font-family: inherit;
         }
@@ -311,6 +295,11 @@
             font-size: 11px;
             font-weight: 800;
             cursor: pointer;
+        }
+
+        .btn:disabled {
+            opacity: .6;
+            cursor: not-allowed;
         }
 
         .btn-dark {
@@ -355,8 +344,6 @@
             flex-wrap: wrap;
         }
 
-        /* PROVIDER */
-
         .provider-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -388,8 +375,6 @@
             flex-wrap: wrap;
             margin-top: 15px;
         }
-
-        /* FORM */
 
         .form-grid {
             display: grid;
@@ -426,16 +411,12 @@
             resize: vertical;
         }
 
-        /* EMPTY */
-
         .empty {
             text-align: center;
             padding: 35px;
             color: #9ca3af;
             font-size: 13px;
         }
-
-        /* MESSAGE */
 
         #message {
             position: fixed;
@@ -451,8 +432,6 @@
             z-index: 1000;
             max-width: 420px;
         }
-
-        /* MODAL */
 
         .modal-overlay {
             position: fixed;
@@ -510,10 +489,7 @@
             height: 16px;
         }
 
-        /* MOBILE */
-
         @media (max-width: 900px) {
-
             .sidebar {
                 width: 200px;
             }
@@ -533,7 +509,6 @@
         }
 
         @media (max-width: 650px) {
-
             .sidebar {
                 position: relative;
                 width: 100%;
@@ -583,17 +558,11 @@
 
         <nav class="nav">
 
-            <a href="dashboard.html">
-                DASHBOARD
-            </a>
+            <a href="dashboard.html">DASHBOARD</a>
 
-            <a href="generate.html">
-                GENERATE
-            </a>
+            <a href="generate.html">GENERATE</a>
 
-            <a href="history.html">
-                HISTORY
-            </a>
+            <a href="history.html">HISTORY</a>
 
             <a href="admin-panel.html" class="active">
                 ADMIN PANEL
@@ -617,8 +586,6 @@
             </p>
         </div>
 
-
-        <!-- TABS -->
 
         <div class="tabs">
 
@@ -740,6 +707,7 @@
                     <div class="actions">
 
                         <button
+                            type="button"
                             class="btn btn-light"
                             onclick="openProviderModal()"
                         >
@@ -747,6 +715,7 @@
                         </button>
 
                         <button
+                            type="button"
                             class="btn btn-dark"
                             onclick="loadProviders()"
                         >
@@ -758,7 +727,10 @@
                 </div>
 
 
-                <div id="providersContainer" class="provider-grid">
+                <div
+                    id="providersContainer"
+                    class="provider-grid"
+                >
 
                     <div class="empty">
                         Memuat provider...
@@ -782,6 +754,7 @@
                     <h3>AI MODELS</h3>
 
                     <button
+                        type="button"
                         class="btn btn-dark"
                         onclick="loadModels()"
                     >
@@ -870,6 +843,7 @@
                 <div style="margin-top:18px;display:flex;gap:8px;">
 
                     <button
+                        type="button"
                         class="btn btn-dark"
                         onclick="addCredit()"
                     >
@@ -877,6 +851,7 @@
                     </button>
 
                     <button
+                        type="button"
                         class="btn btn-red"
                         onclick="removeCredit()"
                     >
@@ -895,6 +870,7 @@
                     <h3>RECENT CREDIT TRANSACTIONS</h3>
 
                     <button
+                        type="button"
                         class="btn btn-dark"
                         onclick="loadTransactions()"
                     >
@@ -952,6 +928,7 @@
                     <h3>SYSTEM SETTINGS</h3>
 
                     <button
+                        type="button"
                         class="btn btn-dark"
                         onclick="loadSystemSettings()"
                     >
@@ -1031,6 +1008,7 @@
         <div class="modal-actions">
 
             <button
+                type="button"
                 class="btn btn-light"
                 onclick="closeCreditModal()"
             >
@@ -1038,6 +1016,7 @@
             </button>
 
             <button
+                type="button"
                 class="btn btn-dark"
                 onclick="confirmCreditAction()"
             >
@@ -1117,17 +1096,9 @@
 
             <select id="providerStatus">
 
-                <option value="active">
-                    ACTIVE
-                </option>
-
-                <option value="inactive">
-                    INACTIVE
-                </option>
-
-                <option value="maintenance">
-                    MAINTENANCE
-                </option>
+                <option value="active">ACTIVE</option>
+                <option value="inactive">INACTIVE</option>
+                <option value="maintenance">MAINTENANCE</option>
 
             </select>
 
@@ -1149,13 +1120,16 @@
         <div class="modal-actions">
 
             <button
+                type="button"
                 class="btn btn-light"
                 onclick="closeProviderModal()"
             >
                 BATAL
             </button>
 
+            <!-- ID DIPERBAIKI -->
             <button
+                type="button"
                 class="btn btn-dark"
                 id="providerSaveButton"
                 onclick="saveProvider()"
@@ -1177,12 +1151,10 @@ const supabaseClient = window.supabase.createClient(
     GENZ_CONFIG.SUPABASE_KEY
 );
 
-
 let currentUser = null;
 let currentProfile = null;
 
 let allUsers = [];
-
 let providerCache = [];
 
 let creditAction = null;
@@ -1195,8 +1167,7 @@ let selectedUserId = null;
 
 function showMessage(text) {
 
-    const message =
-        document.getElementById("message");
+    const message = document.getElementById("message");
 
     message.textContent = text;
     message.style.display = "block";
@@ -1204,9 +1175,7 @@ function showMessage(text) {
     clearTimeout(window.messageTimer);
 
     window.messageTimer = setTimeout(() => {
-
         message.style.display = "none";
-
     }, 3500);
 }
 
@@ -1223,17 +1192,12 @@ async function checkAuth() {
         }
     } = await supabaseClient.auth.getSession();
 
-
     if (!session) {
-
         window.location.href = "../index.html";
-
         return false;
     }
 
-
     currentUser = session.user;
-
 
     const {
         data: profile,
@@ -1244,19 +1208,15 @@ async function checkAuth() {
         .eq("id", currentUser.id)
         .single();
 
-
     if (error || !profile) {
 
         await supabaseClient.auth.signOut();
-
         window.location.href = "../index.html";
 
         return false;
     }
 
-
     currentProfile = profile;
-
 
     if (
         profile.role !== "ADMIN" &&
@@ -1269,16 +1229,15 @@ async function checkAuth() {
         return false;
     }
 
-
     if (profile.status !== "active") {
 
         await supabaseClient.auth.signOut();
 
-        window.location.href = "../index.html";
+        window.location.href =
+            "../index.html";
 
         return false;
     }
-
 
     return true;
 }
@@ -1293,7 +1252,6 @@ async function loadUsers() {
     const table =
         document.getElementById("usersTable");
 
-
     table.innerHTML = `
         <tr>
             <td colspan="7" class="empty">
@@ -1301,7 +1259,6 @@ async function loadUsers() {
             </td>
         </tr>
     `;
-
 
     const {
         data,
@@ -1321,7 +1278,6 @@ async function loadUsers() {
             ascending: false
         });
 
-
     if (error) {
 
         table.innerHTML = `
@@ -1336,31 +1292,29 @@ async function loadUsers() {
         return;
     }
 
-
     allUsers = data || [];
 
     updateUserStats(allUsers);
-
     renderUsers(allUsers);
 }
 
 
 function updateUserStats(users) {
 
-    const total = users.length;
+    document.getElementById("totalUsers").textContent =
+        users.length;
 
+    document.getElementById("activeUsers").textContent =
+        users.filter(
+            user => user.status === "active"
+        ).length;
 
-    const active = users.filter(
-        user => user.status === "active"
-    ).length;
-
-
-    const admins = users.filter(
-        user =>
-            user.role === "ADMIN" ||
-            user.role === "OWNER"
-    ).length;
-
+    document.getElementById("adminUsers").textContent =
+        users.filter(
+            user =>
+                user.role === "ADMIN" ||
+                user.role === "OWNER"
+        ).length;
 
     const credits = users.reduce(
         (sum, user) =>
@@ -1368,25 +1322,7 @@ function updateUserStats(users) {
         0
     );
 
-
-    document.getElementById(
-        "totalUsers"
-    ).textContent = total;
-
-
-    document.getElementById(
-        "activeUsers"
-    ).textContent = active;
-
-
-    document.getElementById(
-        "adminUsers"
-    ).textContent = admins;
-
-
-    document.getElementById(
-        "totalCredits"
-    ).textContent =
+    document.getElementById("totalCredits").textContent =
         credits.toLocaleString("id-ID");
 }
 
@@ -1395,7 +1331,6 @@ function renderUsers(users) {
 
     const table =
         document.getElementById("usersTable");
-
 
     if (!users.length) {
 
@@ -1410,7 +1345,6 @@ function renderUsers(users) {
         return;
     }
 
-
     table.innerHTML = users.map(user => {
 
         const roleClass =
@@ -1420,12 +1354,10 @@ function renderUsers(users) {
                     ? "badge-admin"
                     : "badge-user";
 
-
         const statusClass =
             user.status === "active"
                 ? "badge-active"
                 : "badge-suspended";
-
 
         return `
             <tr>
@@ -1467,6 +1399,7 @@ function renderUsers(users) {
                     <div class="actions">
 
                         <button
+                            type="button"
                             class="btn btn-dark"
                             onclick="openCreditModal(
                                 '${escapeJs(user.id)}',
@@ -1478,6 +1411,7 @@ function renderUsers(users) {
                         </button>
 
                         <button
+                            type="button"
                             class="btn btn-red"
                             onclick="openCreditModal(
                                 '${escapeJs(user.id)}',
@@ -1499,29 +1433,17 @@ function renderUsers(users) {
 }
 
 
-/* =========================================================
-   USER SEARCH
-========================================================= */
-
-document.getElementById(
-    "userSearch"
-).addEventListener(
+document.getElementById("userSearch").addEventListener(
     "input",
     function () {
 
         const keyword =
-            this.value
-                .toLowerCase()
-                .trim();
-
+            this.value.toLowerCase().trim();
 
         if (!keyword) {
-
             renderUsers(allUsers);
-
             return;
         }
-
 
         const filtered =
             allUsers.filter(user => {
@@ -1531,46 +1453,34 @@ document.getElementById(
                         user.email || ""
                     ).toLowerCase();
 
-
                 const name =
                     String(
                         user.name || ""
                     ).toLowerCase();
 
-
                 return (
                     email.includes(keyword) ||
                     name.includes(keyword)
                 );
-
             });
 
-
         renderUsers(filtered);
-
     }
 );
 
 
 /* =========================================================
-   CREDIT MODAL
+   CREDIT
 ========================================================= */
 
-function openCreditModal(
-    userId,
-    email,
-    action
-) {
+function openCreditModal(userId, email, action) {
 
     selectedUserId = userId;
-
     creditAction = action;
-
 
     document.getElementById(
         "modalCreditAmount"
     ).value = "";
-
 
     document.getElementById(
         "creditModalText"
@@ -1580,7 +1490,6 @@ function openCreditModal(
                 ? "Tambah"
                 : "Kurangi"
         } credit untuk ${email}`;
-
 
     document.getElementById(
         "creditModal"
@@ -1594,9 +1503,7 @@ function closeCreditModal() {
         "creditModal"
     ).style.display = "none";
 
-
     selectedUserId = null;
-
     creditAction = null;
 }
 
@@ -1610,7 +1517,6 @@ async function confirmCreditAction() {
             ).value
         );
 
-
     if (
         !Number.isInteger(amount) ||
         amount <= 0
@@ -1622,7 +1528,6 @@ async function confirmCreditAction() {
 
         return;
     }
-
 
     if (
         !selectedUserId ||
@@ -1636,9 +1541,7 @@ async function confirmCreditAction() {
         return;
     }
 
-
     let result;
-
 
     if (creditAction === "add") {
 
@@ -1678,7 +1581,6 @@ async function confirmCreditAction() {
             );
     }
 
-
     if (result.error) {
 
         showMessage(
@@ -1689,7 +1591,6 @@ async function confirmCreditAction() {
         return;
     }
 
-
     showMessage(
         `Credit berhasil ${
             creditAction === "add"
@@ -1698,19 +1599,12 @@ async function confirmCreditAction() {
         }.`
     );
 
-
     closeCreditModal();
 
-
     await loadUsers();
-
     await loadTransactions();
 }
 
-
-/* =========================================================
-   CREDIT TAB
-========================================================= */
 
 async function addCredit() {
 
@@ -1719,14 +1613,12 @@ async function addCredit() {
             "creditUserId"
         ).value.trim();
 
-
     const amount =
         Number(
             document.getElementById(
                 "creditAmount"
             ).value
         );
-
 
     if (
         !userId ||
@@ -1740,7 +1632,6 @@ async function addCredit() {
 
         return;
     }
-
 
     const {
         data,
@@ -1756,7 +1647,6 @@ async function addCredit() {
         }
     );
 
-
     if (error) {
 
         showMessage(
@@ -1767,15 +1657,12 @@ async function addCredit() {
         return;
     }
 
-
     showMessage(
         "Credit berhasil ditambahkan. Saldo: " +
         Number(data).toLocaleString("id-ID")
     );
 
-
     await loadUsers();
-
     await loadTransactions();
 }
 
@@ -1787,14 +1674,12 @@ async function removeCredit() {
             "creditUserId"
         ).value.trim();
 
-
     const amount =
         Number(
             document.getElementById(
                 "creditAmount"
             ).value
         );
-
 
     if (
         !userId ||
@@ -1809,7 +1694,6 @@ async function removeCredit() {
         return;
     }
 
-
     const {
         data,
         error
@@ -1823,7 +1707,6 @@ async function removeCredit() {
         }
     );
 
-
     if (error) {
 
         showMessage(
@@ -1834,15 +1717,12 @@ async function removeCredit() {
         return;
     }
 
-
     showMessage(
         "Credit berhasil dikurangi. Saldo: " +
         Number(data).toLocaleString("id-ID")
     );
 
-
     await loadUsers();
-
     await loadTransactions();
 }
 
@@ -1857,7 +1737,6 @@ async function loadTransactions() {
         document.getElementById(
             "transactionsTable"
         );
-
 
     const {
         data,
@@ -1879,7 +1758,6 @@ async function loadTransactions() {
         })
         .limit(50);
 
-
     if (error) {
 
         table.innerHTML = `
@@ -1894,7 +1772,6 @@ async function loadTransactions() {
         return;
     }
 
-
     if (!data || !data.length) {
 
         table.innerHTML = `
@@ -1907,7 +1784,6 @@ async function loadTransactions() {
 
         return;
     }
-
 
     table.innerHTML =
         data.map(transaction => {
@@ -1975,7 +1851,6 @@ function getUserEmail(userId) {
             item => item.id === userId
         );
 
-
     return user
         ? user.email || user.id
         : userId || "-";
@@ -1993,6 +1868,12 @@ async function loadProviders() {
             "providersContainer"
         );
 
+    if (!container) {
+        console.error(
+            "providersContainer tidak ditemukan."
+        );
+        return;
+    }
 
     container.innerHTML = `
         <div class="empty">
@@ -2000,155 +1881,167 @@ async function loadProviders() {
         </div>
     `;
 
+    try {
 
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("providers")
-        .select(`
-            id,
-            provider_id,
-            provider_name,
-            description,
-            status,
-            is_default,
-            created_at,
-            updated_at
-        `)
-        .order("created_at", {
-            ascending: true
-        });
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("providers")
+            .select(`
+                id,
+                provider_id,
+                provider_name,
+                description,
+                status,
+                is_default,
+                created_at,
+                updated_at
+            `)
+            .order("created_at", {
+                ascending: true
+            });
 
+        if (error) {
 
-    if (error) {
+            console.error(
+                "Provider load error:",
+                error
+            );
 
-        container.innerHTML = `
-            <div class="empty">
-                Gagal memuat provider:
-                ${escapeHtml(error.message)}
-            </div>
-        `;
-
-        return;
-    }
-
-
-    providerCache = data || [];
-
-
-    if (!providerCache.length) {
-
-        container.innerHTML = `
-            <div class="empty">
-                Belum ada provider.
-            </div>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        providerCache.map(provider => {
-
-            const statusClass =
-                provider.status === "active"
-                    ? "badge-active"
-                    : "badge-suspended";
-
-
-            return `
-                <div class="provider-card">
-
-                    <h4>
-                        ${escapeHtml(
-                            provider.provider_name
-                        )}
-                    </h4>
-
-
-                    <div class="provider-id">
-
-                        ID:
-                        ${escapeHtml(
-                            provider.provider_id
-                        )}
-
-                    </div>
-
-
-                    <p style="
-                        font-size:12px;
-                        color:#6b7280;
-                        margin-bottom:12px;
-                        line-height:1.5;
-                    ">
-
-                        ${escapeHtml(
-                            provider.description || "-"
-                        )}
-
-                    </p>
-
-
-                    <div style="
-                        display:flex;
-                        gap:7px;
-                        align-items:center;
-                        flex-wrap:wrap;
-                    ">
-
-                        <span class="badge ${statusClass}">
-
-                            ${escapeHtml(
-                                provider.status
-                            )}
-
-                        </span>
-
-
-                        ${
-                            provider.is_default
-                                ? `
-                                    <span class="badge badge-owner">
-                                        DEFAULT
-                                    </span>
-                                `
-                                : ""
-                        }
-
-                    </div>
-
-
-                    <div class="provider-actions">
-
-                        <button
-                            class="btn btn-dark"
-                            onclick="openProviderModal(
-                                '${escapeJs(provider.id)}'
-                            )"
-                        >
-                            EDIT
-                        </button>
-
-
-                        <button
-                            class="btn btn-red"
-                            onclick="deleteProvider(
-                                '${escapeJs(provider.id)}',
-                                '${escapeJs(provider.provider_name)}'
-                            )"
-                        >
-                            HAPUS
-                        </button>
-
-                    </div>
-
+            container.innerHTML = `
+                <div class="empty">
+                    <strong>Gagal memuat provider.</strong>
+                    <br><br>
+                    ${escapeHtml(error.message)}
                 </div>
             `;
 
-        }).join("");
+            return;
+        }
+
+        providerCache = data || [];
+
+        console.log(
+            "Provider dari database:",
+            providerCache
+        );
+
+        if (!providerCache.length) {
+
+            container.innerHTML = `
+                <div class="empty">
+                    Belum ada provider.
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML =
+            providerCache.map(provider => {
+
+                const statusClass =
+                    provider.status === "active"
+                        ? "badge-active"
+                        : provider.status === "maintenance"
+                            ? "badge-owner"
+                            : "badge-suspended";
+
+                return `
+                    <div class="provider-card">
+
+                        <h4>
+                            ${escapeHtml(
+                                provider.provider_name || "-"
+                            )}
+                        </h4>
+
+                        <div class="provider-id">
+                            ID:
+                            ${escapeHtml(
+                                provider.provider_id || "-"
+                            )}
+                        </div>
+
+                        <p style="
+                            font-size:12px;
+                            color:#6b7280;
+                            margin-bottom:12px;
+                            line-height:1.5;
+                        ">
+                            ${escapeHtml(
+                                provider.description || "-"
+                            )}
+                        </p>
+
+                        <div style="
+                            display:flex;
+                            gap:7px;
+                            align-items:center;
+                            flex-wrap:wrap;
+                        ">
+
+                            <span class="badge ${statusClass}">
+                                ${escapeHtml(
+                                    provider.status || "-"
+                                )}
+                            </span>
+
+                            ${
+                                provider.is_default
+                                    ? `
+                                        <span class="badge badge-owner">
+                                            DEFAULT
+                                        </span>
+                                    `
+                                    : ""
+                            }
+
+                        </div>
+
+                        <div class="provider-actions">
+
+                            <button
+                                type="button"
+                                class="btn btn-dark"
+                                onclick="openProviderModal('${escapeJs(provider.id)}')"
+                            >
+                                EDIT
+                            </button>
+
+                            <button
+                                type="button"
+                                class="btn btn-red"
+                                onclick="deleteProvider(
+                                    '${escapeJs(provider.id)}',
+                                    '${escapeJs(provider.provider_name || "")}'
+                                )"
+                            >
+                                HAPUS
+                            </button>
+
+                        </div>
+
+                    </div>
+                `;
+
+            }).join("");
+
+    } catch (error) {
+
+        console.error(
+            "Unexpected provider load error:",
+            error
+        );
+
+        container.innerHTML = `
+            <div class="empty">
+                Terjadi kesalahan:
+                ${escapeHtml(error.message || error)}
+            </div>
+        `;
+    }
 }
 
 
@@ -2163,61 +2056,47 @@ function openProviderModal(providerUuid = null) {
             "providerModal"
         );
 
-
     const title =
         document.getElementById(
             "providerModalTitle"
         );
-
 
     const editId =
         document.getElementById(
             "providerEditId"
         );
 
-
     const providerId =
         document.getElementById(
             "providerId"
         );
-
 
     const providerName =
         document.getElementById(
             "providerName"
         );
 
-
     const description =
         document.getElementById(
             "providerDescription"
         );
-
 
     const status =
         document.getElementById(
             "providerStatus"
         );
 
-
     const isDefault =
         document.getElementById(
             "providerDefault"
         );
 
-
     editId.value = "";
-
     providerId.value = "";
-
     providerName.value = "";
-
     description.value = "";
-
     status.value = "active";
-
     isDefault.checked = false;
-
 
     if (providerUuid) {
 
@@ -2226,40 +2105,32 @@ function openProviderModal(providerUuid = null) {
                 item => item.id === providerUuid
             );
 
-
         if (!provider) {
 
             showMessage(
-                "Provider tidak ditemukan."
+                "Provider tidak ditemukan. Tekan REFRESH terlebih dahulu."
             );
 
             return;
         }
 
-
         title.textContent =
             "EDIT PROVIDER";
-
 
         editId.value =
             provider.id;
 
-
         providerId.value =
             provider.provider_id || "";
-
 
         providerName.value =
             provider.provider_name || "";
 
-
         description.value =
             provider.description || "";
 
-
         status.value =
             provider.status || "active";
-
 
         isDefault.checked =
             Boolean(
@@ -2270,17 +2141,12 @@ function openProviderModal(providerUuid = null) {
 
         title.textContent =
             "ADD PROVIDER";
-
     }
-
 
     modal.style.display = "flex";
 
-
     setTimeout(() => {
-
-        providerName.focus();
-
+        providerId.focus();
     }, 50);
 }
 
@@ -2298,87 +2164,199 @@ function closeProviderModal() {
 ========================================================= */
 
 async function saveProvider() {
-    const editId = document.getElementById("providerEditId").value.trim();
-    const providerId = document.getElementById("providerId").value.trim();
-    const providerName = document.getElementById("providerName").value.trim();
-    const description = document.getElementById("providerDescription").value.trim();
-    const status = document.getElementById("providerStatus").value;
-    const isDefault = document.getElementById("providerDefault").checked;
+
+    const editId =
+        document.getElementById(
+            "providerEditId"
+        ).value.trim();
+
+    const providerId =
+        document.getElementById(
+            "providerId"
+        ).value.trim();
+
+    const providerName =
+        document.getElementById(
+            "providerName"
+        ).value.trim();
+
+    const description =
+        document.getElementById(
+            "providerDescription"
+        ).value.trim();
+
+    const status =
+        document.getElementById(
+            "providerStatus"
+        ).value;
+
+    const isDefault =
+        document.getElementById(
+            "providerDefault"
+        ).checked;
+
+    /*
+        ID HARUS SAMA dengan tombol HTML:
+        providerSaveButton
+    */
+    const button =
+        document.getElementById(
+            "providerSaveButton"
+        );
 
     if (!providerId) {
-        alert("Provider ID wajib diisi.");
+
+        showMessage(
+            "Provider ID wajib diisi."
+        );
+
         return;
     }
 
     if (!providerName) {
-        alert("Provider Name wajib diisi.");
+
+        showMessage(
+            "Provider Name wajib diisi."
+        );
+
         return;
     }
 
-    const button = document.getElementById("providerSaveBtn");
-
     try {
+
         button.disabled = true;
         button.textContent = "MENYIMPAN...";
 
         let result;
 
         if (editId) {
-            // EDIT PROVIDER
-            result = await supabaseClient.rpc("admin_update_provider", {
-                p_id: editId,
-                p_provider_id: providerId,
-                p_provider_name: providerName,
-                p_description: description || null,
-                p_status: status,
-                p_is_default: isDefault
-            });
+
+            console.log(
+                "UPDATE PROVIDER:",
+                {
+                    id: editId,
+                    provider_id: providerId,
+                    provider_name: providerName,
+                    description,
+                    status,
+                    is_default: isDefault
+                }
+            );
+
+            result =
+                await supabaseClient.rpc(
+                    "admin_update_provider",
+                    {
+                        p_id:
+                            editId,
+
+                        p_provider_id:
+                            providerId,
+
+                        p_provider_name:
+                            providerName,
+
+                        p_description:
+                            description || null,
+
+                        p_status:
+                            status,
+
+                        p_is_default:
+                            isDefault
+                    }
+                );
+
         } else {
-            // ADD PROVIDER
-            result = await supabaseClient.rpc("admin_create_provider", {
-                p_provider_id: providerId,
-                p_provider_name: providerName,
-                p_description: description || null,
-                p_status: status,
-                p_is_default: isDefault
-            });
+
+            console.log(
+                "CREATE PROVIDER:",
+                {
+                    provider_id: providerId,
+                    provider_name: providerName,
+                    description,
+                    status,
+                    is_default: isDefault
+                }
+            );
+
+            result =
+                await supabaseClient.rpc(
+                    "admin_create_provider",
+                    {
+                        p_provider_id:
+                            providerId,
+
+                        p_provider_name:
+                            providerName,
+
+                        p_description:
+                            description || null,
+
+                        p_status:
+                            status,
+
+                        p_is_default:
+                            isDefault
+                    }
+                );
         }
 
         if (result.error) {
-            console.error("Provider save error:", result.error);
-            alert(
-                "Gagal menyimpan provider:\n\n" +
+
+            console.error(
+                "Provider save error:",
+                result.error
+            );
+
+            showMessage(
+                "Gagal menyimpan provider: " +
                 result.error.message
             );
+
             return;
         }
 
-        console.log("Provider berhasil disimpan:", result.data);
+        console.log(
+            "Provider berhasil disimpan:",
+            result.data
+        );
 
+        /*
+            Tutup modal hanya setelah RPC sukses.
+        */
         closeProviderModal();
 
-        // Ambil ulang data dari database
+        /*
+            Ambil ulang data langsung dari database.
+        */
         await loadProviders();
 
-        alert(
+        showMessage(
             editId
                 ? "Provider berhasil diperbarui."
                 : "Provider berhasil ditambahkan."
         );
 
     } catch (error) {
-        console.error("Unexpected provider save error:", error);
 
-        alert(
-            "Terjadi kesalahan:\n\n" +
+        console.error(
+            "Unexpected provider save error:",
+            error
+        );
+
+        showMessage(
+            "Terjadi kesalahan: " +
             (error.message || error)
         );
 
     } finally {
+
         button.disabled = false;
-        button.textContent = "SIMPAN PROVIDER";
+        button.textContent = "SIMPAN";
     }
 }
+
 
 /* =========================================================
    PROVIDER DELETE
@@ -2398,18 +2376,15 @@ async function deleteProvider(
         return;
     }
 
-
     const confirmed =
         window.confirm(
             `Hapus provider "${providerName}"?\n\n` +
             `Tindakan ini tidak dapat dibatalkan.`
         );
 
-
     if (!confirmed) {
         return;
     }
-
 
     try {
 
@@ -2423,14 +2398,12 @@ async function deleteProvider(
             }
         );
 
-
         if (error) {
 
             console.error(
                 "Provider delete error:",
                 error
             );
-
 
             showMessage(
                 "Gagal menghapus provider: " +
@@ -2440,16 +2413,14 @@ async function deleteProvider(
             return;
         }
 
+        /*
+            Refresh langsung dari database.
+        */
+        await loadProviders();
 
         showMessage(
             "Provider berhasil dihapus."
         );
-
-
-        await loadProviders();
-
-        await cacheProviders();
-
 
     } catch (error) {
 
@@ -2458,10 +2429,9 @@ async function deleteProvider(
             error
         );
 
-
         showMessage(
             "Terjadi kesalahan: " +
-            error.message
+            (error.message || error)
         );
     }
 }
@@ -2473,28 +2443,50 @@ async function deleteProvider(
 
 async function cacheProviders() {
 
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("providers")
-        .select(
-            "id,provider_name,provider_id"
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("providers")
+            .select(`
+                id,
+                provider_id,
+                provider_name,
+                description,
+                status,
+                is_default
+            `)
+            .order("created_at", {
+                ascending: true
+            });
+
+        if (error) {
+
+            console.error(
+                "Provider cache error:",
+                error
+            );
+
+            return;
+        }
+
+        providerCache =
+            data || [];
+
+        console.log(
+            "Provider cache:",
+            providerCache
         );
 
-
-    if (error) {
+    } catch (error) {
 
         console.error(
-            "Provider cache error:",
+            "Unexpected provider cache error:",
             error
         );
-
-        return;
     }
-
-
-    providerCache = data || [];
 }
 
 
@@ -2504,7 +2496,6 @@ function getProviderName(providerId) {
         providerCache.find(
             item => item.id === providerId
         );
-
 
     return provider
         ? provider.provider_name
@@ -2523,7 +2514,6 @@ async function loadModels() {
             "modelsTable"
         );
 
-
     table.innerHTML = `
         <tr>
             <td colspan="6" class="empty">
@@ -2531,7 +2521,6 @@ async function loadModels() {
             </td>
         </tr>
     `;
-
 
     const {
         data,
@@ -2552,7 +2541,6 @@ async function loadModels() {
             ascending: true
         });
 
-
     if (error) {
 
         table.innerHTML = `
@@ -2567,7 +2555,6 @@ async function loadModels() {
         return;
     }
 
-
     if (!data || !data.length) {
 
         table.innerHTML = `
@@ -2580,7 +2567,6 @@ async function loadModels() {
 
         return;
     }
-
 
     table.innerHTML =
         data.map(model => {
@@ -2654,7 +2640,6 @@ async function loadSystemSettings() {
             "settingsTable"
         );
 
-
     const {
         data,
         error
@@ -2667,7 +2652,6 @@ async function loadSystemSettings() {
             updated_at
         `)
         .order("setting_key");
-
 
     if (error) {
 
@@ -2683,7 +2667,6 @@ async function loadSystemSettings() {
         return;
     }
 
-
     if (!data || !data.length) {
 
         table.innerHTML = `
@@ -2696,7 +2679,6 @@ async function loadSystemSettings() {
 
         return;
     }
-
 
     table.innerHTML =
         data.map(setting => {
@@ -2752,52 +2734,35 @@ document.querySelectorAll(
             document.querySelectorAll(
                 ".tab"
             ).forEach(item => {
-
-                item.classList.remove(
-                    "active"
-                );
-
+                item.classList.remove("active");
             });
-
 
             document.querySelectorAll(
                 ".section"
             ).forEach(section => {
-
-                section.classList.remove(
-                    "active"
-                );
-
+                section.classList.remove("active");
             });
 
-
-            this.classList.add(
-                "active"
-            );
-
+            this.classList.add("active");
 
             const target =
                 document.getElementById(
                     this.dataset.tab
                 );
 
-
-            target.classList.add(
-                "active"
-            );
-
+            target.classList.add("active");
 
             if (
                 this.dataset.tab ===
                 "providers"
             ) {
 
-                await cacheProviders();
-
+                /*
+                    Load langsung dari database.
+                    Tidak bergantung pada cache lama.
+                */
                 await loadProviders();
-
             }
-
 
             if (
                 this.dataset.tab ===
@@ -2805,11 +2770,8 @@ document.querySelectorAll(
             ) {
 
                 await cacheProviders();
-
                 await loadModels();
-
             }
-
 
             if (
                 this.dataset.tab ===
@@ -2817,9 +2779,7 @@ document.querySelectorAll(
             ) {
 
                 await loadTransactions();
-
             }
-
 
             if (
                 this.dataset.tab ===
@@ -2827,7 +2787,6 @@ document.querySelectorAll(
             ) {
 
                 await loadSystemSettings();
-
             }
 
         }
@@ -2837,7 +2796,7 @@ document.querySelectorAll(
 
 
 /* =========================================================
-   CLOSE MODALS WHEN CLICK OUTSIDE
+   CLOSE MODALS
 ========================================================= */
 
 document.getElementById(
@@ -2847,9 +2806,7 @@ document.getElementById(
     function (event) {
 
         if (event.target === this) {
-
             closeProviderModal();
-
         }
 
     }
@@ -2863,9 +2820,7 @@ document.getElementById(
     function (event) {
 
         if (event.target === this) {
-
             closeCreditModal();
-
         }
 
     }
@@ -2873,7 +2828,7 @@ document.getElementById(
 
 
 /* =========================================================
-   ESC KEY
+   ESC
 ========================================================= */
 
 document.addEventListener(
@@ -2884,11 +2839,8 @@ document.addEventListener(
             return;
         }
 
-
         closeProviderModal();
-
         closeCreditModal();
-
     }
 );
 
@@ -2907,7 +2859,6 @@ document.getElementById(
 
         window.location.href =
             "../index.html";
-
     }
 );
 
@@ -2921,7 +2872,6 @@ function formatDate(value) {
     if (!value) {
         return "-";
     }
-
 
     try {
 
@@ -2943,49 +2893,21 @@ function formatDate(value) {
 
 function escapeHtml(value) {
 
-    return String(
-        value ?? ""
-    )
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 
 function escapeJs(value) {
 
-    return String(
-        value ?? ""
-    )
-        .replace(
-            /\\/g,
-            "\\\\"
-        )
-        .replace(
-            /'/g,
-            "\\'"
-        )
-        .replace(
-            /\r?\n/g,
-            "\\n"
-        );
+    return String(value ?? "")
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/\r?\n/g, "\\n");
 }
 
 
@@ -2998,15 +2920,16 @@ function escapeJs(value) {
     const authenticated =
         await checkAuth();
 
-
     if (!authenticated) {
         return;
     }
 
-
     await loadUsers();
 
-    await cacheProviders();
+    /*
+        Kita tidak perlu memuat provider
+        sebelum tab Providers dibuka.
+    */
 
 })();
     
