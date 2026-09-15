@@ -1,102 +1,178 @@
-const SUPABASE_URL = "https://boeamhglmvkatnycluaa.supabase.co";
-const SUPABASE_KEY = "sb_publishable_blGIFRNPbB2qAa1vXQBXcw_txqDQldb";
+```javascript
+// ========================================
+// GEN-Z.AI - AUTHENTICATION
+// ========================================
 
 const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
+    GENZ_CONFIG.SUPABASE_URL,
+    GENZ_CONFIG.SUPABASE_KEY
 );
+
+// ========================================
+// ELEMENTS
+// ========================================
 
 const loginForm = document.getElementById("loginForm");
 const loginButton = document.getElementById("loginButton");
 const loginMessage = document.getElementById("loginMessage");
 
-loginForm.addEventListener("submit", async function (event) {
+// ========================================
+// LOGIN
+// ========================================
 
-    event.preventDefault();
+if (loginForm) {
 
-    const email = document
-        .getElementById("email")
-        .value
-        .trim();
+    loginForm.addEventListener("submit", async function (event) {
 
-    const password = document
-        .getElementById("password")
-        .value;
+        event.preventDefault();
 
-    loginMessage.textContent = "";
-    loginButton.disabled = true;
-    loginButton.textContent = "LOGIN...";
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
 
-    try {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
 
-        const { data, error } =
-            await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password
-            });
+        // Reset message
+        loginMessage.textContent = "";
+        loginMessage.className = "login-message";
 
-        if (error) {
-            throw error;
-        }
+        // Loading
+        loginButton.disabled = true;
+        loginButton.textContent = "LOGIN...";
 
-        const user = data.user;
+        try {
 
-        if (!user) {
-            throw new Error("User tidak ditemukan.");
-        }
+            // ----------------------------------------
+            // 1. LOGIN SUPABASE
+            // ----------------------------------------
 
-        const { data: profile, error: profileError } =
-            await supabaseClient
+            const { data, error } =
+                await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            const user = data?.user;
+
+            if (!user) {
+                throw new Error(
+                    "User tidak ditemukan."
+                );
+            }
+
+            // ----------------------------------------
+            // 2. AMBIL PROFILE USER
+            // ----------------------------------------
+
+            const {
+                data: profile,
+                error: profileError
+            } = await supabaseClient
                 .from("profiles")
                 .select("role,status")
                 .eq("id", user.id)
                 .single();
 
-        if (profileError) {
-            throw new Error(
-                "Profile user belum tersedia."
-            );
-        }
+            if (profileError) {
 
-        if (profile.status !== "active") {
+                await supabaseClient.auth.signOut();
 
-            await supabaseClient.auth.signOut();
+                throw new Error(
+                    "Profile user belum tersedia."
+                );
+            }
 
-            throw new Error(
-                "Akun tidak aktif. Hubungi administrator."
-            );
-        }
+            // ----------------------------------------
+            // 3. CEK STATUS AKUN
+            // ----------------------------------------
 
-        if (profile.role === "USER") {
+            if (profile.status !== "active") {
 
-            window.location.href =
-                "user/dashboard.html";
+                await supabaseClient.auth.signOut();
 
-        } else if (
-            profile.role === "ADMIN" ||
-            profile.role === "OWNER"
-        ) {
+                throw new Error(
+                    "Akun tidak aktif. Hubungi administrator."
+                );
+            }
 
-            window.location.href =
-                "admin/dashboard.html";
+            // ----------------------------------------
+            // 4. CEK ROLE
+            // ----------------------------------------
 
-        } else {
+            if (profile.role === "USER") {
+
+                window.location.href =
+                    "user/dashboard.html";
+
+                return;
+            }
+
+            if (
+                profile.role === "ADMIN" ||
+                profile.role === "OWNER"
+            ) {
+
+                window.location.href =
+                    "admin/dashboard.html";
+
+                return;
+            }
+
+            // ----------------------------------------
+            // 5. ROLE TIDAK VALID
+            // ----------------------------------------
 
             await supabaseClient.auth.signOut();
 
             throw new Error(
                 "Role akun tidak valid."
             );
+
+        } catch (error) {
+
+            console.error(
+                "GEN-Z.AI Login Error:",
+                error
+            );
+
+            // ----------------------------------------
+            // TAMPILKAN ERROR
+            // ----------------------------------------
+
+            let message =
+                error?.message ||
+                "Login gagal. Silakan coba lagi.";
+
+            // Pesan yang lebih mudah dipahami
+            if (
+                message.includes("Invalid login credentials")
+            ) {
+                message =
+                    "Email atau password salah.";
+            }
+
+            if (
+                message.includes("Email not confirmed")
+            ) {
+                message =
+                    "Email belum dikonfirmasi.";
+            }
+
+            loginMessage.textContent = message;
+
+            // ----------------------------------------
+            // RESET BUTTON
+            // ----------------------------------------
+
+            loginButton.disabled = false;
+            loginButton.textContent = "LOGIN";
         }
 
-    } catch (error) {
+    });
 
-        console.error("Login error:", error);
-
-        loginMessage.textContent =
-            error.message || "Login gagal.";
-
-        loginButton.disabled = false;
-        loginButton.textContent = "LOGIN";
-    }
-});
+}
+```
