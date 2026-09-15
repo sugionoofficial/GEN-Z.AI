@@ -1,5 +1,5 @@
-const SUPABASE_URL = "MASUKKAN_PROJECT_URL";
-const SUPABASE_KEY = "MASUKKAN_PUBLISHABLE_KEY";
+const SUPABASE_URL = "https://boeamhglmvkatnycluaa.supabase.co";
+const SUPABASE_KEY = "sb_publishable_blGIFRNPbB2qAa1vXQBXcw_txqDQldb";
 
 const supabaseClient = window.supabase.createClient(
     SUPABASE_URL,
