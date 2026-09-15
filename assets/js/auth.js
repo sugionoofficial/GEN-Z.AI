@@ -17,15 +17,10 @@ if (loginForm) {
 
         event.preventDefault();
 
-        const emailInput = document.getElementById("email");
-        const passwordInput = document.getElementById("password");
-
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
 
         loginMessage.textContent = "";
-        loginMessage.className = "login-message";
-
         loginButton.disabled = true;
         loginButton.textContent = "LOGIN...";
 
@@ -41,44 +36,33 @@ if (loginForm) {
                 throw error;
             }
 
-            const user = data?.user;
-
-            if (!user) {
+            if (!data || !data.user) {
                 throw new Error("User tidak ditemukan.");
             }
 
-            const {
-                data: profile,
-                error: profileError
-            } = await supabaseClient
-                .from("profiles")
-                .select("role,status")
-                .eq("id", user.id)
-                .single();
+            const { data: profile, error: profileError } =
+                await supabaseClient
+                    .from("profiles")
+                    .select("role,status")
+                    .eq("id", data.user.id)
+                    .single();
 
             if (profileError || !profile) {
-
-                await supabaseClient.auth.signOut();
-
                 throw new Error(
-                    "Profile user belum tersedia. Pastikan user memiliki data di tabel profiles."
+                    "Profile user belum tersedia di tabel profiles."
                 );
             }
 
             if (profile.status !== "active") {
-
                 await supabaseClient.auth.signOut();
 
                 throw new Error(
-                    "Akun tidak aktif. Hubungi administrator."
+                    "Akun tidak aktif."
                 );
             }
 
             if (profile.role === "USER") {
-
-                window.location.href =
-                    "user/dashboard.html";
-
+                window.location.href = "user/dashboard.html";
                 return;
             }
 
@@ -86,10 +70,7 @@ if (loginForm) {
                 profile.role === "ADMIN" ||
                 profile.role === "OWNER"
             ) {
-
-                window.location.href =
-                    "admin/dashboard.html";
-
+                window.location.href = "admin/dashboard.html";
                 return;
             }
 
@@ -101,39 +82,27 @@ if (loginForm) {
 
         } catch (error) {
 
-            console.error(
-                "GEN-Z.AI Login Error:",
-                error
-            );
+            console.error("GEN-Z.AI Login Error:", error);
 
-            let message =
-                error?.message ||
-                "Login gagal. Silakan coba lagi.";
+            let message = error.message ||
+                "Login gagal.";
 
             if (
-                message.includes(
-                    "Invalid login credentials"
-                )
+                message.includes("Invalid login credentials")
             ) {
-                message =
-                    "Email atau password salah.";
+                message = "Email atau password salah.";
             }
 
             if (
-                message.includes(
-                    "Email not confirmed"
-                )
+                message.includes("Email not confirmed")
             ) {
-                message =
-                    "Email belum dikonfirmasi.";
+                message = "Email belum dikonfirmasi.";
             }
 
-            loginMessage.textContent =
-                message;
+            loginMessage.textContent = message;
 
             loginButton.disabled = false;
-            loginButton.textContent =
-                "LOGIN";
+            loginButton.textContent = "LOGIN";
         }
 
     });
