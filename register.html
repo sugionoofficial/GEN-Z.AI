@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>GEN-Z.AI | Daftar</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --dark: #111827;
+            --dark-2: #1f2937;
+            --primary: #6366f1;
+            --primary-2: #8b5cf6;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --danger: #dc2626;
+            --success: #16a34a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: "Inter", sans-serif;
+            background:
+                radial-gradient(
+                    circle at 15% 15%,
+                    rgba(99,102,241,.16),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 85% 80%,
+                    rgba(139,92,246,.13),
+                    transparent 30%
+                ),
+                #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 25px;
+            color: var(--text);
+        }
+
+        .register-container {
+            width: 100%;
+            max-width: 1050px;
+        }
+
+        .register-card {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 650px;
+            background: white;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow:
+                0 30px 80px rgba(15,23,42,.12),
+                0 10px 30px rgba(15,23,42,.06);
+            border: 1px solid rgba(255,255,255,.8);
+        }
+
+        /* =========================
+           LEFT PANEL
+        ========================= */
+
+        .brand-panel {
+            position: relative;
+            overflow: hidden;
+            padding: 55px;
+            color: white;
+            background:
+                radial-gradient(
+                    circle at 80% 20%,
+                    rgba(139,92,246,.35),
+                    transparent 35%
+                ),
+                linear-gradient(
+                    145deg,
+                    #0f172a,
+                    #1e1b4b 60%,
+                    #312e81
+                );
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .brand-panel::before {
+            content: "";
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.08);
+            right: -120px;
+            bottom: -120px;
+        }
+
+        .brand-panel::after {
+            content: "";
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.06);
+            right: 70px;
+            bottom: 60px;
+        }
+
+        .brand {
+            position: relative;
+            z-index: 2;
+        }
+
+        .brand-label {
+            display: inline-block;
+            padding: 7px 11px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.07);
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            margin-bottom: 22px;
+        }
+
+        .brand h1 {
+            font-size: clamp(38px, 5vw, 58px);
+            line-height: .95;
+            letter-spacing: -2.5px;
+            font-weight: 800;
+        }
+
+        .brand h1 span {
+            color: #a5b4fc;
+        }
+
+        .brand p {
+            margin-top: 20px;
+            color: #c7d2fe;
+            font-size: 13px;
+            line-height: 1.7;
+            max-width: 400px;
+        }
+
+        .feature-list {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            gap: 12px;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #d1d5db;
+            font-size: 12px;
+        }
+
+        .feature-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.08);
+        }
+
+        /* =========================
+           RIGHT PANEL
+        ========================= */
+
+        .form-panel {
+            padding: 55px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .form-header {
+            margin-bottom: 30px;
+        }
+
+        .form-header h2 {
+            font-size: 29px;
+            letter-spacing: -1px;
+            font-weight: 800;
+        }
+
+        .form-header p {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .input-group {
+            margin-bottom: 17px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 10px;
+            font-weight: 800;
+            color: #374151;
+            letter-spacing: .9px;
+        }
+
+        .input-group input {
+            width: 100%;
+            height: 50px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: #f9fafb;
+            padding: 0 15px;
+            outline: none;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 13px;
+            transition: .2s ease;
+        }
+
+        .input-group input::placeholder {
+            color: #9ca3af;
+        }
+
+        .input-group input:focus {
+            background: white;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99,102,241,.10);
+        }
+
+        .password-note {
+            margin-top: -7px;
+            margin-bottom: 18px;
+            color: #9ca3af;
+            font-size: 10px;
+        }
+
+        #registerButton {
+            width: 100%;
+            height: 52px;
+            border: none;
+            border-radius: 13px;
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--primary),
+                    var(--primary-2)
+                );
+            color: white;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .8px;
+            cursor: pointer;
+            box-shadow: 0 12px 25px rgba(99,102,241,.22);
+            transition: .25s ease;
+        }
+
+        #registerButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 30px rgba(99,102,241,.28);
+        }
+
+        #registerButton:disabled {
+            opacity: .65;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .register-message {
+            min-height: 20px;
+            margin-top: 14px;
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .register-message.error {
+            color: var(--danger);
+        }
+
+        .register-message.success {
+            color: var(--success);
+        }
+
+        .login-link {
+            margin-top: 23px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .login-link a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 800;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            margin-top: 25px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 9px;
+            letter-spacing: .4px;
+        }
+
+        /* =========================
+           TABLET
+        ========================= */
+
+        @media (max-width: 850px) {
+
+            .register-card {
+                grid-template-columns: 1fr;
+                max-width: 550px;
+                margin: auto;
+            }
+
+            .brand-panel {
+                min-height: 300px;
+                padding: 40px;
+            }
+
+            .feature-list {
+                margin-top: 35px;
+            }
+
+            .form-panel {
+                padding: 40px;
+            }
+        }
+
+        /* =========================
+           MOBILE
+        ========================= */
+
+        @media (max-width: 520px) {
+
+            body {
+                padding: 12px;
+            }
+
+            .register-card {
+                border-radius: 22px;
+            }
+
+            .brand-panel {
+                padding: 30px;
+                min-height: 260px;
+            }
+
+            .brand h1 {
+                font-size: 42px;
+            }
+
+            .brand p {
+                font-size: 11px;
+            }
+
+            .feature {
+                font-size: 10px;
+            }
+
+            .form-panel {
+                padding: 30px 25px;
+            }
+
+            .form-header h2 {
+                font-size: 25px;
+            }
+        }
+
+        @media (max-width: 360px) {
+
+            .brand-panel {
+                padding: 25px;
+            }
+
+            .form-panel {
+                padding: 25px 20px;
+            }
+
+            .brand h1 {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="register-container">
+
+        <section class="register-card">
+
+            <!-- LEFT -->
+            <div class="brand-panel">
+
+                <div class="brand">
+
+                    <span class="brand-label">
+                        AI VIDEO GENERATION
+                    </span>
+
+                    <h1>
+                        GEN-Z<span>.AI</span>
+                    </h1>
+
+                    <p>
+                        Buat video dengan teknologi AI.
+                        Mulai dari ide sederhana hingga
+                        konten visual profesional.
+                    </p>
+
+                </div>
+
+                <div class="feature-list">
+
+                    <div class="feature">
+                        <div class="feature-icon">✦</div>
+                        <span>AI Video Generation</span>
+                    </div>
+
+                    <div class="feature">
+                        <div class="feature-icon">◈</div>
+                        <span>Image & Text to Video</span>
+                    </div>
+
+                    <div class="feature">
+                        <div class="feature-icon">◇</div>
+                        <span>Creative Video Studio</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- RIGHT -->
+            <div class="form-panel">
+
+                <div class="form-header">
+                    <h2>Create Account</h2>
+                    <p>
+                        Buat akun GEN-Z.AI untuk mulai
+                        menggunakan AI Video Studio.
+                    </p>
+                </div>
+
+                <form id="registerForm">
+
+                    <div class="input-group">
+                        <label for="name">NAMA LENGKAP</label>
+
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            placeholder="Masukkan nama lengkap"
+                            autocomplete="name"
+                            required
+                        >
+                    </div>
+
+                    <div class="input-group">
+                        <label for="email">EMAIL</label>
+
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="Masukkan email"
+                            autocomplete="email"
+                            required
+                        >
+                    </div>
+
+                    <div class="input-group">
+                        <label for="password">PASSWORD</label>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Minimal 6 karakter"
+                            autocomplete="new-password"
+                            minlength="6"
+                            required
+                        >
+                    </div>
+
+                    <div class="input-group">
+                        <label for="confirmPassword">
+                            KONFIRMASI PASSWORD
+                        </label>
+
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            placeholder="Ulangi password"
+                            autocomplete="new-password"
+                            minlength="6"
+                            required
+                        >
+                    </div>
+
+                    <div class="password-note">
+                        Gunakan password minimal 6 karakter.
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="registerButton"
+                    >
+                        BUAT AKUN
+                    </button>
+
+                    <div
+                        id="registerMessage"
+                        class="register-message"
+                    ></div>
+
+                </form>
+
+                <div class="login-link">
+                    Sudah punya akun?
+                    <a href="login.html">LOGIN</a>
+                </div>
+
+                <div class="footer">
+                    GEN-Z.AI • AI VIDEO GENERATION PLATFORM
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- CONFIG -->
+    <script src="assets/js/config.js"></script>
+
+    <script>
+        let supabaseClient = null;
+
+        const registerForm =
+            document.getElementById("registerForm");
+
+        const registerButton =
+            document.getElementById("registerButton");
+
+        const registerMessage =
+            document.getElementById("registerMessage");
+
+        function showMessage(message, type) {
+            registerMessage.textContent = message;
+            registerMessage.className =
+                "register-message " + type;
+        }
+
+        registerForm.addEventListener("submit", async (event) => {
+
+            event.preventDefault();
+
+            const name =
+                document.getElementById("name").value.trim();
+
+            const email =
+                document.getElementById("email").value.trim();
+
+            const password =
+                document.getElementById("password").value;
+
+            const confirmPassword =
+                document.getElementById("confirmPassword").value;
+
+            showMessage("", "");
+
+            if (!name) {
+                showMessage(
+                    "Nama lengkap wajib diisi.",
+                    "error"
+                );
+                return;
+            }
+
+            if (!email) {
+                showMessage(
+                    "Email wajib diisi.",
+                    "error"
+                );
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage(
+                    "Password minimal 6 karakter.",
+                    "error"
+                );
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage(
+                    "Konfirmasi password tidak sama.",
+                    "error"
+                );
+                return;
+            }
+
+            registerButton.disabled = true;
+            registerButton.textContent = "MEMBUAT AKUN...";
+
+            try {
+
+                if (!window.supabase) {
+                    throw new Error(
+                        "Supabase library belum termuat."
+                    );
+                }
+
+                if (
+                    !window.GENZ_CONFIG ||
+                    !GENZ_CONFIG.SUPABASE_URL ||
+                    !GENZ_CONFIG.SUPABASE_KEY
+                ) {
+                    throw new Error(
+                        "Konfigurasi GEN-Z.AI tidak tersedia."
+                    );
+                }
+
+                if (!supabaseClient) {
+                    supabaseClient =
+                        window.supabase.createClient(
+                            GENZ_CONFIG.SUPABASE_URL,
+                            GENZ_CONFIG.SUPABASE_KEY
+                        );
+                }
+
+                const {
+                    data,
+                    error
+                } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            name: name
+                        }
+                    }
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                /*
+                 * PROFILE USER AKAN DIBUAT
+                 * OLEH DATABASE TRIGGER / SISTEM BACKEND.
+                 */
+
+                showMessage(
+                    "Pendaftaran berhasil. Silakan cek email untuk verifikasi akun.",
+                    "success"
+                );
+
+                registerForm.reset();
+
+                setTimeout(() => {
+                    window.location.replace("login.html");
+                }, 2500);
+
+            } catch (error) {
+
+                console.error(
+                    "Register error:",
+                    error
+                );
+
+                let message =
+                    error?.message ||
+                    "Pendaftaran gagal.";
+
+                if (
+                    message.toLowerCase().includes(
+                        "already registered"
+                    )
+                ) {
+                    message =
+                        "Email tersebut sudah terdaftar.";
+                }
+
+                showMessage(
+                    message,
+                    "error"
+                );
+
+                registerButton.disabled = false;
+                registerButton.textContent = "BUAT AKUN";
+            }
+
+        });
+    </script>
+
+</body>
+</html>
