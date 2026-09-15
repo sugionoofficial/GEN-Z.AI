@@ -1,4 +1,3 @@
-```javascript
 // ========================================
 // GEN-Z.AI - AUTHENTICATION
 // ========================================
@@ -8,17 +7,9 @@ const supabaseClient = window.supabase.createClient(
     GENZ_CONFIG.SUPABASE_KEY
 );
 
-// ========================================
-// ELEMENTS
-// ========================================
-
 const loginForm = document.getElementById("loginForm");
 const loginButton = document.getElementById("loginButton");
 const loginMessage = document.getElementById("loginMessage");
-
-// ========================================
-// LOGIN
-// ========================================
 
 if (loginForm) {
 
@@ -32,19 +23,13 @@ if (loginForm) {
         const email = emailInput.value.trim();
         const password = passwordInput.value;
 
-        // Reset message
         loginMessage.textContent = "";
         loginMessage.className = "login-message";
 
-        // Loading
         loginButton.disabled = true;
         loginButton.textContent = "LOGIN...";
 
         try {
-
-            // ----------------------------------------
-            // 1. LOGIN SUPABASE
-            // ----------------------------------------
 
             const { data, error } =
                 await supabaseClient.auth.signInWithPassword({
@@ -59,14 +44,8 @@ if (loginForm) {
             const user = data?.user;
 
             if (!user) {
-                throw new Error(
-                    "User tidak ditemukan."
-                );
+                throw new Error("User tidak ditemukan.");
             }
-
-            // ----------------------------------------
-            // 2. AMBIL PROFILE USER
-            // ----------------------------------------
 
             const {
                 data: profile,
@@ -77,18 +56,14 @@ if (loginForm) {
                 .eq("id", user.id)
                 .single();
 
-            if (profileError) {
+            if (profileError || !profile) {
 
                 await supabaseClient.auth.signOut();
 
                 throw new Error(
-                    "Profile user belum tersedia."
+                    "Profile user belum tersedia. Pastikan user memiliki data di tabel profiles."
                 );
             }
-
-            // ----------------------------------------
-            // 3. CEK STATUS AKUN
-            // ----------------------------------------
 
             if (profile.status !== "active") {
 
@@ -98,10 +73,6 @@ if (loginForm) {
                     "Akun tidak aktif. Hubungi administrator."
                 );
             }
-
-            // ----------------------------------------
-            // 4. CEK ROLE
-            // ----------------------------------------
 
             if (profile.role === "USER") {
 
@@ -122,10 +93,6 @@ if (loginForm) {
                 return;
             }
 
-            // ----------------------------------------
-            // 5. ROLE TIDAK VALID
-            // ----------------------------------------
-
             await supabaseClient.auth.signOut();
 
             throw new Error(
@@ -139,40 +106,36 @@ if (loginForm) {
                 error
             );
 
-            // ----------------------------------------
-            // TAMPILKAN ERROR
-            // ----------------------------------------
-
             let message =
                 error?.message ||
                 "Login gagal. Silakan coba lagi.";
 
-            // Pesan yang lebih mudah dipahami
             if (
-                message.includes("Invalid login credentials")
+                message.includes(
+                    "Invalid login credentials"
+                )
             ) {
                 message =
                     "Email atau password salah.";
             }
 
             if (
-                message.includes("Email not confirmed")
+                message.includes(
+                    "Email not confirmed"
+                )
             ) {
                 message =
                     "Email belum dikonfirmasi.";
             }
 
-            loginMessage.textContent = message;
-
-            // ----------------------------------------
-            // RESET BUTTON
-            // ----------------------------------------
+            loginMessage.textContent =
+                message;
 
             loginButton.disabled = false;
-            loginButton.textContent = "LOGIN";
+            loginButton.textContent =
+                "LOGIN";
         }
 
     });
 
 }
-```
