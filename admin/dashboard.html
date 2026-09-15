@@ -536,6 +536,14 @@
             letter-spacing: -.05em;
         }
 
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+
+            gap: 10px;
+        }
+
         .admin-status {
             display: flex;
             align-items: center;
@@ -582,6 +590,79 @@
 
             color:
                 var(--muted);
+        }
+
+        /* =========================================================
+           TOP LOGOUT BUTTON
+           ========================================================= */
+
+        .top-logout-button {
+            min-height: 42px;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            gap: 8px;
+
+            padding: 0 15px;
+
+            border:
+                1px solid
+                var(--border);
+
+            border-radius: 12px;
+
+            background:
+                rgba(255,255,255,.88);
+
+            color:
+                #344054;
+
+            font-size: 10px;
+            font-weight: 850;
+            letter-spacing: .04em;
+
+            box-shadow:
+                0 10px 25px
+                rgba(15,23,42,.06);
+
+            transition:
+                transform .18s ease,
+                background .18s ease,
+                color .18s ease,
+                box-shadow .18s ease;
+        }
+
+        .top-logout-button span {
+            font-size: 15px;
+            line-height: 1;
+        }
+
+        .top-logout-button:hover {
+            transform:
+                translateY(-2px);
+
+            background:
+                #111827;
+
+            color:
+                #ffffff;
+
+            box-shadow:
+                0 14px 30px
+                rgba(15,23,42,.14);
+        }
+
+        .top-logout-button:active {
+            transform:
+                translateY(0);
+        }
+
+        .top-logout-button:disabled {
+            opacity: .65;
+            cursor: wait;
+            transform: none;
         }
 
         /* =========================================================
@@ -992,7 +1073,7 @@
                 #ffffff;
 
             border-color:
-                var(--border-dark);
+                #d0d5dd;
         }
 
         .quick-icon {
@@ -1035,10 +1116,24 @@
             .topbar {
                 padding-left: 57px;
                 margin-bottom: 22px;
+                align-items: flex-start;
+            }
+
+            .topbar-right {
+                gap: 7px;
             }
 
             .page-title {
                 font-size: 23px;
+            }
+
+            .top-logout-button {
+                min-height: 40px;
+                padding: 0 11px;
+            }
+
+            .top-logout-button span {
+                font-size: 14px;
             }
 
             .stats-grid {
@@ -1079,6 +1174,30 @@
             }
         }
 
+        @media (max-width: 600px) {
+
+            .admin-status {
+                padding: 9px;
+            }
+
+            .status-text {
+                display: none;
+            }
+
+            .top-logout-button {
+                width: 42px;
+                padding: 0;
+            }
+
+            .top-logout-button .logout-label {
+                display: none;
+            }
+
+            .top-logout-button span {
+                font-size: 17px;
+            }
+        }
+
         @media (max-width: 430px) {
 
             .menu-button {
@@ -1095,14 +1214,6 @@
 
             .page-title {
                 font-size: 21px;
-            }
-
-            .admin-status {
-                padding: 9px;
-            }
-
-            .status-text {
-                display: none;
             }
 
             .stats-grid {
@@ -1225,8 +1336,9 @@
                 <span>Dashboard</span>
             </a>
 
+            <!-- SHARED GENERATOR -->
             <a
-                href="generate.html"
+                href="../generate/index.html"
                 class="nav-item"
             >
                 <span class="nav-icon">✦</span>
@@ -1317,6 +1429,7 @@
             </div>
 
 
+            <!-- SIDEBAR LOGOUT -->
             <button
                 type="button"
                 class="logout-button"
@@ -1338,7 +1451,9 @@
 
         <div class="content">
 
-            <!-- TOPBAR -->
+            <!-- =================================================
+                 TOPBAR
+                 ================================================= -->
 
             <header class="topbar">
 
@@ -1355,13 +1470,32 @@
                 </div>
 
 
-                <div class="admin-status">
+                <div class="topbar-right">
 
-                    <span class="status-dot"></span>
+                    <div class="admin-status">
 
-                    <span class="status-text">
-                        SYSTEM ONLINE
-                    </span>
+                        <span class="status-dot"></span>
+
+                        <span class="status-text">
+                            SYSTEM ONLINE
+                        </span>
+
+                    </div>
+
+
+                    <!-- VISIBLE TOP LOGOUT -->
+                    <button
+                        type="button"
+                        class="top-logout-button"
+                        id="topLogoutButton"
+                        aria-label="Logout"
+                        title="Logout"
+                    >
+                        <span>↪</span>
+                        <span class="logout-label">
+                            LOG OUT
+                        </span>
+                    </button>
 
                 </div>
 
@@ -1666,7 +1800,6 @@
 
                             </div>
 
-
                         </div>
 
                     </div>
@@ -1891,6 +2024,117 @@
                 );
 
             });
+
+
+        /* =====================================================
+           LOGOUT FUNCTION
+           ===================================================== */
+
+        async function performLogout(button) {
+
+            if (button) {
+
+                button.disabled = true;
+
+                if (
+                    button.id === "topLogoutButton"
+                ) {
+
+                    button.innerHTML =
+                        "<span>...</span><span class=\"logout-label\">LOG OUT</span>";
+
+                } else {
+
+                    button.textContent =
+                        "LOGGING OUT...";
+
+                }
+
+            }
+
+
+            try {
+
+                if (supabaseClient) {
+
+                    const {
+                        error
+                    } =
+                        await supabaseClient
+                            .auth
+                            .signOut();
+
+                    if (error) {
+
+                        console.error(
+                            "Supabase logout error:",
+                            error
+                        );
+
+                    }
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "Logout error:",
+                    error
+                );
+
+            } finally {
+
+                window.location.replace(
+                    "../login.html"
+                );
+
+            }
+
+        }
+
+
+        /* =====================================================
+           SIDEBAR LOGOUT
+           ===================================================== */
+
+        const logoutButton =
+            document.getElementById(
+                "logoutButton"
+            );
+
+
+        logoutButton.addEventListener(
+            "click",
+            function() {
+
+                performLogout(
+                    logoutButton
+                );
+
+            }
+        );
+
+
+        /* =====================================================
+           TOP LOGOUT
+           ===================================================== */
+
+        const topLogoutButton =
+            document.getElementById(
+                "topLogoutButton"
+            );
+
+
+        topLogoutButton.addEventListener(
+            "click",
+            function() {
+
+                performLogout(
+                    topLogoutButton
+                );
+
+            }
+        );
 
 
         /* =====================================================
@@ -2468,38 +2712,6 @@
             );
 
         }
-
-
-        /* =====================================================
-           LOGOUT
-           ===================================================== */
-
-        document
-            .getElementById("logoutButton")
-            .addEventListener(
-                "click",
-                async function() {
-
-                    try {
-
-                        if (supabaseClient) {
-
-                            await supabaseClient
-                                .auth
-                                .signOut();
-
-                        }
-
-                    } finally {
-
-                        window.location.replace(
-                            "../login.html"
-                        );
-
-                    }
-
-                }
-            );
 
 
         /* =====================================================
