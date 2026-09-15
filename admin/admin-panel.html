@@ -20,12 +20,7 @@
             padding: 0;
             min-height: 100%;
             font-family: Arial, Helvetica, sans-serif;
-            background: linear-gradient(
-                135deg,
-                #f8fafc 0%,
-                #eef2f7 45%,
-                #ffffff 100%
-            );
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 45%, #ffffff 100%);
             color: #111827;
         }
 
@@ -130,7 +125,7 @@
             justify-content: space-between;
             align-items: center;
             gap: 20px;
-            margin-bottom: 28px;
+            margin-bottom: 20px;
         }
 
         .page-title {
@@ -162,6 +157,38 @@
             margin-top: 3px;
             font-size: 11px;
             color: #6b7280;
+        }
+
+        .admin-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: rgba(255,255,255,.92);
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+            border-radius: 12px;
+            margin-bottom: 22px;
+        }
+
+        .admin-tab {
+            border: 0;
+            background: transparent;
+            color: #6b7280;
+            padding: 11px 17px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            transition: .2s;
+        }
+
+        .admin-tab:hover {
+            background: #f3f4f6;
+            color: #111827;
+        }
+
+        .admin-tab.active {
+            background: #111827;
+            color: white;
         }
 
         .section {
@@ -644,6 +671,15 @@
             .toolbar {
                 width: 100%;
             }
+
+            .admin-tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+            }
+
+            .admin-tab {
+                white-space: nowrap;
+            }
         }
     </style>
 </head>
@@ -691,7 +727,7 @@
 
             <button
                 class="nav-item active"
-                onclick="showSection('users', this)"
+                onclick="showSection('users', document.getElementById('tabUsers'))"
             >
                 ADMIN PANEL
             </button>
@@ -707,11 +743,13 @@
 
     </aside>
 
+
     <main class="main">
 
         <div class="topbar">
 
             <div>
+
                 <h1 class="page-title">
                     ADMIN PANEL
                 </h1>
@@ -719,6 +757,7 @@
                 <p class="page-description">
                     Kelola pengguna, provider, model, kredit, dan konfigurasi sistem GEN-Z.AI.
                 </p>
+
             </div>
 
             <div class="account">
@@ -741,10 +780,61 @@
 
         </div>
 
+
+        <!-- ADMIN PANEL NAVIGATION -->
+
+        <div class="admin-tabs">
+
+            <button
+                id="tabUsers"
+                class="admin-tab active"
+                onclick="showSection('users', this)"
+            >
+                USERS
+            </button>
+
+            <button
+                id="tabProviders"
+                class="admin-tab"
+                onclick="showSection('providers', this)"
+            >
+                PROVIDERS
+            </button>
+
+            <button
+                id="tabModels"
+                class="admin-tab"
+                onclick="showSection('models', this)"
+            >
+                MODELS
+            </button>
+
+            <button
+                id="tabCredit"
+                class="admin-tab"
+                onclick="showSection('credit', this)"
+            >
+                CREDIT
+            </button>
+
+            <button
+                id="tabSystem"
+                class="admin-tab"
+                onclick="showSection('system', this)"
+            >
+                SYSTEM
+            </button>
+
+        </div>
+
+
         <div
             id="globalMessage"
             class="message"
         ></div>
+
+
+        <!-- USERS -->
 
         <section
             id="section-users"
@@ -754,6 +844,7 @@
             <div class="stats-grid">
 
                 <div class="stat-card">
+
                     <div class="stat-label">
                         Total Users
                     </div>
@@ -764,9 +855,11 @@
                     >
                         0
                     </div>
+
                 </div>
 
                 <div class="stat-card">
+
                     <div class="stat-label">
                         Active
                     </div>
@@ -777,9 +870,11 @@
                     >
                         0
                     </div>
+
                 </div>
 
                 <div class="stat-card">
+
                     <div class="stat-label">
                         Suspended
                     </div>
@@ -790,9 +885,11 @@
                     >
                         0
                     </div>
+
                 </div>
 
                 <div class="stat-card">
+
                     <div class="stat-label">
                         Banned
                     </div>
@@ -803,15 +900,18 @@
                     >
                         0
                     </div>
+
                 </div>
 
             </div>
+
 
             <div class="card">
 
                 <div class="card-header">
 
                     <div>
+
                         <h2 class="card-title">
                             USER MANAGEMENT
                         </h2>
@@ -819,6 +919,7 @@
                         <p class="card-description">
                             Daftar akun yang terdaftar pada GEN-Z.AI.
                         </p>
+
                     </div>
 
                     <input
@@ -831,11 +932,13 @@
 
                 </div>
 
+
                 <div class="table-wrap">
 
                     <table>
 
                         <thead>
+
                             <tr>
                                 <th>EMAIL</th>
                                 <th>NAMA</th>
@@ -844,16 +947,21 @@
                                 <th>STATUS</th>
                                 <th>CREATED</th>
                             </tr>
+
                         </thead>
 
                         <tbody id="usersTableBody">
 
                             <tr>
+
                                 <td colspan="6">
+
                                     <div class="loading">
                                         Memuat users...
                                     </div>
+
                                 </td>
+
                             </tr>
 
                         </tbody>
@@ -867,6 +975,8 @@
         </section>
 
 
+        <!-- PROVIDERS -->
+
         <section
             id="section-providers"
             class="section"
@@ -877,6 +987,7 @@
                 <div class="card-header">
 
                     <div>
+
                         <h2 class="card-title">
                             PROVIDER MANAGEMENT
                         </h2>
@@ -884,6 +995,7 @@
                         <p class="card-description">
                             Kelola provider AI yang digunakan GEN-Z.AI.
                         </p>
+
                     </div>
 
                     <div class="toolbar">
@@ -906,10 +1018,12 @@
 
                 </div>
 
+
                 <div
                     id="providerMessage"
                     class="message"
                 ></div>
+
 
                 <div
                     id="providersContainer"
@@ -927,6 +1041,8 @@
         </section>
 
 
+        <!-- MODELS -->
+
         <section
             id="section-models"
             class="section"
@@ -937,16 +1053,19 @@
                 <div class="card-header">
 
                     <div>
+
                         <h2 class="card-title">
                             MODEL MANAGEMENT
                         </h2>
 
                         <p class="card-description">
-                            Daftar model AI yang tersedia untuk provider.
+                            Kelola model AI berdasarkan provider.
                         </p>
+
                     </div>
 
                 </div>
+
 
                 <div class="empty-state">
 
@@ -955,7 +1074,7 @@
                     </strong>
 
                     <span>
-                        Modul model akan dihubungkan setelah Provider Manager stabil.
+                        Modul model siap dilanjutkan setelah Provider Manager.
                     </span>
 
                 </div>
@@ -964,6 +1083,8 @@
 
         </section>
 
+
+        <!-- CREDIT -->
 
         <section
             id="section-credit"
@@ -975,16 +1096,19 @@
                 <div class="card-header">
 
                     <div>
+
                         <h2 class="card-title">
                             CREDIT MANAGEMENT
                         </h2>
 
                         <p class="card-description">
-                            Pengelolaan kredit pengguna.
+                            Pengelolaan kredit pengguna GEN-Z.AI.
                         </p>
+
                     </div>
 
                 </div>
+
 
                 <div class="empty-state">
 
@@ -1003,6 +1127,8 @@
         </section>
 
 
+        <!-- SYSTEM -->
+
         <section
             id="section-system"
             class="section"
@@ -1013,24 +1139,26 @@
                 <div class="card-header">
 
                     <div>
+
                         <h2 class="card-title">
                             SYSTEM
                         </h2>
 
                         <p class="card-description">
-                            Informasi konfigurasi sistem GEN-Z.AI.
+                            Informasi sistem GEN-Z.AI.
                         </p>
 
                     </div>
 
                 </div>
 
+
                 <div class="system-grid">
 
                     <div class="info-box">
 
                         <div class="info-label">
-                            Application
+                            APPLICATION
                         </div>
 
                         <div class="info-value">
@@ -1042,7 +1170,7 @@
                     <div class="info-box">
 
                         <div class="info-label">
-                            Authentication
+                            AUTHENTICATION
                         </div>
 
                         <div class="info-value">
@@ -1054,7 +1182,7 @@
                     <div class="info-box">
 
                         <div class="info-label">
-                            Database
+                            DATABASE
                         </div>
 
                         <div class="info-value">
@@ -1066,7 +1194,7 @@
                     <div class="info-box">
 
                         <div class="info-label">
-                            Environment
+                            ENVIRONMENT
                         </div>
 
                         <div class="info-value">
@@ -1085,6 +1213,8 @@
 
 </div>
 
+
+<!-- PROVIDER MODAL -->
 
 <div
     id="providerModal"
@@ -1112,12 +1242,14 @@
 
         </div>
 
+
         <div class="modal-body">
 
             <input
                 type="hidden"
                 id="providerEditId"
             >
+
 
             <div class="form-group">
 
@@ -1138,6 +1270,7 @@
 
             </div>
 
+
             <div class="form-group">
 
                 <label
@@ -1157,6 +1290,7 @@
 
             </div>
 
+
             <div class="form-group">
 
                 <label
@@ -1173,6 +1307,7 @@
                 ></textarea>
 
             </div>
+
 
             <div class="form-group">
 
@@ -1204,6 +1339,7 @@
 
             </div>
 
+
             <div class="form-group">
 
                 <label class="checkbox-row">
@@ -1221,12 +1357,14 @@
 
             </div>
 
+
             <div
                 id="providerModalMessage"
                 class="message"
             ></div>
 
         </div>
+
 
         <div class="modal-footer">
 
@@ -1378,13 +1516,15 @@
             );
 
         if (section) {
+
             section.classList.add(
                 "active"
             );
         }
 
+
         document
-            .querySelectorAll(".nav-item")
+            .querySelectorAll(".admin-tab")
             .forEach(
                 button => {
                     button.classList.remove(
@@ -1394,10 +1534,12 @@
             );
 
         if (buttonElement) {
+
             buttonElement.classList.add(
                 "active"
             );
         }
+
 
         if (
             sectionName ===
@@ -1412,6 +1554,27 @@
         ) {
 
             loadProviders();
+
+        } else if (
+            sectionName ===
+            "models"
+        ) {
+
+            loadModels();
+
+        } else if (
+            sectionName ===
+            "credit"
+        ) {
+
+            loadCredit();
+
+        } else if (
+            sectionName ===
+            "system"
+        ) {
+
+            loadSystem();
         }
     }
 
@@ -1423,18 +1586,24 @@
             supabaseClient =
                 getSupabaseClient();
 
+
             const {
                 data,
                 error
             } =
-                await supabaseClient.auth.getSession();
+                await supabaseClient
+                    .auth
+                    .getSession();
+
 
             if (error) {
                 throw error;
             }
 
+
             const session =
                 data?.session;
+
 
             if (
                 !session ||
@@ -1447,8 +1616,10 @@
                 return false;
             }
 
+
             currentUser =
                 session.user;
+
 
             const {
                 data: profile,
@@ -1471,9 +1642,11 @@
                     )
                     .single();
 
+
             if (profileError) {
                 throw profileError;
             }
+
 
             if (
                 !profile ||
@@ -1491,6 +1664,7 @@
                 return false;
             }
 
+
             if (
                 profile.status !==
                 "active"
@@ -1506,8 +1680,10 @@
                 return false;
             }
 
+
             currentProfile =
                 profile;
+
 
             document.getElementById(
                 "accountEmail"
@@ -1516,11 +1692,13 @@
                 currentUser.email ||
                 "-";
 
+
             document.getElementById(
                 "accountRole"
             ).textContent =
                 "ROLE " +
                 profile.role;
+
 
             return true;
 
@@ -1578,6 +1756,7 @@
             return;
         }
 
+
         tableBody.innerHTML = `
             <tr>
                 <td colspan="6">
@@ -1587,6 +1766,7 @@
                 </td>
             </tr>
         `;
+
 
         try {
 
@@ -1612,18 +1792,22 @@
                         }
                     );
 
+
             if (error) {
                 throw error;
             }
 
+
             usersCache =
                 data || [];
+
 
             updateUserStats();
 
             renderUsers(
                 usersCache
             );
+
 
         } catch (error) {
 
@@ -1632,11 +1816,15 @@
                 error
             );
 
+
             tableBody.innerHTML = `
                 <tr>
                     <td colspan="6">
                         <div class="empty-state">
-                            <strong>Gagal memuat users</strong>
+                            <strong>
+                                Gagal memuat users
+                            </strong>
+
                             <span>
                                 ${escapeHtml(
                                     error.message ||
@@ -1658,6 +1846,7 @@
         ).textContent =
             usersCache.length;
 
+
         document.getElementById(
             "activeUsers"
         ).textContent =
@@ -1667,6 +1856,7 @@
                     "active"
             ).length;
 
+
         document.getElementById(
             "suspendedUsers"
         ).textContent =
@@ -1675,6 +1865,7 @@
                     user.status ===
                     "suspended"
             ).length;
+
 
         document.getElementById(
             "bannedUsers"
@@ -1696,16 +1887,22 @@
                 "usersTableBody"
             );
 
+
         if (!users.length) {
 
             tableBody.innerHTML = `
                 <tr>
                     <td colspan="6">
                         <div class="empty-state">
-                            <strong>Belum ada user</strong>
+
+                            <strong>
+                                Belum ada user
+                            </strong>
+
                             <span>
                                 Tidak ada data user yang tersedia.
                             </span>
+
                         </div>
                     </td>
                 </tr>
@@ -1713,6 +1910,7 @@
 
             return;
         }
+
 
         tableBody.innerHTML =
             users
@@ -1725,10 +1923,12 @@
                                 ? "badge-owner"
                                 : "badge-active";
 
+
                         const statusClass =
                             getStatusBadgeClass(
                                 user.status
                             );
+
 
                         return `
                             <tr>
@@ -1800,6 +2000,7 @@
                 .trim()
                 .toLowerCase();
 
+
         if (!keyword) {
 
             renderUsers(
@@ -1808,6 +2009,7 @@
 
             return;
         }
+
 
         renderUsers(
             usersCache.filter(
@@ -1868,12 +2070,15 @@
                     }
                 );
 
+
         if (error) {
             throw error;
         }
 
+
         providerCache =
             data || [];
+
 
         return providerCache;
     }
@@ -1886,9 +2091,11 @@
                 "providersContainer"
             );
 
+
         if (!container) {
             return;
         }
+
 
         container.innerHTML = `
             <div class="loading">
@@ -1896,14 +2103,17 @@
             </div>
         `;
 
+
         hideMessage(
             "providerMessage"
         );
+
 
         try {
 
             const providers =
                 await cacheProviders();
+
 
             if (!providers.length) {
 
@@ -1912,6 +2122,7 @@
                         class="empty-state"
                         style="grid-column:1/-1;"
                     >
+
                         <strong>
                             Provider belum tersedia
                         </strong>
@@ -1919,15 +2130,18 @@
                         <span>
                             Tidak ada provider yang dapat ditampilkan.
                         </span>
+
                     </div>
                 `;
 
                 return;
             }
 
+
             renderProviders(
                 providers
             );
+
 
         } catch (error) {
 
@@ -1936,11 +2150,13 @@
                 error
             );
 
+
             container.innerHTML = `
                 <div
                     class="empty-state"
                     style="grid-column:1/-1;"
                 >
+
                     <strong>
                         Gagal memuat provider
                     </strong>
@@ -1951,8 +2167,10 @@
                             "Terjadi kesalahan."
                         )}
                     </span>
+
                 </div>
             `;
+
 
             showMessage(
                 "providerMessage",
@@ -1973,6 +2191,7 @@
                 "providersContainer"
             );
 
+
         if (!providers.length) {
 
             container.innerHTML = `
@@ -1980,14 +2199,17 @@
                     class="empty-state"
                     style="grid-column:1/-1;"
                 >
+
                     <strong>
                         Provider belum tersedia
                     </strong>
+
                 </div>
             `;
 
             return;
         }
+
 
         container.innerHTML =
             providers
@@ -1998,6 +2220,7 @@
                             getProviderStatusClass(
                                 provider.status
                             );
+
 
                         return `
                             <div class="provider-card">
@@ -2032,12 +2255,14 @@
 
                                 </div>
 
+
                                 <div class="provider-description">
                                     ${escapeHtml(
                                         provider.description ||
                                         "Tidak ada deskripsi."
                                     )}
                                 </div>
+
 
                                 <div class="provider-meta">
 
@@ -2059,6 +2284,7 @@
 
                                     </div>
 
+
                                     <div class="provider-actions">
 
                                         <button
@@ -2070,6 +2296,7 @@
                                         >
                                             EDIT
                                         </button>
+
 
                                         <button
                                             type="button"
@@ -2100,54 +2327,65 @@
         editingProviderId =
             providerId || null;
 
+
         const modal =
             document.getElementById(
                 "providerModal"
             );
+
 
         const title =
             document.getElementById(
                 "providerModalTitle"
             );
 
+
         const editId =
             document.getElementById(
                 "providerEditId"
             );
+
 
         const providerIdInput =
             document.getElementById(
                 "providerId"
             );
 
+
         const providerNameInput =
             document.getElementById(
                 "providerName"
             );
+
 
         const descriptionInput =
             document.getElementById(
                 "providerDescription"
             );
 
+
         const statusInput =
             document.getElementById(
                 "providerStatus"
             );
+
 
         const defaultInput =
             document.getElementById(
                 "providerDefault"
             );
 
+
         const saveButton =
             document.getElementById(
                 "providerSaveButton"
             );
 
+
         hideMessage(
             "providerModalMessage"
         );
+
 
         if (providerId) {
 
@@ -2157,6 +2395,7 @@
                         String(item.id) ===
                         String(providerId)
                 );
+
 
             if (!provider) {
 
@@ -2169,66 +2408,84 @@
                 return;
             }
 
+
             title.textContent =
                 "EDIT PROVIDER";
 
+
             editId.value =
                 provider.id;
+
 
             providerIdInput.value =
                 provider.provider_id ||
                 "";
 
+
             providerNameInput.value =
                 provider.provider_name ||
                 "";
+
 
             descriptionInput.value =
                 provider.description ||
                 "";
 
+
             statusInput.value =
                 provider.status ||
                 "active";
+
 
             defaultInput.checked =
                 Boolean(
                     provider.is_default
                 );
 
+
             saveButton.textContent =
                 "SIMPAN PERUBAHAN";
+
 
         } else {
 
             title.textContent =
                 "ADD PROVIDER";
 
+
             editId.value =
                 "";
+
 
             providerIdInput.value =
                 "";
 
+
             providerNameInput.value =
                 "";
+
 
             descriptionInput.value =
                 "";
 
+
             statusInput.value =
                 "active";
 
+
             defaultInput.checked =
                 false;
+
 
             saveButton.textContent =
                 "SIMPAN";
         }
 
+
         modal.classList.add(
             "show"
         );
+
 
         setTimeout(
             () => {
@@ -2249,8 +2506,10 @@
                 "show"
             );
 
+
         editingProviderId =
             null;
+
 
         document.getElementById(
             "providerEditId"
@@ -2266,44 +2525,53 @@
                 "providerSaveButton"
             );
 
+
         const cancelButton =
             document.getElementById(
                 "providerCancelButton"
             );
+
 
         const editId =
             document.getElementById(
                 "providerEditId"
             ).value.trim();
 
+
         const providerId =
             document.getElementById(
                 "providerId"
             ).value.trim();
+
 
         const providerName =
             document.getElementById(
                 "providerName"
             ).value.trim();
 
+
         const description =
             document.getElementById(
                 "providerDescription"
             ).value.trim();
+
 
         const status =
             document.getElementById(
                 "providerStatus"
             ).value;
 
+
         const isDefault =
             document.getElementById(
                 "providerDefault"
             ).checked;
 
+
         hideMessage(
             "providerModalMessage"
         );
+
 
         if (!providerId) {
 
@@ -2316,6 +2584,7 @@
             return;
         }
 
+
         if (!providerName) {
 
             showMessage(
@@ -2327,21 +2596,26 @@
             return;
         }
 
+
         button.disabled =
             true;
 
         cancelButton.disabled =
             true;
 
+
         const originalText =
             button.textContent;
+
 
         button.textContent =
             "MENYIMPAN...";
 
+
         try {
 
             let result;
+
 
             if (editId) {
 
@@ -2370,6 +2644,7 @@
                         }
                     );
 
+
             } else {
 
                 result =
@@ -2395,17 +2670,22 @@
                     );
             }
 
+
             if (result.error) {
                 throw result.error;
             }
 
+
             await cacheProviders();
+
 
             renderProviders(
                 providerCache
             );
 
+
             closeProviderModal();
+
 
             showMessage(
                 "providerMessage",
@@ -2415,6 +2695,7 @@
                 "success"
             );
 
+
         } catch (error) {
 
             console.error(
@@ -2422,12 +2703,14 @@
                 error
             );
 
+
             showMessage(
                 "providerModalMessage",
                 error.message ||
                 "Gagal menyimpan provider.",
                 "error"
             );
+
 
         } finally {
 
@@ -2454,6 +2737,7 @@
                     String(providerId)
             );
 
+
         if (!provider) {
 
             showMessage(
@@ -2465,6 +2749,7 @@
             return;
         }
 
+
         const confirmed =
             window.confirm(
                 "Hapus provider \"" +
@@ -2475,9 +2760,11 @@
                 "\"?\n\nTindakan ini tidak dapat dibatalkan."
             );
 
+
         if (!confirmed) {
             return;
         }
+
 
         try {
 
@@ -2486,6 +2773,7 @@
                 "Menghapus provider...",
                 "info"
             );
+
 
             const {
                 error
@@ -2498,21 +2786,26 @@
                     }
                 );
 
+
             if (error) {
                 throw error;
             }
 
+
             await cacheProviders();
+
 
             renderProviders(
                 providerCache
             );
+
 
             showMessage(
                 "providerMessage",
                 "Provider berhasil dihapus.",
                 "success"
             );
+
 
         } catch (error) {
 
@@ -2521,6 +2814,7 @@
                 error
             );
 
+
             showMessage(
                 "providerMessage",
                 error.message ||
@@ -2528,6 +2822,30 @@
                 "error"
             );
         }
+    }
+
+
+    function loadModels() {
+
+        console.log(
+            "MODEL MANAGER siap."
+        );
+    }
+
+
+    function loadCredit() {
+
+        console.log(
+            "CREDIT MANAGER siap."
+        );
+    }
+
+
+    function loadSystem() {
+
+        console.log(
+            "SYSTEM MANAGER siap."
+        );
     }
 
 
@@ -2542,12 +2860,14 @@
             return "badge-active";
         }
 
+
         if (
             status ===
             "maintenance"
         ) {
             return "badge-maintenance";
         }
+
 
         return "badge-inactive";
     }
@@ -2564,6 +2884,7 @@
             return "badge-active";
         }
 
+
         if (
             status ===
             "suspended"
@@ -2571,12 +2892,14 @@
             return "badge-maintenance";
         }
 
+
         if (
             status ===
             "banned"
         ) {
             return "badge-danger";
         }
+
 
         return "badge-inactive";
     }
@@ -2589,6 +2912,7 @@
         if (!value) {
             return "-";
         }
+
 
         try {
 
@@ -2702,6 +3026,7 @@
                             "providerModal"
                         );
 
+
                     if (
                         modal.classList.contains(
                             "show"
@@ -2720,13 +3045,26 @@
         const authenticated =
             await checkAuth();
 
+
         if (!authenticated) {
             return;
         }
 
+
         await loadUsers();
 
-        await cacheProviders();
+
+        try {
+
+            await cacheProviders();
+
+        } catch (error) {
+
+            console.error(
+                "INITIAL PROVIDER CACHE ERROR:",
+                error
+            );
+        }
 
     })();
 
