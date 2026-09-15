@@ -2298,234 +2298,87 @@ function closeProviderModal() {
 ========================================================= */
 
 async function saveProvider() {
-
-    const editId =
-        document.getElementById(
-            "providerEditId"
-        ).value.trim();
-
-
-    const providerId =
-        document.getElementById(
-            "providerId"
-        ).value.trim();
-
-
-    const providerName =
-        document.getElementById(
-            "providerName"
-        ).value.trim();
-
-
-    const description =
-        document.getElementById(
-            "providerDescription"
-        ).value.trim();
-
-
-    const status =
-        document.getElementById(
-            "providerStatus"
-        ).value;
-
-
-    const isDefault =
-        document.getElementById(
-            "providerDefault"
-        ).checked;
-
+    const editId = document.getElementById("providerEditId").value.trim();
+    const providerId = document.getElementById("providerId").value.trim();
+    const providerName = document.getElementById("providerName").value.trim();
+    const description = document.getElementById("providerDescription").value.trim();
+    const status = document.getElementById("providerStatus").value;
+    const isDefault = document.getElementById("providerDefault").checked;
 
     if (!providerId) {
-
-        showMessage(
-            "Provider ID wajib diisi."
-        );
-
+        alert("Provider ID wajib diisi.");
         return;
     }
-
 
     if (!providerName) {
-
-        showMessage(
-            "Provider Name wajib diisi."
-        );
-
+        alert("Provider Name wajib diisi.");
         return;
     }
 
-
-    if (
-        ![
-            "active",
-            "inactive",
-            "maintenance"
-        ].includes(status)
-    ) {
-
-        showMessage(
-            "Status provider tidak valid."
-        );
-
-        return;
-    }
-
-
-    const saveButton =
-        document.getElementById(
-            "providerSaveButton"
-        );
-
-
-    const originalText =
-        saveButton.textContent;
-
-
-    saveButton.disabled = true;
-
-    saveButton.textContent =
-        "MENYIMPAN...";
-
+    const button = document.getElementById("providerSaveBtn");
 
     try {
+        button.disabled = true;
+        button.textContent = "MENYIMPAN...";
 
         let result;
 
-
-        /*
-         * EDIT
-         *
-         * RPC:
-         * admin_update_provider(
-         *   uuid,
-         *   text,
-         *   text,
-         *   text,
-         *   text,
-         *   boolean
-         * )
-         */
-
         if (editId) {
-
-            result =
-                await supabaseClient.rpc(
-                    "admin_update_provider",
-                    {
-                        p_id:
-                            editId,
-
-                        p_provider_id:
-                            providerId,
-
-                        p_provider_name:
-                            providerName,
-
-                        p_description:
-                            description || null,
-
-                        p_status:
-                            status,
-
-                        p_is_default:
-                            isDefault
-                    }
-                );
-
+            // EDIT PROVIDER
+            result = await supabaseClient.rpc("admin_update_provider", {
+                p_id: editId,
+                p_provider_id: providerId,
+                p_provider_name: providerName,
+                p_description: description || null,
+                p_status: status,
+                p_is_default: isDefault
+            });
+        } else {
+            // ADD PROVIDER
+            result = await supabaseClient.rpc("admin_create_provider", {
+                p_provider_id: providerId,
+                p_provider_name: providerName,
+                p_description: description || null,
+                p_status: status,
+                p_is_default: isDefault
+            });
         }
-
-        /*
-         * CREATE
-         *
-         * RPC:
-         * admin_create_provider(
-         *   text,
-         *   text,
-         *   text,
-         *   text,
-         *   boolean
-         * )
-         */
-
-        else {
-
-            result =
-                await supabaseClient.rpc(
-                    "admin_create_provider",
-                    {
-                        p_provider_id:
-                            providerId,
-
-                        p_provider_name:
-                            providerName,
-
-                        p_description:
-                            description || null,
-
-                        p_status:
-                            status,
-
-                        p_is_default:
-                            isDefault
-                    }
-                );
-
-        }
-
 
         if (result.error) {
-
-            console.error(
-                "Provider save error:",
-                result.error
-            );
-
-
-            showMessage(
-                "Gagal menyimpan provider: " +
+            console.error("Provider save error:", result.error);
+            alert(
+                "Gagal menyimpan provider:\n\n" +
                 result.error.message
             );
-
             return;
         }
 
+        console.log("Provider berhasil disimpan:", result.data);
 
-        showMessage(
+        closeProviderModal();
+
+        // Ambil ulang data dari database
+        await loadProviders();
+
+        alert(
             editId
                 ? "Provider berhasil diperbarui."
                 : "Provider berhasil ditambahkan."
         );
 
-
-        closeProviderModal();
-
-
-        await loadProviders();
-
-        await cacheProviders();
-
     } catch (error) {
+        console.error("Unexpected provider save error:", error);
 
-        console.error(
-            "Unexpected provider error:",
-            error
-        );
-
-
-        showMessage(
-            "Terjadi kesalahan: " +
-            error.message
+        alert(
+            "Terjadi kesalahan:\n\n" +
+            (error.message || error)
         );
 
     } finally {
-
-        saveButton.disabled = false;
-
-        saveButton.textContent =
-            originalText;
+        button.disabled = false;
+        button.textContent = "SIMPAN PROVIDER";
     }
 }
-
 
 /* =========================================================
    PROVIDER DELETE
