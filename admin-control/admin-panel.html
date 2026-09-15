@@ -1,207 +1,689 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Admin Panel - GEN-Z.AI</title>
+    <title>GEN-Z.AI • Admin Control</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
 
     <style>
-        <link rel="stylesheet" href="../assets/css/admin-premium.css">
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                Arial,
+                sans-serif;
+            background:
+                radial-gradient(
+                    circle at 20% 10%,
+                    rgba(99, 102, 241, 0.18),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 80% 20%,
+                    rgba(168, 85, 247, 0.14),
+                    transparent 30%
+                ),
+                linear-gradient(
+                    135deg,
+                    #050507 0%,
+                    #0a0a10 45%,
+                    #080812 100%
+                );
+            color: #ffffff;
         }
 
         body {
-            margin: 0;
-            font-family: Arial, Helvetica, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa, #ffffff);
-            color: #222;
+            overflow-x: hidden;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: auto;
-            padding: 24px;
+        /* =========================
+           TOP BAR
+        ========================= */
+
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 76px;
+
+            display: flex;
+            align-items: center;
+
+            padding: 0 26px;
+
+            z-index: 1000;
+
+            background: rgba(5, 5, 8, 0.72);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
-        .header {
-            background: rgba(255, 255, 255, 0.94);
-            border: 1px solid #e5e7eb;
-            border-radius: 18px;
-            padding: 22px;
-            margin-bottom: 22px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+        .menu-button {
+            width: 48px;
+            height: 48px;
+
+            border-radius: 15px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            cursor: pointer;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,0.11),
+                    rgba(255,255,255,0.035)
+                );
+
+            border: 1px solid rgba(255,255,255,0.10);
+
+            color: #ffffff;
+
+            transition:
+                transform 0.25s ease,
+                background 0.25s ease,
+                box-shadow 0.25s ease;
+        }
+
+        .menu-button:hover {
+            transform: translateY(-1px);
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,0.17),
+                    rgba(255,255,255,0.06)
+                );
+
+            box-shadow:
+                0 10px 35px rgba(0,0,0,0.35);
+        }
+
+        .menu-icon {
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: -3px;
+            transform: translateX(-1px);
         }
 
         .brand {
-            font-size: 25px;
-            font-weight: 800;
+            margin-left: 18px;
         }
 
-        .subtitle {
+        .brand-title {
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+        }
+
+        .brand-subtitle {
+            margin-top: 3px;
+            color: rgba(255,255,255,0.48);
+            font-size: 11px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+        }
+
+        /* =========================
+           SIDEBAR
+        ========================= */
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+
+            background: rgba(0,0,0,0.55);
+
+            opacity: 0;
+            visibility: hidden;
+
+            transition:
+                opacity 0.3s ease,
+                visibility 0.3s ease;
+
+            z-index: 1100;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+
+            width: 300px;
+            max-width: 86vw;
+            height: 100vh;
+
+            padding: 24px;
+
+            z-index: 1200;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(18,18,27,0.98),
+                    rgba(7,7,11,0.99)
+                );
+
+            border-right: 1px solid rgba(255,255,255,0.08);
+
+            box-shadow:
+                25px 0 70px rgba(0,0,0,0.45);
+
+            transform: translateX(-105%);
+
+            transition:
+                transform 0.35s cubic-bezier(.22,1,.36,1);
+        }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 34px;
+        }
+
+        .sidebar-brand {
+            font-size: 20px;
+            font-weight: 850;
+        }
+
+        .sidebar-role {
             margin-top: 4px;
-            color: #777;
-            font-size: 14px;
+
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+
+            color: rgba(255,255,255,0.42);
+        }
+
+        .close-button {
+            width: 40px;
+            height: 40px;
+
+            border-radius: 12px;
+
+            border: 1px solid rgba(255,255,255,0.08);
+
+            background: rgba(255,255,255,0.05);
+
+            color: #ffffff;
+
+            font-size: 22px;
+
+            cursor: pointer;
         }
 
         .nav {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 18px;
+            flex-direction: column;
+            gap: 9px;
         }
 
         .nav a,
-        .nav button {
-            border: 0;
+        .logout-button {
+            width: 100%;
+
+            display: flex;
+            align-items: center;
+
+            padding: 14px 15px;
+
+            border-radius: 14px;
+
             text-decoration: none;
-            padding: 10px 14px;
-            border-radius: 10px;
-            background: #f1f3f5;
-            color: #333;
-            font-size: 13px;
+
+            color: rgba(255,255,255,0.82);
+
+            background: rgba(255,255,255,0.035);
+
+            border: 1px solid rgba(255,255,255,0.055);
+
+            font-size: 14px;
+            font-weight: 600;
+
             cursor: pointer;
+
+            transition:
+                background 0.2s ease,
+                transform 0.2s ease,
+                border-color 0.2s ease;
         }
 
         .nav a:hover,
-        .nav button:hover {
-            background: #e5e7eb;
+        .logout-button:hover {
+            transform: translateX(3px);
+
+            background: rgba(255,255,255,0.08);
+
+            border-color: rgba(255,255,255,0.12);
+
+            color: #ffffff;
         }
 
-        .nav .active {
-            background: #111;
-            color: #fff;
+        .nav-icon {
+            width: 28px;
+            font-size: 17px;
         }
 
-        .page-title {
-            margin: 28px 0 5px;
-            font-size: 25px;
-            font-weight: 800;
+        .logout-button {
+            margin-top: 18px;
+
+            color: #ffb5b5;
+
+            background: rgba(239,68,68,0.06);
+
+            border-color: rgba(239,68,68,0.12);
         }
 
-        .page-description {
-            color: #777;
-            margin-bottom: 22px;
+        .logout-button:hover {
+            background: rgba(239,68,68,0.12);
+            border-color: rgba(239,68,68,0.22);
         }
 
-        .admin-info {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 15px 18px;
-            margin-bottom: 22px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.03);
+        /* =========================
+           MAIN
+        ========================= */
+
+        .page {
+            min-height: 100vh;
+
+            padding:
+                126px
+                28px
+                50px;
         }
 
-        .admin-info strong {
-            color: #111;
+        .container {
+            width: 100%;
+            max-width: 1180px;
+            margin: 0 auto;
         }
 
-        .badge {
-            display: inline-block;
-            margin-left: 6px;
-            padding: 5px 9px;
-            border-radius: 999px;
-            background: #eef2f7;
-            color: #444;
-            font-size: 11px;
-            font-weight: 700;
-        }
-
-        .menu-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-        }
-
-        .menu-card {
-            display: block;
-            text-decoration: none;
-            color: inherit;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 18px;
-            padding: 22px;
-            min-height: 160px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
-            transition:
-                transform 0.15s ease,
-                box-shadow 0.15s ease,
-                border-color 0.15s ease;
-        }
-
-        .menu-card:hover {
-            transform: translateY(-3px);
-            border-color: #d1d5db;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
-        }
-
-        .menu-icon {
-            font-size: 28px;
-            margin-bottom: 14px;
-        }
-
-        .menu-title {
-            font-size: 18px;
-            font-weight: 800;
-            margin-bottom: 7px;
-        }
-
-        .menu-description {
-            font-size: 13px;
-            line-height: 1.5;
-            color: #777;
-        }
-
-        .footer {
-            margin-top: 24px;
+        .hero {
             text-align: center;
-            color: #999;
-            font-size: 12px;
+            max-width: 760px;
+            margin: 0 auto 48px;
         }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+
+            padding: 7px 13px;
+
+            border-radius: 999px;
+
+            background: rgba(255,255,255,0.05);
+
+            border: 1px solid rgba(255,255,255,0.08);
+
+            color: rgba(255,255,255,0.62);
+
+            font-size: 10px;
+            font-weight: 700;
+
+            letter-spacing: 1.7px;
+            text-transform: uppercase;
+
+            margin-bottom: 17px;
+        }
+
+        .hero h1 {
+            font-size: clamp(32px, 5vw, 58px);
+
+            line-height: 1.03;
+
+            font-weight: 850;
+
+            letter-spacing: -2px;
+        }
+
+        .hero h1 span {
+            background:
+                linear-gradient(
+                    90deg,
+                    #ffffff,
+                    #b7b9ff,
+                    #e1c6ff
+                );
+
+            -webkit-background-clip: text;
+            background-clip: text;
+
+            color: transparent;
+        }
+
+        .hero p {
+            max-width: 650px;
+            margin: 17px auto 0;
+
+            color: rgba(255,255,255,0.53);
+
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        /* =========================
+           FEATURE GRID
+        ========================= */
+
+        .feature-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+
+            gap: 18px;
+        }
+
+        .feature-card {
+            position: relative;
+
+            min-height: 205px;
+
+            padding: 25px;
+
+            border-radius: 23px;
+
+            text-decoration: none;
+
+            color: #ffffff;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,0.085),
+                    rgba(255,255,255,0.025)
+                );
+
+            border:
+                1px solid rgba(255,255,255,0.09);
+
+            overflow: hidden;
+
+            transition:
+                transform 0.28s ease,
+                border-color 0.28s ease,
+                box-shadow 0.28s ease;
+        }
+
+        .feature-card::before {
+            content: "";
+
+            position: absolute;
+
+            width: 170px;
+            height: 170px;
+
+            right: -70px;
+            top: -80px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255,255,255,0.11),
+                    transparent 68%
+                );
+
+            pointer-events: none;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+
+            border-color:
+                rgba(255,255,255,0.17);
+
+            box-shadow:
+                0 20px 60px rgba(0,0,0,0.30);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 15px;
+
+            background:
+                rgba(255,255,255,0.07);
+
+            border:
+                1px solid rgba(255,255,255,0.08);
+
+            font-size: 22px;
+
+            margin-bottom: 24px;
+        }
+
+        .feature-card h2 {
+            font-size: 18px;
+            font-weight: 750;
+
+            letter-spacing: -0.3px;
+        }
+
+        .feature-card p {
+            margin-top: 9px;
+
+            color: rgba(255,255,255,0.46);
+
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .feature-arrow {
+            position: absolute;
+
+            right: 22px;
+            bottom: 20px;
+
+            color: rgba(255,255,255,0.45);
+
+            font-size: 18px;
+
+            transition:
+                transform 0.25s ease,
+                color 0.25s ease;
+        }
+
+        .feature-card:hover .feature-arrow {
+            transform: translateX(5px);
+            color: #ffffff;
+        }
+
+        /* =========================
+           FOOTER STATUS
+        ========================= */
+
+        .system-status {
+            margin-top: 26px;
+
+            padding: 18px 20px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 20px;
+
+            border-radius: 18px;
+
+            background: rgba(255,255,255,0.035);
+
+            border:
+                1px solid rgba(255,255,255,0.06);
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+
+            border-radius: 50%;
+
+            background: #53e38c;
+
+            box-shadow:
+                0 0 16px rgba(83,227,140,0.55);
+        }
+
+        .status-text {
+            font-size: 12px;
+            color: rgba(255,255,255,0.62);
+        }
+
+        .status-role {
+            font-size: 11px;
+            color: rgba(255,255,255,0.35);
+        }
+
+        /* =========================
+           LOADING
+        ========================= */
 
         .loading {
+            position: fixed;
+            inset: 0;
+
+            z-index: 5000;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: #050507;
+        }
+
+        .loading-box {
             text-align: center;
-            padding: 50px;
-            color: #777;
         }
 
-        .error {
-            background: #fff1f2;
-            color: #b42318;
-            border: 1px solid #fecdd3;
-            border-radius: 12px;
-            padding: 14px;
-            display: none;
-            margin-bottom: 20px;
+        .loader {
+            width: 38px;
+            height: 38px;
+
+            margin: 0 auto 15px;
+
+            border-radius: 50%;
+
+            border:
+                3px solid rgba(255,255,255,0.10);
+
+            border-top-color: #ffffff;
+
+            animation:
+                spin 0.8s linear infinite;
         }
 
-        @media (max-width: 850px) {
-            .menu-grid {
-                grid-template-columns: repeat(2, 1fr);
+        .loading-text {
+            font-size: 12px;
+            color: rgba(255,255,255,0.45);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
         }
 
-        @media (max-width: 560px) {
-            .container {
-                padding: 14px;
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
+        @media (max-width: 900px) {
+            .feature-grid {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 620px) {
+            .topbar {
+                height: 68px;
+                padding: 0 17px;
             }
 
-            .header {
-                padding: 17px;
+            .menu-button {
+                width: 44px;
+                height: 44px;
             }
 
-            .menu-grid {
+            .brand {
+                margin-left: 13px;
+            }
+
+            .brand-title {
+                font-size: 15px;
+            }
+
+            .page {
+                padding:
+                    105px
+                    16px
+                    35px;
+            }
+
+            .hero {
+                margin-bottom: 34px;
+            }
+
+            .hero h1 {
+                letter-spacing: -1.3px;
+            }
+
+            .feature-grid {
                 grid-template-columns: 1fr;
             }
 
-            .page-title {
-                font-size: 22px;
+            .feature-card {
+                min-height: 185px;
+            }
+
+            .system-status {
+                align-items: flex-start;
+                flex-direction: column;
             }
         }
     </style>
@@ -209,292 +691,513 @@
 
 <body>
 
-<div class="container">
+    <!-- =========================
+         LOADING
+    ========================= -->
 
-    <div class="header">
+    <div id="loading" class="loading">
+        <div class="loading-box">
+            <div class="loader"></div>
+            <div class="loading-text">
+                Memverifikasi akses admin...
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================
+         TOP BAR
+    ========================= -->
+
+    <header class="topbar">
+
+        <button
+            class="menu-button"
+            id="menuButton"
+            aria-label="Buka navigasi"
+            type="button"
+        >
+            <span class="menu-icon">|||</span>
+        </button>
 
         <div class="brand">
-            GEN-Z.AI
+            <div class="brand-title">
+                GEN-Z.AI
+            </div>
+
+            <div class="brand-subtitle">
+                Admin Control
+            </div>
         </div>
 
-        <div class="subtitle">
-            ADMIN CONTROL
-        </div>
+    </header>
 
-        <div class="nav">
+    <!-- =========================
+         OVERLAY
+    ========================= -->
 
-            <a href="dashboard.html">
-                DASHBOARD
-            </a>
+    <div
+        class="overlay"
+        id="overlay"
+    ></div>
 
-            <a href="generate.html">
-                GENERATE
-            </a>
+    <!-- =========================
+         SIDEBAR
+    ========================= -->
 
-            <a href="history.html">
-                HISTORY
-            </a>
+    <aside
+        class="sidebar"
+        id="sidebar"
+    >
 
-            <a href="admin-panel.html" class="active">
-                ADMIN PANEL
-            </a>
+        <div class="sidebar-header">
 
-            <button onclick="logout()">
-                LOG OUT
+            <div>
+                <div class="sidebar-brand">
+                    GEN-Z.AI
+                </div>
+
+                <div
+                    class="sidebar-role"
+                    id="sidebarRole"
+                >
+                    Admin Control
+                </div>
+            </div>
+
+            <button
+                class="close-button"
+                id="closeButton"
+                type="button"
+                aria-label="Tutup navigasi"
+            >
+                ×
             </button>
 
         </div>
 
-    </div>
+        <nav class="nav">
 
-
-    <div id="errorBox" class="error"></div>
-
-
-    <div id="loadingBox" class="loading">
-        Memeriksa akses admin...
-    </div>
-
-
-    <div id="adminContent" style="display:none;">
-
-        <div class="page-title">
-            ADMIN PANEL
-        </div>
-
-        <div class="page-description">
-            Pusat pengelolaan sistem GEN-Z.AI
-        </div>
-
-
-        <div class="admin-info">
-
-            Login sebagai:
-
-            <strong id="adminEmail">
-                -
-            </strong>
-
-            <span class="badge" id="adminRole">
-                -
-            </span>
-
-        </div>
-
-
-        <div class="menu-grid">
-
-
-            <a href="users.html" class="menu-card">
-
-                <div class="menu-icon">
-                    👥
-                </div>
-
-                <div class="menu-title">
-                    User Management
-                </div>
-
-                <div class="menu-description">
-                    Kelola pengguna, role, status akun,
-                    dan informasi kredit pengguna.
-                </div>
-
+            <a href="../admin/dashboard.html">
+                <span class="nav-icon">⌂</span>
+                <span>Dashboard</span>
             </a>
 
-
-            <a href="providers.html" class="menu-card">
-
-                <div class="menu-icon">
-                    ⚙️
-                </div>
-
-                <div class="menu-title">
-                    Provider Management
-                </div>
-
-                <div class="menu-description">
-                    Kelola provider AI, identitas provider,
-                    status, dan provider default.
-                </div>
-
+            <a href="../generate/index.html">
+                <span class="nav-icon">▶</span>
+                <span>Generate</span>
             </a>
 
-
-            <a href="models.html" class="menu-card">
-
-                <div class="menu-icon">
-                    🤖
-                </div>
-
-                <div class="menu-title">
-                    Model Management
-                </div>
-
-                <div class="menu-description">
-                    Kelola model AI, biaya kredit,
-                    status, dan provider model.
-                </div>
-
+            <a href="../history/index.html">
+                <span class="nav-icon">◷</span>
+                <span>History</span>
             </a>
 
+            <button
+                class="logout-button"
+                id="logoutButton"
+                type="button"
+            >
+                <span class="nav-icon">↪</span>
+                <span>Log Out</span>
+            </button>
 
-            <a href="credit.html" class="menu-card">
+        </nav>
 
-                <div class="menu-icon">
-                    💳
+    </aside>
+
+    <!-- =========================
+         MAIN
+    ========================= -->
+
+    <main class="page">
+
+        <div class="container">
+
+            <section class="hero">
+
+                <div class="eyebrow">
+                    CONTROL CENTER
                 </div>
 
-                <div class="menu-title">
-                    Credit Management
+                <h1>
+                    Admin <span>Control</span>
+                </h1>
+
+                <p>
+                    Pusat pengelolaan GEN-Z.AI.
+                    Pilih modul yang ingin dikelola tanpa
+                    mengubah navigasi utama aplikasi.
+                </p>
+
+            </section>
+
+            <section class="feature-grid">
+
+                <!-- DASHBOARD USER -->
+
+                <a
+                    class="feature-card"
+                    href="../user/dashboard.html"
+                >
+                    <div class="feature-icon">
+                        ◫
+                    </div>
+
+                    <h2>
+                        Edit Dashboard User
+                    </h2>
+
+                    <p>
+                        Kelola dan edit tampilan dashboard
+                        yang digunakan oleh pengguna.
+                    </p>
+
+                    <span class="feature-arrow">
+                        →
+                    </span>
+                </a>
+
+                <!-- USERS -->
+
+                <a
+                    class="feature-card"
+                    href="./users.html"
+                >
+                    <div class="feature-icon">
+                        ◎
+                    </div>
+
+                    <h2>
+                        Edit User
+                    </h2>
+
+                    <p>
+                        Kelola akun, status, role,
+                        dan data pengguna GEN-Z.AI.
+                    </p>
+
+                    <span class="feature-arrow">
+                        →
+                    </span>
+                </a>
+
+                <!-- PROVIDERS -->
+
+                <a
+                    class="feature-card"
+                    href="./providers.html"
+                >
+                    <div class="feature-icon">
+                        ◈
+                    </div>
+
+                    <h2>
+                        Edit Providers
+                    </h2>
+
+                    <p>
+                        Kelola konfigurasi dan provider
+                        engine AI yang digunakan aplikasi.
+                    </p>
+
+                    <span class="feature-arrow">
+                        →
+                    </span>
+                </a>
+
+                <!-- MODELS -->
+
+                <a
+                    class="feature-card"
+                    href="./models.html"
+                >
+                    <div class="feature-icon">
+                        ◇
+                    </div>
+
+                    <h2>
+                        Edit Model
+                    </h2>
+
+                    <p>
+                        Kelola model AI, konfigurasi,
+                        dan model yang tersedia untuk generate.
+                    </p>
+
+                    <span class="feature-arrow">
+                        →
+                    </span>
+                </a>
+
+                <!-- CREDIT -->
+
+                <a
+                    class="feature-card"
+                    href="./credit.html"
+                >
+                    <div class="feature-icon">
+                        ◉
+                    </div>
+
+                    <h2>
+                        Edit Credit
+                    </h2>
+
+                    <p>
+                        Kelola sistem credit dan
+                        pengaturan saldo pengguna.
+                    </p>
+
+                    <span class="feature-arrow">
+                        →
+                    </span>
+                </a>
+
+            </section>
+
+            <section class="system-status">
+
+                <div class="status-left">
+
+                    <span class="status-dot"></span>
+
+                    <span
+                        class="status-text"
+                        id="statusText"
+                    >
+                        Sistem admin aktif
+                    </span>
+
                 </div>
 
-                <div class="menu-description">
-                    Kelola kredit pengguna,
-                    penambahan, pengurangan,
-                    dan transaksi kredit.
-                </div>
+                <span
+                    class="status-role"
+                    id="statusRole"
+                >
+                    Verifying...
+                </span>
 
-            </a>
-
-
-            <a href="system.html" class="menu-card">
-
-                <div class="menu-icon">
-                    🛠️
-                </div>
-
-                <div class="menu-title">
-                    System Settings
-                </div>
-
-                <div class="menu-description">
-                    Melihat konfigurasi dan pengaturan
-                    sistem GEN-Z.AI.
-                </div>
-
-            </a>
-
+            </section>
 
         </div>
 
+    </main>
 
-        <div class="footer">
-            GEN-Z.AI Admin Control
-        </div>
+    <script>
+        const supabaseClient =
+            window.supabase.createClient(
+                window.GENZ_CONFIG.SUPABASE_URL,
+                window.GENZ_CONFIG.SUPABASE_KEY
+            );
 
-    </div>
+        const loading =
+            document.getElementById("loading");
 
-</div>
+        const sidebar =
+            document.getElementById("sidebar");
 
+        const overlay =
+            document.getElementById("overlay");
 
-<script>
+        const menuButton =
+            document.getElementById("menuButton");
 
-    const supabaseClient = supabase.createClient(
-        GENZ_CONFIG.SUPABASE_URL,
-        GENZ_CONFIG.SUPABASE_KEY
-    );
+        const closeButton =
+            document.getElementById("closeButton");
 
+        const logoutButton =
+            document.getElementById("logoutButton");
 
-    async function checkAdminAccess() {
+        const sidebarRole =
+            document.getElementById("sidebarRole");
 
-        try {
+        const statusRole =
+            document.getElementById("statusRole");
 
-            const {
-                data: {
-                    session
-                }
-            } = await supabaseClient.auth.getSession();
-
-
-            if (!session) {
-
-                window.location.href = "../index.html";
-
-                return;
-
-            }
-
-
-            const {
-                data: profile,
-                error
-            } = await supabaseClient
-                .from("profiles")
-                .select("email, name, role, status")
-                .eq("id", session.user.id)
-                .single();
+        const statusText =
+            document.getElementById("statusText");
 
 
-            if (error) {
-                throw error;
-            }
+        /* =========================
+           SIDEBAR
+        ========================= */
 
-
-            if (
-                !profile ||
-                !["ADMIN", "OWNER"].includes(profile.role) ||
-                profile.status !== "active"
-            ) {
-
-                window.location.href = "../index.html";
-
-                return;
-
-            }
-
-
-            document.getElementById("adminEmail").textContent =
-                profile.email || "-";
-
-
-            document.getElementById("adminRole").textContent =
-                profile.role;
-
-
-            document.getElementById("loadingBox").style.display =
-                "none";
-
-
-            document.getElementById("adminContent").style.display =
-                "block";
-
-
-        } catch (error) {
-
-            document.getElementById("loadingBox").style.display =
-                "none";
-
-
-            const errorBox =
-                document.getElementById("errorBox");
-
-
-            errorBox.textContent =
-                "Gagal memeriksa akses admin: " +
-                (error.message || error);
-
-
-            errorBox.style.display =
-                "block";
-
+        function openSidebar() {
+            sidebar.classList.add("active");
+            overlay.classList.add("active");
+            document.body.style.overflow = "hidden";
         }
 
-    }
+        function closeSidebar() {
+            sidebar.classList.remove("active");
+            overlay.classList.remove("active");
+            document.body.style.overflow = "";
+        }
+
+        menuButton.addEventListener(
+            "click",
+            openSidebar
+        );
+
+        closeButton.addEventListener(
+            "click",
+            closeSidebar
+        );
+
+        overlay.addEventListener(
+            "click",
+            closeSidebar
+        );
+
+        document.addEventListener(
+            "keydown",
+            function(event) {
+                if (event.key === "Escape") {
+                    closeSidebar();
+                }
+            }
+        );
 
 
-    async function logout() {
+        /* =========================
+           AUTH
+        ========================= */
 
-        await supabaseClient.auth.signOut();
+        async function checkAccess() {
 
-        window.location.href = "../index.html";
+            try {
 
-    }
+                const {
+                    data: {
+                        session
+                    },
+                    error: sessionError
+                } =
+                    await supabaseClient.auth.getSession();
+
+                if (
+                    sessionError ||
+                    !session ||
+                    !session.user
+                ) {
+                    window.location.replace(
+                        "../login.html"
+                    );
+
+                    return;
+                }
+
+                const currentUser =
+                    session.user;
+
+                const {
+                    data: profile,
+                    error: profileError
+                } =
+                    await supabaseClient
+                        .from("profiles")
+                        .select(
+                            "id,email,role,status"
+                        )
+                        .eq(
+                            "id",
+                            currentUser.id
+                        )
+                        .maybeSingle();
+
+                if (
+                    profileError ||
+                    !profile
+                ) {
+                    await supabaseClient.auth.signOut();
+
+                    window.location.replace(
+                        "../login.html"
+                    );
+
+                    return;
+                }
+
+                const allowed =
+                    (
+                        profile.role === "ADMIN" ||
+                        profile.role === "OWNER"
+                    ) &&
+                    profile.status === "active";
+
+                if (!allowed) {
+
+                    window.location.replace(
+                        "../user/dashboard.html"
+                    );
+
+                    return;
+                }
+
+                const role =
+                    profile.role;
+
+                sidebarRole.textContent =
+                    role + " • CONTROL";
+
+                statusRole.textContent =
+                    role;
+
+                statusText.textContent =
+                    "Sistem admin aktif • Akses terverifikasi";
+
+                loading.style.display =
+                    "none";
+
+            } catch (error) {
+
+                console.error(
+                    "Admin access error:",
+                    error
+                );
+
+                window.location.replace(
+                    "../login.html"
+                );
+            }
+        }
 
 
-    checkAdminAccess();
+        /* =========================
+           LOGOUT
+        ========================= */
 
-</script>
+        logoutButton.addEventListener(
+            "click",
+            async function() {
+
+                logoutButton.disabled = true;
+
+                logoutButton.innerHTML =
+                    '<span class="nav-icon">…</span><span>Logging out...</span>';
+
+                try {
+
+                    await supabaseClient
+                        .auth
+                        .signOut();
+
+                } finally {
+
+                    window.location.replace(
+                        "../login.html"
+                    );
+                }
+            }
+        );
+
+
+        /* =========================
+           START
+        ========================= */
+
+        checkAccess();
+    </script>
 
 </body>
 </html>
