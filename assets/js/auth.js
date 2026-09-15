@@ -1,5 +1,5 @@
 // ========================================
-// GEN-Z.AI - SUPABASE AUTHENTICATION
+// GEN-Z.AI - SUPABASE AUTH
 // ========================================
 
 console.log("GEN-Z.AI AUTH START");
@@ -13,75 +13,61 @@ const loginForm = document.getElementById("loginForm");
 const loginButton = document.getElementById("loginButton");
 const loginMessage = document.getElementById("loginMessage");
 
-console.log("Supabase:", !!supabaseClient);
-console.log("Login form:", !!loginForm);
-console.log("Login button:", !!loginButton);
-
 if (loginForm) {
 
     loginForm.addEventListener("submit", async function (event) {
 
         event.preventDefault();
 
-        console.log("LOGIN BUTTON CLICKED");
-
-        const email = document
-            .getElementById("email")
-            .value
-            .trim();
-
-        const password = document
-            .getElementById("password")
-            .value;
-
-        loginMessage.textContent = "Memproses login...";
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
 
         loginButton.disabled = true;
         loginButton.textContent = "LOGIN...";
+        loginMessage.textContent = "Memproses login...";
 
         try {
 
-            console.log("Mencoba login:", email);
+            // ==============================
+            // LOGIN SUPABASE
+            // ==============================
 
             const {
-                data,
-                error
+                data: authData,
+                error: authError
             } = await supabaseClient.auth.signInWithPassword({
                 email: email,
                 password: password
             });
 
-            console.log("Supabase login response:", data, error);
+            console.log("AUTH:", authData, authError);
 
-            if (error) {
-                throw error;
+            if (authError) {
+                throw authError;
             }
 
-            if (!data || !data.user) {
-                throw new Error(
-                    "Login berhasil tetapi user tidak ditemukan."
-                );
+            if (!authData || !authData.user) {
+                throw new Error("User tidak ditemukan setelah login.");
             }
 
-            console.log(
-                "User berhasil login:",
-                data.user.id
-            );
+            const userId = authData.user.id;
+
+            console.log("USER ID:", userId);
+
+            // ==============================
+            // AMBIL PROFILE
+            // ==============================
 
             const {
-                data: profile,
+                data: profiles,
                 error: profileError
             } = await supabaseClient
                 .from("profiles")
-                .select("role,status")
-                .eq("id", data.user.id)
-                .single();
+                .select("id,email,name,role,credits,status")
+                .eq("id", userId);
 
-            console.log(
-                "Profile response:",
-                profile,
-                profileError
-            );
+            console.log("PROFILES:", profiles);
+            console.log("PROFILE ERROR:", profileError);
 
             if (profileError) {
                 throw new Error(
@@ -90,11 +76,30 @@ if (loginForm) {
                 );
             }
 
-            if (!profile) {
+            // ==============================
+            // PROFILE TIDAK ADA
+            // ==============================
+
+            if (!profiles || profiles.length === 0) {
+
+                await supabaseClient.auth.signOut();
+
                 throw new Error(
-                    "Profile user tidak ditemukan."
+                    "Profile belum ditemukan untuk akun ini."
                 );
             }
+
+            // ==============================
+            // AMBIL PROFILE PERTAMA
+            // ==============================
+
+            const profile = profiles[0];
+
+            console.log("PROFILE:", profile);
+
+            // ==============================
+            // STATUS AKUN
+            // ==============================
 
             if (profile.status !== "active") {
 
@@ -105,7 +110,14 @@ if (loginForm) {
                 );
             }
 
+            // ==============================
+            // USER
+            // ==============================
+
             if (profile.role === "USER") {
+
+                loginMessage.textContent =
+                    "Login berhasil. Membuka dashboard...";
 
                 window.location.href =
                     "user/dashboard.html";
@@ -113,16 +125,27 @@ if (loginForm) {
                 return;
             }
 
+            // ==============================
+            // ADMIN / OWNER
+            // ==============================
+
             if (
                 profile.role === "ADMIN" ||
                 profile.role === "OWNER"
             ) {
+
+                loginMessage.textContent =
+                    "Login berhasil. Membuka dashboard admin...";
 
                 window.location.href =
                     "admin/dashboard.html";
 
                 return;
             }
+
+            // ==============================
+            // ROLE INVALID
+            // ==============================
 
             await supabaseClient.auth.signOut();
 
@@ -139,7 +162,7 @@ if (loginForm) {
             );
 
             loginMessage.textContent =
-                error?.message ||
+                error.message ||
                 "Login gagal.";
 
             loginButton.disabled = false;
@@ -147,5 +170,4 @@ if (loginForm) {
         }
 
     });
-
 }
