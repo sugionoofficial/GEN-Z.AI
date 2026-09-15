@@ -65,6 +65,7 @@
         }
 
         button,
+        input,
         a {
             font: inherit;
         }
@@ -535,6 +536,109 @@
             font-size: 12px;
         }
 
+        .card-tools {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            flex: 0 0 auto;
+        }
+
+        .search-box {
+            position: relative;
+            width: min(340px, 32vw);
+        }
+
+        .search-input {
+            width: 100%;
+            height: 40px;
+            padding: 0 38px 0 38px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            outline: none;
+            background:
+                rgba(2, 6, 23, .42);
+            color: #f8fafc;
+            font-size: 11px;
+            transition:
+                border-color .2s ease,
+                background .2s ease,
+                box-shadow .2s ease;
+        }
+
+        .search-input::placeholder {
+            color: #64748b;
+        }
+
+        .search-input:focus {
+            border-color: rgba(139, 92, 246, .55);
+            background: rgba(2, 6, 23, .58);
+            box-shadow:
+                0 0 0 3px rgba(139, 92, 246, .09);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            width: 14px;
+            height: 14px;
+            transform: translateY(-50%);
+            color: #64748b;
+            pointer-events: none;
+        }
+
+        .search-icon::before {
+            content: "";
+            position: absolute;
+            width: 9px;
+            height: 9px;
+            left: 0;
+            top: 0;
+            border: 1.8px solid currentColor;
+            border-radius: 50%;
+        }
+
+        .search-icon::after {
+            content: "";
+            position: absolute;
+            width: 6px;
+            height: 1.8px;
+            left: 8px;
+            top: 10px;
+            border-radius: 2px;
+            background: currentColor;
+            transform: rotate(45deg);
+            transform-origin: left center;
+        }
+
+        .clear-search {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            width: 25px;
+            height: 25px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transform: translateY(-50%);
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 17px;
+            line-height: 1;
+        }
+
+        .clear-search:hover {
+            color: #fff;
+            background: rgba(148, 163, 184, .1);
+        }
+
+        .clear-search.visible {
+            display: inline-flex;
+        }
+
         .refresh-button {
             min-height: 40px;
             padding: 0 14px;
@@ -562,6 +666,26 @@
             opacity: .5;
             cursor: not-allowed;
             transform: none;
+        }
+
+        .search-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 42px;
+            padding: 0 24px;
+            border-bottom: 1px solid rgba(148, 163, 184, .08);
+            color: var(--muted-2);
+            font-size: 10px;
+        }
+
+        .search-result {
+            font-weight: 750;
+        }
+
+        .search-hint {
+            color: #475569;
         }
 
         .message {
@@ -783,6 +907,20 @@
             font-size: 14px;
         }
 
+        .empty-search-icon {
+            width: 52px;
+            height: 52px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 13px;
+            border: 1px solid rgba(139, 92, 246, .18);
+            border-radius: 16px;
+            background: rgba(139, 92, 246, .08);
+            color: #a78bfa;
+            font-size: 20px;
+        }
+
         .footer-note {
             margin-top: 17px;
             color: var(--muted-2);
@@ -793,6 +931,26 @@
         /* ========================================
            RESPONSIVE
         ======================================== */
+
+        @media (max-width: 1000px) {
+
+            .card-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .card-tools {
+                width: 100%;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .refresh-button {
+                flex: 0 0 auto;
+            }
+        }
 
         @media (max-width: 800px) {
 
@@ -821,8 +979,8 @@
                 grid-template-columns: 1fr;
             }
 
-            .card-header {
-                align-items: flex-start;
+            .search-meta {
+                padding: 0 18px;
             }
 
         }
@@ -865,11 +1023,25 @@
             }
 
             .card-header {
+                padding: 20px 18px;
+            }
+
+            .card-tools {
                 flex-direction: column;
+                align-items: stretch;
             }
 
             .refresh-button {
                 width: 100%;
+            }
+
+            .search-meta {
+                min-height: 50px;
+                padding: 8px 18px;
+                align-items: flex-start;
+                justify-content: center;
+                flex-direction: column;
+                gap: 2px;
             }
 
             .sidebar {
@@ -1129,15 +1301,64 @@
 
                     </div>
 
-                    <button
-                        type="button"
-                        class="refresh-button"
-                        id="refreshButton"
-                        onclick="loadCredit()"
-                    >
-                        REFRESH
-                    </button>
+                    <div class="card-tools">
 
+                        <div class="search-box">
+
+                            <span
+                                class="search-icon"
+                                aria-hidden="true"
+                            ></span>
+
+                            <input
+                                type="search"
+                                id="userSearch"
+                                class="search-input"
+                                placeholder="Cari email, nama, atau user ID..."
+                                autocomplete="off"
+                                aria-label="Cari pengguna"
+                            >
+
+                            <button
+                                type="button"
+                                id="clearSearch"
+                                class="clear-search"
+                                aria-label="Hapus pencarian"
+                                title="Hapus pencarian"
+                            >
+                                ×
+                            </button>
+
+                        </div>
+
+                        <button
+                            type="button"
+                            class="refresh-button"
+                            id="refreshButton"
+                            onclick="loadCredit()"
+                        >
+                            REFRESH
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="search-meta"
+                    id="searchMeta"
+                >
+                    <span
+                        class="search-result"
+                        id="searchResult"
+                    >
+                        Memuat pengguna...
+                    </span>
+
+                    <span class="search-hint">
+                        Cari berdasarkan email, nama, atau User ID
+                    </span>
                 </div>
 
 
@@ -1179,6 +1400,10 @@ const supabaseClient =
 
 
 let currentSession = null;
+
+let allUsers = [];
+
+let searchTerm = "";
 
 
 /* ========================================
@@ -1266,6 +1491,224 @@ document.querySelectorAll(
 
     }
 );
+
+
+/* ========================================
+   SEARCH
+======================================== */
+
+function normalizeSearchValue(value) {
+
+    return String(
+        value || ""
+    )
+        .toLowerCase()
+        .trim();
+
+}
+
+
+function getFilteredUsers() {
+
+    const query =
+        normalizeSearchValue(
+            searchTerm
+        );
+
+
+    if (!query) {
+
+        return allUsers;
+
+    }
+
+
+    return allUsers.filter(
+        function(user) {
+
+            const email =
+                normalizeSearchValue(
+                    user.email
+                );
+
+            const name =
+                normalizeSearchValue(
+                    user.name
+                );
+
+            const id =
+                normalizeSearchValue(
+                    user.id
+                );
+
+
+            return (
+                email.includes(query) ||
+                name.includes(query) ||
+                id.includes(query)
+            );
+
+        }
+    );
+
+}
+
+
+function updateSearchMeta(
+    filteredUsers
+) {
+
+    const result =
+        document.getElementById(
+            "searchResult"
+        );
+
+
+    if (!result) {
+
+        return;
+
+    }
+
+
+    const total =
+        allUsers.length;
+
+
+    const visible =
+        filteredUsers.length;
+
+
+    if (!total) {
+
+        result.textContent =
+            "0 pengguna";
+
+        return;
+
+    }
+
+
+    if (!searchTerm) {
+
+        result.textContent =
+            total.toLocaleString("id-ID") +
+            " pengguna";
+
+        return;
+
+    }
+
+
+    result.textContent =
+        visible.toLocaleString("id-ID") +
+        " dari " +
+        total.toLocaleString("id-ID") +
+        " pengguna ditemukan";
+
+}
+
+
+function updateClearSearchButton() {
+
+    const button =
+        document.getElementById(
+            "clearSearch"
+        );
+
+
+    if (!button) {
+
+        return;
+
+    }
+
+
+    if (searchTerm) {
+
+        button.classList.add(
+            "visible"
+        );
+
+    } else {
+
+        button.classList.remove(
+            "visible"
+        );
+
+    }
+
+}
+
+
+function handleSearch() {
+
+    const input =
+        document.getElementById(
+            "userSearch"
+        );
+
+
+    searchTerm =
+        normalizeSearchValue(
+            input
+                ? input.value
+                : ""
+        );
+
+
+    updateClearSearchButton();
+
+
+    renderUsers();
+
+}
+
+
+function clearSearch() {
+
+    const input =
+        document.getElementById(
+            "userSearch"
+        );
+
+
+    searchTerm =
+        "";
+
+
+    if (input) {
+
+        input.value =
+            "";
+
+        input.focus();
+
+    }
+
+
+    updateClearSearchButton();
+
+
+    renderUsers();
+
+}
+
+
+document
+    .getElementById("userSearch")
+    .addEventListener(
+        "input",
+        handleSearch
+    );
+
+
+document
+    .getElementById("clearSearch")
+    .addEventListener(
+        "click",
+        clearSearch
+    );
 
 
 /* ========================================
@@ -1619,7 +2062,7 @@ async function loadCredit() {
         }
 
 
-        const users =
+        allUsers =
             Array.isArray(
                 result.users
             )
@@ -1628,11 +2071,11 @@ async function loadCredit() {
 
 
         const totalUsers =
-            users.length;
+            allUsers.length;
 
 
         const totalCredits =
-            users.reduce(
+            allUsers.reduce(
                 function(
                     total,
                     user
@@ -1666,183 +2109,7 @@ async function loadCredit() {
             );
 
 
-        if (!users.length) {
-
-            container.innerHTML = `
-                <div class="empty">
-                    <strong>
-                        Belum ada pengguna
-                    </strong>
-                    Tidak ada data pengguna yang tersedia.
-                </div>
-            `;
-
-            return;
-
-        }
-
-
-        let rows = "";
-
-
-        users.forEach(
-            function(user) {
-
-                const name =
-                    user.name ||
-                    "Unnamed User";
-
-
-                const email =
-                    user.email ||
-                    "-";
-
-
-                const role =
-                    user.role ||
-                    "USER";
-
-
-                const status =
-                    user.status ||
-                    "active";
-
-
-                const credits =
-                    Number(
-                        user.credits || 0
-                    );
-
-
-                const initial =
-                    escapeHtml(
-                        name
-                            .trim()
-                            .charAt(0)
-                            .toUpperCase() ||
-                        "U"
-                    );
-
-
-                rows += `
-                    <tr>
-
-                        <td>
-
-                            <div class="name-cell">
-
-                                <div class="avatar">
-                                    ${initial}
-                                </div>
-
-                                <div class="name-info">
-
-                                    <div class="name">
-                                        ${escapeHtml(name)}
-                                    </div>
-
-                                    <div class="email">
-                                        ${escapeHtml(email)}
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </td>
-
-
-                        <td>
-
-                            <span class="role">
-                                ${escapeHtml(role)}
-                            </span>
-
-                        </td>
-
-
-                        <td>
-
-                            <span class="status ${escapeHtml(String(status).toLowerCase())}">
-                                ${escapeHtml(status)}
-                            </span>
-
-                        </td>
-
-
-                        <td>
-
-                            <span class="credit-value">
-                                ${credits.toLocaleString("id-ID")}
-                            </span>
-
-                        </td>
-
-
-                        <td>
-
-                            <div class="actions">
-
-                                <button
-                                    type="button"
-                                    class="action-button add-button"
-                                    onclick="addCredit(
-                                        '${escapeHtml(user.id)}',
-                                        '${escapeHtml(name)}'
-                                    )"
-                                >
-                                    + CREDIT
-                                </button>
-
-
-                                <button
-                                    type="button"
-                                    class="action-button remove-button"
-                                    onclick="removeCredit(
-                                        '${escapeHtml(user.id)}',
-                                        '${escapeHtml(name)}',
-                                        ${credits}
-                                    )"
-                                >
-                                    - CREDIT
-                                </button>
-
-                            </div>
-
-                        </td>
-
-                    </tr>
-                `;
-
-            }
-        );
-
-
-        container.innerHTML = `
-            <div class="table-wrap">
-
-                <table>
-
-                    <thead>
-
-                        <tr>
-                            <th>User</th>
-                            <th>Role</th>
-                            <th>Status</th>
-                            <th>Credit</th>
-                            <th>Actions</th>
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-                        ${rows}
-                    </tbody>
-
-                </table>
-
-            </div>
-        `;
+        renderUsers();
 
     } catch (error) {
 
@@ -1850,6 +2117,15 @@ async function loadCredit() {
             "loadCredit error:",
             error
         );
+
+
+        allUsers = [];
+
+
+        document.getElementById(
+            "searchResult"
+        ).textContent =
+            "Data tidak tersedia";
 
 
         container.innerHTML = `
@@ -1881,6 +2157,241 @@ async function loadCredit() {
             "REFRESH";
 
     }
+
+}
+
+
+/* ========================================
+   RENDER USERS
+======================================== */
+
+function renderUsers() {
+
+    const container =
+        document.getElementById(
+            "creditContainer"
+        );
+
+
+    const filteredUsers =
+        getFilteredUsers();
+
+
+    updateSearchMeta(
+        filteredUsers
+    );
+
+
+    updateClearSearchButton();
+
+
+    if (!allUsers.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+
+                <strong>
+                    Belum ada pengguna
+                </strong>
+
+                Tidak ada data pengguna yang tersedia.
+
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    if (
+        searchTerm &&
+        !filteredUsers.length
+    ) {
+
+        container.innerHTML = `
+            <div class="empty">
+
+                <div class="empty-search-icon">
+                    ⌕
+                </div>
+
+                <strong>
+                    Pengguna tidak ditemukan
+                </strong>
+
+                Tidak ada pengguna yang cocok dengan
+                pencarian "${escapeHtml(searchTerm)}".
+
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    let rows = "";
+
+
+    filteredUsers.forEach(
+        function(user) {
+
+            const name =
+                user.name ||
+                "Unnamed User";
+
+
+            const email =
+                user.email ||
+                "-";
+
+
+            const role =
+                user.role ||
+                "USER";
+
+
+            const status =
+                user.status ||
+                "active";
+
+
+            const credits =
+                Number(
+                    user.credits || 0
+                );
+
+
+            const initial =
+                escapeHtml(
+                    name
+                        .trim()
+                        .charAt(0)
+                        .toUpperCase() ||
+                    "U"
+                );
+
+
+            rows += `
+                <tr>
+
+                    <td>
+
+                        <div class="name-cell">
+
+                            <div class="avatar">
+                                ${initial}
+                            </div>
+
+                            <div class="name-info">
+
+                                <div class="name">
+                                    ${escapeHtml(name)}
+                                </div>
+
+                                <div class="email">
+                                    ${escapeHtml(email)}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </td>
+
+
+                    <td>
+
+                        <span class="role">
+                            ${escapeHtml(role)}
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <span class="status ${escapeHtml(String(status).toLowerCase())}">
+                            ${escapeHtml(status)}
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <span class="credit-value">
+                            ${credits.toLocaleString("id-ID")}
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <div class="actions">
+
+                            <button
+                                type="button"
+                                class="action-button add-button"
+                                onclick="addCredit(
+                                    '${escapeHtml(user.id)}',
+                                    '${escapeHtml(name)}'
+                                )"
+                            >
+                                + CREDIT
+                            </button>
+
+
+                            <button
+                                type="button"
+                                class="action-button remove-button"
+                                onclick="removeCredit(
+                                    '${escapeHtml(user.id)}',
+                                    '${escapeHtml(name)}',
+                                    ${credits}
+                                )"
+                            >
+                                - CREDIT
+                            </button>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+            `;
+
+        }
+    );
+
+
+    container.innerHTML = `
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Credit</th>
+                        <th>Actions</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+                    ${rows}
+                </tbody>
+
+            </table>
+
+        </div>
+    `;
 
 }
 
