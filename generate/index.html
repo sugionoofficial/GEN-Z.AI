@@ -298,6 +298,22 @@
             white-space: nowrap;
         }
 
+        .config-status {
+            margin-bottom: 20px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: #f8f8ff;
+            border: 1px solid #e0e7ff;
+            color: #4338ca;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .config-status strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -435,12 +451,6 @@
             letter-spacing: .4px;
         }
 
-        .model-info {
-            font-size: 10px;
-            color: var(--muted);
-            line-height: 1.6;
-        }
-
         .workflow-info {
             padding: 13px 15px;
             border-radius: 13px;
@@ -449,14 +459,6 @@
             color: #4338ca;
             font-size: 10px;
             line-height: 1.6;
-        }
-
-        .variant-empty {
-            color: var(--muted);
-            font-size: 10px;
-            padding: 12px;
-            border: 1px dashed var(--border);
-            border-radius: 13px;
         }
 
         .message {
@@ -690,7 +692,7 @@
         <div>
             <h1>Generate Video</h1>
             <p>
-                Generate video menggunakan konfigurasi model dari Supabase.
+                Generate video menggunakan konfigurasi aktif GEN-Z.AI.
             </p>
         </div>
 
@@ -708,8 +710,8 @@
             <div class="generator-title">
                 <h2>AI Video Generator</h2>
                 <p>
-                    Provider, model, workflow, variant, parameter,
-                    dan aturan generate mengikuti konfigurasi Supabase.
+                    Provider dan model dikelola oleh sistem.
+                    User tidak perlu memilih provider atau model.
                 </p>
             </div>
 
@@ -722,42 +724,15 @@
 
         </div>
 
+        <div
+            class="config-status"
+            id="configStatus"
+        >
+            <strong>Konfigurasi</strong>
+            Memeriksa konfigurasi aktif...
+        </div>
+
         <div class="form-grid">
-
-            <div class="form-group">
-
-                <label for="provider">
-                    Provider
-                </label>
-
-                <select id="provider">
-                    <option value="">
-                        Memuat provider...
-                    </option>
-                </select>
-
-            </div>
-
-            <div class="form-group">
-
-                <label for="model">
-                    Model
-                </label>
-
-                <select id="model">
-                    <option value="">
-                        Memuat model...
-                    </option>
-                </select>
-
-                <div
-                    class="model-info"
-                    id="modelInfo"
-                >
-                    -
-                </div>
-
-            </div>
 
             <div class="form-group">
 
@@ -765,9 +740,9 @@
                     Workflow
                 </label>
 
-                <select id="workflow">
+                <select id="workflow" disabled>
                     <option value="">
-                        Pilih model terlebih dahulu
+                        Menunggu konfigurasi aktif
                     </option>
                 </select>
 
@@ -782,9 +757,9 @@
                     </span>
                 </label>
 
-                <select id="variant">
+                <select id="variant" disabled>
                     <option value="">
-                        Pilih workflow terlebih dahulu
+                        Menunggu workflow
                     </option>
                 </select>
 
@@ -816,7 +791,7 @@
                         class="form-grid"
                     >
                         <div class="empty-state">
-                            Pilih model untuk memuat parameter.
+                            Menunggu konfigurasi aktif.
                         </div>
                     </div>
 
@@ -845,6 +820,7 @@
                 class="btn btn-primary"
                 id="generateButton"
                 type="button"
+                disabled
             >
                 GENERATE VIDEO
             </button>
@@ -862,14 +838,12 @@ let supabaseClient = null;
 let currentUser = null;
 let currentProfile = null;
 
-let kieModels = [];
 let kieConfig = null;
 
 let activeModel = null;
 let activeWorkflow = null;
 let activeVariant = null;
 let activeParameters = [];
-
 
 const elements = {
 
@@ -897,14 +871,8 @@ const elements = {
     logoutButton:
         document.getElementById("logoutButton"),
 
-    provider:
-        document.getElementById("provider"),
-
-    model:
-        document.getElementById("model"),
-
-    modelInfo:
-        document.getElementById("modelInfo"),
+    configStatus:
+        document.getElementById("configStatus"),
 
     workflow:
         document.getElementById("workflow"),
@@ -1101,7 +1069,7 @@ async function loadProfile() {
 
     renderUser();
 
-    await loadKieConfiguration();
+    await loadActiveConfiguration();
 
 }
 
@@ -1227,181 +1195,78 @@ async function getAccessToken() {
 }
 
 
-async function loadKieConfiguration() {
+function getConfiguredModelId() {
 
-    showMessage(
-        "Memuat model KIE.AI dari Supabase...",
-        "info"
-    );
-
-    const token =
-        await getAccessToken();
-
-    const response =
-        await fetch(
-            "/api/kie-config",
-            {
-                method: "GET",
-
-                headers: {
-                    Authorization:
-                        `Bearer ${token}`,
-
-                    Accept:
-                        "application/json"
-                }
-            }
+    const params =
+        new URLSearchParams(
+            window.location.search
         );
 
-    const data =
-        await response.json();
+    const queryModel =
+        params.get("model_id") ||
+        params.get("model");
 
-    if (!response.ok) {
-
-        throw new Error(
-            data?.error ||
-            "Gagal memuat konfigurasi KIE.AI."
-        );
-
+    if (queryModel) {
+        return queryModel;
     }
 
-    kieConfig =
-        data;
+    const sessionModel =
+        sessionStorage.getItem(
+            "GENZ_ACTIVE_MODEL_ID"
+        );
 
-    kieModels =
-        Array.isArray(data.models)
-            ? data.models
-            : [];
+    if (sessionModel) {
+        return sessionModel;
+    }
 
-    renderProvider();
+    const localModel =
+        localStorage.getItem(
+            "GENZ_ACTIVE_MODEL_ID"
+        );
 
-    hideMessage();
+    if (localModel) {
+        return localModel;
+    }
+
+    return "";
 
 }
 
 
-function renderProvider() {
+async function loadActiveConfiguration() {
 
-    elements.provider.innerHTML = "";
-
-    const option =
-        document.createElement(
-            "option"
-        );
-
-    option.value = "kie_ai";
-    option.textContent = "KIE.AI";
-
-    elements.provider.appendChild(
-        option
+    setConfigStatus(
+        "Memeriksa konfigurasi aktif...",
+        false
     );
-
-    elements.provider.value =
-        "kie_ai";
-
-    renderModels();
-
-}
-
-
-function renderModels() {
-
-    elements.model.innerHTML = "";
-
-    if (!kieModels.length) {
-
-        const option =
-            document.createElement(
-                "option"
-            );
-
-        option.value = "";
-        option.textContent =
-            "Tidak ada model aktif";
-
-        elements.model.appendChild(
-            option
-        );
-
-        elements.modelInfo.textContent =
-            "-";
-
-        resetWorkflowControls();
-
-        return;
-
-    }
-
-    kieModels.forEach(
-        model => {
-
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-            const modelId =
-                model.model_id ||
-                model.id ||
-                "";
-
-            option.value =
-                modelId;
-
-            option.textContent =
-                model.model_name ||
-                model.name ||
-                modelId;
-
-            option.dataset.modelId =
-                modelId;
-
-            elements.model.appendChild(
-                option
-            );
-
-        }
-    );
-
-    updateModelInfo();
-
-    loadSelectedModel();
-
-}
-
-
-elements.model.addEventListener(
-    "change",
-    async function () {
-
-        await loadSelectedModel();
-
-    }
-);
-
-
-async function loadSelectedModel() {
-
-    const option =
-        elements.model.selectedOptions[0];
-
-    if (!option) {
-        return;
-    }
 
     const modelId =
-        option.dataset.modelId ||
-        option.value;
+        getConfiguredModelId();
 
     if (!modelId) {
+
+        activeModel = null;
+        activeWorkflow = null;
+        activeVariant = null;
+        activeParameters = [];
+
+        resetConfigurationUI();
+
+        setConfigStatus(
+            "Belum ada model aktif yang ditetapkan oleh sistem. Konfigurasi provider dan model dikelola dari Admin.",
+            true
+        );
+
+        showMessage(
+            "Konfigurasi generate belum tersedia.",
+            "warning"
+        );
+
         return;
+
     }
 
-    updateModelInfo();
-
     try {
-
-        setModelLoading(true);
 
         const token =
             await getAccessToken();
@@ -1429,7 +1294,7 @@ async function loadSelectedModel() {
 
             throw new Error(
                 data?.error ||
-                "Gagal memuat konfigurasi model."
+                "Gagal memuat konfigurasi generate."
             );
 
         }
@@ -1439,97 +1304,131 @@ async function loadSelectedModel() {
 
         activeModel =
             data.model ||
-            kieModels.find(
-                item =>
-                    (
-                        item.model_id ||
-                        item.id
-                    ) === modelId
-            ) ||
             null;
+
+        if (!activeModel) {
+
+            throw new Error(
+                "Model aktif tidak ditemukan."
+            );
+
+        }
+
+        const modelName =
+            activeModel.model_name ||
+            activeModel.name ||
+            activeModel.model_id ||
+            activeModel.id ||
+            "Model aktif";
+
+        setConfigStatus(
+            `Konfigurasi aktif: ${modelName}`,
+            false
+        );
+
+        hideMessage();
 
         renderWorkflows();
 
     } catch (error) {
 
         console.error(
-            "KIE model load error:",
+            "Active configuration error:",
             error
+        );
+
+        activeModel = null;
+        activeWorkflow = null;
+        activeVariant = null;
+        activeParameters = [];
+
+        resetConfigurationUI();
+
+        setConfigStatus(
+            error.message ||
+            "Konfigurasi aktif belum tersedia.",
+            true
         );
 
         showMessage(
             error.message ||
-            "Gagal memuat model.",
+            "Gagal memuat konfigurasi aktif.",
             "error"
         );
 
-    } finally {
-
-        setModelLoading(false);
-
     }
 
 }
 
 
-function setModelLoading(
-    loading
+function setConfigStatus(
+    text,
+    warning
 ) {
 
-    if (loading) {
+    elements.configStatus.innerHTML = `
+        <strong>Konfigurasi Aktif</strong>
+        ${escapeHtml(text)}
+    `;
 
-        elements.workflow.disabled =
-            true;
+    if (warning) {
 
-        elements.variant.disabled =
-            true;
+        elements.configStatus.style.background =
+            "#fffbeb";
 
-        elements.dynamicParameters.innerHTML = `
-            <div class="empty-state">
-                Memuat konfigurasi model...
-            </div>
-        `;
+        elements.configStatus.style.borderColor =
+            "#fde68a";
+
+        elements.configStatus.style.color =
+            "#92400e";
+
+    } else {
+
+        elements.configStatus.style.background =
+            "#f8f8ff";
+
+        elements.configStatus.style.borderColor =
+            "#e0e7ff";
+
+        elements.configStatus.style.color =
+            "#4338ca";
 
     }
 
 }
 
 
-function updateModelInfo() {
+function resetConfigurationUI() {
 
-    const option =
-        elements.model.selectedOptions[0];
+    elements.workflow.innerHTML = `
+        <option value="">
+            Menunggu konfigurasi aktif
+        </option>
+    `;
 
-    if (!option) {
+    elements.workflow.disabled =
+        true;
 
-        elements.modelInfo.textContent =
-            "-";
+    elements.variant.innerHTML = `
+        <option value="">
+            Menunggu workflow
+        </option>
+    `;
 
-        return;
+    elements.variant.disabled =
+        true;
 
-    }
+    elements.workflowInfoContainer.style.display =
+        "none";
 
-    const modelId =
-        option.dataset.modelId ||
-        option.value;
+    elements.dynamicParameters.innerHTML = `
+        <div class="empty-state">
+            Konfigurasi generate belum tersedia.
+        </div>
+    `;
 
-    const model =
-        kieModels.find(
-            item =>
-                (
-                    item.model_id ||
-                    item.id
-                ) === modelId
-        );
-
-    const cost =
-        model?.credit_cost ??
-        model?.credit_final ??
-        model?.credit ??
-        0;
-
-    elements.modelInfo.textContent =
-        `Model ID: ${modelId} • Biaya: ${formatNumber(cost)} credit`;
+    elements.generateButton.disabled =
+        true;
 
 }
 
@@ -1563,6 +1462,9 @@ function renderWorkflows() {
         resetVariantControls();
 
         renderParameters([]);
+
+        elements.generateButton.disabled =
+            true;
 
         return;
 
@@ -1649,6 +1551,8 @@ function updateWorkflow() {
     renderVariants();
 
     updateParameters();
+
+    updateGenerateAvailability();
 
 }
 
@@ -1805,24 +1709,7 @@ function updateVariant() {
 
     updateParameters();
 
-}
-
-
-function resetWorkflowControls() {
-
-    elements.workflow.innerHTML = `
-        <option value="">
-            Pilih model terlebih dahulu
-        </option>
-    `;
-
-    elements.workflow.disabled =
-        true;
-
-    resetVariantControls();
-
-    elements.workflowInfoContainer.style.display =
-        "none";
+    updateGenerateAvailability();
 
 }
 
@@ -1831,7 +1718,7 @@ function resetVariantControls() {
 
     elements.variant.innerHTML = `
         <option value="">
-            Pilih workflow terlebih dahulu
+            Menunggu workflow
         </option>
     `;
 
@@ -2694,19 +2581,10 @@ function createParameterField(
 
             }
 
-            if (
+            input.step =
                 type.includes("integer")
-            ) {
-
-                input.step =
-                    "1";
-
-            } else {
-
-                input.step =
-                    "any";
-
-            }
+                    ? "1"
+                    : "any";
 
         } else if (
             type.includes("url") ||
@@ -2819,18 +2697,14 @@ function parseBooleanDefault(
     if (
         typeof value === "boolean"
     ) {
-
         return value;
-
     }
 
     if (
         typeof value === "string"
     ) {
-
         return value.toLowerCase() ===
             "true";
-
     }
 
     return Boolean(value);
@@ -2864,7 +2738,7 @@ function applyDefaultValue(
 
         } catch {
 
-            // Keep string.
+            // Keep original value.
 
         }
 
@@ -2971,9 +2845,7 @@ function parseEnumValues(
 ) {
 
     if (Array.isArray(value)) {
-
         return value;
-
     }
 
     if (
@@ -3140,12 +3012,26 @@ function validateRequiredParameters(
 }
 
 
+function updateGenerateAvailability() {
+
+    const ready =
+        Boolean(
+            activeModel &&
+            activeWorkflow
+        );
+
+    elements.generateButton.disabled =
+        !ready;
+
+}
+
+
 async function generateVideo() {
 
     if (!activeModel) {
 
         showMessage(
-            "Model belum dipilih.",
+            "Belum ada model aktif yang ditetapkan oleh sistem.",
             "warning"
         );
 
@@ -3156,7 +3042,7 @@ async function generateVideo() {
     if (!activeWorkflow) {
 
         showMessage(
-            "Workflow belum dipilih.",
+            "Workflow belum tersedia.",
             "warning"
         );
 
@@ -3221,24 +3107,27 @@ async function generateVideo() {
     );
 
     showMessage(
-        "Mengirim permintaan ke KIE.AI...",
+        "Mengirim permintaan generate...",
         "info"
     );
 
     try {
 
+        const modelId =
+            activeModel.model_id ||
+            activeModel.id;
+
         const body = {
 
             provider:
+                activeModel.provider ||
                 "kie_ai",
 
             model:
-                activeModel.model_id ||
-                activeModel.id,
+                modelId,
 
             model_id:
-                activeModel.model_id ||
-                activeModel.id,
+                modelId,
 
             workflow_id:
                 activeWorkflow.id,
@@ -3297,7 +3186,7 @@ async function generateVideo() {
                 )
                     ? data.errors.join(" ")
                     : data?.error ||
-                      "KIE.AI gagal memproses generate.";
+                      "Generate gagal diproses.";
 
             throw new Error(
                 errorText
@@ -3312,7 +3201,7 @@ async function generateVideo() {
         if (!taskId) {
 
             throw new Error(
-                "KIE.AI menerima request tetapi task ID tidak ditemukan."
+                "Request diterima tetapi task ID tidak ditemukan."
             );
 
         }
@@ -3323,7 +3212,7 @@ async function generateVideo() {
         );
 
         console.log(
-            "GEN-Z.AI KIE GENERATION",
+            "GEN-Z.AI GENERATION",
             {
                 request: body,
                 response: data
@@ -3378,6 +3267,8 @@ function setGenerateLoading(
         elements.generateButton.textContent =
             "GENERATE VIDEO";
 
+        updateGenerateAvailability();
+
     }
 
 }
@@ -3385,46 +3276,19 @@ function setGenerateLoading(
 
 function resetGenerator() {
 
-    const currentModelId =
-        elements.model.value;
+    if (!activeModel) {
 
-    activeModel = null;
+        resetConfigurationUI();
+
+        return;
+
+    }
+
     activeWorkflow = null;
     activeVariant = null;
     activeParameters = [];
 
-    if (currentModelId) {
-
-        const model =
-            kieModels.find(
-                item =>
-                    (
-                        item.model_id ||
-                        item.id
-                    ) === currentModelId
-            );
-
-        if (model) {
-
-            activeModel =
-                model;
-
-            elements.model.value =
-                currentModelId;
-
-            loadSelectedModel();
-
-            return;
-
-        }
-
-    }
-
-    elements.dynamicParameters.innerHTML = `
-        <div class="empty-state">
-            Pilih model untuk memuat parameter.
-        </div>
-    `;
+    renderWorkflows();
 
     hideMessage();
 
