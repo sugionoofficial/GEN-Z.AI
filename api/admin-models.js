@@ -43,7 +43,11 @@
 // ========================================
 
 const json = (res, status, data) => {
-    return res.status(status).json(data);
+
+    return res
+        .status(status)
+        .json(data);
+
 };
 
 
@@ -53,7 +57,8 @@ const json = (res, status, data) => {
 
 const getHeader = (req, name) => {
 
-    const headers = req.headers || {};
+    const headers =
+        req.headers || {};
 
     return (
         headers[name] ||
@@ -81,7 +86,9 @@ const getBearerToken = (req) => {
     }
 
     const match =
-        String(authorization).match(
+        String(
+            authorization
+        ).match(
             /^Bearer\s+(.+)$/i
         );
 
@@ -98,17 +105,29 @@ const getBearerToken = (req) => {
 
 const getSupabaseConfig = () => {
 
+    const url =
+        process.env.SUPABASE_URL;
+
+    const serviceRoleKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    const anonKey =
+        process.env.SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_KEY ||
+        serviceRoleKey;
+
     return {
 
         url:
-            process.env.SUPABASE_URL,
+            url
+                ? String(url).replace(/\/+$/, "")
+                : "",
 
         serviceRoleKey:
-            process.env.SUPABASE_SERVICE_ROLE_KEY,
+            serviceRoleKey || "",
 
         anonKey:
-            process.env.SUPABASE_ANON_KEY ||
-            process.env.SUPABASE_KEY
+            anonKey || ""
 
     };
 
@@ -124,6 +143,14 @@ const supabaseRequest = async (
     path,
     options = {}
 ) => {
+
+    if (!url) {
+
+        throw new Error(
+            "SUPABASE_URL belum dikonfigurasi."
+        );
+
+    }
 
     const response =
         await fetch(
@@ -154,11 +181,38 @@ const supabaseRequest = async (
     }
 
     return {
+
         response,
+
         data
+
     };
 
 };
+
+
+// ========================================
+// SUPABASE ERROR MESSAGE
+// ========================================
+
+const getSupabaseError =
+    (data, fallback) => {
+
+        if (!data) {
+            return fallback;
+        }
+
+        return (
+            data.message ||
+            data.error_description ||
+            data.error ||
+            data.details ||
+            data.hint ||
+            data.msg ||
+            fallback
+        );
+
+    };
 
 
 // ========================================
@@ -176,24 +230,52 @@ const verifyAdmin = async (
     if (!token) {
 
         return {
+
             ok: false,
+
             status: 401,
+
             error:
-                "Session tidak ditemukan."
+                "Session tidak ditemukan. Silakan login kembali."
+
+        };
+
+    }
+
+
+    if (
+        !config.url ||
+        !config.anonKey ||
+        !config.serviceRoleKey
+    ) {
+
+        return {
+
+            ok: false,
+
+            status: 500,
+
+            error:
+                "Konfigurasi Supabase server belum lengkap."
+
         };
 
     }
 
 
     // ====================================
-    // VERIFY SUPABASE SESSION
+    // VERIFY SUPABASE USER
     // ====================================
 
     const authResult =
         await supabaseRequest(
+
             config.url,
+
             "/auth/v1/user",
+
             {
+
                 method: "GET",
 
                 headers: {
@@ -207,6 +289,7 @@ const verifyAdmin = async (
                 }
 
             }
+
         );
 
 
@@ -215,6 +298,11 @@ const verifyAdmin = async (
         !authResult.data?.id
     ) {
 
+        console.error(
+            "SUPABASE AUTH ERROR:",
+            authResult.data
+        );
+
         return {
 
             ok: false,
@@ -222,7 +310,7 @@ const verifyAdmin = async (
             status: 401,
 
             error:
-                "Session Supabase tidak valid."
+                "Session Supabase tidak valid atau sudah kedaluwarsa."
 
         };
 
@@ -237,13 +325,19 @@ const verifyAdmin = async (
     // LOAD PROFILE
     // ====================================
 
+    const profilePath =
+        `/rest/v1/profiles?select=id,email,name,role,status,credits&id=eq.${encodeURIComponent(userId)}&limit=1`;
+
+
     const profileResult =
         await supabaseRequest(
+
             config.url,
 
-            `/rest/v1/profiles?select=id,email,name,role,status,credits&id=eq.${encodeURIComponent(userId)}&limit=1`,
+            profilePath,
 
             {
+
                 method: "GET",
 
                 headers: {
@@ -255,6 +349,9 @@ const verifyAdmin = async (
                         `Bearer ${config.serviceRoleKey}`,
 
                     "Content-Type":
+                        "application/json",
+
+                    "Accept":
                         "application/json"
 
                 }
@@ -264,7 +361,9 @@ const verifyAdmin = async (
         );
 
 
-    if (!profileResult.response.ok) {
+    if (
+        !profileResult.response.ok
+    ) {
 
         console.error(
             "PROFILE CHECK ERROR:",
@@ -278,7 +377,10 @@ const verifyAdmin = async (
             status: 500,
 
             error:
-                "Gagal memeriksa profile admin."
+                getSupabaseError(
+                    profileResult.data,
+                    "Gagal memeriksa profile admin."
+                )
 
         };
 
@@ -312,13 +414,17 @@ const verifyAdmin = async (
     const role =
         String(
             profile.role || ""
-        ).toUpperCase();
+        )
+        .trim()
+        .toUpperCase();
 
 
     const accountStatus =
         String(
             profile.status || ""
-        ).toLowerCase();
+        )
+        .trim()
+        .toLowerCase();
 
 
     if (
@@ -419,6 +525,31 @@ const MODEL_FIELDS = [
 
 
 // ========================================
+// PROVIDER FIELDS
+// ========================================
+
+const PROVIDER_FIELDS = [
+
+    "id",
+
+    "provider_id",
+
+    "provider_name",
+
+    "description",
+
+    "status",
+
+    "is_default",
+
+    "created_at",
+
+    "updated_at"
+
+];
+
+
+// ========================================
 // NUMBER VALIDATION
 // ========================================
 
@@ -430,6 +561,19 @@ const parseNumber = (
 
     const number =
         Number(value);
+
+
+    if (
+        value === "" ||
+        value === null ||
+        value === undefined
+    ) {
+
+        throw new Error(
+            `${field} harus diisi.`
+        );
+
+    }
 
 
     if (
@@ -456,6 +600,54 @@ const parseNumber = (
 
 
     return number;
+
+};
+
+
+// ========================================
+// CLEAN ARRAY
+// ========================================
+
+const cleanArray = (
+    value
+) => {
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return value
+
+            .map(
+                item =>
+                    String(item).trim()
+            )
+
+            .filter(Boolean);
+
+    }
+
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return [];
+
+    }
+
+
+    return String(value)
+
+        .split(",")
+
+        .map(
+            item =>
+                item.trim()
+        )
+
+        .filter(Boolean);
 
 };
 
@@ -529,10 +721,12 @@ const cleanModel = (
 
         model.description =
             input.description === null
+
                 ? null
+
                 : String(
                     input.description
-                );
+                ).trim();
 
     }
 
@@ -542,7 +736,8 @@ const cleanModel = (
     // ====================================
 
     if (
-        input.credit_cost !== undefined
+        input.credit_cost !== undefined &&
+        input.credit_cost !== ""
     ) {
 
         const value =
@@ -553,7 +748,9 @@ const cleanModel = (
             );
 
 
-        if (value < 0) {
+        if (
+            value < 0
+        ) {
 
             throw new Error(
                 "credit_cost tidak boleh negatif."
@@ -573,7 +770,8 @@ const cleanModel = (
     // ====================================
 
     if (
-        input.discount_percent !== undefined
+        input.discount_percent !== undefined &&
+        input.discount_percent !== ""
     ) {
 
         const value =
@@ -619,7 +817,9 @@ const cleanModel = (
             );
 
 
-        if (value < 0) {
+        if (
+            value < 0
+        ) {
 
             throw new Error(
                 "min_duration tidak boleh negatif."
@@ -651,7 +851,9 @@ const cleanModel = (
             );
 
 
-        if (value < 0) {
+        if (
+            value < 0
+        ) {
 
             throw new Error(
                 "max_duration tidak boleh negatif."
@@ -674,29 +876,10 @@ const cleanModel = (
         input.supported_ratios !== undefined
     ) {
 
-        if (
-            Array.isArray(
+        model.supported_ratios =
+            cleanArray(
                 input.supported_ratios
-            )
-        ) {
-
-            model.supported_ratios =
-                input.supported_ratios;
-
-        } else {
-
-            model.supported_ratios =
-                String(
-                    input.supported_ratios
-                )
-                .split(",")
-                .map(
-                    item =>
-                        item.trim()
-                )
-                .filter(Boolean);
-
-        }
+            );
 
     }
 
@@ -709,29 +892,10 @@ const cleanModel = (
         input.supported_resolutions !== undefined
     ) {
 
-        if (
-            Array.isArray(
+        model.supported_resolutions =
+            cleanArray(
                 input.supported_resolutions
-            )
-        ) {
-
-            model.supported_resolutions =
-                input.supported_resolutions;
-
-        } else {
-
-            model.supported_resolutions =
-                String(
-                    input.supported_resolutions
-                )
-                .split(",")
-                .map(
-                    item =>
-                        item.trim()
-                )
-                .filter(Boolean);
-
-        }
+            );
 
     }
 
@@ -852,6 +1016,41 @@ const validateModel = (
 
 
     // ====================================
+    // CREDIT
+    // ====================================
+
+    if (
+        model.credit_cost !== undefined &&
+        model.credit_cost < 0
+    ) {
+
+        return (
+            "Credit cost tidak boleh negatif."
+        );
+
+    }
+
+
+    // ====================================
+    // DISCOUNT
+    // ====================================
+
+    if (
+        model.discount_percent !== undefined &&
+        (
+            model.discount_percent < 0 ||
+            model.discount_percent > 100
+        )
+    ) {
+
+        return (
+            "Diskon harus antara 0 sampai 100%."
+        );
+
+    }
+
+
+    // ====================================
     // DURATION
     // ====================================
 
@@ -880,6 +1079,129 @@ const validateModel = (
 
 
 // ========================================
+// GET PROVIDER
+//
+// Bisa menerima:
+// - UUID providers.id
+// - providers.provider_id
+//
+// Ini penting karena GEN-Z.AI
+// menggunakan provider_id sebagai
+// kode provider/API provider.
+// ========================================
+
+const getProvider =
+    async (
+        config,
+        providerValue
+    ) => {
+
+        if (
+            !providerValue
+        ) {
+
+            return null;
+
+        }
+
+
+        const value =
+            String(
+                providerValue
+            ).trim();
+
+
+        if (!value) {
+
+            return null;
+
+        }
+
+
+        const encoded =
+            encodeURIComponent(
+                value
+            );
+
+
+        const path =
+            `/rest/v1/providers?select=${encodeURIComponent(PROVIDER_FIELDS.join(","))}&or=(id.eq.${encoded},provider_id.eq.${encoded})&limit=1`;
+
+
+        const result =
+            await supabaseRequest(
+
+                config.url,
+
+                path,
+
+                {
+
+                    method: "GET",
+
+                    headers: {
+
+                        "apikey":
+                            config.serviceRoleKey,
+
+                        "Authorization":
+                            `Bearer ${config.serviceRoleKey}`,
+
+                        "Content-Type":
+                            "application/json",
+
+                        "Accept":
+                            "application/json"
+
+                    }
+
+                }
+
+            );
+
+
+        if (
+            !result.response.ok
+        ) {
+
+            console.error(
+                "GET PROVIDER ERROR:",
+                result.data
+            );
+
+            throw new Error(
+
+                getSupabaseError(
+
+                    result.data,
+
+                    "Gagal memeriksa provider."
+
+                )
+
+            );
+
+        }
+
+
+        if (
+            !Array.isArray(
+                result.data
+            ) ||
+            result.data.length === 0
+        ) {
+
+            return null;
+
+        }
+
+
+        return result.data[0];
+
+    };
+
+
+// ========================================
 // CHECK PROVIDER
 // ========================================
 
@@ -888,66 +1210,10 @@ const providerExists = async (
     providerId
 ) => {
 
-    const result =
-        await supabaseRequest(
-
-            config.url,
-
-            `/rest/v1/providers?select=id,provider_id,provider_name,status&id=eq.${encodeURIComponent(providerId)}&limit=1`,
-
-            {
-
-                method: "GET",
-
-                headers: {
-
-                    "apikey":
-                        config.serviceRoleKey,
-
-                    "Authorization":
-                        `Bearer ${config.serviceRoleKey}`,
-
-                    "Content-Type":
-                        "application/json"
-
-                }
-
-            }
-
-        );
-
-
-    if (
-        !result.response.ok
-    ) {
-
-        console.error(
-            "PROVIDER CHECK ERROR:",
-            result.data
-        );
-
-        throw new Error(
-            result.data?.message ||
-            result.data?.details ||
-            "Gagal memeriksa provider."
-        );
-
-    }
-
-
-    if (
-        !Array.isArray(
-            result.data
-        ) ||
-        result.data.length === 0
-    ) {
-
-        return null;
-
-    }
-
-
-    return result.data[0];
+    return await getProvider(
+        config,
+        providerId
+    );
 
 };
 
@@ -963,12 +1229,48 @@ const duplicateModelExists = async (
     excludeId = null
 ) => {
 
+    if (
+        !providerId ||
+        !modelId
+    ) {
+
+        return false;
+
+    }
+
+
+    // ====================================
+    // Resolve provider ke UUID database
+    // ====================================
+
+    const provider =
+        await getProvider(
+            config,
+            providerId
+        );
+
+
+    if (!provider) {
+
+        throw new Error(
+            "Provider tidak ditemukan."
+        );
+
+    }
+
+
+    const providerUuid =
+        provider.id;
+
+
     let path =
 
-        `/rest/v1/models?select=id,provider_id,model_id&provider_id=eq.${encodeURIComponent(providerId)}&model_id=eq.${encodeURIComponent(modelId)}&limit=1`;
+        `/rest/v1/models?select=id,provider_id,model_id&provider_id=eq.${encodeURIComponent(providerUuid)}&model_id=eq.${encodeURIComponent(modelId)}&limit=1`;
 
 
-    if (excludeId) {
+    if (
+        excludeId
+    ) {
 
         path +=
             `&id=neq.${encodeURIComponent(excludeId)}`;
@@ -996,6 +1298,9 @@ const duplicateModelExists = async (
                         `Bearer ${config.serviceRoleKey}`,
 
                     "Content-Type":
+                        "application/json",
+
+                    "Accept":
                         "application/json"
 
                 }
@@ -1011,9 +1316,13 @@ const duplicateModelExists = async (
 
         throw new Error(
 
-            result.data?.message ||
-            result.data?.details ||
-            "Gagal memeriksa duplikasi model."
+            getSupabaseError(
+
+                result.data,
+
+                "Gagal memeriksa duplikasi model."
+
+            )
 
         );
 
@@ -1034,7 +1343,7 @@ const duplicateModelExists = async (
 
 
 // ========================================
-// LIST MODELS + PROVIDERS
+// LIST MODELS
 // ========================================
 
 const listModels = async (
@@ -1045,12 +1354,20 @@ const listModels = async (
         MODEL_FIELDS.join(",");
 
 
+    // ====================================
+    // LOAD MODELS
+    // ====================================
+
+    const modelsPath =
+        `/rest/v1/models?select=${encodeURIComponent(fields)}&order=created_at.desc`;
+
+
     const modelsResult =
         await supabaseRequest(
 
             config.url,
 
-            `/rest/v1/models?select=${encodeURIComponent(fields)}&order=created_at.desc`,
+            modelsPath,
 
             {
 
@@ -1065,6 +1382,9 @@ const listModels = async (
                         `Bearer ${config.serviceRoleKey}`,
 
                     "Content-Type":
+                        "application/json",
+
+                    "Accept":
                         "application/json"
 
                 }
@@ -1078,16 +1398,32 @@ const listModels = async (
         !modelsResult.response.ok
     ) {
 
+        console.error(
+            "MODELS QUERY ERROR:",
+            modelsResult.data
+        );
+
         throw new Error(
 
-            modelsResult.data?.message ||
-            modelsResult.data?.details ||
-            modelsResult.data?.hint ||
-            "Gagal mengambil data models."
+            getSupabaseError(
+
+                modelsResult.data,
+
+                "Gagal mengambil data models."
+
+            )
 
         );
 
     }
+
+
+    // ====================================
+    // LOAD PROVIDERS
+    // ====================================
+
+    const providersPath =
+        `/rest/v1/providers?select=${encodeURIComponent(PROVIDER_FIELDS.join(","))}&order=created_at.desc`;
 
 
     const providersResult =
@@ -1095,7 +1431,7 @@ const listModels = async (
 
             config.url,
 
-            `/rest/v1/providers?select=id,provider_id,provider_name,description,status,is_default&order=created_at.desc`,
+            providersPath,
 
             {
 
@@ -1110,6 +1446,9 @@ const listModels = async (
                         `Bearer ${config.serviceRoleKey}`,
 
                     "Content-Type":
+                        "application/json",
+
+                    "Accept":
                         "application/json"
 
                 }
@@ -1123,12 +1462,20 @@ const listModels = async (
         !providersResult.response.ok
     ) {
 
+        console.error(
+            "PROVIDERS QUERY ERROR:",
+            providersResult.data
+        );
+
         throw new Error(
 
-            providersResult.data?.message ||
-            providersResult.data?.details ||
-            providersResult.data?.hint ||
-            "Gagal mengambil data providers."
+            getSupabaseError(
+
+                providersResult.data,
+
+                "Gagal mengambil data providers."
+
+            )
 
         );
 
@@ -1162,15 +1509,38 @@ const listModels = async (
     providers.forEach(
         provider => {
 
-            providerMap.set(
+            if (
+                provider.id
+            ) {
 
-                String(
-                    provider.id
-                ),
+                providerMap.set(
 
-                provider
+                    String(
+                        provider.id
+                    ),
 
-            );
+                    provider
+
+                );
+
+            }
+
+
+            if (
+                provider.provider_id
+            ) {
+
+                providerMap.set(
+
+                    String(
+                        provider.provider_id
+                    ),
+
+                    provider
+
+                );
+
+            }
 
         }
     );
@@ -1208,7 +1578,11 @@ const listModels = async (
 
                     provider_status:
                         provider?.status ||
-                        null
+                        null,
+
+                    provider_is_default:
+                        provider?.is_default ??
+                        false
 
                 };
 
@@ -1238,7 +1612,9 @@ const createModel = async (
 ) => {
 
     const model =
-        cleanModel(body);
+        cleanModel(
+            body
+        );
 
 
     const validation =
@@ -1248,7 +1624,9 @@ const createModel = async (
         );
 
 
-    if (validation) {
+    if (
+        validation
+    ) {
 
         throw new Error(
             validation
@@ -1258,13 +1636,16 @@ const createModel = async (
 
 
     // ====================================
-    // PROVIDER CHECK
+    // PROVIDER
     // ====================================
 
     const provider =
         await providerExists(
+
             config,
+
             model.provider_id
+
         );
 
 
@@ -1278,7 +1659,16 @@ const createModel = async (
 
 
     // ====================================
-    // DUPLICATE CHECK
+    // GANTI provider_id
+    // menjadi UUID database
+    // ====================================
+
+    model.provider_id =
+        provider.id;
+
+
+    // ====================================
+    // DUPLICATE
     // ====================================
 
     const duplicate =
@@ -1286,14 +1676,16 @@ const createModel = async (
 
             config,
 
-            model.provider_id,
+            provider.id,
 
             model.model_id
 
         );
 
 
-    if (duplicate) {
+    if (
+        duplicate
+    ) {
 
         throw new Error(
 
@@ -1305,14 +1697,15 @@ const createModel = async (
 
 
     // ====================================
-    // DEFAULT VALUES
+    // DEFAULT
     // ====================================
 
     if (
         model.credit_cost === undefined
     ) {
 
-        model.credit_cost = 0;
+        model.credit_cost =
+            0;
 
     }
 
@@ -1321,7 +1714,8 @@ const createModel = async (
         model.discount_percent === undefined
     ) {
 
-        model.discount_percent = 0;
+        model.discount_percent =
+            0;
 
     }
 
@@ -1330,13 +1724,16 @@ const createModel = async (
         model.status === undefined
     ) {
 
-        model.status = "active";
+        model.status =
+            "active";
 
     }
 
 
-    // Jangan mengirim credit_final.
-    // Database trigger menghitungnya.
+    // ====================================
+    // JANGAN TERIMA credit_final
+    // ====================================
+
     delete model.credit_final;
 
 
@@ -1366,6 +1763,9 @@ const createModel = async (
                     "Content-Type":
                         "application/json",
 
+                    "Accept":
+                        "application/json",
+
                     "Prefer":
                         "return=representation"
 
@@ -1393,27 +1793,30 @@ const createModel = async (
 
         throw new Error(
 
-            result.data?.message ||
-            result.data?.details ||
-            result.data?.hint ||
-            "Gagal membuat model."
+            getSupabaseError(
+
+                result.data,
+
+                "Gagal membuat model."
+
+            )
 
         );
 
     }
 
 
-    return (
-
+    const created =
         Array.isArray(
             result.data
         )
 
             ? result.data[0]
 
-            : result.data
+            : result.data;
 
-    );
+
+    return created;
 
 };
 
@@ -1428,7 +1831,9 @@ const updateModel = async (
     body
 ) => {
 
-    if (!id) {
+    if (
+        !id
+    ) {
 
         throw new Error(
             "ID model wajib diisi."
@@ -1438,7 +1843,9 @@ const updateModel = async (
 
 
     const model =
-        cleanModel(body);
+        cleanModel(
+            body
+        );
 
 
     const validation =
@@ -1448,7 +1855,9 @@ const updateModel = async (
         );
 
 
-    if (validation) {
+    if (
+        validation
+    ) {
 
         throw new Error(
             validation
@@ -1458,7 +1867,9 @@ const updateModel = async (
 
 
     if (
-        Object.keys(model).length === 0
+        Object.keys(
+            model
+        ).length === 0
     ) {
 
         throw new Error(
@@ -1469,7 +1880,7 @@ const updateModel = async (
 
 
     // ====================================
-    // PROVIDER CHECK
+    // PROVIDER
     // ====================================
 
     if (
@@ -1494,11 +1905,15 @@ const updateModel = async (
 
         }
 
+
+        model.provider_id =
+            provider.id;
+
     }
 
 
     // ====================================
-    // DUPLICATE CHECK
+    // DUPLICATE
     // ====================================
 
     if (
@@ -1520,7 +1935,9 @@ const updateModel = async (
             );
 
 
-        if (duplicate) {
+        if (
+            duplicate
+        ) {
 
             throw new Error(
 
@@ -1534,7 +1951,7 @@ const updateModel = async (
 
 
     // ====================================
-    // NEVER ACCEPT CREDIT_FINAL
+    // NEVER ACCEPT CREDIT FINAL
     // ====================================
 
     delete model.credit_final;
@@ -1545,7 +1962,8 @@ const updateModel = async (
     // ====================================
 
     model.updated_at =
-        new Date().toISOString();
+        new Date()
+            .toISOString();
 
 
     // ====================================
@@ -1572,6 +1990,9 @@ const updateModel = async (
                         `Bearer ${config.serviceRoleKey}`,
 
                     "Content-Type":
+                        "application/json",
+
+                    "Accept":
                         "application/json",
 
                     "Prefer":
@@ -1601,10 +2022,13 @@ const updateModel = async (
 
         throw new Error(
 
-            result.data?.message ||
-            result.data?.details ||
-            result.data?.hint ||
-            "Gagal memperbarui model."
+            getSupabaseError(
+
+                result.data,
+
+                "Gagal memperbarui model."
+
+            )
 
         );
 
@@ -1639,7 +2063,9 @@ const deleteModel = async (
     id
 ) => {
 
-    if (!id) {
+    if (
+        !id
+    ) {
 
         throw new Error(
             "ID model wajib diisi."
@@ -1670,6 +2096,9 @@ const deleteModel = async (
                     "Content-Type":
                         "application/json",
 
+                    "Accept":
+                        "application/json",
+
                     "Prefer":
                         "return=representation"
 
@@ -1692,10 +2121,13 @@ const deleteModel = async (
 
         throw new Error(
 
-            result.data?.message ||
-            result.data?.details ||
-            result.data?.hint ||
-            "Gagal menghapus model."
+            getSupabaseError(
+
+                result.data,
+
+                "Gagal menghapus model."
+
+            )
 
         );
 
@@ -1731,7 +2163,8 @@ const parseBody = (
 
     if (
         req.body &&
-        typeof req.body === "object"
+        typeof req.body === "object" &&
+        !Buffer.isBuffer(req.body)
     ) {
 
         return req.body;
@@ -1745,9 +2178,18 @@ const parseBody = (
 
         try {
 
-            return JSON.parse(
-                req.body
-            );
+            const parsed =
+                JSON.parse(
+                    req.body
+                );
+
+
+            return (
+                parsed &&
+                typeof parsed === "object"
+            )
+                ? parsed
+                : {};
 
         } catch {
 
@@ -1791,6 +2233,11 @@ export default async function handler(
         "GET, POST, PATCH, DELETE, OPTIONS"
     );
 
+    res.setHeader(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+
 
     // ====================================
     // OPTIONS
@@ -1808,6 +2255,46 @@ export default async function handler(
 
 
     // ====================================
+    // METHOD CHECK
+    // ====================================
+
+    const allowedMethods = [
+
+        "GET",
+        "POST",
+        "PATCH",
+        "DELETE"
+
+    ];
+
+
+    if (
+        !allowedMethods.includes(
+            req.method
+        )
+    ) {
+
+        return json(
+
+            res,
+
+            405,
+
+            {
+
+                success: false,
+
+                error:
+                    "Method tidak didukung."
+
+            }
+
+        );
+
+    }
+
+
+    // ====================================
     // CONFIG
     // ====================================
 
@@ -1816,8 +2303,54 @@ export default async function handler(
 
 
     if (
-        !config.url ||
-        !config.serviceRoleKey ||
+        !config.url
+    ) {
+
+        return json(
+
+            res,
+
+            500,
+
+            {
+
+                success: false,
+
+                error:
+                    "SUPABASE_URL belum dikonfigurasi."
+
+            }
+
+        );
+
+    }
+
+
+    if (
+        !config.serviceRoleKey
+    ) {
+
+        return json(
+
+            res,
+
+            500,
+
+            {
+
+                success: false,
+
+                error:
+                    "SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi."
+
+            }
+
+        );
+
+    }
+
+
+    if (
         !config.anonKey
     ) {
 
@@ -1832,7 +2365,7 @@ export default async function handler(
                 success: false,
 
                 error:
-                    "Konfigurasi Supabase server belum lengkap."
+                    "SUPABASE_ANON_KEY atau SUPABASE_KEY belum dikonfigurasi."
 
             }
 
@@ -1852,11 +2385,16 @@ export default async function handler(
 
         admin =
             await verifyAdmin(
+
                 req,
+
                 config
+
             );
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         console.error(
             "ADMIN VERIFY ERROR:",
@@ -1875,6 +2413,7 @@ export default async function handler(
                 success: false,
 
                 error:
+                    error.message ||
                     "Gagal memverifikasi akses admin."
 
             }
@@ -1884,7 +2423,9 @@ export default async function handler(
     }
 
 
-    if (!admin.ok) {
+    if (
+        !admin.ok
+    ) {
 
         return json(
 
@@ -1918,7 +2459,9 @@ export default async function handler(
 
             const data =
                 await listModels(
+
                     config
+
                 );
 
 
@@ -1936,13 +2479,25 @@ export default async function handler(
                         data.models,
 
                     providers:
-                        data.providers
+                        data.providers,
+
+                    counts: {
+
+                        models:
+                            data.models.length,
+
+                        providers:
+                            data.providers.length
+
+                    }
 
                 }
 
             );
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
                 "ADMIN MODELS GET ERROR:",
@@ -1978,7 +2533,9 @@ export default async function handler(
     // ====================================
 
     const body =
-        parseBody(req);
+        parseBody(
+            req
+        );
 
 
     // ====================================
@@ -2020,7 +2577,9 @@ export default async function handler(
 
             );
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
                 "ADMIN MODEL CREATE ERROR:",
@@ -2097,7 +2656,9 @@ export default async function handler(
 
             );
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
                 "ADMIN MODEL UPDATE ERROR:",
@@ -2172,7 +2733,9 @@ export default async function handler(
 
             );
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
                 "ADMIN MODEL DELETE ERROR:",
@@ -2204,7 +2767,7 @@ export default async function handler(
 
 
     // ====================================
-    // METHOD NOT ALLOWED
+    // FALLBACK
     // ====================================
 
     return json(
