@@ -460,7 +460,43 @@ const loadWorkflows = async (
         "&order=workflow_key.asc";
 
 
-    if (modelUuid) {
+    // modelUuid dapat berupa:
+    // - satu UUID
+    // - array UUID
+    //
+    // Handler mengirim models.map(model => model.id),
+    // sehingga ketika lebih dari satu model aktif,
+    // filter harus menggunakan PostgREST `in`,
+    // bukan `eq`.
+
+    if (Array.isArray(modelUuid)) {
+
+        const validModelUuids =
+            modelUuid
+                .map(
+                    value =>
+                        String(value).trim()
+                )
+                .filter(
+                    Boolean
+                );
+
+        if (validModelUuids.length) {
+
+            const values =
+                validModelUuids
+                    .map(
+                        id =>
+                            `"${id.replace(/"/g, '\\"')}"`
+                    )
+                    .join(",");
+
+            path +=
+                `&model_id=in.(${encodeURIComponent(values)})`;
+
+        }
+
+    } else if (modelUuid) {
 
         path +=
             `&model_id=${eqFilter(modelUuid)}`;
