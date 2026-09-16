@@ -359,7 +359,7 @@ const verifyUser = async (
 
 
 // ========================================
-// URL ENCODE FILTER
+// URL FILTER HELPERS
 // ========================================
 
 const eqFilter = (
@@ -367,6 +367,35 @@ const eqFilter = (
 ) => {
 
     return `eq.${encodeURIComponent(value)}`;
+
+};
+
+
+const inFilter = (
+    values
+) => {
+
+    const validValues =
+        Array.isArray(values)
+            ? values
+                .map(
+                    value =>
+                        String(value).trim()
+                )
+                .filter(Boolean)
+            : [];
+
+    if (!validValues.length) {
+
+        return "";
+
+    }
+
+    return (
+        `in.(${encodeURIComponent(
+            validValues.join(",")
+        )})`
+    );
 
 };
 
@@ -446,9 +475,19 @@ const loadModels = async (
 
 const loadWorkflows = async (
     config,
-    modelUuid,
+    modelUuids,
     workflowId
 ) => {
+
+    if (
+        !Array.isArray(modelUuids) ||
+        !modelUuids.length
+    ) {
+
+        return [];
+
+    }
+
 
     let path =
         "/rest/v1/kie_workflows" +
@@ -460,46 +499,14 @@ const loadWorkflows = async (
         "&order=workflow_key.asc";
 
 
-    // modelUuid dapat berupa:
-    // - satu UUID
-    // - array UUID
-    //
-    // Handler mengirim models.map(model => model.id),
-    // sehingga ketika lebih dari satu model aktif,
-    // filter harus menggunakan PostgREST `in`,
-    // bukan `eq`.
+    const modelFilter =
+        inFilter(modelUuids);
 
-    if (Array.isArray(modelUuid)) {
 
-        const validModelUuids =
-            modelUuid
-                .map(
-                    value =>
-                        String(value).trim()
-                )
-                .filter(
-                    Boolean
-                );
-
-        if (validModelUuids.length) {
-
-            const values =
-                validModelUuids
-                    .map(
-                        id =>
-                            `"${id.replace(/"/g, '\\"')}"`
-                    )
-                    .join(",");
-
-            path +=
-                `&model_id=in.(${encodeURIComponent(values)})`;
-
-        }
-
-    } else if (modelUuid) {
+    if (modelFilter) {
 
         path +=
-            `&model_id=${eqFilter(modelUuid)}`;
+            `&model_id=${modelFilter}`;
 
     }
 
@@ -589,18 +596,30 @@ const loadVariants = async (
         path +=
             `&id=${eqFilter(variantId)}`;
 
+
+        const workflowFilter =
+            inFilter(workflowIds);
+
+        if (workflowFilter) {
+
+            path +=
+                `&workflow_id=${workflowFilter}`;
+
+        }
+
     } else {
 
-        const values =
-            workflowIds
-                .map(
-                    id =>
-                        `"${id}"`
-                )
-                .join(",");
+        const workflowFilter =
+            inFilter(workflowIds);
+
+        if (!workflowFilter) {
+
+            return [];
+
+        }
 
         path +=
-            `&workflow_id=in.(${encodeURIComponent(values)})`;
+            `&workflow_id=${workflowFilter}`;
 
     }
 
@@ -666,16 +685,18 @@ const loadParameters = async (
     }
 
 
-    const values =
-        workflowIds
-            .map(
-                id =>
-                    `"${id}"`
-            )
-            .join(",");
+    const workflowFilter =
+        inFilter(workflowIds);
 
 
-    const path =
+    if (!workflowFilter) {
+
+        return [];
+
+    }
+
+
+    let path =
         "/rest/v1/kie_parameters" +
         "?select=" +
         "id,workflow_id,variant_id," +
@@ -683,8 +704,24 @@ const loadParameters = async (
         "default_value,enum_values,min_value,max_value," +
         "min_items,max_items,item_type,description," +
         "api_mapping,metadata,created_at,updated_at" +
-        "&workflow_id=in." +
-        `(${encodeURIComponent(values)})`;
+        `&workflow_id=${workflowFilter}`;
+
+
+    if (variantIds.length) {
+
+        const variantFilter =
+            inFilter(variantIds);
+
+        if (variantFilter) {
+
+            path +=
+                `&or=${encodeURIComponent(
+                    `variant_id.is.null,variant_id.${variantFilter.replace(/^in\./, "in.")}`
+                )}`;
+
+        }
+
+    }
 
 
     const result =
@@ -783,13 +820,15 @@ const loadConstraints = async (
     }
 
 
-    const values =
-        workflowIds
-            .map(
-                id =>
-                    `"${id}"`
-            )
-            .join(",");
+    const workflowFilter =
+        inFilter(workflowIds);
+
+
+    if (!workflowFilter) {
+
+        return [];
+
+    }
 
 
     const path =
@@ -800,8 +839,7 @@ const loadConstraints = async (
         "target_parameter,operator,value," +
         "expression,error_message,metadata," +
         "created_at" +
-        "&workflow_id=in." +
-        `(${encodeURIComponent(values)})`;
+        `&workflow_id=${workflowFilter}`;
 
 
     const result =
@@ -900,13 +938,15 @@ const loadDependencies = async (
     }
 
 
-    const values =
-        workflowIds
-            .map(
-                id =>
-                    `"${id}"`
-            )
-            .join(",");
+    const workflowFilter =
+        inFilter(workflowIds);
+
+
+    if (!workflowFilter) {
+
+        return [];
+
+    }
 
 
     const path =
@@ -915,8 +955,7 @@ const loadDependencies = async (
         "id,workflow_id,variant_id," +
         "dependency_type,source_parameter," +
         "target_parameter,rule,created_at" +
-        "&workflow_id=in." +
-        `(${encodeURIComponent(values)})`;
+        `&workflow_id=${workflowFilter}`;
 
 
     const result =
@@ -999,6 +1038,28 @@ const loadDependencies = async (
 // ========================================
 // LOAD PRICING
 // ========================================
+//
+// Pricing sekarang difilter langsung oleh
+// PostgREST berdasarkan workflow dan variant.
+//
+// Logika yang dipertahankan:
+//
+// workflow_id NULL
+//   -> pricing berlaku global
+//
+// workflow_id tertentu
+//   -> hanya untuk workflow tersebut
+//
+// variant_id NULL
+//   -> pricing berlaku untuk semua variant
+//
+// variant_id tertentu
+//   -> hanya untuk variant tersebut
+//
+// Jadi hasil tetap kompatibel dengan filter
+// JavaScript sebelumnya, tetapi data yang dikirim
+// Supabase menjadi lebih sedikit.
+// ========================================
 
 const loadPricing = async (
     config,
@@ -1009,6 +1070,20 @@ const loadPricing = async (
     if (
         !workflowIds.length
     ) {
+
+        return [];
+
+    }
+
+
+    const workflowFilter =
+        inFilter(workflowIds);
+
+    const variantFilter =
+        inFilter(variantIds);
+
+
+    if (!workflowFilter) {
 
         return [];
 
@@ -1028,6 +1103,48 @@ const loadPricing = async (
         "&status=eq.ACTIVE" +
         "&pricing_status=eq.VERIFIED" +
         "&order=sku_key.asc";
+
+
+    // Workflow:
+    // NULL = global
+    // IN(selected workflow ids) = scoped workflow
+
+    const workflowOr =
+        variantFilter
+            ? `workflow_id.is.null,workflow_id.${workflowFilter.replace(
+                /^in\./,
+                "in."
+            )}`
+            : `workflow_id.is.null,workflow_id.${workflowFilter.replace(
+                /^in\./,
+                "in."
+            )}`;
+
+
+    path +=
+        `&or=${encodeURIComponent(
+            workflowOr
+        )}`;
+
+
+    // Variant:
+    // NULL = semua variant
+    // IN(selected variant ids) = scoped variant
+
+    if (variantFilter) {
+
+        const variantOr =
+            `variant_id.is.null,variant_id.${variantFilter.replace(
+                /^in\./,
+                "in."
+            )}`;
+
+        path +=
+            `&or=${encodeURIComponent(
+                variantOr
+            )}`;
+
+    }
 
 
     const result =
@@ -1063,51 +1180,11 @@ const loadPricing = async (
     }
 
 
-    let pricing =
-        Array.isArray(
-            result.data
-        )
-            ? result.data
-            : [];
-
-
-    const workflowSet =
-        new Set(
-            workflowIds
-        );
-
-    const variantSet =
-        new Set(
-            variantIds
-        );
-
-
-    pricing =
-        pricing.filter(
-            item => {
-
-                const workflowMatch =
-                    item.workflow_id === null ||
-                    workflowSet.has(
-                        item.workflow_id
-                    );
-
-                const variantMatch =
-                    item.variant_id === null ||
-                    variantSet.has(
-                        item.variant_id
-                    );
-
-                return (
-                    workflowMatch &&
-                    variantMatch
-                );
-
-            }
-        );
-
-
-    return pricing;
+    return Array.isArray(
+        result.data
+    )
+        ? result.data
+        : [];
 
 };
 
@@ -1281,25 +1358,6 @@ export default async function handler(
         // =================================
         // EMPTY MODEL CONFIGURATION
         // =================================
-        //
-        // Jika belum ada model KIE aktif,
-        // jangan query workflow secara global.
-        //
-        // Kondisi ini normal ketika admin
-        // belum menambahkan provider/model.
-        //
-        // Response yang diharapkan:
-        // models       = []
-        // workflows    = []
-        // variants     = []
-        // parameters   = []
-        // constraints  = []
-        // dependencies = []
-        // pricing      = []
-        //
-        // Setelah model ditambahkan ke Supabase,
-        // alur normal di bawah tetap berjalan.
-        // =================================
 
         if (
             !models.length
@@ -1378,7 +1436,7 @@ export default async function handler(
             );
 
 
-        let workflows =
+        const workflows =
             await loadWorkflows(
                 config,
                 modelUuids,
@@ -1477,15 +1535,10 @@ export default async function handler(
         // =================================
 
         const [
-
             parameters,
-
             constraints,
-
             dependencies,
-
             pricing
-
         ] = await Promise.all([
 
             loadParameters(
