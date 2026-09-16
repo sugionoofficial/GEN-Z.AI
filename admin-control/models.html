@@ -1473,22 +1473,39 @@
 
                     <div class="field">
 
-                        <label for="modelCode">
-                            Model ID *
-                        </label>
+    <label for="modelCode">
+        Model ID *
+    </label>
 
-                        <input
-                            id="modelCode"
-                            type="text"
-                            required
-                            autocomplete="off"
-                            placeholder="contoh: kling-v2">
+    <div class="model-search-box">
 
-                        <div class="hint">
-                            ID model dari provider/API.
-                        </div>
+        <input
+            id="modelCodeSearch"
+            type="search"
+            autocomplete="off"
+            placeholder="Cari Model ID, contoh: kling-3.0..."
+        >
 
-                    </div>
+        <input
+            id="modelCode"
+            type="hidden"
+            required
+        >
+
+        <div
+            id="modelSearchResults"
+            class="model-search-results">
+        </div>
+
+    </div>
+
+    <div
+        id="selectedModelInfo"
+        class="hint">
+        Belum ada model dipilih.
+    </div>
+
+</div>
 
                     <div class="field">
 
@@ -2221,6 +2238,21 @@
             "modelCode"
         );
 
+    const modelCodeSearch =
+    document.getElementById(
+        "modelCodeSearch"
+    );
+
+const modelSearchResults =
+    document.getElementById(
+        "modelSearchResults"
+    );
+
+const selectedModelInfo =
+    document.getElementById(
+        "selectedModelInfo"
+    );
+
     const modelName =
         document.getElementById(
             "modelName"
@@ -2308,6 +2340,8 @@
     let models = [];
 
     let providers = [];
+
+    let kieModels = [];
 
     let editingId = null;
 
@@ -2544,6 +2578,101 @@
 
         };
     }
+
+    /* =====================================================
+   MODEL ID SEARCH
+===================================================== */
+
+.model-search-box {
+    position: relative;
+}
+
+.model-search-results {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    max-height: 280px;
+    overflow-y: auto;
+    background: #0d1424;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 18px 45px rgba(0,0,0,.35);
+}
+
+.model-search-results.show {
+    display: block;
+}
+
+.model-search-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+.model-search-item:last-child {
+    border-bottom: 0;
+}
+
+.model-search-item:hover {
+    background: rgba(99,102,241,.10);
+}
+
+.model-search-info {
+    min-width: 0;
+}
+
+.model-search-id {
+    color: #f3f4f6;
+    font-size: 12px;
+    font-weight: 800;
+    word-break: break-all;
+}
+
+.model-search-name {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.model-search-provider {
+    margin-top: 3px;
+    color: #818cf8;
+    font-size: 10px;
+}
+
+.model-select-check {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: #22c55e;
+    color: white;
+    font-size: 18px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.model-select-check:hover {
+    background: #16a34a;
+    transform: scale(1.05);
+}
+
+.model-search-empty {
+    padding: 15px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+}
 
     /* =====================================================
        NORMALIZE API RESPONSE
@@ -2876,6 +3005,222 @@
             </div>
         `;
     }
+
+    /* =====================================================
+   KIE MODEL SEARCH
+===================================================== */
+
+async function loadKieModels() {
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("kie_models")
+        .select(`
+            id,
+            provider,
+            model_family,
+            model_id,
+            model_name,
+            status,
+            documentation_url
+        `)
+        .eq("status", "ACTIVE")
+        .order("model_name", {
+            ascending: true
+        });
+
+    if (error) {
+
+        console.error(
+            "LOAD KIE MODELS ERROR:",
+            error
+        );
+
+        throw new Error(
+            "Gagal memuat daftar KIE model: " +
+            error.message
+        );
+    }
+
+    kieModels =
+        Array.isArray(data)
+            ? data
+            : [];
+}
+
+
+function renderKieModelSearch() {
+
+    const keyword =
+        modelCodeSearch.value
+            .trim()
+            .toLowerCase();
+
+    if (!keyword) {
+
+        modelSearchResults.innerHTML = "";
+
+        modelSearchResults.classList.remove(
+            "show"
+        );
+
+        return;
+    }
+
+    const results =
+        kieModels
+            .filter(
+                function (model) {
+
+                    const searchable = [
+                        model.model_id,
+                        model.model_name,
+                        model.model_family,
+                        model.provider
+                    ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase();
+
+                    return searchable.includes(
+                        keyword
+                    );
+                }
+            )
+            .slice(0, 30);
+
+    if (!results.length) {
+
+        modelSearchResults.innerHTML = `
+            <div class="model-search-empty">
+                Model tidak ditemukan.
+            </div>
+        `;
+
+        modelSearchResults.classList.add(
+            "show"
+        );
+
+        return;
+    }
+
+    modelSearchResults.innerHTML =
+        results
+            .map(
+                function (model) {
+
+                    return `
+                        <div
+                            class="model-search-item">
+
+                            <div class="model-search-info">
+
+                                <div class="model-search-id">
+                                    ${escapeHtml(
+                                        model.model_id
+                                    )}
+                                </div>
+
+                                <div class="model-search-name">
+                                    ${escapeHtml(
+                                        model.model_name ||
+                                        model.model_family ||
+                                        "-"
+                                    )}
+                                </div>
+
+                                <div class="model-search-provider">
+                                    Provider:
+                                    ${escapeHtml(
+                                        model.provider ||
+                                        "-"
+                                    )}
+                                </div>
+
+                            </div>
+
+                            <button
+                                type="button"
+                                class="model-select-check"
+                                title="Pilih model"
+                                data-model-id="${escapeHtml(
+                                    model.model_id
+                                )}">
+
+                                ✓
+
+                            </button>
+
+                        </div>
+                    `;
+
+                }
+            )
+            .join("");
+
+    modelSearchResults.classList.add(
+        "show"
+    );
+}
+
+
+function selectKieModel(modelId) {
+
+    const model =
+        kieModels.find(
+            function (item) {
+
+                return String(
+                    item.model_id
+                ) === String(
+                    modelId
+                );
+
+            }
+        );
+
+    if (!model) {
+        return;
+    }
+
+    modelCode.value =
+        model.model_id || "";
+
+    modelCodeSearch.value =
+        model.model_id || "";
+
+    selectedModelInfo.textContent =
+        "✓ Model dipilih: " +
+        (
+            model.model_name ||
+            model.model_id
+        );
+
+    selectedModelInfo.style.color =
+        "#86efac";
+
+    modelSearchResults.innerHTML = "";
+
+    modelSearchResults.classList.remove(
+        "show"
+    );
+
+    /*
+     * Jika Model Name masih kosong,
+     * gunakan nama dari kie_models.
+     */
+    if (
+        !modelName.value.trim() &&
+        model.model_name
+    ) {
+
+        modelName.value =
+            model.model_name;
+
+    }
+}
 
     /* =====================================================
        LOAD MODELS
@@ -4272,6 +4617,55 @@
        EVENTS
     ===================================================== */
 
+    modelCodeSearch.addEventListener(
+    "input",
+    renderKieModelSearch
+);
+
+
+modelSearchResults.addEventListener(
+    "click",
+    function (event) {
+
+        const button =
+            event.target.closest(
+                ".model-select-check"
+            );
+
+        if (!button) {
+            return;
+        }
+
+        const modelId =
+            button.getAttribute(
+                "data-model-id"
+            );
+
+        selectKieModel(
+            modelId
+        );
+    }
+);
+
+
+document.addEventListener(
+    "click",
+    function (event) {
+
+        if (
+            !event.target.closest(
+                ".model-search-box"
+            )
+        ) {
+
+            modelSearchResults.classList.remove(
+                "show"
+            );
+
+        }
+    }
+);
+
     document.getElementById(
         "addModelBtn"
     )
@@ -4431,7 +4825,25 @@
 
     updateKiePricePreview();
 
-    loadModels();
+    Promise.all([
+    loadKieModels(),
+    loadModels()
+])
+.catch(
+    function (error) {
+
+        console.error(
+            "INITIALIZE ERROR:",
+            error
+        );
+
+        showAlert(
+            error.message,
+            "error"
+        );
+
+    }
+);
 
 })();
 
