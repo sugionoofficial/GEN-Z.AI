@@ -62,6 +62,130 @@
             transform: none !important;
         }
 
+        /* =====================================================
+           TOP NAVIGATION
+        ===================================================== */
+
+        .top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 5000;
+
+            width: calc(100% - 28px);
+            max-width: 1500px;
+
+            margin: 14px auto 0;
+
+            padding: 10px 12px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 12px;
+            flex-wrap: wrap;
+
+            background: rgba(17, 24, 39, .96);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+
+            box-shadow:
+                0 12px 30px rgba(0, 0, 0, .22);
+
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+
+            min-height: 38px;
+
+            padding: 8px 12px;
+
+            color: #dbe4ff;
+            text-decoration: none;
+
+            background: transparent;
+
+            border: 1px solid transparent;
+            border-radius: 9px;
+
+            font-size: 12px;
+            font-weight: 700;
+
+            transition:
+                background .2s,
+                border-color .2s,
+                color .2s,
+                transform .2s;
+        }
+
+        .nav-link:hover {
+            background: var(--panel2);
+            border-color: var(--border);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .nav-link.active {
+            background: rgba(99, 102, 241, .16);
+            border-color: rgba(99, 102, 241, .35);
+            color: #c7d2fe;
+        }
+
+        .nav-logout {
+            color: #fca5a5;
+        }
+
+        .nav-logout:hover {
+            background: rgba(239, 68, 68, .12);
+            border-color: rgba(239, 68, 68, .3);
+            color: #fecaca;
+        }
+
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            min-height: 38px;
+
+            padding: 8px 13px;
+
+            color: white;
+            text-decoration: none;
+
+            background: rgba(56, 189, 248, .10);
+            border: 1px solid rgba(56, 189, 248, .25);
+
+            border-radius: 9px;
+
+            font-size: 12px;
+            font-weight: 700;
+
+            transition:
+                background .2s,
+                border-color .2s,
+                transform .2s;
+        }
+
+        .nav-back:hover {
+            background: rgba(56, 189, 248, .18);
+            border-color: rgba(56, 189, 248, .4);
+            transform: translateY(-1px);
+        }
+
         .container {
             width: 100%;
             max-width: 1500px;
@@ -476,6 +600,18 @@
             .field.full {
                 grid-column: auto;
             }
+
+            .top-nav {
+                align-items: stretch;
+            }
+
+            .nav-left {
+                width: 100%;
+            }
+
+            .nav-back {
+                width: 100%;
+            }
         }
 
         @media (max-width: 600px) {
@@ -494,23 +630,113 @@
             .stat-value {
                 font-size: 20px;
             }
+
+            .top-nav {
+                width: calc(100% - 20px);
+                margin-top: 10px;
+                padding: 8px;
+                border-radius: 12px;
+            }
+
+            .nav-left {
+                gap: 5px;
+            }
+
+            .nav-link {
+                min-height: 34px;
+                padding: 7px 9px;
+                font-size: 11px;
+            }
+
+            .nav-link span {
+                display: none;
+            }
+
+            .nav-back {
+                min-height: 34px;
+                font-size: 11px;
+            }
         }
     </style>
 </head>
 
 <body>
 
+<!-- =====================================================
+     TOP NAVIGATION
+===================================================== -->
+
+<nav class="top-nav" aria-label="Navigasi GEN-Z.AI">
+
+    <div class="nav-left">
+
+        <a
+            class="nav-link"
+            href="/admin/dashboard.html"
+            title="Dashboard">
+            <span>⌂</span>
+            <span>Dashboard</span>
+        </a>
+
+        <a
+            class="nav-link"
+            href="/generate/index.html"
+            title="Generate">
+            <span>✦</span>
+            <span>Generate</span>
+        </a>
+
+        <a
+            class="nav-link"
+            href="/history/index.html"
+            title="History">
+            <span>◷</span>
+            <span>History</span>
+        </a>
+
+        <a
+            class="nav-link active"
+            href="/admin-control/admin-panel.html"
+            title="Admin Panel">
+            <span>⚙</span>
+            <span>Admin Panel</span>
+        </a>
+
+        <a
+            class="nav-link nav-logout"
+            href="/login.html"
+            id="logoutNav"
+            title="Log Out">
+            <span>⇥</span>
+            <span>Log Out</span>
+        </a>
+
+    </div>
+
+    <a
+        class="nav-back"
+        href="/admin-control/admin-panel.html">
+        ← Back to Admin Panel
+    </a>
+
+</nav>
+
+
 <div class="container">
 
     <div class="header">
 
         <div class="title-wrap">
-            <h1>Model Management</h1>
+
+            <h1>
+                Model Management
+            </h1>
 
             <p>
                 Kelola model AI, provider, credit, diskon,
                 duration, ratio dan resolution.
             </p>
+
         </div>
 
         <button
@@ -521,31 +747,76 @@
 
     </div>
 
-    <div id="alertBox" class="alert"></div>
+
+    <div
+        id="alertBox"
+        class="alert">
+    </div>
+
 
     <div class="stats">
 
         <div class="stat">
-            <div class="stat-label">Total Model</div>
-            <div class="stat-value" id="statTotal">0</div>
+
+            <div class="stat-label">
+                Total Model
+            </div>
+
+            <div
+                class="stat-value"
+                id="statTotal">
+                0
+            </div>
+
         </div>
 
-        <div class="stat">
-            <div class="stat-label">Model Aktif</div>
-            <div class="stat-value" id="statActive">0</div>
-        </div>
 
         <div class="stat">
-            <div class="stat-label">Model Diskon</div>
-            <div class="stat-value" id="statDiscount">0</div>
+
+            <div class="stat-label">
+                Model Aktif
+            </div>
+
+            <div
+                class="stat-value"
+                id="statActive">
+                0
+            </div>
+
         </div>
 
+
         <div class="stat">
-            <div class="stat-label">Provider</div>
-            <div class="stat-value" id="statProviders">0</div>
+
+            <div class="stat-label">
+                Model Diskon
+            </div>
+
+            <div
+                class="stat-value"
+                id="statDiscount">
+                0
+            </div>
+
+        </div>
+
+
+        <div class="stat">
+
+            <div class="stat-label">
+                Provider
+            </div>
+
+            <div
+                class="stat-value"
+                id="statProviders">
+                0
+            </div>
+
         </div>
 
     </div>
+
 
     <div class="toolbar">
 
@@ -555,16 +826,36 @@
             type="search"
             placeholder="Cari model, Model ID, provider...">
 
+
         <select id="statusFilter">
-            <option value="">Semua Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="maintenance">Maintenance</option>
+
+            <option value="">
+                Semua Status
+            </option>
+
+            <option value="active">
+                Active
+            </option>
+
+            <option value="inactive">
+                Inactive
+            </option>
+
+            <option value="maintenance">
+                Maintenance
+            </option>
+
         </select>
 
+
         <select id="providerFilter">
-            <option value="">Semua Provider</option>
+
+            <option value="">
+                Semua Provider
+            </option>
+
         </select>
+
 
         <button
             class="btn btn-secondary"
@@ -574,6 +865,7 @@
 
     </div>
 
+
     <div class="table-wrap">
 
         <div class="table-scroll">
@@ -581,25 +873,62 @@
             <table>
 
                 <thead>
+
                     <tr>
-                        <th>Model</th>
-                        <th>Provider</th>
-                        <th>Credit</th>
-                        <th>Diskon</th>
-                        <th>Credit Final</th>
-                        <th>Duration</th>
-                        <th>Ratio</th>
-                        <th>Status</th>
-                        <th>Aksi</th>
+
+                        <th>
+                            Model
+                        </th>
+
+                        <th>
+                            Provider
+                        </th>
+
+                        <th>
+                            Credit
+                        </th>
+
+                        <th>
+                            Diskon
+                        </th>
+
+                        <th>
+                            Credit Final
+                        </th>
+
+                        <th>
+                            Duration
+                        </th>
+
+                        <th>
+                            Ratio
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Aksi
+                        </th>
+
                     </tr>
+
                 </thead>
+
 
                 <tbody id="modelTableBody">
 
                     <tr>
-                        <td colspan="9" class="loading">
+
+                        <td
+                            colspan="9"
+                            class="loading">
+
                             Memuat model...
+
                         </td>
+
                     </tr>
 
                 </tbody>
@@ -638,6 +967,7 @@
 
         </div>
 
+
         <form id="modelForm">
 
             <div class="modal-body">
@@ -646,7 +976,9 @@
                     type="hidden"
                     id="modelId">
 
+
                 <div class="form-grid">
+
 
                     <div class="field">
 
@@ -790,6 +1122,7 @@
                         <div class="credit-preview">
 
                             <div class="credit-preview-row">
+
                                 <span>
                                     Credit Normal
                                 </span>
@@ -797,9 +1130,12 @@
                                 <strong id="previewNormal">
                                     0
                                 </strong>
+
                             </div>
 
+
                             <div class="credit-preview-row">
+
                                 <span>
                                     Diskon
                                 </span>
@@ -807,9 +1143,12 @@
                                 <strong id="previewDiscount">
                                     0%
                                 </strong>
+
                             </div>
 
+
                             <div class="credit-preview-row">
+
                                 <span>
                                     Credit Final
                                 </span>
@@ -817,6 +1156,7 @@
                                 <strong id="previewFinal">
                                     0
                                 </strong>
+
                             </div>
 
                         </div>
@@ -895,6 +1235,7 @@
 
             </div>
 
+
             <div class="modal-footer">
 
                 <button
@@ -945,6 +1286,7 @@
 
         </div>
 
+
         <div class="modal-body">
 
             <p>
@@ -961,6 +1303,7 @@
             </p>
 
         </div>
+
 
         <div class="modal-footer">
 
@@ -991,14 +1334,64 @@
 
     "use strict";
 
+
     /* =====================================================
        CONFIG
     ===================================================== */
 
-    const API_URL = "../api/admin-models";
+    const API_URL =
+        "../api/admin-models";
+
 
     const supabaseClient =
         window.GENZ_SUPABASE;
+
+
+    /* =====================================================
+       NAVIGATION / LOGOUT
+    ===================================================== */
+
+    const logoutNav =
+        document.getElementById("logoutNav");
+
+
+    if (logoutNav) {
+
+        logoutNav.addEventListener(
+            "click",
+            async function (event) {
+
+                event.preventDefault();
+
+                try {
+
+                    if (
+                        supabaseClient &&
+                        supabaseClient.auth
+                    ) {
+
+                        await supabaseClient.auth.signOut();
+
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "GEN-Z.AI LOGOUT ERROR:",
+                        error
+                    );
+
+                } finally {
+
+                    window.location.href =
+                        "/login.html";
+
+                }
+
+            }
+        );
+
+    }
 
 
     /* =====================================================
@@ -1006,55 +1399,105 @@
     ===================================================== */
 
     const tableBody =
-        document.getElementById("modelTableBody");
+        document.getElementById(
+            "modelTableBody"
+        );
+
 
     const searchInput =
-        document.getElementById("searchInput");
+        document.getElementById(
+            "searchInput"
+        );
+
 
     const statusFilter =
-        document.getElementById("statusFilter");
+        document.getElementById(
+            "statusFilter"
+        );
+
 
     const providerFilter =
-        document.getElementById("providerFilter");
+        document.getElementById(
+            "providerFilter"
+        );
+
 
     const providerId =
-        document.getElementById("providerId");
+        document.getElementById(
+            "providerId"
+        );
+
 
     const modelStatus =
-        document.getElementById("modelStatus");
+        document.getElementById(
+            "modelStatus"
+        );
+
 
     const modelCode =
-        document.getElementById("modelCode");
+        document.getElementById(
+            "modelCode"
+        );
+
 
     const modelName =
-        document.getElementById("modelName");
+        document.getElementById(
+            "modelName"
+        );
+
 
     const description =
-        document.getElementById("description");
+        document.getElementById(
+            "description"
+        );
+
 
     const creditCost =
-        document.getElementById("creditCost");
+        document.getElementById(
+            "creditCost"
+        );
+
 
     const discountPercent =
-        document.getElementById("discountPercent");
+        document.getElementById(
+            "discountPercent"
+        );
+
 
     const minDuration =
-        document.getElementById("minDuration");
+        document.getElementById(
+            "minDuration"
+        );
+
 
     const maxDuration =
-        document.getElementById("maxDuration");
+        document.getElementById(
+            "maxDuration"
+        );
+
 
     const supportedRatios =
-        document.getElementById("supportedRatios");
+        document.getElementById(
+            "supportedRatios"
+        );
+
 
     const supportedResolutions =
-        document.getElementById("supportedResolutions");
+        document.getElementById(
+            "supportedResolutions"
+        );
+
 
     const modelModal =
-        document.getElementById("modelModal");
+        document.getElementById(
+            "modelModal"
+        );
+
 
     const deleteModal =
-        document.getElementById("deleteModal");
+        document.getElementById(
+            "deleteModal"
+        );
 
 
     /* =====================================================
@@ -1062,9 +1505,11 @@
     ===================================================== */
 
     let models = [];
+
     let providers = [];
 
     let editingId = null;
+
     let deletingId = null;
 
 
@@ -1096,6 +1541,7 @@
             return;
         }
 
+
         tableBody.innerHTML = `
             <tr>
                 <td colspan="9" class="empty">
@@ -1104,7 +1550,11 @@
             </tr>
         `;
 
-        showAlert(message, "error");
+
+        showAlert(
+            message,
+            "error"
+        );
     }
 
 
@@ -1118,11 +1568,15 @@
     ) {
 
         const box =
-            document.getElementById("alertBox");
+            document.getElementById(
+                "alertBox"
+            );
+
 
         if (!box) {
             return;
         }
+
 
         box.className =
             "alert show " +
@@ -1132,16 +1586,22 @@
                     : "alert-success"
             );
 
+
         box.textContent =
             message;
 
-        clearTimeout(showAlert.timer);
+
+        clearTimeout(
+            showAlert.timer
+        );
+
 
         showAlert.timer =
             setTimeout(
                 function () {
 
-                    box.className = "alert";
+                    box.className =
+                        "alert";
 
                 },
                 5000
@@ -1165,10 +1625,12 @@
 
 
         if (error) {
+
             throw new Error(
                 error.message ||
                 "Gagal mengambil session."
             );
+
         }
 
 
@@ -1179,7 +1641,8 @@
         if (!session) {
 
             window.location.href =
-                "./login.html";
+                "/login.html";
+
 
             throw new Error(
                 "Session tidak ditemukan."
@@ -1238,9 +1701,12 @@
         } catch {
 
             data = {
+
                 success: false,
+
                 error:
                     "Server mengembalikan response bukan JSON."
+
             };
 
         }
@@ -1268,9 +1734,13 @@
                 "error"
             );
 
+
             return {
+
                 ok: false,
+
                 data
+
             };
         }
 
@@ -1286,35 +1756,22 @@
 
 
         return {
+
             ok: true,
+
             data
+
         };
     }
 
 
     /* =====================================================
        NORMALIZE API RESPONSE
-       
-       Mendukung dua format:
-       
-       1.
-       {
-           success: true,
-           models: [],
-           providers: []
-       }
-
-       2.
-       {
-           success: true,
-           data: {
-               models: [],
-               providers: []
-           }
-       }
     ===================================================== */
 
-    function getApiPayload(responseData) {
+    function getApiPayload(
+        responseData
+    ) {
 
         if (!responseData) {
             return {};
@@ -1324,10 +1781,13 @@
         if (
             responseData.data &&
             typeof responseData.data === "object" &&
-            !Array.isArray(responseData.data)
+            !Array.isArray(
+                responseData.data
+            )
         ) {
 
             return responseData.data;
+
         }
 
 
@@ -1411,8 +1871,8 @@
                     "API berhasil terhubung, tetapi belum ada data model.",
                     "success"
                 );
-            }
 
+            }
 
         } catch (error) {
 
@@ -1427,10 +1887,12 @@
                     <td
                         colspan="9"
                         class="empty">
+
                         Gagal memuat model:
                         ${escapeHtml(
                             error.message
                         )}
+
                     </td>
                 </tr>
             `;
@@ -1454,20 +1916,18 @@
             providerFilter.value;
 
 
-        providerFilter.innerHTML =
-            `
+        providerFilter.innerHTML = `
             <option value="">
                 Semua Provider
             </option>
-            `;
+        `;
 
 
-        providerId.innerHTML =
-            `
+        providerId.innerHTML = `
             <option value="">
                 Pilih Provider
             </option>
-            `;
+        `;
 
 
         providers.forEach(
@@ -1475,6 +1935,7 @@
 
                 const id =
                     provider.id;
+
 
                 const name =
                     provider.provider_name ||
@@ -1493,11 +1954,14 @@
                         "option"
                     );
 
+
                 optionFilter.value =
                     id;
 
+
                 optionFilter.textContent =
                     name;
+
 
                 providerFilter.appendChild(
                     optionFilter
@@ -1509,11 +1973,14 @@
                         "option"
                     );
 
+
                 optionForm.value =
                     id;
 
+
                 optionForm.textContent =
                     name;
+
 
                 providerId.appendChild(
                     optionForm
@@ -1880,11 +2347,9 @@
                 <td>
 
                     <span class="provider">
-
                         ${escapeHtml(
                             providerDisplay
                         )}
-
                     </span>
 
                 </td>
@@ -1955,14 +2420,19 @@
                             type="button"
                             class="btn btn-secondary btn-small"
                             onclick="window.editModel('${escapeJs(model.id)}')">
+
                             Edit
+
                         </button>
+
 
                         <button
                             type="button"
                             class="btn btn-danger btn-small"
                             onclick="window.deleteModel('${escapeJs(model.id)}')">
+
                             Hapus
+
                         </button>
 
                     </div>
@@ -2009,7 +2479,9 @@
         updateCreditPreview();
 
 
-        modelModal.classList.add("show");
+        modelModal.classList.add(
+            "show"
+        );
 
 
         setTimeout(
@@ -2200,6 +2672,7 @@
 
             status:
                 modelStatus.value
+
         };
 
 
@@ -2371,8 +2844,10 @@
             saveButton.disabled =
                 false;
 
+
             saveButton.textContent =
                 "Simpan Model";
+
         }
     }
 
@@ -2496,8 +2971,10 @@
             button.disabled =
                 false;
 
+
             button.textContent =
                 "Hapus Model";
+
         }
     }
 
@@ -2557,6 +3034,7 @@
             "show"
         );
 
+
         editingId = null;
     }
 
@@ -2566,6 +3044,7 @@
         deleteModal.classList.remove(
             "show"
         );
+
 
         deletingId = null;
     }
