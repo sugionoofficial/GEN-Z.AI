@@ -9,6 +9,9 @@
 
     <title>GEN-Z.AI — KIE Terminal</title>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/assets/js/config.js"></script>
+
     <style>
         :root {
             --bg: #05070b;
@@ -234,6 +237,7 @@
         }
 
         .model-card {
+            margin-bottom: 16px;
             padding: 14px;
             border: 1px solid rgba(139,92,246,.16);
             border-radius: 13px;
@@ -264,10 +268,25 @@
             word-break: break-all;
         }
 
+        .model-name {
+            margin-top: 6px;
+            color: #dce2ec;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
         .model-source {
             margin-top: 5px;
             color: #626d7d;
             font-size: 8px;
+        }
+
+        .loading {
+            color: var(--muted);
+        }
+
+        .error {
+            color: #fca5a5;
         }
 
         .actions {
@@ -424,7 +443,7 @@
                 </div>
 
                 <div class="terminal-subtitle">
-                    Dispatcher untuk seluruh model KIE.AI
+                    Model dipilih dari Supabase
                 </div>
             </div>
 
@@ -432,10 +451,7 @@
 
         <div class="terminal-body">
 
-            <div
-                id="modelCard"
-                class="model-card"
-            >
+            <div class="model-card">
 
                 <div class="model-label">
                     Active Model
@@ -443,13 +459,18 @@
 
                 <div
                     id="modelId"
-                    class="model-id"
+                    class="model-id loading"
                 >
                     Membaca model...
                 </div>
 
+                <div
+                    id="modelName"
+                    class="model-name"
+                ></div>
+
                 <div class="model-source">
-                    Source: Supabase / Generate
+                    Source: public.kie_models
                 </div>
 
             </div>
@@ -513,7 +534,10 @@
                             5 seconds
                         </option>
 
-                        <option value="8" selected>
+                        <option
+                            value="8"
+                            selected
+                        >
                             8 seconds
                         </option>
 
@@ -565,6 +589,7 @@
                     id="generateButton"
                     class="button primary"
                     type="button"
+                    disabled
                 >
                     Jalankan Model
                 </button>
@@ -582,7 +607,7 @@
                     Terminal Response
                 </div>
 
-                <pre id="responseOutput">Menunggu request...</pre>
+                <pre id="responseOutput">Menunggu model...</pre>
 
             </div>
 
@@ -597,10 +622,19 @@
 
     "use strict";
 
-    const API_ENDPOINT = "/api/generate";
+    const SUPABASE_URL =
+        window.GENZ_CONFIG &&
+        window.GENZ_CONFIG.SUPABASE_URL;
+
+    const SUPABASE_KEY =
+        window.GENZ_CONFIG &&
+        window.GENZ_CONFIG.SUPABASE_KEY;
 
     const modelIdElement =
         document.getElementById("modelId");
+
+    const modelNameElement =
+        document.getElementById("modelName");
 
     const promptElement =
         document.getElementById("prompt");
@@ -626,8 +660,11 @@
     const responseOutput =
         document.getElementById("responseOutput");
 
+    let activeModel = null;
+    let activeAdapter = null;
 
-    function getModelId() {
+
+    function getRequestedModelId() {
 
         const params =
             new URLSearchParams(
@@ -642,25 +679,48 @@
             return fromUrl.trim();
         }
 
-        const fromStorage =
+        const fromSession =
             sessionStorage.getItem(
                 "GENZ_ACTIVE_MODEL_ID"
             );
 
-        if (fromStorage) {
-            return fromStorage.trim();
+        if (fromSession) {
+            return fromSession.trim();
         }
 
-        const localStorageModel =
+        const fromLocal =
             localStorage.getItem(
                 "GENZ_ACTIVE_MODEL_ID"
             );
 
-        if (localStorageModel) {
-            return localStorageModel.trim();
+        if (fromLocal) {
+            return fromLocal.trim();
         }
 
         return "";
+    }
+
+
+    function showNotice(message) {
+
+        noticeElement.textContent =
+            message;
+
+        noticeElement.classList.remove(
+            "hidden"
+        );
+
+    }
+
+
+    function hideNotice() {
+
+        noticeElement.textContent = "";
+
+        noticeElement.classList.add(
+            "hidden"
+        );
+
     }
 
 
@@ -681,79 +741,258 @@
                 String(data);
 
         }
-    }
-
-
-    function showNotice(message) {
-
-        noticeElement.textContent =
-            message;
-
-        noticeElement.classList.remove(
-            "hidden"
-        );
 
     }
 
 
-    function hideNotice() {
+    function modelIdToFileName(modelId) {
 
-        noticeElement.classList.add(
-            "hidden"
-        );
-
-        noticeElement.textContent = "";
-
-    }
-
-
-    function getRequestPayload() {
-
-        return {
-
-            provider: "kie_ai",
-
-            model:
-                getModelId(),
-
-            prompt:
-                promptElement.value.trim(),
-
-            ratio:
-                ratioElement.value,
-
-            duration:
-                durationElement.value,
-
-            resolution:
-                resolutionElement.value
-
-        };
+        return modelId
+            .replaceAll("/", "-")
+            .replaceAll("_", "-")
+            .toLowerCase();
 
     }
 
 
-    async function generate() {
+    async function loadAdapter(modelId) {
+
+        const fileName =
+            modelIdToFileName(modelId);
+
+        const modulePath =
+            `./${fileName}.js`;
+
+        return import(modulePath);
+
+    }
+
+
+    async function loadModel() {
 
         hideNotice();
 
-        const payload =
-            getRequestPayload();
+        generateButton.disabled = true;
 
-        if (!payload.model) {
+        const requestedModelId =
+            getRequestedModelId();
+
+        if (!SUPABASE_URL || !SUPABASE_KEY) {
+
+            modelIdElement.textContent =
+                "Konfigurasi Supabase tidak tersedia.";
+
+            modelIdElement.classList.remove(
+                "loading"
+            );
+
+            modelIdElement.classList.add(
+                "error"
+            );
 
             showNotice(
-                "Model belum tersedia. Pilih model aktif dari Generate/Admin Model terlebih dahulu."
+                "GENZ_CONFIG tidak tersedia."
             );
 
             return;
 
         }
 
-        if (!payload.prompt) {
+        try {
+
+            const supabase =
+                window.supabase.createClient(
+                    SUPABASE_URL,
+                    SUPABASE_KEY
+                );
+
+            let query =
+                supabase
+                    .from("kie_models")
+                    .select(
+                        "id,provider,model_family,model_id,model_name,status,documentation_url,metadata"
+                    )
+                    .eq(
+                        "provider",
+                        "kie"
+                    )
+                    .eq(
+                        "status",
+                        "ACTIVE"
+                    );
+
+            if (requestedModelId) {
+
+                query =
+                    query.eq(
+                        "model_id",
+                        requestedModelId
+                    );
+
+            } else {
+
+                query =
+                    query.order(
+                        "model_name",
+                        {
+                            ascending: true
+                        }
+                    ).limit(1);
+
+            }
+
+            const {
+                data,
+                error
+            } = await query;
+
+            if (error) {
+                throw error;
+            }
+
+            if (!data || !data.length) {
+
+                throw new Error(
+                    requestedModelId
+                        ? `Model "${requestedModelId}" tidak ditemukan atau tidak ACTIVE.`
+                        : "Tidak ada model KIE ACTIVE di Supabase."
+                );
+
+            }
+
+            activeModel = data[0];
+
+            modelIdElement.textContent =
+                activeModel.model_id;
+
+            modelIdElement.classList.remove(
+                "loading",
+                "error"
+            );
+
+            modelNameElement.textContent =
+                activeModel.model_name ||
+                activeModel.model_family ||
+                "";
+
+            sessionStorage.setItem(
+                "GENZ_ACTIVE_MODEL_ID",
+                activeModel.model_id
+            );
+
+            localStorage.setItem(
+                "GENZ_ACTIVE_MODEL_ID",
+                activeModel.model_id
+            );
+
+            try {
+
+                activeAdapter =
+                    await loadAdapter(
+                        activeModel.model_id
+                    );
+
+            } catch (adapterError) {
+
+                activeAdapter = null;
+
+                showNotice(
+                    `Adapter untuk model ${activeModel.model_id} belum tersedia.`
+                );
+
+                setResponse({
+                    success: false,
+                    type: "ADAPTER_NOT_FOUND",
+                    model: activeModel.model_id,
+                    message:
+                        adapterError.message
+                });
+
+                return;
+
+            }
+
+            generateButton.disabled =
+                typeof activeAdapter.generate !==
+                "function";
+
+            setResponse({
+                success: true,
+                type: "MODEL_READY",
+                provider: "kie",
+                model:
+                    activeModel.model_id,
+                model_name:
+                    activeModel.model_name,
+                adapter:
+                    `./${modelIdToFileName(activeModel.model_id)}.js`
+            });
+
+        } catch (error) {
+
+            modelIdElement.textContent =
+                "Model gagal dimuat.";
+
+            modelIdElement.classList.remove(
+                "loading"
+            );
+
+            modelIdElement.classList.add(
+                "error"
+            );
 
             showNotice(
-                "Prompt belum diisi."
+                error.message ||
+                "Gagal membaca model KIE."
+            );
+
+            setResponse({
+                success: false,
+                error:
+                    error.message ||
+                    String(error)
+            });
+
+        }
+
+    }
+
+
+    async function runGenerate() {
+
+        hideNotice();
+
+        if (!activeModel) {
+
+            showNotice(
+                "Model belum siap."
+            );
+
+            return;
+
+        }
+
+        if (
+            !activeAdapter ||
+            typeof activeAdapter.generate !==
+            "function"
+        ) {
+
+            showNotice(
+                "Adapter model tidak tersedia."
+            );
+
+            return;
+
+        }
+
+        const prompt =
+            promptElement.value.trim();
+
+        if (!prompt) {
+
+            showNotice(
+                "Prompt wajib diisi."
             );
 
             promptElement.focus();
@@ -764,139 +1003,49 @@
 
         generateButton.disabled = true;
 
-        generateButton.textContent =
-            "Mengirim...";
-
-        setResponse({
-            status: "processing",
-            message:
-                "Request sedang dikirim ke backend."
-        });
+        responseOutput.textContent =
+            "Mengirim request...";
 
         try {
 
-            const response =
-                await fetch(
-                    API_ENDPOINT,
-                    {
-                        method: "POST",
+            const result =
+                await activeAdapter.generate({
 
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
+                    prompt,
 
-                        body:
-                            JSON.stringify(
-                                payload
-                            )
-                    }
-                );
+                    ratio:
+                        ratioElement.value,
 
-            const contentType =
-                response.headers.get(
-                    "content-type"
-                ) || "";
+                    duration:
+                        durationElement.value,
 
-            let data;
+                    resolution:
+                        resolutionElement.value
 
-            if (
-                contentType.includes(
-                    "application/json"
-                )
-            ) {
+                });
 
-                data =
-                    await response.json();
-
-            } else {
-
-                const text =
-                    await response.text();
-
-                data = {
-                    success: response.ok,
-                    status: response.status,
-                    response: text
-                };
-
-            }
-
-            setResponse(data);
-
-            if (!response.ok) {
-
-                showNotice(
-                    data?.error ||
-                    data?.message ||
-                    "Request gagal."
-                );
-
-                return;
-
-            }
-
-            if (data?.success === false) {
-
-                showNotice(
-                    data?.error ||
-                    "Request ditolak backend."
-                );
-
-                return;
-
-            }
+            setResponse(result);
 
         } catch (error) {
 
-            console.error(
-                "KIE terminal error:",
-                error
+            showNotice(
+                error.message ||
+                "Generation gagal."
             );
 
             setResponse({
                 success: false,
                 error:
-                    error?.message ||
-                    "Tidak dapat terhubung ke backend."
+                    error.message ||
+                    String(error)
             });
-
-            showNotice(
-                error?.message ||
-                "Tidak dapat terhubung ke backend."
-            );
 
         } finally {
 
             generateButton.disabled =
-                false;
-
-            generateButton.textContent =
-                "Jalankan Model";
-
-        }
-
-    }
-
-
-    function initialize() {
-
-        const modelId =
-            getModelId();
-
-        if (modelId) {
-
-            modelIdElement.textContent =
-                modelId;
-
-        } else {
-
-            modelIdElement.textContent =
-                "Belum ada model aktif";
-
-            showNotice(
-                "Terminal belum menerima model_id dari Supabase/Generate."
-            );
+                !activeAdapter ||
+                typeof activeAdapter.generate !==
+                "function";
 
         }
 
@@ -905,7 +1054,7 @@
 
     generateButton.addEventListener(
         "click",
-        generate
+        runGenerate
     );
 
 
@@ -914,10 +1063,7 @@
         function () {
 
             if (
-                document.referrer &&
-                document.referrer.includes(
-                    window.location.host
-                )
+                window.history.length > 1
             ) {
 
                 window.history.back();
@@ -927,13 +1073,13 @@
             }
 
             window.location.href =
-                "../../generate/index.html";
+                "/provider/";
 
         }
     );
 
 
-    initialize();
+    loadModel();
 
 })();
 </script>
