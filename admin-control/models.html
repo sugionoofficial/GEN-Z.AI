@@ -4,350 +4,3306 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Models - GEN-Z.AI</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/config.js"></script>
+<script src="supabase.js"></script>
 
 <style>
 :root{
-  --bg:#07090d;--panel:rgba(17,22,31,.86);--text:#f5f7fb;
-  --soft:#c8ced8;--muted:#7f8998;--border:rgba(255,255,255,.075);
-  --border2:rgba(255,255,255,.13);--accent:#8b5cf6;--accent2:#6366f1;
-  --green:#22c55e;--yellow:#f59e0b;--red:#ef4444;
-  --shadow:0 25px 70px rgba(0,0,0,.42);--softshadow:0 12px 35px rgba(0,0,0,.25);
+  --bg:#07090d;
+  --panel:rgba(17,22,31,.94);
+  --text:#f5f7fb;
+  --soft:#c8ced8;
+  --muted:#7f8998;
+  --border:rgba(255,255,255,.075);
+  --border2:rgba(255,255,255,.13);
+  --accent:#8b5cf6;
+  --accent2:#6366f1;
+  --green:#22c55e;
+  --yellow:#f59e0b;
+  --red:#ef4444;
+  --shadow:0 25px 70px rgba(0,0,0,.42);
 }
+
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+
+html{
+  scroll-behavior:smooth;
+}
+
 body{
- margin:0;min-height:100vh;color:var(--text);
- font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
- background:
- radial-gradient(circle at 15% -10%,rgba(99,102,241,.18),transparent 30%),
- radial-gradient(circle at 90% 0%,rgba(139,92,246,.12),transparent 28%),
- linear-gradient(180deg,#07090d 0%,#090c11 55%,#06080c 100%);
- -webkit-font-smoothing:antialiased;
+  margin:0;
+  min-height:100vh;
+  color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:
+    radial-gradient(circle at 15% -10%,rgba(99,102,241,.18),transparent 30%),
+    radial-gradient(circle at 90% 0%,rgba(139,92,246,.12),transparent 28%),
+    linear-gradient(180deg,#07090d 0%,#090c11 55%,#06080c 100%);
+  -webkit-font-smoothing:antialiased;
 }
-body.menu-open{overflow:hidden}
-button{font:inherit}
-a{color:inherit}
+
+body.menu-open{
+  overflow:hidden;
+}
+
+button,
+input,
+textarea,
+select{
+  font:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
+a{
+  color:inherit;
+}
+
 .topbar{
- position:fixed;top:16px;left:16px;right:16px;height:64px;z-index:500;
- display:flex;align-items:center;justify-content:space-between;padding:0 10px 0 8px;
- border:1px solid var(--border);border-radius:18px;
- background:linear-gradient(180deg,rgba(18,23,32,.9),rgba(10,14,20,.82));
- backdrop-filter:blur(24px);box-shadow:0 12px 40px rgba(0,0,0,.3);
+  position:fixed;
+  top:16px;
+  left:16px;
+  right:16px;
+  height:64px;
+  z-index:500;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 10px 0 8px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:linear-gradient(
+    180deg,
+    rgba(18,23,32,.92),
+    rgba(10,14,20,.84)
+  );
+  backdrop-filter:blur(24px);
+  box-shadow:0 12px 40px rgba(0,0,0,.3);
 }
-.topbar-left,.topbar-right{display:flex;align-items:center;gap:10px}
+
+.topbar-left,
+.topbar-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
 .menu-button{
- width:46px;height:46px;display:inline-flex;align-items:center;justify-content:center;
- border:1px solid rgba(255,255,255,.08);border-radius:13px;
- background:linear-gradient(135deg,rgba(139,92,246,.95),rgba(99,102,241,.95));
- color:#fff;cursor:pointer;box-shadow:0 8px 25px rgba(99,102,241,.25);
+  width:46px;
+  height:46px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:13px;
+  background:linear-gradient(
+    135deg,
+    rgba(139,92,246,.95),
+    rgba(99,102,241,.95)
+  );
+  color:#fff;
+  box-shadow:0 8px 25px rgba(99,102,241,.25);
 }
-.menu-icon{width:20px;height:16px;position:relative}
-.menu-icon span{position:absolute;left:0;width:20px;height:2px;border-radius:99px;background:#fff;transition:.18s}
-.menu-icon span:nth-child(1){top:0}.menu-icon span:nth-child(2){top:7px}.menu-icon span:nth-child(3){top:14px}
-.menu-button.active .menu-icon span:nth-child(1){top:7px;transform:rotate(45deg)}
-.menu-button.active .menu-icon span:nth-child(2){opacity:0}
-.menu-button.active .menu-icon span:nth-child(3){top:7px;transform:rotate(-45deg)}
-.topbar-brand{display:flex;flex-direction:column;line-height:1.1}
-.topbar-brand strong{font-size:15px;font-weight:850}
-.topbar-brand span{margin-top:4px;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.15em}
+
+.menu-icon{
+  width:20px;
+  height:16px;
+  position:relative;
+}
+
+.menu-icon span{
+  position:absolute;
+  left:0;
+  width:20px;
+  height:2px;
+  border-radius:99px;
+  background:#fff;
+  transition:.18s;
+}
+
+.menu-icon span:nth-child(1){top:0}
+.menu-icon span:nth-child(2){top:7px}
+.menu-icon span:nth-child(3){top:14px}
+
+.menu-button.active .menu-icon span:nth-child(1){
+  top:7px;
+  transform:rotate(45deg);
+}
+
+.menu-button.active .menu-icon span:nth-child(2){
+  opacity:0;
+}
+
+.menu-button.active .menu-icon span:nth-child(3){
+  top:7px;
+  transform:rotate(-45deg);
+}
+
+.topbar-brand{
+  display:flex;
+  flex-direction:column;
+  line-height:1.1;
+}
+
+.topbar-brand strong{
+  font-size:15px;
+  font-weight:850;
+}
+
+.topbar-brand span{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.15em;
+}
+
 .back-button{
- min-height:42px;display:inline-flex;align-items:center;gap:8px;padding:0 15px;
- border:1px solid var(--border2);border-radius:12px;background:rgba(255,255,255,.045);
- color:var(--soft);text-decoration:none;font-size:12px;font-weight:800;
+  min-height:42px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:0 15px;
+  border:1px solid var(--border2);
+  border-radius:12px;
+  background:rgba(255,255,255,.045);
+  color:var(--soft);
+  text-decoration:none;
+  font-size:12px;
+  font-weight:800;
 }
-.back-button:hover{background:rgba(255,255,255,.075);color:#fff;border-color:rgba(139,92,246,.35)}
+
+.back-button:hover{
+  background:rgba(255,255,255,.075);
+  color:#fff;
+  border-color:rgba(139,92,246,.35);
+}
+
 .menu-overlay{
- position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.58);opacity:0;
- pointer-events:none;backdrop-filter:blur(5px);transition:opacity .18s
+  position:fixed;
+  inset:0;
+  z-index:600;
+  background:rgba(0,0,0,.58);
+  opacity:0;
+  pointer-events:none;
+  backdrop-filter:blur(5px);
+  transition:opacity .18s;
 }
-.menu-overlay.show{opacity:1;pointer-events:auto}
+
+.menu-overlay.show{
+  opacity:1;
+  pointer-events:auto;
+}
+
 .sidebar{
- position:fixed;top:16px;left:16px;bottom:16px;z-index:700;width:275px;padding:22px 16px;
- border:1px solid var(--border);border-radius:24px;
- background:linear-gradient(180deg,rgba(18,23,32,.98),rgba(9,13,19,.98));
- box-shadow:0 30px 80px rgba(0,0,0,.55);backdrop-filter:blur(28px);
- transform:translateX(calc(-100% - 35px));transition:transform 240ms cubic-bezier(.2,.8,.2,1);
- display:flex;flex-direction:column;
+  position:fixed;
+  top:16px;
+  left:16px;
+  bottom:16px;
+  z-index:700;
+  width:275px;
+  padding:22px 16px;
+  border:1px solid var(--border);
+  border-radius:24px;
+  background:linear-gradient(
+    180deg,
+    rgba(18,23,32,.98),
+    rgba(9,13,19,.98)
+  );
+  box-shadow:0 30px 80px rgba(0,0,0,.55);
+  backdrop-filter:blur(28px);
+  transform:translateX(calc(-100% - 35px));
+  transition:transform 240ms cubic-bezier(.2,.8,.2,1);
+  display:flex;
+  flex-direction:column;
 }
-.sidebar.show{transform:translateX(0)}
-.sidebar-brand{padding:10px 12px 22px;border-bottom:1px solid var(--border);margin-bottom:18px}
-.sidebar-brand strong{display:block;font-size:23px;font-weight:900;letter-spacing:-.055em;
- background:linear-gradient(135deg,#fff,#b9b5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.sidebar-brand span{display:block;margin-top:6px;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.16em}
-.nav{display:flex;flex-direction:column;gap:6px}
-.nav a,.nav button{
- width:100%;min-height:48px;display:flex;align-items:center;gap:12px;padding:0 13px;
- border:1px solid transparent;border-radius:13px;background:transparent;color:#9aa3b2;
- text-decoration:none;font-size:13px;font-weight:750;text-align:left;cursor:pointer;
+
+.sidebar.show{
+  transform:translateX(0);
 }
-.nav a:hover,.nav button:hover{background:rgba(255,255,255,.045);color:#fff;transform:translateX(2px)}
-.nav-icon{width:19px;height:19px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 19px}
-.nav-divider{height:1px;margin:12px 8px;background:var(--border)}
-.logout-button{margin-top:auto;color:#f87171!important;background:rgba(239,68,68,.055)!important}
-.logout-button:hover{background:rgba(239,68,68,.11)!important}
-.main{width:100%;min-height:100vh;padding:112px 28px 50px}
-.content{width:min(1380px,100%);margin:0 auto}
-.page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:26px}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;margin-bottom:11px;color:#8e98a8;font-size:10px;font-weight:850;letter-spacing:.16em;text-transform:uppercase}
-.eyebrow-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 5px rgba(139,92,246,.1),0 0 18px rgba(139,92,246,.55)}
-.page-title{margin:0;font-size:clamp(30px,4vw,46px);line-height:1;font-weight:900;letter-spacing:-.06em;
- background:linear-gradient(135deg,#fff 10%,#c8c5ff 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.page-subtitle{max-width:720px;margin:13px 0 0;color:var(--muted);font-size:14px;line-height:1.7}
-.admin-user{min-width:200px;padding:13px 15px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.035);box-shadow:var(--softshadow)}
-.admin-user-label{color:#697386;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
-.admin-user-value{margin-top:5px;overflow:hidden;color:#e7eaf0;font-size:12px;font-weight:800;text-overflow:ellipsis;white-space:nowrap}
+
+.sidebar-brand{
+  padding:10px 12px 22px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:18px;
+}
+
+.sidebar-brand strong{
+  display:block;
+  font-size:23px;
+  font-weight:900;
+  letter-spacing:-.055em;
+  background:linear-gradient(135deg,#fff,#b9b5ff);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+.sidebar-brand span{
+  display:block;
+  margin-top:6px;
+  color:var(--muted);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.16em;
+}
+
+.nav{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.nav a,
+.nav button{
+  width:100%;
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:0 13px;
+  border:1px solid transparent;
+  border-radius:13px;
+  background:transparent;
+  color:#9aa3b2;
+  text-decoration:none;
+  font-size:13px;
+  font-weight:750;
+  text-align:left;
+}
+
+.nav a:hover,
+.nav button:hover{
+  background:rgba(255,255,255,.045);
+  color:#fff;
+  transform:translateX(2px);
+}
+
+.nav-icon{
+  width:19px;
+  height:19px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 19px;
+}
+
+.nav-divider{
+  height:1px;
+  margin:12px 8px;
+  background:var(--border);
+}
+
+.logout-button{
+  margin-top:auto;
+  color:#f87171!important;
+  background:rgba(239,68,68,.055)!important;
+}
+
+.logout-button:hover{
+  background:rgba(239,68,68,.11)!important;
+}
+
+.main{
+  width:100%;
+  min-height:100vh;
+  padding:112px 28px 50px;
+}
+
+.content{
+  width:min(1380px,100%);
+  margin:0 auto;
+}
+
+.page-header{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:24px;
+  margin-bottom:26px;
+}
+
+.eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:11px;
+  color:#8e98a8;
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+}
+
+.eyebrow-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--accent);
+  box-shadow:
+    0 0 0 5px rgba(139,92,246,.1),
+    0 0 18px rgba(139,92,246,.55);
+}
+
+.page-title{
+  margin:0;
+  font-size:clamp(30px,4vw,46px);
+  line-height:1;
+  font-weight:900;
+  letter-spacing:-.06em;
+  background:linear-gradient(135deg,#fff 10%,#c8c5ff 80%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+.page-subtitle{
+  max-width:720px;
+  margin:13px 0 0;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.7;
+}
+
+.admin-user{
+  min-width:200px;
+  padding:13px 15px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:rgba(255,255,255,.035);
+}
+
+.admin-user-label{
+  color:#697386;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+
+.admin-user-value{
+  margin-top:5px;
+  overflow:hidden;
+  color:#e7eaf0;
+  font-size:12px;
+  font-weight:800;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
 .hero-card{
- position:relative;overflow:hidden;margin-bottom:20px;padding:27px;border:1px solid var(--border);
- border-radius:24px;background:radial-gradient(circle at 90% 20%,rgba(139,92,246,.15),transparent 30%),
- linear-gradient(135deg,rgba(20,25,36,.96),rgba(11,15,22,.92));box-shadow:var(--shadow)
+  position:relative;
+  overflow:hidden;
+  margin-bottom:20px;
+  padding:27px;
+  border:1px solid var(--border);
+  border-radius:24px;
+  background:
+    radial-gradient(
+      circle at 90% 20%,
+      rgba(139,92,246,.15),
+      transparent 30%
+    ),
+    linear-gradient(
+      135deg,
+      rgba(20,25,36,.96),
+      rgba(11,15,22,.92)
+    );
+  box-shadow:var(--shadow);
 }
-.hero-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:25px}
-.hero-copy h2{margin:0;font-size:19px;font-weight:850;letter-spacing:-.03em}
-.hero-copy p{max-width:760px;margin:8px 0 0;color:#858fa0;font-size:13px;line-height:1.65}
-.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:20px}
+
+.hero-content{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:25px;
+}
+
+.hero-copy h2{
+  margin:0;
+  font-size:19px;
+  font-weight:850;
+  letter-spacing:-.03em;
+}
+
+.hero-copy p{
+  max-width:760px;
+  margin:8px 0 0;
+  color:#858fa0;
+  font-size:13px;
+  line-height:1.65;
+}
+
+.primary-button{
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:0 16px;
+  border:0;
+  border-radius:12px;
+  background:linear-gradient(
+    135deg,
+    var(--accent),
+    var(--accent2)
+  );
+  color:#fff;
+  font-size:12px;
+  font-weight:850;
+  box-shadow:0 10px 25px rgba(99,102,241,.25);
+}
+
+.primary-button:hover{
+  filter:brightness(1.08);
+  transform:translateY(-1px);
+}
+
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  margin-bottom:20px;
+}
+
 .stat-card{
- padding:20px;border:1px solid var(--border);border-radius:18px;
- background:linear-gradient(145deg,rgba(19,24,33,.9),rgba(11,15,21,.88));box-shadow:var(--softshadow)
+  padding:20px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:linear-gradient(
+    145deg,
+    rgba(19,24,33,.9),
+    rgba(11,15,21,.88)
+  );
 }
-.stat-top{display:flex;align-items:center;justify-content:space-between}
-.stat-label{color:#7f8998;font-size:10px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
-.stat-icon{width:35px;height:35px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(255,255,255,.035)}
-.stat-value{margin-top:13px;font-size:29px;line-height:1;font-weight:900;letter-spacing:-.045em}
-.stat-description{margin-top:7px;color:#687384;font-size:11px}
+
+.stat-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.stat-label{
+  color:#7f8998;
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+
+.stat-icon{
+  width:35px;
+  height:35px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:10px;
+  background:rgba(255,255,255,.035);
+}
+
+.stat-value{
+  margin-top:13px;
+  font-size:29px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:-.045em;
+}
+
+.stat-description{
+  margin-top:7px;
+  color:#687384;
+  font-size:11px;
+}
+
 .model-panel{
- overflow:hidden;border:1px solid var(--border);border-radius:24px;
- background:linear-gradient(145deg,rgba(17,22,31,.93),rgba(9,13,19,.94));box-shadow:var(--shadow)
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:24px;
+  background:linear-gradient(
+    145deg,
+    rgba(17,22,31,.93),
+    rgba(9,13,19,.94)
+  );
+  box-shadow:var(--shadow);
 }
-.panel-header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:20px 22px;border-bottom:1px solid var(--border)}
-.panel-title{display:flex;align-items:center;gap:11px}
-.panel-title-icon{width:35px;height:35px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(139,92,246,.18);border-radius:10px;background:rgba(139,92,246,.13);color:#a78bfa}
-.panel-title strong{display:block;font-size:14px;font-weight:850}
-.panel-title span{display:block;margin-top:3px;color:#697386;font-size:10px}
-.panel-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(255,255,255,.065);border-radius:999px;background:rgba(255,255,255,.03);color:#8892a2;font-size:10px;font-weight:800}
-.panel-badge-dot{width:6px;height:6px;border-radius:50%;background:#6366f1}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:850px}
-th,td{padding:15px 18px;text-align:left;border-bottom:1px solid rgba(255,255,255,.045);font-size:12px}
-th{background:rgba(255,255,255,.018);color:#697386;font-size:10px;letter-spacing:.08em;font-weight:850}
-td{color:#cbd1da}
-tr:hover td{background:rgba(255,255,255,.018)}
-.provider-name{font-weight:800;color:#e8ebf0}
-.model-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;color:#b9b5ff;background:rgba(139,92,246,.08);padding:6px 8px;border-radius:7px}
-.model-name{font-weight:800;color:#fff}
-.credit{font-weight:900;color:#c4b5fd}
-.status{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:9px;font-weight:850;text-transform:uppercase}
-.status:before{content:"";width:5px;height:5px;border-radius:50%}
-.status.active{background:rgba(34,197,94,.1);color:#4ade80}.status.active:before{background:var(--green)}
-.status.inactive{background:rgba(255,255,255,.06);color:#9ca3af}.status.inactive:before{background:#6b7280}
-.status.maintenance{background:rgba(245,158,11,.1);color:#fbbf24}.status.maintenance:before{background:var(--yellow)}
-.loading,.empty{padding:65px 25px;text-align:center;color:#697386}
-.empty strong{display:block;color:#e7eaf0;font-size:15px;margin-bottom:7px}
-.message{position:fixed;right:22px;bottom:22px;z-index:2000;min-width:260px;max-width:390px;padding:13px 15px;border:1px solid var(--border2);border-radius:13px;background:#111720;color:#e8ebf0;font-size:12px;font-weight:750;box-shadow:0 20px 50px rgba(0,0,0,.4);opacity:0;transform:translateY(10px);pointer-events:none;transition:.18s}
-.message.show{opacity:1;transform:translateY(0)}
+
+.panel-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  padding:20px 22px;
+  border-bottom:1px solid var(--border);
+}
+
+.panel-title{
+  display:flex;
+  align-items:center;
+  gap:11px;
+}
+
+.panel-title-icon{
+  width:35px;
+  height:35px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(139,92,246,.18);
+  border-radius:10px;
+  background:rgba(139,92,246,.13);
+  color:#a78bfa;
+}
+
+.panel-title strong{
+  display:block;
+  font-size:14px;
+  font-weight:850;
+}
+
+.panel-title span{
+  display:block;
+  margin-top:3px;
+  color:#697386;
+  font-size:10px;
+}
+
+.panel-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.secondary-button{
+  min-height:38px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:0 12px;
+  border:1px solid var(--border2);
+  border-radius:10px;
+  background:rgba(255,255,255,.04);
+  color:#cbd1da;
+  font-size:11px;
+  font-weight:800;
+}
+
+.secondary-button:hover{
+  background:rgba(255,255,255,.075);
+  color:#fff;
+}
+
+.panel-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border:1px solid rgba(255,255,255,.065);
+  border-radius:999px;
+  background:rgba(255,255,255,.03);
+  color:#8892a2;
+  font-size:10px;
+  font-weight:800;
+}
+
+.panel-badge-dot{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#6366f1;
+}
+
+.table-wrap{
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:1100px;
+}
+
+th,
+td{
+  padding:15px 16px;
+  text-align:left;
+  border-bottom:1px solid rgba(255,255,255,.045);
+  font-size:12px;
+}
+
+th{
+  background:rgba(255,255,255,.018);
+  color:#697386;
+  font-size:10px;
+  letter-spacing:.08em;
+  font-weight:850;
+}
+
+td{
+  color:#cbd1da;
+}
+
+tr:hover td{
+  background:rgba(255,255,255,.018);
+}
+
+.provider-name{
+  font-weight:800;
+  color:#e8ebf0;
+}
+
+.provider-code{
+  margin-top:4px;
+  color:#687384;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:9px;
+}
+
+.model-id{
+  display:inline-block;
+  max-width:220px;
+  overflow:hidden;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:11px;
+  color:#b9b5ff;
+  background:rgba(139,92,246,.08);
+  padding:6px 8px;
+  border-radius:7px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.model-name{
+  font-weight:800;
+  color:#fff;
+}
+
+.credit{
+  font-weight:900;
+  color:#c4b5fd;
+}
+
+.status{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 9px;
+  border-radius:999px;
+  font-size:9px;
+  font-weight:850;
+  text-transform:uppercase;
+}
+
+.status:before{
+  content:"";
+  width:5px;
+  height:5px;
+  border-radius:50%;
+}
+
+.status.active{
+  background:rgba(34,197,94,.1);
+  color:#4ade80;
+}
+
+.status.active:before{
+  background:var(--green);
+}
+
+.status.inactive{
+  background:rgba(255,255,255,.06);
+  color:#9ca3af;
+}
+
+.status.inactive:before{
+  background:#6b7280;
+}
+
+.status.maintenance{
+  background:rgba(245,158,11,.1);
+  color:#fbbf24;
+}
+
+.status.maintenance:before{
+  background:var(--yellow);
+}
+
+.action-group{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.action-button{
+  width:34px;
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--border2);
+  border-radius:9px;
+  background:rgba(255,255,255,.035);
+  color:#aab2c0;
+}
+
+.action-button:hover{
+  background:rgba(139,92,246,.12);
+  border-color:rgba(139,92,246,.3);
+  color:#fff;
+}
+
+.action-button.delete:hover{
+  background:rgba(239,68,68,.12);
+  border-color:rgba(239,68,68,.3);
+  color:#f87171;
+}
+
+.loading,
+.empty{
+  padding:65px 25px;
+  text-align:center;
+  color:#697386;
+}
+
+.empty strong{
+  display:block;
+  color:#e7eaf0;
+  font-size:15px;
+  margin-bottom:7px;
+}
+
+.error-box{
+  margin:20px;
+  padding:15px;
+  border:1px solid rgba(239,68,68,.2);
+  border-radius:12px;
+  background:rgba(239,68,68,.06);
+  color:#fca5a5;
+  font-size:12px;
+  line-height:1.6;
+}
+
+.message{
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  z-index:2000;
+  min-width:260px;
+  max-width:390px;
+  padding:13px 15px;
+  border:1px solid var(--border2);
+  border-radius:13px;
+  background:#111720;
+  color:#e8ebf0;
+  font-size:12px;
+  font-weight:750;
+  box-shadow:0 20px 50px rgba(0,0,0,.4);
+  opacity:0;
+  transform:translateY(10px);
+  pointer-events:none;
+  transition:.18s;
+}
+
+.message.show{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.message.success{
+  border-color:rgba(34,197,94,.25);
+}
+
+.message.error{
+  border-color:rgba(239,68,68,.3);
+  color:#fecaca;
+}
+
+/* MODAL */
+
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  z-index:1500;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(0,0,0,.7);
+  backdrop-filter:blur(7px);
+}
+
+.modal-overlay.show{
+  display:flex;
+}
+
+.modal{
+  width:min(680px,100%);
+  max-height:90vh;
+  overflow:auto;
+  border:1px solid var(--border2);
+  border-radius:22px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(20,25,35,.98),
+      rgba(9,13,19,.98)
+    );
+  box-shadow:0 30px 100px rgba(0,0,0,.65);
+}
+
+.modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  padding:20px 22px;
+  border-bottom:1px solid var(--border);
+}
+
+.modal-title strong{
+  display:block;
+  font-size:17px;
+  font-weight:900;
+}
+
+.modal-title span{
+  display:block;
+  margin-top:5px;
+  color:#697386;
+  font-size:10px;
+}
+
+.close-button{
+  width:36px;
+  height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--border2);
+  border-radius:9px;
+  background:rgba(255,255,255,.04);
+  color:#aab2c0;
+  font-size:18px;
+}
+
+.close-button:hover{
+  color:#fff;
+  background:rgba(255,255,255,.08);
+}
+
+.modal-body{
+  padding:22px;
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+
+.form-group{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+
+.form-group.full{
+  grid-column:1/-1;
+}
+
+.form-label{
+  color:#9ba4b3;
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.form-input,
+.form-select,
+.form-textarea{
+  width:100%;
+  border:1px solid var(--border2);
+  border-radius:10px;
+  outline:none;
+  background:rgba(255,255,255,.035);
+  color:#eef1f6;
+  padding:11px 12px;
+  font-size:12px;
+  transition:.16s;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus{
+  border-color:rgba(139,92,246,.55);
+  background:rgba(139,92,246,.045);
+  box-shadow:0 0 0 3px rgba(139,92,246,.08);
+}
+
+.form-select option{
+  background:#111720;
+  color:#fff;
+}
+
+.form-textarea{
+  min-height:90px;
+  resize:vertical;
+}
+
+.form-help{
+  color:#5f6979;
+  font-size:9px;
+  line-height:1.5;
+}
+
+.modal-footer{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:9px;
+  padding:18px 22px;
+  border-top:1px solid var(--border);
+}
+
+.danger-button{
+  min-height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:0 15px;
+  border:1px solid rgba(239,68,68,.25);
+  border-radius:10px;
+  background:rgba(239,68,68,.08);
+  color:#fca5a5;
+  font-size:11px;
+  font-weight:850;
+}
+
+.danger-button:hover{
+  background:rgba(239,68,68,.14);
+  color:#fff;
+}
+
 @media(max-width:900px){
- .page-header{align-items:flex-start;flex-direction:column}.admin-user{width:100%}
- .hero-content{align-items:flex-start;flex-direction:column}.stats-grid{grid-template-columns:1fr}
+
+  .page-header{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .admin-user{
+    width:100%;
+  }
+
+  .hero-content{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .stats-grid{
+    grid-template-columns:1fr;
+  }
+
 }
+
 @media(max-width:640px){
- .topbar{top:10px;left:10px;right:10px}.topbar-brand{display:none}
- .back-button{padding:0 11px}.main{padding:94px 14px 35px}.hero-card{padding:21px}
- .panel-header{align-items:flex-start;flex-direction:column}
- .message{left:14px;right:14px;bottom:14px;min-width:0;max-width:none}
+
+  .topbar{
+    top:10px;
+    left:10px;
+    right:10px;
+  }
+
+  .topbar-brand{
+    display:none;
+  }
+
+  .back-button{
+    padding:0 11px;
+  }
+
+  .main{
+    padding:94px 14px 35px;
+  }
+
+  .hero-card{
+    padding:21px;
+  }
+
+  .panel-header{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .panel-actions{
+    width:100%;
+    justify-content:space-between;
+  }
+
+  .form-grid{
+    grid-template-columns:1fr;
+  }
+
+  .form-group.full{
+    grid-column:auto;
+  }
+
+  .modal{
+    max-height:94vh;
+  }
+
+  .modal-body{
+    padding:18px;
+  }
+
+  .message{
+    left:14px;
+    right:14px;
+    bottom:14px;
+    min-width:0;
+    max-width:none;
+  }
+
 }
 </style>
 </head>
 
 <body>
+
 <header class="topbar">
+
   <div class="topbar-left">
-    <button class="menu-button" id="menuButton" type="button" onclick="toggleMenu()" aria-label="Buka menu">
-      <span class="menu-icon"><span></span><span></span><span></span></span>
+
+    <button
+      class="menu-button"
+      id="menuButton"
+      type="button"
+      onclick="toggleMenu()"
+      aria-label="Buka menu"
+    >
+      <span class="menu-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+      </span>
     </button>
-    <div class="topbar-brand"><strong>GEN-Z.AI</strong><span>MODEL CONTROL</span></div>
+
+    <div class="topbar-brand">
+      <strong>GEN-Z.AI</strong>
+      <span>MODEL CONTROL</span>
+    </div>
+
   </div>
+
   <div class="topbar-right">
-    <a href="./admin-panel.html" class="back-button">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path>
+
+    <a
+      href="./admin-panel.html"
+      class="back-button"
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M19 12H5"></path>
+        <path d="M12 19l-7-7 7-7"></path>
       </svg>
+
       Admin Panel
     </a>
+
   </div>
+
 </header>
 
-<div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-<aside class="sidebar" id="sidebar">
-  <div class="sidebar-brand"><strong>GEN-Z.AI</strong><span>ADMIN CONTROL</span></div>
+<div
+  class="menu-overlay"
+  id="menuOverlay"
+  onclick="closeMenu()"
+></div>
+
+
+<aside
+  class="sidebar"
+  id="sidebar"
+>
+
+  <div class="sidebar-brand">
+    <strong>GEN-Z.AI</strong>
+    <span>ADMIN CONTROL</span>
+  </div>
+
   <nav class="nav">
-    <a href="./admin-panel.html"><span class="nav-icon">⌂</span>Dashboard</a>
-    <a href="../generate/index.html"><span class="nav-icon">✦</span>Generat</a>
-    <a href="../history/index.html"><span class="nav-icon">◷</span>History</a>
-    <a href="./admin-panel.html"><span class="nav-icon">▦</span>Admin Panel</a>
+
+    <a href="./admin-panel.html">
+      <span class="nav-icon">⌂</span>
+      Dashboard
+    </a>
+
+    <a href="../generate/index.html">
+      <span class="nav-icon">✦</span>
+      Generat
+    </a>
+
+    <a href="../history/index.html">
+      <span class="nav-icon">◷</span>
+      History
+    </a>
+
+    <a href="./admin-panel.html">
+      <span class="nav-icon">▦</span>
+      Admin Panel
+    </a>
+
   </nav>
+
   <div class="nav-divider"></div>
-  <button class="nav logout-button" type="button" onclick="logout()"><span class="nav-icon">↪</span>Log Out</button>
+
+  <button
+    class="nav logout-button"
+    type="button"
+    onclick="logout()"
+  >
+    <span class="nav-icon">↪</span>
+    Logout
+  </button>
+
 </aside>
 
+
 <main class="main">
-<div class="content">
 
-<section class="page-header">
-  <div>
-    <div class="eyebrow"><span class="eyebrow-dot"></span>Model Management</div>
-    <h1 class="page-title">AI Models</h1>
-    <p class="page-subtitle">Kelola dan pantau model AI yang tersedia di GEN-Z.AI berdasarkan provider yang terdaftar.</p>
-  </div>
-  <div class="admin-user">
-    <div class="admin-user-label">Signed in as</div>
-    <div class="admin-user-value" id="adminUserEmail">Loading...</div>
-  </div>
-</section>
+  <div class="content">
 
-<section class="hero-card">
-  <div class="hero-content">
-    <div class="hero-copy">
-      <h2>AI Model Management</h2>
-      <p>Daftar model dibaca langsung dari database. Provider ditampilkan menggunakan nama provider yang dikonfigurasi, bukan label yang di-hardcode pada halaman.</p>
-    </div>
-  </div>
-</section>
+    <section class="page-header">
 
-<section class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-top"><span class="stat-label">Total Models</span><span class="stat-icon">◈</span></div>
-    <div class="stat-value" id="totalModels">0</div><div class="stat-description">Model terdaftar</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-top"><span class="stat-label">Active</span><span class="stat-icon">✓</span></div>
-    <div class="stat-value" id="activeModels">0</div><div class="stat-description">Model aktif</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-top"><span class="stat-label">Providers</span><span class="stat-icon">◎</span></div>
-    <div class="stat-value" id="totalProviders">0</div><div class="stat-description">Provider terkait</div>
-  </div>
-</section>
+      <div>
 
-<section class="model-panel">
-  <div class="panel-header">
-    <div class="panel-title">
-      <span class="panel-title-icon">◈</span>
-      <div><strong>Model Registry</strong><span>Daftar model AI yang terhubung ke provider</span></div>
-    </div>
-    <div class="panel-badge"><span class="panel-badge-dot"></span>Model Control</div>
-  </div>
-  <div id="modelContainer"><div class="loading">Memuat model...</div></div>
-</section>
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          ADMIN CONTROL
+        </div>
 
-</div>
+        <h1 class="page-title">
+          Models
+        </h1>
+
+        <p class="page-subtitle">
+          Kelola model AI yang tersedia di GEN-Z.AI.
+          Provider, model ID, biaya credit, durasi dan status
+          dikelola melalui server API.
+        </p>
+
+      </div>
+
+      <div class="admin-user">
+
+        <div class="admin-user-label">
+          Login sebagai
+        </div>
+
+        <div
+          class="admin-user-value"
+          id="adminUser"
+        >
+          Memeriksa sesi...
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <section class="hero-card">
+
+      <div class="hero-content">
+
+        <div class="hero-copy">
+
+          <h2>
+            Model Management
+          </h2>
+
+          <p>
+            Tambahkan atau ubah model tanpa mengikat tampilan
+            dengan nama provider tertentu. Nama provider berasal
+            dari data konfigurasi provider di database.
+          </p>
+
+        </div>
+
+        <button
+          class="primary-button"
+          type="button"
+          onclick="openCreateModal()"
+        >
+          ＋ Tambah Model
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <section class="stats-grid">
+
+      <div class="stat-card">
+
+        <div class="stat-top">
+
+          <div class="stat-label">
+            Total Model
+          </div>
+
+          <div class="stat-icon">
+            ◈
+          </div>
+
+        </div>
+
+        <div
+          class="stat-value"
+          id="totalModels"
+        >
+          0
+        </div>
+
+        <div class="stat-description">
+          Semua model terdaftar
+        </div>
+
+      </div>
+
+
+      <div class="stat-card">
+
+        <div class="stat-top">
+
+          <div class="stat-label">
+            Model Aktif
+          </div>
+
+          <div class="stat-icon">
+            ✓
+          </div>
+
+        </div>
+
+        <div
+          class="stat-value"
+          id="activeModels"
+        >
+          0
+        </div>
+
+        <div class="stat-description">
+          Siap digunakan
+        </div>
+
+      </div>
+
+
+      <div class="stat-card">
+
+        <div class="stat-top">
+
+          <div class="stat-label">
+            Provider
+          </div>
+
+          <div class="stat-icon">
+            ◎
+          </div>
+
+        </div>
+
+        <div
+          class="stat-value"
+          id="totalProviders"
+        >
+          0
+        </div>
+
+        <div class="stat-description">
+          Provider tersedia
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <section class="model-panel">
+
+      <div class="panel-header">
+
+        <div class="panel-title">
+
+          <div class="panel-title-icon">
+            ◈
+          </div>
+
+          <div>
+            <strong>
+              Daftar Model
+            </strong>
+
+            <span>
+              Data realtime dari GEN-Z.AI API
+            </span>
+          </div>
+
+        </div>
+
+
+        <div class="panel-actions">
+
+          <button
+            class="secondary-button"
+            type="button"
+            onclick="loadData()"
+          >
+            ↻ Refresh
+          </button>
+
+          <div class="panel-badge">
+
+            <span class="panel-badge-dot"></span>
+
+            <span id="connectionStatus">
+              Menghubungkan...
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div
+        class="table-wrap"
+        id="tableContainer"
+      >
+
+        <div class="loading">
+          Memuat data model...
+        </div>
+
+      </div>
+
+    </section>
+
+  </div>
+
 </main>
 
-<div class="message" id="message"></div>
+
+<!-- MODAL CREATE / EDIT -->
+
+<div
+  class="modal-overlay"
+  id="modelModal"
+>
+
+  <div class="modal">
+
+    <div class="modal-header">
+
+      <div class="modal-title">
+
+        <strong id="modalTitle">
+          Tambah Model
+        </strong>
+
+        <span id="modalSubtitle">
+          Tambahkan model baru ke database
+        </span>
+
+      </div>
+
+      <button
+        class="close-button"
+        type="button"
+        onclick="closeModal()"
+      >
+        ×
+      </button>
+
+    </div>
+
+
+    <form
+      id="modelForm"
+      onsubmit="saveModel(event)"
+    >
+
+      <div class="modal-body">
+
+        <input
+          type="hidden"
+          id="modelId"
+        >
+
+
+        <div class="form-grid">
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Provider
+            </label>
+
+            <select
+              class="form-select"
+              id="providerId"
+              required
+            >
+
+              <option value="">
+                Memuat provider...
+              </option>
+
+            </select>
+
+            <div class="form-help">
+              Provider diambil langsung dari database.
+            </div>
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Status
+            </label>
+
+            <select
+              class="form-select"
+              id="modelStatus"
+            >
+
+              <option value="active">
+                Active
+              </option>
+
+              <option value="inactive">
+                Inactive
+              </option>
+
+              <option value="maintenance">
+                Maintenance
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Model ID
+            </label>
+
+            <input
+              class="form-input"
+              id="modelCode"
+              type="text"
+              placeholder="contoh: veo3-fast"
+              autocomplete="off"
+              required
+            >
+
+            <div class="form-help">
+              ID model yang dikirim ke provider API.
+            </div>
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Nama Model
+            </label>
+
+            <input
+              class="form-input"
+              id="modelName"
+              type="text"
+              placeholder="contoh: Veo 3 Fast"
+              autocomplete="off"
+              required
+            >
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Credit Cost
+            </label>
+
+            <input
+              class="form-input"
+              id="creditCost"
+              type="number"
+              min="0"
+              step="1"
+              value="1"
+              required
+            >
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Min Duration
+            </label>
+
+            <input
+              class="form-input"
+              id="minDuration"
+              type="number"
+              min="0"
+              step="1"
+              value="0"
+            >
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Max Duration
+            </label>
+
+            <input
+              class="form-input"
+              id="maxDuration"
+              type="number"
+              min="0"
+              step="1"
+              value="0"
+            >
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Supported Ratios
+            </label>
+
+            <input
+              class="form-input"
+              id="supportedRatios"
+              type="text"
+              placeholder="16:9, 9:16, 1:1"
+            >
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Supported Resolutions
+            </label>
+
+            <input
+              class="form-input"
+              id="supportedResolutions"
+              type="text"
+              placeholder="720p, 1080p, 4K"
+            >
+
+          </div>
+
+
+          <div class="form-group full">
+
+            <label class="form-label">
+              Description
+            </label>
+
+            <textarea
+              class="form-textarea"
+              id="modelDescription"
+              placeholder="Deskripsi model..."
+            ></textarea>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="closeModal()"
+        >
+          Batal
+        </button>
+
+        <button
+          type="submit"
+          class="primary-button"
+          id="saveButton"
+        >
+          Simpan Model
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+<!-- CONFIRM DELETE -->
+
+<div
+  class="modal-overlay"
+  id="deleteModal"
+>
+
+  <div class="modal">
+
+    <div class="modal-header">
+
+      <div class="modal-title">
+
+        <strong>
+          Hapus Model
+        </strong>
+
+        <span>
+          Tindakan ini tidak dapat dibatalkan
+        </span>
+
+      </div>
+
+      <button
+        class="close-button"
+        type="button"
+        onclick="closeDeleteModal()"
+      >
+        ×
+      </button>
+
+    </div>
+
+
+    <div class="modal-body">
+
+      <p
+        id="deleteText"
+        style="
+          margin:0;
+          color:#aab2c0;
+          font-size:13px;
+          line-height:1.7;
+        "
+      >
+        Apakah Anda yakin ingin menghapus model ini?
+      </p>
+
+    </div>
+
+
+    <div class="modal-footer">
+
+      <button
+        type="button"
+        class="secondary-button"
+        onclick="closeDeleteModal()"
+      >
+        Batal
+      </button>
+
+      <button
+        type="button"
+        class="danger-button"
+        id="confirmDeleteButton"
+        onclick="confirmDelete()"
+      >
+        Hapus Model
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<div
+  class="message"
+  id="message"
+></div>
+
 
 <script>
-let supabaseClient=null;
-let providerCache=[];
 
-function initSupabase(){
-  try{
-    if(typeof supabase==="undefined" || !window.GENZ_CONFIG) return false;
-    supabaseClient=supabase.createClient(GENZ_CONFIG.SUPABASE_URL,GENZ_CONFIG.SUPABASE_KEY);
-    return true;
-  }catch(e){console.error(e);return false}
+/* =====================================================
+   GEN-Z.AI
+   MODELS ADMIN CONTROL
+   ===================================================== */
+
+
+/* =====================================================
+   CONFIG
+   ===================================================== */
+
+const supabaseClient = window.GENZ_SUPABASE;
+
+const API_URL = "../api/admin-models";
+
+let currentSession = null;
+
+let models = [];
+
+let providers = [];
+
+let deleteTargetId = null;
+
+
+/* =====================================================
+   ELEMENTS
+   ===================================================== */
+
+const $ = (id) => document.getElementById(id);
+
+
+/* =====================================================
+   MESSAGE
+   ===================================================== */
+
+let messageTimer = null;
+
+function showMessage(
+  text,
+  type = "success"
+){
+
+  const element = $("message");
+
+  if(!element){
+    return;
+  }
+
+  element.textContent = text;
+
+  element.className =
+    "message show " + type;
+
+  clearTimeout(messageTimer);
+
+  messageTimer = setTimeout(() => {
+
+    element.className = "message";
+
+  }, 3500);
+
 }
+
+
+/* =====================================================
+   MENU
+   ===================================================== */
+
 function toggleMenu(){
-  const sidebar=document.getElementById("sidebar"),overlay=document.getElementById("menuOverlay"),button=document.getElementById("menuButton");
-  const open=!sidebar.classList.contains("show");
-  sidebar.classList.toggle("show",open);overlay.classList.toggle("show",open);button.classList.toggle("active",open);
-  document.body.classList.toggle("menu-open",open);
+
+  const sidebar = $("sidebar");
+  const overlay = $("menuOverlay");
+  const button = $("menuButton");
+
+  const show =
+    !sidebar.classList.contains("show");
+
+  sidebar.classList.toggle(
+    "show",
+    show
+  );
+
+  overlay.classList.toggle(
+    "show",
+    show
+  );
+
+  button.classList.toggle(
+    "active",
+    show
+  );
+
+  document.body.classList.toggle(
+    "menu-open",
+    show
+  );
+
 }
+
+
 function closeMenu(){
-  document.getElementById("sidebar").classList.remove("show");
-  document.getElementById("menuOverlay").classList.remove("show");
-  document.getElementById("menuButton").classList.remove("active");
+
+  $("sidebar").classList.remove("show");
+
+  $("menuOverlay").classList.remove("show");
+
+  $("menuButton").classList.remove("active");
+
   document.body.classList.remove("menu-open");
+
 }
-function escapeHtml(value){
-  return String(value??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
-function showMessage(text){
-  const el=document.getElementById("message");el.textContent=text;el.classList.add("show");
-  clearTimeout(window.__msg);window.__msg=setTimeout(()=>el.classList.remove("show"),3500);
-}
+
+
+/* =====================================================
+   AUTH
+   ===================================================== */
+
 async function checkAuth(){
-  if(!supabaseClient) return false;
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session?.user){window.location.href="../index.html";return false}
-  const {data:profile,error}=await supabaseClient.from("profiles")
-    .select("id,email,name,role,status,credits").eq("id",session.user.id).single();
-  if(error||!profile){await supabaseClient.auth.signOut();window.location.href="../index.html";return false}
-  if(!["ADMIN","OWNER"].includes(String(profile.role||"").toUpperCase()) || profile.status!=="active"){
-    window.location.href="../user/dashboard.html";return false;
-  }
-  document.getElementById("adminUserEmail").textContent=profile.email||"Administrator";
-  return true;
-}
-async function loadModels(){
-  const container=document.getElementById("modelContainer");
-  container.innerHTML='<div class="loading">Memuat model...</div>';
+
   try{
-    const {data:providers,error:pe}=await supabaseClient.from("providers")
-      .select("id,provider_id,provider_name,description,status,is_default").order("created_at",{ascending:false});
-    if(pe) throw pe;
-    providerCache=providers||[];
-    document.getElementById("totalProviders").textContent=providerCache.length;
 
-    const {data:models,error:me}=await supabaseClient.from("models")
-      .select("id,provider_id,model_id,model_name,description,credit_cost,min_duration,max_duration,supported_ratios,supported_resolutions,status,created_at,updated_at")
-      .order("created_at",{ascending:false});
-    if(me) throw me;
+    if(!supabaseClient){
 
-    const list=models||[];
-    document.getElementById("totalModels").textContent=list.length;
-    document.getElementById("activeModels").textContent=list.filter(m=>String(m.status||"").toLowerCase()==="active").length;
+      throw new Error(
+        "GENZ_SUPABASE belum tersedia."
+      );
 
-    if(!list.length){
-      container.innerHTML='<div class="empty"><strong>BELUM ADA MODEL</strong><span>Belum ada model AI yang terdaftar di database.</span></div>';
-      return;
     }
 
-    const providerName=id=>{
-      const p=providerCache.find(x=>x.id===id);
-      return p?.provider_name || id || "-";
-    };
-    let html=`<div class="table-wrap"><table><thead><tr>
-      <th>PROVIDER</th><th>MODEL ID</th><th>MODEL NAME</th><th>CREDIT</th><th>STATUS</th>
-    </tr></thead><tbody>`;
 
-    for(const model of list){
-      const status=String(model.status||"inactive").toLowerCase();
-      html+=`<tr>
-        <td><div class="provider-name">${escapeHtml(providerName(model.provider_id))}</div></td>
-        <td><span class="model-id">${escapeHtml(model.model_id||"-")}</span></td>
-        <td><div class="model-name">${escapeHtml(model.model_name||"-")}</div></td>
-        <td><span class="credit">${Number(model.credit_cost||0)}</span></td>
-        <td><span class="status ${escapeHtml(status)}">${escapeHtml(status)}</span></td>
-      </tr>`;
+    const {
+      data,
+      error
+    } = await supabaseClient.auth.getSession();
+
+
+    if(error){
+      throw error;
     }
-    html+="</tbody></table></div>";
-    container.innerHTML=html;
+
+
+    const session =
+      data?.session;
+
+
+    if(!session){
+
+      window.location.href =
+        "../login/index.html";
+
+      return false;
+
+    }
+
+
+    currentSession =
+      session;
+
+
+    const user =
+      session.user;
+
+
+    const {
+      data: profile,
+      error: profileError
+    } =
+      await supabaseClient
+        .from("profiles")
+        .select(
+          "id,email,name,role,status"
+        )
+        .eq(
+          "id",
+          user.id
+        )
+        .maybeSingle();
+
+
+    if(profileError){
+
+      console.error(
+        profileError
+      );
+
+      throw new Error(
+        "Gagal mengambil profile admin."
+      );
+
+    }
+
+
+    if(!profile){
+
+      showMessage(
+        "Profile admin tidak ditemukan.",
+        "error"
+      );
+
+      await supabaseClient.auth.signOut();
+
+      window.location.href =
+        "../login/index.html";
+
+      return false;
+
+    }
+
+
+    const role =
+      String(
+        profile.role || ""
+      ).toUpperCase();
+
+
+    const status =
+      String(
+        profile.status || ""
+      ).toLowerCase();
+
+
+    if(
+      !["ADMIN","OWNER"].includes(role)
+    ){
+
+      showMessage(
+        "Anda tidak memiliki akses admin.",
+        "error"
+      );
+
+      return false;
+
+    }
+
+
+    if(status !== "active"){
+
+      showMessage(
+        "Akun admin tidak aktif.",
+        "error"
+      );
+
+      return false;
+
+    }
+
+
+    $("adminUser").textContent =
+      profile.name ||
+      profile.email ||
+      user.email ||
+      "Admin";
+
+
+    return true;
+
   }catch(error){
-    console.error(error);
-    container.innerHTML='<div class="empty"><strong>GAGAL MEMUAT MODEL</strong><span>Periksa akses database atau konfigurasi Supabase.</span></div>';
-    showMessage(error?.message||"Gagal memuat model.");
+
+    console.error(
+      "AUTH ERROR:",
+      error
+    );
+
+    $("adminUser").textContent =
+      "Gagal memeriksa sesi";
+
+    showMessage(
+      error.message ||
+      "Gagal memeriksa autentikasi.",
+      "error"
+    );
+
+    return false;
+
   }
+
 }
+
+
+/* =====================================================
+   API REQUEST
+   ===================================================== */
+
+async function apiRequest(
+  method = "GET",
+  body = null,
+  query = ""
+){
+
+  if(!currentSession){
+
+    const {
+      data
+    } =
+      await supabaseClient.auth.getSession();
+
+    currentSession =
+      data?.session || null;
+
+  }
+
+
+  if(!currentSession){
+
+    throw new Error(
+      "Session login tidak ditemukan."
+    );
+
+  }
+
+
+  const response =
+    await fetch(
+      API_URL + query,
+      {
+        method,
+
+        headers:{
+          "Authorization":
+            `Bearer ${currentSession.access_token}`,
+
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          body === null
+            ? undefined
+            : JSON.stringify(body)
+      }
+    );
+
+
+  let result = null;
+
+  try{
+
+    result =
+      await response.json();
+
+  }catch{
+
+    result = {};
+
+  }
+
+
+  if(!response.ok){
+
+    throw new Error(
+      result?.error ||
+      result?.message ||
+      `Request gagal (${response.status}).`
+    );
+
+  }
+
+
+  return result;
+
+}
+
+
+/* =====================================================
+   LOAD DATA
+   ===================================================== */
+
+async function loadData(){
+
+  const container =
+    $("tableContainer");
+
+  const status =
+    $("connectionStatus");
+
+
+  container.innerHTML = `
+    <div class="loading">
+      Memuat data model...
+    </div>
+  `;
+
+
+  status.textContent =
+    "Menghubungkan...";
+
+
+  try{
+
+    const result =
+      await apiRequest(
+        "GET"
+      );
+
+
+    models =
+      Array.isArray(result.models)
+        ? result.models
+        : [];
+
+
+    providers =
+      Array.isArray(result.providers)
+        ? result.providers
+        : [];
+
+
+    renderStats();
+
+    renderProviderOptions();
+
+    renderTable();
+
+
+    status.textContent =
+      "Terhubung";
+
+
+  }catch(error){
+
+    console.error(
+      "LOAD MODELS ERROR:",
+      error
+    );
+
+
+    status.textContent =
+      "Error";
+
+
+    container.innerHTML = `
+      <div class="error-box">
+        <strong>
+          Gagal memuat model
+        </strong>
+        <br>
+        ${escapeHtml(
+          error.message ||
+          "Terjadi kesalahan."
+        )}
+      </div>
+    `;
+
+
+    showMessage(
+      error.message ||
+      "Gagal mengambil data model.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =====================================================
+   STATS
+   ===================================================== */
+
+function renderStats(){
+
+  const total =
+    models.length;
+
+
+  const active =
+    models.filter(
+      model =>
+        String(
+          model.status || ""
+        ).toLowerCase() === "active"
+    ).length;
+
+
+  $("totalModels").textContent =
+    total;
+
+
+  $("activeModels").textContent =
+    active;
+
+
+  $("totalProviders").textContent =
+    providers.length;
+
+}
+
+
+/* =====================================================
+   PROVIDER OPTIONS
+   ===================================================== */
+
+function renderProviderOptions(){
+
+  const select =
+    $("providerId");
+
+
+  if(!providers.length){
+
+    select.innerHTML = `
+      <option value="">
+        Tidak ada provider
+      </option>
+    `;
+
+    return;
+
+  }
+
+
+  select.innerHTML = `
+    <option value="">
+      Pilih provider
+    </option>
+  `;
+
+
+  providers.forEach(
+    provider => {
+
+      const option =
+        document.createElement(
+          "option"
+        );
+
+
+      option.value =
+        provider.id;
+
+
+      const providerName =
+        provider.provider_name ||
+        provider.provider_id ||
+        "Provider";
+
+
+      option.textContent =
+        providerName;
+
+
+      select.appendChild(
+        option
+      );
+
+    }
+  );
+
+}
+
+
+/* =====================================================
+   TABLE
+   ===================================================== */
+
+function renderTable(){
+
+  const container =
+    $("tableContainer");
+
+
+  if(!models.length){
+
+    container.innerHTML = `
+      <div class="empty">
+
+        <strong>
+          Belum ada model
+        </strong>
+
+        Belum ada model yang terdaftar.
+        Gunakan tombol "Tambah Model"
+        untuk membuat model pertama.
+
+      </div>
+    `;
+
+    return;
+
+  }
+
+
+  let html = `
+
+    <table>
+
+      <thead>
+
+        <tr>
+
+          <th>
+            PROVIDER
+          </th>
+
+          <th>
+            MODEL ID
+          </th>
+
+          <th>
+            NAMA MODEL
+          </th>
+
+          <th>
+            CREDIT
+          </th>
+
+          <th>
+            DURASI
+          </th>
+
+          <th>
+            STATUS
+          </th>
+
+          <th>
+            AKSI
+          </th>
+
+        </tr>
+
+      </thead>
+
+      <tbody>
+
+  `;
+
+
+  models.forEach(
+    model => {
+
+      const status =
+        String(
+          model.status || "inactive"
+        ).toLowerCase();
+
+
+      const providerName =
+        model.provider_name ||
+        "Unknown Provider";
+
+
+      const providerCode =
+        model.provider_code ||
+        "";
+
+
+      const minDuration =
+        formatNumber(
+          model.min_duration
+        );
+
+
+      const maxDuration =
+        formatNumber(
+          model.max_duration
+        );
+
+
+      let duration = "-";
+
+
+      if(
+        model.min_duration !== null &&
+        model.min_duration !== undefined &&
+        model.max_duration !== null &&
+        model.max_duration !== undefined
+      ){
+
+        duration =
+          `${minDuration} - ${maxDuration}s`;
+
+      }
+
+
+      html += `
+
+        <tr>
+
+          <td>
+
+            <div class="provider-name">
+              ${escapeHtml(providerName)}
+            </div>
+
+            ${
+              providerCode
+                ? `
+                  <div class="provider-code">
+                    ${escapeHtml(providerCode)}
+                  </div>
+                `
+                : ""
+            }
+
+          </td>
+
+
+          <td>
+
+            <span class="model-id">
+              ${escapeHtml(
+                model.model_id || "-"
+              )}
+            </span>
+
+          </td>
+
+
+          <td>
+
+            <div class="model-name">
+              ${escapeHtml(
+                model.model_name || "-"
+              )}
+            </div>
+
+          </td>
+
+
+          <td>
+
+            <span class="credit">
+              ${formatNumber(
+                model.credit_cost
+              )}
+            </span>
+
+          </td>
+
+
+          <td>
+            ${escapeHtml(duration)}
+          </td>
+
+
+          <td>
+
+            <span
+              class="status ${escapeHtml(status)}"
+            >
+              ${escapeHtml(status)}
+            </span>
+
+          </td>
+
+
+          <td>
+
+            <div class="action-group">
+
+              <button
+                class="action-button"
+                type="button"
+                title="Edit model"
+                onclick="openEditModal('${escapeJs(
+                  model.id
+                )}')"
+              >
+                ✎
+              </button>
+
+
+              <button
+                class="action-button delete"
+                type="button"
+                title="Hapus model"
+                onclick="openDeleteModal('${escapeJs(
+                  model.id
+                )}')"
+              >
+                ×
+              </button>
+
+            </div>
+
+          </td>
+
+        </tr>
+
+      `;
+
+    }
+  );
+
+
+  html += `
+
+      </tbody>
+
+    </table>
+
+  `;
+
+
+  container.innerHTML =
+    html;
+
+}
+
+
+/* =====================================================
+   CREATE MODAL
+   ===================================================== */
+
+function openCreateModal(){
+
+  $("modalTitle").textContent =
+    "Tambah Model";
+
+
+  $("modalSubtitle").textContent =
+    "Tambahkan model baru ke database";
+
+
+  $("modelId").value =
+    "";
+
+
+  $("modelForm").reset();
+
+
+  $("modelStatus").value =
+    "active";
+
+
+  $("creditCost").value =
+    "1";
+
+
+  $("minDuration").value =
+    "0";
+
+
+  $("maxDuration").value =
+    "0";
+
+
+  renderProviderOptions();
+
+
+  $("modelModal").classList.add(
+    "show"
+  );
+
+}
+
+
+/* =====================================================
+   EDIT MODAL
+   ===================================================== */
+
+function openEditModal(id){
+
+  const model =
+    models.find(
+      item =>
+        String(item.id) ===
+        String(id)
+    );
+
+
+  if(!model){
+
+    showMessage(
+      "Model tidak ditemukan.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  $("modalTitle").textContent =
+    "Edit Model";
+
+
+  $("modalSubtitle").textContent =
+    "Perbarui konfigurasi model";
+
+
+  renderProviderOptions();
+
+
+  $("modelId").value =
+    model.id || "";
+
+
+  $("providerId").value =
+    model.provider_id || "";
+
+
+  $("modelCode").value =
+    model.model_id || "";
+
+
+  $("modelName").value =
+    model.model_name || "";
+
+
+  $("modelDescription").value =
+    model.description || "";
+
+
+  $("creditCost").value =
+    model.credit_cost ?? 0;
+
+
+  $("minDuration").value =
+    model.min_duration ?? 0;
+
+
+  $("maxDuration").value =
+    model.max_duration ?? 0;
+
+
+  $("modelStatus").value =
+    model.status || "active";
+
+
+  $("supportedRatios").value =
+    normalizeArrayValue(
+      model.supported_ratios
+    );
+
+
+  $("supportedResolutions").value =
+    normalizeArrayValue(
+      model.supported_resolutions
+    );
+
+
+  $("modelModal").classList.add(
+    "show"
+  );
+
+}
+
+
+/* =====================================================
+   CLOSE MODAL
+   ===================================================== */
+
+function closeModal(){
+
+  $("modelModal").classList.remove(
+    "show"
+  );
+
+}
+
+
+/* =====================================================
+   SAVE MODEL
+   ===================================================== */
+
+async function saveModel(event){
+
+  event.preventDefault();
+
+
+  const id =
+    $("modelId").value.trim();
+
+
+  const payload = {
+
+    provider_id:
+      $("providerId").value,
+
+    model_id:
+      $("modelCode").value.trim(),
+
+    model_name:
+      $("modelName").value.trim(),
+
+    description:
+      $("modelDescription").value.trim() ||
+      null,
+
+    credit_cost:
+      Number(
+        $("creditCost").value
+      ),
+
+    min_duration:
+      Number(
+        $("minDuration").value
+      ),
+
+    max_duration:
+      Number(
+        $("maxDuration").value
+      ),
+
+    supported_ratios:
+      parseList(
+        $("supportedRatios").value
+      ),
+
+    supported_resolutions:
+      parseList(
+        $("supportedResolutions").value
+      ),
+
+    status:
+      $("modelStatus").value
+
+  };
+
+
+  if(!payload.provider_id){
+
+    showMessage(
+      "Provider wajib dipilih.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  if(!payload.model_id){
+
+    showMessage(
+      "Model ID wajib diisi.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  if(!payload.model_name){
+
+    showMessage(
+      "Nama model wajib diisi.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  if(
+    !Number.isFinite(
+      payload.credit_cost
+    )
+  ){
+
+    showMessage(
+      "Credit cost tidak valid.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const button =
+    $("saveButton");
+
+
+  const originalText =
+    button.textContent;
+
+
+  button.disabled =
+    true;
+
+
+  button.textContent =
+    "Menyimpan...";
+
+
+  try{
+
+    let result;
+
+
+    if(id){
+
+      result =
+        await apiRequest(
+          "PATCH",
+          {
+            id,
+            ...payload
+          }
+        );
+
+    }else{
+
+      result =
+        await apiRequest(
+          "POST",
+          payload
+        );
+
+    }
+
+
+    closeModal();
+
+
+    showMessage(
+      id
+        ? "Model berhasil diperbarui."
+        : "Model berhasil ditambahkan.",
+      "success"
+    );
+
+
+    await loadData();
+
+
+  }catch(error){
+
+    console.error(
+      "SAVE MODEL ERROR:",
+      error
+    );
+
+
+    showMessage(
+      error.message ||
+      "Gagal menyimpan model.",
+      "error"
+    );
+
+  }finally{
+
+    button.disabled =
+      false;
+
+    button.textContent =
+      originalText;
+
+  }
+
+}
+
+
+/* =====================================================
+   DELETE MODAL
+   ===================================================== */
+
+function openDeleteModal(id){
+
+  const model =
+    models.find(
+      item =>
+        String(item.id) ===
+        String(id)
+    );
+
+
+  if(!model){
+
+    showMessage(
+      "Model tidak ditemukan.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  deleteTargetId =
+    model.id;
+
+
+  $("deleteText").innerHTML = `
+    Apakah Anda yakin ingin menghapus
+    model
+    <strong style="color:#fff">
+      ${escapeHtml(
+        model.model_name ||
+        model.model_id ||
+        "ini"
+      )}
+    </strong>?
+    <br><br>
+    Data model akan dihapus dari database.
+  `;
+
+
+  $("deleteModal").classList.add(
+    "show"
+  );
+
+}
+
+
+function closeDeleteModal(){
+
+  $("deleteModal").classList.remove(
+    "show"
+  );
+
+
+  deleteTargetId =
+    null;
+
+}
+
+
+/* =====================================================
+   CONFIRM DELETE
+   ===================================================== */
+
+async function confirmDelete(){
+
+  if(!deleteTargetId){
+
+    return;
+
+  }
+
+
+  const button =
+    $("confirmDeleteButton");
+
+
+  const originalText =
+    button.textContent;
+
+
+  button.disabled =
+    true;
+
+
+  button.textContent =
+    "Menghapus...";
+
+
+  try{
+
+    await apiRequest(
+      "DELETE",
+      {
+        id:
+          deleteTargetId
+      }
+    );
+
+
+    closeDeleteModal();
+
+
+    showMessage(
+      "Model berhasil dihapus.",
+      "success"
+    );
+
+
+    await loadData();
+
+
+  }catch(error){
+
+    console.error(
+      "DELETE MODEL ERROR:",
+      error
+    );
+
+
+    showMessage(
+      error.message ||
+      "Gagal menghapus model.",
+      "error"
+    );
+
+  }finally{
+
+    button.disabled =
+      false;
+
+    button.textContent =
+      originalText;
+
+  }
+
+}
+
+
+/* =====================================================
+   HELPERS
+   ===================================================== */
+
+function formatNumber(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    value === ""
+  ){
+
+    return "0";
+
+  }
+
+
+  const number =
+    Number(value);
+
+
+  if(!Number.isFinite(number)){
+
+    return "0";
+
+  }
+
+
+  return number.toLocaleString(
+    "id-ID"
+  );
+
+}
+
+
+function parseList(value){
+
+  if(!value){
+
+    return [];
+
+  }
+
+
+  return value
+    .split(",")
+    .map(
+      item =>
+        item.trim()
+    )
+    .filter(
+      Boolean
+    );
+
+}
+
+
+function normalizeArrayValue(value){
+
+  if(
+    Array.isArray(value)
+  ){
+
+    return value.join(", ");
+
+  }
+
+
+  if(
+    typeof value === "string"
+  ){
+
+    return value;
+
+  }
+
+
+  return "";
+
+}
+
+
+function escapeHtml(value){
+
+  return String(
+    value ?? ""
+  )
+  .replace(
+    /&/g,
+    "&amp;"
+  )
+  .replace(
+    /</g,
+    "&lt;"
+  )
+  .replace(
+    />/g,
+    "&gt;"
+  )
+  .replace(
+    /"/g,
+    "&quot;"
+  )
+  .replace(
+    /'/g,
+    "&#039;"
+  );
+
+}
+
+
+function escapeJs(value){
+
+  return String(
+    value ?? ""
+  )
+  .replace(
+    /\\/g,
+    "\\\\"
+  )
+  .replace(
+    /'/g,
+    "\\'"
+  );
+
+}
+
+
+/* =====================================================
+   CLOSE MODAL WHEN CLICK OUTSIDE
+   ===================================================== */
+
+$("modelModal").addEventListener(
+  "click",
+  function(event){
+
+    if(
+      event.target === this
+    ){
+
+      closeModal();
+
+    }
+
+  }
+);
+
+
+$("deleteModal").addEventListener(
+  "click",
+  function(event){
+
+    if(
+      event.target === this
+    ){
+
+      closeDeleteModal();
+
+    }
+
+  }
+);
+
+
+/* =====================================================
+   ESCAPE KEY
+   ===================================================== */
+
+document.addEventListener(
+  "keydown",
+  function(event){
+
+    if(
+      event.key === "Escape"
+    ){
+
+      closeMenu();
+
+      closeModal();
+
+      closeDeleteModal();
+
+    }
+
+  }
+);
+
+
+/* =====================================================
+   LOGOUT
+   ===================================================== */
+
 async function logout(){
-  try{if(supabaseClient) await supabaseClient.auth.signOut()}catch(e){console.error(e)}
-  window.location.href="../index.html";
+
+  try{
+
+    if(supabaseClient){
+
+      await supabaseClient.auth.signOut();
+
+    }
+
+  }catch(error){
+
+    console.error(
+      "LOGOUT ERROR:",
+      error
+    );
+
+  }
+
+
+  window.location.href =
+    "../login/index.html";
+
 }
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMenu()});
-document.addEventListener("DOMContentLoaded",async()=>{
-  if(!initSupabase()) return;
-  if(await checkAuth()) await loadModels();
-});
+
+
+/* =====================================================
+   INIT
+   ===================================================== */
+
+(async function init(){
+
+  const authenticated =
+    await checkAuth();
+
+
+  if(!authenticated){
+
+    return;
+
+  }
+
+
+  await loadData();
+
+})();
+
 </script>
+
 </body>
 </html>
