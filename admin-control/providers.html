@@ -2503,16 +2503,13 @@
             const {
                 data,
                 error
-            } = await supabaseClient
-                .from("providers")
-                .insert({
-                    provider_id: providerId,
-                    provider_name: name,
-                    description:
-                        description || null,
-                    status,
-                    is_default: false
-                })
+            } = await supabaseClient.rpc("admin_create_provider", {
+    p_provider_id: providerId,
+    p_provider_name: name,
+    p_description: description || null,
+    p_status: status,
+    p_is_default: false
+})
                 .select()
                 .single();
 
