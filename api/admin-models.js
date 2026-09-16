@@ -24,6 +24,7 @@
 // - Ratio
 // - Resolution
 // - Status
+// - KIE.AI pricing
 //
 // Keamanan:
 // - Wajib login Supabase
@@ -550,6 +551,93 @@ const PROVIDER_FIELDS = [
 
 
 // ========================================
+// KIE MODEL FIELDS
+// ========================================
+
+const KIE_MODEL_FIELDS = [
+
+    "id",
+
+    "provider",
+
+    "model_family",
+
+    "model_id",
+
+    "model_name",
+
+    "status"
+
+];
+
+
+// ========================================
+// KIE WORKFLOW FIELDS
+// ========================================
+
+const KIE_WORKFLOW_FIELDS = [
+
+    "id",
+
+    "model_id",
+
+    "workflow_key",
+
+    "operation",
+
+    "status"
+
+];
+
+
+// ========================================
+// KIE PRICING FIELDS
+// ========================================
+
+const KIE_PRICING_FIELDS = [
+
+    "id",
+
+    "workflow_id",
+
+    "variant_id",
+
+    "operation",
+
+    "sku_key",
+
+    "billing_unit",
+
+    "unit_price",
+
+    "currency",
+
+    "conditions",
+
+    "pricing_context",
+
+    "source_type",
+
+    "source_url",
+
+    "source_reference",
+
+    "pricing_status",
+
+    "effective_at",
+
+    "expires_at",
+
+    "status",
+
+    "created_at",
+
+    "updated_at"
+
+];
+
+
+// ========================================
 // NUMBER VALIDATION
 // ========================================
 
@@ -663,10 +751,6 @@ const cleanModel = (
     const model = {};
 
 
-    // ====================================
-    // PROVIDER
-    // ====================================
-
     if (
         input.provider_id !== undefined
     ) {
@@ -678,10 +762,6 @@ const cleanModel = (
 
     }
 
-
-    // ====================================
-    // MODEL ID
-    // ====================================
 
     if (
         input.model_id !== undefined
@@ -695,10 +775,6 @@ const cleanModel = (
     }
 
 
-    // ====================================
-    // MODEL NAME
-    // ====================================
-
     if (
         input.model_name !== undefined
     ) {
@@ -710,10 +786,6 @@ const cleanModel = (
 
     }
 
-
-    // ====================================
-    // DESCRIPTION
-    // ====================================
 
     if (
         input.description !== undefined
@@ -730,10 +802,6 @@ const cleanModel = (
 
     }
 
-
-    // ====================================
-    // CREDIT COST
-    // ====================================
 
     if (
         input.credit_cost !== undefined &&
@@ -764,10 +832,6 @@ const cleanModel = (
 
     }
 
-
-    // ====================================
-    // DISCOUNT
-    // ====================================
 
     if (
         input.discount_percent !== undefined &&
@@ -800,10 +864,6 @@ const cleanModel = (
     }
 
 
-    // ====================================
-    // MIN DURATION
-    // ====================================
-
     if (
         input.min_duration !== undefined &&
         input.min_duration !== ""
@@ -833,10 +893,6 @@ const cleanModel = (
 
     }
 
-
-    // ====================================
-    // MAX DURATION
-    // ====================================
 
     if (
         input.max_duration !== undefined &&
@@ -868,10 +924,6 @@ const cleanModel = (
     }
 
 
-    // ====================================
-    // RATIOS
-    // ====================================
-
     if (
         input.supported_ratios !== undefined
     ) {
@@ -884,10 +936,6 @@ const cleanModel = (
     }
 
 
-    // ====================================
-    // RESOLUTIONS
-    // ====================================
-
     if (
         input.supported_resolutions !== undefined
     ) {
@@ -899,10 +947,6 @@ const cleanModel = (
 
     }
 
-
-    // ====================================
-    // STATUS
-    // ====================================
 
     if (
         input.status !== undefined
@@ -932,11 +976,6 @@ const validateModel = (
     requireAll = false
 ) => {
 
-
-    // ====================================
-    // PROVIDER
-    // ====================================
-
     if (
         requireAll &&
         !model.provider_id
@@ -948,10 +987,6 @@ const validateModel = (
 
     }
 
-
-    // ====================================
-    // MODEL ID
-    // ====================================
 
     if (
         requireAll &&
@@ -965,10 +1000,6 @@ const validateModel = (
     }
 
 
-    // ====================================
-    // MODEL NAME
-    // ====================================
-
     if (
         requireAll &&
         !model.model_name
@@ -980,10 +1011,6 @@ const validateModel = (
 
     }
 
-
-    // ====================================
-    // STATUS
-    // ====================================
 
     if (
         model.status !== undefined
@@ -1015,10 +1042,6 @@ const validateModel = (
     }
 
 
-    // ====================================
-    // CREDIT
-    // ====================================
-
     if (
         model.credit_cost !== undefined &&
         model.credit_cost < 0
@@ -1030,10 +1053,6 @@ const validateModel = (
 
     }
 
-
-    // ====================================
-    // DISCOUNT
-    // ====================================
 
     if (
         model.discount_percent !== undefined &&
@@ -1049,10 +1068,6 @@ const validateModel = (
 
     }
 
-
-    // ====================================
-    // DURATION
-    // ====================================
 
     if (
         model.min_duration !== undefined &&
@@ -1080,14 +1095,6 @@ const validateModel = (
 
 // ========================================
 // GET PROVIDER
-//
-// Bisa menerima:
-// - UUID providers.id
-// - providers.provider_id
-//
-// Ini penting karena GEN-Z.AI
-// menggunakan provider_id sebagai
-// kode provider/API provider.
 // ========================================
 
 const getProvider =
@@ -1239,10 +1246,6 @@ const duplicateModelExists = async (
     }
 
 
-    // ====================================
-    // Resolve provider ke UUID database
-    // ====================================
-
     const provider =
         await getProvider(
             config,
@@ -1338,6 +1341,506 @@ const duplicateModelExists = async (
         result.data.length > 0
 
     );
+
+};
+
+
+// ========================================
+// NORMALIZE MODEL KEY
+// ========================================
+
+const normalizeModelKey = (
+    value
+) => {
+
+    return String(
+        value || ""
+    )
+        .trim()
+        .toLowerCase()
+        .replace(/\\/g, "/");
+
+};
+
+
+// ========================================
+// KIE MODEL PRICING MATCH
+// ========================================
+
+const pricingMatchesModel = (
+    pricing,
+    kieModel,
+    workflowsById
+) => {
+
+    const modelId =
+        normalizeModelKey(
+            kieModel?.model_id
+        );
+
+    if (!modelId) {
+        return false;
+    }
+
+
+    const conditions =
+        pricing?.conditions &&
+        typeof pricing.conditions === "object"
+
+            ? pricing.conditions
+
+            : {};
+
+
+    const conditionModelId =
+        normalizeModelKey(
+            conditions.model_id
+        );
+
+
+    // ------------------------------------
+    // 1. Exact model_id
+    // ------------------------------------
+
+    if (
+        conditionModelId &&
+        conditionModelId === modelId
+    ) {
+
+        return true;
+
+    }
+
+
+    // ------------------------------------
+    // 2. Pricing workflow
+    // ------------------------------------
+
+    if (
+        pricing.workflow_id
+    ) {
+
+        const workflow =
+            workflowsById.get(
+                String(
+                    pricing.workflow_id
+                )
+            );
+
+
+        if (
+            workflow &&
+            String(
+                workflow.model_id
+            ) === String(
+                kieModel.id
+            )
+        ) {
+
+            return true;
+
+        }
+
+    }
+
+
+    // ------------------------------------
+    // 3. SKU matching
+    // ------------------------------------
+
+    const sku =
+        normalizeModelKey(
+            pricing.sku_key
+        );
+
+
+    if (!sku) {
+        return false;
+    }
+
+
+    const modelParts =
+        modelId
+            .split("/")
+            .filter(Boolean);
+
+
+    const modelSlug =
+        modelParts.length
+            ? modelParts[
+                modelParts.length - 1
+            ]
+            : modelId;
+
+
+    if (
+        sku.includes(
+            modelSlug
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    // ------------------------------------
+    // Known KIE naming normalization
+    // ------------------------------------
+
+    const normalizedModel =
+        modelId
+            .replace(
+                /^bytedance\//,
+                ""
+            )
+            .replace(
+                /^kling-3\.0\//,
+                "kling-3.0-"
+            )
+            .replace(
+                /^veo\//,
+                "veo-"
+            );
+
+
+    if (
+        normalizedModel &&
+        sku.includes(
+            normalizedModel
+        )
+    ) {
+
+        return true;
+
+    }
+
+
+    return false;
+
+};
+
+
+// ========================================
+// LOAD KIE PRICING
+// ========================================
+
+const loadKiePricing = async (
+    config
+) => {
+
+    const [
+        modelsResult,
+        workflowsResult,
+        pricingResult
+    ] = await Promise.all([
+
+        supabaseRequest(
+
+            config.url,
+
+            `/rest/v1/kie_models?select=${encodeURIComponent(KIE_MODEL_FIELDS.join(","))}&order=model_id.asc`,
+
+            {
+
+                method: "GET",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Accept":
+                        "application/json"
+
+                }
+
+            }
+
+        ),
+
+        supabaseRequest(
+
+            config.url,
+
+            `/rest/v1/kie_workflows?select=${encodeURIComponent(KIE_WORKFLOW_FIELDS.join(","))}`,
+
+            {
+
+                method: "GET",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Accept":
+                        "application/json"
+
+                }
+
+            }
+
+        ),
+
+        supabaseRequest(
+
+            config.url,
+
+            `/rest/v1/kie_pricing?select=${encodeURIComponent(KIE_PRICING_FIELDS.join(","))}&status=eq.ACTIVE&pricing_status=eq.VERIFIED&order=unit_price.asc`,
+
+            {
+
+                method: "GET",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Accept":
+                        "application/json"
+
+                }
+
+            }
+
+        )
+
+    ]);
+
+
+    if (
+        !modelsResult.response.ok
+    ) {
+
+        throw new Error(
+
+            getSupabaseError(
+                modelsResult.data,
+                "Gagal mengambil KIE models."
+            )
+
+        );
+
+    }
+
+
+    if (
+        !workflowsResult.response.ok
+    ) {
+
+        throw new Error(
+
+            getSupabaseError(
+                workflowsResult.data,
+                "Gagal mengambil KIE workflows."
+            )
+
+        );
+
+    }
+
+
+    if (
+        !pricingResult.response.ok
+    ) {
+
+        throw new Error(
+
+            getSupabaseError(
+                pricingResult.data,
+                "Gagal mengambil KIE pricing."
+            )
+
+        );
+
+    }
+
+
+    const kieModels =
+        Array.isArray(
+            modelsResult.data
+        )
+            ? modelsResult.data
+            : [];
+
+
+    const workflows =
+        Array.isArray(
+            workflowsResult.data
+        )
+            ? workflowsResult.data
+            : [];
+
+
+    const pricing =
+        Array.isArray(
+            pricingResult.data
+        )
+            ? pricingResult.data
+            : [];
+
+
+    const workflowsById =
+        new Map();
+
+
+    workflows.forEach(
+        workflow => {
+
+            workflowsById.set(
+                String(
+                    workflow.id
+                ),
+                workflow
+            );
+
+        }
+    );
+
+
+    const pricingByModelId =
+        new Map();
+
+
+    kieModels.forEach(
+        kieModel => {
+
+            const matched =
+                pricing
+                    .filter(
+                        item =>
+                            pricingMatchesModel(
+                                item,
+                                kieModel,
+                                workflowsById
+                            )
+                    )
+                    .map(
+                        item => {
+
+                            const workflow =
+                                item.workflow_id
+
+                                    ? workflowsById.get(
+                                        String(
+                                            item.workflow_id
+                                        )
+                                    )
+
+                                    : null;
+
+                            return {
+
+                                ...item,
+
+                                workflow_key:
+                                    workflow?.workflow_key ||
+                                    null,
+
+                                kie_model_id:
+                                    kieModel.id,
+
+                                kie_model_code:
+                                    kieModel.model_id,
+
+                                kie_model_name:
+                                    kieModel.model_name
+
+                            };
+
+                        }
+                    );
+
+
+            pricingByModelId.set(
+
+                normalizeModelKey(
+                    kieModel.model_id
+                ),
+
+                matched
+
+            );
+
+        }
+    );
+
+
+    return {
+
+        kieModels,
+
+        workflows,
+
+        pricing,
+
+        pricingByModelId
+
+    };
+
+};
+
+
+// ========================================
+// GET MODEL KIE PRICING
+// ========================================
+
+const getModelKiePricing = (
+    model,
+    kiePricingData
+) => {
+
+    const modelId =
+        normalizeModelKey(
+            model?.model_id
+        );
+
+
+    if (!modelId) {
+
+        return [];
+
+    }
+
+
+    const exact =
+        kiePricingData
+            .pricingByModelId
+            .get(
+                modelId
+            );
+
+
+    if (
+        Array.isArray(exact)
+    ) {
+
+        return exact;
+
+    }
+
+
+    return [];
 
 };
 
@@ -1499,6 +2002,16 @@ const listModels = async (
 
 
     // ====================================
+    // LOAD KIE PRICING
+    // ====================================
+
+    const kiePricingData =
+        await loadKiePricing(
+            config
+        );
+
+
+    // ====================================
     // PROVIDER MAP
     // ====================================
 
@@ -1547,7 +2060,7 @@ const listModels = async (
 
 
     // ====================================
-    // MERGE PROVIDER
+    // MERGE PROVIDER + KIE PRICING
     // ====================================
 
     const mergedModels =
@@ -1561,6 +2074,13 @@ const listModels = async (
                             model.provider_id
                         )
 
+                    );
+
+
+                const kiePricing =
+                    getModelKiePricing(
+                        model,
+                        kiePricingData
                     );
 
 
@@ -1582,7 +2102,37 @@ const listModels = async (
 
                     provider_is_default:
                         provider?.is_default ??
-                        false
+                        false,
+
+                    // ----------------------------
+                    // KIE.AI PRICE
+                    // ----------------------------
+
+                    kie_pricing:
+                        kiePricing,
+
+                    kie_pricing_count:
+                        kiePricing.length,
+
+                    kie_price:
+                        kiePricing.length > 0
+                            ? kiePricing[0].unit_price
+                            : null,
+
+                    kie_currency:
+                        kiePricing.length > 0
+                            ? kiePricing[0].currency
+                            : null,
+
+                    kie_billing_unit:
+                        kiePricing.length > 0
+                            ? kiePricing[0].billing_unit
+                            : null,
+
+                    kie_pricing_id:
+                        kiePricing.length > 0
+                            ? kiePricing[0].id
+                            : null
 
                 };
 
@@ -1595,9 +2145,140 @@ const listModels = async (
         models:
             mergedModels,
 
-        providers
+        providers,
+
+        kiePricing:
+            kiePricingData.pricing
 
     };
+
+};
+
+
+// ========================================
+// UPDATE KIE PRICE
+// ========================================
+
+const updateKiePrice = async (
+    config,
+    pricingId,
+    unitPrice
+) => {
+
+    if (!pricingId) {
+
+        throw new Error(
+            "KIE pricing ID wajib diisi."
+        );
+
+    }
+
+
+    const price =
+        parseNumber(
+            unitPrice,
+            "unit_price",
+            false
+        );
+
+
+    if (
+        price < 0
+    ) {
+
+        throw new Error(
+            "Harga KIE tidak boleh negatif."
+        );
+
+    }
+
+
+    const result =
+        await supabaseRequest(
+
+            config.url,
+
+            `/rest/v1/kie_pricing?id=eq.${encodeURIComponent(pricingId)}`,
+
+            {
+
+                method: "PATCH",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Accept":
+                        "application/json",
+
+                    "Prefer":
+                        "return=representation"
+
+                },
+
+                body:
+                    JSON.stringify({
+
+                        unit_price:
+                            price,
+
+                        updated_at:
+                            new Date()
+                                .toISOString()
+
+                    })
+
+            }
+
+        );
+
+
+    if (
+        !result.response.ok
+    ) {
+
+        console.error(
+            "UPDATE KIE PRICE ERROR:",
+            result.data
+        );
+
+        throw new Error(
+
+            getSupabaseError(
+
+                result.data,
+
+                "Gagal memperbarui harga KIE."
+
+            )
+
+        );
+
+    }
+
+
+    if (
+        !Array.isArray(
+            result.data
+        ) ||
+        result.data.length === 0
+    ) {
+
+        throw new Error(
+            "Data pricing KIE tidak ditemukan."
+        );
+
+    }
+
+
+    return result.data[0];
 
 };
 
@@ -1657,11 +2338,6 @@ const createModel = async (
 
     }
 
-
-    // ====================================
-    // GANTI provider_id
-    // menjadi UUID database
-    // ====================================
 
     model.provider_id =
         provider.id;
@@ -1729,10 +2405,6 @@ const createModel = async (
 
     }
 
-
-    // ====================================
-    // JANGAN TERIMA credit_final
-    // ====================================
 
     delete model.credit_final;
 
@@ -1866,15 +2538,55 @@ const updateModel = async (
     }
 
 
+    // ====================================
+    // KIE PRICE
+    // ====================================
+
+    let updatedKiePricing =
+        null;
+
+
+    if (
+        body.kie_pricing_id !== undefined
+    ) {
+
+        updatedKiePricing =
+            await updateKiePrice(
+
+                config,
+
+                body.kie_pricing_id,
+
+                body.kie_unit_price
+
+            );
+
+    }
+
+
     if (
         Object.keys(
             model
         ).length === 0
     ) {
 
-        throw new Error(
-            "Tidak ada data model yang diubah."
-        );
+        if (
+            !updatedKiePricing
+        ) {
+
+            throw new Error(
+                "Tidak ada data model yang diubah."
+            );
+
+        }
+
+
+        return {
+
+            kie_pricing_updated:
+                updatedKiePricing
+
+        };
 
     }
 
@@ -1950,16 +2662,8 @@ const updateModel = async (
     }
 
 
-    // ====================================
-    // NEVER ACCEPT CREDIT FINAL
-    // ====================================
-
     delete model.credit_final;
 
-
-    // ====================================
-    // UPDATED AT
-    // ====================================
 
     model.updated_at =
         new Date()
@@ -2049,7 +2753,14 @@ const updateModel = async (
     }
 
 
-    return result.data[0];
+    return {
+
+        ...result.data[0],
+
+        kie_pricing_updated:
+            updatedKiePricing
+
+    };
 
 };
 
@@ -2481,13 +3192,19 @@ export default async function handler(
                     providers:
                         data.providers,
 
+                    kiePricing:
+                        data.kiePricing,
+
                     counts: {
 
                         models:
                             data.models.length,
 
                         providers:
-                            data.providers.length
+                            data.providers.length,
+
+                        kiePricing:
+                            data.kiePricing.length
 
                     }
 
@@ -2648,7 +3365,11 @@ export default async function handler(
                     success: true,
 
                     message:
-                        "Model berhasil diperbarui.",
+                        body.kie_pricing_id
+
+                            ? "Model dan harga KIE berhasil diperbarui."
+
+                            : "Model berhasil diperbarui.",
 
                     model
 
