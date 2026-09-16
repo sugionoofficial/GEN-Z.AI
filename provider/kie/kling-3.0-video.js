@@ -8,17 +8,23 @@
  * Model:
  * kling-3.0/video
  *
- * API key TIDAK disimpan di file ini.
+ * Semua workflow, variant, parameter,
+ * constraint, dependency dan pricing
+ * dikelola melalui Supabase.
+ *
+ * File ini TIDAK menyimpan API key.
  */
+
+import { createTask } from "./client.js";
+
 
 const MODEL_ID = "kling-3.0/video";
 
 const PROVIDER_ID = "kie_ai";
 
-const API_ENDPOINT = "/api/generate";
-
 
 function normalizeString(value) {
+
     if (value === null || value === undefined) {
         return "";
     }
@@ -27,50 +33,119 @@ function normalizeString(value) {
 }
 
 
+/**
+ * Membangun input KIE.
+ *
+ * options.input adalah input yang sudah
+ * dibentuk berdasarkan konfigurasi Supabase.
+ *
+ * Tidak ada parameter Kling yang di-hardcode
+ * di adapter ini.
+ */
+function buildInput(options = {}) {
+
+    if (
+        options.input &&
+        typeof options.input === "object" &&
+        !Array.isArray(options.input)
+    ) {
+
+        return {
+            ...options.input
+        };
+
+    }
+
+
+    const input = {};
+
+
+    if (options.prompt !== undefined) {
+        input.prompt = options.prompt;
+    }
+
+    if (options.aspect_ratio !== undefined) {
+        input.aspect_ratio = options.aspect_ratio;
+    }
+
+    if (options.duration !== undefined) {
+        input.duration = options.duration;
+    }
+
+    if (options.image_urls !== undefined) {
+        input.image_urls = options.image_urls;
+    }
+
+    if (options.kling_elements !== undefined) {
+        input.kling_elements = options.kling_elements;
+    }
+
+    if (options.mode !== undefined) {
+        input.mode = options.mode;
+    }
+
+    if (options.multi_prompt !== undefined) {
+        input.multi_prompt = options.multi_prompt;
+    }
+
+    if (options.multi_shots !== undefined) {
+        input.multi_shots = options.multi_shots;
+    }
+
+    if (options.sound !== undefined) {
+        input.sound = options.sound;
+    }
+
+
+    return input;
+}
+
+
+/**
+ * Membentuk payload standar untuk KIE.AI.
+ */
 function buildPayload(options = {}) {
 
-    const prompt =
-        normalizeString(options.prompt);
-
-    const ratio =
+    const model =
         normalizeString(
-            options.ratio || "9:16"
+            options.model || MODEL_ID
         );
 
-    const duration =
-        normalizeString(
-            options.duration || "8"
-        );
 
-    const resolution =
-        normalizeString(
-            options.resolution || "720p"
-        );
+    const input =
+        buildInput(options);
+
 
     return {
-        provider: PROVIDER_ID,
-        model: MODEL_ID,
-        prompt,
-        ratio,
-        duration,
-        resolution
+        model,
+        input
     };
 }
 
 
+/**
+ * Validasi dasar adapter.
+ *
+ * Validasi parameter lengkap dilakukan
+ * oleh /api/generate berdasarkan Supabase.
+ */
 function validate(options = {}) {
 
-    const prompt =
-        normalizeString(options.prompt);
-
-    if (!prompt) {
+    if (
+        options.input !== undefined &&
+        (
+            typeof options.input !== "object" ||
+            Array.isArray(options.input)
+        )
+    ) {
 
         return {
             valid: false,
-            error: "Prompt belum diisi."
+            error: "Input KIE harus berupa object."
         };
 
     }
+
 
     return {
         valid: true
@@ -78,10 +153,19 @@ function validate(options = {}) {
 }
 
 
-async function generate(options = {}) {
+/**
+ * Membuat task KIE.AI.
+ *
+ * Backend /api/generate tetap menjadi
+ * pintu utama aplikasi dan bertanggung jawab
+ * terhadap authentication, Supabase config,
+ * validation dan credit.
+ */
+async function create(options = {}) {
 
     const validation =
         validate(options);
+
 
     if (!validation.valid) {
 
@@ -91,74 +175,32 @@ async function generate(options = {}) {
 
     }
 
+
     const payload =
         buildPayload(options);
 
-    const response =
-        await fetch(
-            API_ENDPOINT,
-            {
-                method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body:
-                    JSON.stringify(payload)
-            }
-        );
-
-    const contentType =
-        response.headers.get(
-            "content-type"
-        ) || "";
-
-    let data;
-
-    if (
-        contentType.includes(
-            "application/json"
-        )
-    ) {
-
-        data =
-            await response.json();
-
-    } else {
-
-        const text =
-            await response.text();
-
-        data = {
-            success: response.ok,
-            response: text
-        };
-
-    }
+    return createTask(payload);
+}
 
 
-    if (!response.ok) {
+/**
+ * Alias generate untuk kompatibilitas
+ * dengan adapter lama.
+ */
+async function generate(options = {}) {
 
-        throw new Error(
-            data?.error ||
-            data?.message ||
-            "KIE.AI gagal memproses request."
-        );
-
-    }
-
-
-    return data;
+    return create(options);
 }
 
 
 export {
     MODEL_ID,
     PROVIDER_ID,
+    buildInput,
     buildPayload,
     validate,
+    create,
     generate
 };
 
@@ -166,7 +208,9 @@ export {
 export default {
     MODEL_ID,
     PROVIDER_ID,
+    buildInput,
     buildPayload,
     validate,
+    create,
     generate
 };
