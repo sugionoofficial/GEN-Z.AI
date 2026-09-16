@@ -8,7 +8,10 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
@@ -21,7 +24,6 @@
             --muted: #6b7280;
             --border: #e5e7eb;
             --dark: #111827;
-            --dark-soft: #1f2937;
             --accent: #6366f1;
             --accent-2: #8b5cf6;
             --success: #16a34a;
@@ -40,8 +42,16 @@
         body {
             font-family: "Inter", sans-serif;
             background:
-                radial-gradient(circle at 10% 10%, rgba(99,102,241,.09), transparent 28%),
-                radial-gradient(circle at 90% 15%, rgba(139,92,246,.08), transparent 30%),
+                radial-gradient(
+                    circle at 10% 10%,
+                    rgba(99,102,241,.09),
+                    transparent 28%
+                ),
+                radial-gradient(
+                    circle at 90% 15%,
+                    rgba(139,92,246,.08),
+                    transparent 30%
+                ),
                 var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -54,9 +64,9 @@
             font: inherit;
         }
 
-        /* =========================
-           MENU
-        ========================= */
+        button {
+            cursor: pointer;
+        }
 
         .menu-button {
             position: fixed;
@@ -73,14 +83,8 @@
             justify-content: center;
             flex-direction: column;
             gap: 5px;
-            cursor: pointer;
             z-index: 1200;
             box-shadow: 0 12px 30px rgba(0,0,0,.18);
-            transition: .25s ease;
-        }
-
-        .menu-button:hover {
-            transform: translateY(-2px);
         }
 
         .menu-button span {
@@ -89,10 +93,6 @@
             background: white;
             border-radius: 10px;
         }
-
-        /* =========================
-           SIDEBAR
-        ========================= */
 
         .sidebar {
             position: fixed;
@@ -148,7 +148,6 @@
             border-radius: 13px;
             font-size: 13px;
             font-weight: 600;
-            transition: .2s ease;
         }
 
         .nav a:hover,
@@ -193,12 +192,7 @@
             color: #d1d5db;
             padding: 12px;
             border-radius: 13px;
-            cursor: pointer;
             font-weight: 600;
-        }
-
-        .logout:hover {
-            background: rgba(255,255,255,.08);
         }
 
         .overlay {
@@ -216,10 +210,6 @@
             opacity: 1;
             pointer-events: auto;
         }
-
-        /* =========================
-           MAIN
-        ========================= */
 
         .main {
             min-height: 100vh;
@@ -269,12 +259,8 @@
             font-size: 22px;
         }
 
-        /* =========================
-           GENERATOR
-        ========================= */
-
         .generator-card {
-            background: rgba(255,255,255,.92);
+            background: rgba(255,255,255,.94);
             border: 1px solid rgba(229,231,235,.95);
             border-radius: 28px;
             box-shadow: var(--shadow);
@@ -312,10 +298,6 @@
             white-space: nowrap;
         }
 
-        /* =========================
-           FORM
-        ========================= */
-
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -338,6 +320,11 @@
             color: #374151;
         }
 
+        .required {
+            color: var(--danger);
+            margin-left: 3px;
+        }
+
         .label-hint {
             color: #9ca3af;
             font-weight: 500;
@@ -345,7 +332,9 @@
 
         select,
         textarea,
-        input[type="text"] {
+        input[type="text"],
+        input[type="number"],
+        input[type="url"] {
             width: 100%;
             border: 1px solid var(--border);
             background: #fff;
@@ -358,129 +347,83 @@
         select {
             height: 48px;
             padding: 0 14px;
-            cursor: pointer;
         }
 
         textarea {
-            min-height: 155px;
+            min-height: 150px;
             resize: vertical;
             padding: 14px;
             line-height: 1.6;
         }
 
+        input[type="text"],
+        input[type="number"],
+        input[type="url"] {
+            min-height: 48px;
+            padding: 0 14px;
+        }
+
         select:focus,
         textarea:focus,
-        input[type="text"]:focus {
+        input:focus {
             border-color: rgba(99,102,241,.7);
             box-shadow: 0 0 0 4px rgba(99,102,241,.08);
         }
 
-        /* =========================
-           UPLOAD
-        ========================= */
-
-        .upload-box {
-            border: 1.5px dashed #d1d5db;
-            border-radius: 16px;
-            background: #fafafa;
-            min-height: 150px;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            position: relative;
-            transition: .2s ease;
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
         }
 
-        .upload-box:hover {
-            border-color: var(--accent);
-            background: #f8f8ff;
-        }
-
-        .upload-box.has-file {
-            border-color: var(--success);
-            background: #f0fdf4;
-        }
-
-        .upload-content {
-            pointer-events: none;
-        }
-
-        .upload-icon {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-
-        .upload-title {
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .upload-subtitle {
+        .parameter-description {
             color: var(--muted);
             font-size: 10px;
-            margin-top: 5px;
+            line-height: 1.5;
         }
 
-        .upload-filename {
-            color: var(--success);
+        .parameter-meta {
+            color: #9ca3af;
+            font-size: 9px;
+        }
+
+        .section-box {
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 17px;
+            background: #fafafa;
+        }
+
+        .section-title {
             font-size: 11px;
-            font-weight: 700;
-            margin-top: 8px;
-            word-break: break-word;
-        }
-
-        .upload-input {
-            position: absolute;
-            inset: 0;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        /* =========================
-           PREVIEW
-        ========================= */
-
-        .preview-area {
-            display: none;
-            margin-top: 12px;
-            border-radius: 15px;
-            overflow: hidden;
-            background: #111827;
-        }
-
-        .preview-area.active {
-            display: block;
-        }
-
-        .preview-area img,
-        .preview-area video {
-            display: block;
-            width: 100%;
-            max-height: 300px;
-            object-fit: contain;
-        }
-
-        /* =========================
-           OPTIONS
-        ========================= */
-
-        .option-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 15px;
+            font-weight: 800;
+            margin-bottom: 14px;
+            color: #374151;
+            letter-spacing: .4px;
         }
 
         .model-info {
-            margin-top: 6px;
             font-size: 10px;
             color: var(--muted);
+            line-height: 1.6;
         }
 
-        /* =========================
-           MESSAGE
-        ========================= */
+        .workflow-info {
+            padding: 13px 15px;
+            border-radius: 13px;
+            background: #f8f8ff;
+            border: 1px solid #e0e7ff;
+            color: #4338ca;
+            font-size: 10px;
+            line-height: 1.6;
+        }
+
+        .variant-empty {
+            color: var(--muted);
+            font-size: 10px;
+            padding: 12px;
+            border: 1px dashed var(--border);
+            border-radius: 13px;
+        }
 
         .message {
             margin-top: 22px;
@@ -519,10 +462,6 @@
             border: 1px solid #fde68a;
         }
 
-        /* =========================
-           ACTIONS
-        ========================= */
-
         .actions {
             display: flex;
             justify-content: flex-end;
@@ -537,7 +476,6 @@
             padding: 0 22px;
             border-radius: 13px;
             border: 0;
-            cursor: pointer;
             font-size: 12px;
             font-weight: 800;
             transition: .2s ease;
@@ -546,10 +484,6 @@
         .btn-secondary {
             background: #f3f4f6;
             color: #374151;
-        }
-
-        .btn-secondary:hover {
-            background: #e5e7eb;
         }
 
         .btn-primary {
@@ -562,9 +496,8 @@
             box-shadow: 0 12px 25px rgba(99,102,241,.22);
         }
 
-        .btn-primary:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 15px 30px rgba(99,102,241,.28);
         }
 
         .btn:disabled {
@@ -572,10 +505,6 @@
             cursor: not-allowed;
             transform: none;
         }
-
-        /* =========================
-           LOADING
-        ========================= */
 
         .loading {
             display: inline-flex;
@@ -598,10 +527,6 @@
             }
         }
 
-        /* =========================
-           EMPTY STATE
-        ========================= */
-
         .empty-state {
             padding: 18px;
             text-align: center;
@@ -610,10 +535,6 @@
             color: var(--muted);
             font-size: 11px;
         }
-
-        /* =========================
-           MOBILE
-        ========================= */
 
         @media (max-width: 800px) {
             .main {
@@ -640,10 +561,6 @@
 
             .form-group.full {
                 grid-column: auto;
-            }
-
-            .option-grid {
-                grid-template-columns: 1fr;
             }
         }
 
@@ -691,714 +608,781 @@
 
 <body>
 
-    <!-- MENU BUTTON -->
-    <button
-        class="menu-button"
-        id="menuButton"
-        aria-label="Buka menu"
-        type="button"
-    >
-        <span></span>
-        <span></span>
-        <span></span>
-    </button>
+<button
+    class="menu-button"
+    id="menuButton"
+    aria-label="Buka menu"
+    type="button"
+>
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar">
 
-        <div class="brand">
-            <h2>GEN-Z.AI</h2>
-            <span>AI VIDEO PLATFORM</span>
+    <div class="brand">
+        <h2>GEN-Z.AI</h2>
+        <span>AI VIDEO PLATFORM</span>
+    </div>
+
+    <nav class="nav" id="navigation"></nav>
+
+    <div class="sidebar-bottom">
+
+        <div class="user-mini">
+            <small>LOGIN SEBAGAI</small>
+            <strong id="sidebarEmail">Memuat...</strong>
         </div>
 
-        <nav class="nav" id="navigation">
-            <!-- Navigation dibuat oleh JavaScript sesuai role -->
-        </nav>
+        <button
+            class="logout"
+            id="logoutButton"
+            type="button"
+        >
+            Logout
+        </button>
 
-        <div class="sidebar-bottom">
+    </div>
 
-            <div class="user-mini">
-                <small>LOGIN SEBAGAI</small>
-                <strong id="sidebarEmail">Memuat...</strong>
+</aside>
+
+<div class="overlay" id="overlay"></div>
+
+<main class="main">
+
+    <div class="topbar">
+
+        <div>
+            <h1>Generate Video</h1>
+            <p>
+                Generate video menggunakan konfigurasi model dari Supabase.
+            </p>
+        </div>
+
+        <div class="credit-card">
+            <small>CREDIT TERSEDIA</small>
+            <strong id="creditBalance">0</strong>
+        </div>
+
+    </div>
+
+    <section class="generator-card">
+
+        <div class="generator-header">
+
+            <div class="generator-title">
+                <h2>AI Video Generator</h2>
+                <p>
+                    Provider, model, workflow, variant, parameter,
+                    dan aturan generate mengikuti konfigurasi Supabase.
+                </p>
             </div>
 
+            <div
+                class="role-badge"
+                id="roleBadge"
+            >
+                LOADING
+            </div>
+
+        </div>
+
+        <div class="form-grid">
+
+            <div class="form-group">
+
+                <label for="provider">
+                    Provider
+                </label>
+
+                <select id="provider">
+                    <option value="">
+                        Memuat provider...
+                    </option>
+                </select>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="model">
+                    Model
+                </label>
+
+                <select id="model">
+                    <option value="">
+                        Memuat model...
+                    </option>
+                </select>
+
+                <div
+                    class="model-info"
+                    id="modelInfo"
+                >
+                    -
+                </div>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="workflow">
+                    Workflow
+                </label>
+
+                <select id="workflow">
+                    <option value="">
+                        Pilih model terlebih dahulu
+                    </option>
+                </select>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="variant">
+                    Variant
+                    <span class="label-hint">
+                        (jika tersedia)
+                    </span>
+                </label>
+
+                <select id="variant">
+                    <option value="">
+                        Pilih workflow terlebih dahulu
+                    </option>
+                </select>
+
+            </div>
+
+            <div
+                class="form-group full"
+                id="workflowInfoContainer"
+                style="display:none;"
+            >
+
+                <div
+                    class="workflow-info"
+                    id="workflowInfo"
+                ></div>
+
+            </div>
+
+            <div
+                class="form-group full"
+            >
+
+                <div class="section-box">
+
+                    <div class="section-title">
+                        PARAMETER MODEL
+                    </div>
+
+                    <div
+                        id="dynamicParameters"
+                        class="form-grid"
+                    >
+                        <div class="empty-state">
+                            Pilih model untuk memuat parameter.
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div
+            class="message"
+            id="message"
+        ></div>
+
+        <div class="actions">
+
             <button
-                class="logout"
-                id="logoutButton"
+                class="btn btn-secondary"
+                id="resetButton"
                 type="button"
             >
-                Logout
+                RESET
+            </button>
+
+            <button
+                class="btn btn-primary"
+                id="generateButton"
+                type="button"
+            >
+                GENERATE VIDEO
             </button>
 
         </div>
 
-    </aside>
+    </section>
 
-    <div class="overlay" id="overlay"></div>
+</main>
 
-    <!-- MAIN -->
-    <main class="main">
+<script>
 
-        <div class="topbar">
+let supabaseClient = null;
 
-            <div>
-                <h1>Generate Video</h1>
-                <p>
-                    Buat video AI menggunakan provider dan model yang tersedia.
-                </p>
-            </div>
+let currentUser = null;
+let currentProfile = null;
 
-            <div class="credit-card">
-                <small>CREDIT TERSEDIA</small>
-                <strong id="creditBalance">0</strong>
-            </div>
+let kieModels = [];
+let kieConfig = null;
 
-        </div>
+let activeModel = null;
+let activeWorkflow = null;
+let activeVariant = null;
+let activeParameters = [];
 
-        <section class="generator-card">
 
-            <div class="generator-header">
+const elements = {
 
-                <div class="generator-title">
-                    <h2>AI Video Generator</h2>
-                    <p>
-                        Pilih provider, model, referensi, dan parameter video.
-                        Generator ini digunakan bersama oleh USER, ADMIN, dan OWNER.
-                    </p>
-                </div>
-
-                <div class="role-badge" id="roleBadge">
-                    LOADING
-                </div>
+    menuButton:
+        document.getElementById("menuButton"),
 
-            </div>
+    sidebar:
+        document.getElementById("sidebar"),
 
-            <div class="form-grid">
+    overlay:
+        document.getElementById("overlay"),
 
-                <!-- PROVIDER -->
-                <div class="form-group">
-
-                    <label for="provider">
-                        Provider
-                    </label>
-
-                    <select id="provider">
-                        <option value="">
-                            Memuat provider...
-                        </option>
-                    </select>
+    navigation:
+        document.getElementById("navigation"),
 
-                </div>
-
-                <!-- MODEL -->
-                <div class="form-group">
+    sidebarEmail:
+        document.getElementById("sidebarEmail"),
 
-                    <label for="model">
-                        Model
-                    </label>
+    roleBadge:
+        document.getElementById("roleBadge"),
 
-                    <select id="model">
-                        <option value="">
-                            Pilih provider terlebih dahulu
-                        </option>
-                    </select>
-
-                    <div
-                        class="model-info"
-                        id="modelInfo"
-                    >
-                        -
-                    </div>
-
-                </div>
-
-                <!-- IMAGE -->
-                <div class="form-group">
+    creditBalance:
+        document.getElementById("creditBalance"),
 
-                    <label>
-                        Image Reference
-                        <span class="label-hint">
-                            (opsional)
-                        </span>
-                    </label>
-
-                    <div
-                        class="upload-box"
-                        id="imageUploadBox"
-                    >
-
-                        <div class="upload-content">
-
-                            <div class="upload-icon">
-                                🖼️
-                            </div>
-
-                            <div class="upload-title">
-                                Upload gambar referensi
-                            </div>
-
-                            <div class="upload-subtitle">
-                                JPG, PNG, WEBP
-                            </div>
-
-                            <div
-                                class="upload-filename"
-                                id="imageFilename"
-                            ></div>
-
-                        </div>
+    logoutButton:
+        document.getElementById("logoutButton"),
 
-                        <input
-                            class="upload-input"
-                            type="file"
-                            id="imageInput"
-                            accept="image/*"
-                        >
-
-                    </div>
+    provider:
+        document.getElementById("provider"),
 
-                    <div
-                        class="preview-area"
-                        id="imagePreviewArea"
-                    >
-                        <img
-                            id="imagePreview"
-                            alt="Preview gambar"
-                        >
-                    </div>
-
-                </div>
+    model:
+        document.getElementById("model"),
 
-                <!-- VIDEO -->
-                <div class="form-group">
+    modelInfo:
+        document.getElementById("modelInfo"),
 
-                    <label>
-                        Video Reference
-                        <span class="label-hint">
-                            (opsional)
-                        </span>
-                    </label>
+    workflow:
+        document.getElementById("workflow"),
 
-                    <div
-                        class="upload-box"
-                        id="videoUploadBox"
-                    >
+    variant:
+        document.getElementById("variant"),
 
-                        <div class="upload-content">
+    workflowInfoContainer:
+        document.getElementById(
+            "workflowInfoContainer"
+        ),
 
-                            <div class="upload-icon">
-                                🎬
-                            </div>
+    workflowInfo:
+        document.getElementById(
+            "workflowInfo"
+        ),
 
-                            <div class="upload-title">
-                                Upload video referensi
-                            </div>
+    dynamicParameters:
+        document.getElementById(
+            "dynamicParameters"
+        ),
 
-                            <div class="upload-subtitle">
-                                MP4, MOV, WEBM
-                            </div>
+    message:
+        document.getElementById("message"),
 
-                            <div
-                                class="upload-filename"
-                                id="videoFilename"
-                            ></div>
+    resetButton:
+        document.getElementById("resetButton"),
 
-                        </div>
+    generateButton:
+        document.getElementById("generateButton")
+};
 
-                        <input
-                            class="upload-input"
-                            type="file"
-                            id="videoInput"
-                            accept="video/*"
-                        >
 
-                    </div>
+document.addEventListener(
+    "DOMContentLoaded",
+    init
+);
 
-                    <div
-                        class="preview-area"
-                        id="videoPreviewArea"
-                    >
-                        <video
-                            id="videoPreview"
-                            controls
-                        ></video>
-                    </div>
 
-                </div>
+async function init() {
 
-                <!-- PROMPT -->
-                <div class="form-group full">
+    try {
 
-                    <label for="prompt">
-                        Prompt
-                    </label>
-
-                    <textarea
-                        id="prompt"
-                        placeholder="Deskripsikan video yang ingin dibuat..."
-                    ></textarea>
-
-                </div>
-
-                <!-- OPTIONS -->
-                <div class="form-group full">
-
-                    <div class="option-grid">
-
-                        <div class="form-group">
-
-                            <label for="ratio">
-                                Aspect Ratio
-                            </label>
-
-                            <select id="ratio">
-                                <option value="9:16">
-                                    9:16 Portrait
-                                </option>
-
-                                <option value="16:9">
-                                    16:9 Landscape
-                                </option>
-
-                                <option value="1:1">
-                                    1:1 Square
-                                </option>
-                            </select>
-
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="duration">
-                                Durasi
-                            </label>
-
-                            <select id="duration">
-
-                                <option value="5">
-                                    5 detik
-                                </option>
-
-                                <option value="8">
-                                    8 detik
-                                </option>
-
-                                <option value="10">
-                                    10 detik
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                        <div class="form-group">
-
-                            <label for="resolution">
-                                Resolusi
-                            </label>
-
-                            <select id="resolution">
-
-                                <option value="720p">
-                                    720p
-                                </option>
-
-                                <option value="1080p">
-                                    1080p
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <!-- MESSAGE -->
-            <div
-                class="message"
-                id="message"
-            ></div>
-
-            <!-- ACTIONS -->
-            <div class="actions">
-
-                <button
-                    class="btn btn-secondary"
-                    id="resetButton"
-                    type="button"
-                >
-                    RESET
-                </button>
-
-                <button
-                    class="btn btn-primary"
-                    id="generateButton"
-                    type="button"
-                >
-                    GENERATE VIDEO
-                </button>
-
-            </div>
-
-        </section>
-
-    </main>
-
-    <script>
-    /* ==========================================================
-       GEN-Z.AI
-       DATABASE-DRIVEN KIE GENERATOR
-       ========================================================== */
-
-    let supabaseClient = null;
-
-    let currentUser = null;
-    let currentProfile = null;
-
-    let kieModels = [];
-    let kieConfig = null;
-
-    let selectedImageFile = null;
-    let selectedVideoFile = null;
-
-
-    /* ==========================================================
-       ELEMENTS
-    ========================================================== */
-
-    const elements = {
-        menuButton: document.getElementById("menuButton"),
-        sidebar: document.getElementById("sidebar"),
-        overlay: document.getElementById("overlay"),
-        navigation: document.getElementById("navigation"),
-
-        sidebarEmail: document.getElementById("sidebarEmail"),
-        roleBadge: document.getElementById("roleBadge"),
-        creditBalance: document.getElementById("creditBalance"),
-
-        logoutButton: document.getElementById("logoutButton"),
-
-        provider: document.getElementById("provider"),
-        model: document.getElementById("model"),
-        modelInfo: document.getElementById("modelInfo"),
-
-        imageInput: document.getElementById("imageInput"),
-        imageUploadBox: document.getElementById("imageUploadBox"),
-        imageFilename: document.getElementById("imageFilename"),
-        imagePreviewArea: document.getElementById("imagePreviewArea"),
-        imagePreview: document.getElementById("imagePreview"),
-
-        videoInput: document.getElementById("videoInput"),
-        videoUploadBox: document.getElementById("videoUploadBox"),
-        videoFilename: document.getElementById("videoFilename"),
-        videoPreviewArea: document.getElementById("videoPreviewArea"),
-        videoPreview: document.getElementById("videoPreview"),
-
-        prompt: document.getElementById("prompt"),
-        ratio: document.getElementById("ratio"),
-        duration: document.getElementById("duration"),
-        resolution: document.getElementById("resolution"),
-
-        message: document.getElementById("message"),
-
-        resetButton: document.getElementById("resetButton"),
-        generateButton: document.getElementById("generateButton")
-    };
-
-
-    /* ==========================================================
-       INIT
-    ========================================================== */
-
-    document.addEventListener(
-        "DOMContentLoaded",
-        init
-    );
-
-
-    async function init() {
-
-        try {
-
-            if (
-                typeof GENZ_CONFIG === "undefined" ||
-                !GENZ_CONFIG.SUPABASE_URL ||
-                !GENZ_CONFIG.SUPABASE_KEY
-            ) {
-
-                throw new Error(
-                    "Konfigurasi Supabase tidak ditemukan."
-                );
-
-            }
-
-            supabaseClient =
-                window.supabase.createClient(
-                    GENZ_CONFIG.SUPABASE_URL,
-                    GENZ_CONFIG.SUPABASE_KEY
-                );
-
-            setupMenu();
-            setupEvents();
-
-            await checkSession();
-
-        } catch (error) {
-
-            console.error(
-                "GEN-Z.AI initialization error:",
-                error
-            );
-
-            showMessage(
-                error.message ||
-                "Gagal memuat generator.",
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /* ==========================================================
-       SESSION
-    ========================================================== */
-
-    async function checkSession() {
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient.auth.getSession();
-
-        if (error) {
-            throw error;
-        }
-
-        if (!data.session) {
-
-            window.location.replace(
-                "../login.html"
-            );
-
-            return;
-
-        }
-
-        currentUser =
-            data.session.user;
-
-        await loadProfile();
-
-    }
-
-
-    /* ==========================================================
-       PROFILE
-    ========================================================== */
-
-    async function loadProfile() {
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient
-                .from("profiles")
-                .select(
-                    "id,email,name,role,credits,status"
-                )
-                .eq(
-                    "id",
-                    currentUser.id
-                )
-                .single();
-
-        if (error) {
-            throw error;
-        }
-
-        if (!data) {
+        if (
+            typeof GENZ_CONFIG === "undefined" ||
+            !GENZ_CONFIG.SUPABASE_URL ||
+            !GENZ_CONFIG.SUPABASE_KEY
+        ) {
 
             throw new Error(
-                "Profil pengguna tidak ditemukan."
+                "Konfigurasi Supabase tidak ditemukan."
             );
 
         }
 
         if (
-            data.status !== "active"
+            !window.supabase ||
+            typeof window.supabase.createClient !== "function"
         ) {
 
-            await supabaseClient.auth.signOut();
-
-            window.location.replace(
-                "../login.html"
+            throw new Error(
+                "Supabase client gagal dimuat."
             );
-
-            return;
 
         }
 
-        const allowedRoles = [
-            "USER",
-            "ADMIN",
-            "OWNER"
-        ];
-
-        if (
-            !allowedRoles.includes(
-                data.role
-            )
-        ) {
-
-            await supabaseClient.auth.signOut();
-
-            window.location.replace(
-                "../login.html"
+        supabaseClient =
+            window.supabase.createClient(
+                GENZ_CONFIG.SUPABASE_URL,
+                GENZ_CONFIG.SUPABASE_KEY
             );
 
-            return;
+        setupMenu();
+        setupEvents();
 
-        }
+        await checkSession();
 
-        currentProfile = data;
+    } catch (error) {
 
-        renderUser();
-
-        await loadKieConfiguration();
-
-    }
-
-
-    /* ==========================================================
-       USER
-    ========================================================== */
-
-    function renderUser() {
-
-        elements.sidebarEmail.textContent =
-            currentProfile.email ||
-            currentUser.email ||
-            "-";
-
-        elements.creditBalance.textContent =
-            formatNumber(
-                currentProfile.credits || 0
-            );
-
-        elements.roleBadge.textContent =
-            currentProfile.role;
-
-        buildNavigation();
-
-    }
-
-
-    /* ==========================================================
-       NAVIGATION
-    ========================================================== */
-
-    function buildNavigation() {
-
-        const role =
-            currentProfile.role;
-
-        let html = "";
-
-        if (role === "USER") {
-
-            html = `
-                <a href="../user/dashboard.html">
-                    Dashboard
-                </a>
-
-                <a href="../history/index.html">
-                    History
-                </a>
-
-                <a href="../user/topup.html">
-                    Top Up
-                </a>
-
-                <a href="../user/hub-admin.html">
-                    Hub Admin
-                </a>
-            `;
-
-        } else {
-
-            html = `
-                <a href="../admin/dashboard.html">
-                    Dashboard
-                </a>
-
-                <a href="../history/index.html">
-                    History
-                </a>
-
-                <a href="../admin-control/admin-panel.html">
-                    Admin Panel
-                </a>
-            `;
-
-        }
-
-        elements.navigation.innerHTML =
-            html;
-
-    }
-
-
-    /* ==========================================================
-       KIE CONFIGURATION
-       ========================================================== */
-
-    async function loadKieConfiguration() {
-
-        showMessage(
-            "Memuat model KIE.AI dari Supabase...",
-            "info"
+        console.error(
+            "GEN-Z.AI initialization error:",
+            error
         );
 
-        const {
-            data: sessionData,
-            error: sessionError
-        } =
-            await supabaseClient.auth.getSession();
+        showMessage(
+            error.message ||
+            "Gagal memuat generator.",
+            "error"
+        );
 
-        if (sessionError) {
-            throw sessionError;
-        }
+    }
 
-        const session =
-            sessionData.session;
+}
 
-        if (!session) {
 
-            window.location.replace(
-                "../login.html"
+async function checkSession() {
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient.auth.getSession();
+
+    if (error) {
+        throw error;
+    }
+
+    if (!data.session) {
+
+        window.location.replace(
+            "../login.html"
+        );
+
+        return;
+
+    }
+
+    currentUser =
+        data.session.user;
+
+    await loadProfile();
+
+}
+
+
+async function loadProfile() {
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .from("profiles")
+            .select(
+                "id,email,name,role,credits,status"
+            )
+            .eq(
+                "id",
+                currentUser.id
+            )
+            .single();
+
+    if (error) {
+        throw error;
+    }
+
+    if (!data) {
+
+        throw new Error(
+            "Profil pengguna tidak ditemukan."
+        );
+
+    }
+
+    if (
+        data.status &&
+        String(data.status).toLowerCase() !==
+            "active"
+    ) {
+
+        await supabaseClient.auth.signOut();
+
+        window.location.replace(
+            "../login.html"
+        );
+
+        return;
+
+    }
+
+    const allowedRoles = [
+        "USER",
+        "ADMIN",
+        "OWNER"
+    ];
+
+    if (
+        !allowedRoles.includes(
+            String(data.role || "").toUpperCase()
+        )
+    ) {
+
+        await supabaseClient.auth.signOut();
+
+        window.location.replace(
+            "../login.html"
+        );
+
+        return;
+
+    }
+
+    currentProfile = data;
+
+    renderUser();
+
+    await loadKieConfiguration();
+
+}
+
+
+function renderUser() {
+
+    elements.sidebarEmail.textContent =
+        currentProfile.email ||
+        currentUser.email ||
+        "-";
+
+    elements.creditBalance.textContent =
+        formatNumber(
+            currentProfile.credits || 0
+        );
+
+    elements.roleBadge.textContent =
+        String(
+            currentProfile.role || ""
+        ).toUpperCase();
+
+    buildNavigation();
+
+}
+
+
+function buildNavigation() {
+
+    const role =
+        String(
+            currentProfile.role || ""
+        ).toUpperCase();
+
+    let html = "";
+
+    if (role === "USER") {
+
+        html = `
+            <a href="../user/dashboard.html">
+                Dashboard
+            </a>
+
+            <a
+                href="../generate/index.html"
+                class="active"
+            >
+                Generate
+            </a>
+
+            <a href="../history/index.html">
+                History
+            </a>
+
+            <a href="../user/topup.html">
+                Top Up
+            </a>
+
+            <a href="../user/hub-admin.html">
+                Hub Admin
+            </a>
+        `;
+
+    } else {
+
+        html = `
+            <a href="../admin/dashboard.html">
+                Dashboard
+            </a>
+
+            <a
+                href="../generate/index.html"
+                class="active"
+            >
+                Generate
+            </a>
+
+            <a href="../history/index.html">
+                History
+            </a>
+
+            <a href="../admin-control/admin-panel.html">
+                Admin Panel
+            </a>
+        `;
+
+    }
+
+    elements.navigation.innerHTML =
+        html;
+
+}
+
+
+async function getAccessToken() {
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient.auth.getSession();
+
+    if (error) {
+        throw error;
+    }
+
+    const token =
+        data?.session?.access_token;
+
+    if (!token) {
+
+        window.location.replace(
+            "../login.html"
+        );
+
+        throw new Error(
+            "Session login tidak ditemukan."
+        );
+
+    }
+
+    return token;
+
+}
+
+
+async function loadKieConfiguration() {
+
+    showMessage(
+        "Memuat model KIE.AI dari Supabase...",
+        "info"
+    );
+
+    const token =
+        await getAccessToken();
+
+    const response =
+        await fetch(
+            "/api/kie-config",
+            {
+                method: "GET",
+
+                headers: {
+                    Authorization:
+                        `Bearer ${token}`,
+
+                    Accept:
+                        "application/json"
+                }
+            }
+        );
+
+    const data =
+        await response.json();
+
+    if (!response.ok) {
+
+        throw new Error(
+            data?.error ||
+            "Gagal memuat konfigurasi KIE.AI."
+        );
+
+    }
+
+    kieConfig =
+        data;
+
+    kieModels =
+        Array.isArray(data.models)
+            ? data.models
+            : [];
+
+    renderProvider();
+
+    hideMessage();
+
+}
+
+
+function renderProvider() {
+
+    elements.provider.innerHTML = "";
+
+    const option =
+        document.createElement(
+            "option"
+        );
+
+    option.value = "kie_ai";
+    option.textContent = "KIE.AI";
+
+    elements.provider.appendChild(
+        option
+    );
+
+    elements.provider.value =
+        "kie_ai";
+
+    renderModels();
+
+}
+
+
+function renderModels() {
+
+    elements.model.innerHTML = "";
+
+    if (!kieModels.length) {
+
+        const option =
+            document.createElement(
+                "option"
             );
 
-            return;
+        option.value = "";
+        option.textContent =
+            "Tidak ada model aktif";
+
+        elements.model.appendChild(
+            option
+        );
+
+        elements.modelInfo.textContent =
+            "-";
+
+        resetWorkflowControls();
+
+        return;
+
+    }
+
+    kieModels.forEach(
+        model => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            const modelId =
+                model.model_id ||
+                model.id ||
+                "";
+
+            option.value =
+                modelId;
+
+            option.textContent =
+                model.model_name ||
+                model.name ||
+                modelId;
+
+            option.dataset.modelId =
+                modelId;
+
+            elements.model.appendChild(
+                option
+            );
 
         }
+    );
+
+    updateModelInfo();
+
+    loadSelectedModel();
+
+}
+
+
+elements.model.addEventListener(
+    "change",
+    async function () {
+
+        await loadSelectedModel();
+
+    }
+);
+
+
+async function loadSelectedModel() {
+
+    const option =
+        elements.model.selectedOptions[0];
+
+    if (!option) {
+        return;
+    }
+
+    const modelId =
+        option.dataset.modelId ||
+        option.value;
+
+    if (!modelId) {
+        return;
+    }
+
+    updateModelInfo();
+
+    try {
+
+        setModelLoading(true);
+
+        const token =
+            await getAccessToken();
 
         const response =
             await fetch(
-                "/api/kie-config",
+                `/api/kie-config?model_id=${encodeURIComponent(modelId)}`,
                 {
                     method: "GET",
 
                     headers: {
                         Authorization:
-                            `Bearer ${session.access_token}`,
+                            `Bearer ${token}`,
 
                         Accept:
                             "application/json"
@@ -1413,7 +1397,7 @@
 
             throw new Error(
                 data?.error ||
-                "Gagal memuat konfigurasi KIE.AI."
+                "Gagal memuat konfigurasi model."
             );
 
         }
@@ -1421,423 +1405,608 @@
         kieConfig =
             data;
 
-        kieModels =
-            Array.isArray(
-                data.models
-            )
-                ? data.models
-                : [];
-
-        renderKieProvider();
-
-        hideMessage();
-
-    }
-
-
-    /* ==========================================================
-       PROVIDER
-       ========================================================== */
-
-    function renderKieProvider() {
-
-        elements.provider.innerHTML =
-            "";
-
-        if (!kieModels.length) {
-
-            elements.provider.innerHTML = `
-                <option value="">
-                    Tidak ada model KIE.AI
-                </option>
-            `;
-
-            elements.model.innerHTML = `
-                <option value="">
-                    Tidak ada model
-                </option>
-            `;
-
-            return;
-
-        }
-
-        const providerOption =
-            document.createElement(
-                "option"
-            );
-
-        providerOption.value =
-            "kie_ai";
-
-        providerOption.dataset.providerId =
-            "kie_ai";
-
-        providerOption.dataset.providerName =
-            "KIE.AI";
-
-        providerOption.textContent =
-            "KIE.AI";
-
-        elements.provider.appendChild(
-            providerOption
-        );
-
-        elements.provider.value =
-            "kie_ai";
-
-        renderKieModels();
-
-    }
-
-
-    /* ==========================================================
-       MODELS
-    ========================================================== */
-
-    function renderKieModels() {
-
-        elements.model.innerHTML =
-            "";
-
-        if (!kieModels.length) {
-
-            elements.model.innerHTML = `
-                <option value="">
-                    Tidak ada model aktif
-                </option>
-            `;
-
-            elements.modelInfo.textContent =
-                "-";
-
-            return;
-
-        }
-
-        kieModels.forEach(
-            model => {
-
-                const option =
-                    document.createElement(
-                        "option"
-                    );
-
-                option.value =
-                    model.model_id ||
-                    model.id;
-
-                option.dataset.modelId =
-                    model.model_id ||
-                    "";
-
-                option.dataset.modelUuid =
-                    model.id ||
-                    "";
-
-                option.dataset.creditCost =
-                    model.credit_cost ||
-                    model.credit_final ||
-                    0;
-
-                option.textContent =
-                    model.model_name ||
-                    model.name ||
-                    model.model_id;
-
-                elements.model.appendChild(
-                    option
-                );
-
-            }
-        );
-
-        updateModelInfo();
-
-        loadModelConfiguration();
-
-    }
-
-
-    /* ==========================================================
-       MODEL CHANGE
-    ========================================================== */
-
-    elements.model.addEventListener(
-        "change",
-        async function () {
-
-            updateModelInfo();
-
-            await loadModelConfiguration();
-
-        }
-    );
-
-
-    function updateModelInfo() {
-
-        const option =
-            elements.model.selectedOptions[0];
-
-        if (!option) {
-
-            elements.modelInfo.textContent =
-                "-";
-
-            return;
-
-        }
-
-        const modelId =
-            option.dataset.modelId ||
-            "";
-
-        const model =
+        activeModel =
+            data.model ||
             kieModels.find(
                 item =>
                     (
                         item.model_id ||
                         item.id
                     ) === modelId
-            );
+            ) ||
+            null;
 
-        const cost =
-            model?.credit_cost ??
-            model?.credit_final ??
-            option.dataset.creditCost ??
-            0;
+        renderWorkflows();
+
+    } catch (error) {
+
+        console.error(
+            "KIE model load error:",
+            error
+        );
+
+        showMessage(
+            error.message ||
+            "Gagal memuat model.",
+            "error"
+        );
+
+    } finally {
+
+        setModelLoading(false);
+
+    }
+
+}
+
+
+function setModelLoading(
+    loading
+) {
+
+    if (loading) {
+
+        elements.workflow.disabled =
+            true;
+
+        elements.variant.disabled =
+            true;
+
+        elements.dynamicParameters.innerHTML = `
+            <div class="empty-state">
+                Memuat konfigurasi model...
+            </div>
+        `;
+
+    }
+
+}
+
+
+function updateModelInfo() {
+
+    const option =
+        elements.model.selectedOptions[0];
+
+    if (!option) {
 
         elements.modelInfo.textContent =
-            `Model ID: ${modelId} • Biaya: ${formatNumber(cost)} credit`;
+            "-";
+
+        return;
 
     }
 
+    const modelId =
+        option.dataset.modelId ||
+        option.value;
 
-    /* ==========================================================
-       MODEL CONFIG
-       ========================================================== */
+    const model =
+        kieModels.find(
+            item =>
+                (
+                    item.model_id ||
+                    item.id
+                ) === modelId
+        );
 
-    async function loadModelConfiguration() {
+    const cost =
+        model?.credit_cost ??
+        model?.credit_final ??
+        model?.credit ??
+        0;
 
-        const option =
-            elements.model.selectedOptions[0];
+    elements.modelInfo.textContent =
+        `Model ID: ${modelId} • Biaya: ${formatNumber(cost)} credit`;
 
-        if (!option) {
-            return;
-        }
+}
 
-        const modelId =
-            option.dataset.modelId;
 
-        if (!modelId) {
-            return;
-        }
+function renderWorkflows() {
 
-        try {
+    activeWorkflow = null;
+    activeVariant = null;
 
-            const {
-                data: sessionData
-            } =
-                await supabaseClient.auth.getSession();
+    const workflows =
+        Array.isArray(
+            kieConfig?.workflows
+        )
+            ? kieConfig.workflows
+            : [];
 
-            const token =
-                sessionData?.session?.access_token;
+    elements.workflow.innerHTML =
+        "";
 
-            if (!token) {
-                return;
-            }
+    if (!workflows.length) {
 
-            showMessage(
-                "Memuat workflow dan parameter model...",
-                "info"
-            );
+        elements.workflow.innerHTML = `
+            <option value="">
+                Tidak ada workflow aktif
+            </option>
+        `;
 
-            const response =
-                await fetch(
-                    `/api/kie-config?model_id=${encodeURIComponent(modelId)}`,
-                    {
-                        method: "GET",
+        elements.workflow.disabled =
+            true;
 
-                        headers: {
-                            Authorization:
-                                `Bearer ${token}`,
+        resetVariantControls();
 
-                            Accept:
-                                "application/json"
-                        }
-                    }
-                );
+        renderParameters([]);
 
-            const data =
-                await response.json();
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data?.error ||
-                    "Gagal memuat konfigurasi model."
-                );
-
-            }
-
-            kieConfig =
-                data;
-
-            buildDynamicParameters(
-                data
-            );
-
-            hideMessage();
-
-        } catch (error) {
-
-            console.error(
-                "KIE model configuration error:",
-                error
-            );
-
-            showMessage(
-                error.message ||
-                "Gagal memuat konfigurasi model.",
-                "error"
-            );
-
-        }
+        return;
 
     }
 
+    workflows.forEach(
+        workflow => {
 
-    /* ==========================================================
-       DYNAMIC PARAMETERS
-       ========================================================== */
+            const option =
+                document.createElement(
+                    "option"
+                );
 
-    function buildDynamicParameters(
-        config
-    ) {
+            option.value =
+                workflow.id;
 
-        const parameters =
+            option.textContent =
+                workflow.workflow_name ||
+                workflow.name ||
+                workflow.workflow_key ||
+                workflow.id;
+
+            option.dataset.workflowKey =
+                workflow.workflow_key ||
+                "";
+
+            elements.workflow.appendChild(
+                option
+            );
+
+        }
+    );
+
+    elements.workflow.disabled =
+        false;
+
+    elements.workflow.value =
+        workflows[0].id;
+
+    updateWorkflow();
+
+
+}
+
+
+elements.workflow.addEventListener(
+    "change",
+    function () {
+
+        updateWorkflow();
+
+    }
+);
+
+
+function updateWorkflow() {
+
+    const workflowId =
+        elements.workflow.value;
+
+    activeWorkflow =
+        (
             Array.isArray(
-                config.parameters
+                kieConfig?.workflows
             )
-                ? config.parameters
-                : [];
-
-        const ratioParameter =
-            findParameter(
-                parameters,
-                [
-                    "aspect_ratio",
-                    "aspectRatio",
-                    "ratio"
-                ]
-            );
-
-        const durationParameter =
-            findParameter(
-                parameters,
-                [
-                    "duration"
-                ]
-            );
-
-        const resolutionParameter =
-            findParameter(
-                parameters,
-                [
-                    "resolution"
-                ]
-            );
-
-        configureSelectFromParameter(
-            elements.ratio,
-            ratioParameter
-        );
-
-        configureSelectFromParameter(
-            elements.duration,
-            durationParameter
-        );
-
-        configureSelectFromParameter(
-            elements.resolution,
-            resolutionParameter
-        );
-
-        applyParameterDefaults(
-            elements.ratio,
-            ratioParameter
-        );
-
-        applyParameterDefaults(
-            elements.duration,
-            durationParameter
-        );
-
-        applyParameterDefaults(
-            elements.resolution,
-            resolutionParameter
-        );
-
-    }
-
-
-    function findParameter(
-        parameters,
-        names
-    ) {
-
-        return parameters.find(
-            parameter =>
-                names.includes(
-                    parameter.parameter_name
-                )
+                ? kieConfig.workflows
+                : []
+        ).find(
+            item =>
+                item.id === workflowId
         ) || null;
 
+    renderWorkflowInfo();
+
+    renderVariants();
+
+    updateParameters();
+
+}
+
+
+function renderWorkflowInfo() {
+
+    if (!activeWorkflow) {
+
+        elements.workflowInfoContainer.style.display =
+            "none";
+
+        return;
+
     }
 
+    const title =
+        activeWorkflow.workflow_name ||
+        activeWorkflow.name ||
+        activeWorkflow.workflow_key ||
+        "";
 
-    function configureSelectFromParameter(
-        select,
-        parameter
-    ) {
+    const key =
+        activeWorkflow.workflow_key ||
+        "";
 
-        if (
-            !select ||
-            !parameter
-        ) {
-            return;
+    const description =
+        activeWorkflow.description ||
+        activeWorkflow.workflow_description ||
+        "";
+
+    elements.workflowInfo.innerHTML = `
+        <strong>${escapeHtml(title)}</strong>
+        ${key ? ` • ${escapeHtml(key)}` : ""}
+        ${description ? `<br>${escapeHtml(description)}` : ""}
+    `;
+
+    elements.workflowInfoContainer.style.display =
+        "block";
+
+}
+
+
+function renderVariants() {
+
+    activeVariant = null;
+
+    const variants =
+        Array.isArray(
+            kieConfig?.variants
+        )
+            ? kieConfig.variants.filter(
+                item =>
+                    !activeWorkflow ||
+                    item.workflow_id ===
+                        activeWorkflow.id
+            )
+            : [];
+
+    elements.variant.innerHTML =
+        "";
+
+    if (!variants.length) {
+
+        elements.variant.innerHTML = `
+            <option value="">
+                Tidak ada variant
+            </option>
+        `;
+
+        elements.variant.disabled =
+            true;
+
+        return;
+
+    }
+
+    variants.forEach(
+        variant => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                variant.id;
+
+            option.textContent =
+                variant.variant_name ||
+                variant.name ||
+                variant.variant_key ||
+                variant.id;
+
+            elements.variant.appendChild(
+                option
+            );
+
         }
+    );
 
-        let values =
-            parameter.enum_values;
+    elements.variant.disabled =
+        false;
 
-        if (
-            typeof values === "string"
-        ) {
+    elements.variant.value =
+        variants[0].id;
 
-            try {
-                values =
-                    JSON.parse(values);
-            } catch {
-                values = [];
+    updateVariant();
+
+}
+
+
+elements.variant.addEventListener(
+    "change",
+    function () {
+
+        updateVariant();
+
+    }
+);
+
+
+function updateVariant() {
+
+    const variantId =
+        elements.variant.value;
+
+    const variants =
+        Array.isArray(
+            kieConfig?.variants
+        )
+            ? kieConfig.variants
+            : [];
+
+    activeVariant =
+        variants.find(
+            item =>
+                item.id === variantId
+        ) || null;
+
+    updateParameters();
+
+}
+
+
+function resetWorkflowControls() {
+
+    elements.workflow.innerHTML = `
+        <option value="">
+            Pilih model terlebih dahulu
+        </option>
+    `;
+
+    elements.workflow.disabled =
+        true;
+
+    resetVariantControls();
+
+    elements.workflowInfoContainer.style.display =
+        "none";
+
+}
+
+
+function resetVariantControls() {
+
+    elements.variant.innerHTML = `
+        <option value="">
+            Pilih workflow terlebih dahulu
+        </option>
+    `;
+
+    elements.variant.disabled =
+        true;
+
+}
+
+
+function updateParameters() {
+
+    if (!activeWorkflow) {
+
+        renderParameters([]);
+
+        return;
+
+    }
+
+    const allParameters =
+        Array.isArray(
+            kieConfig?.parameters
+        )
+            ? kieConfig.parameters
+            : [];
+
+    activeParameters =
+        allParameters.filter(
+            parameter => {
+
+                if (
+                    parameter.workflow_id &&
+                    parameter.workflow_id !==
+                        activeWorkflow.id
+                ) {
+                    return false;
+                }
+
+                if (
+                    parameter.variant_id &&
+                    (
+                        !activeVariant ||
+                        parameter.variant_id !==
+                            activeVariant.id
+                    )
+                ) {
+                    return false;
+                }
+
+                return true;
+
+            }
+        );
+
+    renderParameters(
+        activeParameters
+    );
+
+}
+
+
+function renderParameters(
+    parameters
+) {
+
+    elements.dynamicParameters.innerHTML =
+        "";
+
+    if (!parameters.length) {
+
+        elements.dynamicParameters.innerHTML = `
+            <div class="empty-state">
+                Tidak ada parameter untuk konfigurasi ini.
+            </div>
+        `;
+
+        return;
+
+    }
+
+    parameters.forEach(
+        parameter => {
+
+            const wrapper =
+                document.createElement(
+                    "div"
+                );
+
+            wrapper.className =
+                "form-group";
+
+            if (
+                isWideParameter(
+                    parameter
+                )
+            ) {
+                wrapper.classList.add(
+                    "full"
+                );
             }
 
+            const field =
+                createParameterField(
+                    parameter
+                );
+
+            wrapper.appendChild(
+                field
+            );
+
+            elements.dynamicParameters.appendChild(
+                wrapper
+            );
+
+        }
+    );
+
+}
+
+
+function isWideParameter(
+    parameter
+) {
+
+    const type =
+        String(
+            parameter.type ||
+            ""
+        ).toLowerCase();
+
+    const name =
+        String(
+            parameter.parameter_name ||
+            ""
+        ).toLowerCase();
+
+    return (
+        type.includes("array") ||
+        type.includes("object") ||
+        type.includes("json") ||
+        name.includes("prompt") ||
+        name.includes("url") ||
+        name.includes("image") ||
+        name.includes("video") ||
+        name.includes("audio") ||
+        name.includes("reference")
+    );
+
+}
+
+
+function createParameterField(
+    parameter
+) {
+
+    const container =
+        document.createElement(
+            "div"
+        );
+
+    const name =
+        parameter.parameter_name ||
+        "parameter";
+
+    const type =
+        String(
+            parameter.type ||
+            "string"
+        ).toLowerCase();
+
+    const label =
+        document.createElement(
+            "label"
+        );
+
+    label.htmlFor =
+        `param-${name}`;
+
+    label.innerHTML =
+        `${escapeHtml(
+            parameter.label ||
+            parameter.display_name ||
+            humanize(name)
+        )}${
+            parameter.required
+                ? '<span class="required">*</span>'
+                : ""
+        }`;
+
+    container.appendChild(
+        label
+    );
+
+    let input;
+
+    const enumValues =
+        parseEnumValues(
+            parameter.enum_values
+        );
+
+    if (enumValues.length) {
+
+        input =
+            document.createElement(
+                "select"
+            );
+
+        input.id =
+            `param-${name}`;
+
+        input.dataset.parameterName =
+            name;
+
+        if (!parameter.required) {
+
+            const empty =
+                document.createElement(
+                    "option"
+                );
+
+            empty.value = "";
+            empty.textContent =
+                "Pilih...";
+
+            input.appendChild(
+                empty
+            );
+
         }
 
-        if (
-            !Array.isArray(values) ||
-            !values.length
-        ) {
-
-            return;
-
-        }
-
-        select.innerHTML =
-            "";
-
-        values.forEach(
+        enumValues.forEach(
             value => {
 
                 const option =
@@ -1849,770 +2018,1033 @@
                     String(value);
 
                 option.textContent =
-                    formatParameterLabel(
-                        parameter.parameter_name,
-                        value
-                    );
+                    String(value);
 
-                select.appendChild(
+                input.appendChild(
                     option
                 );
 
             }
         );
 
-    }
-
-
-    function applyParameterDefaults(
-        select,
-        parameter
+    } else if (
+        type.includes("boolean")
     ) {
 
-        if (
-            !select ||
-            !parameter
-        ) {
-            return;
-        }
-
-        if (
-            parameter.default_value ===
-            null ||
-            parameter.default_value ===
-            undefined
-        ) {
-            return;
-        }
-
-        let value =
-            parameter.default_value;
-
-        if (
-            typeof value === "string"
-        ) {
-
-            try {
-                value =
-                    JSON.parse(value);
-            } catch {
-                // Keep original string.
-            }
-
-        }
-
-        const exists =
-            Array.from(
-                select.options
-            ).some(
-                option =>
-                    option.value ===
-                    String(value)
+        input =
+            document.createElement(
+                "select"
             );
 
-        if (exists) {
+        input.id =
+            `param-${name}`;
 
-            select.value =
-                String(value);
+        input.dataset.parameterName =
+            name;
 
-        }
+        const auto =
+            document.createElement(
+                "option"
+            );
 
-    }
+        auto.value = "";
+        auto.textContent =
+            "Pilih...";
 
+        input.appendChild(
+            auto
+        );
 
-    function formatParameterLabel(
-        name,
-        value
+        ["true", "false"].forEach(
+            value => {
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+                option.value =
+                    value;
+
+                option.textContent =
+                    value === "true"
+                        ? "True"
+                        : "False";
+
+                input.appendChild(
+                    option
+                );
+
+            }
+        );
+
+    } else if (
+        type.includes("array") ||
+        type.includes("object") ||
+        type.includes("json")
     ) {
 
-        const text =
-            String(value);
+        input =
+            document.createElement(
+                "textarea"
+            );
+
+        input.id =
+            `param-${name}`;
+
+        input.dataset.parameterName =
+            name;
+
+        input.placeholder =
+            type.includes("array")
+                ? '["value1","value2"]'
+                : '{"key":"value"}';
+
+    } else {
+
+        input =
+            document.createElement(
+                "input"
+            );
+
+        input.id =
+            `param-${name}`;
+
+        input.dataset.parameterName =
+            name;
 
         if (
-            name === "aspect_ratio"
+            type.includes("number") ||
+            type.includes("integer")
         ) {
 
-            return text;
+            input.type =
+                "number";
 
-        }
+            if (
+                parameter.min_value !== null &&
+                parameter.min_value !== undefined
+            ) {
 
-        if (
-            name === "duration"
+                input.min =
+                    parameter.min_value;
+
+            }
+
+            if (
+                parameter.max_value !== null &&
+                parameter.max_value !== undefined
+            ) {
+
+                input.max =
+                    parameter.max_value;
+
+            }
+
+            if (
+                type.includes("integer")
+            ) {
+
+                input.step =
+                    "1";
+
+            } else {
+
+                input.step =
+                    "any";
+
+            }
+
+        } else if (
+            type.includes("url") ||
+            name.includes("url")
         ) {
 
-            return `${text} detik`;
-
-        }
-
-        return text;
-
-    }
-
-
-    /* ==========================================================
-       IMAGE UPLOAD
-       ========================================================== */
-
-    elements.imageInput.addEventListener(
-        "change",
-        function () {
-
-            const file =
-                this.files[0];
-
-            if (!file) {
-                return;
-            }
-
-            selectedImageFile =
-                file;
-
-            elements.imageFilename.textContent =
-                file.name;
-
-            elements.imageUploadBox.classList.add(
-                "has-file"
-            );
-
-            const objectUrl =
-                URL.createObjectURL(
-                    file
-                );
-
-            elements.imagePreview.src =
-                objectUrl;
-
-            elements.imagePreviewArea.classList.add(
-                "active"
-            );
-
-        }
-    );
-
-
-    /* ==========================================================
-       VIDEO UPLOAD
-       ========================================================== */
-
-    elements.videoInput.addEventListener(
-        "change",
-        function () {
-
-            const file =
-                this.files[0];
-
-            if (!file) {
-                return;
-            }
-
-            selectedVideoFile =
-                file;
-
-            elements.videoFilename.textContent =
-                file.name;
-
-            elements.videoUploadBox.classList.add(
-                "has-file"
-            );
-
-            const objectUrl =
-                URL.createObjectURL(
-                    file
-                );
-
-            elements.videoPreview.src =
-                objectUrl;
-
-            elements.videoPreviewArea.classList.add(
-                "active"
-            );
-
-        }
-    );
-
-
-    /* ==========================================================
-       MENU
-       ========================================================== */
-
-    function setupMenu() {
-
-        elements.menuButton.addEventListener(
-            "click",
-            toggleMenu
-        );
-
-        elements.overlay.addEventListener(
-            "click",
-            closeMenu
-        );
-
-    }
-
-
-    function toggleMenu() {
-
-        elements.sidebar.classList.toggle(
-            "open"
-        );
-
-        elements.overlay.classList.toggle(
-            "active"
-        );
-
-    }
-
-
-    function closeMenu() {
-
-        elements.sidebar.classList.remove(
-            "open"
-        );
-
-        elements.overlay.classList.remove(
-            "active"
-        );
-
-    }
-
-
-    /* ==========================================================
-       EVENTS
-       ========================================================== */
-
-    function setupEvents() {
-
-        elements.logoutButton.addEventListener(
-            "click",
-            logout
-        );
-
-        elements.resetButton.addEventListener(
-            "click",
-            resetGenerator
-        );
-
-        elements.generateButton.addEventListener(
-            "click",
-            generateVideo
-        );
-
-    }
-
-
-    /* ==========================================================
-       LOGOUT
-       ========================================================== */
-
-    async function logout() {
-
-        elements.logoutButton.disabled =
-            true;
-
-        const {
-            error
-        } =
-            await supabaseClient.auth.signOut();
-
-        if (error) {
-
-            console.error(
-                "Logout error:",
-                error
-            );
-
-            elements.logoutButton.disabled =
-                false;
-
-            showMessage(
-                "Gagal logout.",
-                "error"
-            );
-
-            return;
-
-        }
-
-        window.location.replace(
-            "../login.html"
-        );
-
-    }
-
-
-    /* ==========================================================
-       RESET
-       ========================================================== */
-
-    function resetGenerator() {
-
-        elements.prompt.value =
-            "";
-
-        selectedImageFile =
-            null;
-
-        selectedVideoFile =
-            null;
-
-        elements.imageInput.value =
-            "";
-
-        elements.videoInput.value =
-            "";
-
-        elements.imageFilename.textContent =
-            "";
-
-        elements.videoFilename.textContent =
-            "";
-
-        elements.imageUploadBox.classList.remove(
-            "has-file"
-        );
-
-        elements.videoUploadBox.classList.remove(
-            "has-file"
-        );
-
-        elements.imagePreviewArea.classList.remove(
-            "active"
-        );
-
-        elements.videoPreviewArea.classList.remove(
-            "active"
-        );
-
-        elements.imagePreview.removeAttribute(
-            "src"
-        );
-
-        elements.videoPreview.removeAttribute(
-            "src"
-        );
-
-        hideMessage();
-
-        if (kieConfig) {
-
-            buildDynamicParameters(
-                kieConfig
-            );
-
-        }
-
-    }
-
-
-    /* ==========================================================
-       BUILD GENERATION PARAMETERS
-       ========================================================== */
-
-    function buildGenerationParameters() {
-
-        const parameters =
-            Array.isArray(
-                kieConfig?.parameters
-            )
-                ? kieConfig.parameters
-                : [];
-
-        const values = {};
-
-        parameters.forEach(
-            parameter => {
-
-                const name =
-                    parameter.parameter_name;
-
-                if (!name) {
-                    return;
-                }
-
-                let value;
-
-                if (
-                    name === "prompt"
-                ) {
-
-                    value =
-                        elements.prompt.value.trim();
-
-                } else if (
-                    name === "aspect_ratio"
-                ) {
-
-                    value =
-                        elements.ratio.value;
-
-                } else if (
-                    name === "duration"
-                ) {
-
-                    value =
-                        elements.duration.value;
-
-                } else if (
-                    name === "resolution"
-                ) {
-
-                    value =
-                        elements.resolution.value;
-
-                } else {
-
-                    return;
-
-                }
-
-                if (
-                    value !== undefined &&
-                    value !== null &&
-                    value !== ""
-                ) {
-
-                    values[name] =
-                        value;
-
-                }
-
-            }
-        );
-
-        return values;
-
-    }
-
-
-    /* ==========================================================
-       GENERATE
-    ========================================================== */
-
-    async function generateVideo() {
-
-        const providerOption =
-            elements.provider.selectedOptions[0];
-
-        const modelOption =
-            elements.model.selectedOptions[0];
-
-        if (!providerOption) {
-
-            showMessage(
-                "Silakan pilih provider.",
-                "warning"
-            );
-
-            return;
-
-        }
-
-        if (!modelOption) {
-
-            showMessage(
-                "Silakan pilih model.",
-                "warning"
-            );
-
-            return;
-
-        }
-
-        if (
-            !elements.prompt.value.trim()
-        ) {
-
-            showMessage(
-                "Prompt belum diisi.",
-                "warning"
-            );
-
-            elements.prompt.focus();
-
-            return;
-
-        }
-
-        const modelId =
-            modelOption.dataset.modelId;
-
-        if (!modelId) {
-
-            showMessage(
-                "Model ID tidak ditemukan.",
-                "error"
-            );
-
-            return;
-
-        }
-
-        const parameters =
-            buildGenerationParameters();
-
-        const {
-            data: sessionData,
-            error: sessionError
-        } =
-            await supabaseClient.auth.getSession();
-
-        if (sessionError) {
-
-            showMessage(
-                sessionError.message,
-                "error"
-            );
-
-            return;
-
-        }
-
-        const session =
-            sessionData.session;
-
-        if (!session) {
-
-            window.location.replace(
-                "../login.html"
-            );
-
-            return;
-
-        }
-
-        setGenerateLoading(
-            true
-        );
-
-        showMessage(
-            "Mengirim permintaan ke KIE.AI...",
-            "info"
-        );
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/generate",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json",
-
-                            Authorization:
-                                `Bearer ${session.access_token}`,
-
-                            Accept:
-                                "application/json"
-                        },
-
-                        body:
-                            JSON.stringify(
-                                {
-                                    provider:
-                                        "kie_ai",
-
-                                    model:
-                                        modelId,
-
-                                    model_id:
-                                        modelId,
-
-                                    parameters,
-
-                                    prompt:
-                                        elements.prompt.value.trim(),
-
-                                    ratio:
-                                        elements.ratio.value,
-
-                                    duration:
-                                        elements.duration.value,
-
-                                    resolution:
-                                        elements.resolution.value
-                                }
-                            )
-                    }
-                );
-
-            const data =
-                await response.json();
-
-            if (!response.ok) {
-
-                const errorText =
-                    Array.isArray(
-                        data?.errors
-                    )
-                        ? data.errors.join(
-                            " "
-                        )
-                        : data?.error ||
-                          "KIE.AI gagal memproses generate.";
-
-                throw new Error(
-                    errorText
-                );
-
-            }
-
-            if (!data.jobId) {
-
-                throw new Error(
-                    "KIE.AI menerima request tetapi task ID tidak ditemukan."
-                );
-
-            }
-
-            showMessage(
-                `Generate berhasil dikirim. Task ID: ${data.jobId}`,
-                "success"
-            );
-
-            console.log(
-                "GEN-Z.AI KIE TASK",
-                data
-            );
-
-        } catch (error) {
-
-            console.error(
-                "GEN-Z.AI generate error:",
-                error
-            );
-
-            showMessage(
-                error.message ||
-                "Gagal mengirim generate.",
-                "error"
-            );
-
-        } finally {
-
-            setGenerateLoading(
-                false
-            );
-
-        }
-
-    }
-
-
-    /* ==========================================================
-       BUTTON LOADING
-    ========================================================== */
-
-    function setGenerateLoading(
-        loading
-    ) {
-
-        elements.generateButton.disabled =
-            loading;
-
-        if (loading) {
-
-            elements.generateButton.innerHTML = `
-                <span class="loading">
-                    <span class="spinner"></span>
-                    MENGIRIM...
-                </span>
-            `;
+            input.type =
+                "url";
+
+            input.placeholder =
+                "https://...";
 
         } else {
 
-            elements.generateButton.textContent =
-                "GENERATE VIDEO";
+            input.type =
+                "text";
+
+            if (
+                name.includes("prompt")
+            ) {
+
+                input.placeholder =
+                    "Deskripsikan video yang ingin dibuat...";
+
+            }
 
         }
 
     }
 
-
-    /* ==========================================================
-       MESSAGE
-    ========================================================== */
-
-    function showMessage(
-        text,
-        type = "info"
+    if (
+        parameter.default_value !==
+            null &&
+        parameter.default_value !==
+            undefined
     ) {
 
-        elements.message.textContent =
-            text;
-
-        elements.message.className =
-            `message show ${type}`;
-
-    }
-
-
-    function hideMessage() {
-
-        elements.message.textContent =
-            "";
-
-        elements.message.className =
-            "message";
-
-    }
-
-
-    /* ==========================================================
-       FORMAT NUMBER
-    ========================================================== */
-
-    function formatNumber(
-        number
-    ) {
-
-        return Number(
-            number || 0
-        ).toLocaleString(
-            "id-ID"
+        applyDefaultValue(
+            input,
+            parameter.default_value,
+            type
         );
 
     }
 
+    if (
+        parameter.description
+    ) {
 
-    /* ==========================================================
-       CLEANUP
-    ========================================================== */
+        const description =
+            document.createElement(
+                "div"
+            );
 
-    window.addEventListener(
-        "beforeunload",
-        function () {
+        description.className =
+            "parameter-description";
 
-            if (
-                elements.imagePreview.src &&
-                elements.imagePreview.src.startsWith(
-                    "blob:"
-                )
-            ) {
+        description.textContent =
+            parameter.description;
 
-                URL.revokeObjectURL(
-                    elements.imagePreview.src
-                );
+        container.appendChild(
+            input
+        );
 
-            }
+        container.appendChild(
+            description
+        );
 
-            if (
-                elements.videoPreview.src &&
-                elements.videoPreview.src.startsWith(
-                    "blob:"
-                )
-            ) {
+    } else {
 
-                URL.revokeObjectURL(
-                    elements.videoPreview.src
+        container.appendChild(
+            input
+        );
+
+    }
+
+    const meta =
+        buildParameterMeta(
+            parameter
+        );
+
+    if (meta) {
+
+        const metaElement =
+            document.createElement(
+                "div"
+            );
+
+        metaElement.className =
+            "parameter-meta";
+
+        metaElement.textContent =
+            meta;
+
+        container.appendChild(
+            metaElement
+        );
+
+    }
+
+    return container;
+
+}
+
+
+function applyDefaultValue(
+    input,
+    value,
+    type
+) {
+
+    let parsed =
+        value;
+
+    if (
+        typeof parsed === "string" &&
+        (
+            type.includes("array") ||
+            type.includes("object") ||
+            type.includes("json") ||
+            type.includes("boolean")
+        )
+    ) {
+
+        try {
+
+            parsed =
+                JSON.parse(parsed);
+
+        } catch {
+
+            // Keep string.
+
+        }
+
+    }
+
+    if (
+        input.tagName === "SELECT"
+    ) {
+
+        if (
+            typeof parsed === "boolean"
+        ) {
+
+            input.value =
+                String(parsed);
+
+        } else {
+
+            input.value =
+                String(parsed);
+
+        }
+
+        return;
+
+    }
+
+    if (
+        typeof parsed === "object"
+    ) {
+
+        input.value =
+            JSON.stringify(
+                parsed
+            );
+
+        return;
+
+    }
+
+    input.value =
+        String(parsed);
+
+}
+
+
+function buildParameterMeta(
+    parameter
+) {
+
+    const parts = [];
+
+    if (
+        parameter.min_value !== null &&
+        parameter.min_value !== undefined
+    ) {
+
+        parts.push(
+            `Min: ${parameter.min_value}`
+        );
+
+    }
+
+    if (
+        parameter.max_value !== null &&
+        parameter.max_value !== undefined
+    ) {
+
+        parts.push(
+            `Max: ${parameter.max_value}`
+        );
+
+    }
+
+    if (
+        parameter.min_items !== null &&
+        parameter.min_items !== undefined
+    ) {
+
+        parts.push(
+            `Min item: ${parameter.min_items}`
+        );
+
+    }
+
+    if (
+        parameter.max_items !== null &&
+        parameter.max_items !== undefined
+    ) {
+
+        parts.push(
+            `Max item: ${parameter.max_items}`
+        );
+
+    }
+
+    return parts.join(" • ");
+
+}
+
+
+function parseEnumValues(
+    value
+) {
+
+    if (Array.isArray(value)) {
+
+        return value;
+
+    }
+
+    if (
+        typeof value === "string"
+    ) {
+
+        try {
+
+            const parsed =
+                JSON.parse(value);
+
+            return Array.isArray(parsed)
+                ? parsed
+                : [];
+
+        } catch {
+
+            return [];
+
+        }
+
+    }
+
+    return [];
+
+}
+
+
+function collectParameterValues() {
+
+    const values = {};
+
+    for (
+        const parameter
+        of activeParameters
+    ) {
+
+        const name =
+            parameter.parameter_name;
+
+        const input =
+            document.querySelector(
+                `[data-parameter-name="${cssEscape(name)}"]`
+            );
+
+        if (!input) {
+            continue;
+        }
+
+        let value =
+            input.value;
+
+        const type =
+            String(
+                parameter.type ||
+                ""
+            ).toLowerCase();
+
+        if (
+            value === ""
+        ) {
+
+            continue;
+
+        }
+
+        if (
+            type.includes("boolean")
+        ) {
+
+            value =
+                value === "true";
+
+        } else if (
+            type.includes("number") ||
+            type.includes("integer")
+        ) {
+
+            value =
+                Number(value);
+
+        } else if (
+            type.includes("array") ||
+            type.includes("object") ||
+            type.includes("json")
+        ) {
+
+            try {
+
+                value =
+                    JSON.parse(value);
+
+            } catch {
+
+                throw new Error(
+                    `${name} harus berupa JSON yang valid.`
                 );
 
             }
 
         }
+
+        values[name] =
+            value;
+
+    }
+
+    return values;
+
+}
+
+
+function validateRequiredParameters(
+    values
+) {
+
+    const errors = [];
+
+    for (
+        const parameter
+        of activeParameters
+    ) {
+
+        if (!parameter.required) {
+            continue;
+        }
+
+        const value =
+            values[
+                parameter.parameter_name
+            ];
+
+        if (
+            value === undefined ||
+            value === null ||
+            value === ""
+        ) {
+
+            errors.push(
+                `${parameter.parameter_name} wajib diisi.`
+            );
+
+        }
+
+    }
+
+    return errors;
+
+}
+
+
+async function generateVideo() {
+
+    if (!activeModel) {
+
+        showMessage(
+            "Model belum dipilih.",
+            "warning"
+        );
+
+        return;
+
+    }
+
+    if (!activeWorkflow) {
+
+        showMessage(
+            "Workflow belum dipilih.",
+            "warning"
+        );
+
+        return;
+
+    }
+
+    let parameters;
+
+    try {
+
+        parameters =
+            collectParameterValues();
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "warning"
+        );
+
+        return;
+
+    }
+
+    const requiredErrors =
+        validateRequiredParameters(
+            parameters
+        );
+
+    if (requiredErrors.length) {
+
+        showMessage(
+            requiredErrors.join(" "),
+            "warning"
+        );
+
+        return;
+
+    }
+
+    let token;
+
+    try {
+
+        token =
+            await getAccessToken();
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+    setGenerateLoading(
+        true
     );
+
+    showMessage(
+        "Mengirim permintaan ke KIE.AI...",
+        "info"
+    );
+
+    try {
+
+        const body = {
+
+            provider:
+                "kie_ai",
+
+            model:
+                activeModel.model_id ||
+                activeModel.id,
+
+            model_id:
+                activeModel.model_id ||
+                activeModel.id,
+
+            workflow_id:
+                activeWorkflow.id,
+
+            workflow_key:
+                activeWorkflow.workflow_key ||
+                undefined,
+
+            variant_id:
+                activeVariant?.id ||
+                undefined,
+
+            variant_key:
+                activeVariant?.variant_key ||
+                undefined,
+
+            parameters
+
+        };
+
+        const response =
+            await fetch(
+                "/api/generate",
+                {
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json",
+
+                        Authorization:
+                            `Bearer ${token}`,
+
+                        Accept:
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify(
+                            body
+                        )
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            const errorText =
+                Array.isArray(
+                    data?.errors
+                )
+                    ? data.errors.join(" ")
+                    : data?.error ||
+                      "KIE.AI gagal memproses generate.";
+
+            throw new Error(
+                errorText
+            );
+
+        }
+
+        const taskId =
+            data.jobId ||
+            data.taskId;
+
+        if (!taskId) {
+
+            throw new Error(
+                "KIE.AI menerima request tetapi task ID tidak ditemukan."
+            );
+
+        }
+
+        showMessage(
+            `Generate berhasil dikirim. Task ID: ${taskId}`,
+            "success"
+        );
+
+        console.log(
+            "GEN-Z.AI KIE GENERATION",
+            {
+                request: body,
+                response: data
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "GEN-Z.AI generate error:",
+            error
+        );
+
+        showMessage(
+            error.message ||
+            "Gagal mengirim generate.",
+            "error"
+        );
+
+    } finally {
+
+        setGenerateLoading(
+            false
+        );
+
+    }
+
+}
+
+
+function setGenerateLoading(
+    loading
+) {
+
+    elements.generateButton.disabled =
+        loading;
+
+    elements.resetButton.disabled =
+        loading;
+
+    if (loading) {
+
+        elements.generateButton.innerHTML = `
+            <span class="loading">
+                <span class="spinner"></span>
+                MENGIRIM...
+            </span>
+        `;
+
+    } else {
+
+        elements.generateButton.textContent =
+            "GENERATE VIDEO";
+
+    }
+
+}
+
+
+function resetGenerator() {
+
+    const currentModelId =
+        elements.model.value;
+
+    activeModel = null;
+    activeWorkflow = null;
+    activeVariant = null;
+    activeParameters = [];
+
+    if (currentModelId) {
+
+        const model =
+            kieModels.find(
+                item =>
+                    (
+                        item.model_id ||
+                        item.id
+                    ) === currentModelId
+            );
+
+        if (model) {
+
+            activeModel =
+                model;
+
+            elements.model.value =
+                currentModelId;
+
+            loadSelectedModel();
+
+            return;
+
+        }
+
+    }
+
+    elements.dynamicParameters.innerHTML = `
+        <div class="empty-state">
+            Pilih model untuk memuat parameter.
+        </div>
+    `;
+
+    hideMessage();
+
+}
+
+
+function setupMenu() {
+
+    elements.menuButton.addEventListener(
+        "click",
+        toggleMenu
+    );
+
+    elements.overlay.addEventListener(
+        "click",
+        closeMenu
+    );
+
+}
+
+
+function toggleMenu() {
+
+    elements.sidebar.classList.toggle(
+        "open"
+    );
+
+    elements.overlay.classList.toggle(
+        "active"
+    );
+
+}
+
+
+function closeMenu() {
+
+    elements.sidebar.classList.remove(
+        "open"
+    );
+
+    elements.overlay.classList.remove(
+        "active"
+    );
+
+}
+
+
+function setupEvents() {
+
+    elements.logoutButton.addEventListener(
+        "click",
+        logout
+    );
+
+    elements.resetButton.addEventListener(
+        "click",
+        resetGenerator
+    );
+
+    elements.generateButton.addEventListener(
+        "click",
+        generateVideo
+    );
+
+}
+
+
+async function logout() {
+
+    elements.logoutButton.disabled =
+        true;
+
+    const {
+        error
+    } =
+        await supabaseClient.auth.signOut();
+
+    if (error) {
+
+        console.error(
+            "Logout error:",
+            error
+        );
+
+        elements.logoutButton.disabled =
+            false;
+
+        showMessage(
+            "Gagal logout.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    window.location.replace(
+        "../login.html"
+    );
+
+}
+
+
+function showMessage(
+    text,
+    type = "info"
+) {
+
+    elements.message.textContent =
+        text;
+
+    elements.message.className =
+        `message show ${type}`;
+
+}
+
+
+function hideMessage() {
+
+    elements.message.textContent =
+        "";
+
+    elements.message.className =
+        "message";
+
+}
+
+
+function formatNumber(
+    number
+) {
+
+    return Number(
+        number || 0
+    ).toLocaleString(
+        "id-ID"
+    );
+
+}
+
+
+function humanize(
+    value
+) {
+
+    return String(
+        value || ""
+    )
+        .replace(
+            /[_-]+/g,
+            " "
+        )
+        .replace(
+            /\b\w/g,
+            char =>
+                char.toUpperCase()
+        );
+
+}
+
+
+function escapeHtml(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+function cssEscape(
+    value
+) {
+
+    if (
+        window.CSS &&
+        typeof window.CSS.escape === "function"
+    ) {
+
+        return window.CSS.escape(
+            String(value)
+        );
+
+    }
+
+    return String(value)
+        .replace(
+            /([^\w-])/g,
+            "\\$1"
+        );
+
+}
 
 </script>
 
