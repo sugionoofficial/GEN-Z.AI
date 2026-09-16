@@ -675,7 +675,7 @@ const loadParameters = async (
             .join(",");
 
 
-    let path =
+    const path =
         "/rest/v1/kie_parameters" +
         "?select=" +
         "id,workflow_id,variant_id," +
@@ -792,7 +792,7 @@ const loadConstraints = async (
             .join(",");
 
 
-    let path =
+    const path =
         "/rest/v1/kie_constraints" +
         "?select=" +
         "id,workflow_id,variant_id," +
@@ -1005,6 +1005,15 @@ const loadPricing = async (
     workflowIds,
     variantIds
 ) => {
+
+    if (
+        !workflowIds.length
+    ) {
+
+        return [];
+
+    }
+
 
     let path =
         "/rest/v1/kie_pricing" +
@@ -1262,6 +1271,95 @@ export default async function handler(
 
                     model_id:
                         modelId
+
+                }
+            );
+
+        }
+
+
+        // =================================
+        // EMPTY MODEL CONFIGURATION
+        // =================================
+        //
+        // Jika belum ada model KIE aktif,
+        // jangan query workflow secara global.
+        //
+        // Kondisi ini normal ketika admin
+        // belum menambahkan provider/model.
+        //
+        // Response yang diharapkan:
+        // models       = []
+        // workflows    = []
+        // variants     = []
+        // parameters   = []
+        // constraints  = []
+        // dependencies = []
+        // pricing      = []
+        //
+        // Setelah model ditambahkan ke Supabase,
+        // alur normal di bawah tetap berjalan.
+        // =================================
+
+        if (
+            !models.length
+        ) {
+
+            return json(
+                res,
+                200,
+                {
+
+                    success: true,
+
+                    provider: {
+
+                        provider_id:
+                            "kie_ai",
+
+                        provider_name:
+                            "KIE.AI"
+
+                    },
+
+                    models: [],
+
+                    workflows: [],
+
+                    variants: [],
+
+                    parameters: [],
+
+                    constraints: [],
+
+                    dependencies: [],
+
+                    pricing: [],
+
+                    meta: {
+
+                        model_count:
+                            0,
+
+                        workflow_count:
+                            0,
+
+                        variant_count:
+                            0,
+
+                        parameter_count:
+                            0,
+
+                        constraint_count:
+                            0,
+
+                        dependency_count:
+                            0,
+
+                        pricing_count:
+                            0
+
+                    }
 
                 }
             );
