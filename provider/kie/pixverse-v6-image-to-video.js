@@ -49,7 +49,8 @@ async function generate(options = {}) {
     body: JSON.stringify(payload)
   });
 
-  const contentType = response.headers.get("content-type") || "";
+  const contentType =
+    response.headers.get("content-type") || "";
 
   let data;
 
