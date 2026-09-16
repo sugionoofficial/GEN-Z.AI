@@ -7,7 +7,7 @@
     <title>GEN-Z.AI - Model Management</title>
 
     <!-- SUPABASE -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@Supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
     <script src="./supabase.js"></script>
 
@@ -79,26 +79,19 @@
             top: 0;
             left: 0;
             bottom: 0;
-
             width: var(--sidebar-width);
-
             z-index: 5000;
-
             display: flex;
             flex-direction: column;
-
             background:
                 linear-gradient(
                     180deg,
                     #111827 0%,
                     #0f172a 100%
                 );
-
             border-right: 1px solid var(--border);
-
             box-shadow:
                 10px 0 35px rgba(0, 0, 0, .20);
-
             transition:
                 width .25s ease,
                 transform .25s ease;
@@ -110,68 +103,51 @@
 
         .sidebar-header {
             height: 72px;
-
             padding: 0 14px;
-
             display: flex;
             align-items: center;
             justify-content: space-between;
-
             gap: 10px;
-
             border-bottom: 1px solid var(--border);
         }
 
         .brand {
             min-width: 0;
-
             display: flex;
             align-items: center;
             gap: 10px;
-
             text-decoration: none;
             color: white;
         }
 
         .brand-icon {
             flex: 0 0 auto;
-
             width: 40px;
             height: 40px;
-
             display: flex;
             align-items: center;
             justify-content: center;
-
             border-radius: 11px;
-
             background:
                 linear-gradient(
                     135deg,
                     var(--primary),
                     #8b5cf6
                 );
-
             color: white;
-
             font-size: 19px;
             font-weight: 900;
-
             box-shadow:
                 0 8px 25px rgba(99, 102, 241, .25);
         }
 
         .brand-text {
             min-width: 0;
-
             display: flex;
             flex-direction: column;
             gap: 1px;
-
             white-space: nowrap;
-
             overflow: hidden;
-
             transition:
                 opacity .2s ease,
                 width .25s ease;
@@ -196,22 +172,16 @@
 
         .sidebar-toggle {
             flex: 0 0 auto;
-
             width: 38px;
             height: 38px;
-
             border: 1px solid var(--border);
             border-radius: 9px;
-
             background: var(--panel2);
             color: #dbe4ff;
-
             display: flex;
             align-items: center;
             justify-content: center;
-
             font-size: 17px;
-
             transition:
                 background .2s,
                 border-color .2s,
@@ -226,28 +196,20 @@
 
         .sidebar-nav {
             flex: 1;
-
             padding: 15px 10px;
-
             overflow-y: auto;
             overflow-x: hidden;
         }
 
         .nav-section-title {
             padding: 8px 11px 7px;
-
             color: #64748b;
-
             font-size: 10px;
             font-weight: 800;
-
             text-transform: uppercase;
             letter-spacing: .08em;
-
             white-space: nowrap;
-
-            transition:
-                opacity .2s ease;
+            transition: opacity .2s ease;
         }
 
         .sidebar.collapsed .nav-section-title {
@@ -256,29 +218,19 @@
 
         .sidebar-link {
             width: 100%;
-
             min-height: 44px;
-
             margin-bottom: 5px;
-
             padding: 9px 11px;
-
             display: flex;
             align-items: center;
-
             gap: 12px;
-
             color: #cbd5e1;
             text-decoration: none;
-
             border: 1px solid transparent;
             border-radius: 10px;
-
             font-size: 12px;
             font-weight: 700;
-
             white-space: nowrap;
-
             transition:
                 background .2s,
                 border-color .2s,
@@ -301,22 +253,17 @@
 
         .sidebar-link-icon {
             flex: 0 0 auto;
-
             width: 25px;
             height: 25px;
-
             display: flex;
             align-items: center;
             justify-content: center;
-
             font-size: 16px;
         }
 
         .sidebar-link-text {
             min-width: 0;
-
             overflow: hidden;
-
             transition:
                 opacity .2s ease,
                 width .25s ease;
@@ -335,7 +282,6 @@
 
         .sidebar-footer {
             padding: 10px;
-
             border-top: 1px solid var(--border);
         }
 
@@ -366,37 +312,26 @@
 
         .mobile-menu-button {
             display: none;
-
             position: fixed;
-
             top: 14px;
             left: 14px;
-
             width: 42px;
             height: 42px;
-
             z-index: 4900;
-
             border: 1px solid var(--border);
             border-radius: 10px;
-
             background: rgba(17, 24, 39, .96);
             color: white;
-
             box-shadow:
                 0 10px 25px rgba(0, 0, 0, .25);
-
             font-size: 18px;
         }
 
         .sidebar-overlay {
             position: fixed;
             inset: 0;
-
             z-index: 4800;
-
             background: rgba(0, 0, 0, .60);
-
             display: none;
         }
 
@@ -406,11 +341,8 @@
 
         .main-content {
             min-height: 100vh;
-
             margin-left: var(--sidebar-width);
-
-            transition:
-                margin-left .25s ease;
+            transition: margin-left .25s ease;
         }
 
         .main-content.collapsed {
@@ -420,9 +352,7 @@
         .container {
             width: 100%;
             max-width: 1500px;
-
             margin: auto;
-
             padding: 28px;
         }
 
@@ -430,11 +360,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-
             gap: 16px;
-
             margin-bottom: 24px;
-
             flex-wrap: wrap;
         }
 
@@ -445,20 +372,15 @@
 
         .title-wrap p {
             margin: 6px 0 0;
-
             color: var(--muted);
-
             font-size: 14px;
         }
 
         .btn {
             border: 0;
             border-radius: 10px;
-
             padding: 11px 16px;
-
             font-weight: 700;
-
             transition: .2s;
         }
 
@@ -478,14 +400,12 @@
         .btn-secondary {
             background: var(--panel2);
             color: white;
-
             border: 1px solid var(--border);
         }
 
         .btn-danger {
             background: rgba(239, 68, 68, .15);
             color: #fca5a5;
-
             border: 1px solid rgba(239, 68, 68, .35);
         }
 
@@ -497,21 +417,16 @@
 
         .stats {
             display: grid;
-
             grid-template-columns:
                 repeat(4, minmax(0, 1fr));
-
             gap: 14px;
-
             margin-bottom: 20px;
         }
 
         .stat {
             background: var(--panel);
-
             border: 1px solid var(--border);
             border-radius: 14px;
-
             padding: 18px;
         }
 
@@ -523,24 +438,17 @@
         .stat-value {
             font-size: 25px;
             font-weight: 800;
-
             margin-top: 6px;
         }
 
         .toolbar {
             background: var(--panel);
-
             border: 1px solid var(--border);
             border-radius: 14px;
-
             padding: 15px;
-
             margin-bottom: 18px;
-
             display: flex;
-
             gap: 10px;
-
             flex-wrap: wrap;
         }
 
@@ -553,16 +461,11 @@
         select,
         textarea {
             width: 100%;
-
             border: 1px solid var(--border);
-
             background: #0d1424;
             color: var(--text);
-
             border-radius: 9px;
-
             padding: 11px 12px;
-
             outline: none;
         }
 
@@ -584,10 +487,8 @@
 
         .table-wrap {
             background: var(--panel);
-
             border: 1px solid var(--border);
             border-radius: 14px;
-
             overflow: hidden;
         }
 
@@ -597,31 +498,23 @@
 
         table {
             width: 100%;
-
             border-collapse: collapse;
-
-            min-width: 1100px;
+            min-width: 1250px;
         }
 
         th,
         td {
             padding: 13px 14px;
-
             border-bottom: 1px solid var(--border);
-
             text-align: left;
             vertical-align: middle;
         }
 
         th {
             color: var(--muted);
-
             font-size: 12px;
-
             text-transform: uppercase;
-
             letter-spacing: .04em;
-
             background: rgba(255,255,255,.02);
         }
 
@@ -639,43 +532,110 @@
 
         .model-id {
             color: var(--muted);
-
             font-size: 11px;
-
             margin-top: 4px;
-
             word-break: break-all;
         }
 
         .provider {
             display: inline-flex;
-
             align-items: center;
-
             gap: 7px;
-
             padding: 6px 9px;
-
             border-radius: 8px;
-
             background: rgba(99, 102, 241, .12);
-
             color: #c7d2fe;
-
             font-size: 12px;
+        }
+
+        /* =====================================================
+           KIE PRICE
+        ===================================================== */
+
+        .kie-price {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 130px;
+        }
+
+        .kie-price-usd {
+            color: #f8fafc;
+            font-size: 13px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .kie-price-idr {
+            color: #86efac;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .kie-price-unit {
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.3;
+        }
+
+        .kie-price-count {
+            color: #fcd34d;
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .kie-price-empty {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .kie-price-preview {
+            margin-top: 6px;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(56, 189, 248, .06);
+            border: 1px solid rgba(56, 189, 248, .18);
+        }
+
+        .kie-price-preview-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .kie-price-preview-row:last-child {
+            margin-bottom: 0;
+            padding-top: 7px;
+            border-top: 1px solid rgba(255,255,255,.08);
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .kie-price-preview-label {
+            color: var(--muted);
+        }
+
+        .kie-price-preview-idr {
+            color: #86efac;
+        }
+
+        .kie-price-no-edit {
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.4;
+            margin-top: 5px;
         }
 
         .status {
             display: inline-block;
-
             padding: 5px 8px;
-
             border-radius: 7px;
-
             font-size: 11px;
-
             font-weight: 700;
-
             text-transform: uppercase;
         }
 
@@ -715,31 +675,22 @@
 
         .empty {
             text-align: center;
-
             padding: 45px 20px;
-
             color: var(--muted);
         }
 
         .loading {
             text-align: center;
-
             padding: 35px;
-
             color: var(--muted);
         }
 
         .alert {
             display: none;
-
             margin-bottom: 16px;
-
             padding: 12px 15px;
-
             border-radius: 10px;
-
             font-size: 13px;
-
             word-break: break-word;
         }
 
@@ -749,17 +700,13 @@
 
         .alert-error {
             background: rgba(239,68,68,.12);
-
             border: 1px solid rgba(239,68,68,.3);
-
             color: #fca5a5;
         }
 
         .alert-success {
             background: rgba(34,197,94,.12);
-
             border: 1px solid rgba(34,197,94,.3);
-
             color: #86efac;
         }
 
@@ -769,18 +716,12 @@
 
         .modal-overlay {
             position: fixed;
-
             inset: 0;
-
             background: rgba(0,0,0,.72);
-
             display: none;
-
             align-items: center;
             justify-content: center;
-
             padding: 20px;
-
             z-index: 9999;
         }
 
@@ -791,53 +732,36 @@
         .modal {
             width: 100%;
             max-width: 850px;
-
             max-height: 92vh;
-
             overflow-y: auto;
-
             background: var(--panel);
-
             border: 1px solid var(--border);
-
             border-radius: 18px;
-
             box-shadow:
                 0 30px 80px rgba(0,0,0,.45);
         }
 
         .modal-header {
             padding: 20px;
-
             border-bottom: 1px solid var(--border);
-
             display: flex;
-
             justify-content: space-between;
-
             align-items: center;
-
             gap: 10px;
         }
 
         .modal-header h2 {
             margin: 0;
-
             font-size: 20px;
         }
 
         .close {
             width: 36px;
             height: 36px;
-
             border: 1px solid var(--border);
-
             border-radius: 9px;
-
             background: var(--panel2);
-
             color: white;
-
             font-size: 20px;
         }
 
@@ -847,18 +771,14 @@
 
         .form-grid {
             display: grid;
-
             grid-template-columns:
                 repeat(2, minmax(0, 1fr));
-
             gap: 15px;
         }
 
         .field {
             display: flex;
-
             flex-direction: column;
-
             gap: 7px;
         }
 
@@ -868,64 +788,45 @@
 
         .field label {
             font-size: 12px;
-
             font-weight: 700;
-
             color: #d1d5db;
         }
 
         .hint {
             color: var(--muted);
-
             font-size: 11px;
-
             line-height: 1.4;
         }
 
         .credit-preview {
             background: rgba(34,197,94,.08);
-
             border: 1px solid rgba(34,197,94,.25);
-
             border-radius: 12px;
-
             padding: 15px;
         }
 
         .credit-preview-row {
             display: flex;
-
             justify-content: space-between;
-
             gap: 15px;
-
             margin-bottom: 7px;
-
             font-size: 13px;
         }
 
         .credit-preview-row:last-child {
             margin-bottom: 0;
-
             padding-top: 8px;
-
             border-top:
                 1px solid rgba(255,255,255,.08);
-
             font-size: 16px;
-
             font-weight: 800;
         }
 
         .modal-footer {
             padding: 15px 20px;
-
             border-top: 1px solid var(--border);
-
             display: flex;
-
             justify-content: flex-end;
-
             gap: 10px;
         }
 
@@ -935,7 +836,6 @@
 
         .delete-confirm .modal-body {
             line-height: 1.6;
-
             color: #d1d5db;
         }
 
@@ -944,7 +844,6 @@
         ===================================================== */
 
         @media (max-width: 900px) {
-
             .stats {
                 grid-template-columns:
                     repeat(2, minmax(0, 1fr));
@@ -957,21 +856,16 @@
             .field.full {
                 grid-column: auto;
             }
-
         }
 
         @media (max-width: 700px) {
-
             .sidebar {
                 width: 250px;
-
-                transform:
-                    translateX(-100%);
+                transform: translateX(-100%);
             }
 
             .sidebar.mobile-open {
-                transform:
-                    translateX(0);
+                transform: translateX(0);
             }
 
             .sidebar.collapsed {
@@ -985,7 +879,6 @@
 
             .sidebar.collapsed .sidebar-link {
                 justify-content: flex-start;
-
                 padding-left: 11px;
                 padding-right: 11px;
             }
@@ -1005,7 +898,6 @@
 
             .mobile-menu-button {
                 display: flex;
-
                 align-items: center;
                 justify-content: center;
             }
@@ -1020,8 +912,7 @@
             }
 
             .container {
-                padding:
-                    72px 14px 20px;
+                padding: 72px 14px 20px;
             }
 
             .header {
@@ -1035,11 +926,9 @@
             .title-wrap p {
                 font-size: 13px;
             }
-
         }
 
         @media (max-width: 600px) {
-
             .stats {
                 grid-template-columns:
                     1fr 1fr;
@@ -1065,7 +954,6 @@
             .search {
                 min-width: 100%;
             }
-
         }
     </style>
 </head>
@@ -1106,7 +994,6 @@
 
         </a>
 
-
         <button
             type="button"
             class="sidebar-toggle"
@@ -1120,13 +1007,11 @@
 
     </div>
 
-
     <nav class="sidebar-nav">
 
         <div class="nav-section-title">
             MAIN MENU
         </div>
-
 
         <a
             class="sidebar-link"
@@ -1143,7 +1028,6 @@
 
         </a>
 
-
         <a
             class="sidebar-link"
             href="/generate/index.html"
@@ -1158,7 +1042,6 @@
             </span>
 
         </a>
-
 
         <a
             class="sidebar-link"
@@ -1175,11 +1058,9 @@
 
         </a>
 
-
         <div class="nav-section-title">
             ADMINISTRATION
         </div>
-
 
         <a
             class="sidebar-link active"
@@ -1196,7 +1077,6 @@
 
         </a>
 
-
         <a
             class="sidebar-link"
             href="/admin-control/providers.html"
@@ -1211,7 +1091,6 @@
             </span>
 
         </a>
-
 
         <a
             class="sidebar-link"
@@ -1230,7 +1109,6 @@
 
     </nav>
 
-
     <div class="sidebar-footer">
 
         <a
@@ -1247,7 +1125,6 @@
             </span>
 
         </a>
-
 
         <a
             class="sidebar-link sidebar-logout"
@@ -1269,7 +1146,6 @@
 
 </aside>
 
-
 <!-- MOBILE MENU -->
 
 <button
@@ -1283,12 +1159,10 @@
 
 </button>
 
-
 <div
     class="sidebar-overlay"
     id="sidebarOverlay">
 </div>
-
 
 <!-- =====================================================
      MAIN CONTENT
@@ -1315,7 +1189,6 @@
 
             </div>
 
-
             <button
                 class="btn btn-primary"
                 id="addModelBtn">
@@ -1326,12 +1199,10 @@
 
         </div>
 
-
         <div
             id="alertBox"
             class="alert">
         </div>
-
 
         <div class="stats">
 
@@ -1349,7 +1220,6 @@
 
             </div>
 
-
             <div class="stat">
 
                 <div class="stat-label">
@@ -1364,7 +1234,6 @@
 
             </div>
 
-
             <div class="stat">
 
                 <div class="stat-label">
@@ -1378,7 +1247,6 @@
                 </div>
 
             </div>
-
 
             <div class="stat">
 
@@ -1396,7 +1264,6 @@
 
         </div>
 
-
         <div class="toolbar">
 
             <input
@@ -1404,7 +1271,6 @@
                 class="search"
                 type="search"
                 placeholder="Cari model, Model ID, provider...">
-
 
             <select id="statusFilter">
 
@@ -1426,7 +1292,6 @@
 
             </select>
 
-
             <select id="providerFilter">
 
                 <option value="">
@@ -1434,7 +1299,6 @@
                 </option>
 
             </select>
-
 
             <button
                 class="btn btn-secondary"
@@ -1445,7 +1309,6 @@
             </button>
 
         </div>
-
 
         <div class="table-wrap">
 
@@ -1463,6 +1326,10 @@
 
                             <th>
                                 Provider
+                            </th>
+
+                            <th>
+                                Harga KIE
                             </th>
 
                             <th>
@@ -1497,13 +1364,12 @@
 
                     </thead>
 
-
                     <tbody id="modelTableBody">
 
                         <tr>
 
                             <td
-                                colspan="9"
+                                colspan="10"
                                 class="loading">
 
                                 Memuat model...
@@ -1523,7 +1389,6 @@
     </div>
 
 </main>
-
 
 <!-- =====================================================
      MODEL MODAL
@@ -1552,7 +1417,6 @@
 
         </div>
 
-
         <form id="modelForm">
 
             <div class="modal-body">
@@ -1561,9 +1425,7 @@
                     type="hidden"
                     id="modelId">
 
-
                 <div class="form-grid">
-
 
                     <div class="field">
 
@@ -1582,7 +1444,6 @@
                         </select>
 
                     </div>
-
 
                     <div class="field">
 
@@ -1610,7 +1471,6 @@
 
                     </div>
 
-
                     <div class="field">
 
                         <label for="modelCode">
@@ -1630,7 +1490,6 @@
 
                     </div>
 
-
                     <div class="field">
 
                         <label for="modelName">
@@ -1646,7 +1505,6 @@
 
                     </div>
 
-
                     <div class="field full">
 
                         <label for="description">
@@ -1658,7 +1516,6 @@
                             placeholder="Deskripsi model..."></textarea>
 
                     </div>
-
 
                     <div class="field">
 
@@ -1680,7 +1537,6 @@
 
                     </div>
 
-
                     <div class="field">
 
                         <label for="discountPercent">
@@ -1701,7 +1557,6 @@
 
                     </div>
 
-
                     <div class="field full">
 
                         <div class="credit-preview">
@@ -1718,7 +1573,6 @@
 
                             </div>
 
-
                             <div class="credit-preview-row">
 
                                 <span>
@@ -1730,7 +1584,6 @@
                                 </strong>
 
                             </div>
-
 
                             <div class="credit-preview-row">
 
@@ -1748,6 +1601,91 @@
 
                     </div>
 
+                    <!-- =================================================
+                         KIE PRICE
+                    ================================================== -->
+
+                    <div class="field">
+
+                        <label for="kieUnitPrice">
+                            Harga KIE
+                        </label>
+
+                        <input
+                            id="kieUnitPrice"
+                            type="number"
+                            min="0"
+                            step="0.000001"
+                            placeholder="Contoh: 0.07">
+
+                        <div
+                            class="hint"
+                            id="kiePriceHint">
+                            Harga per unit dari pricing KIE di Supabase.
+                        </div>
+
+                    </div>
+
+                    <div class="field">
+
+                        <label>
+                            Konversi Harga
+                        </label>
+
+                        <div class="kie-price-preview">
+
+                            <div class="kie-price-preview-row">
+
+                                <span class="kie-price-preview-label">
+                                    Harga USD
+                                </span>
+
+                                <strong id="previewKieUsd">
+                                    -
+                                </strong>
+
+                            </div>
+
+                            <div class="kie-price-preview-row">
+
+                                <span class="kie-price-preview-label">
+                                    Kurs
+                                </span>
+
+                                <strong id="previewKieRate">
+                                    $1 = Rp17.700
+                                </strong>
+
+                            </div>
+
+                            <div class="kie-price-preview-row">
+
+                                <span class="kie-price-preview-label">
+                                    Harga Rupiah
+                                </span>
+
+                                <strong
+                                    class="kie-price-preview-idr"
+                                    id="previewKieIdr">
+                                    -
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="field full">
+
+                        <div
+                            class="hint"
+                            id="kiePricingStatusHint">
+                            Harga KIE hanya dapat diedit jika model memiliki
+                            data pricing di Supabase.
+                        </div>
+
+                    </div>
 
                     <div class="field">
 
@@ -1764,7 +1702,6 @@
 
                     </div>
 
-
                     <div class="field">
 
                         <label for="maxDuration">
@@ -1779,7 +1716,6 @@
                             placeholder="Contoh: 10">
 
                     </div>
-
 
                     <div class="field">
 
@@ -1797,7 +1733,6 @@
                         </div>
 
                     </div>
-
 
                     <div class="field">
 
@@ -1819,7 +1754,6 @@
                 </div>
 
             </div>
-
 
             <div class="modal-footer">
 
@@ -1849,7 +1783,6 @@
 
 </div>
 
-
 <!-- =====================================================
      DELETE MODAL
 ===================================================== -->
@@ -1877,7 +1810,6 @@
 
         </div>
 
-
         <div class="modal-body">
 
             <p>
@@ -1894,7 +1826,6 @@
             </p>
 
         </div>
-
 
         <div class="modal-footer">
 
@@ -1922,13 +1853,11 @@
 
 </div>
 
-
 <script>
 
 (function () {
 
     "use strict";
-
 
     /* =====================================================
        CONFIG
@@ -1937,10 +1866,15 @@
     const API_URL =
         "../api/admin-models";
 
+    /*
+     * Kurs konfigurasi untuk tampilan Rupiah.
+     * Tidak mengubah harga di Supabase.
+     */
+    const USD_TO_IDR_RATE =
+        17700;
 
     const supabaseClient =
         window.GENZ_SUPABASE;
-
 
     /* =====================================================
        SIDEBAR
@@ -1951,41 +1885,34 @@
             "sidebar"
         );
 
-
     const mainContent =
         document.getElementById(
             "mainContent"
         );
-
 
     const sidebarToggle =
         document.getElementById(
             "sidebarToggle"
         );
 
-
     const mobileMenuButton =
         document.getElementById(
             "mobileMenuButton"
         );
-
 
     const sidebarOverlay =
         document.getElementById(
             "sidebarOverlay"
         );
 
-
     const SIDEBAR_STORAGE_KEY =
         "genz_admin_sidebar_collapsed";
-
 
     function isMobile() {
 
         return window.innerWidth <= 700;
 
     }
-
 
     function setSidebarCollapsed(
         collapsed
@@ -1995,30 +1922,25 @@
             return;
         }
 
-
         sidebar.classList.toggle(
             "collapsed",
             collapsed
         );
-
 
         mainContent.classList.toggle(
             "collapsed",
             collapsed
         );
 
-
         sidebarToggle.textContent =
             collapsed
                 ? "›"
                 : "‹";
 
-
         sidebarToggle.title =
             collapsed
                 ? "Expand sidebar"
                 : "Collapse sidebar";
-
 
         sidebarToggle.setAttribute(
             "aria-label",
@@ -2026,7 +1948,6 @@
                 ? "Expand sidebar"
                 : "Collapse sidebar"
         );
-
 
         try {
 
@@ -2048,24 +1969,20 @@
 
     }
 
-
     function openMobileSidebar() {
 
         sidebar.classList.add(
             "mobile-open"
         );
 
-
         sidebarOverlay.classList.add(
             "show"
         );
-
 
         document.body.style.overflow =
             "hidden";
 
     }
-
 
     function closeMobileSidebar() {
 
@@ -2073,17 +1990,14 @@
             "mobile-open"
         );
 
-
         sidebarOverlay.classList.remove(
             "show"
         );
-
 
         document.body.style.overflow =
             "";
 
     }
-
 
     sidebarToggle.addEventListener(
         "click",
@@ -2108,12 +2022,10 @@
                 return;
             }
 
-
             const collapsed =
                 !sidebar.classList.contains(
                     "collapsed"
                 );
-
 
             setSidebarCollapsed(
                 collapsed
@@ -2122,18 +2034,15 @@
         }
     );
 
-
     mobileMenuButton.addEventListener(
         "click",
         openMobileSidebar
     );
 
-
     sidebarOverlay.addEventListener(
         "click",
         closeMobileSidebar
     );
-
 
     document.querySelectorAll(
         ".sidebar-link"
@@ -2156,7 +2065,6 @@
         }
     );
 
-
     window.addEventListener(
         "resize",
         function () {
@@ -2167,7 +2075,6 @@
 
                 let saved =
                     null;
-
 
                 try {
 
@@ -2182,7 +2089,6 @@
 
                 }
 
-
                 setSidebarCollapsed(
                     saved === "1"
                 );
@@ -2193,7 +2099,6 @@
                     "collapsed"
                 );
 
-
                 mainContent.classList.remove(
                     "collapsed"
                 );
@@ -2203,14 +2108,12 @@
         }
     );
 
-
     try {
 
         const saved =
             localStorage.getItem(
                 SIDEBAR_STORAGE_KEY
             );
-
 
         if (!isMobile()) {
 
@@ -2232,7 +2135,6 @@
 
     }
 
-
     /* =====================================================
        NAVIGATION / LOGOUT
     ===================================================== */
@@ -2241,7 +2143,6 @@
         document.getElementById(
             "logoutNav"
         );
-
 
     if (logoutNav) {
 
@@ -2281,7 +2182,6 @@
 
     }
 
-
     /* =====================================================
        ELEMENTS
     ===================================================== */
@@ -2291,102 +2191,115 @@
             "modelTableBody"
         );
 
-
     const searchInput =
         document.getElementById(
             "searchInput"
         );
-
 
     const statusFilter =
         document.getElementById(
             "statusFilter"
         );
 
-
     const providerFilter =
         document.getElementById(
             "providerFilter"
         );
-
 
     const providerId =
         document.getElementById(
             "providerId"
         );
 
-
     const modelStatus =
         document.getElementById(
             "modelStatus"
         );
-
 
     const modelCode =
         document.getElementById(
             "modelCode"
         );
 
-
     const modelName =
         document.getElementById(
             "modelName"
         );
-
 
     const description =
         document.getElementById(
             "description"
         );
 
-
     const creditCost =
         document.getElementById(
             "creditCost"
         );
-
 
     const discountPercent =
         document.getElementById(
             "discountPercent"
         );
 
+    const kieUnitPrice =
+        document.getElementById(
+            "kieUnitPrice"
+        );
+
+    const previewKieUsd =
+        document.getElementById(
+            "previewKieUsd"
+        );
+
+    const previewKieRate =
+        document.getElementById(
+            "previewKieRate"
+        );
+
+    const previewKieIdr =
+        document.getElementById(
+            "previewKieIdr"
+        );
+
+    const kiePriceHint =
+        document.getElementById(
+            "kiePriceHint"
+        );
+
+    const kiePricingStatusHint =
+        document.getElementById(
+            "kiePricingStatusHint"
+        );
 
     const minDuration =
         document.getElementById(
             "minDuration"
         );
 
-
     const maxDuration =
         document.getElementById(
             "maxDuration"
         );
-
 
     const supportedRatios =
         document.getElementById(
             "supportedRatios"
         );
 
-
     const supportedResolutions =
         document.getElementById(
             "supportedResolutions"
         );
-
 
     const modelModal =
         document.getElementById(
             "modelModal"
         );
 
-
     const deleteModal =
         document.getElementById(
             "deleteModal"
         );
-
 
     /* =====================================================
        STATE
@@ -2400,6 +2313,11 @@
 
     let deletingId = null;
 
+    let editingKiePricingId = null;
+
+    let editingKieCurrency = "USD";
+
+    let editingKieBillingUnit = "";
 
     /* =====================================================
        SUPABASE CHECK
@@ -2418,7 +2336,6 @@
         return;
     }
 
-
     /* =====================================================
        FATAL ERROR
     ===================================================== */
@@ -2429,22 +2346,19 @@
             return;
         }
 
-
         tableBody.innerHTML = `
             <tr>
-                <td colspan="9" class="empty">
+                <td colspan="10" class="empty">
                     ${escapeHtml(message)}
                 </td>
             </tr>
         `;
-
 
         showAlert(
             message,
             "error"
         );
     }
-
 
     /* =====================================================
        ALERT
@@ -2460,11 +2374,9 @@
                 "alertBox"
             );
 
-
         if (!box) {
             return;
         }
-
 
         box.className =
             "alert show " +
@@ -2474,15 +2386,12 @@
                     : "alert-success"
             );
 
-
         box.textContent =
             message;
-
 
         clearTimeout(
             showAlert.timer
         );
-
 
         showAlert.timer =
             setTimeout(
@@ -2495,7 +2404,6 @@
                 5000
             );
     }
-
 
     /* =====================================================
        AUTH SESSION
@@ -2511,7 +2419,6 @@
                 .auth
                 .getSession();
 
-
         if (error) {
 
             throw new Error(
@@ -2521,26 +2428,21 @@
 
         }
 
-
         const session =
             data?.session;
-
 
         if (!session) {
 
             window.location.href =
                 "/login.html";
 
-
             throw new Error(
                 "Session tidak ditemukan."
             );
         }
 
-
         return session;
     }
-
 
     /* =====================================================
        API FETCH
@@ -2554,7 +2456,6 @@
         const session =
             await getSession();
 
-
         const headers = {
 
             ...(options.headers || {}),
@@ -2567,7 +2468,6 @@
 
         };
 
-
         const response =
             await fetch(
                 url,
@@ -2577,9 +2477,7 @@
                 }
             );
 
-
         let data;
-
 
         try {
 
@@ -2599,7 +2497,6 @@
 
         }
 
-
         console.log(
             "GEN-Z.AI API:",
             {
@@ -2608,7 +2505,6 @@
                 data
             }
         );
-
 
         if (
             response.status === 401 ||
@@ -2622,7 +2518,6 @@
                 "error"
             );
 
-
             return {
 
                 ok: false,
@@ -2631,7 +2526,6 @@
 
             };
         }
-
 
         if (!response.ok) {
 
@@ -2642,7 +2536,6 @@
             );
         }
 
-
         return {
 
             ok: true,
@@ -2651,7 +2544,6 @@
 
         };
     }
-
 
     /* =====================================================
        NORMALIZE API RESPONSE
@@ -2665,7 +2557,6 @@
             return {};
         }
 
-
         if (
             responseData.data &&
             typeof responseData.data === "object" &&
@@ -2678,10 +2569,313 @@
 
         }
 
-
         return responseData;
     }
 
+    /* =====================================================
+       KIE PRICING HELPERS
+    ===================================================== */
+
+    function getKiePricingList(model) {
+
+        if (
+            Array.isArray(
+                model?.kie_pricing
+            )
+        ) {
+
+            return model.kie_pricing
+                .filter(
+                    function (item) {
+
+                        return item &&
+                            item.unit_price !== null &&
+                            item.unit_price !== undefined &&
+                            Number.isFinite(
+                                Number(
+                                    item.unit_price
+                                )
+                            );
+
+                    }
+                );
+
+        }
+
+        return [];
+
+    }
+
+    function getPrimaryKiePricing(model) {
+
+        const pricing =
+            getKiePricingList(
+                model
+            );
+
+        if (!pricing.length) {
+            return null;
+        }
+
+        return pricing[0];
+    }
+
+    function getKiePricingCurrency(pricing) {
+
+        return String(
+            pricing?.currency ||
+            "USD"
+        ).toUpperCase();
+
+    }
+
+    function getKiePriceInIdr(
+        price,
+        currency
+    ) {
+
+        const numericPrice =
+            Number(price);
+
+        if (
+            !Number.isFinite(
+                numericPrice
+            )
+        ) {
+
+            return null;
+        }
+
+        if (
+            String(
+                currency ||
+                ""
+            ).toUpperCase() === "USD"
+        ) {
+
+            return (
+                numericPrice *
+                USD_TO_IDR_RATE
+            );
+
+        }
+
+        return null;
+    }
+
+    function formatUsd(
+        value,
+        currency = "USD"
+    ) {
+
+        const number =
+            Number(value);
+
+        if (
+            !Number.isFinite(number)
+        ) {
+
+            return "-";
+        }
+
+        return (
+            String(currency).toUpperCase() +
+            " " +
+            new Intl.NumberFormat(
+                "en-US",
+                {
+                    minimumFractionDigits:
+                        0,
+                    maximumFractionDigits:
+                        6
+                }
+            ).format(number)
+        );
+    }
+
+    function formatIdr(value) {
+
+        const number =
+            Number(value);
+
+        if (
+            !Number.isFinite(number)
+        ) {
+
+            return "-";
+        }
+
+        return (
+            "Rp" +
+            new Intl.NumberFormat(
+                "id-ID",
+                {
+                    maximumFractionDigits:
+                        0
+                }
+            ).format(
+                Math.round(number)
+            )
+        );
+
+    }
+
+    function updateKiePricePreview() {
+
+        const raw =
+            kieUnitPrice.value;
+
+        const price =
+            Number(raw);
+
+        previewKieRate.textContent =
+            "$1 = " +
+            formatIdr(
+                USD_TO_IDR_RATE
+            );
+
+        if (
+            raw === "" ||
+            !Number.isFinite(price)
+        ) {
+
+            previewKieUsd.textContent =
+                "-";
+
+            previewKieIdr.textContent =
+                "-";
+
+            return;
+        }
+
+        const currency =
+            editingKieCurrency ||
+            "USD";
+
+        previewKieUsd.textContent =
+            formatUsd(
+                price,
+                currency
+            );
+
+        const idr =
+            getKiePriceInIdr(
+                price,
+                currency
+            );
+
+        previewKieIdr.textContent =
+            idr === null
+                ? "Tidak dikonversi"
+                : formatIdr(idr);
+    }
+
+    function renderKiePrice(model) {
+
+        const pricingList =
+            getKiePricingList(
+                model
+            );
+
+        const pricing =
+            getPrimaryKiePricing(
+                model
+            );
+
+        if (!pricing) {
+
+            return `
+                <div class="kie-price">
+                    <div class="kie-price-empty">
+                        Belum ada pricing
+                    </div>
+                </div>
+            `;
+
+        }
+
+        const currency =
+            getKiePricingCurrency(
+                pricing
+            );
+
+        const unit =
+            pricing.billing_unit ||
+            "unit";
+
+        const price =
+            Number(
+                pricing.unit_price
+            );
+
+        const idr =
+            getKiePriceInIdr(
+                price,
+                currency
+            );
+
+        let idrHtml;
+
+        if (idr !== null) {
+
+            idrHtml = `
+                <div class="kie-price-idr">
+                    ${escapeHtml(
+                        formatIdr(idr)
+                    )}
+                </div>
+            `;
+
+        } else {
+
+            idrHtml = `
+                <div class="kie-price-unit">
+                    Konversi Rupiah tidak tersedia
+                </div>
+            `;
+
+        }
+
+        let countHtml = "";
+
+        if (
+            pricingList.length > 1
+        ) {
+
+            countHtml = `
+                <div class="kie-price-count">
+                    +${pricingList.length - 1}
+                    pricing/condition
+                </div>
+            `;
+
+        }
+
+        return `
+            <div class="kie-price">
+
+                <div class="kie-price-usd">
+                    ${escapeHtml(
+                        formatUsd(
+                            price,
+                            currency
+                        )
+                    )}
+                </div>
+
+                ${idrHtml}
+
+                <div class="kie-price-unit">
+                    / ${escapeHtml(
+                        String(unit)
+                    )}
+                </div>
+
+                ${countHtml}
+
+            </div>
+        `;
+    }
 
     /* =====================================================
        LOAD MODELS
@@ -2692,13 +2886,12 @@
         tableBody.innerHTML = `
             <tr>
                 <td
-                    colspan="9"
+                    colspan="10"
                     class="loading">
                     Memuat model...
                 </td>
             </tr>
         `;
-
 
         try {
 
@@ -2710,23 +2903,19 @@
                     }
                 );
 
-
             if (!result.ok) {
                 return;
             }
-
 
             const payload =
                 getApiPayload(
                     result.data
                 );
 
-
             console.log(
                 "GEN-Z.AI Models Payload:",
                 payload
             );
-
 
             models =
                 Array.isArray(
@@ -2735,7 +2924,6 @@
                     ? payload.models
                     : [];
 
-
             providers =
                 Array.isArray(
                     payload.providers
@@ -2743,13 +2931,11 @@
                     ? payload.providers
                     : [];
 
-
             renderProviderOptions();
 
             updateStats();
 
             renderModels();
-
 
             if (
                 models.length === 0
@@ -2769,11 +2955,10 @@
                 error
             );
 
-
             tableBody.innerHTML = `
                 <tr>
                     <td
-                        colspan="9"
+                        colspan="10"
                         class="empty">
 
                         Gagal memuat model:
@@ -2785,14 +2970,12 @@
                 </tr>
             `;
 
-
             showAlert(
                 error.message,
                 "error"
             );
         }
     }
-
 
     /* =====================================================
        PROVIDERS
@@ -2803,13 +2986,11 @@
         const currentFilter =
             providerFilter.value;
 
-
         providerFilter.innerHTML = `
             <option value="">
                 Semua Provider
             </option>
         `;
-
 
         providerId.innerHTML = `
             <option value="">
@@ -2817,13 +2998,11 @@
             </option>
         `;
 
-
         providers.forEach(
             function (provider) {
 
                 const id =
                     provider.id;
-
 
                 const name =
                     provider.provider_name ||
@@ -2831,44 +3010,35 @@
                     provider.provider_id ||
                     "Provider";
 
-
                 if (!id) {
                     return;
                 }
-
 
                 const optionFilter =
                     document.createElement(
                         "option"
                     );
 
-
                 optionFilter.value =
                     id;
-
 
                 optionFilter.textContent =
                     name;
 
-
                 providerFilter.appendChild(
                     optionFilter
                 );
-
 
                 const optionForm =
                     document.createElement(
                         "option"
                     );
 
-
                 optionForm.value =
                     id;
 
-
                 optionForm.textContent =
                     name;
-
 
                 providerId.appendChild(
                     optionForm
@@ -2877,11 +3047,9 @@
             }
         );
 
-
         providerFilter.value =
             currentFilter;
     }
-
 
     function getProviderName(id) {
 
@@ -2896,7 +3064,6 @@
                 }
             );
 
-
         return (
             provider?.provider_name ||
             provider?.name ||
@@ -2904,7 +3071,6 @@
             "Unknown Provider"
         );
     }
-
 
     /* =====================================================
        STATS
@@ -2923,7 +3089,6 @@
                 }
             ).length;
 
-
         const discount =
             models.filter(
                 function (model) {
@@ -2935,31 +3100,26 @@
                 }
             ).length;
 
-
         document.getElementById(
             "statTotal"
         ).textContent =
             models.length;
-
 
         document.getElementById(
             "statActive"
         ).textContent =
             active;
 
-
         document.getElementById(
             "statDiscount"
         ).textContent =
             discount;
-
 
         document.getElementById(
             "statProviders"
         ).textContent =
             providers.length;
     }
-
 
     /* =====================================================
        FILTER
@@ -2972,14 +3132,11 @@
                 .trim()
                 .toLowerCase();
 
-
         const status =
             statusFilter.value;
 
-
         const selectedProvider =
             providerFilter.value;
-
 
         return models.filter(
             function (model) {
@@ -2988,7 +3145,6 @@
                     getProviderName(
                         model.provider_id
                     );
-
 
                 const searchable =
                     [
@@ -3003,18 +3159,15 @@
                     .join(" ")
                     .toLowerCase();
 
-
                 const searchMatch =
                     !search ||
                     searchable.includes(search);
-
 
                 const statusMatch =
                     !status ||
                     String(
                         model.status || ""
                     ).toLowerCase() === status;
-
 
                 const providerMatch =
                     !selectedProvider ||
@@ -3023,7 +3176,6 @@
                     ) === String(
                         selectedProvider
                     );
-
 
                 return (
                     searchMatch &&
@@ -3034,7 +3186,6 @@
         );
     }
 
-
     /* =====================================================
        RENDER MODELS
     ===================================================== */
@@ -3044,7 +3195,6 @@
         const filtered =
             getFilteredModels();
 
-
         if (
             filtered.length === 0
         ) {
@@ -3052,7 +3202,7 @@
             tableBody.innerHTML = `
                 <tr>
                     <td
-                        colspan="9"
+                        colspan="10"
                         class="empty">
                         Tidak ada model ditemukan.
                     </td>
@@ -3061,7 +3211,6 @@
 
             return;
         }
-
 
         tableBody.innerHTML =
             filtered
@@ -3077,7 +3226,6 @@
                 .join("");
     }
 
-
     /* =====================================================
        RENDER ROW
     ===================================================== */
@@ -3089,15 +3237,12 @@
                 model.discount_percent || 0
             );
 
-
         const normal =
             Number(
                 model.credit_cost || 0
             );
 
-
         let finalCredit;
-
 
         if (
             model.credit_final !== null &&
@@ -3120,16 +3265,13 @@
                 );
         }
 
-
         const status =
             String(
                 model.status || "active"
             ).toLowerCase();
 
-
         let statusClass =
             "status-inactive";
-
 
         if (
             status === "active"
@@ -3146,9 +3288,7 @@
                 "status-maintenance";
         }
 
-
         let duration = "-";
-
 
         if (
             model.min_duration !== null &&
@@ -3178,9 +3318,7 @@
                 `${model.max_duration}s`;
         }
 
-
         let ratios = "-";
-
 
         if (
             Array.isArray(
@@ -3201,13 +3339,11 @@
                 );
         }
 
-
         const providerDisplay =
             model.provider_name ||
             getProviderName(
                 model.provider_id
             );
-
 
         return `
             <tr>
@@ -3231,7 +3367,6 @@
 
                 </td>
 
-
                 <td>
 
                     <span class="provider">
@@ -3242,6 +3377,9 @@
 
                 </td>
 
+                <td>
+                    ${renderKiePrice(model)}
+                </td>
 
                 <td>
 
@@ -3251,7 +3389,6 @@
 
                 </td>
 
-
                 <td>
 
                     <span class="discount">
@@ -3259,7 +3396,6 @@
                     </span>
 
                 </td>
-
 
                 <td>
 
@@ -3269,11 +3405,9 @@
 
                 </td>
 
-
                 <td>
                     ${escapeHtml(duration)}
                 </td>
-
 
                 <td
                     title="${escapeHtml(ratios)}">
@@ -3287,7 +3421,6 @@
 
                 </td>
 
-
                 <td>
 
                     <span
@@ -3298,7 +3431,6 @@
                     </span>
 
                 </td>
-
 
                 <td>
 
@@ -3312,7 +3444,6 @@
                             Edit
 
                         </button>
-
 
                         <button
                             type="button"
@@ -3331,7 +3462,6 @@
         `;
     }
 
-
     /* =====================================================
        ADD MODEL
     ===================================================== */
@@ -3340,22 +3470,24 @@
 
         editingId = null;
 
+        editingKiePricingId = null;
+
+        editingKieCurrency = "USD";
+
+        editingKieBillingUnit = "";
 
         document.getElementById(
             "modalTitle"
         ).textContent =
             "Tambah Model";
 
-
         document.getElementById(
             "modelForm"
         ).reset();
 
-
         document.getElementById(
             "modelId"
         ).value = "";
-
 
         creditCost.value = "0";
 
@@ -3363,14 +3495,23 @@
 
         modelStatus.value = "active";
 
+        kieUnitPrice.value = "";
+
+        kieUnitPrice.disabled = true;
+
+        kiePriceHint.textContent =
+            "Belum ada pricing KIE yang terkait dengan model baru.";
+
+        kiePricingStatusHint.textContent =
+            "Harga KIE akan tersedia setelah model memiliki data pricing di Supabase.";
+
+        updateKiePricePreview();
 
         updateCreditPreview();
-
 
         modelModal.classList.add(
             "show"
         );
-
 
         setTimeout(
             function () {
@@ -3381,7 +3522,6 @@
             100
         );
     }
-
 
     /* =====================================================
        EDIT MODEL
@@ -3401,7 +3541,6 @@
                     }
                 );
 
-
             if (!model) {
 
                 showAlert(
@@ -3412,87 +3551,125 @@
                 return;
             }
 
-
             editingId =
                 model.id;
 
+            const kiePricing =
+                getPrimaryKiePricing(
+                    model
+                );
+
+            editingKiePricingId =
+                kiePricing?.id ||
+                model.kie_pricing_id ||
+                null;
+
+            editingKieCurrency =
+                getKiePricingCurrency(
+                    kiePricing
+                );
+
+            editingKieBillingUnit =
+                kiePricing?.billing_unit ||
+                "";
 
             document.getElementById(
                 "modalTitle"
             ).textContent =
                 "Edit Model";
 
-
             document.getElementById(
                 "modelId"
             ).value =
                 model.id || "";
 
-
             providerId.value =
                 model.provider_id || "";
-
 
             modelStatus.value =
                 model.status ||
                 "active";
 
-
             modelCode.value =
                 model.model_id ||
                 "";
-
 
             modelName.value =
                 model.model_name ||
                 "";
 
-
             description.value =
                 model.description ||
                 "";
-
 
             creditCost.value =
                 model.credit_cost ??
                 0;
 
-
             discountPercent.value =
                 model.discount_percent ??
                 0;
-
 
             minDuration.value =
                 model.min_duration ??
                 "";
 
-
             maxDuration.value =
                 model.max_duration ??
                 "";
-
 
             supportedRatios.value =
                 arrayToString(
                     model.supported_ratios
                 );
 
-
             supportedResolutions.value =
                 arrayToString(
                     model.supported_resolutions
                 );
 
+            if (kiePricing) {
+
+                kieUnitPrice.disabled =
+                    false;
+
+                kieUnitPrice.value =
+                    kiePricing.unit_price ?? "";
+
+                kiePriceHint.textContent =
+                    `Harga ${escapeHtml(
+                        editingKieCurrency
+                    )} per ${editingKieBillingUnit || "unit"} dari Supabase.`;
+
+                kiePricingStatusHint.textContent =
+                    kiePricing.operation
+                        ? `Pricing KIE: ${kiePricing.operation}`
+                        : "Pricing KIE aktif ditemukan di Supabase.";
+
+            } else {
+
+                kieUnitPrice.value =
+                    "";
+
+                kieUnitPrice.disabled =
+                    true;
+
+                kiePriceHint.textContent =
+                    "Model ini belum memiliki data pricing KIE di Supabase.";
+
+                kiePricingStatusHint.textContent =
+                    "Tidak ada perubahan harga KIE yang dapat disimpan untuk model ini.";
+
+            }
+
+            updateKiePricePreview();
 
             updateCreditPreview();
-
 
             modelModal.classList.add(
                 "show"
             );
         };
-
 
     /* =====================================================
        SAVE MODEL
@@ -3502,12 +3679,10 @@
 
         event.preventDefault();
 
-
         const saveButton =
             document.getElementById(
                 "saveModelBtn"
             );
-
 
         const payload = {
 
@@ -3563,7 +3738,6 @@
 
         };
 
-
         if (
             !payload.provider_id
         ) {
@@ -3575,7 +3749,6 @@
 
             return;
         }
-
 
         if (
             !payload.model_id
@@ -3589,7 +3762,6 @@
             return;
         }
 
-
         if (
             !payload.model_name
         ) {
@@ -3601,7 +3773,6 @@
 
             return;
         }
-
 
         if (
             payload.credit_cost < 0
@@ -3615,7 +3786,6 @@
             return;
         }
 
-
         if (
             payload.discount_percent < 0 ||
             payload.discount_percent > 100
@@ -3628,7 +3798,6 @@
 
             return;
         }
-
 
         if (
             payload.min_duration !== null &&
@@ -3645,27 +3814,76 @@
             return;
         }
 
+        const wasEditing =
+            Boolean(editingId);
+
+        /*
+         * Harga KIE hanya dikirim ketika:
+         * 1. sedang edit model
+         * 2. ada pricing ID dari Supabase
+         * 3. input harga valid
+         */
+        if (
+            wasEditing &&
+            editingKiePricingId
+        ) {
+
+            const kiePriceRaw =
+                kieUnitPrice.value;
+
+            const kiePrice =
+                Number(
+                    kiePriceRaw
+                );
+
+            if (
+                kiePriceRaw === "" ||
+                !Number.isFinite(
+                    kiePrice
+                )
+            ) {
+
+                showAlert(
+                    "Harga KIE harus berupa angka.",
+                    "error"
+                );
+
+                return;
+            }
+
+            if (
+                kiePrice < 0
+            ) {
+
+                showAlert(
+                    "Harga KIE tidak boleh negatif.",
+                    "error"
+                );
+
+                return;
+            }
+
+            payload.kie_pricing_id =
+                editingKiePricingId;
+
+            payload.kie_unit_price =
+                kiePrice;
+
+        }
 
         saveButton.disabled = true;
 
         saveButton.textContent =
             "Menyimpan...";
 
-
-        const wasEditing =
-            Boolean(editingId);
-
-
         try {
 
             let result;
-
 
             if (wasEditing) {
 
                 payload.id =
                     editingId;
-
 
                 result =
                     await apiFetch(
@@ -3694,14 +3912,11 @@
                     );
             }
 
-
             if (!result.ok) {
                 return;
             }
 
-
             closeModelModal();
-
 
             showAlert(
                 wasEditing
@@ -3709,9 +3924,7 @@
                     : "Model berhasil ditambahkan."
             );
 
-
             await loadModels();
-
 
         } catch (error) {
 
@@ -3720,25 +3933,21 @@
                 error
             );
 
-
             showAlert(
                 error.message,
                 "error"
             );
-
 
         } finally {
 
             saveButton.disabled =
                 false;
 
-
             saveButton.textContent =
                 "Simpan Model";
 
         }
     }
-
 
     /* =====================================================
        DELETE MODEL
@@ -3758,7 +3967,6 @@
                     }
                 );
 
-
             if (!model) {
 
                 showAlert(
@@ -3769,10 +3977,8 @@
                 return;
             }
 
-
             deletingId =
                 model.id;
-
 
             document.getElementById(
                 "deleteModelName"
@@ -3781,12 +3987,10 @@
                 model.model_id ||
                 "-";
 
-
             deleteModal.classList.add(
                 "show"
             );
         };
-
 
     /* =====================================================
        CONFIRM DELETE
@@ -3798,18 +4002,15 @@
             return;
         }
 
-
         const button =
             document.getElementById(
                 "confirmDeleteBtn"
             );
 
-
         button.disabled = true;
 
         button.textContent =
             "Menghapus...";
-
 
         try {
 
@@ -3823,22 +4024,17 @@
                     }
                 );
 
-
             if (!result.ok) {
                 return;
             }
 
-
             closeDeleteModal();
-
 
             showAlert(
                 "Model berhasil dihapus."
             );
 
-
             await loadModels();
-
 
         } catch (error) {
 
@@ -3847,25 +4043,21 @@
                 error
             );
 
-
             showAlert(
                 error.message,
                 "error"
             );
-
 
         } finally {
 
             button.disabled =
                 false;
 
-
             button.textContent =
                 "Hapus Model";
 
         }
     }
-
 
     /* =====================================================
        CREDIT PREVIEW
@@ -3878,12 +4070,10 @@
                 creditCost.value || 0
             );
 
-
         const discount =
             Number(
                 discountPercent.value || 0
             );
-
 
         const finalCredit =
             normal *
@@ -3892,25 +4082,21 @@
                 discount / 100
             );
 
-
         document.getElementById(
             "previewNormal"
         ).textContent =
             formatNumber(normal);
-
 
         document.getElementById(
             "previewDiscount"
         ).textContent =
             `${formatNumber(discount)}%`;
 
-
         document.getElementById(
             "previewFinal"
         ).textContent =
             formatNumber(finalCredit);
     }
-
 
     /* =====================================================
        MODAL
@@ -3922,10 +4108,21 @@
             "show"
         );
 
-
         editingId = null;
-    }
 
+        editingKiePricingId = null;
+
+        editingKieCurrency = "USD";
+
+        editingKieBillingUnit = "";
+
+        kieUnitPrice.value = "";
+
+        kieUnitPrice.disabled = false;
+
+        updateKiePricePreview();
+
+    }
 
     function closeDeleteModal() {
 
@@ -3933,10 +4130,8 @@
             "show"
         );
 
-
         deletingId = null;
     }
-
 
     /* =====================================================
        UTILITIES
@@ -3947,14 +4142,12 @@
         const number =
             Number(value);
 
-
         if (
             !Number.isFinite(number)
         ) {
 
             return "0";
         }
-
 
         return new Intl.NumberFormat(
             "id-ID",
@@ -3963,7 +4156,6 @@
             }
         ).format(number);
     }
-
 
     function arrayToString(value) {
 
@@ -3974,7 +4166,6 @@
             return value.join(", ");
         }
 
-
         if (
             typeof value === "string"
         ) {
@@ -3982,10 +4173,8 @@
             return value;
         }
 
-
         return "";
     }
-
 
     function stringToArray(value) {
 
@@ -4003,7 +4192,6 @@
         .filter(Boolean);
     }
 
-
     function shorten(
         value,
         max
@@ -4014,14 +4202,12 @@
                 value || "-"
             );
 
-
         if (
             text.length <= max
         ) {
 
             return text;
         }
-
 
         return (
             text.substring(
@@ -4031,7 +4217,6 @@
             "..."
         );
     }
-
 
     function escapeHtml(value) {
 
@@ -4060,7 +4245,6 @@
         );
     }
 
-
     function escapeJs(value) {
 
         return String(
@@ -4084,7 +4268,6 @@
         );
     }
 
-
     /* =====================================================
        EVENTS
     ===================================================== */
@@ -4097,7 +4280,6 @@
         openAddModal
     );
 
-
     document.getElementById(
         "refreshBtn"
     )
@@ -4105,7 +4287,6 @@
         "click",
         loadModels
     );
-
 
     document.getElementById(
         "closeModalBtn"
@@ -4115,7 +4296,6 @@
         closeModelModal
     );
 
-
     document.getElementById(
         "cancelModalBtn"
     )
@@ -4123,7 +4303,6 @@
         "click",
         closeModelModal
     );
-
 
     document.getElementById(
         "closeDeleteBtn"
@@ -4133,7 +4312,6 @@
         closeDeleteModal
     );
 
-
     document.getElementById(
         "cancelDeleteBtn"
     )
@@ -4141,7 +4319,6 @@
         "click",
         closeDeleteModal
     );
-
 
     document.getElementById(
         "confirmDeleteBtn"
@@ -4151,7 +4328,6 @@
         confirmDelete
     );
 
-
     document.getElementById(
         "modelForm"
     )
@@ -4160,36 +4336,35 @@
         saveModel
     );
 
-
     creditCost.addEventListener(
         "input",
         updateCreditPreview
     );
-
 
     discountPercent.addEventListener(
         "input",
         updateCreditPreview
     );
 
+    kieUnitPrice.addEventListener(
+        "input",
+        updateKiePricePreview
+    );
 
     searchInput.addEventListener(
         "input",
         renderModels
     );
 
-
     statusFilter.addEventListener(
         "change",
         renderModels
     );
 
-
     providerFilter.addEventListener(
         "change",
         renderModels
     );
-
 
     modelModal.addEventListener(
         "click",
@@ -4207,7 +4382,6 @@
         }
     );
 
-
     deleteModal.addEventListener(
         "click",
         function (event) {
@@ -4223,7 +4397,6 @@
 
         }
     );
-
 
     document.addEventListener(
         "keydown",
@@ -4246,10 +4419,17 @@
         }
     );
 
-
     /* =====================================================
        INITIALIZE
     ===================================================== */
+
+    previewKieRate.textContent =
+        "$1 = " +
+        formatIdr(
+            USD_TO_IDR_RATE
+        );
+
+    updateKiePricePreview();
 
     loadModels();
 
