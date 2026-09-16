@@ -10,6 +10,21 @@
 // PATCH  /api/admin-models
 // DELETE /api/admin-models
 //
+// Fitur:
+// - List model
+// - Tambah model
+// - Edit model
+// - Hapus model
+// - Provider validation
+// - Duplicate model validation
+// - Credit cost
+// - Discount percent
+// - Credit final
+// - Duration
+// - Ratio
+// - Resolution
+// - Status
+//
 // Keamanan:
 // - Wajib login Supabase
 // - Hanya ADMIN / OWNER
@@ -19,10 +34,13 @@
 // SUPABASE_URL
 // SUPABASE_SERVICE_ROLE_KEY
 // SUPABASE_ANON_KEY
-// atau
-// SUPABASE_KEY
+// atau SUPABASE_KEY
 // ========================================
 
+
+// ========================================
+// JSON RESPONSE
+// ========================================
 
 const json = (res, status, data) => {
     return res.status(status).json(data);
@@ -52,18 +70,20 @@ const getHeader = (req, name) => {
 
 const getBearerToken = (req) => {
 
-    const authorization = getHeader(
-        req,
-        "authorization"
-    );
+    const authorization =
+        getHeader(
+            req,
+            "authorization"
+        );
 
     if (!authorization) {
         return null;
     }
 
-    const match = authorization.match(
-        /^Bearer\s+(.+)$/i
-    );
+    const match =
+        String(authorization).match(
+            /^Bearer\s+(.+)$/i
+        );
 
     return match
         ? match[1].trim()
@@ -105,12 +125,14 @@ const supabaseRequest = async (
     options = {}
 ) => {
 
-    const response = await fetch(
-        `${url}${path}`,
-        options
-    );
+    const response =
+        await fetch(
+            `${url}${path}`,
+            options
+        );
 
-    const text = await response.text();
+    const text =
+        await response.text();
 
     let data = null;
 
@@ -118,7 +140,8 @@ const supabaseRequest = async (
 
         try {
 
-            data = JSON.parse(text);
+            data =
+                JSON.parse(text);
 
         } catch {
 
@@ -147,22 +170,24 @@ const verifyAdmin = async (
     config
 ) => {
 
-    const token = getBearerToken(req);
+    const token =
+        getBearerToken(req);
 
     if (!token) {
 
         return {
             ok: false,
             status: 401,
-            error: "Session tidak ditemukan."
+            error:
+                "Session tidak ditemukan."
         };
 
     }
 
 
-    // ------------------------------------
-    // VERIFY SUPABASE ACCESS TOKEN
-    // ------------------------------------
+    // ====================================
+    // VERIFY SUPABASE SESSION
+    // ====================================
 
     const authResult =
         await supabaseRequest(
@@ -174,8 +199,7 @@ const verifyAdmin = async (
                 headers: {
 
                     "apikey":
-                        config.anonKey ||
-                        config.serviceRoleKey,
+                        config.anonKey,
 
                     "Authorization":
                         `Bearer ${token}`
@@ -192,10 +216,14 @@ const verifyAdmin = async (
     ) {
 
         return {
+
             ok: false,
+
             status: 401,
+
             error:
                 "Session Supabase tidak valid."
+
         };
 
     }
@@ -205,14 +233,16 @@ const verifyAdmin = async (
         authResult.data.id;
 
 
-    // ------------------------------------
-    // LOAD ADMIN PROFILE
-    // ------------------------------------
+    // ====================================
+    // LOAD PROFILE
+    // ====================================
 
     const profileResult =
         await supabaseRequest(
             config.url,
+
             `/rest/v1/profiles?select=id,email,name,role,status,credits&id=eq.${encodeURIComponent(userId)}&limit=1`,
+
             {
                 method: "GET",
 
@@ -230,6 +260,7 @@ const verifyAdmin = async (
                 }
 
             }
+
         );
 
 
@@ -241,17 +272,23 @@ const verifyAdmin = async (
         );
 
         return {
+
             ok: false,
+
             status: 500,
+
             error:
                 "Gagal memeriksa profile admin."
+
         };
 
     }
 
 
     const profile =
-        Array.isArray(profileResult.data)
+        Array.isArray(
+            profileResult.data
+        )
             ? profileResult.data[0]
             : null;
 
@@ -259,10 +296,14 @@ const verifyAdmin = async (
     if (!profile) {
 
         return {
+
             ok: false,
+
             status: 403,
+
             error:
                 "Profile admin tidak ditemukan."
+
         };
 
     }
@@ -274,33 +315,46 @@ const verifyAdmin = async (
         ).toUpperCase();
 
 
-    const status =
+    const accountStatus =
         String(
             profile.status || ""
         ).toLowerCase();
 
 
     if (
-        !["ADMIN", "OWNER"].includes(role)
+        ![
+            "ADMIN",
+            "OWNER"
+        ].includes(role)
     ) {
 
         return {
+
             ok: false,
+
             status: 403,
+
             error:
                 "Anda tidak memiliki akses admin."
+
         };
 
     }
 
 
-    if (status !== "active") {
+    if (
+        accountStatus !== "active"
+    ) {
 
         return {
+
             ok: false,
+
             status: 403,
+
             error:
                 "Akun admin tidak aktif."
+
         };
 
     }
@@ -313,8 +367,11 @@ const verifyAdmin = async (
         userId,
 
         profile: {
+
             ...profile,
+
             role
+
         }
 
     };
@@ -327,153 +384,372 @@ const verifyAdmin = async (
 // ========================================
 
 const MODEL_FIELDS = [
+
     "id",
+
     "provider_id",
+
     "model_id",
+
     "model_name",
+
     "description",
+
     "credit_cost",
+
+    "discount_percent",
+
+    "credit_final",
+
     "min_duration",
+
     "max_duration",
+
     "supported_ratios",
+
     "supported_resolutions",
+
     "status",
+
     "created_at",
+
     "updated_at"
+
 ];
+
+
+// ========================================
+// NUMBER VALIDATION
+// ========================================
+
+const parseNumber = (
+    value,
+    field,
+    integer = false
+) => {
+
+    const number =
+        Number(value);
+
+
+    if (
+        !Number.isFinite(number)
+    ) {
+
+        throw new Error(
+            `${field} harus berupa angka.`
+        );
+
+    }
+
+
+    if (
+        integer &&
+        !Number.isInteger(number)
+    ) {
+
+        throw new Error(
+            `${field} harus berupa bilangan bulat.`
+        );
+
+    }
+
+
+    return number;
+
+};
 
 
 // ========================================
 // CLEAN MODEL
 // ========================================
 
-const cleanModel = (input = {}) => {
+const cleanModel = (
+    input = {}
+) => {
 
     const model = {};
 
 
+    // ====================================
+    // PROVIDER
+    // ====================================
+
     if (
         input.provider_id !== undefined
     ) {
+
         model.provider_id =
-            input.provider_id;
+            String(
+                input.provider_id
+            ).trim();
+
     }
 
+
+    // ====================================
+    // MODEL ID
+    // ====================================
 
     if (
         input.model_id !== undefined
     ) {
+
         model.model_id =
-            String(input.model_id).trim();
+            String(
+                input.model_id
+            ).trim();
+
     }
 
+
+    // ====================================
+    // MODEL NAME
+    // ====================================
 
     if (
         input.model_name !== undefined
     ) {
+
         model.model_name =
-            String(input.model_name).trim();
+            String(
+                input.model_name
+            ).trim();
+
     }
 
+
+    // ====================================
+    // DESCRIPTION
+    // ====================================
 
     if (
         input.description !== undefined
     ) {
+
         model.description =
             input.description === null
                 ? null
-                : String(input.description);
+                : String(
+                    input.description
+                );
+
     }
 
+
+    // ====================================
+    // CREDIT COST
+    // ====================================
 
     if (
         input.credit_cost !== undefined
     ) {
 
         const value =
-            Number(input.credit_cost);
+            parseNumber(
+                input.credit_cost,
+                "credit_cost",
+                true
+            );
 
-        if (!Number.isFinite(value)) {
+
+        if (value < 0) {
 
             throw new Error(
-                "credit_cost harus berupa angka."
+                "credit_cost tidak boleh negatif."
             );
 
         }
 
-        model.credit_cost = value;
+
+        model.credit_cost =
+            value;
 
     }
 
 
+    // ====================================
+    // DISCOUNT
+    // ====================================
+
     if (
-        input.min_duration !== undefined
+        input.discount_percent !== undefined
     ) {
 
         const value =
-            Number(input.min_duration);
+            parseNumber(
+                input.discount_percent,
+                "discount_percent",
+                false
+            );
 
-        if (!Number.isFinite(value)) {
+
+        if (
+            value < 0 ||
+            value > 100
+        ) {
 
             throw new Error(
-                "min_duration harus berupa angka."
+                "Diskon harus antara 0 sampai 100%."
             );
 
         }
 
-        model.min_duration = value;
+
+        model.discount_percent =
+            value;
 
     }
 
 
+    // ====================================
+    // MIN DURATION
+    // ====================================
+
     if (
-        input.max_duration !== undefined
+        input.min_duration !== undefined &&
+        input.min_duration !== ""
     ) {
 
         const value =
-            Number(input.max_duration);
+            parseNumber(
+                input.min_duration,
+                "min_duration",
+                true
+            );
 
-        if (!Number.isFinite(value)) {
+
+        if (value < 0) {
 
             throw new Error(
-                "max_duration harus berupa angka."
+                "min_duration tidak boleh negatif."
             );
 
         }
 
-        model.max_duration = value;
+
+        model.min_duration =
+            value;
 
     }
 
+
+    // ====================================
+    // MAX DURATION
+    // ====================================
+
+    if (
+        input.max_duration !== undefined &&
+        input.max_duration !== ""
+    ) {
+
+        const value =
+            parseNumber(
+                input.max_duration,
+                "max_duration",
+                true
+            );
+
+
+        if (value < 0) {
+
+            throw new Error(
+                "max_duration tidak boleh negatif."
+            );
+
+        }
+
+
+        model.max_duration =
+            value;
+
+    }
+
+
+    // ====================================
+    // RATIOS
+    // ====================================
 
     if (
         input.supported_ratios !== undefined
     ) {
 
-        model.supported_ratios =
-            input.supported_ratios;
+        if (
+            Array.isArray(
+                input.supported_ratios
+            )
+        ) {
+
+            model.supported_ratios =
+                input.supported_ratios;
+
+        } else {
+
+            model.supported_ratios =
+                String(
+                    input.supported_ratios
+                )
+                .split(",")
+                .map(
+                    item =>
+                        item.trim()
+                )
+                .filter(Boolean);
+
+        }
 
     }
 
+
+    // ====================================
+    // RESOLUTIONS
+    // ====================================
 
     if (
         input.supported_resolutions !== undefined
     ) {
 
-        model.supported_resolutions =
-            input.supported_resolutions;
+        if (
+            Array.isArray(
+                input.supported_resolutions
+            )
+        ) {
+
+            model.supported_resolutions =
+                input.supported_resolutions;
+
+        } else {
+
+            model.supported_resolutions =
+                String(
+                    input.supported_resolutions
+                )
+                .split(",")
+                .map(
+                    item =>
+                        item.trim()
+                )
+                .filter(Boolean);
+
+        }
 
     }
 
+
+    // ====================================
+    // STATUS
+    // ====================================
 
     if (
         input.status !== undefined
     ) {
 
         model.status =
-            String(input.status)
-                .trim()
-                .toLowerCase();
+            String(
+                input.status
+            )
+            .trim()
+            .toLowerCase();
 
     }
 
@@ -492,75 +768,105 @@ const validateModel = (
     requireAll = false
 ) => {
 
+
+    // ====================================
+    // PROVIDER
+    // ====================================
+
     if (
-        requireAll ||
-        model.provider_id !== undefined
+        requireAll &&
+        !model.provider_id
     ) {
 
-        if (
-            model.provider_id === undefined ||
-            model.provider_id === null ||
-            String(model.provider_id).trim() === ""
-        ) {
-
-            return "provider_id wajib diisi.";
-
-        }
+        return (
+            "Provider wajib dipilih."
+        );
 
     }
 
 
+    // ====================================
+    // MODEL ID
+    // ====================================
+
     if (
-        requireAll ||
-        model.model_id !== undefined
+        requireAll &&
+        !model.model_id
     ) {
 
-        if (
-            !model.model_id
-        ) {
-
-            return "model_id wajib diisi.";
-
-        }
+        return (
+            "Model ID wajib diisi."
+        );
 
     }
 
 
+    // ====================================
+    // MODEL NAME
+    // ====================================
+
     if (
-        requireAll ||
-        model.model_name !== undefined
+        requireAll &&
+        !model.model_name
     ) {
 
-        if (
-            !model.model_name
-        ) {
-
-            return "model_name wajib diisi.";
-
-        }
+        return (
+            "Model Name wajib diisi."
+        );
 
     }
 
+
+    // ====================================
+    // STATUS
+    // ====================================
 
     if (
         model.status !== undefined
     ) {
 
         const allowed = [
+
             "active",
+
             "inactive",
+
             "maintenance"
+
         ];
+
 
         if (
             !allowed.includes(
-                String(model.status).toLowerCase()
+                model.status
             )
         ) {
 
             return (
-                "status harus active, inactive, " +
-                "atau maintenance."
+                "Status harus active, inactive, atau maintenance."
+            );
+
+        }
+
+    }
+
+
+    // ====================================
+    // DURATION
+    // ====================================
+
+    if (
+        model.min_duration !== undefined &&
+        model.max_duration !== undefined
+    ) {
+
+        if (
+            model.max_duration <
+            model.min_duration
+        ) {
+
+            return (
+                "Max duration tidak boleh lebih kecil dari min duration."
             );
 
         }
@@ -574,7 +880,161 @@ const validateModel = (
 
 
 // ========================================
-// LIST MODELS
+// CHECK PROVIDER
+// ========================================
+
+const providerExists = async (
+    config,
+    providerId
+) => {
+
+    const result =
+        await supabaseRequest(
+
+            config.url,
+
+            `/rest/v1/providers?select=id,provider_id,provider_name,status&id=eq.${encodeURIComponent(providerId)}&limit=1`,
+
+            {
+
+                method: "GET",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json"
+
+                }
+
+            }
+
+        );
+
+
+    if (
+        !result.response.ok
+    ) {
+
+        console.error(
+            "PROVIDER CHECK ERROR:",
+            result.data
+        );
+
+        throw new Error(
+            result.data?.message ||
+            result.data?.details ||
+            "Gagal memeriksa provider."
+        );
+
+    }
+
+
+    if (
+        !Array.isArray(
+            result.data
+        ) ||
+        result.data.length === 0
+    ) {
+
+        return null;
+
+    }
+
+
+    return result.data[0];
+
+};
+
+
+// ========================================
+// CHECK DUPLICATE MODEL
+// ========================================
+
+const duplicateModelExists = async (
+    config,
+    providerId,
+    modelId,
+    excludeId = null
+) => {
+
+    let path =
+
+        `/rest/v1/models?select=id,provider_id,model_id&provider_id=eq.${encodeURIComponent(providerId)}&model_id=eq.${encodeURIComponent(modelId)}&limit=1`;
+
+
+    if (excludeId) {
+
+        path +=
+            `&id=neq.${encodeURIComponent(excludeId)}`;
+
+    }
+
+
+    const result =
+        await supabaseRequest(
+
+            config.url,
+
+            path,
+
+            {
+
+                method: "GET",
+
+                headers: {
+
+                    "apikey":
+                        config.serviceRoleKey,
+
+                    "Authorization":
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json"
+
+                }
+
+            }
+
+        );
+
+
+    if (
+        !result.response.ok
+    ) {
+
+        throw new Error(
+
+            result.data?.message ||
+            result.data?.details ||
+            "Gagal memeriksa duplikasi model."
+
+        );
+
+    }
+
+
+    return (
+
+        Array.isArray(
+            result.data
+        ) &&
+
+        result.data.length > 0
+
+    );
+
+};
+
+
+// ========================================
+// LIST MODELS + PROVIDERS
 // ========================================
 
 const listModels = async (
@@ -585,11 +1045,15 @@ const listModels = async (
         MODEL_FIELDS.join(",");
 
 
-    const result =
+    const modelsResult =
         await supabaseRequest(
+
             config.url,
+
             `/rest/v1/models?select=${encodeURIComponent(fields)}&order=created_at.desc`,
+
             {
+
                 method: "GET",
 
                 headers: {
@@ -606,41 +1070,35 @@ const listModels = async (
                 }
 
             }
+
         );
 
 
-    if (!result.response.ok) {
+    if (
+        !modelsResult.response.ok
+    ) {
 
         throw new Error(
-            result.data?.message ||
-            result.data?.hint ||
-            result.data?.details ||
+
+            modelsResult.data?.message ||
+            modelsResult.data?.details ||
+            modelsResult.data?.hint ||
             "Gagal mengambil data models."
+
         );
 
     }
 
 
-    return Array.isArray(result.data)
-        ? result.data
-        : [];
-
-};
-
-
-// ========================================
-// LIST PROVIDERS
-// ========================================
-
-const listProviders = async (
-    config
-) => {
-
-    const result =
+    const providersResult =
         await supabaseRequest(
+
             config.url,
-            "/rest/v1/providers?select=id,provider_id,provider_name,description,status,is_default&order=created_at.desc",
+
+            `/rest/v1/providers?select=id,provider_id,provider_name,description,status,is_default&order=created_at.desc`,
+
             {
+
                 method: "GET",
 
                 headers: {
@@ -657,77 +1115,115 @@ const listProviders = async (
                 }
 
             }
+
         );
 
 
-    if (!result.response.ok) {
+    if (
+        !providersResult.response.ok
+    ) {
 
         throw new Error(
-            result.data?.message ||
-            result.data?.hint ||
-            result.data?.details ||
+
+            providersResult.data?.message ||
+            providersResult.data?.details ||
+            providersResult.data?.hint ||
             "Gagal mengambil data providers."
+
         );
 
     }
 
 
-    return Array.isArray(result.data)
-        ? result.data
-        : [];
-
-};
-
-
-// ========================================
-// MERGE PROVIDER NAME
-// ========================================
-
-const mergeProviderName = (
-    models,
-    providers
-) => {
-
-    const providerMap = new Map();
+    const models =
+        Array.isArray(
+            modelsResult.data
+        )
+            ? modelsResult.data
+            : [];
 
 
-    providers.forEach(provider => {
-
-        providerMap.set(
-            String(provider.id),
-            provider
-        );
-
-    });
+    const providers =
+        Array.isArray(
+            providersResult.data
+        )
+            ? providersResult.data
+            : [];
 
 
-    return models.map(model => {
+    // ====================================
+    // PROVIDER MAP
+    // ====================================
 
-        const provider =
-            providerMap.get(
-                String(model.provider_id)
+    const providerMap =
+        new Map();
+
+
+    providers.forEach(
+        provider => {
+
+            providerMap.set(
+
+                String(
+                    provider.id
+                ),
+
+                provider
+
             );
 
+        }
+    );
 
-        return {
 
-            ...model,
+    // ====================================
+    // MERGE PROVIDER
+    // ====================================
 
-            provider_name:
-                provider?.provider_name ||
-                null,
+    const mergedModels =
+        models.map(
+            model => {
 
-            provider_code:
-                provider?.provider_id ||
-                null,
+                const provider =
+                    providerMap.get(
 
-            provider_status:
-                provider?.status ||
-                null
+                        String(
+                            model.provider_id
+                        )
 
-        };
+                    );
 
-    });
+
+                return {
+
+                    ...model,
+
+                    provider_name:
+                        provider?.provider_name ||
+                        null,
+
+                    provider_code:
+                        provider?.provider_id ||
+                        null,
+
+                    provider_status:
+                        provider?.status ||
+                        null
+
+                };
+
+            }
+        );
+
+
+    return {
+
+        models:
+            mergedModels,
+
+        providers
+
+    };
 
 };
 
@@ -761,11 +1257,102 @@ const createModel = async (
     }
 
 
+    // ====================================
+    // PROVIDER CHECK
+    // ====================================
+
+    const provider =
+        await providerExists(
+            config,
+            model.provider_id
+        );
+
+
+    if (!provider) {
+
+        throw new Error(
+            "Provider tidak ditemukan."
+        );
+
+    }
+
+
+    // ====================================
+    // DUPLICATE CHECK
+    // ====================================
+
+    const duplicate =
+        await duplicateModelExists(
+
+            config,
+
+            model.provider_id,
+
+            model.model_id
+
+        );
+
+
+    if (duplicate) {
+
+        throw new Error(
+
+            "Model ID sudah digunakan oleh provider tersebut."
+
+        );
+
+    }
+
+
+    // ====================================
+    // DEFAULT VALUES
+    // ====================================
+
+    if (
+        model.credit_cost === undefined
+    ) {
+
+        model.credit_cost = 0;
+
+    }
+
+
+    if (
+        model.discount_percent === undefined
+    ) {
+
+        model.discount_percent = 0;
+
+    }
+
+
+    if (
+        model.status === undefined
+    ) {
+
+        model.status = "active";
+
+    }
+
+
+    // Jangan mengirim credit_final.
+    // Database trigger menghitungnya.
+    delete model.credit_final;
+
+
+    // ====================================
+    // INSERT
+    // ====================================
+
     const result =
         await supabaseRequest(
+
             config.url,
+
             "/rest/v1/models",
+
             {
+
                 method: "POST",
 
                 headers: {
@@ -785,27 +1372,48 @@ const createModel = async (
                 },
 
                 body:
-                    JSON.stringify(model)
+                    JSON.stringify(
+                        model
+                    )
 
             }
+
         );
 
 
-    if (!result.response.ok) {
+    if (
+        !result.response.ok
+    ) {
+
+        console.error(
+            "CREATE MODEL ERROR:",
+            result.data
+        );
+
 
         throw new Error(
+
             result.data?.message ||
             result.data?.details ||
             result.data?.hint ||
             "Gagal membuat model."
+
         );
 
     }
 
 
-    return Array.isArray(result.data)
-        ? result.data[0]
-        : result.data;
+    return (
+
+        Array.isArray(
+            result.data
+        )
+
+            ? result.data[0]
+
+            : result.data
+
+    );
 
 };
 
@@ -860,15 +1468,99 @@ const updateModel = async (
     }
 
 
+    // ====================================
+    // PROVIDER CHECK
+    // ====================================
+
+    if (
+        model.provider_id
+    ) {
+
+        const provider =
+            await providerExists(
+
+                config,
+
+                model.provider_id
+
+            );
+
+
+        if (!provider) {
+
+            throw new Error(
+                "Provider tidak ditemukan."
+            );
+
+        }
+
+    }
+
+
+    // ====================================
+    // DUPLICATE CHECK
+    // ====================================
+
+    if (
+        model.provider_id &&
+        model.model_id
+    ) {
+
+        const duplicate =
+            await duplicateModelExists(
+
+                config,
+
+                model.provider_id,
+
+                model.model_id,
+
+                id
+
+            );
+
+
+        if (duplicate) {
+
+            throw new Error(
+
+                "Model ID sudah digunakan oleh provider tersebut."
+
+            );
+
+        }
+
+    }
+
+
+    // ====================================
+    // NEVER ACCEPT CREDIT_FINAL
+    // ====================================
+
+    delete model.credit_final;
+
+
+    // ====================================
+    // UPDATED AT
+    // ====================================
+
     model.updated_at =
         new Date().toISOString();
 
 
+    // ====================================
+    // UPDATE
+    // ====================================
+
     const result =
         await supabaseRequest(
+
             config.url,
+
             `/rest/v1/models?id=eq.${encodeURIComponent(id)}`,
+
             {
+
                 method: "PATCH",
 
                 headers: {
@@ -888,26 +1580,41 @@ const updateModel = async (
                 },
 
                 body:
-                    JSON.stringify(model)
+                    JSON.stringify(
+                        model
+                    )
 
             }
+
         );
 
 
-    if (!result.response.ok) {
+    if (
+        !result.response.ok
+    ) {
+
+        console.error(
+            "UPDATE MODEL ERROR:",
+            result.data
+        );
+
 
         throw new Error(
+
             result.data?.message ||
             result.data?.details ||
             result.data?.hint ||
             "Gagal memperbarui model."
+
         );
 
     }
 
 
     if (
-        Array.isArray(result.data) &&
+        !Array.isArray(
+            result.data
+        ) ||
         result.data.length === 0
     ) {
 
@@ -918,9 +1625,7 @@ const updateModel = async (
     }
 
 
-    return Array.isArray(result.data)
-        ? result.data[0]
-        : result.data;
+    return result.data[0];
 
 };
 
@@ -945,9 +1650,13 @@ const deleteModel = async (
 
     const result =
         await supabaseRequest(
+
             config.url,
+
             `/rest/v1/models?id=eq.${encodeURIComponent(id)}`,
+
             {
+
                 method: "DELETE",
 
                 headers: {
@@ -967,23 +1676,36 @@ const deleteModel = async (
                 }
 
             }
+
         );
 
 
-    if (!result.response.ok) {
+    if (
+        !result.response.ok
+    ) {
+
+        console.error(
+            "DELETE MODEL ERROR:",
+            result.data
+        );
+
 
         throw new Error(
+
             result.data?.message ||
             result.data?.details ||
             result.data?.hint ||
             "Gagal menghapus model."
+
         );
 
     }
 
 
     if (
-        Array.isArray(result.data) &&
+        !Array.isArray(
+            result.data
+        ) ||
         result.data.length === 0
     ) {
 
@@ -994,9 +1716,7 @@ const deleteModel = async (
     }
 
 
-    return Array.isArray(result.data)
-        ? result.data[0]
-        : result.data;
+    return result.data[0];
 
 };
 
@@ -1072,11 +1792,17 @@ export default async function handler(
     );
 
 
+    // ====================================
+    // OPTIONS
+    // ====================================
+
     if (
         req.method === "OPTIONS"
     ) {
 
-        return res.status(204).end();
+        return res
+            .status(204)
+            .end();
 
     }
 
@@ -1091,34 +1817,25 @@ export default async function handler(
 
     if (
         !config.url ||
-        !config.serviceRoleKey
-    ) {
-
-        return json(
-            res,
-            500,
-            {
-                success: false,
-                error:
-                    "SUPABASE_URL atau SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi di server."
-            }
-        );
-
-    }
-
-
-    if (
+        !config.serviceRoleKey ||
         !config.anonKey
     ) {
 
         return json(
+
             res,
+
             500,
+
             {
+
                 success: false,
+
                 error:
-                    "SUPABASE_ANON_KEY atau SUPABASE_KEY belum dikonfigurasi di server."
+                    "Konfigurasi Supabase server belum lengkap."
+
             }
+
         );
 
     }
@@ -1129,6 +1846,7 @@ export default async function handler(
     // ====================================
 
     let admin;
+
 
     try {
 
@@ -1145,14 +1863,22 @@ export default async function handler(
             error
         );
 
+
         return json(
+
             res,
+
             500,
+
             {
+
                 success: false,
+
                 error:
                     "Gagal memverifikasi akses admin."
+
             }
+
         );
 
     }
@@ -1161,13 +1887,20 @@ export default async function handler(
     if (!admin.ok) {
 
         return json(
+
             res,
+
             admin.status,
+
             {
+
                 success: false,
+
                 error:
                     admin.error
+
             }
+
         );
 
     }
@@ -1183,37 +1916,30 @@ export default async function handler(
 
         try {
 
-            const [
-                models,
-                providers
-            ] = await Promise.all([
-
-                listModels(
+            const data =
+                await listModels(
                     config
-                ),
-
-                listProviders(
-                    config
-                )
-
-            ]);
-
-
-            const merged =
-                mergeProviderName(
-                    models,
-                    providers
                 );
 
 
             return json(
+
                 res,
+
                 200,
+
                 {
+
                     success: true,
-                    models: merged,
-                    providers
+
+                    models:
+                        data.models,
+
+                    providers:
+                        data.providers
+
                 }
+
             );
 
         } catch (error) {
@@ -1223,15 +1949,23 @@ export default async function handler(
                 error
             );
 
+
             return json(
+
                 res,
+
                 500,
+
                 {
+
                     success: false,
+
                     error:
                         error.message ||
                         "Gagal mengambil data models."
+
                 }
+
             );
 
         }
@@ -1240,7 +1974,7 @@ export default async function handler(
 
 
     // ====================================
-    // PARSE BODY
+    // BODY
     // ====================================
 
     const body =
@@ -1259,18 +1993,31 @@ export default async function handler(
 
             const model =
                 await createModel(
+
                     config,
+
                     body
+
                 );
 
 
             return json(
+
                 res,
+
                 201,
+
                 {
+
                     success: true,
+
+                    message:
+                        "Model berhasil ditambahkan.",
+
                     model
+
                 }
+
             );
 
         } catch (error) {
@@ -1280,15 +2027,23 @@ export default async function handler(
                 error
             );
 
+
             return json(
+
                 res,
+
                 400,
+
                 {
+
                     success: false,
+
                     error:
                         error.message ||
                         "Gagal membuat model."
+
                 }
+
             );
 
         }
@@ -1313,19 +2068,33 @@ export default async function handler(
 
             const model =
                 await updateModel(
+
                     config,
+
                     id,
+
                     body
+
                 );
 
 
             return json(
+
                 res,
+
                 200,
+
                 {
+
                     success: true,
+
+                    message:
+                        "Model berhasil diperbarui.",
+
                     model
+
                 }
+
             );
 
         } catch (error) {
@@ -1335,15 +2104,23 @@ export default async function handler(
                 error
             );
 
+
             return json(
+
                 res,
+
                 400,
+
                 {
+
                     success: false,
+
                     error:
                         error.message ||
                         "Gagal memperbarui model."
+
                 }
+
             );
 
         }
@@ -1368,18 +2145,31 @@ export default async function handler(
 
             const model =
                 await deleteModel(
+
                     config,
+
                     id
+
                 );
 
 
             return json(
+
                 res,
+
                 200,
+
                 {
+
                     success: true,
+
+                    message:
+                        "Model berhasil dihapus.",
+
                     model
+
                 }
+
             );
 
         } catch (error) {
@@ -1389,15 +2179,23 @@ export default async function handler(
                 error
             );
 
+
             return json(
+
                 res,
+
                 400,
+
                 {
+
                     success: false,
+
                     error:
                         error.message ||
                         "Gagal menghapus model."
+
                 }
+
             );
 
         }
@@ -1410,13 +2208,20 @@ export default async function handler(
     // ====================================
 
     return json(
+
         res,
+
         405,
+
         {
+
             success: false,
+
             error:
                 "Method tidak didukung."
+
         }
+
     );
 
 }
