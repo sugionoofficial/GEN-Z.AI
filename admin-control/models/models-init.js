@@ -7,226 +7,249 @@
    admin-control/models/models-init.js
 
    Fungsi:
-   - Memastikan module tersedia
-   - Mengatur urutan initialization
-   - Menghubungkan Models Data
-   - Models Search
-   - Models Form
-   - Models Price
-   - Models UI
-
-   Catatan:
-   File ini tidak melakukan query API key.
+   - Menunggu seluruh module tersedia
+   - Menjalankan initialization satu kali
+   - Tidak melakukan auto-start sendiri
+   - Initialization dikendalikan oleh models-loader.js
 ========================================================= */
 
 (function () {
     "use strict";
 
-    let started = false;
+    let initialized = false;
+    let initializing = null;
 
-    function waitForModules(
-        timeout = 10000
-    ) {
-        return new Promise(
-            (resolve, reject) => {
-                const start =
-                    Date.now();
+    /* =====================================================
+       WAIT FOR MODULES
+    ===================================================== */
 
-                function check() {
-                    const required =
-                        [
-                            "GENZModelsData",
-                            "GENZModelsSearch",
-                            "GENZModelsForm",
-                            "GENZModelsPrice",
-                            "GENZModelsUI"
-                        ];
+    function waitForModules(timeout = 10000) {
+        return new Promise((resolve, reject) => {
 
-                    const missing =
-                        required.filter(
-                            name =>
-                                !window[
-                                    name
-                                ]
-                        );
+            const startedAt = Date.now();
 
-                    if (
-                        missing.length === 0
-                    ) {
-                        resolve();
-                        return;
-                    }
+            function check() {
 
-                    if (
-                        Date.now() -
-                            start >=
-                        timeout
-                    ) {
-                        reject(
-                            new Error(
-                                "Module belum tersedia: " +
-                                    missing.join(
-                                        ", "
-                                    )
-                            )
-                        );
+                const required = [
+                    "GENZModelsData",
+                    "GENZModelsSearch",
+                    "GENZModelsForm",
+                    "GENZModelsPrice",
+                    "GENZModelsUI"
+                ];
 
-                        return;
-                    }
+                const missing = required.filter(
+                    name => !window[name]
+                );
 
-                    window.setTimeout(
-                        check,
-                        50
-                    );
+                if (missing.length === 0) {
+                    resolve();
+                    return;
                 }
 
-                check();
+                if (
+                    Date.now() - startedAt >=
+                    timeout
+                ) {
+                    reject(
+                        new Error(
+                            "Module belum tersedia: " +
+                            missing.join(", ")
+                        )
+                    );
+
+                    return;
+                }
+
+                window.setTimeout(
+                    check,
+                    50
+                );
             }
-        );
+
+            check();
+        });
     }
+
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
 
     async function initialize() {
-        if (started) {
-            return;
+
+        if (initialized) {
+            return true;
         }
 
-        started = true;
-
-        try {
-            await waitForModules();
-
-            /*
-             * Data model harus tersedia
-             * sebelum search dan UI bekerja.
-             */
-            if (
-                window.GENZModelsData &&
-                typeof window
-                    .GENZModelsData
-                    .loadKieModels ===
-                    "function"
-            ) {
-                await window
-                    .GENZModelsData
-                    .loadKieModels({
-                        force: false,
-                        activeOnly: false
-                    });
-            }
-
-            /*
-             * Pricing dimuat setelah
-             * data model tersedia.
-             */
-            if (
-                window.GENZModelsPrice &&
-                typeof window
-                    .GENZModelsPrice
-                    .initialize ===
-                    "function"
-            ) {
-                await window
-                    .GENZModelsPrice
-                    .initialize();
-            }
-
-            /*
-             * Search module.
-             */
-            if (
-                window.GENZModelsSearch &&
-                typeof window
-                    .GENZModelsSearch
-                    .initialize ===
-                    "function"
-            ) {
-                await window
-                    .GENZModelsSearch
-                    .initialize();
-            }
-
-            /*
-             * Form module.
-             */
-            if (
-                window.GENZModelsForm &&
-                typeof window
-                    .GENZModelsForm
-                    .initialize ===
-                    "function"
-            ) {
-                await window
-                    .GENZModelsForm
-                    .initialize();
-            }
-
-            /*
-             * UI terakhir.
-             * UI akan menghubungkan
-             * tombol, modal, statistik,
-             * refresh, dan module lainnya.
-             */
-            if (
-                window.GENZModelsUI &&
-                typeof window
-                    .GENZModelsUI
-                    .initialize ===
-                    "function"
-            ) {
-                await window
-                    .GENZModelsUI
-                    .initialize();
-            }
-
-            console.info(
-                "[GEN-Z.AI] Model Management modules initialized."
-            );
-
-            window.dispatchEvent(
-                new CustomEvent(
-                    "genz-models-ready"
-                )
-            );
-        } catch (error) {
-            console.error(
-                "[GEN-Z.AI] Model Management initialization failed:",
-                error
-            );
-
-            started = false;
-
-            window.dispatchEvent(
-                new CustomEvent(
-                    "genz-models-error",
-                    {
-                        detail: error
-                    }
-                )
-            );
+        if (initializing) {
+            return initializing;
         }
+
+        initializing = (async () => {
+
+            try {
+
+                /*
+                 * Pastikan semua module sudah tersedia.
+                 */
+                await waitForModules();
+
+                /* =========================================
+                   1. LOAD MODEL DATA
+                ========================================= */
+
+                if (
+                    window.GENZModelsData &&
+                    typeof window
+                        .GENZModelsData
+                        .loadKieModels ===
+                        "function"
+                ) {
+
+                    await window
+                        .GENZModelsData
+                        .loadKieModels({
+                            force: false,
+                            activeOnly: false
+                        });
+                }
+
+                /* =========================================
+                   2. INITIALIZE PRICING
+                ========================================= */
+
+                if (
+                    window.GENZModelsPrice &&
+                    typeof window
+                        .GENZModelsPrice
+                        .initialize ===
+                        "function"
+                ) {
+
+                    await window
+                        .GENZModelsPrice
+                        .initialize();
+                }
+
+                /* =========================================
+                   3. INITIALIZE SEARCH
+                ========================================= */
+
+                if (
+                    window.GENZModelsSearch &&
+                    typeof window
+                        .GENZModelsSearch
+                        .initialize ===
+                        "function"
+                ) {
+
+                    await window
+                        .GENZModelsSearch
+                        .initialize();
+                }
+
+                /* =========================================
+                   4. INITIALIZE FORM
+                ========================================= */
+
+                if (
+                    window.GENZModelsForm &&
+                    typeof window
+                        .GENZModelsForm
+                        .initialize ===
+                        "function"
+                ) {
+
+                    await window
+                        .GENZModelsForm
+                        .initialize();
+                }
+
+                /* =========================================
+                   5. INITIALIZE UI
+                ========================================= */
+
+                if (
+                    window.GENZModelsUI &&
+                    typeof window
+                        .GENZModelsUI
+                        .initialize ===
+                        "function"
+                ) {
+
+                    await window
+                        .GENZModelsUI
+                        .initialize();
+                }
+
+                initialized = true;
+
+                console.info(
+                    "[GEN-Z.AI] Model Management initialization selesai."
+                );
+
+                window.dispatchEvent(
+                    new CustomEvent(
+                        "genz-models-ready"
+                    )
+                );
+
+                return true;
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Model Management initialization gagal:",
+                    error
+                );
+
+                window.dispatchEvent(
+                    new CustomEvent(
+                        "genz-models-error",
+                        {
+                            detail: error
+                        }
+                    )
+                );
+
+                throw error;
+
+            } finally {
+
+                initializing = null;
+            }
+
+        })();
+
+        return initializing;
     }
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    function isInitialized() {
+        return initialized;
+    }
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
 
     window.GENZModelsInit =
         Object.freeze({
-            initialize
+            initialize,
+            isInitialized,
+            waitForModules
         });
 
-    function start() {
-        initialize();
-    }
+    /*
+     * PENTING:
+     *
+     * Tidak ada DOMContentLoaded di sini.
+     *
+     * models-loader.js adalah satu-satunya
+     * file yang menjalankan initialization.
+     */
 
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-        document.addEventListener(
-            "DOMContentLoaded",
-            start,
-            {
-                once: true
-            }
-        );
-    } else {
-        start();
-    }
 })();
