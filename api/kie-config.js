@@ -366,7 +366,11 @@ const eqFilter = (
     value
 ) => {
 
-    return `eq.${encodeURIComponent(value)}`;
+    return (
+        `eq.${encodeURIComponent(
+            String(value)
+        )}`
+    );
 
 };
 
@@ -392,9 +396,12 @@ const inFilter = (
     }
 
     return (
-        `in.(${encodeURIComponent(
-            validValues.join(",")
-        )})`
+        `in.(${validValues
+            .map(
+                value =>
+                    encodeURIComponent(value)
+            )
+            .join(",")})`
     );
 
 };
@@ -705,23 +712,6 @@ const loadParameters = async (
         "min_items,max_items,item_type,description," +
         "api_mapping,metadata,created_at,updated_at" +
         `&workflow_id=${workflowFilter}`;
-
-
-    if (variantIds.length) {
-
-        const variantFilter =
-            inFilter(variantIds);
-
-        if (variantFilter) {
-
-            path +=
-                `&or=${encodeURIComponent(
-                    `variant_id.is.null,variant_id.${variantFilter.replace(/^in\./, "in.")}`
-                )}`;
-
-        }
-
-    }
 
 
     const result =
@@ -1039,26 +1029,28 @@ const loadDependencies = async (
 // LOAD PRICING
 // ========================================
 //
-// Pricing sekarang difilter langsung oleh
-// PostgREST berdasarkan workflow dan variant.
-//
-// Logika yang dipertahankan:
+// Pricing menggunakan aturan:
 //
 // workflow_id NULL
-//   -> pricing berlaku global
+//   -> pricing global
 //
 // workflow_id tertentu
-//   -> hanya untuk workflow tersebut
+//   -> pricing hanya untuk workflow tersebut
 //
 // variant_id NULL
 //   -> pricing berlaku untuk semua variant
 //
 // variant_id tertentu
-//   -> hanya untuk variant tersebut
+//   -> pricing hanya untuk variant tersebut
 //
-// Jadi hasil tetap kompatibel dengan filter
-// JavaScript sebelumnya, tetapi data yang dikirim
-// Supabase menjadi lebih sedikit.
+// Filter workflow dan variant dilakukan
+// di JavaScript setelah data pricing
+// diambil dari Supabase.
+//
+// Jumlah pricing saat ini kecil sehingga
+// pendekatan ini lebih aman daripada
+// menggunakan beberapa parameter "or"
+// PostgREST yang terpisah.
 // ========================================
 
 const loadPricing = async (
@@ -1076,21 +1068,7 @@ const loadPricing = async (
     }
 
 
-    const workflowFilter =
-        inFilter(workflowIds);
-
-    const variantFilter =
-        inFilter(variantIds);
-
-
-    if (!workflowFilter) {
-
-        return [];
-
-    }
-
-
-    let path =
+    const path =
         "/rest/v1/kie_pricing" +
         "?select=" +
         "id,workflow_id,variant_id," +
@@ -1103,48 +1081,6 @@ const loadPricing = async (
         "&status=eq.ACTIVE" +
         "&pricing_status=eq.VERIFIED" +
         "&order=sku_key.asc";
-
-
-    // Workflow:
-    // NULL = global
-    // IN(selected workflow ids) = scoped workflow
-
-    const workflowOr =
-        variantFilter
-            ? `workflow_id.is.null,workflow_id.${workflowFilter.replace(
-                /^in\./,
-                "in."
-            )}`
-            : `workflow_id.is.null,workflow_id.${workflowFilter.replace(
-                /^in\./,
-                "in."
-            )}`;
-
-
-    path +=
-        `&or=${encodeURIComponent(
-            workflowOr
-        )}`;
-
-
-    // Variant:
-    // NULL = semua variant
-    // IN(selected variant ids) = scoped variant
-
-    if (variantFilter) {
-
-        const variantOr =
-            `variant_id.is.null,variant_id.${variantFilter.replace(
-                /^in\./,
-                "in."
-            )}`;
-
-        path +=
-            `&or=${encodeURIComponent(
-                variantOr
-            )}`;
-
-    }
 
 
     const result =
@@ -1180,11 +1116,81 @@ const loadPricing = async (
     }
 
 
-    return Array.isArray(
-        result.data
-    )
-        ? result.data
-        : [];
+    let pricing =
+        Array.isArray(
+            result.data
+        )
+            ? result.data
+            : [];
+
+
+    const workflowSet =
+        new Set(
+            workflowIds
+        );
+
+
+    const variantSet =
+        new Set(
+            variantIds
+        );
+
+
+    pricing =
+        pricing.filter(
+            item => {
+
+                // =================================
+                // WORKFLOW MATCH
+                // =================================
+                //
+                // NULL = global
+                // ID  = harus termasuk workflow aktif
+                // =================================
+
+                const workflowMatches =
+                    item.workflow_id === null ||
+                    workflowSet.has(
+                        item.workflow_id
+                    );
+
+
+                if (!workflowMatches) {
+
+                    return false;
+
+                }
+
+
+                // =================================
+                // VARIANT MATCH
+                // =================================
+                //
+                // NULL = berlaku untuk semua variant
+                // ID  = harus termasuk variant aktif
+                // =================================
+
+                const variantMatches =
+                    item.variant_id === null ||
+                    variantSet.has(
+                        item.variant_id
+                    );
+
+
+                if (!variantMatches) {
+
+                    return false;
+
+                }
+
+
+                return true;
+
+            }
+        );
+
+
+    return pricing;
 
 };
 
