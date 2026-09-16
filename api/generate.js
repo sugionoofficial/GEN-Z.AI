@@ -4,15 +4,16 @@
 // File: api/generate.js
 // ========================================
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+import {
+    createTask
+} from "../provider/kie/client.js";
+
+
+const SUPABASE_URL =
+    process.env.SUPABASE_URL;
+
 const SUPABASE_SERVICE_ROLE_KEY =
     process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const KIE_API_KEY = process.env.KIE_API_KEY;
-
-const KIE_API_ENDPOINT =
-    process.env.KIE_API_ENDPOINT ||
-    "https://api.kie.ai/api/v1/jobs/createTask";
 
 
 // ========================================
@@ -21,15 +22,21 @@ const KIE_API_ENDPOINT =
 
 function jsonValue(value) {
 
-    if (value === null || value === undefined) {
+    if (
+        value === null ||
+        value === undefined
+    ) {
         return value;
     }
 
-    if (typeof value !== "string") {
+    if (
+        typeof value !== "string"
+    ) {
         return value;
     }
 
-    const text = value.trim();
+    const text =
+        value.trim();
 
     if (!text) {
         return value;
@@ -55,13 +62,25 @@ function jsonValue(value) {
 function getBearerToken(req) {
 
     const header =
-        req.headers?.authorization || "";
+        req.headers?.authorization ||
+        "";
 
-    if (!header.toLowerCase().startsWith("bearer ")) {
+    if (
+        !header
+            .toLowerCase()
+            .startsWith("bearer ")
+    ) {
+
         return null;
+
     }
 
-    return header.slice(7).trim() || null;
+    return (
+        header
+            .slice(7)
+            .trim() ||
+        null
+    );
 
 }
 
@@ -76,7 +95,9 @@ async function getAuthenticatedUser(req) {
         !SUPABASE_URL ||
         !SUPABASE_SERVICE_ROLE_KEY
     ) {
+
         return null;
+
     }
 
     const response =
@@ -86,17 +107,21 @@ async function getAuthenticatedUser(req) {
                 method: "GET",
 
                 headers: {
+
                     apikey:
                         SUPABASE_SERVICE_ROLE_KEY,
 
                     Authorization:
                         `Bearer ${token}`
+
                 }
             }
         );
 
     if (!response.ok) {
+
         return null;
+
     }
 
     return response.json();
@@ -117,9 +142,11 @@ async function supabaseQuery(
         !SUPABASE_URL ||
         !SUPABASE_SERVICE_ROLE_KEY
     ) {
+
         throw new Error(
             "Konfigurasi Supabase server belum lengkap."
         );
+
     }
 
     const url =
@@ -136,7 +163,9 @@ async function supabaseQuery(
             value === undefined ||
             value === null
         ) {
+
             continue;
+
         }
 
         url.searchParams.set(
@@ -153,6 +182,7 @@ async function supabaseQuery(
                 method: "GET",
 
                 headers: {
+
                     apikey:
                         SUPABASE_SERVICE_ROLE_KEY,
 
@@ -161,6 +191,7 @@ async function supabaseQuery(
 
                     Accept:
                         "application/json"
+
                 }
             }
         );
@@ -250,7 +281,9 @@ function parameterValue(
 // API MAPPING
 // ========================================
 
-function parameterMapping(parameter) {
+function parameterMapping(
+    parameter
+) {
 
     const mapping =
         parameter.api_mapping;
@@ -261,7 +294,9 @@ function parameterMapping(parameter) {
 
     }
 
-    if (typeof mapping === "string") {
+    if (
+        typeof mapping === "string"
+    ) {
 
         return mapping.replace(
             /^input\./,
@@ -270,7 +305,9 @@ function parameterMapping(parameter) {
 
     }
 
-    if (typeof mapping === "object") {
+    if (
+        typeof mapping === "object"
+    ) {
 
         return String(
             mapping.path ||
@@ -303,7 +340,8 @@ function checkParameter(
 
     const type =
         String(
-            parameter.type || ""
+            parameter.type ||
+            ""
         ).toLowerCase();
 
     if (
@@ -354,7 +392,9 @@ function checkParameter(
 
     }
 
-    if (typeof value === "number") {
+    if (
+        typeof value === "number"
+    ) {
 
         if (
             parameter.min_value !== null &&
@@ -429,6 +469,86 @@ function checkParameter(
 // CONSTRAINT CHECK
 // ========================================
 
+function compareValue(
+    actual,
+    operator,
+    expected
+) {
+
+    switch (
+        String(
+            operator || ""
+        ).toLowerCase()
+    ) {
+
+        case "eq":
+        case "=":
+        case "==":
+        case "equals":
+
+            return actual === expected;
+
+        case "neq":
+        case "!=":
+        case "not_equals":
+
+            return actual !== expected;
+
+        case "in":
+
+            return (
+                Array.isArray(expected) &&
+                expected.includes(actual)
+            );
+
+        case "not_in":
+
+            return (
+                Array.isArray(expected) &&
+                !expected.includes(actual)
+            );
+
+        case "gte":
+        case ">=":
+
+            return (
+                Number(actual) >=
+                Number(expected)
+            );
+
+        case "lte":
+        case "<=":
+
+            return (
+                Number(actual) <=
+                Number(expected)
+            );
+
+        case "gt":
+        case ">":
+
+            return (
+                Number(actual) >
+                Number(expected)
+            );
+
+        case "lt":
+        case "<":
+
+            return (
+                Number(actual) <
+                Number(expected)
+            );
+
+        default:
+
+            return true;
+
+    }
+
+}
+
+
 function constraintApplies(
     constraint,
     values
@@ -438,7 +558,9 @@ function constraintApplies(
         constraint.source_parameter;
 
     if (!source) {
+
         return true;
+
     }
 
     const sourceValue =
@@ -458,67 +580,11 @@ function constraintApplies(
             constraint.value
         );
 
-    switch (
-        String(
-            constraint.operator || ""
-        ).toLowerCase()
-    ) {
-
-        case "eq":
-        case "=":
-        case "==":
-        case "equals":
-            return sourceValue === expected;
-
-        case "neq":
-        case "!=":
-        case "not_equals":
-            return sourceValue !== expected;
-
-        case "in":
-            return (
-                Array.isArray(expected) &&
-                expected.includes(sourceValue)
-            );
-
-        case "not_in":
-            return (
-                Array.isArray(expected) &&
-                !expected.includes(sourceValue)
-            );
-
-        case "gte":
-        case ">=":
-            return (
-                Number(sourceValue) >=
-                Number(expected)
-            );
-
-        case "lte":
-        case "<=":
-            return (
-                Number(sourceValue) <=
-                Number(expected)
-            );
-
-        case "gt":
-        case ">":
-            return (
-                Number(sourceValue) >
-                Number(expected)
-            );
-
-        case "lt":
-        case "<":
-            return (
-                Number(sourceValue) <
-                Number(expected)
-            );
-
-        default:
-            return true;
-
-    }
+    return compareValue(
+        sourceValue,
+        constraint.operator,
+        expected
+    );
 
 }
 
@@ -562,8 +628,12 @@ async function loadKieConfig(
             }
         );
 
-    if (models.length === 0) {
+    if (
+        models.length === 0
+    ) {
+
         return null;
+
     }
 
     const model =
@@ -594,7 +664,9 @@ async function loadKieConfig(
             workflowParams
         );
 
-    if (workflows.length === 0) {
+    if (
+        workflows.length === 0
+    ) {
 
         return {
             model,
@@ -640,14 +712,16 @@ async function loadKieConfig(
         variants =
             variants.filter(
                 variant =>
-                    variant.id === variantId
+                    variant.id ===
+                    variantId
             );
 
     }
 
     const workflowIds =
         workflows.map(
-            workflow => workflow.id
+            workflow =>
+                workflow.id
         );
 
     const parameters =
@@ -789,7 +863,9 @@ function selectVariant(
 
     }
 
-    if (variants.length === 1) {
+    if (
+        variants.length === 1
+    ) {
 
         return variants[0];
 
@@ -825,7 +901,9 @@ function buildInput(
         );
 
     const values = {};
+
     const input = {};
+
     const errors = [];
 
     for (
@@ -862,7 +940,9 @@ function buildInput(
         }
 
         value =
-            jsonValue(value);
+            jsonValue(
+                value
+            );
 
         const error =
             checkParameter(
@@ -872,7 +952,9 @@ function buildInput(
 
         if (error) {
 
-            errors.push(error);
+            errors.push(
+                error
+            );
 
         }
 
@@ -887,7 +969,9 @@ function buildInput(
             ] = value;
 
             input[
-                parameterMapping(parameter)
+                parameterMapping(
+                    parameter
+                )
             ] = value;
 
         }
@@ -933,77 +1017,33 @@ function buildInput(
                     constraint.target_parameter
                 ];
 
-            const targetExpected =
+            if (
+                target === undefined
+            ) {
+
+                continue;
+
+            }
+
+            const expected =
                 jsonValue(
                     constraint.value
                 );
 
-            if (target !== undefined) {
+            const valid =
+                compareValue(
+                    target,
+                    constraint.operator,
+                    expected
+                );
 
-                let valid = true;
+            if (!valid) {
 
-                switch (
-                    String(
-                        constraint.operator
-                    ).toLowerCase()
-                ) {
-
-                    case "eq":
-                    case "=":
-                    case "==":
-                    case "equals":
-                        valid =
-                            target ===
-                            targetExpected;
-                        break;
-
-                    case "neq":
-                    case "!=":
-                    case "not_equals":
-                        valid =
-                            target !==
-                            targetExpected;
-                        break;
-
-                    case "gte":
-                    case ">=":
-                        valid =
-                            Number(target) >=
-                            Number(targetExpected);
-                        break;
-
-                    case "lte":
-                    case "<=":
-                        valid =
-                            Number(target) <=
-                            Number(targetExpected);
-                        break;
-
-                    case "gt":
-                    case ">":
-                        valid =
-                            Number(target) >
-                            Number(targetExpected);
-                        break;
-
-                    case "lt":
-                    case "<":
-                        valid =
-                            Number(target) <
-                            Number(targetExpected);
-                        break;
-
-                }
-
-                if (!valid) {
-
-                    errors.push(
-                        constraintMessage(
-                            constraint
-                        )
-                    );
-
-                }
+                errors.push(
+                    constraintMessage(
+                        constraint
+                    )
+                );
 
             }
 
@@ -1047,6 +1087,12 @@ function dependencyErrors(
 
     const errors = [];
 
+    const parameters =
+        body.parameters &&
+        typeof body.parameters === "object"
+            ? body.parameters
+            : {};
+
     for (
         const dependency
         of dependencies
@@ -1058,12 +1104,52 @@ function dependencyErrors(
         const target =
             dependency.target_parameter;
 
-        if (!target) {
+        /*
+         * PREVIOUS_KIE_TASK
+         *
+         * Dependency ini berarti workflow
+         * membutuhkan task KIE sebelumnya.
+         */
+        if (
+            String(
+                dependency.dependency_type ||
+                ""
+            ).includes(
+                "PREVIOUS_KIE_TASK"
+            ) ||
+            source ===
+                "PREVIOUS_KIE_TASK"
+        ) {
+
+            const taskId =
+                parameters.task_id ||
+                body.task_id ||
+                parameters.previous_task_id ||
+                body.previous_task_id;
+
+            if (!taskId) {
+
+                errors.push(
+                    "Workflow ini membutuhkan task KIE sebelumnya (task_id)."
+                );
+
+            }
+
             continue;
+
         }
 
-        const parameters =
-            body.parameters || {};
+        /*
+         * Untuk dependency parameter biasa,
+         * hanya validasi target jika dependency
+         * memang menyatakan target sebagai
+         * parameter wajib.
+         */
+        if (!target) {
+
+            continue;
+
+        }
 
         const targetValue =
             parameters[target] !== undefined
@@ -1083,36 +1169,6 @@ function dependencyErrors(
                 }: ${target} wajib diisi.`
             );
 
-            continue;
-
-        }
-
-        if (
-            source === "PREVIOUS_KIE_TASK" &&
-            dependency.dependency_type
-        ) {
-
-            const taskId =
-                parameters.task_id ||
-                body.task_id ||
-                parameters.previous_task_id ||
-                body.previous_task_id;
-
-            if (
-                !taskId &&
-                String(
-                    dependency.dependency_type
-                ).includes(
-                    "PREVIOUS_KIE_TASK"
-                )
-            ) {
-
-                errors.push(
-                    "Workflow ini membutuhkan task KIE sebelumnya (task_id)."
-                );
-
-            }
-
         }
 
     }
@@ -1131,7 +1187,9 @@ export default async function handler(
     res
 ) {
 
-    if (req.method !== "POST") {
+    if (
+        req.method !== "POST"
+    ) {
 
         return res.status(405).json({
 
@@ -1149,19 +1207,6 @@ export default async function handler(
         // ========================================
         // ENV CHECK
         // ========================================
-
-        if (!KIE_API_KEY) {
-
-            return res.status(500).json({
-
-                success: false,
-
-                error:
-                    "KIE_API_KEY belum dikonfigurasi di Vercel."
-
-            });
-
-        }
 
         if (
             !SUPABASE_URL ||
@@ -1185,7 +1230,9 @@ export default async function handler(
         // ========================================
 
         const user =
-            await getAuthenticatedUser(req);
+            await getAuthenticatedUser(
+                req
+            );
 
         if (!user) {
 
@@ -1300,6 +1347,7 @@ export default async function handler(
                 workflows:
                     config.workflows.map(
                         item => ({
+
                             id:
                                 item.id,
 
@@ -1314,6 +1362,7 @@ export default async function handler(
 
                             variant:
                                 item.variant
+
                         })
                     )
 
@@ -1364,6 +1413,7 @@ export default async function handler(
                         )
                         .map(
                             item => ({
+
                                 id:
                                     item.id,
 
@@ -1375,6 +1425,7 @@ export default async function handler(
 
                                 conditions:
                                     item.conditions
+
                             })
                         )
 
@@ -1410,12 +1461,17 @@ export default async function handler(
 
 
         const errors = [
+
             ...built.errors,
+
             ...dependencyErrorsList
+
         ];
 
 
-        if (errors.length > 0) {
+        if (
+            errors.length > 0
+        ) {
 
             return res.status(400).json({
 
@@ -1479,7 +1535,7 @@ export default async function handler(
 
 
         console.log(
-            "GEN-Z.AI → Kie.ai request:",
+            "GEN-Z.AI → KIE.AI request:",
             JSON.stringify({
 
                 user_id:
@@ -1507,94 +1563,9 @@ export default async function handler(
         // ========================================
 
         const kieResponse =
-            await fetch(
-                KIE_API_ENDPOINT,
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        Authorization:
-                            `Bearer ${KIE_API_KEY}`
-
-                    },
-
-                    body:
-                        JSON.stringify(
-                            kiePayload
-                        )
-
-                }
+            await createTask(
+                kiePayload
             );
-
-
-        // ========================================
-        // RESPONSE
-        // ========================================
-
-        const responseText =
-            await kieResponse.text();
-
-        let kieData;
-
-        try {
-
-            kieData =
-                JSON.parse(
-                    responseText
-                );
-
-        } catch {
-
-            kieData = {
-                raw:
-                    responseText
-            };
-
-        }
-
-
-        // ========================================
-        // KIE ERROR
-        // ========================================
-
-        if (!kieResponse.ok) {
-
-            return res.status(
-                kieResponse.status
-            ).json({
-
-                success: false,
-
-                error:
-                    kieData?.message ||
-                    kieData?.error ||
-                    "Kie.ai gagal memproses request.",
-
-                provider:
-                    "kie_ai",
-
-                model:
-                    modelId,
-
-                workflow_id:
-                    workflow.id,
-
-                variant_id:
-                    variant?.id ||
-                    null,
-
-                providerResponse:
-                    kieData
-
-            });
-
-        }
 
 
         // ========================================
@@ -1602,10 +1573,10 @@ export default async function handler(
         // ========================================
 
         const jobId =
-            kieData?.data?.taskId ||
-            kieData?.data?.task_id ||
-            kieData?.taskId ||
-            kieData?.task_id ||
+            kieResponse?.taskId ||
+            kieResponse?.data?.taskId ||
+            kieResponse?.data?.task_id ||
+            kieResponse?.task_id ||
             null;
 
 
@@ -1639,14 +1610,17 @@ export default async function handler(
 
             jobId,
 
+            taskId:
+                jobId,
+
             status:
                 "processing",
 
             message:
-                "Permintaan generate berhasil dikirim ke Kie.ai.",
+                "Permintaan generate berhasil dikirim ke KIE.AI.",
 
             data:
-                kieData
+                kieResponse
 
         });
 
@@ -1654,22 +1628,35 @@ export default async function handler(
     } catch (error) {
 
         console.error(
-            "GEN-Z.AI Kie.ai Error:",
+            "GEN-Z.AI KIE.AI Error:",
             error
         );
 
-        return res.status(500).json({
+        return res.status(
+            error?.status >= 400 &&
+            error?.status < 600
+                ? error.status
+                : 500
+        ).json({
 
             success: false,
 
             error:
+                error?.message ||
                 "Terjadi kesalahan pada server.",
+
+            provider:
+                "kie_ai",
 
             detail:
                 process.env.NODE_ENV ===
                 "development"
                     ? error.message
-                    : undefined
+                    : undefined,
+
+            providerResponse:
+                error?.response ||
+                undefined
 
         });
 
