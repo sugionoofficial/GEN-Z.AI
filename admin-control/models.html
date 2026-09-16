@@ -321,6 +321,7 @@
             padding: 12px 15px;
             border-radius: 10px;
             font-size: 13px;
+            word-break: break-word;
         }
 
         .alert.show {
@@ -647,8 +648,6 @@
 
                 <div class="form-grid">
 
-                    <!-- PROVIDER -->
-
                     <div class="field">
 
                         <label for="providerId">
@@ -667,8 +666,6 @@
 
                     </div>
 
-
-                    <!-- STATUS -->
 
                     <div class="field">
 
@@ -697,8 +694,6 @@
                     </div>
 
 
-                    <!-- MODEL ID -->
-
                     <div class="field">
 
                         <label for="modelCode">
@@ -719,8 +714,6 @@
                     </div>
 
 
-                    <!-- MODEL NAME -->
-
                     <div class="field">
 
                         <label for="modelName">
@@ -737,8 +730,6 @@
                     </div>
 
 
-                    <!-- DESCRIPTION -->
-
                     <div class="field full">
 
                         <label for="description">
@@ -751,8 +742,6 @@
 
                     </div>
 
-
-                    <!-- CREDIT NORMAL -->
 
                     <div class="field">
 
@@ -775,8 +764,6 @@
                     </div>
 
 
-                    <!-- DISCOUNT -->
-
                     <div class="field">
 
                         <label for="discountPercent">
@@ -798,14 +785,11 @@
                     </div>
 
 
-                    <!-- CREDIT PREVIEW -->
-
                     <div class="field full">
 
                         <div class="credit-preview">
 
                             <div class="credit-preview-row">
-
                                 <span>
                                     Credit Normal
                                 </span>
@@ -813,11 +797,9 @@
                                 <strong id="previewNormal">
                                     0
                                 </strong>
-
                             </div>
 
                             <div class="credit-preview-row">
-
                                 <span>
                                     Diskon
                                 </span>
@@ -825,11 +807,9 @@
                                 <strong id="previewDiscount">
                                     0%
                                 </strong>
-
                             </div>
 
                             <div class="credit-preview-row">
-
                                 <span>
                                     Credit Final
                                 </span>
@@ -837,15 +817,12 @@
                                 <strong id="previewFinal">
                                     0
                                 </strong>
-
                             </div>
 
                         </div>
 
                     </div>
 
-
-                    <!-- MIN DURATION -->
 
                     <div class="field">
 
@@ -863,8 +840,6 @@
                     </div>
 
 
-                    <!-- MAX DURATION -->
-
                     <div class="field">
 
                         <label for="maxDuration">
@@ -880,8 +855,6 @@
 
                     </div>
 
-
-                    <!-- RATIOS -->
 
                     <div class="field">
 
@@ -900,8 +873,6 @@
 
                     </div>
 
-
-                    <!-- RESOLUTIONS -->
 
                     <div class="field">
 
@@ -1020,65 +991,75 @@
 
     "use strict";
 
-
     /* =====================================================
        CONFIG
     ===================================================== */
 
     const API_URL = "../api/admin-models";
 
-
-    /*
-     * PENTING:
-     * supabase.js sudah membuat:
-     *
-     * window.GENZ_SUPABASE
-     *
-     * berdasarkan:
-     *
-     * window.GENZ_CONFIG
-     */
-
     const supabaseClient =
         window.GENZ_SUPABASE;
 
 
-    if (!supabaseClient) {
+    /* =====================================================
+       ELEMENTS
+    ===================================================== */
 
-        console.error(
-            "GEN-Z.AI: Supabase client gagal dimuat."
-        );
+    const tableBody =
+        document.getElementById("modelTableBody");
 
-        document.addEventListener(
-            "DOMContentLoaded",
-            function () {
+    const searchInput =
+        document.getElementById("searchInput");
 
-                const tableBody =
-                    document.getElementById(
-                        "modelTableBody"
-                    );
+    const statusFilter =
+        document.getElementById("statusFilter");
 
-                if (tableBody) {
+    const providerFilter =
+        document.getElementById("providerFilter");
 
-                    tableBody.innerHTML = `
-                        <tr>
-                            <td
-                                colspan="9"
-                                class="empty">
-                                Supabase gagal dimuat.
-                                Periksa config.js dan supabase.js.
-                            </td>
-                        </tr>
-                    `;
+    const providerId =
+        document.getElementById("providerId");
 
-                }
+    const modelStatus =
+        document.getElementById("modelStatus");
 
-            }
-        );
+    const modelCode =
+        document.getElementById("modelCode");
 
-        return;
-    }
+    const modelName =
+        document.getElementById("modelName");
 
+    const description =
+        document.getElementById("description");
+
+    const creditCost =
+        document.getElementById("creditCost");
+
+    const discountPercent =
+        document.getElementById("discountPercent");
+
+    const minDuration =
+        document.getElementById("minDuration");
+
+    const maxDuration =
+        document.getElementById("maxDuration");
+
+    const supportedRatios =
+        document.getElementById("supportedRatios");
+
+    const supportedResolutions =
+        document.getElementById("supportedResolutions");
+
+    const modelModal =
+        document.getElementById("modelModal");
+
+    const deleteModal =
+        document.getElementById("deleteModal");
+
+
+    /* =====================================================
+       STATE
+    ===================================================== */
 
     let models = [];
     let providers = [];
@@ -1088,93 +1069,43 @@
 
 
     /* =====================================================
-       ELEMENTS
+       SUPABASE CHECK
     ===================================================== */
 
-    const tableBody =
-        document.getElementById(
-            "modelTableBody"
+    if (!supabaseClient) {
+
+        console.error(
+            "GEN-Z.AI: Supabase client gagal dimuat."
         );
 
-    const searchInput =
-        document.getElementById(
-            "searchInput"
+        showFatalError(
+            "Supabase gagal dimuat. Periksa config.js dan supabase.js."
         );
 
-    const statusFilter =
-        document.getElementById(
-            "statusFilter"
-        );
+        return;
+    }
 
-    const providerFilter =
-        document.getElementById(
-            "providerFilter"
-        );
 
-    const providerId =
-        document.getElementById(
-            "providerId"
-        );
+    /* =====================================================
+       FATAL ERROR
+    ===================================================== */
 
-    const modelStatus =
-        document.getElementById(
-            "modelStatus"
-        );
+    function showFatalError(message) {
 
-    const modelCode =
-        document.getElementById(
-            "modelCode"
-        );
+        if (!tableBody) {
+            return;
+        }
 
-    const modelName =
-        document.getElementById(
-            "modelName"
-        );
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="9" class="empty">
+                    ${escapeHtml(message)}
+                </td>
+            </tr>
+        `;
 
-    const description =
-        document.getElementById(
-            "description"
-        );
-
-    const creditCost =
-        document.getElementById(
-            "creditCost"
-        );
-
-    const discountPercent =
-        document.getElementById(
-            "discountPercent"
-        );
-
-    const minDuration =
-        document.getElementById(
-            "minDuration"
-        );
-
-    const maxDuration =
-        document.getElementById(
-            "maxDuration"
-        );
-
-    const supportedRatios =
-        document.getElementById(
-            "supportedRatios"
-        );
-
-    const supportedResolutions =
-        document.getElementById(
-            "supportedResolutions"
-        );
-
-    const modelModal =
-        document.getElementById(
-            "modelModal"
-        );
-
-    const deleteModal =
-        document.getElementById(
-            "deleteModal"
-        );
+        showAlert(message, "error");
+    }
 
 
     /* =====================================================
@@ -1187,9 +1118,11 @@
     ) {
 
         const box =
-            document.getElementById(
-                "alertBox"
-            );
+            document.getElementById("alertBox");
+
+        if (!box) {
+            return;
+        }
 
         box.className =
             "alert show " +
@@ -1202,25 +1135,22 @@
         box.textContent =
             message;
 
-        clearTimeout(
-            showAlert.timer
-        );
+        clearTimeout(showAlert.timer);
 
         showAlert.timer =
             setTimeout(
                 function () {
 
-                    box.className =
-                        "alert";
+                    box.className = "alert";
 
                 },
-                4500
+                5000
             );
     }
 
 
     /* =====================================================
-       AUTH
+       AUTH SESSION
     ===================================================== */
 
     async function getSession() {
@@ -1235,7 +1165,10 @@
 
 
         if (error) {
-            throw error;
+            throw new Error(
+                error.message ||
+                "Gagal mengambil session."
+            );
         }
 
 
@@ -1294,7 +1227,7 @@
             );
 
 
-        let data = null;
+        let data;
 
 
         try {
@@ -1304,9 +1237,23 @@
 
         } catch {
 
-            data = {};
+            data = {
+                success: false,
+                error:
+                    "Server mengembalikan response bukan JSON."
+            };
 
         }
+
+
+        console.log(
+            "GEN-Z.AI API:",
+            {
+                url,
+                status: response.status,
+                data
+            }
+        );
 
 
         if (
@@ -1316,6 +1263,7 @@
 
             showAlert(
                 data?.error ||
+                data?.message ||
                 "Akses admin ditolak.",
                 "error"
             );
@@ -1332,7 +1280,7 @@
             throw new Error(
                 data?.error ||
                 data?.message ||
-                "Request gagal."
+                `Request gagal (${response.status}).`
             );
         }
 
@@ -1341,6 +1289,49 @@
             ok: true,
             data
         };
+    }
+
+
+    /* =====================================================
+       NORMALIZE API RESPONSE
+       
+       Mendukung dua format:
+       
+       1.
+       {
+           success: true,
+           models: [],
+           providers: []
+       }
+
+       2.
+       {
+           success: true,
+           data: {
+               models: [],
+               providers: []
+           }
+       }
+    ===================================================== */
+
+    function getApiPayload(responseData) {
+
+        if (!responseData) {
+            return {};
+        }
+
+
+        if (
+            responseData.data &&
+            typeof responseData.data === "object" &&
+            !Array.isArray(responseData.data)
+        ) {
+
+            return responseData.data;
+        }
+
+
+        return responseData;
     }
 
 
@@ -1377,19 +1368,31 @@
             }
 
 
+            const payload =
+                getApiPayload(
+                    result.data
+                );
+
+
+            console.log(
+                "GEN-Z.AI Models Payload:",
+                payload
+            );
+
+
             models =
                 Array.isArray(
-                    result.data?.models
+                    payload.models
                 )
-                    ? result.data.models
+                    ? payload.models
                     : [];
 
 
             providers =
                 Array.isArray(
-                    result.data?.providers
+                    payload.providers
                 )
-                    ? result.data.providers
+                    ? payload.providers
                     : [];
 
 
@@ -1398,6 +1401,17 @@
             updateStats();
 
             renderModels();
+
+
+            if (
+                models.length === 0
+            ) {
+
+                showAlert(
+                    "API berhasil terhubung, tetapi belum ada data model.",
+                    "success"
+                );
+            }
 
 
         } catch (error) {
@@ -1414,7 +1428,9 @@
                         colspan="9"
                         class="empty">
                         Gagal memuat model:
-                        ${escapeHtml(error.message)}
+                        ${escapeHtml(
+                            error.message
+                        )}
                     </td>
                 </tr>
             `;
@@ -1462,8 +1478,14 @@
 
                 const name =
                     provider.provider_name ||
+                    provider.name ||
                     provider.provider_id ||
                     "Provider";
+
+
+                if (!id) {
+                    return;
+                }
 
 
                 const optionFilter =
@@ -1522,6 +1544,7 @@
 
         return (
             provider?.provider_name ||
+            provider?.name ||
             provider?.provider_id ||
             "Unknown Provider"
         );
@@ -1540,8 +1563,7 @@
 
                     return String(
                         model.status || ""
-                    ).toLowerCase() ===
-                    "active";
+                    ).toLowerCase() === "active";
 
                 }
             ).length;
@@ -1619,7 +1641,8 @@
                         model.model_name,
                         model.description,
                         providerName,
-                        model.provider_code
+                        model.provider_code,
+                        model.provider_name
                     ]
                     .filter(Boolean)
                     .join(" ")
@@ -1628,25 +1651,21 @@
 
                 const searchMatch =
                     !search ||
-                    searchable.includes(
-                        search
-                    );
+                    searchable.includes(search);
 
 
                 const statusMatch =
                     !status ||
                     String(
                         model.status || ""
-                    ).toLowerCase() ===
-                    status;
+                    ).toLowerCase() === status;
 
 
                 const providerMatch =
                     !selectedProvider ||
                     String(
                         model.provider_id
-                    ) ===
-                    String(
+                    ) === String(
                         selectedProvider
                     );
 
@@ -1656,7 +1675,6 @@
                     statusMatch &&
                     providerMatch
                 );
-
             }
         );
     }
@@ -1705,6 +1723,10 @@
     }
 
 
+    /* =====================================================
+       RENDER ROW
+    ===================================================== */
+
     function renderModelRow(model) {
 
         const discount =
@@ -1724,7 +1746,8 @@
 
         if (
             model.credit_final !== null &&
-            model.credit_final !== undefined
+            model.credit_final !== undefined &&
+            model.credit_final !== ""
         ) {
 
             finalCredit =
@@ -1766,7 +1789,6 @@
 
             statusClass =
                 "status-maintenance";
-
         }
 
 
@@ -1790,8 +1812,15 @@
 
                 duration =
                     `${model.min_duration}s`;
-
             }
+
+        } else if (
+            model.max_duration !== null &&
+            model.max_duration !== undefined
+        ) {
+
+            duration =
+                `${model.max_duration}s`;
         }
 
 
@@ -1805,9 +1834,7 @@
         ) {
 
             ratios =
-                model.supported_ratios.join(
-                    ", "
-                );
+                model.supported_ratios.join(", ");
 
         } else if (
             model.supported_ratios
@@ -1818,6 +1845,13 @@
                     model.supported_ratios
                 );
         }
+
+
+        const providerDisplay =
+            model.provider_name ||
+            getProviderName(
+                model.provider_id
+            );
 
 
         return `
@@ -1848,10 +1882,7 @@
                     <span class="provider">
 
                         ${escapeHtml(
-                            model.provider_name ||
-                            getProviderName(
-                                model.provider_id
-                            )
+                            providerDisplay
                         )}
 
                     </span>
@@ -1924,19 +1955,14 @@
                             type="button"
                             class="btn btn-secondary btn-small"
                             onclick="window.editModel('${escapeJs(model.id)}')">
-
                             Edit
-
                         </button>
-
 
                         <button
                             type="button"
                             class="btn btn-danger btn-small"
                             onclick="window.deleteModel('${escapeJs(model.id)}')">
-
                             Hapus
-
                         </button>
 
                     </div>
@@ -1973,24 +1999,17 @@
         ).value = "";
 
 
-        creditCost.value =
-            "0";
+        creditCost.value = "0";
 
+        discountPercent.value = "0";
 
-        discountPercent.value =
-            "0";
-
-
-        modelStatus.value =
-            "active";
+        modelStatus.value = "active";
 
 
         updateCreditPreview();
 
 
-        modelModal.classList.add(
-            "show"
-        );
+        modelModal.classList.add("show");
 
 
         setTimeout(
@@ -2181,11 +2200,8 @@
 
             status:
                 modelStatus.value
-
         };
 
-
-        /* VALIDATION */
 
         if (
             !payload.provider_id
@@ -2269,9 +2285,7 @@
         }
 
 
-        saveButton.disabled =
-            true;
-
+        saveButton.disabled = true;
 
         saveButton.textContent =
             "Menyimpan...";
@@ -2357,7 +2371,6 @@
             saveButton.disabled =
                 false;
 
-
             saveButton.textContent =
                 "Simpan Model";
         }
@@ -2412,6 +2425,10 @@
         };
 
 
+    /* =====================================================
+       CONFIRM DELETE
+    ===================================================== */
+
     async function confirmDelete() {
 
         if (!deletingId) {
@@ -2425,9 +2442,7 @@
             );
 
 
-        button.disabled =
-            true;
-
+        button.disabled = true;
 
         button.textContent =
             "Menghapus...";
@@ -2481,7 +2496,6 @@
             button.disabled =
                 false;
 
-
             button.textContent =
                 "Hapus Model";
         }
@@ -2517,25 +2531,19 @@
         document.getElementById(
             "previewNormal"
         ).textContent =
-            formatNumber(
-                normal
-            );
+            formatNumber(normal);
 
 
         document.getElementById(
             "previewDiscount"
         ).textContent =
-            `${formatNumber(
-                discount
-            )}%`;
+            `${formatNumber(discount)}%`;
 
 
         document.getElementById(
             "previewFinal"
         ).textContent =
-            formatNumber(
-                finalCredit
-            );
+            formatNumber(finalCredit);
     }
 
 
@@ -2549,9 +2557,7 @@
             "show"
         );
 
-
-        editingId =
-            null;
+        editingId = null;
     }
 
 
@@ -2561,9 +2567,7 @@
             "show"
         );
 
-
-        deletingId =
-            null;
+        deletingId = null;
     }
 
 
@@ -2600,13 +2604,19 @@
             Array.isArray(value)
         ) {
 
-            return value.join(
-                ", "
-            );
+            return value.join(", ");
         }
 
 
-        return value || "";
+        if (
+            typeof value === "string"
+        ) {
+
+            return value;
+        }
+
+
+        return "";
     }
 
 
@@ -2853,8 +2863,7 @@
         function (event) {
 
             if (
-                event.key ===
-                "Escape"
+                event.key === "Escape"
             ) {
 
                 closeModelModal();
