@@ -373,6 +373,40 @@
         input[type="checkbox"] {
             width: 20px;
             height: 20px;
+            accent-color: var(--accent);
+        }
+
+        .checkbox-field {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 48px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: #fff;
+        }
+
+        .checkbox-field input {
+            flex: 0 0 auto;
+        }
+
+        .checkbox-field-content {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .checkbox-field-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #374151;
+        }
+
+        .checkbox-field-description {
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.5;
         }
 
         .parameter-description {
@@ -769,9 +803,7 @@
 
             </div>
 
-            <div
-                class="form-group full"
-            >
+            <div class="form-group full">
 
                 <div class="section-box">
 
@@ -1557,6 +1589,14 @@ function renderWorkflows() {
                 workflow.workflow_key ||
                 "";
 
+            option.dataset.workflowType =
+                workflow.workflow_type ||
+                "";
+
+            option.dataset.operation =
+                workflow.operation ||
+                "";
+
             elements.workflow.appendChild(
                 option
             );
@@ -1571,7 +1611,6 @@ function renderWorkflows() {
         workflows[0].id;
 
     updateWorkflow();
-
 
 }
 
@@ -1603,6 +1642,8 @@ function updateWorkflow() {
                 item.id === workflowId
         ) || null;
 
+    activeVariant = null;
+
     renderWorkflowInfo();
 
     renderVariants();
@@ -1633,6 +1674,14 @@ function renderWorkflowInfo() {
         activeWorkflow.workflow_key ||
         "";
 
+    const type =
+        activeWorkflow.workflow_type ||
+        "";
+
+    const operation =
+        activeWorkflow.operation ||
+        "";
+
     const description =
         activeWorkflow.description ||
         activeWorkflow.workflow_description ||
@@ -1641,6 +1690,8 @@ function renderWorkflowInfo() {
     elements.workflowInfo.innerHTML = `
         <strong>${escapeHtml(title)}</strong>
         ${key ? ` • ${escapeHtml(key)}` : ""}
+        ${type ? ` • ${escapeHtml(type)}` : ""}
+        ${operation ? ` • ${escapeHtml(operation)}` : ""}
         ${description ? `<br>${escapeHtml(description)}` : ""}
     `;
 
@@ -1697,9 +1748,14 @@ function renderVariants() {
 
             option.textContent =
                 variant.variant_name ||
+                variant.label ||
                 variant.name ||
                 variant.variant_key ||
                 variant.id;
+
+            option.dataset.variantKey =
+                variant.variant_key ||
+                "";
 
             elements.variant.appendChild(
                 option
@@ -1825,6 +1881,22 @@ function updateParameters() {
                     return false;
                 }
 
+                if (
+                    isParameterForbidden(
+                        parameter
+                    )
+                ) {
+                    return false;
+                }
+
+                if (
+                    isTextToVideoUploadParameter(
+                        parameter
+                    )
+                ) {
+                    return false;
+                }
+
                 return true;
 
             }
@@ -1833,6 +1905,325 @@ function updateParameters() {
     renderParameters(
         activeParameters
     );
+
+}
+
+
+function isTextToVideoWorkflow() {
+
+    const workflowType =
+        String(
+            activeWorkflow?.workflow_type ||
+            ""
+        ).toUpperCase();
+
+    const workflowKey =
+        String(
+            activeWorkflow?.workflow_key ||
+            ""
+        ).toUpperCase();
+
+    return (
+        workflowType === "TEXT_TO_VIDEO" ||
+        workflowKey.includes("TEXT_TO_VIDEO")
+    );
+
+}
+
+
+function isMediaUploadParameter(
+    parameter
+) {
+
+    const name =
+        String(
+            parameter?.parameter_name ||
+            ""
+        ).toLowerCase();
+
+    const label =
+        String(
+            parameter?.label ||
+            parameter?.display_name ||
+            ""
+        ).toLowerCase();
+
+    const combined =
+        `${name} ${label}`;
+
+    const mediaTokens = [
+        "image_url",
+        "image_urls",
+        "image_references",
+        "reference_image",
+        "reference_image_urls",
+        "first_frame",
+        "first_frame_url",
+        "last_frame",
+        "last_frame_url",
+        "video_url",
+        "video_urls",
+        "reference_video",
+        "reference_video_urls",
+        "first_clip",
+        "first_clip_url",
+        "input_urls",
+        "reference_file",
+        "reference_file_urls",
+        "reference_link",
+        "reference_link_urls"
+    ];
+
+    return mediaTokens.some(
+        token =>
+            combined.includes(token)
+    );
+
+}
+
+
+function isTextToVideoUploadParameter(
+    parameter
+) {
+
+    if (!isTextToVideoWorkflow()) {
+        return false;
+    }
+
+    return isMediaUploadParameter(
+        parameter
+    );
+
+}
+
+
+function getVariantForbiddenParameters() {
+
+    const forbidden =
+        new Set();
+
+    const conditions =
+        activeVariant?.conditions;
+
+    if (
+        conditions &&
+        Array.isArray(
+            conditions.forbids
+        )
+    ) {
+
+        conditions.forbids.forEach(
+            name => {
+
+                forbidden.add(
+                    String(name)
+                        .toLowerCase()
+                );
+
+            }
+        );
+
+    }
+
+    if (
+        conditions &&
+        Array.isArray(
+            conditions.forbidden_parameters
+        )
+    ) {
+
+        conditions.forbidden_parameters.forEach(
+            name => {
+
+                forbidden.add(
+                    String(name)
+                        .toLowerCase()
+                );
+
+            }
+        );
+
+    }
+
+    return forbidden;
+
+}
+
+
+function getSupabaseConstraintForbiddenParameters() {
+
+    const forbidden =
+        new Set();
+
+    const constraints =
+        Array.isArray(
+            kieConfig?.constraints
+        )
+            ? kieConfig.constraints
+            : [];
+
+    constraints.forEach(
+        constraint => {
+
+            if (
+                constraint.workflow_id &&
+                activeWorkflow &&
+                constraint.workflow_id !==
+                    activeWorkflow.id
+            ) {
+                return;
+            }
+
+            if (
+                constraint.variant_id &&
+                activeVariant &&
+                constraint.variant_id !==
+                    activeVariant.id
+            ) {
+                return;
+            }
+
+            const value =
+                constraint.value;
+
+            if (
+                Array.isArray(value)
+            ) {
+
+                value.forEach(
+                    item => {
+
+                        if (
+                            typeof item === "string"
+                        ) {
+
+                            forbidden.add(
+                                item.toLowerCase()
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+
+            if (
+                value &&
+                typeof value === "object" &&
+                !Array.isArray(value)
+            ) {
+
+                const candidates = [
+                    value.forbids,
+                    value.forbidden,
+                    value.forbidden_parameters,
+                    value.parameters
+                ];
+
+                candidates.forEach(
+                    list => {
+
+                        if (
+                            Array.isArray(list)
+                        ) {
+
+                            list.forEach(
+                                item => {
+
+                                    if (
+                                        typeof item === "string"
+                                    ) {
+
+                                        forbidden.add(
+                                            item.toLowerCase()
+                                        );
+
+                                    }
+
+                                }
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+
+            const expression =
+                String(
+                    constraint.expression ||
+                    ""
+                ).toLowerCase();
+
+            if (
+                expression.includes("forbid")
+            ) {
+
+                const source =
+                    String(
+                        constraint.source_parameter ||
+                        ""
+                    ).toLowerCase();
+
+                const target =
+                    String(
+                        constraint.target_parameter ||
+                        ""
+                    ).toLowerCase();
+
+                if (source) {
+                    forbidden.add(source);
+                }
+
+                if (target) {
+                    forbidden.add(target);
+                }
+
+            }
+
+        }
+    );
+
+    return forbidden;
+
+}
+
+
+function isParameterForbidden(
+    parameter
+) {
+
+    const name =
+        String(
+            parameter?.parameter_name ||
+            ""
+        ).toLowerCase();
+
+    if (!name) {
+        return false;
+    }
+
+    const variantForbidden =
+        getVariantForbiddenParameters();
+
+    if (
+        variantForbidden.has(name)
+    ) {
+        return true;
+    }
+
+    const constraintForbidden =
+        getSupabaseConstraintForbiddenParameters();
+
+    if (
+        constraintForbidden.has(name)
+    ) {
+        return true;
+    }
+
+    return false;
 
 }
 
@@ -1927,6 +2318,45 @@ function isWideParameter(
 }
 
 
+function isAudioBooleanParameter(
+    parameter
+) {
+
+    const type =
+        String(
+            parameter?.type ||
+            ""
+        ).toLowerCase();
+
+    if (!type.includes("boolean")) {
+        return false;
+    }
+
+    const name =
+        String(
+            parameter?.parameter_name ||
+            ""
+        ).toLowerCase();
+
+    const label =
+        String(
+            parameter?.label ||
+            parameter?.display_name ||
+            ""
+        ).toLowerCase();
+
+    return (
+        name === "audio" ||
+        name.includes("audio") ||
+        name.includes("sound") ||
+        label.includes("audio") ||
+        label.includes("sound") ||
+        label.includes("suara")
+    );
+
+}
+
+
 function createParameterField(
     parameter
 ) {
@@ -1954,16 +2384,136 @@ function createParameterField(
     label.htmlFor =
         `param-${name}`;
 
+    const displayLabel =
+        parameter.label ||
+        parameter.display_name ||
+        humanize(name);
+
     label.innerHTML =
         `${escapeHtml(
-            parameter.label ||
-            parameter.display_name ||
-            humanize(name)
+            displayLabel
         )}${
             parameter.required
                 ? '<span class="required">*</span>'
                 : ""
         }`;
+
+    if (
+        isAudioBooleanParameter(
+            parameter
+        )
+    ) {
+
+        const checkboxWrapper =
+            document.createElement(
+                "div"
+            );
+
+        checkboxWrapper.className =
+            "checkbox-field";
+
+        const input =
+            document.createElement(
+                "input"
+            );
+
+        input.type =
+            "checkbox";
+
+        input.id =
+            `param-${name}`;
+
+        input.dataset.parameterName =
+            name;
+
+        input.checked =
+            parseBooleanDefault(
+                parameter.default_value
+            );
+
+        checkboxWrapper.appendChild(
+            input
+        );
+
+        const content =
+            document.createElement(
+                "div"
+            );
+
+        content.className =
+            "checkbox-field-content";
+
+        const title =
+            document.createElement(
+                "div"
+            );
+
+        title.className =
+            "checkbox-field-title";
+
+        title.textContent =
+            displayLabel;
+
+        content.appendChild(
+            title
+        );
+
+        if (
+            parameter.description
+        ) {
+
+            const description =
+                document.createElement(
+                    "div"
+                );
+
+            description.className =
+                "checkbox-field-description";
+
+            description.textContent =
+                parameter.description;
+
+            content.appendChild(
+                description
+            );
+
+        }
+
+        checkboxWrapper.appendChild(
+            content
+        );
+
+        container.appendChild(
+            checkboxWrapper
+        );
+
+        const meta =
+            buildParameterMeta(
+                parameter
+            );
+
+        if (meta) {
+
+            const metaElement =
+                document.createElement(
+                    "div"
+                );
+
+            metaElement.className =
+                "parameter-meta";
+
+            metaElement.textContent =
+                meta;
+
+            container.appendChild(
+                metaElement
+            );
+
+        }
+
+        return container;
+
+    }
 
     container.appendChild(
         label
@@ -2055,7 +2605,10 @@ function createParameterField(
             auto
         );
 
-        ["true", "false"].forEach(
+        [
+            "true",
+            "false"
+        ].forEach(
             value => {
 
                 const option =
@@ -2259,6 +2812,32 @@ function createParameterField(
 }
 
 
+function parseBooleanDefault(
+    value
+) {
+
+    if (
+        typeof value === "boolean"
+    ) {
+
+        return value;
+
+    }
+
+    if (
+        typeof value === "string"
+    ) {
+
+        return value.toLowerCase() ===
+            "true";
+
+    }
+
+    return Boolean(value);
+
+}
+
+
 function applyDefaultValue(
     input,
     value,
@@ -2292,22 +2871,22 @@ function applyDefaultValue(
     }
 
     if (
+        input.type === "checkbox"
+    ) {
+
+        input.checked =
+            Boolean(parsed);
+
+        return;
+
+    }
+
+    if (
         input.tagName === "SELECT"
     ) {
 
-        if (
-            typeof parsed === "boolean"
-        ) {
-
-            input.value =
-                String(parsed);
-
-        } else {
-
-            input.value =
-                String(parsed);
-
-        }
+        input.value =
+            String(parsed);
 
         return;
 
@@ -2444,16 +3023,30 @@ function collectParameterValues() {
             continue;
         }
 
-        let value =
-            input.value;
-
         const type =
             String(
                 parameter.type ||
                 ""
             ).toLowerCase();
 
+        let value;
+
         if (
+            input.type === "checkbox"
+        ) {
+
+            value =
+                input.checked;
+
+        } else {
+
+            value =
+                input.value;
+
+        }
+
+        if (
+            input.type !== "checkbox" &&
             value === ""
         ) {
 
@@ -2462,7 +3055,8 @@ function collectParameterValues() {
         }
 
         if (
-            type.includes("boolean")
+            type.includes("boolean") &&
+            input.type !== "checkbox"
         ) {
 
             value =
