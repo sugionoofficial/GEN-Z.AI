@@ -46,15 +46,6 @@
         return window.GENZModelsPrice || null;
     }
 
-    function escapeHtml(value) {
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
     /* =====================================================
        NOTIFICATION
     ===================================================== */
@@ -92,9 +83,7 @@
 
             existing.__genzTimer =
                 window.setTimeout(() => {
-                    existing.classList.remove(
-                        "show"
-                    );
+                    existing.classList.remove("show");
                 }, duration);
 
             return;
@@ -103,8 +92,7 @@
         const toast =
             document.createElement("div");
 
-        toast.id =
-            "modelNotification";
+        toast.id = "modelNotification";
 
         toast.className =
             `genz-model-notification ${type}`;
@@ -158,8 +146,53 @@
             $("modelEditModal") ||
             $("editModelModal") ||
             document.querySelector(
-                '[data-model-modal]'
+                "[data-model-modal]"
             )
+        );
+    }
+
+    function showModalElement(modal) {
+        if (!modal) {
+            return;
+        }
+
+        if (!modal.dataset.originalDisplay) {
+            const computed =
+                window.getComputedStyle(modal).display;
+
+            if (
+                computed &&
+                computed !== "none"
+            ) {
+                modal.dataset.originalDisplay =
+                    computed;
+            }
+        }
+
+        modal.classList.add("show");
+        modal.classList.remove("hidden");
+
+        modal.style.display =
+            modal.dataset.originalDisplay ||
+            "flex";
+
+        document.body.classList.add(
+            "modal-open"
+        );
+    }
+
+    function hideModalElement(modal) {
+        if (!modal) {
+            return;
+        }
+
+        modal.classList.remove("show");
+        modal.classList.add("hidden");
+
+        modal.style.display = "none";
+
+        document.body.classList.remove(
+            "modal-open"
         );
     }
 
@@ -176,22 +209,8 @@
             return;
         }
 
-        const modal =
-            getModal();
-
-        if (!modal) {
-            return;
-        }
-
-        modal.classList.add("show");
-        modal.classList.remove("hidden");
-
-        modal.style.display =
-            modal.dataset.originalDisplay ||
-            "flex";
-
-        document.body.classList.add(
-            "modal-open"
+        showModalElement(
+            getModal()
         );
     }
 
@@ -208,22 +227,8 @@
             return;
         }
 
-        const modal =
-            getModal();
-
-        if (!modal) {
-            return;
-        }
-
-        modal.classList.add("show");
-        modal.classList.remove("hidden");
-
-        modal.style.display =
-            modal.dataset.originalDisplay ||
-            "flex";
-
-        document.body.classList.add(
-            "modal-open"
+        showModalElement(
+            getModal()
         );
     }
 
@@ -240,26 +245,8 @@
             return;
         }
 
-        const modal =
-            getModal();
-
-        if (!modal) {
-            return;
-        }
-
-        modal.classList.remove(
-            "show"
-        );
-
-        modal.classList.add(
-            "hidden"
-        );
-
-        modal.style.display =
-            "none";
-
-        document.body.classList.remove(
-            "modal-open"
+        hideModalElement(
+            getModal()
         );
     }
 
@@ -282,7 +269,6 @@
             if (element) {
                 element.textContent =
                     value;
-                return;
             }
         }
     }
@@ -343,7 +329,8 @@
                 "totalModels",
                 "modelsTotal",
                 "statTotalModels",
-                "totalModelCount"
+                "totalModelCount",
+                "statTotal"
             ],
             total
         );
@@ -353,7 +340,8 @@
                 "activeModels",
                 "modelsActive",
                 "statActiveModels",
-                "activeModelCount"
+                "activeModelCount",
+                "statActive"
             ],
             active
         );
@@ -363,7 +351,8 @@
                 "inactiveModels",
                 "modelsInactive",
                 "statInactiveModels",
-                "inactiveModelCount"
+                "inactiveModelCount",
+                "statInactive"
             ],
             inactive
         );
@@ -372,7 +361,8 @@
             [
                 "maintenanceModels",
                 "modelsMaintenance",
-                "statMaintenanceModels"
+                "statMaintenanceModels",
+                "statMaintenance"
             ],
             maintenance
         );
@@ -505,20 +495,34 @@
             data.clearCache();
         }
 
-        const models =
-            await loadModels({
-                force: true,
-                activeOnly: false
-            });
+        try {
+            const models =
+                await loadModels({
+                    force: true,
+                    activeOnly: false
+                });
 
-        await loadPricing();
+            await loadPricing();
 
-        notify(
-            "Data model berhasil diperbarui.",
-            "success"
-        );
+            notify(
+                "Data model berhasil diperbarui.",
+                "success"
+            );
 
-        return models;
+            return models;
+        } catch (error) {
+            console.error(
+                "[models-ui] Refresh error:",
+                error
+            );
+
+            notify(
+                "Gagal memperbarui data model.",
+                "error"
+            );
+
+            return [];
+        }
     }
 
     /* =====================================================
@@ -526,6 +530,10 @@
     ===================================================== */
 
     function selectModel(model) {
+        if (!model) {
+            return null;
+        }
+
         const form =
             getModelsForm();
 
@@ -653,7 +661,7 @@
                 button.dataset
                     .genzUiBound === "true"
             ) {
-                return;
+                continue;
             }
 
             button.dataset
@@ -665,21 +673,47 @@
                     event.preventDefault();
 
                     try {
-                        handler(event);
+                        const result =
+                            handler(event);
+
+                        if (
+                            result &&
+                            typeof result.then ===
+                                "function"
+                        ) {
+                            result.catch(
+                                error => {
+                                    console.error(
+                                        "[models-ui] Async button error:",
+                                        error
+                                    );
+
+                                    notify(
+                                        "Terjadi kesalahan saat menjalankan aksi.",
+                                        "error"
+                                    );
+                                }
+                            );
+                        }
                     } catch (error) {
                         console.error(
                             "[models-ui] Button error:",
                             error
                         );
+
+                        notify(
+                            "Terjadi kesalahan saat menjalankan aksi.",
+                            "error"
+                        );
                     }
                 }
             );
-
-            return;
         }
     }
 
     function bindButtons() {
+        /* ADD MODEL */
+
         bindButton(
             [
                 "addModelButton",
@@ -691,8 +725,11 @@
             }
         );
 
+        /* CLOSE MODAL */
+
         bindButton(
             [
+                "closeModalBtn",
                 "closeModelModal",
                 "closeModalButton",
                 "modelModalClose"
@@ -702,24 +739,30 @@
             }
         );
 
+        /* CANCEL */
+
         bindButton(
             [
                 "cancelModelButton",
-                "cancelModelBtn"
+                "cancelModelBtn",
+                "cancelBtn"
             ],
             () => {
                 closeModal();
             }
         );
 
+        /* REFRESH */
+
         bindButton(
             [
+                "refreshBtn",
                 "refreshModels",
                 "refreshModelsButton",
                 "refreshModelButton"
             ],
             () => {
-                refreshModels();
+                return refreshModels();
             }
         );
     }
@@ -729,14 +772,28 @@
     ===================================================== */
 
     function bindModalEvents() {
+        if (
+            document.body.dataset
+                .genzModalEventsBound ===
+            "true"
+        ) {
+            return;
+        }
+
+        document.body.dataset
+            .genzModalEventsBound = "true";
+
         document.addEventListener(
             "click",
             event => {
                 const modal =
                     getModal();
 
+                if (!modal) {
+                    return;
+                }
+
                 if (
-                    !modal ||
                     !modal.classList.contains(
                         "show"
                     )
@@ -757,20 +814,22 @@
             "keydown",
             event => {
                 if (
-                    event.key ===
+                    event.key !==
                     "Escape"
                 ) {
-                    const modal =
-                        getModal();
+                    return;
+                }
 
-                    if (
-                        modal &&
-                        modal.classList.contains(
-                            "show"
-                        )
-                    ) {
-                        closeModal();
-                    }
+                const modal =
+                    getModal();
+
+                if (
+                    modal &&
+                    modal.classList.contains(
+                        "show"
+                    )
+                ) {
+                    closeModal();
                 }
             }
         );
@@ -789,6 +848,10 @@
             typeof form.initialize !==
                 "function"
         ) {
+            console.warn(
+                "[models-ui] GENZModelsForm belum tersedia."
+            );
+
             return;
         }
 
@@ -815,6 +878,10 @@
             typeof search.initialize !==
                 "function"
         ) {
+            console.warn(
+                "[models-ui] GENZModelsSearch belum tersedia."
+            );
+
             return;
         }
 
@@ -841,6 +908,10 @@
             typeof price.initialize !==
                 "function"
         ) {
+            console.warn(
+                "[models-ui] GENZModelsPrice belum tersedia."
+            );
+
             return [];
         }
 
@@ -860,6 +931,87 @@
     }
 
     /* =====================================================
+       TABLE EVENTS
+    ===================================================== */
+
+    function bindTableEvents() {
+        const table =
+            $("modelTableBody");
+
+        if (!table) {
+            return;
+        }
+
+        if (
+            table.dataset
+                .genzTableEventsBound ===
+            "true"
+        ) {
+            return;
+        }
+
+        table.dataset
+            .genzTableEventsBound = "true";
+
+        table.addEventListener(
+            "click",
+            event => {
+                const editButton =
+                    event.target.closest(
+                        "[data-model-edit]"
+                    );
+
+                if (editButton) {
+                    event.preventDefault();
+
+                    const modelId =
+                        editButton.getAttribute(
+                            "data-model-edit"
+                        );
+
+                    const model =
+                        findModelById(
+                            modelId
+                        );
+
+                    if (model) {
+                        openEditModal(
+                            model
+                        );
+                    }
+
+                    return;
+                }
+
+                const selectButton =
+                    event.target.closest(
+                        "[data-model-select]"
+                    );
+
+                if (selectButton) {
+                    event.preventDefault();
+
+                    const modelId =
+                        selectButton.getAttribute(
+                            "data-model-select"
+                        );
+
+                    const model =
+                        findModelById(
+                            modelId
+                        );
+
+                    if (model) {
+                        selectModel(
+                            model
+                        );
+                    }
+                }
+            }
+        );
+    }
+
+    /* =====================================================
        FULL INITIALIZATION
     ===================================================== */
 
@@ -871,10 +1023,17 @@
         initialized = true;
 
         try {
+            /*
+             * Event handler dipasang lebih dulu.
+             * Dengan begitu UI tetap responsif
+             * walaupun Supabase sedang loading.
+             */
+
             bindButtons();
             bindModalEvents();
             bindFormEvents();
             bindSearchEvents();
+            bindTableEvents();
 
             await loadModels({
                 force: false,
@@ -899,6 +1058,7 @@
                     state.models
                 );
             }
+
         } catch (error) {
             console.error(
                 "[models-ui] Initialization error:",
@@ -967,4 +1127,5 @@
     } else {
         start();
     }
+
 })();
