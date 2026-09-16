@@ -8,69 +8,157 @@
  * Model:
  * bytedance/seedance-2-fast
  *
- * API key TIDAK disimpan di file ini.
+ * Konfigurasi model tidak di-hardcode di sini.
+ * Workflow, variant, parameter, constraint,
+ * dependency dan pricing berasal dari Supabase.
  */
+
+import { createTask } from "./client.js";
+
 
 const MODEL_ID = "bytedance/seedance-2-fast";
 
 const PROVIDER_ID = "kie_ai";
 
-const API_ENDPOINT = "/api/generate";
 
+function normalizeString(value, fallback = "") {
 
-function normalizeString(value) {
-    if (value === null || value === undefined) {
-        return "";
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return fallback;
+
     }
 
     return String(value).trim();
 }
 
 
+function buildInput(options = {}) {
+
+    if (
+        options.input &&
+        typeof options.input === "object" &&
+        !Array.isArray(options.input)
+    ) {
+
+        return {
+            ...options.input
+        };
+
+    }
+
+
+    const input = {};
+
+
+    if (options.prompt !== undefined) {
+        input.prompt = options.prompt;
+    }
+
+    if (options.aspect_ratio !== undefined) {
+        input.aspect_ratio = options.aspect_ratio;
+    }
+
+    if (options.duration !== undefined) {
+        input.duration = options.duration;
+    }
+
+    if (options.resolution !== undefined) {
+        input.resolution = options.resolution;
+    }
+
+    if (options.image_urls !== undefined) {
+        input.image_urls = options.image_urls;
+    }
+
+    if (options.first_frame_url !== undefined) {
+        input.first_frame_url =
+            options.first_frame_url;
+    }
+
+    if (options.last_frame_url !== undefined) {
+        input.last_frame_url =
+            options.last_frame_url;
+    }
+
+    if (options.reference_image_urls !== undefined) {
+        input.reference_image_urls =
+            options.reference_image_urls;
+    }
+
+    if (options.reference_video_urls !== undefined) {
+        input.reference_video_urls =
+            options.reference_video_urls;
+    }
+
+    if (options.reference_audio_urls !== undefined) {
+        input.reference_audio_urls =
+            options.reference_audio_urls;
+    }
+
+    if (options.reference_file_urls !== undefined) {
+        input.reference_file_urls =
+            options.reference_file_urls;
+    }
+
+    if (options.reference_link_urls !== undefined) {
+        input.reference_link_urls =
+            options.reference_link_urls;
+    }
+
+    if (options.input_urls !== undefined) {
+        input.input_urls =
+            options.input_urls;
+    }
+
+    if (options.seed !== undefined) {
+        input.seed = options.seed;
+    }
+
+    if (options.sound !== undefined) {
+        input.sound = options.sound;
+    }
+
+
+    return input;
+}
+
+
 function buildPayload(options = {}) {
 
-    const prompt =
-        normalizeString(options.prompt);
-
-    const ratio =
+    const model =
         normalizeString(
-            options.ratio || "9:16"
+            options.model || MODEL_ID
         );
 
-    const duration =
-        normalizeString(
-            options.duration || "8"
-        );
-
-    const resolution =
-        normalizeString(
-            options.resolution || "720p"
-        );
 
     return {
-        provider: PROVIDER_ID,
-        model: MODEL_ID,
-        prompt,
-        ratio,
-        duration,
-        resolution
+        model,
+        input: buildInput(options)
     };
 }
 
 
 function validate(options = {}) {
 
-    const prompt =
-        normalizeString(options.prompt);
-
-    if (!prompt) {
+    if (
+        options.input !== undefined &&
+        (
+            typeof options.input !== "object" ||
+            Array.isArray(options.input)
+        )
+    ) {
 
         return {
             valid: false,
-            error: "Prompt belum diisi."
+            error: "Input KIE harus berupa object."
         };
 
     }
+
 
     return {
         valid: true
@@ -78,10 +166,11 @@ function validate(options = {}) {
 }
 
 
-async function generate(options = {}) {
+async function create(options = {}) {
 
     const validation =
         validate(options);
+
 
     if (!validation.valid) {
 
@@ -91,82 +180,61 @@ async function generate(options = {}) {
 
     }
 
+
     const payload =
         buildPayload(options);
 
-    const response =
-        await fetch(
-            API_ENDPOINT,
-            {
-                method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body:
-                    JSON.stringify(payload)
-            }
-        );
-
-    const contentType =
-        response.headers.get(
-            "content-type"
-        ) || "";
-
-    let data;
-
-    if (
-        contentType.includes(
-            "application/json"
-        )
-    ) {
-
-        data =
-            await response.json();
-
-    } else {
-
-        const text =
-            await response.text();
-
-        data = {
-            success: response.ok,
-            response: text
-        };
-
-    }
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            data?.error ||
-            data?.message ||
-            "KIE.AI gagal memproses request."
-        );
-
-    }
-
-
-    return data;
+    return createTask(payload);
 }
 
 
+async function generate(options = {}) {
+
+    return create(options);
+}
+
+
+const adapter = {
+
+    MODEL_ID,
+
+    PROVIDER_ID,
+
+    normalizeString,
+
+    buildInput,
+
+    buildPayload,
+
+    validate,
+
+    create,
+
+    generate
+
+};
+
+
 export {
+
     MODEL_ID,
+
     PROVIDER_ID,
+
+    normalizeString,
+
+    buildInput,
+
     buildPayload,
+
     validate,
+
+    create,
+
     generate
+
 };
 
 
-export default {
-    MODEL_ID,
-    PROVIDER_ID,
-    buildPayload,
-    validate,
-    generate
-};
+export default adapter;
