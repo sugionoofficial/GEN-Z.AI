@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -38,6 +39,7 @@
 
         body {
             min-height: 100vh;
+
             background:
                 radial-gradient(
                     circle at 20% 0%,
@@ -50,7 +52,9 @@
                     transparent 28%
                 ),
                 var(--bg);
+
             color: var(--text);
+
             font-family:
                 Inter,
                 ui-sans-serif,
@@ -91,16 +95,20 @@
         .logo {
             width: 42px;
             height: 42px;
+
             display: flex;
             align-items: center;
             justify-content: center;
+
             border-radius: 13px;
+
             background:
                 linear-gradient(
                     135deg,
                     var(--accent),
                     var(--accent-2)
                 );
+
             font-weight: 900;
         }
 
@@ -119,11 +127,16 @@
             display: inline-flex;
             align-items: center;
             gap: 7px;
+
             padding: 7px 10px;
+
             border: 1px solid var(--border);
             border-radius: 999px;
+
             background: rgba(255,255,255,.025);
+
             color: var(--muted);
+
             font-size: 9px;
             font-weight: 800;
         }
@@ -131,31 +144,40 @@
         .status-dot {
             width: 6px;
             height: 6px;
+
             border-radius: 50%;
+
             background: var(--success);
         }
 
         .terminal {
             border: 1px solid var(--border);
             border-radius: 20px;
+
             overflow: hidden;
+
             background:
                 linear-gradient(
                     180deg,
                     rgba(17,23,34,.94),
                     rgba(8,11,16,.96)
                 );
+
             box-shadow:
                 0 30px 100px rgba(0,0,0,.35);
         }
 
         .terminal-header {
             min-height: 62px;
+
             display: flex;
             align-items: center;
             justify-content: space-between;
+
             gap: 16px;
+
             padding: 0 18px;
+
             border-bottom: 1px solid var(--border);
         }
 
@@ -176,9 +198,11 @@
 
         .grid {
             display: grid;
+
             grid-template-columns:
                 minmax(0, 1fr)
                 minmax(0, 1fr);
+
             gap: 14px;
         }
 
@@ -192,8 +216,11 @@
 
         .field label {
             display: block;
+
             margin-bottom: 7px;
+
             color: #b5bdca;
+
             font-size: 9px;
             font-weight: 800;
         }
@@ -202,10 +229,14 @@
         textarea,
         select {
             width: 100%;
+
             border: 1px solid var(--border);
             border-radius: 11px;
+
             outline: none;
+
             background: rgba(0,0,0,.22);
+
             color: var(--text);
         }
 
@@ -213,13 +244,17 @@
         select {
             height: 42px;
             padding: 0 11px;
+
             font-size: 10px;
         }
 
         textarea {
             min-height: 130px;
+
             padding: 11px;
+
             resize: vertical;
+
             font-size: 10px;
             line-height: 1.6;
         }
@@ -228,6 +263,7 @@
         textarea:focus,
         select:focus {
             border-color: rgba(139,92,246,.45);
+
             box-shadow:
                 0 0 0 4px rgba(139,92,246,.06);
         }
@@ -239,8 +275,10 @@
         .model-card {
             margin-bottom: 16px;
             padding: 14px;
+
             border: 1px solid rgba(139,92,246,.16);
             border-radius: 13px;
+
             background:
                 linear-gradient(
                     135deg,
@@ -251,34 +289,98 @@
 
         .model-label {
             color: var(--muted);
+
             font-size: 8px;
+
             text-transform: uppercase;
             letter-spacing: .12em;
         }
 
         .model-id {
             margin-top: 6px;
+
             color: #d8ccff;
+
             font-family:
                 "SFMono-Regular",
                 Consolas,
                 monospace;
+
             font-size: 11px;
             font-weight: 800;
+
             word-break: break-all;
         }
 
         .model-name {
             margin-top: 6px;
+
             color: #dce2ec;
+
             font-size: 10px;
             font-weight: 700;
         }
 
         .model-source {
             margin-top: 5px;
+
             color: #626d7d;
+
             font-size: 8px;
+        }
+
+        .workflow-info {
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(0, 1fr);
+
+            gap: 10px;
+
+            margin-bottom: 16px;
+        }
+
+        .info-box {
+            padding: 10px;
+
+            border: 1px solid var(--border);
+            border-radius: 11px;
+
+            background: rgba(255,255,255,.02);
+        }
+
+        .info-label {
+            color: var(--muted);
+
+            font-size: 7px;
+
+            text-transform: uppercase;
+            letter-spacing: .1em;
+        }
+
+        .info-value {
+            margin-top: 5px;
+
+            color: #dce2ec;
+
+            font-size: 9px;
+            font-weight: 800;
+
+            word-break: break-word;
+        }
+
+        .parameter-description {
+            margin-top: 5px;
+
+            color: #6f7a8c;
+
+            font-size: 7px;
+            line-height: 1.5;
+        }
+
+        .required {
+            color: #fca5a5;
         }
 
         .loading {
@@ -292,18 +394,26 @@
         .actions {
             display: flex;
             justify-content: flex-end;
+
             gap: 9px;
+
             margin-top: 16px;
         }
 
         .button {
             min-height: 42px;
+
             padding: 0 16px;
+
             border: 1px solid var(--border);
             border-radius: 11px;
+
             background: rgba(255,255,255,.035);
+
             color: #e9edf4;
+
             cursor: pointer;
+
             font-size: 10px;
             font-weight: 800;
         }
@@ -314,12 +424,14 @@
 
         .button.primary {
             border-color: transparent;
+
             background:
                 linear-gradient(
                     135deg,
                     var(--accent),
                     var(--accent-2)
                 );
+
             color: #fff;
         }
 
@@ -330,41 +442,57 @@
 
         .response {
             margin-top: 16px;
+
             padding: 14px;
+
             border: 1px solid var(--border);
             border-radius: 13px;
+
             background: rgba(0,0,0,.2);
         }
 
         .response-title {
             margin-bottom: 9px;
+
             color: #aeb7c5;
+
             font-size: 9px;
             font-weight: 800;
         }
 
         pre {
             margin: 0;
+
             max-height: 360px;
+
             overflow: auto;
+
             white-space: pre-wrap;
             word-break: break-word;
+
             color: #9faabd;
+
             font-family:
                 "SFMono-Regular",
                 Consolas,
                 monospace;
+
             font-size: 8px;
             line-height: 1.6;
         }
 
         .notice {
             margin-top: 14px;
+
             padding: 11px 13px;
+
             border: 1px solid rgba(245,158,11,.12);
             border-radius: 11px;
+
             background: rgba(245,158,11,.045);
+
             color: #bcae8a;
+
             font-size: 8px;
             line-height: 1.6;
         }
@@ -374,6 +502,7 @@
         }
 
         @media (max-width: 700px) {
+
             .app {
                 padding: 12px;
             }
@@ -384,6 +513,10 @@
 
             .field.full {
                 grid-column: auto;
+            }
+
+            .workflow-info {
+                grid-template-columns: 1fr;
             }
 
             .header {
@@ -415,6 +548,7 @@
             </div>
 
             <div>
+
                 <div class="brand-title">
                     GEN-Z.AI
                 </div>
@@ -422,6 +556,7 @@
                 <div class="brand-subtitle">
                     KIE.AI PROVIDER TERMINAL
                 </div>
+
             </div>
 
         </div>
@@ -433,21 +568,25 @@
 
     </header>
 
+
     <main class="terminal">
 
         <div class="terminal-header">
 
             <div>
+
                 <div class="terminal-title">
                     KIE Model Terminal
                 </div>
 
                 <div class="terminal-subtitle">
-                    Model dipilih dari Supabase
+                    Konfigurasi model dan parameter dibaca dari Supabase
                 </div>
+
             </div>
 
         </div>
+
 
         <div class="terminal-body">
 
@@ -475,105 +614,51 @@
 
             </div>
 
-            <div class="grid">
 
-                <div class="field full">
+            <div
+                id="workflowInfo"
+                class="workflow-info hidden"
+            >
 
-                    <label for="prompt">
-                        Prompt
-                    </label>
+                <div class="info-box">
 
-                    <textarea
-                        id="prompt"
-                        placeholder="Masukkan prompt..."
-                    ></textarea>
+                    <div class="info-label">
+                        Workflow
+                    </div>
 
-                </div>
-
-                <div class="field">
-
-                    <label for="ratio">
-                        Aspect Ratio
-                    </label>
-
-                    <select id="ratio">
-
-                        <option value="9:16">
-                            9:16
-                        </option>
-
-                        <option value="16:9">
-                            16:9
-                        </option>
-
-                        <option value="1:1">
-                            1:1
-                        </option>
-
-                        <option value="4:3">
-                            4:3
-                        </option>
-
-                        <option value="3:4">
-                            3:4
-                        </option>
-
-                    </select>
+                    <div
+                        id="workflowValue"
+                        class="info-value"
+                    >
+                        -
+                    </div>
 
                 </div>
 
-                <div class="field">
 
-                    <label for="duration">
-                        Duration
-                    </label>
+                <div class="info-box">
 
-                    <select id="duration">
+                    <div class="info-label">
+                        Variant
+                    </div>
 
-                        <option value="5">
-                            5 seconds
-                        </option>
-
-                        <option
-                            value="8"
-                            selected
-                        >
-                            8 seconds
-                        </option>
-
-                        <option value="10">
-                            10 seconds
-                        </option>
-
-                    </select>
-
-                </div>
-
-                <div class="field">
-
-                    <label for="resolution">
-                        Resolution
-                    </label>
-
-                    <select id="resolution">
-
-                        <option value="720p">
-                            720p
-                        </option>
-
-                        <option value="1080p">
-                            1080p
-                        </option>
-
-                        <option value="4k">
-                            4K
-                        </option>
-
-                    </select>
+                    <div
+                        id="variantValue"
+                        class="info-value"
+                    >
+                        -
+                    </div>
 
                 </div>
 
             </div>
+
+
+            <div
+                id="parameterGrid"
+                class="grid"
+            ></div>
+
 
             <div class="actions">
 
@@ -596,10 +681,12 @@
 
             </div>
 
+
             <div
                 id="notice"
                 class="notice hidden"
             ></div>
+
 
             <div class="response">
 
@@ -607,7 +694,7 @@
                     Terminal Response
                 </div>
 
-                <pre id="responseOutput">Menunggu model...</pre>
+                <pre id="responseOutput">Menunggu konfigurasi...</pre>
 
             </div>
 
@@ -617,50 +704,73 @@
 
 </div>
 
+
 <script>
 (function () {
 
     "use strict";
 
+
     const SUPABASE_URL =
         window.GENZ_CONFIG &&
         window.GENZ_CONFIG.SUPABASE_URL;
+
 
     const SUPABASE_KEY =
         window.GENZ_CONFIG &&
         window.GENZ_CONFIG.SUPABASE_KEY;
 
+
     const modelIdElement =
         document.getElementById("modelId");
+
 
     const modelNameElement =
         document.getElementById("modelName");
 
-    const promptElement =
-        document.getElementById("prompt");
 
-    const ratioElement =
-        document.getElementById("ratio");
+    const workflowInfoElement =
+        document.getElementById("workflowInfo");
 
-    const durationElement =
-        document.getElementById("duration");
 
-    const resolutionElement =
-        document.getElementById("resolution");
+    const workflowValueElement =
+        document.getElementById("workflowValue");
+
+
+    const variantValueElement =
+        document.getElementById("variantValue");
+
+
+    const parameterGridElement =
+        document.getElementById("parameterGrid");
+
 
     const generateButton =
         document.getElementById("generateButton");
 
+
     const backButton =
         document.getElementById("backButton");
+
 
     const noticeElement =
         document.getElementById("notice");
 
+
     const responseOutput =
         document.getElementById("responseOutput");
 
+
+    let supabase = null;
+
     let activeModel = null;
+
+    let activeWorkflow = null;
+
+    let activeVariant = null;
+
+    let activeParameters = [];
+
     let activeAdapter = null;
 
 
@@ -671,33 +781,76 @@
                 window.location.search
             );
 
+
         const fromUrl =
             params.get("model") ||
             params.get("model_id");
 
+
         if (fromUrl) {
             return fromUrl.trim();
         }
+
 
         const fromSession =
             sessionStorage.getItem(
                 "GENZ_ACTIVE_MODEL_ID"
             );
 
+
         if (fromSession) {
             return fromSession.trim();
         }
+
 
         const fromLocal =
             localStorage.getItem(
                 "GENZ_ACTIVE_MODEL_ID"
             );
 
+
         if (fromLocal) {
             return fromLocal.trim();
         }
 
+
         return "";
+    }
+
+
+    function getRequestedWorkflowId() {
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+
+        return (
+            params.get("workflow_id") ||
+            sessionStorage.getItem(
+                "GENZ_ACTIVE_WORKFLOW_ID"
+            ) ||
+            ""
+        ).trim();
+    }
+
+
+    function getRequestedVariantId() {
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+
+        return (
+            params.get("variant_id") ||
+            sessionStorage.getItem(
+                "GENZ_ACTIVE_VARIANT_ID"
+            ) ||
+            ""
+        ).trim();
     }
 
 
@@ -760,200 +913,920 @@
         const fileName =
             modelIdToFileName(modelId);
 
-        const modulePath =
-            `./${fileName}.js`;
 
-        return import(modulePath);
+        return import(
+            `./${fileName}.js`
+        );
 
     }
 
 
-    async function loadModel() {
+    function getParameterValue(parameter) {
+
+        const element =
+            document.getElementById(
+                `parameter-${parameter.id}`
+            );
+
+
+        if (!element) {
+            return undefined;
+        }
+
+
+        if (
+            parameter.type === "boolean"
+        ) {
+
+            return element.checked;
+
+        }
+
+
+        if (
+            parameter.type === "number" ||
+            parameter.type === "integer"
+        ) {
+
+            if (
+                element.value === ""
+            ) {
+                return undefined;
+            }
+
+            return Number(
+                element.value
+            );
+
+        }
+
+
+        if (
+            parameter.type === "array" ||
+            parameter.type === "object"
+        ) {
+
+            if (
+                !element.value.trim()
+            ) {
+                return undefined;
+            }
+
+
+            try {
+
+                return JSON.parse(
+                    element.value
+                );
+
+            } catch {
+
+                throw new Error(
+                    `Parameter ${parameter.parameter_name} harus berupa JSON yang valid.`
+                );
+
+            }
+
+        }
+
+
+        const value =
+            element.value.trim();
+
+
+        if (!value) {
+            return undefined;
+        }
+
+
+        return value;
+
+    }
+
+
+    function createInput(parameter) {
+
+        const wrapper =
+            document.createElement("div");
+
+
+        wrapper.className =
+            "field";
+
+
+        const label =
+            document.createElement("label");
+
+
+        label.htmlFor =
+            `parameter-${parameter.id}`;
+
+
+        label.textContent =
+            parameter.label ||
+            parameter.parameter_name;
+
+
+        if (parameter.required) {
+
+            const required =
+                document.createElement("span");
+
+            required.className =
+                "required";
+
+            required.textContent =
+                " *";
+
+            label.appendChild(
+                required
+            );
+
+        }
+
+
+        wrapper.appendChild(label);
+
+
+        let input;
+
+
+        const enumValues =
+            Array.isArray(
+                parameter.enum_values
+            )
+                ? parameter.enum_values
+                : null;
+
+
+        if (
+            enumValues &&
+            enumValues.length
+        ) {
+
+            input =
+                document.createElement(
+                    "select"
+                );
+
+
+            const placeholder =
+                document.createElement(
+                    "option"
+                );
+
+            placeholder.value = "";
+
+            placeholder.textContent =
+                "Pilih...";
+
+            input.appendChild(
+                placeholder
+            );
+
+
+            enumValues.forEach(
+                function (value) {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        String(value);
+
+                    option.textContent =
+                        String(value);
+
+                    input.appendChild(
+                        option
+                    );
+
+                }
+            );
+
+        } else if (
+            parameter.type === "boolean"
+        ) {
+
+            input =
+                document.createElement(
+                    "input"
+                );
+
+            input.type =
+                "checkbox";
+
+
+            input.style.width =
+                "20px";
+
+            input.style.height =
+                "20px";
+
+        } else if (
+            parameter.type === "string" &&
+            (
+                parameter.parameter_name
+                    .toLowerCase()
+                    .includes("prompt") ||
+                parameter.parameter_name
+                    .toLowerCase()
+                    .includes("description")
+            )
+        ) {
+
+            input =
+                document.createElement(
+                    "textarea"
+                );
+
+        } else if (
+            parameter.type === "array" ||
+            parameter.type === "object"
+        ) {
+
+            input =
+                document.createElement(
+                    "textarea"
+                );
+
+
+            input.placeholder =
+                parameter.type === "array"
+                    ? "[]"
+                    : "{}";
+
+        } else {
+
+            input =
+                document.createElement(
+                    "input"
+                );
+
+
+            if (
+                parameter.type === "number" ||
+                parameter.type === "integer"
+            ) {
+
+                input.type =
+                    "number";
+
+
+                if (
+                    parameter.min_value !== null &&
+                    parameter.min_value !== undefined
+                ) {
+
+                    input.min =
+                        parameter.min_value;
+
+                }
+
+
+                if (
+                    parameter.max_value !== null &&
+                    parameter.max_value !== undefined
+                ) {
+
+                    input.max =
+                        parameter.max_value;
+
+                }
+
+            } else if (
+                parameter.type === "url"
+            ) {
+
+                input.type =
+                    "url";
+
+            } else {
+
+                input.type =
+                    "text";
+
+            }
+
+        }
+
+
+        input.id =
+            `parameter-${parameter.id}`;
+
+
+        input.dataset.parameterName =
+            parameter.parameter_name;
+
+
+        input.dataset.apiMapping =
+            parameter.api_mapping ||
+            "";
+
+
+        if (
+            parameter.default_value !== null &&
+            parameter.default_value !== undefined
+        ) {
+
+            if (
+                parameter.type === "boolean"
+            ) {
+
+                input.checked =
+                    Boolean(
+                        parameter.default_value
+                    );
+
+            } else if (
+                typeof parameter.default_value ===
+                "object"
+            ) {
+
+                input.value =
+                    JSON.stringify(
+                        parameter.default_value
+                    );
+
+            } else {
+
+                input.value =
+                    String(
+                        parameter.default_value
+                    );
+
+            }
+
+        }
+
+
+        if (
+            parameter.description
+        ) {
+
+            const description =
+                document.createElement(
+                    "div"
+                );
+
+
+            description.className =
+                "parameter-description";
+
+
+            description.textContent =
+                parameter.description;
+
+
+            wrapper.appendChild(
+                input
+            );
+
+            wrapper.appendChild(
+                description
+            );
+
+        } else {
+
+            wrapper.appendChild(
+                input
+            );
+
+        }
+
+
+        if (
+            parameter.parameter_name ===
+            "prompt"
+        ) {
+
+            wrapper.classList.add(
+                "full"
+            );
+
+        }
+
+
+        return wrapper;
+
+    }
+
+
+    function renderParameters(parameters) {
+
+        parameterGridElement.innerHTML =
+            "";
+
+
+        activeParameters =
+            Array.isArray(parameters)
+                ? parameters
+                : [];
+
+
+        activeParameters.forEach(
+            function (parameter) {
+
+                parameterGridElement.appendChild(
+                    createInput(parameter)
+                );
+
+            }
+        );
+
+
+        if (
+            !activeParameters.length
+        ) {
+
+            parameterGridElement.innerHTML =
+                `
+                    <div class="field full">
+                        <div class="notice">
+                            Tidak ada parameter aktif untuk workflow/variant ini.
+                        </div>
+                    </div>
+                `;
+
+        }
+
+    }
+
+
+    function filterWorkflow() {
+
+        const requestedWorkflowId =
+            getRequestedWorkflowId();
+
+
+        if (
+            requestedWorkflowId
+        ) {
+
+            const found =
+                window.KIE_CONFIG.workflows.find(
+                    function (workflow) {
+
+                        return (
+                            workflow.id ===
+                            requestedWorkflowId
+                        );
+
+                    }
+                );
+
+
+            if (found) {
+                return found;
+            }
+
+        }
+
+
+        return (
+            window.KIE_CONFIG.workflows[0] ||
+            null
+        );
+
+    }
+
+
+    function filterVariant(workflowId) {
+
+        const requestedVariantId =
+            getRequestedVariantId();
+
+
+        const variants =
+            window.KIE_CONFIG.variants.filter(
+                function (variant) {
+
+                    return (
+                        variant.workflow_id ===
+                        workflowId
+                    );
+
+                }
+            );
+
+
+        if (
+            requestedVariantId
+        ) {
+
+            const found =
+                variants.find(
+                    function (variant) {
+
+                        return (
+                            variant.id ===
+                            requestedVariantId
+                        );
+
+                    }
+                );
+
+
+            if (found) {
+                return found;
+            }
+
+        }
+
+
+        return variants[0] || null;
+
+    }
+
+
+    function filterParameters(
+        workflowId,
+        variantId
+    ) {
+
+        return window.KIE_CONFIG.parameters.filter(
+            function (parameter) {
+
+                if (
+                    parameter.workflow_id !==
+                    workflowId
+                ) {
+                    return false;
+                }
+
+
+                if (
+                    parameter.variant_id &&
+                    parameter.variant_id !==
+                    variantId
+                ) {
+                    return false;
+                }
+
+
+                return true;
+
+            }
+        );
+
+    }
+
+
+    async function loadConfig() {
 
         hideNotice();
 
-        generateButton.disabled = true;
+        generateButton.disabled =
+            true;
+
+
+        if (
+            !SUPABASE_URL ||
+            !SUPABASE_KEY
+        ) {
+
+            throw new Error(
+                "Konfigurasi Supabase tidak tersedia."
+            );
+
+        }
+
+
+        supabase =
+            window.supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_KEY
+            );
+
+
+        const {
+            data: sessionData
+        } =
+            await supabase.auth.getSession();
+
+
+        const accessToken =
+            sessionData &&
+            sessionData.session &&
+            sessionData.session.access_token;
+
+
+        if (!accessToken) {
+
+            throw new Error(
+                "Session user tidak tersedia."
+            );
+
+        }
+
 
         const requestedModelId =
             getRequestedModelId();
 
-        if (!SUPABASE_URL || !SUPABASE_KEY) {
 
-            modelIdElement.textContent =
-                "Konfigurasi Supabase tidak tersedia.";
+        const query =
+            new URLSearchParams();
 
-            modelIdElement.classList.remove(
-                "loading"
+
+        if (requestedModelId) {
+
+            query.set(
+                "model_id",
+                requestedModelId
             );
 
-            modelIdElement.classList.add(
-                "error"
+        }
+
+
+        const response =
+            await fetch(
+                `/api/kie-config?${query.toString()}`,
+                {
+                    method: "GET",
+
+                    headers: {
+                        "Authorization":
+                            `Bearer ${accessToken}`
+                    }
+                }
             );
+
+
+        const result =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+
+            throw new Error(
+                result.error ||
+                "Gagal membaca konfigurasi KIE."
+            );
+
+        }
+
+
+        window.KIE_CONFIG =
+            result;
+
+
+        if (
+            !result.models ||
+            !result.models.length
+        ) {
+
+            throw new Error(
+                "Tidak ada model KIE ACTIVE."
+            );
+
+        }
+
+
+        activeModel =
+            result.models.find(
+                function (model) {
+
+                    return (
+                        !requestedModelId ||
+                        model.model_id ===
+                        requestedModelId
+                    );
+
+                }
+            ) ||
+            result.models[0];
+
+
+        if (!activeModel) {
+
+            throw new Error(
+                "Model KIE tidak ditemukan."
+            );
+
+        }
+
+
+        modelIdElement.textContent =
+            activeModel.model_id;
+
+
+        modelIdElement.classList.remove(
+            "loading",
+            "error"
+        );
+
+
+        modelNameElement.textContent =
+            activeModel.model_name ||
+            activeModel.model_family ||
+            "";
+
+
+        sessionStorage.setItem(
+            "GENZ_ACTIVE_MODEL_ID",
+            activeModel.model_id
+        );
+
+
+        localStorage.setItem(
+            "GENZ_ACTIVE_MODEL_ID",
+            activeModel.model_id
+        );
+
+
+        const modelWorkflows =
+            result.workflows.filter(
+                function (workflow) {
+
+                    return (
+                        workflow.model_id ===
+                        activeModel.id
+                    );
+
+                }
+            );
+
+
+        window.KIE_CONFIG.workflows =
+            modelWorkflows;
+
+
+        if (!modelWorkflows.length) {
+
+            throw new Error(
+                `Model ${activeModel.model_id} belum memiliki workflow aktif.`
+            );
+
+        }
+
+
+        activeWorkflow =
+            filterWorkflow();
+
+
+        if (!activeWorkflow) {
+
+            throw new Error(
+                "Workflow KIE tidak ditemukan."
+            );
+
+        }
+
+
+        window.KIE_CONFIG.variants =
+            result.variants.filter(
+                function (variant) {
+
+                    const workflow =
+                        modelWorkflows.find(
+                            function (item) {
+
+                                return (
+                                    item.id ===
+                                    variant.workflow_id
+                                );
+
+                            }
+                        );
+
+
+                    return Boolean(
+                        workflow
+                    );
+
+                }
+            );
+
+
+        activeVariant =
+            filterVariant(
+                activeWorkflow.id
+            );
+
+
+        if (
+            activeVariant
+        ) {
+
+            sessionStorage.setItem(
+                "GENZ_ACTIVE_VARIANT_ID",
+                activeVariant.id
+            );
+
+        }
+
+
+        workflowValueElement.textContent =
+            activeWorkflow.workflow_key ||
+            activeWorkflow.workflow_type ||
+            activeWorkflow.operation ||
+            activeWorkflow.id;
+
+
+        variantValueElement.textContent =
+            activeVariant
+                ? (
+                    activeVariant.label ||
+                    activeVariant.variant_key
+                )
+                : "Default";
+
+
+        workflowInfoElement.classList.remove(
+            "hidden"
+        );
+
+
+        const parameters =
+            filterParameters(
+                activeWorkflow.id,
+                activeVariant
+                    ? activeVariant.id
+                    : null
+            );
+
+
+        renderParameters(
+            parameters
+        );
+
+
+        try {
+
+            activeAdapter =
+                await loadAdapter(
+                    activeModel.model_id
+                );
+
+        } catch (adapterError) {
+
+            activeAdapter = null;
 
             showNotice(
-                "GENZ_CONFIG tidak tersedia."
+                `Adapter untuk model ${activeModel.model_id} belum tersedia.`
             );
+
+            setResponse({
+                success: false,
+                type: "ADAPTER_NOT_FOUND",
+                model:
+                    activeModel.model_id,
+                message:
+                    adapterError.message
+            });
 
             return;
 
         }
 
-        try {
 
-            const supabase =
-                window.supabase.createClient(
-                    SUPABASE_URL,
-                    SUPABASE_KEY
-                );
+        generateButton.disabled =
+            typeof activeAdapter.generate !==
+            "function";
 
-            let query =
-                supabase
-                    .from("kie_models")
-                    .select(
-                        "id,provider,model_family,model_id,model_name,status,documentation_url,metadata"
-                    )
-                    .eq(
-                        "provider",
-                        "kie"
-                    )
-                    .eq(
-                        "status",
-                        "ACTIVE"
-                    );
 
-            if (requestedModelId) {
+        setResponse({
+            success: true,
+            type: "MODEL_READY",
+            provider:
+                result.provider ||
+                "kie",
+            model:
+                activeModel.model_id,
+            model_name:
+                activeModel.model_name,
+            workflow:
+                activeWorkflow.workflow_key,
+            variant:
+                activeVariant
+                    ? activeVariant.variant_key
+                    : null,
+            parameters:
+                activeParameters.map(
+                    function (parameter) {
 
-                query =
-                    query.eq(
-                        "model_id",
-                        requestedModelId
-                    );
+                        return {
+                            name:
+                                parameter.parameter_name,
 
-            } else {
+                            api_mapping:
+                                parameter.api_mapping,
 
-                query =
-                    query.order(
-                        "model_name",
-                        {
-                            ascending: true
-                        }
-                    ).limit(1);
+                            required:
+                                parameter.required,
 
-            }
+                            default:
+                                parameter.default_value
+                        };
 
-            const {
-                data,
-                error
-            } = await query;
-
-            if (error) {
-                throw error;
-            }
-
-            if (!data || !data.length) {
-
-                throw new Error(
-                    requestedModelId
-                        ? `Model "${requestedModelId}" tidak ditemukan atau tidak ACTIVE.`
-                        : "Tidak ada model KIE ACTIVE di Supabase."
-                );
-
-            }
-
-            activeModel = data[0];
-
-            modelIdElement.textContent =
-                activeModel.model_id;
-
-            modelIdElement.classList.remove(
-                "loading",
-                "error"
-            );
-
-            modelNameElement.textContent =
-                activeModel.model_name ||
-                activeModel.model_family ||
-                "";
-
-            sessionStorage.setItem(
-                "GENZ_ACTIVE_MODEL_ID",
-                activeModel.model_id
-            );
-
-            localStorage.setItem(
-                "GENZ_ACTIVE_MODEL_ID",
-                activeModel.model_id
-            );
-
-            try {
-
-                activeAdapter =
-                    await loadAdapter(
-                        activeModel.model_id
-                    );
-
-            } catch (adapterError) {
-
-                activeAdapter = null;
-
-                showNotice(
-                    `Adapter untuk model ${activeModel.model_id} belum tersedia.`
-                );
-
-                setResponse({
-                    success: false,
-                    type: "ADAPTER_NOT_FOUND",
-                    model: activeModel.model_id,
-                    message:
-                        adapterError.message
-                });
-
-                return;
-
-            }
-
-            generateButton.disabled =
-                typeof activeAdapter.generate !==
-                "function";
-
-            setResponse({
-                success: true,
-                type: "MODEL_READY",
-                provider: "kie",
-                model:
-                    activeModel.model_id,
-                model_name:
-                    activeModel.model_name,
-                adapter:
-                    `./${modelIdToFileName(activeModel.model_id)}.js`
-            });
-
-        } catch (error) {
-
-            modelIdElement.textContent =
-                "Model gagal dimuat.";
-
-            modelIdElement.classList.remove(
-                "loading"
-            );
-
-            modelIdElement.classList.add(
-                "error"
-            );
-
-            showNotice(
-                error.message ||
-                "Gagal membaca model KIE."
-            );
-
-            setResponse({
-                success: false,
-                error:
-                    error.message ||
-                    String(error)
-            });
-
-        }
+                    }
+                )
+        });
 
     }
 
@@ -961,6 +1834,7 @@
     async function runGenerate() {
 
         hideNotice();
+
 
         if (!activeModel) {
 
@@ -971,6 +1845,18 @@
             return;
 
         }
+
+
+        if (!activeWorkflow) {
+
+            showNotice(
+                "Workflow belum siap."
+            );
+
+            return;
+
+        }
+
 
         if (
             !activeAdapter ||
@@ -986,45 +1872,121 @@
 
         }
 
-        const prompt =
-            promptElement.value.trim();
 
-        if (!prompt) {
+        const input = {};
 
-            showNotice(
-                "Prompt wajib diisi."
+
+        try {
+
+            activeParameters.forEach(
+                function (parameter) {
+
+                    const value =
+                        getParameterValue(
+                            parameter
+                        );
+
+
+                    if (
+                        value !== undefined
+                    ) {
+
+                        input[
+                            parameter.parameter_name
+                        ] = value;
+
+                    }
+
+                }
             );
 
-            promptElement.focus();
+        } catch (error) {
+
+            showNotice(
+                error.message
+            );
 
             return;
 
         }
 
-        generateButton.disabled = true;
+
+        const missing =
+            activeParameters.filter(
+                function (parameter) {
+
+                    return (
+                        parameter.required &&
+                        (
+                            input[
+                                parameter.parameter_name
+                            ] === undefined ||
+                            input[
+                                parameter.parameter_name
+                            ] === null ||
+                            input[
+                                parameter.parameter_name
+                            ] === ""
+                        )
+                    );
+
+                }
+            );
+
+
+        if (missing.length) {
+
+            showNotice(
+                "Parameter wajib belum diisi: " +
+                missing
+                    .map(
+                        function (parameter) {
+
+                            return parameter.label ||
+                                parameter.parameter_name;
+
+                        }
+                    )
+                    .join(", ")
+            );
+
+            return;
+
+        }
+
+
+        generateButton.disabled =
+            true;
+
 
         responseOutput.textContent =
             "Mengirim request...";
+
 
         try {
 
             const result =
                 await activeAdapter.generate({
 
-                    prompt,
+                    model:
+                        activeModel.model_id,
 
-                    ratio:
-                        ratioElement.value,
+                    workflow:
+                        activeWorkflow.workflow_key,
 
-                    duration:
-                        durationElement.value,
+                    variant:
+                        activeVariant
+                            ? activeVariant.variant_key
+                            : undefined,
 
-                    resolution:
-                        resolutionElement.value
+                    input
 
                 });
 
-            setResponse(result);
+
+            setResponse(
+                result
+            );
 
         } catch (error) {
 
@@ -1033,8 +1995,10 @@
                 "Generation gagal."
             );
 
+
             setResponse({
                 success: false,
+
                 error:
                     error.message ||
                     String(error)
@@ -1072,6 +2036,7 @@
 
             }
 
+
             window.location.href =
                 "/provider/";
 
@@ -1079,7 +2044,38 @@
     );
 
 
-    loadModel();
+    loadConfig()
+        .catch(
+            function (error) {
+
+                modelIdElement.textContent =
+                    "Konfigurasi gagal dimuat.";
+
+                modelIdElement.classList.remove(
+                    "loading"
+                );
+
+                modelIdElement.classList.add(
+                    "error"
+                );
+
+
+                showNotice(
+                    error.message ||
+                    "Gagal membaca konfigurasi KIE."
+                );
+
+
+                setResponse({
+                    success: false,
+
+                    error:
+                        error.message ||
+                        String(error)
+                });
+
+            }
+        );
 
 })();
 </script>
