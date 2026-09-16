@@ -29,6 +29,14 @@
             --yellow: #f59e0b;
             --red: #ef4444;
             --blue: #38bdf8;
+
+            --sidebar-width: 250px;
+            --sidebar-collapsed: 70px;
+        }
+
+        html,
+        body {
+            min-height: 100%;
         }
 
         body {
@@ -63,66 +71,213 @@
         }
 
         /* =====================================================
-           TOP NAVIGATION
+           SIDEBAR
         ===================================================== */
 
-        .top-nav {
-            position: sticky;
+        .sidebar {
+            position: fixed;
             top: 0;
+            left: 0;
+            bottom: 0;
+
+            width: var(--sidebar-width);
+
             z-index: 5000;
 
-            width: calc(100% - 28px);
-            max-width: 1500px;
+            display: flex;
+            flex-direction: column;
 
-            margin: 14px auto 0;
+            background:
+                linear-gradient(
+                    180deg,
+                    #111827 0%,
+                    #0f172a 100%
+                );
 
-            padding: 10px 12px;
+            border-right: 1px solid var(--border);
+
+            box-shadow:
+                10px 0 35px rgba(0, 0, 0, .20);
+
+            transition:
+                width .25s ease,
+                transform .25s ease;
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed);
+        }
+
+        .sidebar-header {
+            height: 72px;
+
+            padding: 0 14px;
 
             display: flex;
             align-items: center;
             justify-content: space-between;
 
-            gap: 12px;
-            flex-wrap: wrap;
+            gap: 10px;
 
-            background: rgba(17, 24, 39, .96);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-
-            box-shadow:
-                0 12px 30px rgba(0, 0, 0, .22);
-
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--border);
         }
 
-        .nav-left {
+        .brand {
+            min-width: 0;
+
             display: flex;
             align-items: center;
-            gap: 7px;
-            flex-wrap: wrap;
+            gap: 10px;
+
+            text-decoration: none;
+            color: white;
         }
 
-        .nav-link {
-            display: inline-flex;
+        .brand-icon {
+            flex: 0 0 auto;
+
+            width: 40px;
+            height: 40px;
+
+            display: flex;
             align-items: center;
             justify-content: center;
-            gap: 7px;
 
-            min-height: 38px;
+            border-radius: 11px;
 
-            padding: 8px 12px;
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--primary),
+                    #8b5cf6
+                );
 
+            color: white;
+
+            font-size: 19px;
+            font-weight: 900;
+
+            box-shadow:
+                0 8px 25px rgba(99, 102, 241, .25);
+        }
+
+        .brand-text {
+            min-width: 0;
+
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            transition:
+                opacity .2s ease,
+                width .25s ease;
+        }
+
+        .brand-name {
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: .03em;
+        }
+
+        .brand-subtitle {
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .sidebar.collapsed .brand-text {
+            width: 0;
+            opacity: 0;
+        }
+
+        .sidebar-toggle {
+            flex: 0 0 auto;
+
+            width: 38px;
+            height: 38px;
+
+            border: 1px solid var(--border);
+            border-radius: 9px;
+
+            background: var(--panel2);
             color: #dbe4ff;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-size: 17px;
+
+            transition:
+                background .2s,
+                border-color .2s,
+                transform .2s;
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(99, 102, 241, .16);
+            border-color: rgba(99, 102, 241, .4);
+            transform: translateY(-1px);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+
+            padding: 15px 10px;
+
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .nav-section-title {
+            padding: 8px 11px 7px;
+
+            color: #64748b;
+
+            font-size: 10px;
+            font-weight: 800;
+
+            text-transform: uppercase;
+            letter-spacing: .08em;
+
+            white-space: nowrap;
+
+            transition:
+                opacity .2s ease;
+        }
+
+        .sidebar.collapsed .nav-section-title {
+            opacity: 0;
+        }
+
+        .sidebar-link {
+            width: 100%;
+
+            min-height: 44px;
+
+            margin-bottom: 5px;
+
+            padding: 9px 11px;
+
+            display: flex;
+            align-items: center;
+
+            gap: 12px;
+
+            color: #cbd5e1;
             text-decoration: none;
 
-            background: transparent;
-
             border: 1px solid transparent;
-            border-radius: 9px;
+            border-radius: 10px;
 
             font-size: 12px;
             font-weight: 700;
+
+            white-space: nowrap;
 
             transition:
                 background .2s,
@@ -131,74 +286,155 @@
                 transform .2s;
         }
 
-        .nav-link:hover {
+        .sidebar-link:hover {
             background: var(--panel2);
             border-color: var(--border);
             color: white;
-            transform: translateY(-1px);
+            transform: translateX(2px);
         }
 
-        .nav-link.active {
-            background: rgba(99, 102, 241, .16);
-            border-color: rgba(99, 102, 241, .35);
+        .sidebar-link.active {
+            background: rgba(99, 102, 241, .15);
+            border-color: rgba(99, 102, 241, .32);
             color: #c7d2fe;
         }
 
-        .nav-logout {
-            color: #fca5a5;
-        }
+        .sidebar-link-icon {
+            flex: 0 0 auto;
 
-        .nav-logout:hover {
-            background: rgba(239, 68, 68, .12);
-            border-color: rgba(239, 68, 68, .3);
-            color: #fecaca;
-        }
+            width: 25px;
+            height: 25px;
 
-        .nav-back {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             justify-content: center;
 
-            min-height: 38px;
-
-            padding: 8px 13px;
-
-            color: white;
-            text-decoration: none;
-
-            background: rgba(56, 189, 248, .10);
-            border: 1px solid rgba(56, 189, 248, .25);
-
-            border-radius: 9px;
-
-            font-size: 12px;
-            font-weight: 700;
-
-            transition:
-                background .2s,
-                border-color .2s,
-                transform .2s;
+            font-size: 16px;
         }
 
-        .nav-back:hover {
-            background: rgba(56, 189, 248, .18);
-            border-color: rgba(56, 189, 248, .4);
-            transform: translateY(-1px);
+        .sidebar-link-text {
+            min-width: 0;
+
+            overflow: hidden;
+
+            transition:
+                opacity .2s ease,
+                width .25s ease;
+        }
+
+        .sidebar.collapsed .sidebar-link {
+            justify-content: center;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        .sidebar.collapsed .sidebar-link-text {
+            width: 0;
+            opacity: 0;
+        }
+
+        .sidebar-footer {
+            padding: 10px;
+
+            border-top: 1px solid var(--border);
+        }
+
+        .sidebar-back {
+            color: #7dd3fc;
+            background: rgba(56, 189, 248, .07);
+            border-color: rgba(56, 189, 248, .18);
+        }
+
+        .sidebar-back:hover {
+            background: rgba(56, 189, 248, .14);
+            border-color: rgba(56, 189, 248, .35);
+        }
+
+        .sidebar-logout {
+            color: #fca5a5;
+        }
+
+        .sidebar-logout:hover {
+            background: rgba(239, 68, 68, .10);
+            border-color: rgba(239, 68, 68, .25);
+            color: #fecaca;
+        }
+
+        /* =====================================================
+           MOBILE SIDEBAR
+        ===================================================== */
+
+        .mobile-menu-button {
+            display: none;
+
+            position: fixed;
+
+            top: 14px;
+            left: 14px;
+
+            width: 42px;
+            height: 42px;
+
+            z-index: 4900;
+
+            border: 1px solid var(--border);
+            border-radius: 10px;
+
+            background: rgba(17, 24, 39, .96);
+            color: white;
+
+            box-shadow:
+                0 10px 25px rgba(0, 0, 0, .25);
+
+            font-size: 18px;
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+
+            z-index: 4800;
+
+            background: rgba(0, 0, 0, .60);
+
+            display: none;
+        }
+
+        /* =====================================================
+           MAIN CONTENT
+        ===================================================== */
+
+        .main-content {
+            min-height: 100vh;
+
+            margin-left: var(--sidebar-width);
+
+            transition:
+                margin-left .25s ease;
+        }
+
+        .main-content.collapsed {
+            margin-left: var(--sidebar-collapsed);
         }
 
         .container {
             width: 100%;
             max-width: 1500px;
+
             margin: auto;
-            padding: 24px;
+
+            padding: 28px;
         }
 
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+
             gap: 16px;
+
             margin-bottom: 24px;
+
             flex-wrap: wrap;
         }
 
@@ -209,15 +445,20 @@
 
         .title-wrap p {
             margin: 6px 0 0;
+
             color: var(--muted);
+
             font-size: 14px;
         }
 
         .btn {
             border: 0;
             border-radius: 10px;
+
             padding: 11px 16px;
+
             font-weight: 700;
+
             transition: .2s;
         }
 
@@ -237,12 +478,14 @@
         .btn-secondary {
             background: var(--panel2);
             color: white;
+
             border: 1px solid var(--border);
         }
 
         .btn-danger {
             background: rgba(239, 68, 68, .15);
             color: #fca5a5;
+
             border: 1px solid rgba(239, 68, 68, .35);
         }
 
@@ -254,15 +497,21 @@
 
         .stats {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+
             gap: 14px;
+
             margin-bottom: 20px;
         }
 
         .stat {
             background: var(--panel);
+
             border: 1px solid var(--border);
             border-radius: 14px;
+
             padding: 18px;
         }
 
@@ -274,17 +523,24 @@
         .stat-value {
             font-size: 25px;
             font-weight: 800;
+
             margin-top: 6px;
         }
 
         .toolbar {
             background: var(--panel);
+
             border: 1px solid var(--border);
             border-radius: 14px;
+
             padding: 15px;
+
             margin-bottom: 18px;
+
             display: flex;
+
             gap: 10px;
+
             flex-wrap: wrap;
         }
 
@@ -297,11 +553,16 @@
         select,
         textarea {
             width: 100%;
+
             border: 1px solid var(--border);
+
             background: #0d1424;
             color: var(--text);
+
             border-radius: 9px;
+
             padding: 11px 12px;
+
             outline: none;
         }
 
@@ -323,8 +584,10 @@
 
         .table-wrap {
             background: var(--panel);
+
             border: 1px solid var(--border);
             border-radius: 14px;
+
             overflow: hidden;
         }
 
@@ -334,23 +597,31 @@
 
         table {
             width: 100%;
+
             border-collapse: collapse;
+
             min-width: 1100px;
         }
 
         th,
         td {
             padding: 13px 14px;
+
             border-bottom: 1px solid var(--border);
+
             text-align: left;
             vertical-align: middle;
         }
 
         th {
             color: var(--muted);
+
             font-size: 12px;
+
             text-transform: uppercase;
+
             letter-spacing: .04em;
+
             background: rgba(255,255,255,.02);
         }
 
@@ -368,28 +639,43 @@
 
         .model-id {
             color: var(--muted);
+
             font-size: 11px;
+
             margin-top: 4px;
+
             word-break: break-all;
         }
 
         .provider {
             display: inline-flex;
+
             align-items: center;
+
             gap: 7px;
+
             padding: 6px 9px;
+
             border-radius: 8px;
+
             background: rgba(99, 102, 241, .12);
+
             color: #c7d2fe;
+
             font-size: 12px;
         }
 
         .status {
             display: inline-block;
+
             padding: 5px 8px;
+
             border-radius: 7px;
+
             font-size: 11px;
+
             font-weight: 700;
+
             text-transform: uppercase;
         }
 
@@ -429,22 +715,31 @@
 
         .empty {
             text-align: center;
+
             padding: 45px 20px;
+
             color: var(--muted);
         }
 
         .loading {
             text-align: center;
+
             padding: 35px;
+
             color: var(--muted);
         }
 
         .alert {
             display: none;
+
             margin-bottom: 16px;
+
             padding: 12px 15px;
+
             border-radius: 10px;
+
             font-size: 13px;
+
             word-break: break-word;
         }
 
@@ -454,26 +749,38 @@
 
         .alert-error {
             background: rgba(239,68,68,.12);
+
             border: 1px solid rgba(239,68,68,.3);
+
             color: #fca5a5;
         }
 
         .alert-success {
             background: rgba(34,197,94,.12);
+
             border: 1px solid rgba(34,197,94,.3);
+
             color: #86efac;
         }
 
-        /* MODAL */
+        /* =====================================================
+           MODAL
+        ===================================================== */
 
         .modal-overlay {
             position: fixed;
+
             inset: 0;
+
             background: rgba(0,0,0,.72);
+
             display: none;
+
             align-items: center;
             justify-content: center;
+
             padding: 20px;
+
             z-index: 9999;
         }
 
@@ -484,35 +791,53 @@
         .modal {
             width: 100%;
             max-width: 850px;
+
             max-height: 92vh;
+
             overflow-y: auto;
+
             background: var(--panel);
+
             border: 1px solid var(--border);
+
             border-radius: 18px;
-            box-shadow: 0 30px 80px rgba(0,0,0,.45);
+
+            box-shadow:
+                0 30px 80px rgba(0,0,0,.45);
         }
 
         .modal-header {
             padding: 20px;
+
             border-bottom: 1px solid var(--border);
+
             display: flex;
+
             justify-content: space-between;
+
             align-items: center;
+
             gap: 10px;
         }
 
         .modal-header h2 {
             margin: 0;
+
             font-size: 20px;
         }
 
         .close {
             width: 36px;
             height: 36px;
+
             border: 1px solid var(--border);
+
             border-radius: 9px;
+
             background: var(--panel2);
+
             color: white;
+
             font-size: 20px;
         }
 
@@ -522,13 +847,18 @@
 
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
             gap: 15px;
         }
 
         .field {
             display: flex;
+
             flex-direction: column;
+
             gap: 7px;
         }
 
@@ -538,44 +868,64 @@
 
         .field label {
             font-size: 12px;
+
             font-weight: 700;
+
             color: #d1d5db;
         }
 
         .hint {
             color: var(--muted);
+
             font-size: 11px;
+
             line-height: 1.4;
         }
 
         .credit-preview {
             background: rgba(34,197,94,.08);
+
             border: 1px solid rgba(34,197,94,.25);
+
             border-radius: 12px;
+
             padding: 15px;
         }
 
         .credit-preview-row {
             display: flex;
+
             justify-content: space-between;
+
             gap: 15px;
+
             margin-bottom: 7px;
+
             font-size: 13px;
         }
 
         .credit-preview-row:last-child {
             margin-bottom: 0;
+
             padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,.08);
+
+            border-top:
+                1px solid rgba(255,255,255,.08);
+
             font-size: 16px;
+
             font-weight: 800;
         }
 
         .modal-footer {
             padding: 15px 20px;
+
             border-top: 1px solid var(--border);
+
             display: flex;
+
             justify-content: flex-end;
+
             gap: 10px;
         }
 
@@ -585,12 +935,19 @@
 
         .delete-confirm .modal-body {
             line-height: 1.6;
+
             color: #d1d5db;
         }
 
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
         @media (max-width: 900px) {
+
             .stats {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
             }
 
             .form-grid {
@@ -601,26 +958,91 @@
                 grid-column: auto;
             }
 
-            .top-nav {
-                align-items: stretch;
+        }
+
+        @media (max-width: 700px) {
+
+            .sidebar {
+                width: 250px;
+
+                transform:
+                    translateX(-100%);
             }
 
-            .nav-left {
-                width: 100%;
+            .sidebar.mobile-open {
+                transform:
+                    translateX(0);
             }
 
-            .nav-back {
-                width: 100%;
+            .sidebar.collapsed {
+                width: 250px;
             }
+
+            .sidebar.collapsed .brand-text {
+                width: auto;
+                opacity: 1;
+            }
+
+            .sidebar.collapsed .sidebar-link {
+                justify-content: flex-start;
+
+                padding-left: 11px;
+                padding-right: 11px;
+            }
+
+            .sidebar.collapsed .sidebar-link-text {
+                width: auto;
+                opacity: 1;
+            }
+
+            .sidebar.collapsed .nav-section-title {
+                opacity: 1;
+            }
+
+            .sidebar-toggle {
+                display: flex;
+            }
+
+            .mobile-menu-button {
+                display: flex;
+
+                align-items: center;
+                justify-content: center;
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+            }
+
+            .main-content,
+            .main-content.collapsed {
+                margin-left: 0;
+            }
+
+            .container {
+                padding:
+                    72px 14px 20px;
+            }
+
+            .header {
+                margin-bottom: 18px;
+            }
+
+            .title-wrap h1 {
+                font-size: 24px;
+            }
+
+            .title-wrap p {
+                font-size: 13px;
+            }
+
         }
 
         @media (max-width: 600px) {
-            .container {
-                padding: 14px;
-            }
 
             .stats {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns:
+                    1fr 1fr;
             }
 
             .stat {
@@ -631,31 +1053,19 @@
                 font-size: 20px;
             }
 
-            .top-nav {
-                width: calc(100% - 20px);
-                margin-top: 10px;
-                padding: 8px;
-                border-radius: 12px;
+            .toolbar {
+                padding: 12px;
             }
 
-            .nav-left {
-                gap: 5px;
+            .toolbar select {
+                flex: 1;
+                min-width: 130px;
             }
 
-            .nav-link {
-                min-height: 34px;
-                padding: 7px 9px;
-                font-size: 11px;
+            .search {
+                min-width: 100%;
             }
 
-            .nav-link span {
-                display: none;
-            }
-
-            .nav-back {
-                min-height: 34px;
-                font-size: 11px;
-            }
         }
     </style>
 </head>
@@ -663,283 +1073,456 @@
 <body>
 
 <!-- =====================================================
-     TOP NAVIGATION
+     SIDEBAR
 ===================================================== -->
 
-<nav class="top-nav" aria-label="Navigasi GEN-Z.AI">
+<aside
+    class="sidebar"
+    id="sidebar"
+    aria-label="Navigasi GEN-Z.AI">
 
-    <div class="nav-left">
+    <div class="sidebar-header">
 
         <a
-            class="nav-link"
+            href="/admin/dashboard.html"
+            class="brand"
+            title="GEN-Z.AI">
+
+            <div class="brand-icon">
+                G
+            </div>
+
+            <div class="brand-text">
+
+                <div class="brand-name">
+                    GEN-Z.AI
+                </div>
+
+                <div class="brand-subtitle">
+                    AI CONTROL CENTER
+                </div>
+
+            </div>
+
+        </a>
+
+
+        <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebarToggle"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar">
+
+            ‹
+
+        </button>
+
+    </div>
+
+
+    <nav class="sidebar-nav">
+
+        <div class="nav-section-title">
+            MAIN MENU
+        </div>
+
+
+        <a
+            class="sidebar-link"
             href="/admin/dashboard.html"
             title="Dashboard">
-            <span>⌂</span>
-            <span>Dashboard</span>
+
+            <span class="sidebar-link-icon">
+                ⌂
+            </span>
+
+            <span class="sidebar-link-text">
+                Dashboard
+            </span>
+
         </a>
 
+
         <a
-            class="nav-link"
+            class="sidebar-link"
             href="/generate/index.html"
             title="Generate">
-            <span>✦</span>
-            <span>Generate</span>
+
+            <span class="sidebar-link-icon">
+                ✦
+            </span>
+
+            <span class="sidebar-link-text">
+                Generate
+            </span>
+
         </a>
 
+
         <a
-            class="nav-link"
+            class="sidebar-link"
             href="/history/index.html"
             title="History">
-            <span>◷</span>
-            <span>History</span>
+
+            <span class="sidebar-link-icon">
+                ◷
+            </span>
+
+            <span class="sidebar-link-text">
+                History
+            </span>
+
         </a>
 
+
+        <div class="nav-section-title">
+            ADMINISTRATION
+        </div>
+
+
         <a
-            class="nav-link active"
+            class="sidebar-link active"
             href="/admin-control/admin-panel.html"
             title="Admin Panel">
-            <span>⚙</span>
-            <span>Admin Panel</span>
+
+            <span class="sidebar-link-icon">
+                ⚙
+            </span>
+
+            <span class="sidebar-link-text">
+                Admin Panel
+            </span>
+
         </a>
 
+
         <a
-            class="nav-link nav-logout"
+            class="sidebar-link"
+            href="/admin-control/providers.html"
+            title="Providers">
+
+            <span class="sidebar-link-icon">
+                ◈
+            </span>
+
+            <span class="sidebar-link-text">
+                Providers
+            </span>
+
+        </a>
+
+
+        <a
+            class="sidebar-link"
+            href="/admin-control/models.html"
+            title="Model Management">
+
+            <span class="sidebar-link-icon">
+                ◉
+            </span>
+
+            <span class="sidebar-link-text">
+                Model Management
+            </span>
+
+        </a>
+
+    </nav>
+
+
+    <div class="sidebar-footer">
+
+        <a
+            class="sidebar-link sidebar-back"
+            href="/admin-control/admin-panel.html"
+            title="Back to Admin Panel">
+
+            <span class="sidebar-link-icon">
+                ←
+            </span>
+
+            <span class="sidebar-link-text">
+                Back to Admin Panel
+            </span>
+
+        </a>
+
+
+        <a
+            class="sidebar-link sidebar-logout"
             href="/login.html"
             id="logoutNav"
             title="Log Out">
-            <span>⇥</span>
-            <span>Log Out</span>
+
+            <span class="sidebar-link-icon">
+                ⇥
+            </span>
+
+            <span class="sidebar-link-text">
+                Log Out
+            </span>
+
         </a>
 
     </div>
 
-    <a
-        class="nav-back"
-        href="/admin-control/admin-panel.html">
-        ← Back to Admin Panel
-    </a>
+</aside>
 
-</nav>
 
+<!-- MOBILE MENU -->
 
-<div class="container">
+<button
+    type="button"
+    class="mobile-menu-button"
+    id="mobileMenuButton"
+    aria-label="Open menu"
+    title="Open menu">
 
-    <div class="header">
+    ☰
 
-        <div class="title-wrap">
+</button>
 
-            <h1>
-                Model Management
-            </h1>
 
-            <p>
-                Kelola model AI, provider, credit, diskon,
-                duration, ratio dan resolution.
-            </p>
-
-        </div>
-
-        <button
-            class="btn btn-primary"
-            id="addModelBtn">
-            + Tambah Model
-        </button>
-
-    </div>
-
-
-    <div
-        id="alertBox"
-        class="alert">
-    </div>
-
-
-    <div class="stats">
-
-        <div class="stat">
-
-            <div class="stat-label">
-                Total Model
-            </div>
-
-            <div
-                class="stat-value"
-                id="statTotal">
-                0
-            </div>
-
-        </div>
-
-
-        <div class="stat">
-
-            <div class="stat-label">
-                Model Aktif
-            </div>
-
-            <div
-                class="stat-value"
-                id="statActive">
-                0
-            </div>
-
-        </div>
-
-
-        <div class="stat">
-
-            <div class="stat-label">
-                Model Diskon
-            </div>
-
-            <div
-                class="stat-value"
-                id="statDiscount">
-                0
-            </div>
-
-        </div>
-
-
-        <div class="stat">
-
-            <div class="stat-label">
-                Provider
-            </div>
-
-            <div
-                class="stat-value"
-                id="statProviders">
-                0
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <div class="toolbar">
-
-        <input
-            id="searchInput"
-            class="search"
-            type="search"
-            placeholder="Cari model, Model ID, provider...">
-
-
-        <select id="statusFilter">
-
-            <option value="">
-                Semua Status
-            </option>
-
-            <option value="active">
-                Active
-            </option>
-
-            <option value="inactive">
-                Inactive
-            </option>
-
-            <option value="maintenance">
-                Maintenance
-            </option>
-
-        </select>
-
-
-        <select id="providerFilter">
-
-            <option value="">
-                Semua Provider
-            </option>
-
-        </select>
-
-
-        <button
-            class="btn btn-secondary"
-            id="refreshBtn">
-            ↻ Refresh
-        </button>
-
-    </div>
-
-
-    <div class="table-wrap">
-
-        <div class="table-scroll">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>
-                            Model
-                        </th>
-
-                        <th>
-                            Provider
-                        </th>
-
-                        <th>
-                            Credit
-                        </th>
-
-                        <th>
-                            Diskon
-                        </th>
-
-                        <th>
-                            Credit Final
-                        </th>
-
-                        <th>
-                            Duration
-                        </th>
-
-                        <th>
-                            Ratio
-                        </th>
-
-                        <th>
-                            Status
-                        </th>
-
-                        <th>
-                            Aksi
-                        </th>
-
-                    </tr>
-
-                </thead>
-
-
-                <tbody id="modelTableBody">
-
-                    <tr>
-
-                        <td
-                            colspan="9"
-                            class="loading">
-
-                            Memuat model...
-
-                        </td>
-
-                    </tr>
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
+<div
+    class="sidebar-overlay"
+    id="sidebarOverlay">
 </div>
+
+
+<!-- =====================================================
+     MAIN CONTENT
+===================================================== -->
+
+<main
+    class="main-content"
+    id="mainContent">
+
+    <div class="container">
+
+        <div class="header">
+
+            <div class="title-wrap">
+
+                <h1>
+                    Model Management
+                </h1>
+
+                <p>
+                    Kelola model AI, provider, credit, diskon,
+                    duration, ratio dan resolution.
+                </p>
+
+            </div>
+
+
+            <button
+                class="btn btn-primary"
+                id="addModelBtn">
+
+                + Tambah Model
+
+            </button>
+
+        </div>
+
+
+        <div
+            id="alertBox"
+            class="alert">
+        </div>
+
+
+        <div class="stats">
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Total Model
+                </div>
+
+                <div
+                    class="stat-value"
+                    id="statTotal">
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Model Aktif
+                </div>
+
+                <div
+                    class="stat-value"
+                    id="statActive">
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Model Diskon
+                </div>
+
+                <div
+                    class="stat-value"
+                    id="statDiscount">
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Provider
+                </div>
+
+                <div
+                    class="stat-value"
+                    id="statProviders">
+                    0
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="toolbar">
+
+            <input
+                id="searchInput"
+                class="search"
+                type="search"
+                placeholder="Cari model, Model ID, provider...">
+
+
+            <select id="statusFilter">
+
+                <option value="">
+                    Semua Status
+                </option>
+
+                <option value="active">
+                    Active
+                </option>
+
+                <option value="inactive">
+                    Inactive
+                </option>
+
+                <option value="maintenance">
+                    Maintenance
+                </option>
+
+            </select>
+
+
+            <select id="providerFilter">
+
+                <option value="">
+                    Semua Provider
+                </option>
+
+            </select>
+
+
+            <button
+                class="btn btn-secondary"
+                id="refreshBtn">
+
+                ↻ Refresh
+
+            </button>
+
+        </div>
+
+
+        <div class="table-wrap">
+
+            <div class="table-scroll">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Model
+                            </th>
+
+                            <th>
+                                Provider
+                            </th>
+
+                            <th>
+                                Credit
+                            </th>
+
+                            <th>
+                                Diskon
+                            </th>
+
+                            <th>
+                                Credit Final
+                            </th>
+
+                            <th>
+                                Duration
+                            </th>
+
+                            <th>
+                                Ratio
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Aksi
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="modelTableBody">
+
+                        <tr>
+
+                            <td
+                                colspan="9"
+                                class="loading">
+
+                                Memuat model...
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
 
 
 <!-- =====================================================
@@ -962,7 +1545,9 @@
                 type="button"
                 class="close"
                 id="closeModalBtn">
+
                 ×
+
             </button>
 
         </div>
@@ -1242,14 +1827,18 @@
                     type="button"
                     class="btn btn-secondary"
                     id="cancelModalBtn">
+
                     Batal
+
                 </button>
 
                 <button
                     type="submit"
                     class="btn btn-primary"
                     id="saveModelBtn">
+
                     Simpan Model
+
                 </button>
 
             </div>
@@ -1281,7 +1870,9 @@
                 type="button"
                 class="close"
                 id="closeDeleteBtn">
+
                 ×
+
             </button>
 
         </div>
@@ -1311,14 +1902,18 @@
                 type="button"
                 class="btn btn-secondary"
                 id="cancelDeleteBtn">
+
                 Batal
+
             </button>
 
             <button
                 type="button"
                 class="btn btn-danger"
                 id="confirmDeleteBtn">
+
                 Hapus Model
+
             </button>
 
         </div>
@@ -1348,11 +1943,304 @@
 
 
     /* =====================================================
+       SIDEBAR
+    ===================================================== */
+
+    const sidebar =
+        document.getElementById(
+            "sidebar"
+        );
+
+
+    const mainContent =
+        document.getElementById(
+            "mainContent"
+        );
+
+
+    const sidebarToggle =
+        document.getElementById(
+            "sidebarToggle"
+        );
+
+
+    const mobileMenuButton =
+        document.getElementById(
+            "mobileMenuButton"
+        );
+
+
+    const sidebarOverlay =
+        document.getElementById(
+            "sidebarOverlay"
+        );
+
+
+    const SIDEBAR_STORAGE_KEY =
+        "genz_admin_sidebar_collapsed";
+
+
+    function isMobile() {
+
+        return window.innerWidth <= 700;
+
+    }
+
+
+    function setSidebarCollapsed(
+        collapsed
+    ) {
+
+        if (isMobile()) {
+            return;
+        }
+
+
+        sidebar.classList.toggle(
+            "collapsed",
+            collapsed
+        );
+
+
+        mainContent.classList.toggle(
+            "collapsed",
+            collapsed
+        );
+
+
+        sidebarToggle.textContent =
+            collapsed
+                ? "›"
+                : "‹";
+
+
+        sidebarToggle.title =
+            collapsed
+                ? "Expand sidebar"
+                : "Collapse sidebar";
+
+
+        sidebarToggle.setAttribute(
+            "aria-label",
+            collapsed
+                ? "Expand sidebar"
+                : "Collapse sidebar"
+        );
+
+
+        try {
+
+            localStorage.setItem(
+                SIDEBAR_STORAGE_KEY,
+                collapsed
+                    ? "1"
+                    : "0"
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "Sidebar preference tidak dapat disimpan.",
+                error
+            );
+
+        }
+
+    }
+
+
+    function openMobileSidebar() {
+
+        sidebar.classList.add(
+            "mobile-open"
+        );
+
+
+        sidebarOverlay.classList.add(
+            "show"
+        );
+
+
+        document.body.style.overflow =
+            "hidden";
+
+    }
+
+
+    function closeMobileSidebar() {
+
+        sidebar.classList.remove(
+            "mobile-open"
+        );
+
+
+        sidebarOverlay.classList.remove(
+            "show"
+        );
+
+
+        document.body.style.overflow =
+            "";
+
+    }
+
+
+    sidebarToggle.addEventListener(
+        "click",
+        function () {
+
+            if (isMobile()) {
+
+                if (
+                    sidebar.classList.contains(
+                        "mobile-open"
+                    )
+                ) {
+
+                    closeMobileSidebar();
+
+                } else {
+
+                    openMobileSidebar();
+
+                }
+
+                return;
+            }
+
+
+            const collapsed =
+                !sidebar.classList.contains(
+                    "collapsed"
+                );
+
+
+            setSidebarCollapsed(
+                collapsed
+            );
+
+        }
+    );
+
+
+    mobileMenuButton.addEventListener(
+        "click",
+        openMobileSidebar
+    );
+
+
+    sidebarOverlay.addEventListener(
+        "click",
+        closeMobileSidebar
+    );
+
+
+    document.querySelectorAll(
+        ".sidebar-link"
+    ).forEach(
+        function (link) {
+
+            link.addEventListener(
+                "click",
+                function () {
+
+                    if (isMobile()) {
+
+                        closeMobileSidebar();
+
+                    }
+
+                }
+            );
+
+        }
+    );
+
+
+    window.addEventListener(
+        "resize",
+        function () {
+
+            if (!isMobile()) {
+
+                closeMobileSidebar();
+
+                let saved =
+                    null;
+
+
+                try {
+
+                    saved =
+                        localStorage.getItem(
+                            SIDEBAR_STORAGE_KEY
+                        );
+
+                } catch (error) {
+
+                    saved = null;
+
+                }
+
+
+                setSidebarCollapsed(
+                    saved === "1"
+                );
+
+            } else {
+
+                sidebar.classList.remove(
+                    "collapsed"
+                );
+
+
+                mainContent.classList.remove(
+                    "collapsed"
+                );
+
+            }
+
+        }
+    );
+
+
+    try {
+
+        const saved =
+            localStorage.getItem(
+                SIDEBAR_STORAGE_KEY
+            );
+
+
+        if (!isMobile()) {
+
+            setSidebarCollapsed(
+                saved === "1"
+            );
+
+        }
+
+    } catch (error) {
+
+        if (!isMobile()) {
+
+            setSidebarCollapsed(
+                false
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
        NAVIGATION / LOGOUT
     ===================================================== */
 
     const logoutNav =
-        document.getElementById("logoutNav");
+        document.getElementById(
+            "logoutNav"
+        );
 
 
     if (logoutNav) {
@@ -3348,6 +4236,10 @@
                 closeModelModal();
 
                 closeDeleteModal();
+
+                if (isMobile()) {
+                    closeMobileSidebar();
+                }
 
             }
 
