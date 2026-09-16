@@ -2,49 +2,52 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <title>KIE.ai Image to Video - GEN-Z.AI</title>
+    <title>GEN-Z.AI — KIE Terminal</title>
 
     <style>
         :root {
             --bg: #05070b;
-            --bg-soft: #090c12;
-            --panel: rgba(15, 19, 28, 0.88);
-            --panel-soft: rgba(255, 255, 255, 0.035);
-            --panel-hover: rgba(255, 255, 255, 0.055);
-
-            --border: rgba(255, 255, 255, 0.08);
-            --border-strong: rgba(255, 255, 255, 0.13);
-
+            --panel: #0c1017;
+            --panel-soft: #111722;
+            --border: rgba(255,255,255,.08);
             --text: #f5f7fb;
             --muted: #8d97a8;
-            --muted-2: #667080;
-
             --accent: #8b5cf6;
             --accent-2: #6366f1;
-
             --success: #22c55e;
-            --warning: #f59e0b;
             --danger: #ef4444;
-
-            --radius: 20px;
         }
 
         * {
             box-sizing: border-box;
         }
 
-        html {
+        html,
+        body {
+            margin: 0;
             min-height: 100%;
         }
 
         body {
-            margin: 0;
             min-height: 100vh;
-
+            background:
+                radial-gradient(
+                    circle at 20% 0%,
+                    rgba(99,102,241,.14),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 100% 0%,
+                    rgba(139,92,246,.12),
+                    transparent 28%
+                ),
+                var(--bg);
             color: var(--text);
-
             font-family:
                 Inter,
                 ui-sans-serif,
@@ -53,26 +56,6 @@
                 BlinkMacSystemFont,
                 "Segoe UI",
                 sans-serif;
-
-            background:
-                radial-gradient(
-                    circle at 10% 0%,
-                    rgba(99, 102, 241, 0.16),
-                    transparent 30%
-                ),
-                radial-gradient(
-                    circle at 95% 5%,
-                    rgba(139, 92, 246, 0.13),
-                    transparent 28%
-                ),
-                linear-gradient(
-                    180deg,
-                    #07090d 0%,
-                    #090c12 55%,
-                    #05070a 100%
-                );
-
-            -webkit-font-smoothing: antialiased;
         }
 
         button,
@@ -82,1226 +65,319 @@
             font: inherit;
         }
 
-        button {
-            -webkit-tap-highlight-color: transparent;
-        }
-
         .app {
-            min-height: 100vh;
-            display: flex;
+            width: min(1100px, 100%);
+            margin: 0 auto;
+            padding: 24px;
         }
 
-        .sidebar {
-            position: fixed;
-            z-index: 100;
-
-            top: 0;
-            left: 0;
-
-            width: 250px;
-            height: 100vh;
-
-            padding: 20px 16px;
-
-            border-right: 1px solid var(--border);
-
-            background:
-                rgba(7, 10, 15, 0.94);
-
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-
-            transform: translateX(-100%);
-            transition: transform 220ms ease;
-        }
-
-        .sidebar.open {
-            transform: translateX(0);
-        }
-
-        .sidebar-overlay {
-            position: fixed;
-            z-index: 90;
-
-            inset: 0;
-
-            background: rgba(0, 0, 0, 0.55);
-
-            opacity: 0;
-            pointer-events: none;
-
-            transition: opacity 220ms ease;
-        }
-
-        .sidebar-overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .sidebar-brand {
+        .header {
             display: flex;
             align-items: center;
-            gap: 11px;
-
-            padding: 8px 8px 24px;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 22px;
         }
 
-        .sidebar-logo {
-            width: 38px;
-            height: 38px;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
+        .logo {
+            width: 42px;
+            height: 42px;
             display: flex;
             align-items: center;
             justify-content: center;
-
-            border-radius: 12px;
-
+            border-radius: 13px;
             background:
                 linear-gradient(
                     135deg,
                     var(--accent),
                     var(--accent-2)
                 );
-
-            box-shadow:
-                0 10px 30px rgba(99, 102, 241, 0.28);
-        }
-
-        .sidebar-logo svg {
-            width: 19px;
-            height: 19px;
-        }
-
-        .sidebar-brand strong {
-            display: block;
-
-            font-size: 13px;
             font-weight: 900;
-            letter-spacing: -0.02em;
         }
 
-        .sidebar-brand span {
-            display: block;
+        .brand-title {
+            font-size: 14px;
+            font-weight: 900;
+        }
 
+        .brand-subtitle {
             margin-top: 3px;
-
-            color: var(--muted-2);
-
-            font-size: 8px;
-            font-weight: 800;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-        }
-
-        .nav-label {
-            margin: 0 9px 9px;
-
-            color: #596271;
-
-            font-size: 8px;
-            font-weight: 850;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-        }
-
-        .nav {
-            display: grid;
-            gap: 5px;
-        }
-
-        .nav a {
-            display: flex;
-            align-items: center;
-            gap: 11px;
-
-            min-height: 42px;
-
-            padding: 0 11px;
-
-            border: 1px solid transparent;
-            border-radius: 11px;
-
-            color: #8e98a8;
-
-            text-decoration: none;
-
-            font-size: 11px;
-            font-weight: 750;
-
-            transition:
-                background 160ms ease,
-                color 160ms ease,
-                border-color 160ms ease;
-        }
-
-        .nav a:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        .nav a.active {
-            color: #ffffff;
-
-            border-color: rgba(139, 92, 246, 0.18);
-
-            background:
-                linear-gradient(
-                    135deg,
-                    rgba(139, 92, 246, 0.15),
-                    rgba(99, 102, 241, 0.07)
-                );
-        }
-
-        .nav-icon {
-            width: 18px;
-            height: 18px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .nav-icon svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .main {
-            width: 100%;
-            min-width: 0;
-
-            padding: 18px;
-        }
-
-        .topbar {
-            width: min(1420px, 100%);
-            margin: 0 auto 18px;
-
-            min-height: 58px;
-
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            gap: 12px;
-        }
-
-        .topbar-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .menu-button,
-        .back-button {
-            height: 40px;
-
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-
-            border: 1px solid var(--border);
-            border-radius: 11px;
-
-            background: rgba(255, 255, 255, 0.035);
-
-            color: #dfe4ec;
-
-            cursor: pointer;
-
-            transition:
-                background 160ms ease,
-                border-color 160ms ease,
-                transform 160ms ease;
-        }
-
-        .menu-button {
-            width: 40px;
-        }
-
-        .back-button {
-            padding: 0 13px;
-
-            font-size: 10px;
-            font-weight: 800;
-        }
-
-        .menu-button:hover,
-        .back-button:hover {
-            border-color: var(--border-strong);
-            background: rgba(255, 255, 255, 0.06);
-            transform: translateY(-1px);
-        }
-
-        .menu-button svg,
-        .back-button svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .main-content {
-            width: min(1420px, 100%);
-            margin: 0 auto;
-        }
-
-        .page-header {
-            margin-bottom: 18px;
-        }
-
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-
-            margin-bottom: 9px;
-
-            color: #929cad;
-
-            font-size: 8px;
-            font-weight: 850;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-        }
-
-        .eyebrow::before {
-            content: "";
-
-            width: 6px;
-            height: 6px;
-
-            border-radius: 50%;
-
-            background: var(--accent);
-
-            box-shadow:
-                0 0 0 5px rgba(139, 92, 246, 0.08),
-                0 0 15px rgba(139, 92, 246, 0.4);
-        }
-
-        .page-title {
-            margin: 0;
-
-            font-size: clamp(26px, 4vw, 38px);
-            line-height: 1;
-
-            font-weight: 900;
-            letter-spacing: -0.055em;
-        }
-
-        .page-description {
-            max-width: 720px;
-
-            margin: 10px 0 0;
-
             color: var(--muted);
-
-            font-size: 12px;
-            line-height: 1.65;
+            font-size: 9px;
         }
 
-        .provider-badge {
+        .status {
             display: inline-flex;
             align-items: center;
             gap: 7px;
-
-            margin-top: 13px;
-
             padding: 7px 10px;
-
-            border: 1px solid rgba(139, 92, 246, 0.18);
+            border: 1px solid var(--border);
             border-radius: 999px;
-
-            background: rgba(139, 92, 246, 0.07);
-
-            color: #c4b5fd;
-
+            background: rgba(255,255,255,.025);
+            color: var(--muted);
             font-size: 9px;
             font-weight: 800;
         }
 
-        .provider-badge-dot {
+        .status-dot {
             width: 6px;
             height: 6px;
-
             border-radius: 50%;
-
-            background: var(--accent);
+            background: var(--success);
         }
 
-        .workspace {
-            display: grid;
-            grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
-            gap: 16px;
-        }
-
-        .panel {
+        .terminal {
             border: 1px solid var(--border);
-            border-radius: var(--radius);
-
+            border-radius: 20px;
+            overflow: hidden;
             background:
                 linear-gradient(
                     180deg,
-                    rgba(18, 23, 32, 0.88),
-                    rgba(9, 12, 17, 0.9)
+                    rgba(17,23,34,.94),
+                    rgba(8,11,16,.96)
                 );
-
             box-shadow:
-                0 25px 80px rgba(0, 0, 0, 0.28),
-                inset 0 1px 0 rgba(255, 255, 255, 0.025);
-
-            overflow: hidden;
+                0 30px 100px rgba(0,0,0,.35);
         }
 
-        .panel-header {
-            min-height: 58px;
-
+        .terminal-header {
+            min-height: 62px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-
+            gap: 16px;
             padding: 0 18px;
-
             border-bottom: 1px solid var(--border);
         }
 
-        .panel-title {
+        .terminal-title {
             font-size: 12px;
             font-weight: 850;
-            letter-spacing: -0.01em;
         }
 
-        .panel-subtitle {
-            margin-top: 3px;
-
-            color: var(--muted-2);
-
+        .terminal-subtitle {
+            margin-top: 4px;
+            color: var(--muted);
             font-size: 8px;
         }
 
-        .panel-body {
+        .terminal-body {
             padding: 18px;
         }
 
-        .section {
-            margin-bottom: 18px;
-        }
-
-        .section:last-child {
-            margin-bottom: 0;
-        }
-
-        .section-label {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            margin-bottom: 8px;
-        }
-
-        .section-label strong {
-            color: #dce2ea;
-
-            font-size: 10px;
-            font-weight: 800;
-        }
-
-        .section-label span {
-            color: var(--muted-2);
-
-            font-size: 8px;
-        }
-
-        .upload-zone {
-            position: relative;
-
-            min-height: 250px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            padding: 20px;
-
-            border: 1px dashed rgba(139, 92, 246, 0.26);
-            border-radius: 15px;
-
-            background:
-                radial-gradient(
-                    circle at center,
-                    rgba(139, 92, 246, 0.07),
-                    transparent 55%
-                ),
-                rgba(255, 255, 255, 0.018);
-
-            cursor: pointer;
-
-            overflow: hidden;
-
-            transition:
-                border-color 160ms ease,
-                background 160ms ease;
-        }
-
-        .upload-zone:hover,
-        .upload-zone.dragging {
-            border-color: rgba(139, 92, 246, 0.55);
-
-            background:
-                radial-gradient(
-                    circle at center,
-                    rgba(139, 92, 246, 0.11),
-                    transparent 60%
-                ),
-                rgba(255, 255, 255, 0.025);
-        }
-
-        .upload-content {
-            text-align: center;
-        }
-
-        .upload-icon {
-            width: 50px;
-            height: 50px;
-
-            margin: 0 auto 13px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            border: 1px solid rgba(139, 92, 246, 0.16);
-            border-radius: 14px;
-
-            background: rgba(139, 92, 246, 0.08);
-
-            color: #c4b5fd;
-        }
-
-        .upload-icon svg {
-            width: 22px;
-            height: 22px;
-        }
-
-        .upload-title {
-            color: #e9edf4;
-
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .upload-text {
-            max-width: 310px;
-
-            margin: 7px auto 0;
-
-            color: var(--muted-2);
-
-            font-size: 9px;
-            line-height: 1.6;
-        }
-
-        .upload-formats {
-            margin-top: 11px;
-
-            color: #646e7d;
-
-            font-size: 8px;
-            font-family:
-                "SFMono-Regular",
-                Consolas,
-                monospace;
-        }
-
-        #imageInput {
-            display: none;
-        }
-
-        .image-preview {
-            position: absolute;
-            inset: 0;
-
-            display: none;
-
-            background: #030507;
-        }
-
-        .image-preview.show {
-            display: block;
-        }
-
-        .image-preview img {
-            width: 100%;
-            height: 100%;
-
-            display: block;
-
-            object-fit: contain;
-        }
-
-        .preview-overlay {
-            position: absolute;
-
-            right: 12px;
-            bottom: 12px;
-
-            display: flex;
-            gap: 7px;
-        }
-
-        .small-button {
-            height: 32px;
-
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-
-            padding: 0 10px;
-
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 9px;
-
-            background: rgba(0, 0, 0, 0.64);
-
-            color: #ffffff;
-
-            font-size: 9px;
-            font-weight: 800;
-
-            cursor: pointer;
-
-            backdrop-filter: blur(12px);
-        }
-
-        .small-button:hover {
-            background: rgba(0, 0, 0, 0.8);
-        }
-
-        .grid-2 {
+        .grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(0, 1fr);
+            gap: 14px;
         }
 
         .field {
             min-width: 0;
         }
 
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
         .field label {
             display: block;
-
             margin-bottom: 7px;
-
-            color: #aab2bf;
-
+            color: #b5bdca;
             font-size: 9px;
-            font-weight: 750;
+            font-weight: 800;
         }
 
-        .input,
-        .select,
-        .textarea {
+        input,
+        textarea,
+        select {
             width: 100%;
-
             border: 1px solid var(--border);
             border-radius: 11px;
-
             outline: none;
-
-            background: rgba(0, 0, 0, 0.22);
-
-            color: #eef2f7;
-
-            transition:
-                border-color 160ms ease,
-                box-shadow 160ms ease;
+            background: rgba(0,0,0,.22);
+            color: var(--text);
         }
 
-        .input,
-        .select {
+        input,
+        select {
             height: 42px;
-
             padding: 0 11px;
-
             font-size: 10px;
         }
 
-        .textarea {
-            min-height: 105px;
-
+        textarea {
+            min-height: 130px;
             padding: 11px;
-
             resize: vertical;
-
             font-size: 10px;
             line-height: 1.6;
         }
 
-        .input:focus,
-        .select:focus,
-        .textarea:focus {
-            border-color: rgba(139, 92, 246, 0.42);
-
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: rgba(139,92,246,.45);
             box-shadow:
-                0 0 0 4px rgba(139, 92, 246, 0.06);
+                0 0 0 4px rgba(139,92,246,.06);
         }
 
-        .select {
-            appearance: none;
-
-            background-image:
-                linear-gradient(45deg, transparent 50%, #697384 50%),
-                linear-gradient(135deg, #697384 50%, transparent 50%);
-
-            background-position:
-                calc(100% - 15px) 17px,
-                calc(100% - 11px) 17px;
-
-            background-size:
-                4px 4px,
-                4px 4px;
-
-            background-repeat: no-repeat;
-
-            padding-right: 32px;
+        select option {
+            background: #111722;
         }
 
-        .select option {
-            background: #11151d;
-            color: #ffffff;
+        .model-card {
+            padding: 14px;
+            border: 1px solid rgba(139,92,246,.16);
+            border-radius: 13px;
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(139,92,246,.08),
+                    rgba(99,102,241,.025)
+                );
         }
 
-        .range-wrap {
-            display: grid;
-            gap: 9px;
+        .model-label {
+            color: var(--muted);
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
         }
 
-        .range-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .range-value {
-            min-width: 52px;
-
-            padding: 5px 8px;
-
-            border: 1px solid rgba(139, 92, 246, 0.14);
-            border-radius: 7px;
-
-            background: rgba(139, 92, 246, 0.06);
-
-            color: #c4b5fd;
-
-            font-size: 9px;
+        .model-id {
+            margin-top: 6px;
+            color: #d8ccff;
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                monospace;
+            font-size: 11px;
             font-weight: 800;
-
-            text-align: center;
+            word-break: break-all;
         }
 
-        input[type="range"] {
-            width: 100%;
-
-            height: 4px;
-
-            margin: 0;
-
-            appearance: none;
-
-            border-radius: 999px;
-
-            background: #222936;
-
-            outline: none;
+        .model-source {
+            margin-top: 5px;
+            color: #626d7d;
+            font-size: 8px;
         }
 
-        input[type="range"]::-webkit-slider-thumb {
-            width: 15px;
-            height: 15px;
-
-            appearance: none;
-
-            border: 2px solid #ffffff;
-            border-radius: 50%;
-
-            background: var(--accent);
-
-            cursor: pointer;
-
-            box-shadow:
-                0 0 0 4px rgba(139, 92, 246, 0.13);
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 9px;
+            margin-top: 16px;
         }
 
-        input[type="range"]::-moz-range-thumb {
-            width: 15px;
-            height: 15px;
-
-            border: 2px solid #ffffff;
-            border-radius: 50%;
-
-            background: var(--accent);
-
-            cursor: pointer;
-        }
-
-        .advanced {
-            padding: 13px;
-
+        .button {
+            min-height: 42px;
+            padding: 0 16px;
             border: 1px solid var(--border);
-            border-radius: 12px;
-
-            background: rgba(255, 255, 255, 0.018);
-        }
-
-        .advanced-title {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            color: #aeb6c2;
-
-            font-size: 9px;
-            font-weight: 800;
-
+            border-radius: 11px;
+            background: rgba(255,255,255,.035);
+            color: #e9edf4;
             cursor: pointer;
+            font-size: 10px;
+            font-weight: 800;
         }
 
-        .advanced-content {
-            display: none;
-
-            margin-top: 13px;
+        .button:hover {
+            background: rgba(255,255,255,.06);
         }
 
-        .advanced.open .advanced-content {
-            display: block;
-        }
-
-        .chevron {
-            transition: transform 160ms ease;
-        }
-
-        .advanced.open .chevron {
-            transform: rotate(180deg);
-        }
-
-        .checkbox-row {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-
-            margin-top: 11px;
-        }
-
-        .checkbox-row:first-child {
-            margin-top: 0;
-        }
-
-        .checkbox {
-            width: 16px;
-            height: 16px;
-
-            margin: 0;
-
-            accent-color: var(--accent);
-        }
-
-        .checkbox-label {
-            color: #8e98a8;
-
-            font-size: 9px;
-        }
-
-        .generate-button {
-            width: 100%;
-
-            height: 48px;
-
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-
+        .button.primary {
+            border-color: transparent;
             background:
                 linear-gradient(
                     135deg,
                     var(--accent),
                     var(--accent-2)
                 );
-
-            color: #ffffff;
-
-            font-size: 11px;
-            font-weight: 850;
-
-            cursor: pointer;
-
-            box-shadow:
-                0 12px 30px rgba(99, 102, 241, 0.2);
-
-            transition:
-                transform 160ms ease,
-                box-shadow 160ms ease,
-                opacity 160ms ease;
+            color: #fff;
         }
 
-        .generate-button:hover:not(:disabled) {
-            transform: translateY(-1px);
-
-            box-shadow:
-                0 16px 36px rgba(99, 102, 241, 0.3);
-        }
-
-        .generate-button:disabled {
-            opacity: 0.5;
+        .button:disabled {
+            opacity: .5;
             cursor: not-allowed;
         }
 
-        .estimate-card {
-            padding: 15px;
-
-            border: 1px solid rgba(139, 92, 246, 0.13);
-            border-radius: 14px;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    rgba(139, 92, 246, 0.08),
-                    rgba(99, 102, 241, 0.025)
-                );
-        }
-
-        .estimate-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            margin-bottom: 14px;
-        }
-
-        .estimate-header strong {
-            font-size: 10px;
-            font-weight: 850;
-        }
-
-        .estimate-header span {
-            color: var(--muted-2);
-
-            font-size: 8px;
-        }
-
-        .estimate-value {
-            display: flex;
-            align-items: baseline;
-            gap: 6px;
-        }
-
-        .estimate-number {
-            font-size: 27px;
-            font-weight: 900;
-            letter-spacing: -0.04em;
-
-            color: #c4b5fd;
-        }
-
-        .estimate-unit {
-            color: #7d8796;
-
-            font-size: 9px;
-            font-weight: 700;
-        }
-
-        .estimate-note {
-            margin-top: 6px;
-
-            color: var(--muted-2);
-
-            font-size: 8px;
-            line-height: 1.5;
-        }
-
-        .model-info {
-            display: grid;
-            gap: 8px;
-        }
-
-        .info-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            padding: 10px 0;
-
-            border-bottom: 1px solid rgba(255, 255, 255, 0.045);
-        }
-
-        .info-row:last-child {
-            border-bottom: 0;
-        }
-
-        .info-label {
-            color: #727d8d;
-
-            font-size: 8px;
-        }
-
-        .info-value {
-            color: #cfd5df;
-
-            font-size: 9px;
-            font-weight: 750;
-
-            text-align: right;
-        }
-
-        .result-panel {
+        .response {
             margin-top: 16px;
-        }
-
-        .result-empty {
-            min-height: 230px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            padding: 30px;
-
-            text-align: center;
-        }
-
-        .result-empty-icon {
-            width: 48px;
-            height: 48px;
-
-            margin: 0 auto 12px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
+            padding: 14px;
             border: 1px solid var(--border);
-            border-radius: 14px;
-
-            color: #626c7b;
-        }
-
-        .result-empty-icon svg {
-            width: 21px;
-            height: 21px;
-        }
-
-        .result-empty strong {
-            display: block;
-
-            color: #9da6b4;
-
-            font-size: 10px;
-        }
-
-        .result-empty span {
-            display: block;
-
-            max-width: 360px;
-
-            margin-top: 6px;
-
-            color: #5f6978;
-
-            font-size: 8px;
-            line-height: 1.5;
-        }
-
-        .result-video {
-            display: none;
-
-            padding: 18px;
-        }
-
-        .result-video.show {
-            display: block;
-        }
-
-        .result-video video {
-            width: 100%;
-            max-height: 600px;
-
-            display: block;
-
             border-radius: 13px;
-
-            background: #000;
+            background: rgba(0,0,0,.2);
         }
 
-        .result-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-
-            margin-top: 12px;
-        }
-
-        .result-status {
-            display: none;
-
-            align-items: center;
-            gap: 9px;
-
-            padding: 11px 13px;
-
-            border: 1px solid rgba(245, 158, 11, 0.15);
-            border-radius: 11px;
-
-            background: rgba(245, 158, 11, 0.05);
-
-            color: #fcd34d;
-
+        .response-title {
+            margin-bottom: 9px;
+            color: #aeb7c5;
             font-size: 9px;
-            font-weight: 750;
+            font-weight: 800;
         }
 
-        .result-status.show {
-            display: flex;
-        }
-
-        .spinner {
-            width: 14px;
-            height: 14px;
-
-            border: 2px solid rgba(255, 255, 255, 0.16);
-            border-top-color: #ffffff;
-            border-radius: 50%;
-
-            animation: spin 700ms linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .toast {
-            position: fixed;
-            z-index: 300;
-
-            right: 18px;
-            bottom: 18px;
-
-            max-width: min(360px, calc(100vw - 36px));
-
-            padding: 12px 14px;
-
-            border: 1px solid var(--border);
-            border-radius: 11px;
-
-            background: rgba(15, 19, 27, 0.94);
-
-            color: #dfe4ec;
-
-            font-size: 9px;
-            line-height: 1.5;
-
-            box-shadow:
-                0 18px 50px rgba(0, 0, 0, 0.38);
-
-            opacity: 0;
-            pointer-events: none;
-
-            transform: translateY(8px);
-
-            transition:
-                opacity 180ms ease,
-                transform 180ms ease;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .footer {
-            margin-top: 18px;
-
-            padding: 15px;
-
-            color: #535d6b;
-
+        pre {
+            margin: 0;
+            max-height: 360px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #9faabd;
             font-family:
                 "SFMono-Regular",
                 Consolas,
                 monospace;
-
             font-size: 8px;
-
-            text-align: center;
+            line-height: 1.6;
         }
 
-        @media (min-width: 1100px) {
-            .sidebar {
-                position: fixed;
-                transform: translateX(0);
-            }
-
-            .main {
-                margin-left: 250px;
-                width: calc(100% - 250px);
-            }
-
-            .menu-button {
-                display: none;
-            }
-
-            .sidebar-overlay {
-                display: none;
-            }
+        .notice {
+            margin-top: 14px;
+            padding: 11px 13px;
+            border: 1px solid rgba(245,158,11,.12);
+            border-radius: 11px;
+            background: rgba(245,158,11,.045);
+            color: #bcae8a;
+            font-size: 8px;
+            line-height: 1.6;
         }
 
-        @media (max-width: 900px) {
-            .workspace {
-                grid-template-columns: 1fr;
-            }
+        .hidden {
+            display: none !important;
         }
 
-        @media (max-width: 600px) {
-            .main {
+        @media (max-width: 700px) {
+            .app {
                 padding: 12px;
             }
 
-            .topbar {
-                margin-bottom: 12px;
-            }
-
-            .grid-2 {
+            .grid {
                 grid-template-columns: 1fr;
             }
 
-            .upload-zone {
-                min-height: 210px;
+            .field.full {
+                grid-column: auto;
             }
 
-            .panel-header {
-                padding: 0 14px;
+            .header {
+                align-items: flex-start;
+                flex-direction: column;
             }
 
-            .panel-body {
-                padding: 14px;
+            .actions {
+                flex-direction: column;
             }
 
-            .page-title {
-                font-size: 28px;
-            }
-
-            .back-button {
-                padding: 0 10px;
-            }
-
-            .back-button span {
-                display: none;
+            .button {
+                width: 100%;
             }
         }
     </style>
@@ -1311,891 +387,203 @@
 
 <div class="app">
 
-    <aside
-        id="sidebar"
-        class="sidebar"
-        aria-label="Navigation"
-    >
+    <header class="header">
 
-        <div class="sidebar-brand">
+        <div class="brand">
 
-            <div class="sidebar-logo">
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path d="M4 17l6-6-6-6"></path>
-                    <path d="M12 19h8"></path>
-                </svg>
+            <div class="logo">
+                G
             </div>
 
             <div>
-                <strong>GEN-Z.AI</strong>
-                <span>KIE Provider</span>
+                <div class="brand-title">
+                    GEN-Z.AI
+                </div>
+
+                <div class="brand-subtitle">
+                    KIE.AI PROVIDER TERMINAL
+                </div>
             </div>
 
         </div>
 
-        <div class="nav-label">
-            Navigation
+        <div class="status">
+            <span class="status-dot"></span>
+            KIE TERMINAL
         </div>
 
-        <nav class="nav">
+    </header>
 
-            <a href="../../admin-control/admin-panel.html">
-                <span class="nav-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                    </svg>
-                </span>
-                Dashboard
-            </a>
+    <main class="terminal">
 
-            <a
-                href="../../generate/index.html"
-                class="active"
+        <div class="terminal-header">
+
+            <div>
+                <div class="terminal-title">
+                    KIE Model Terminal
+                </div>
+
+                <div class="terminal-subtitle">
+                    Dispatcher untuk seluruh model KIE.AI
+                </div>
+            </div>
+
+        </div>
+
+        <div class="terminal-body">
+
+            <div
+                id="modelCard"
+                class="model-card"
             >
-                <span class="nav-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M12 3v18"></path>
-                        <path d="M3 12h18"></path>
-                    </svg>
-                </span>
-                Generate
-            </a>
 
-            <a href="../../history/index.html">
-                <span class="nav-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M3 12a9 9 0 1 0 3-6.7"></path>
-                        <path d="M3 4v5h5"></path>
-                        <path d="M12 7v5l3 2"></path>
-                    </svg>
-                </span>
-                History
-            </a>
+                <div class="model-label">
+                    Active Model
+                </div>
 
-            <a
-                href="#"
-                id="logoutLink"
-            >
-                <span class="nav-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M10 17l5-5-5-5"></path>
-                        <path d="M15 12H3"></path>
-                        <path d="M21 19V5"></path>
-                    </svg>
-                </span>
-                Log Out
-            </a>
+                <div
+                    id="modelId"
+                    class="model-id"
+                >
+                    Membaca model...
+                </div>
 
-        </nav>
+                <div class="model-source">
+                    Source: Supabase / Generate
+                </div>
 
-    </aside>
+            </div>
 
-    <div
-        id="sidebarOverlay"
-        class="sidebar-overlay"
-    ></div>
+            <div class="grid">
 
-    <main class="main">
+                <div class="field full">
 
-        <header class="topbar">
+                    <label for="prompt">
+                        Prompt
+                    </label>
 
-            <div class="topbar-left">
+                    <textarea
+                        id="prompt"
+                        placeholder="Masukkan prompt..."
+                    ></textarea>
+
+                </div>
+
+                <div class="field">
+
+                    <label for="ratio">
+                        Aspect Ratio
+                    </label>
+
+                    <select id="ratio">
+
+                        <option value="9:16">
+                            9:16
+                        </option>
+
+                        <option value="16:9">
+                            16:9
+                        </option>
+
+                        <option value="1:1">
+                            1:1
+                        </option>
+
+                        <option value="4:3">
+                            4:3
+                        </option>
+
+                        <option value="3:4">
+                            3:4
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="field">
+
+                    <label for="duration">
+                        Duration
+                    </label>
+
+                    <select id="duration">
+
+                        <option value="5">
+                            5 seconds
+                        </option>
+
+                        <option value="8" selected>
+                            8 seconds
+                        </option>
+
+                        <option value="10">
+                            10 seconds
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="field">
+
+                    <label for="resolution">
+                        Resolution
+                    </label>
+
+                    <select id="resolution">
+
+                        <option value="720p">
+                            720p
+                        </option>
+
+                        <option value="1080p">
+                            1080p
+                        </option>
+
+                        <option value="4k">
+                            4K
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+            <div class="actions">
 
                 <button
-                    id="menuButton"
-                    class="menu-button"
+                    id="backButton"
+                    class="button"
                     type="button"
-                    aria-label="Open menu"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                    >
-                        <path d="M4 6h16"></path>
-                        <path d="M4 12h16"></path>
-                        <path d="M4 18h16"></path>
-                    </svg>
+                    Kembali
+                </button>
+
+                <button
+                    id="generateButton"
+                    class="button primary"
+                    type="button"
+                >
+                    Jalankan Model
                 </button>
 
             </div>
 
-            <button
-                id="backButton"
-                class="back-button"
-                type="button"
-            >
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path d="M19 12H5"></path>
-                    <path d="M12 19l-7-7 7-7"></path>
-                </svg>
+            <div
+                id="notice"
+                class="notice hidden"
+            ></div>
 
-                <span>
-                    Back to Providers
-                </span>
-            </button>
+            <div class="response">
 
-        </header>
-
-        <div class="main-content">
-
-            <section class="page-header">
-
-                <div class="eyebrow">
-                    AI Video Generation
+                <div class="response-title">
+                    Terminal Response
                 </div>
 
-                <h1 class="page-title">
-                    KIE.ai Image to Video
-                </h1>
+                <pre id="responseOutput">Menunggu request...</pre>
 
-                <p class="page-description">
-                    Workspace khusus KIE.ai untuk mengubah satu gambar
-                    menjadi video. Provider ini dipisahkan dari provider
-                    lain sehingga aturan model, parameter, endpoint,
-                    autentikasi, dan credit dapat dikembangkan secara
-                    independen.
-                </p>
-
-                <div class="provider-badge">
-                    <span class="provider-badge-dot"></span>
-                    KIE.ai / Image-to-Video
-                </div>
-
-            </section>
-
-            <section class="workspace">
-
-                <div class="panel">
-
-                    <div class="panel-header">
-
-                        <div>
-                            <div class="panel-title">
-                                Image to Video
-                            </div>
-
-                            <div class="panel-subtitle">
-                                Source image → generated video
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="panel-body">
-
-                        <div class="section">
-
-                            <div class="section-label">
-                                <strong>
-                                    Source Image
-                                </strong>
-
-                                <span>
-                                    Required
-                                </span>
-                            </div>
-
-                            <label
-                                id="uploadZone"
-                                class="upload-zone"
-                                for="imageInput"
-                            >
-
-                                <input
-                                    id="imageInput"
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp"
-                                >
-
-                                <div
-                                    id="uploadContent"
-                                    class="upload-content"
-                                >
-
-                                    <div class="upload-icon">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.7"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        >
-                                            <rect
-                                                x="3"
-                                                y="3"
-                                                width="18"
-                                                height="18"
-                                                rx="2"
-                                            ></rect>
-                                            <circle
-                                                cx="8.5"
-                                                cy="8.5"
-                                                r="1.5"
-                                            ></circle>
-                                            <path
-                                                d="M21 15l-5-5L5 21"
-                                            ></path>
-                                        </svg>
-                                    </div>
-
-                                    <div class="upload-title">
-                                        Upload image
-                                    </div>
-
-                                    <div class="upload-text">
-                                        Upload gambar yang akan menjadi
-                                        frame awal video.
-                                    </div>
-
-                                    <div class="upload-formats">
-                                        PNG / JPG / WEBP
-                                    </div>
-
-                                </div>
-
-                                <div
-                                    id="imagePreview"
-                                    class="image-preview"
-                                >
-
-                                    <img
-                                        id="previewImage"
-                                        alt="Source preview"
-                                    >
-
-                                    <div class="preview-overlay">
-
-                                        <button
-                                            id="replaceImageButton"
-                                            class="small-button"
-                                            type="button"
-                                        >
-                                            Replace
-                                        </button>
-
-                                        <button
-                                            id="removeImageButton"
-                                            class="small-button"
-                                            type="button"
-                                        >
-                                            Remove
-                                        </button>
-
-                                    </div>
-
-                                </div>
-
-                            </label>
-
-                        </div>
-
-                        <div class="section">
-
-                            <div class="section-label">
-                                <strong>
-                                    Model
-                                </strong>
-
-                                <span>
-                                    KIE.ai
-                                </span>
-                            </div>
-
-                            <div class="field">
-
-                                <select
-                                    id="modelSelect"
-                                    class="select"
-                                >
-                                    <option value="kling-3.0">
-                                        Kling 3.0
-                                    </option>
-
-                                    <option value="veo-3.1">
-                                        Veo 3.1
-                                    </option>
-
-                                    <option value="seedance-2.0">
-                                        Seedance 2.0
-                                    </option>
-
-                                    <option value="grok-imagine">
-                                        Grok Imagine
-                                    </option>
-
-                                    <option value="sora-2">
-                                        Sora 2
-                                    </option>
-
-                                    <option value="hailuo">
-                                        Hailuo
-                                    </option>
-
-                                    <option value="wan">
-                                        Wan
-                                    </option>
-                                </select>
-
-                            </div>
-
-                        </div>
-
-                        <div class="section">
-
-                            <div class="grid-2">
-
-                                <div class="field">
-
-                                    <label for="resolutionSelect">
-                                        Resolution
-                                    </label>
-
-                                    <select
-                                        id="resolutionSelect"
-                                        class="select"
-                                    >
-                                        <option value="720p">
-                                            720p
-                                        </option>
-
-                                        <option value="1080p">
-                                            1080p
-                                        </option>
-
-                                        <option value="4k">
-                                            4K
-                                        </option>
-                                    </select>
-
-                                </div>
-
-                                <div class="field">
-
-                                    <label for="aspectSelect">
-                                        Aspect Ratio
-                                    </label>
-
-                                    <select
-                                        id="aspectSelect"
-                                        class="select"
-                                    >
-                                        <option value="auto">
-                                            Auto
-                                        </option>
-
-                                        <option value="16:9">
-                                            16:9
-                                        </option>
-
-                                        <option value="9:16">
-                                            9:16
-                                        </option>
-
-                                        <option value="1:1">
-                                            1:1
-                                        </option>
-
-                                        <option value="4:3">
-                                            4:3
-                                        </option>
-
-                                        <option value="3:4">
-                                            3:4
-                                        </option>
-                                    </select>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="section">
-
-                            <div class="section-label">
-                                <strong>
-                                    Duration
-                                </strong>
-
-                                <span id="durationText">
-                                    5 seconds
-                                </span>
-                            </div>
-
-                            <div class="range-wrap">
-
-                                <input
-                                    id="durationRange"
-                                    type="range"
-                                    min="3"
-                                    max="15"
-                                    step="1"
-                                    value="5"
-                                >
-
-                                <div class="range-row">
-
-                                    <span>
-                                        3s
-                                    </span>
-
-                                    <span
-                                        id="durationValue"
-                                        class="range-value"
-                                    >
-                                        5s
-                                    </span>
-
-                                    <span>
-                                        15s
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="section">
-
-                            <div class="section-label">
-                                <strong>
-                                    Motion Prompt
-                                </strong>
-
-                                <span>
-                                    Optional
-                                </span>
-                            </div>
-
-                            <textarea
-                                id="promptInput"
-                                class="textarea"
-                                placeholder="Describe how the image should move...&#10;&#10;Example: cinematic camera movement, subtle hair motion, natural facial movement, realistic lighting."
-                            ></textarea>
-
-                        </div>
-
-                        <div
-                            id="advanced"
-                            class="advanced"
-                        >
-
-                            <div
-                                id="advancedToggle"
-                                class="advanced-title"
-                            >
-
-                                <span>
-                                    Advanced Settings
-                                </span>
-
-                                <span class="chevron">
-                                    ▼
-                                </span>
-
-                            </div>
-
-                            <div class="advanced-content">
-
-                                <div class="grid-2">
-
-                                    <div class="field">
-
-                                        <label for="seedInput">
-                                            Seed
-                                        </label>
-
-                                        <input
-                                            id="seedInput"
-                                            class="input"
-                                            type="number"
-                                            placeholder="Random"
-                                        >
-
-                                    </div>
-
-                                    <div class="field">
-
-                                        <label for="cameraSelect">
-                                            Camera Motion
-                                        </label>
-
-                                        <select
-                                            id="cameraSelect"
-                                            class="select"
-                                        >
-                                            <option value="auto">
-                                                Auto
-                                            </option>
-
-                                            <option value="static">
-                                                Static
-                                            </option>
-
-                                            <option value="pan">
-                                                Pan
-                                            </option>
-
-                                            <option value="tilt">
-                                                Tilt
-                                            </option>
-
-                                            <option value="zoom">
-                                                Zoom
-                                            </option>
-
-                                            <option value="orbit">
-                                                Orbit
-                                            </option>
-                                        </select>
-
-                                    </div>
-
-                                </div>
-
-                                <div class="checkbox-row">
-
-                                    <input
-                                        id="enhancePrompt"
-                                        class="checkbox"
-                                        type="checkbox"
-                                    >
-
-                                    <label
-                                        class="checkbox-label"
-                                        for="enhancePrompt"
-                                    >
-                                        Enhance motion prompt
-                                    </label>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div
-                            id="resultStatus"
-                            class="result-status"
-                        >
-                            <span class="spinner"></span>
-
-                            <span id="resultStatusText">
-                                Preparing generation...
-                            </span>
-                        </div>
-
-                        <div style="height: 14px;"></div>
-
-                        <button
-                            id="generateButton"
-                            class="generate-button"
-                            type="button"
-                        >
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <path d="M8 5v14l11-7z"></path>
-                            </svg>
-
-                            Generate Video
-                        </button>
-
-                    </div>
-
-                </div>
-
-                <aside class="panel">
-
-                    <div class="panel-header">
-
-                        <div>
-                            <div class="panel-title">
-                                Generation Info
-                            </div>
-
-                            <div class="panel-subtitle">
-                                Current configuration
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="panel-body">
-
-                        <div class="estimate-card">
-
-                            <div class="estimate-header">
-
-                                <strong>
-                                    Estimated Usage
-                                </strong>
-
-                                <span>
-                                    KIE Credits
-                                </span>
-
-                            </div>
-
-                            <div class="estimate-value">
-
-                                <span
-                                    id="estimateNumber"
-                                    class="estimate-number"
-                                >
-                                    —
-                                </span>
-
-                                <span class="estimate-unit">
-                                    credits
-                                </span>
-
-                            </div>
-
-                            <div class="estimate-note">
-                                Tarif internal KIE akan diisi berdasarkan
-                                billing model dan parameter resmi provider.
-                                Tidak ada angka estimasi palsu yang
-                                digunakan di client.
-                            </div>
-
-                        </div>
-
-                        <div style="height: 18px;"></div>
-
-                        <div class="model-info">
-
-                            <div class="info-row">
-
-                                <span class="info-label">
-                                    Provider
-                                </span>
-
-                                <span
-                                    id="infoProvider"
-                                    class="info-value"
-                                >
-                                    KIE.ai
-                                </span>
-
-                            </div>
-
-                            <div class="info-row">
-
-                                <span class="info-label">
-                                    Model
-                                </span>
-
-                                <span
-                                    id="infoModel"
-                                    class="info-value"
-                                >
-                                    Kling 3.0
-                                </span>
-
-                            </div>
-
-                            <div class="info-row">
-
-                                <span class="info-label">
-                                    Mode
-                                </span>
-
-                                <span class="info-value">
-                                    Image → Video
-                                </span>
-
-                            </div>
-
-                            <div class="info-row">
-
-                                <span class="info-label">
-                                    Resolution
-                                </span>
-
-                                <span
-                                    id="infoResolution"
-                                    class="info-value"
-                                >
-                                    720p
-                                </span>
-
-                            </div>
-
-                            <div class="info-row">
-
-                                <span class="info-label">
-                                    Duration
-                                </span>
-
-                                <span
-                                    id="infoDuration"
-                                    class="info-value"
-                                >
-                                    5 seconds
-                                </span>
-
-                            </div>
-
-                            <div class="info-row">
-
-                                <span class="info-label">
-                                    Aspect
-                                </span>
-
-                                <span
-                                    id="infoAspect"
-                                    class="info-value"
-                                >
-                                    Auto
-                                </span>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </aside>
-
-            </section>
-
-            <section class="panel result-panel">
-
-                <div class="panel-header">
-
-                    <div>
-                        <div class="panel-title">
-                            Generated Video
-                        </div>
-
-                        <div class="panel-subtitle">
-                            KIE.ai generation result
-                        </div>
-                    </div>
-
-                    <span
-                        id="resultState"
-                        style="
-                            color:#5f6978;
-                            font-size:8px;
-                        "
-                    >
-                        Waiting
-                    </span>
-
-                </div>
-
-                <div
-                    id="resultEmpty"
-                    class="result-empty"
-                >
-
-                    <div>
-
-                        <div class="result-empty-icon">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.6"
-                            >
-                                <rect
-                                    x="3"
-                                    y="5"
-                                    width="18"
-                                    height="14"
-                                    rx="2"
-                                ></rect>
-                                <path d="M10 9l5 3-5 3V9z"></path>
-                            </svg>
-                        </div>
-
-                        <strong>
-                            No video generated yet
-                        </strong>
-
-                        <span>
-                            Upload an image, configure the generation,
-                            then start Image-to-Video generation.
-                        </span>
-
-                    </div>
-
-                </div>
-
-                <div
-                    id="resultVideo"
-                    class="result-video"
-                >
-
-                    <video
-                        id="videoPlayer"
-                        controls
-                        playsinline
-                    ></video>
-
-                    <div class="result-actions">
-
-                        <button
-                            id="downloadButton"
-                            class="small-button"
-                            type="button"
-                        >
-                            Download
-                        </button>
-
-                    </div>
-
-                </div>
-
-            </section>
-
-            <div class="footer">
-                GEN-Z.AI / provider / kie / image-to-video
             </div>
 
         </div>
@@ -2204,368 +592,350 @@
 
 </div>
 
-<div
-    id="toast"
-    class="toast"
-    role="status"
-    aria-live="polite"
-></div>
-
 <script>
-    const $ = (id) => document.getElementById(id);
+(function () {
 
-    const sidebar = $("sidebar");
-    const sidebarOverlay = $("sidebarOverlay");
-    const menuButton = $("menuButton");
+    "use strict";
 
-    const imageInput = $("imageInput");
-    const uploadZone = $("uploadZone");
-    const uploadContent = $("uploadContent");
+    const API_ENDPOINT = "/api/generate";
 
-    const imagePreview = $("imagePreview");
-    const previewImage = $("previewImage");
+    const modelIdElement =
+        document.getElementById("modelId");
 
-    const replaceImageButton = $("replaceImageButton");
-    const removeImageButton = $("removeImageButton");
+    const promptElement =
+        document.getElementById("prompt");
 
-    const modelSelect = $("modelSelect");
-    const resolutionSelect = $("resolutionSelect");
-    const aspectSelect = $("aspectSelect");
+    const ratioElement =
+        document.getElementById("ratio");
 
-    const durationRange = $("durationRange");
-    const durationValue = $("durationValue");
-    const durationText = $("durationText");
+    const durationElement =
+        document.getElementById("duration");
 
-    const promptInput = $("promptInput");
+    const resolutionElement =
+        document.getElementById("resolution");
 
-    const advanced = $("advanced");
-    const advancedToggle = $("advancedToggle");
+    const generateButton =
+        document.getElementById("generateButton");
 
-    const generateButton = $("generateButton");
+    const backButton =
+        document.getElementById("backButton");
 
-    const resultStatus = $("resultStatus");
-    const resultStatusText = $("resultStatusText");
+    const noticeElement =
+        document.getElementById("notice");
 
-    const resultEmpty = $("resultEmpty");
-    const resultVideo = $("resultVideo");
-    const videoPlayer = $("videoPlayer");
+    const responseOutput =
+        document.getElementById("responseOutput");
 
-    const resultState = $("resultState");
-    const downloadButton = $("downloadButton");
 
-    const estimateNumber = $("estimateNumber");
+    function getModelId() {
 
-    const infoModel = $("infoModel");
-    const infoResolution = $("infoResolution");
-    const infoDuration = $("infoDuration");
-    const infoAspect = $("infoAspect");
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
 
-    const toast = $("toast");
+        const fromUrl =
+            params.get("model") ||
+            params.get("model_id");
 
-    let selectedImage = null;
-    let generatedVideoUrl = "";
-
-    function showToast(message) {
-        toast.textContent = message;
-        toast.classList.add("show");
-
-        clearTimeout(showToast.timer);
-
-        showToast.timer = setTimeout(() => {
-            toast.classList.remove("show");
-        }, 2800);
-    }
-
-    function toggleSidebar(force) {
-        const open =
-            typeof force === "boolean"
-                ? force
-                : !sidebar.classList.contains("open");
-
-        sidebar.classList.toggle("open", open);
-        sidebarOverlay.classList.toggle("show", open);
-    }
-
-    menuButton.addEventListener("click", () => {
-        toggleSidebar();
-    });
-
-    sidebarOverlay.addEventListener("click", () => {
-        toggleSidebar(false);
-    });
-
-    document.querySelectorAll(".nav a").forEach((link) => {
-        link.addEventListener("click", () => {
-            toggleSidebar(false);
-        });
-    });
-
-    $("backButton").addEventListener("click", () => {
-        window.location.href = "../index.html";
-    });
-
-    $("logoutLink").addEventListener("click", (event) => {
-        event.preventDefault();
-
-        showToast("Logout akan menggunakan session GEN-Z.AI.");
-    });
-
-    function setImage(file) {
-        if (!file) {
-            return;
+        if (fromUrl) {
+            return fromUrl.trim();
         }
 
-        if (!file.type.startsWith("image/")) {
-            showToast("File harus berupa gambar.");
-            return;
+        const fromStorage =
+            sessionStorage.getItem(
+                "GENZ_ACTIVE_MODEL_ID"
+            );
+
+        if (fromStorage) {
+            return fromStorage.trim();
         }
 
-        const maxSize = 25 * 1024 * 1024;
+        const localStorageModel =
+            localStorage.getItem(
+                "GENZ_ACTIVE_MODEL_ID"
+            );
 
-        if (file.size > maxSize) {
-            showToast("Ukuran gambar maksimal 25 MB.");
-            return;
+        if (localStorageModel) {
+            return localStorageModel.trim();
         }
 
-        selectedImage = file;
-
-        const objectUrl = URL.createObjectURL(file);
-
-        previewImage.onload = () => {
-            URL.revokeObjectURL(objectUrl);
-        };
-
-        previewImage.src = objectUrl;
-
-        uploadContent.style.display = "none";
-        imagePreview.classList.add("show");
-
-        showToast("Gambar siap digunakan.");
+        return "";
     }
 
-    function removeImage() {
-        selectedImage = null;
 
-        imageInput.value = "";
-        previewImage.removeAttribute("src");
-
-        uploadContent.style.display = "";
-        imagePreview.classList.remove("show");
-    }
-
-    imageInput.addEventListener("change", () => {
-        const file = imageInput.files?.[0];
-
-        setImage(file);
-    });
-
-    replaceImageButton.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        imageInput.click();
-    });
-
-    removeImageButton.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        removeImage();
-    });
-
-    uploadZone.addEventListener("dragover", (event) => {
-        event.preventDefault();
-
-        uploadZone.classList.add("dragging");
-    });
-
-    uploadZone.addEventListener("dragleave", () => {
-        uploadZone.classList.remove("dragging");
-    });
-
-    uploadZone.addEventListener("drop", (event) => {
-        event.preventDefault();
-
-        uploadZone.classList.remove("dragging");
-
-        const file = event.dataTransfer?.files?.[0];
-
-        setImage(file);
-    });
-
-    advancedToggle.addEventListener("click", () => {
-        advanced.classList.toggle("open");
-    });
-
-    function updateDuration() {
-        const value = Number(durationRange.value);
-
-        durationValue.textContent = `${value}s`;
-        durationText.textContent = `${value} seconds`;
-        infoDuration.textContent = `${value} seconds`;
-
-        updateEstimate();
-    }
-
-    durationRange.addEventListener("input", updateDuration);
-
-    function updateModelInfo() {
-        const option =
-            modelSelect.options[modelSelect.selectedIndex];
-
-        infoModel.textContent = option
-            ? option.textContent.trim()
-            : "Unknown";
-
-        updateEstimate();
-    }
-
-    modelSelect.addEventListener("change", updateModelInfo);
-
-    resolutionSelect.addEventListener("change", () => {
-        infoResolution.textContent =
-            resolutionSelect.value;
-
-        updateEstimate();
-    });
-
-    aspectSelect.addEventListener("change", () => {
-        infoAspect.textContent =
-            aspectSelect.value;
-    });
-
-    /*
-     * IMPORTANT:
-     *
-     * Tarif internal KIE sengaja TIDAK di-hardcode di halaman ini.
-     *
-     * Setelah endpoint provider KIE dibuat, nilai ini akan berasal
-     * dari konfigurasi provider/kie/pricing.js atau server-side API.
-     *
-     * Jangan menganggap harga USD sebagai KIE internal credits.
-     */
-    function updateEstimate() {
-        estimateNumber.textContent = "—";
-    }
-
-    function setGeneratingState(active, message) {
-        resultStatus.classList.toggle("show", active);
-
-        if (message) {
-            resultStatusText.textContent = message;
-        }
-
-        generateButton.disabled = active;
-
-        if (active) {
-            resultState.textContent = "Generating";
-            resultState.style.color = "#fcd34d";
-        } else {
-            resultState.textContent = "Waiting";
-            resultState.style.color = "#5f6978";
-        }
-    }
-
-    async function generateVideo() {
-        if (!selectedImage) {
-            showToast("Upload gambar terlebih dahulu.");
-            return;
-        }
-
-        /*
-         * Provider KIE belum dipanggil dari browser.
-         *
-         * API Key KIE TIDAK BOLEH diletakkan di halaman ini.
-         *
-         * Tahap backend berikutnya akan menggunakan endpoint server:
-         *
-         * /api/providers/kie/image-to-video
-         *
-         * Browser hanya mengirim konfigurasi dan source image
-         * kepada server GEN-Z.AI.
-         */
-
-        setGeneratingState(
-            true,
-            "Menyiapkan request Image-to-Video..."
-        );
+    function setResponse(data) {
 
         try {
-            await new Promise((resolve) => {
-                setTimeout(resolve, 900);
-            });
 
-            setGeneratingState(false);
+            responseOutput.textContent =
+                JSON.stringify(
+                    data,
+                    null,
+                    2
+                );
 
-            showToast(
-                "Workspace siap. Endpoint KIE belum diaktifkan."
-            );
+        } catch {
 
-        } catch (error) {
-            console.error(error);
+            responseOutput.textContent =
+                String(data);
 
-            setGeneratingState(false);
-
-            showToast(
-                "Generation gagal diproses."
-            );
         }
     }
+
+
+    function showNotice(message) {
+
+        noticeElement.textContent =
+            message;
+
+        noticeElement.classList.remove(
+            "hidden"
+        );
+
+    }
+
+
+    function hideNotice() {
+
+        noticeElement.classList.add(
+            "hidden"
+        );
+
+        noticeElement.textContent = "";
+
+    }
+
+
+    function getRequestPayload() {
+
+        return {
+
+            provider: "kie_ai",
+
+            model:
+                getModelId(),
+
+            prompt:
+                promptElement.value.trim(),
+
+            ratio:
+                ratioElement.value,
+
+            duration:
+                durationElement.value,
+
+            resolution:
+                resolutionElement.value
+
+        };
+
+    }
+
+
+    async function generate() {
+
+        hideNotice();
+
+        const payload =
+            getRequestPayload();
+
+        if (!payload.model) {
+
+            showNotice(
+                "Model belum tersedia. Pilih model aktif dari Generate/Admin Model terlebih dahulu."
+            );
+
+            return;
+
+        }
+
+        if (!payload.prompt) {
+
+            showNotice(
+                "Prompt belum diisi."
+            );
+
+            promptElement.focus();
+
+            return;
+
+        }
+
+        generateButton.disabled = true;
+
+        generateButton.textContent =
+            "Mengirim...";
+
+        setResponse({
+            status: "processing",
+            message:
+                "Request sedang dikirim ke backend."
+        });
+
+        try {
+
+            const response =
+                await fetch(
+                    API_ENDPOINT,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify(
+                                payload
+                            )
+                    }
+                );
+
+            const contentType =
+                response.headers.get(
+                    "content-type"
+                ) || "";
+
+            let data;
+
+            if (
+                contentType.includes(
+                    "application/json"
+                )
+            ) {
+
+                data =
+                    await response.json();
+
+            } else {
+
+                const text =
+                    await response.text();
+
+                data = {
+                    success: response.ok,
+                    status: response.status,
+                    response: text
+                };
+
+            }
+
+            setResponse(data);
+
+            if (!response.ok) {
+
+                showNotice(
+                    data?.error ||
+                    data?.message ||
+                    "Request gagal."
+                );
+
+                return;
+
+            }
+
+            if (data?.success === false) {
+
+                showNotice(
+                    data?.error ||
+                    "Request ditolak backend."
+                );
+
+                return;
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "KIE terminal error:",
+                error
+            );
+
+            setResponse({
+                success: false,
+                error:
+                    error?.message ||
+                    "Tidak dapat terhubung ke backend."
+            });
+
+            showNotice(
+                error?.message ||
+                "Tidak dapat terhubung ke backend."
+            );
+
+        } finally {
+
+            generateButton.disabled =
+                false;
+
+            generateButton.textContent =
+                "Jalankan Model";
+
+        }
+
+    }
+
+
+    function initialize() {
+
+        const modelId =
+            getModelId();
+
+        if (modelId) {
+
+            modelIdElement.textContent =
+                modelId;
+
+        } else {
+
+            modelIdElement.textContent =
+                "Belum ada model aktif";
+
+            showNotice(
+                "Terminal belum menerima model_id dari Supabase/Generate."
+            );
+
+        }
+
+    }
+
 
     generateButton.addEventListener(
         "click",
-        generateVideo
+        generate
     );
 
-    downloadButton.addEventListener("click", () => {
-        if (!generatedVideoUrl) {
-            showToast("Belum ada video untuk di-download.");
-            return;
+
+    backButton.addEventListener(
+        "click",
+        function () {
+
+            if (
+                document.referrer &&
+                document.referrer.includes(
+                    window.location.host
+                )
+            ) {
+
+                window.history.back();
+
+                return;
+
+            }
+
+            window.location.href =
+                "../../generate/index.html";
+
         }
+    );
 
-        const link = document.createElement("a");
-
-        link.href = generatedVideoUrl;
-        link.download = "genzai-kie-video.mp4";
-
-        document.body.appendChild(link);
-
-        link.click();
-
-        link.remove();
-    });
-
-    function clearGeneratedVideo() {
-        if (generatedVideoUrl) {
-            URL.revokeObjectURL(generatedVideoUrl);
-        }
-
-        generatedVideoUrl = "";
-
-        videoPlayer.removeAttribute("src");
-        videoPlayer.load();
-
-        resultVideo.classList.remove("show");
-        resultEmpty.style.display = "flex";
-
-        resultState.textContent = "Waiting";
-        resultState.style.color = "#5f6978";
-    }
-
-    function initialize() {
-        updateDuration();
-        updateModelInfo();
-
-        infoResolution.textContent =
-            resolutionSelect.value;
-
-        infoAspect.textContent =
-            aspectSelect.value;
-
-        clearGeneratedVideo();
-    }
 
     initialize();
+
+})();
 </script>
 
 </body>
