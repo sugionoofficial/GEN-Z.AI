@@ -6,8 +6,10 @@
 
     <title>GEN-Z.AI - Model Management</title>
 
+    <!-- SUPABASE -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
+    <script src="./supabase.js"></script>
 
     <style>
         * {
@@ -52,6 +54,12 @@
 
         button {
             cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+            transform: none !important;
         }
 
         .container {
@@ -122,8 +130,7 @@
 
         .stats {
             display: grid;
-            grid-template-columns:
-                repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 14px;
             margin-bottom: 20px;
         }
@@ -204,7 +211,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1050px;
+            min-width: 1100px;
         }
 
         th,
@@ -390,8 +397,7 @@
 
         .form-grid {
             display: grid;
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 15px;
         }
 
@@ -459,8 +465,7 @@
 
         @media (max-width: 900px) {
             .stats {
-                grid-template-columns:
-                    repeat(2, minmax(0, 1fr));
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .form-grid {
@@ -500,6 +505,7 @@
 
         <div class="title-wrap">
             <h1>Model Management</h1>
+
             <p>
                 Kelola model AI, provider, credit, diskon,
                 duration, ratio dan resolution.
@@ -519,47 +525,23 @@
     <div class="stats">
 
         <div class="stat">
-            <div class="stat-label">
-                Total Model
-            </div>
-            <div
-                class="stat-value"
-                id="statTotal">
-                0
-            </div>
+            <div class="stat-label">Total Model</div>
+            <div class="stat-value" id="statTotal">0</div>
         </div>
 
         <div class="stat">
-            <div class="stat-label">
-                Model Aktif
-            </div>
-            <div
-                class="stat-value"
-                id="statActive">
-                0
-            </div>
+            <div class="stat-label">Model Aktif</div>
+            <div class="stat-value" id="statActive">0</div>
         </div>
 
         <div class="stat">
-            <div class="stat-label">
-                Model Diskon
-            </div>
-            <div
-                class="stat-value"
-                id="statDiscount">
-                0
-            </div>
+            <div class="stat-label">Model Diskon</div>
+            <div class="stat-value" id="statDiscount">0</div>
         </div>
 
         <div class="stat">
-            <div class="stat-label">
-                Provider
-            </div>
-            <div
-                class="stat-value"
-                id="statProviders">
-                0
-            </div>
+            <div class="stat-label">Provider</div>
+            <div class="stat-value" id="statProviders">0</div>
         </div>
 
     </div>
@@ -614,9 +596,7 @@
                 <tbody id="modelTableBody">
 
                     <tr>
-                        <td
-                            colspan="9"
-                            class="loading">
+                        <td colspan="9" class="loading">
                             Memuat model...
                         </td>
                     </tr>
@@ -632,9 +612,9 @@
 </div>
 
 
-<!-- =========================
+<!-- =====================================================
      MODEL MODAL
-========================= -->
+===================================================== -->
 
 <div
     class="modal-overlay"
@@ -649,6 +629,7 @@
             </h2>
 
             <button
+                type="button"
                 class="close"
                 id="closeModalBtn">
                 ×
@@ -665,6 +646,8 @@
                     id="modelId">
 
                 <div class="form-grid">
+
+                    <!-- PROVIDER -->
 
                     <div class="field">
 
@@ -684,6 +667,8 @@
 
                     </div>
 
+
+                    <!-- STATUS -->
 
                     <div class="field">
 
@@ -712,6 +697,8 @@
                     </div>
 
 
+                    <!-- MODEL ID -->
+
                     <div class="field">
 
                         <label for="modelCode">
@@ -722,6 +709,7 @@
                             id="modelCode"
                             type="text"
                             required
+                            autocomplete="off"
                             placeholder="contoh: kling-v2">
 
                         <div class="hint">
@@ -730,6 +718,8 @@
 
                     </div>
 
+
+                    <!-- MODEL NAME -->
 
                     <div class="field">
 
@@ -741,10 +731,13 @@
                             id="modelName"
                             type="text"
                             required
+                            autocomplete="off"
                             placeholder="contoh: Kling V2">
 
                     </div>
 
+
+                    <!-- DESCRIPTION -->
 
                     <div class="field full">
 
@@ -758,6 +751,8 @@
 
                     </div>
 
+
+                    <!-- CREDIT NORMAL -->
 
                     <div class="field">
 
@@ -780,6 +775,8 @@
                     </div>
 
 
+                    <!-- DISCOUNT -->
+
                     <div class="field">
 
                         <label for="discountPercent">
@@ -795,17 +792,20 @@
                             value="0">
 
                         <div class="hint">
-                            0 sampai 100%.
+                            Masukkan 0 sampai 100%.
                         </div>
 
                     </div>
 
+
+                    <!-- CREDIT PREVIEW -->
 
                     <div class="field full">
 
                         <div class="credit-preview">
 
                             <div class="credit-preview-row">
+
                                 <span>
                                     Credit Normal
                                 </span>
@@ -813,9 +813,11 @@
                                 <strong id="previewNormal">
                                     0
                                 </strong>
+
                             </div>
 
                             <div class="credit-preview-row">
+
                                 <span>
                                     Diskon
                                 </span>
@@ -823,9 +825,11 @@
                                 <strong id="previewDiscount">
                                     0%
                                 </strong>
+
                             </div>
 
                             <div class="credit-preview-row">
+
                                 <span>
                                     Credit Final
                                 </span>
@@ -833,12 +837,15 @@
                                 <strong id="previewFinal">
                                     0
                                 </strong>
+
                             </div>
 
                         </div>
 
                     </div>
 
+
+                    <!-- MIN DURATION -->
 
                     <div class="field">
 
@@ -856,6 +863,8 @@
                     </div>
 
 
+                    <!-- MAX DURATION -->
+
                     <div class="field">
 
                         <label for="maxDuration">
@@ -871,6 +880,8 @@
 
                     </div>
 
+
+                    <!-- RATIOS -->
 
                     <div class="field">
 
@@ -889,6 +900,8 @@
 
                     </div>
 
+
+                    <!-- RESOLUTIONS -->
 
                     <div class="field">
 
@@ -936,9 +949,9 @@
 </div>
 
 
-<!-- =========================
+<!-- =====================================================
      DELETE MODAL
-========================= -->
+===================================================== -->
 
 <div
     class="modal-overlay"
@@ -953,6 +966,7 @@
             </h2>
 
             <button
+                type="button"
                 class="close"
                 id="closeDeleteBtn">
                 ×
@@ -980,12 +994,14 @@
         <div class="modal-footer">
 
             <button
+                type="button"
                 class="btn btn-secondary"
                 id="cancelDeleteBtn">
                 Batal
             </button>
 
             <button
+                type="button"
                 class="btn btn-danger"
                 id="confirmDeleteBtn">
                 Hapus Model
@@ -1005,34 +1021,62 @@
     "use strict";
 
 
-    /* ========================================
+    /* =====================================================
        CONFIG
-    ======================================== */
+    ===================================================== */
 
-    const API_URL =
-        "../api/admin-models";
+    const API_URL = "../api/admin-models";
 
 
-    let supabaseClient =
+    /*
+     * PENTING:
+     * supabase.js sudah membuat:
+     *
+     * window.GENZ_SUPABASE
+     *
+     * berdasarkan:
+     *
+     * window.GENZ_CONFIG
+     */
+
+    const supabaseClient =
         window.GENZ_SUPABASE;
 
 
     if (!supabaseClient) {
 
-        if (
-            window.supabase &&
-            window.GENZ_SUPABASE_URL &&
-            window.GENZ_SUPABASE_ANON_KEY
-        ) {
+        console.error(
+            "GEN-Z.AI: Supabase client gagal dimuat."
+        );
 
-            supabaseClient =
-                window.supabase.createClient(
-                    window.GENZ_SUPABASE_URL,
-                    window.GENZ_SUPABASE_ANON_KEY
-                );
+        document.addEventListener(
+            "DOMContentLoaded",
+            function () {
 
-        }
+                const tableBody =
+                    document.getElementById(
+                        "modelTableBody"
+                    );
 
+                if (tableBody) {
+
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td
+                                colspan="9"
+                                class="empty">
+                                Supabase gagal dimuat.
+                                Periksa config.js dan supabase.js.
+                            </td>
+                        </tr>
+                    `;
+
+                }
+
+            }
+        );
+
+        return;
     }
 
 
@@ -1043,9 +1087,9 @@
     let deletingId = null;
 
 
-    /* ========================================
+    /* =====================================================
        ELEMENTS
-    ======================================== */
+    ===================================================== */
 
     const tableBody =
         document.getElementById(
@@ -1133,9 +1177,9 @@
         );
 
 
-    /* ========================================
+    /* =====================================================
        ALERT
-    ======================================== */
+    ===================================================== */
 
     function showAlert(
         message,
@@ -1164,28 +1208,22 @@
 
         showAlert.timer =
             setTimeout(
-                () => {
+                function () {
+
                     box.className =
                         "alert";
+
                 },
                 4500
             );
     }
 
 
-    /* ========================================
+    /* =====================================================
        AUTH
-    ======================================== */
+    ===================================================== */
 
     async function getSession() {
-
-        if (!supabaseClient) {
-
-            throw new Error(
-                "Supabase client belum tersedia."
-            );
-
-        }
 
         const {
             data,
@@ -1195,12 +1233,15 @@
                 .auth
                 .getSession();
 
+
         if (error) {
             throw error;
         }
 
+
         const session =
             data?.session;
+
 
         if (!session) {
 
@@ -1212,9 +1253,14 @@
             );
         }
 
+
         return session;
     }
 
+
+    /* =====================================================
+       API FETCH
+    ===================================================== */
 
     async function apiFetch(
         url = API_URL,
@@ -1224,13 +1270,19 @@
         const session =
             await getSession();
 
+
         const headers = {
+
             ...(options.headers || {}),
+
             "Authorization":
                 `Bearer ${session.access_token}`,
+
             "Content-Type":
                 "application/json"
+
         };
+
 
         const response =
             await fetch(
@@ -1241,14 +1293,21 @@
                 }
             );
 
+
         let data = null;
 
+
         try {
+
             data =
                 await response.json();
+
         } catch {
+
             data = {};
+
         }
+
 
         if (
             response.status === 401 ||
@@ -1267,6 +1326,7 @@
             };
         }
 
+
         if (!response.ok) {
 
             throw new Error(
@@ -1276,6 +1336,7 @@
             );
         }
 
+
         return {
             ok: true,
             data
@@ -1283,9 +1344,9 @@
     }
 
 
-    /* ========================================
-       LOAD DATA
-    ======================================== */
+    /* =====================================================
+       LOAD MODELS
+    ===================================================== */
 
     async function loadModels() {
 
@@ -1299,6 +1360,7 @@
             </tr>
         `;
 
+
         try {
 
             const result =
@@ -1309,9 +1371,11 @@
                     }
                 );
 
+
             if (!result.ok) {
                 return;
             }
+
 
             models =
                 Array.isArray(
@@ -1320,6 +1384,7 @@
                     ? result.data.models
                     : [];
 
+
             providers =
                 Array.isArray(
                     result.data?.providers
@@ -1327,11 +1392,13 @@
                     ? result.data.providers
                     : [];
 
+
             renderProviderOptions();
 
             updateStats();
 
             renderModels();
+
 
         } catch (error) {
 
@@ -1339,6 +1406,7 @@
                 "LOAD MODELS ERROR:",
                 error
             );
+
 
             tableBody.innerHTML = `
                 <tr>
@@ -1351,6 +1419,7 @@
                 </tr>
             `;
 
+
             showAlert(
                 error.message,
                 "error"
@@ -1359,27 +1428,34 @@
     }
 
 
-    /* ========================================
+    /* =====================================================
        PROVIDERS
-    ======================================== */
+    ===================================================== */
 
     function renderProviderOptions() {
 
         const currentFilter =
             providerFilter.value;
 
+
         providerFilter.innerHTML =
-            `<option value="">
+            `
+            <option value="">
                 Semua Provider
-            </option>`;
+            </option>
+            `;
+
 
         providerId.innerHTML =
-            `<option value="">
+            `
+            <option value="">
                 Pilih Provider
-            </option>`;
+            </option>
+            `;
+
 
         providers.forEach(
-            provider => {
+            function (provider) {
 
                 const id =
                     provider.id;
@@ -1389,54 +1465,60 @@
                     provider.provider_id ||
                     "Provider";
 
-                const option1 =
+
+                const optionFilter =
                     document.createElement(
                         "option"
                     );
 
-                option1.value =
+                optionFilter.value =
                     id;
 
-                option1.textContent =
+                optionFilter.textContent =
                     name;
 
                 providerFilter.appendChild(
-                    option1
+                    optionFilter
                 );
 
 
-                const option2 =
+                const optionForm =
                     document.createElement(
                         "option"
                     );
 
-                option2.value =
+                optionForm.value =
                     id;
 
-                option2.textContent =
+                optionForm.textContent =
                     name;
 
                 providerId.appendChild(
-                    option2
+                    optionForm
                 );
+
             }
         );
+
 
         providerFilter.value =
             currentFilter;
     }
 
 
-    function getProviderName(
-        id
-    ) {
+    function getProviderName(id) {
 
         const provider =
             providers.find(
-                item =>
-                    String(item.id) ===
-                    String(id)
+                function (item) {
+
+                    return String(
+                        item.id
+                    ) === String(id);
+
+                }
             );
+
 
         return (
             provider?.provider_name ||
@@ -1446,43 +1528,54 @@
     }
 
 
-    /* ========================================
+    /* =====================================================
        STATS
-    ======================================== */
+    ===================================================== */
 
     function updateStats() {
 
         const active =
             models.filter(
-                model =>
-                    String(
+                function (model) {
+
+                    return String(
                         model.status || ""
                     ).toLowerCase() ===
-                    "active"
+                    "active";
+
+                }
             ).length;
+
 
         const discount =
             models.filter(
-                model =>
-                    Number(
+                function (model) {
+
+                    return Number(
                         model.discount_percent || 0
-                    ) > 0
+                    ) > 0;
+
+                }
             ).length;
+
 
         document.getElementById(
             "statTotal"
         ).textContent =
             models.length;
 
+
         document.getElementById(
             "statActive"
         ).textContent =
             active;
 
+
         document.getElementById(
             "statDiscount"
         ).textContent =
             discount;
+
 
         document.getElementById(
             "statProviders"
@@ -1491,9 +1584,9 @@
     }
 
 
-    /* ========================================
+    /* =====================================================
        FILTER
-    ======================================== */
+    ===================================================== */
 
     function getFilteredModels() {
 
@@ -1502,19 +1595,23 @@
                 .trim()
                 .toLowerCase();
 
+
         const status =
             statusFilter.value;
+
 
         const selectedProvider =
             providerFilter.value;
 
+
         return models.filter(
-            model => {
+            function (model) {
 
                 const providerName =
                     getProviderName(
                         model.provider_id
                     );
+
 
                 const searchable =
                     [
@@ -1528,11 +1625,13 @@
                     .join(" ")
                     .toLowerCase();
 
+
                 const searchMatch =
                     !search ||
                     searchable.includes(
                         search
                     );
+
 
                 const statusMatch =
                     !status ||
@@ -1540,6 +1639,7 @@
                         model.status || ""
                     ).toLowerCase() ===
                     status;
+
 
                 const providerMatch =
                     !selectedProvider ||
@@ -1550,24 +1650,27 @@
                         selectedProvider
                     );
 
+
                 return (
                     searchMatch &&
                     statusMatch &&
                     providerMatch
                 );
+
             }
         );
     }
 
 
-    /* ========================================
-       RENDER TABLE
-    ======================================== */
+    /* =====================================================
+       RENDER MODELS
+    ===================================================== */
 
     function renderModels() {
 
         const filtered =
             getFilteredModels();
+
 
         if (
             filtered.length === 0
@@ -1590,45 +1693,49 @@
         tableBody.innerHTML =
             filtered
                 .map(
-                    model =>
-                        renderModelRow(
+                    function (model) {
+
+                        return renderModelRow(
                             model
-                        )
+                        );
+
+                    }
                 )
                 .join("");
     }
 
 
-    function renderModelRow(
-        model
-    ) {
+    function renderModelRow(model) {
 
         const discount =
             Number(
                 model.discount_percent || 0
             );
 
-        const creditCost =
+
+        const normal =
             Number(
                 model.credit_cost || 0
             );
 
-        let creditFinal;
+
+        let finalCredit;
+
 
         if (
             model.credit_final !== null &&
             model.credit_final !== undefined
         ) {
 
-            creditFinal =
+            finalCredit =
                 Number(
                     model.credit_final
                 );
 
         } else {
 
-            creditFinal =
-                creditCost *
+            finalCredit =
+                normal *
                 (
                     1 -
                     discount / 100
@@ -1641,37 +1748,76 @@
                 model.status || "active"
             ).toLowerCase();
 
-        const statusClass =
+
+        let statusClass =
+            "status-inactive";
+
+
+        if (
             status === "active"
-                ? "status-active"
-                : status === "maintenance"
-                    ? "status-maintenance"
-                    : "status-inactive";
+        ) {
+
+            statusClass =
+                "status-active";
+
+        } else if (
+            status === "maintenance"
+        ) {
+
+            statusClass =
+                "status-maintenance";
+
+        }
 
 
-        const duration =
+        let duration = "-";
+
+
+        if (
             model.min_duration !== null &&
             model.min_duration !== undefined
-                ? (
-                    model.max_duration !== null &&
-                    model.max_duration !== undefined
-                        ? `${model.min_duration} - ${model.max_duration}s`
-                        : `${model.min_duration}s`
-                )
-                : "-";
+        ) {
+
+            if (
+                model.max_duration !== null &&
+                model.max_duration !== undefined
+            ) {
+
+                duration =
+                    `${model.min_duration} - ${model.max_duration}s`;
+
+            } else {
+
+                duration =
+                    `${model.min_duration}s`;
+
+            }
+        }
 
 
-        const ratios =
+        let ratios = "-";
+
+
+        if (
             Array.isArray(
                 model.supported_ratios
             )
-                ? model.supported_ratios.join(
+        ) {
+
+            ratios =
+                model.supported_ratios.join(
                     ", "
-                )
-                : (
-                    model.supported_ratios ||
-                    "-"
                 );
+
+        } else if (
+            model.supported_ratios
+        ) {
+
+            ratios =
+                String(
+                    model.supported_ratios
+                );
+        }
 
 
         return `
@@ -1700,12 +1846,14 @@
                 <td>
 
                     <span class="provider">
+
                         ${escapeHtml(
                             model.provider_name ||
                             getProviderName(
                                 model.provider_id
                             )
                         )}
+
                     </span>
 
                 </td>
@@ -1714,9 +1862,7 @@
                 <td>
 
                     <span class="credit-normal">
-                        ${formatNumber(
-                            creditCost
-                        )}
+                        ${formatNumber(normal)}
                     </span>
 
                 </td>
@@ -1725,9 +1871,7 @@
                 <td>
 
                     <span class="discount">
-                        ${formatNumber(
-                            discount
-                        )}%
+                        ${formatNumber(discount)}%
                     </span>
 
                 </td>
@@ -1736,25 +1880,19 @@
                 <td>
 
                     <span class="credit-final">
-                        ${formatNumber(
-                            creditFinal
-                        )}
+                        ${formatNumber(finalCredit)}
                     </span>
 
                 </td>
 
 
                 <td>
-                    ${escapeHtml(
-                        duration
-                    )}
+                    ${escapeHtml(duration)}
                 </td>
 
 
                 <td
-                    title="${escapeHtml(
-                        ratios
-                    )}">
+                    title="${escapeHtml(ratios)}">
 
                     ${escapeHtml(
                         shorten(
@@ -1770,9 +1908,9 @@
 
                     <span
                         class="status ${statusClass}">
-                        ${escapeHtml(
-                            status
-                        )}
+
+                        ${escapeHtml(status)}
+
                     </span>
 
                 </td>
@@ -1783,15 +1921,22 @@
                     <div class="actions">
 
                         <button
+                            type="button"
                             class="btn btn-secondary btn-small"
                             onclick="window.editModel('${escapeJs(model.id)}')">
+
                             Edit
+
                         </button>
 
+
                         <button
+                            type="button"
                             class="btn btn-danger btn-small"
                             onclick="window.deleteModel('${escapeJs(model.id)}')">
+
                             Hapus
+
                         </button>
 
                     </div>
@@ -1803,57 +1948,80 @@
     }
 
 
-    /* ========================================
+    /* =====================================================
        ADD MODEL
-    ======================================== */
+    ===================================================== */
 
     function openAddModal() {
 
         editingId = null;
+
 
         document.getElementById(
             "modalTitle"
         ).textContent =
             "Tambah Model";
 
+
         document.getElementById(
             "modelForm"
         ).reset();
+
 
         document.getElementById(
             "modelId"
         ).value = "";
 
-        creditCost.value = "0";
-        discountPercent.value = "0";
-        modelStatus.value = "active";
+
+        creditCost.value =
+            "0";
+
+
+        discountPercent.value =
+            "0";
+
+
+        modelStatus.value =
+            "active";
+
 
         updateCreditPreview();
+
 
         modelModal.classList.add(
             "show"
         );
 
+
         setTimeout(
-            () => providerId.focus(),
+            function () {
+
+                providerId.focus();
+
+            },
             100
         );
     }
 
 
-    /* ========================================
+    /* =====================================================
        EDIT MODEL
-    ======================================== */
+    ===================================================== */
 
     window.editModel =
         function (id) {
 
             const model =
                 models.find(
-                    item =>
-                        String(item.id) ===
-                        String(id)
+                    function (item) {
+
+                        return String(
+                            item.id
+                        ) === String(id);
+
+                    }
                 );
+
 
             if (!model) {
 
@@ -1865,8 +2033,10 @@
                 return;
             }
 
+
             editingId =
                 model.id;
+
 
             document.getElementById(
                 "modalTitle"
@@ -1938,26 +2108,27 @@
 
             updateCreditPreview();
 
+
             modelModal.classList.add(
                 "show"
             );
         };
 
 
-    /* ========================================
+    /* =====================================================
        SAVE MODEL
-    ======================================== */
+    ===================================================== */
 
-    async function saveModel(
-        event
-    ) {
+    async function saveModel(event) {
 
         event.preventDefault();
+
 
         const saveButton =
             document.getElementById(
                 "saveModelBtn"
             );
+
 
         const payload = {
 
@@ -2010,8 +2181,11 @@
 
             status:
                 modelStatus.value
+
         };
 
+
+        /* VALIDATION */
 
         if (
             !payload.provider_id
@@ -2098,8 +2272,13 @@
         saveButton.disabled =
             true;
 
+
         saveButton.textContent =
             "Menyimpan...";
+
+
+        const wasEditing =
+            Boolean(editingId);
 
 
         try {
@@ -2107,10 +2286,11 @@
             let result;
 
 
-            if (editingId) {
+            if (wasEditing) {
 
                 payload.id =
                     editingId;
+
 
                 result =
                     await apiFetch(
@@ -2149,7 +2329,7 @@
 
 
             showAlert(
-                editingId
+                wasEditing
                     ? "Model berhasil diperbarui."
                     : "Model berhasil ditambahkan."
             );
@@ -2165,15 +2345,18 @@
                 error
             );
 
+
             showAlert(
                 error.message,
                 "error"
             );
 
+
         } finally {
 
             saveButton.disabled =
                 false;
+
 
             saveButton.textContent =
                 "Simpan Model";
@@ -2181,19 +2364,24 @@
     }
 
 
-    /* ========================================
+    /* =====================================================
        DELETE MODEL
-    ======================================== */
+    ===================================================== */
 
     window.deleteModel =
         function (id) {
 
             const model =
                 models.find(
-                    item =>
-                        String(item.id) ===
-                        String(id)
+                    function (item) {
+
+                        return String(
+                            item.id
+                        ) === String(id);
+
+                    }
                 );
+
 
             if (!model) {
 
@@ -2205,8 +2393,10 @@
                 return;
             }
 
+
             deletingId =
                 model.id;
+
 
             document.getElementById(
                 "deleteModelName"
@@ -2214,6 +2404,7 @@
                 model.model_name ||
                 model.model_id ||
                 "-";
+
 
             deleteModal.classList.add(
                 "show"
@@ -2227,13 +2418,16 @@
             return;
         }
 
+
         const button =
             document.getElementById(
                 "confirmDeleteBtn"
             );
 
+
         button.disabled =
             true;
+
 
         button.textContent =
             "Menghapus...";
@@ -2259,9 +2453,11 @@
 
             closeDeleteModal();
 
+
             showAlert(
                 "Model berhasil dihapus."
             );
+
 
             await loadModels();
 
@@ -2273,15 +2469,18 @@
                 error
             );
 
+
             showAlert(
                 error.message,
                 "error"
             );
 
+
         } finally {
 
             button.disabled =
                 false;
+
 
             button.textContent =
                 "Hapus Model";
@@ -2289,9 +2488,9 @@
     }
 
 
-    /* ========================================
+    /* =====================================================
        CREDIT PREVIEW
-    ======================================== */
+    ===================================================== */
 
     function updateCreditPreview() {
 
@@ -2300,10 +2499,12 @@
                 creditCost.value || 0
             );
 
+
         const discount =
             Number(
                 discountPercent.value || 0
             );
+
 
         const finalCredit =
             normal *
@@ -2338,9 +2539,9 @@
     }
 
 
-    /* ========================================
+    /* =====================================================
        MODAL
-    ======================================== */
+    ===================================================== */
 
     function closeModelModal() {
 
@@ -2348,7 +2549,9 @@
             "show"
         );
 
-        editingId = null;
+
+        editingId =
+            null;
     }
 
 
@@ -2358,26 +2561,29 @@
             "show"
         );
 
-        deletingId = null;
+
+        deletingId =
+            null;
     }
 
 
-    /* ========================================
+    /* =====================================================
        UTILITIES
-    ======================================== */
+    ===================================================== */
 
-    function formatNumber(
-        value
-    ) {
+    function formatNumber(value) {
 
         const number =
             Number(value);
 
+
         if (
             !Number.isFinite(number)
         ) {
+
             return "0";
         }
+
 
         return new Intl.NumberFormat(
             "id-ID",
@@ -2388,31 +2594,34 @@
     }
 
 
-    function arrayToString(
-        value
-    ) {
+    function arrayToString(value) {
 
         if (
             Array.isArray(value)
         ) {
-            return value.join(", ");
+
+            return value.join(
+                ", "
+            );
         }
+
 
         return value || "";
     }
 
 
-    function stringToArray(
-        value
-    ) {
+    function stringToArray(value) {
 
         return String(
             value || ""
         )
         .split(",")
         .map(
-            item =>
-                item.trim()
+            function (item) {
+
+                return item.trim();
+
+            }
         )
         .filter(Boolean);
     }
@@ -2428,11 +2637,14 @@
                 value || "-"
             );
 
+
         if (
             text.length <= max
         ) {
+
             return text;
         }
+
 
         return (
             text.substring(
@@ -2444,9 +2656,7 @@
     }
 
 
-    function escapeHtml(
-        value
-    ) {
+    function escapeHtml(value) {
 
         return String(
             value ?? ""
@@ -2474,9 +2684,7 @@
     }
 
 
-    function escapeJs(
-        value
-    ) {
+    function escapeJs(value) {
 
         return String(
             value ?? ""
@@ -2500,9 +2708,9 @@
     }
 
 
-    /* ========================================
+    /* =====================================================
        EVENTS
-    ======================================== */
+    ===================================================== */
 
     document.getElementById(
         "addModelBtn"
@@ -2608,13 +2816,15 @@
 
     modelModal.addEventListener(
         "click",
-        event => {
+        function (event) {
 
             if (
                 event.target ===
                 modelModal
             ) {
+
                 closeModelModal();
+
             }
 
         }
@@ -2623,13 +2833,15 @@
 
     deleteModal.addEventListener(
         "click",
-        event => {
+        function (event) {
 
             if (
                 event.target ===
                 deleteModal
             ) {
+
                 closeDeleteModal();
+
             }
 
         }
@@ -2638,13 +2850,15 @@
 
     document.addEventListener(
         "keydown",
-        event => {
+        function (event) {
 
             if (
-                event.key === "Escape"
+                event.key ===
+                "Escape"
             ) {
 
                 closeModelModal();
+
                 closeDeleteModal();
 
             }
@@ -2653,9 +2867,9 @@
     );
 
 
-    /* ========================================
+    /* =====================================================
        INITIALIZE
-    ======================================== */
+    ===================================================== */
 
     loadModels();
 
