@@ -1,103 +1,246 @@
+/**
+ * GEN-Z.AI
+ * KIE.AI MODEL ADAPTER
+ *
+ * File:
+ * provider/kie/kling-3.0-omni-transformation.js
+ *
+ * Model:
+ * kling-3.0-omni/transformation
+ *
+ * Workflow, variant, parameter, constraint,
+ * dependency dan pricing berasal dari Supabase.
+ */
+
+import { createTask } from "./client.js";
+
+
 const MODEL_ID = "kling-3.0-omni/transformation";
+
 const PROVIDER_ID = "kie_ai";
-const API_ENDPOINT = "/api/generate";
 
-function normalizeString(value, fallback = "") {
-  if (value === null || value === undefined) {
-    return fallback;
-  }
 
-  return String(value).trim();
+function buildInput(options = {}) {
+
+    if (
+        options.input &&
+        typeof options.input === "object" &&
+        !Array.isArray(options.input)
+    ) {
+
+        return {
+            ...options.input
+        };
+
+    }
+
+
+    const input = {};
+
+
+    if (options.prompt !== undefined) {
+        input.prompt = options.prompt;
+    }
+
+    if (options.aspect_ratio !== undefined) {
+        input.aspect_ratio =
+            options.aspect_ratio;
+    }
+
+    if (options.duration !== undefined) {
+        input.duration =
+            options.duration;
+    }
+
+    if (options.resolution !== undefined) {
+        input.resolution =
+            options.resolution;
+    }
+
+    if (options.image_urls !== undefined) {
+        input.image_urls =
+            options.image_urls;
+    }
+
+    if (options.input_urls !== undefined) {
+        input.input_urls =
+            options.input_urls;
+    }
+
+    if (options.first_frame_url !== undefined) {
+        input.first_frame_url =
+            options.first_frame_url;
+    }
+
+    if (options.last_frame_url !== undefined) {
+        input.last_frame_url =
+            options.last_frame_url;
+    }
+
+    if (options.reference_image_urls !== undefined) {
+        input.reference_image_urls =
+            options.reference_image_urls;
+    }
+
+    if (options.reference_video_urls !== undefined) {
+        input.reference_video_urls =
+            options.reference_video_urls;
+    }
+
+    if (options.reference_audio_urls !== undefined) {
+        input.reference_audio_urls =
+            options.reference_audio_urls;
+    }
+
+    if (options.reference_file_urls !== undefined) {
+        input.reference_file_urls =
+            options.reference_file_urls;
+    }
+
+    if (options.reference_link_urls !== undefined) {
+        input.reference_link_urls =
+            options.reference_link_urls;
+    }
+
+    if (options.kling_elements !== undefined) {
+        input.kling_elements =
+            options.kling_elements;
+    }
+
+    if (options.multi_prompt !== undefined) {
+        input.multi_prompt =
+            options.multi_prompt;
+    }
+
+    if (options.multi_shots !== undefined) {
+        input.multi_shots =
+            options.multi_shots;
+    }
+
+    if (options.mode !== undefined) {
+        input.mode =
+            options.mode;
+    }
+
+    if (options.sound !== undefined) {
+        input.sound =
+            options.sound;
+    }
+
+    if (options.seed !== undefined) {
+        input.seed =
+            options.seed;
+    }
+
+
+    return input;
 }
+
 
 function buildPayload(options = {}) {
-  const prompt = normalizeString(options.prompt);
-  const ratio = normalizeString(options.ratio, "9:16");
-  const duration = normalizeString(options.duration, "8");
-  const resolution = normalizeString(options.resolution, "720p");
 
-  return {
-    provider: PROVIDER_ID,
-    model: MODEL_ID,
-    prompt,
-    ratio,
-    duration,
-    resolution
-  };
+    const model =
+        String(
+            options.model || MODEL_ID
+        ).trim();
+
+
+    return {
+        model,
+        input: buildInput(options)
+    };
 }
+
 
 function validate(options = {}) {
-  const prompt = normalizeString(options.prompt);
 
-  if (!prompt) {
-    throw new Error("Prompt wajib diisi.");
-  }
+    if (
+        options.input !== undefined &&
+        (
+            typeof options.input !== "object" ||
+            Array.isArray(options.input)
+        )
+    ) {
 
-  return true;
+        return {
+            valid: false,
+            error: "Input KIE harus berupa object."
+        };
+
+    }
+
+
+    return {
+        valid: true
+    };
 }
+
+
+async function create(options = {}) {
+
+    const validation =
+        validate(options);
+
+
+    if (!validation.valid) {
+
+        throw new Error(
+            validation.error
+        );
+
+    }
+
+
+    const payload =
+        buildPayload(options);
+
+
+    return createTask(payload);
+}
+
 
 async function generate(options = {}) {
-  validate(options);
 
-  const payload = buildPayload(options);
-
-  const response = await fetch(API_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const contentType = response.headers.get("content-type") || "";
-
-  let data;
-
-  if (contentType.includes("application/json")) {
-    data = await response.json();
-  } else {
-    const text = await response.text();
-
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = {
-        success: response.ok,
-        message: text
-      };
-    }
-  }
-
-  if (!response.ok) {
-    const message =
-      data?.message ||
-      data?.error ||
-      `Generation request gagal (${response.status}).`;
-
-    throw new Error(message);
-  }
-
-  return data;
+    return create(options);
 }
 
+
 const adapter = {
-  MODEL_ID,
-  PROVIDER_ID,
-  API_ENDPOINT,
-  normalizeString,
-  buildPayload,
-  validate,
-  generate
+
+    MODEL_ID,
+
+    PROVIDER_ID,
+
+    buildInput,
+
+    buildPayload,
+
+    validate,
+
+    create,
+
+    generate
+
 };
 
+
 export {
-  MODEL_ID,
-  PROVIDER_ID,
-  API_ENDPOINT,
-  normalizeString,
-  buildPayload,
-  validate,
-  generate
+
+    MODEL_ID,
+
+    PROVIDER_ID,
+
+    buildInput,
+
+    buildPayload,
+
+    validate,
+
+    create,
+
+    generate
+
 };
+
 
 export default adapter;
