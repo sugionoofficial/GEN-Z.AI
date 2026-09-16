@@ -1049,1107 +1049,1572 @@
     </main>
 
     <script>
-        /*
-         * ==========================================================
-         * GEN-Z.AI SHARED GENERATOR
-         * ==========================================================
-         *
-         * Halaman ini digunakan oleh:
-         * USER
-         * ADMIN
-         * OWNER
-         *
-         * Provider identity:
-         * provider_id   = identitas teknis
-         * provider_name = nama yang ditampilkan
-         *
-         * Contoh:
-         * provider_id   : chinaapi
-         * provider_name : ByteDance
-         *
-         * Backend generation BELUM dipanggil di halaman ini.
-         * Engine generation akan dihubungkan pada tahap berikutnya.
-         * ==========================================================
-         */
+    /* ==========================================================
+       GEN-Z.AI
+       DATABASE-DRIVEN KIE GENERATOR
+       ========================================================== */
 
-        let supabaseClient = null;
+    let supabaseClient = null;
 
-        let currentUser = null;
-        let currentProfile = null;
+    let currentUser = null;
+    let currentProfile = null;
 
-        let providers = [];
-        let models = [];
+    let kieModels = [];
+    let kieConfig = null;
 
-        let selectedImageFile = null;
-        let selectedVideoFile = null;
-
-        const elements = {
-            menuButton: document.getElementById("menuButton"),
-            sidebar: document.getElementById("sidebar"),
-            overlay: document.getElementById("overlay"),
-            navigation: document.getElementById("navigation"),
-
-            sidebarEmail: document.getElementById("sidebarEmail"),
-            roleBadge: document.getElementById("roleBadge"),
-            creditBalance: document.getElementById("creditBalance"),
-
-            logoutButton: document.getElementById("logoutButton"),
-
-            provider: document.getElementById("provider"),
-            model: document.getElementById("model"),
-            modelInfo: document.getElementById("modelInfo"),
-
-            imageInput: document.getElementById("imageInput"),
-            imageUploadBox: document.getElementById("imageUploadBox"),
-            imageFilename: document.getElementById("imageFilename"),
-            imagePreviewArea: document.getElementById("imagePreviewArea"),
-            imagePreview: document.getElementById("imagePreview"),
-
-            videoInput: document.getElementById("videoInput"),
-            videoUploadBox: document.getElementById("videoUploadBox"),
-            videoFilename: document.getElementById("videoFilename"),
-            videoPreviewArea: document.getElementById("videoPreviewArea"),
-            videoPreview: document.getElementById("videoPreview"),
-
-            prompt: document.getElementById("prompt"),
-            ratio: document.getElementById("ratio"),
-            duration: document.getElementById("duration"),
-            resolution: document.getElementById("resolution"),
-
-            message: document.getElementById("message"),
-
-            resetButton: document.getElementById("resetButton"),
-            generateButton: document.getElementById("generateButton")
-        };
+    let selectedImageFile = null;
+    let selectedVideoFile = null;
 
 
-        /* ==========================================================
-           INITIALIZATION
-        ========================================================== */
+    /* ==========================================================
+       ELEMENTS
+    ========================================================== */
 
-        document.addEventListener("DOMContentLoaded", init);
+    const elements = {
+        menuButton: document.getElementById("menuButton"),
+        sidebar: document.getElementById("sidebar"),
+        overlay: document.getElementById("overlay"),
+        navigation: document.getElementById("navigation"),
 
-        async function init() {
+        sidebarEmail: document.getElementById("sidebarEmail"),
+        roleBadge: document.getElementById("roleBadge"),
+        creditBalance: document.getElementById("creditBalance"),
 
-            try {
+        logoutButton: document.getElementById("logoutButton"),
 
-                if (
-                    typeof GENZ_CONFIG === "undefined" ||
-                    !GENZ_CONFIG.SUPABASE_URL ||
-                    !GENZ_CONFIG.SUPABASE_KEY
-                ) {
-                    throw new Error(
-                        "Konfigurasi Supabase tidak ditemukan."
-                    );
-                }
+        provider: document.getElementById("provider"),
+        model: document.getElementById("model"),
+        modelInfo: document.getElementById("modelInfo"),
 
-                supabaseClient = window.supabase.createClient(
+        imageInput: document.getElementById("imageInput"),
+        imageUploadBox: document.getElementById("imageUploadBox"),
+        imageFilename: document.getElementById("imageFilename"),
+        imagePreviewArea: document.getElementById("imagePreviewArea"),
+        imagePreview: document.getElementById("imagePreview"),
+
+        videoInput: document.getElementById("videoInput"),
+        videoUploadBox: document.getElementById("videoUploadBox"),
+        videoFilename: document.getElementById("videoFilename"),
+        videoPreviewArea: document.getElementById("videoPreviewArea"),
+        videoPreview: document.getElementById("videoPreview"),
+
+        prompt: document.getElementById("prompt"),
+        ratio: document.getElementById("ratio"),
+        duration: document.getElementById("duration"),
+        resolution: document.getElementById("resolution"),
+
+        message: document.getElementById("message"),
+
+        resetButton: document.getElementById("resetButton"),
+        generateButton: document.getElementById("generateButton")
+    };
+
+
+    /* ==========================================================
+       INIT
+    ========================================================== */
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        init
+    );
+
+
+    async function init() {
+
+        try {
+
+            if (
+                typeof GENZ_CONFIG === "undefined" ||
+                !GENZ_CONFIG.SUPABASE_URL ||
+                !GENZ_CONFIG.SUPABASE_KEY
+            ) {
+
+                throw new Error(
+                    "Konfigurasi Supabase tidak ditemukan."
+                );
+
+            }
+
+            supabaseClient =
+                window.supabase.createClient(
                     GENZ_CONFIG.SUPABASE_URL,
                     GENZ_CONFIG.SUPABASE_KEY
                 );
 
-                setupMenu();
-                setupEvents();
+            setupMenu();
+            setupEvents();
 
-                await checkSession();
+            await checkSession();
 
-            } catch (error) {
+        } catch (error) {
 
-                console.error(
-                    "GEN-Z.AI initialization error:",
-                    error
-                );
-
-                showMessage(
-                    error.message ||
-                    "Gagal memuat generator.",
-                    "error"
-                );
-            }
-        }
-
-
-        /* ==========================================================
-           SESSION
-        ========================================================== */
-
-        async function checkSession() {
-
-            const {
-                data,
+            console.error(
+                "GEN-Z.AI initialization error:",
                 error
-            } = await supabaseClient.auth.getSession();
-
-            if (error) {
-                throw error;
-            }
-
-            if (!data.session) {
-
-                window.location.replace(
-                    "../login.html"
-                );
-
-                return;
-            }
-
-            currentUser = data.session.user;
-
-            await loadProfile();
-        }
-
-
-        /* ==========================================================
-           PROFILE
-        ========================================================== */
-
-        async function loadProfile() {
-
-            const {
-                data,
-                error
-            } = await supabaseClient
-                .from("profiles")
-                .select(
-                    "id,email,name,role,credits,status"
-                )
-                .eq("id", currentUser.id)
-                .single();
-
-            if (error) {
-                throw error;
-            }
-
-            if (!data) {
-                throw new Error(
-                    "Profil pengguna tidak ditemukan."
-                );
-            }
-
-            if (
-                data.status !== "active"
-            ) {
-
-                await supabaseClient.auth.signOut();
-
-                window.location.replace(
-                    "../login.html"
-                );
-
-                return;
-            }
-
-            const allowedRoles = [
-                "USER",
-                "ADMIN",
-                "OWNER"
-            ];
-
-            if (
-                !allowedRoles.includes(data.role)
-            ) {
-
-                await supabaseClient.auth.signOut();
-
-                window.location.replace(
-                    "../login.html"
-                );
-
-                return;
-            }
-
-            currentProfile = data;
-
-            renderUser();
-
-            await loadProviders();
-        }
-
-
-        /* ==========================================================
-           RENDER USER
-        ========================================================== */
-
-        function renderUser() {
-
-            const email =
-                currentProfile.email ||
-                currentUser.email ||
-                "-";
-
-            elements.sidebarEmail.textContent =
-                email;
-
-            elements.creditBalance.textContent =
-                formatNumber(
-                    currentProfile.credits || 0
-                );
-
-            elements.roleBadge.textContent =
-                currentProfile.role;
-
-            buildNavigation();
-        }
-
-
-        /* ==========================================================
-           NAVIGATION
-        ========================================================== */
-
-        function buildNavigation() {
-
-    const role = currentProfile.role;
-
-    let html = "";
-
-    if (role === "USER") {
-
-        html = `
-            <a href="../user/dashboard.html">
-                Dashboard
-            </a>
-
-            <a href="../history/index.html">
-                History
-            </a>
-
-            <a href="../user/topup.html">
-                Top Up
-            </a>
-
-            <a href="../user/hub-admin.html">
-                Hub Admin
-            </a>
-        `;
-
-    } else if (
-        role === "ADMIN" ||
-        role === "OWNER"
-    ) {
-
-        html = `
-            <a href="../admin/dashboard.html">
-                Dashboard
-            </a>
-
-            <a href="../history/index.html">
-                History
-            </a>
-
-            <a href="../admin-control/admin-panel.html">
-                Admin Panel
-            </a>
-        `;
-    }
-
-    elements.navigation.innerHTML = html;
-}
-
-
-        /* ==========================================================
-           PROVIDERS
-        ========================================================== */
-
-        async function loadProviders() {
+            );
 
             showMessage(
-                "Memuat provider...",
-                "info"
+                error.message ||
+                "Gagal memuat generator.",
+                "error"
             );
 
-            const {
-                data,
-                error
-            } = await supabaseClient
-                .from("providers")
-                .select(
-                    "id,provider_id,provider_name,description,status,is_default"
-                )
-                .eq("status", "active")
-                .order(
-                    "is_default",
-                    {
-                        ascending: false
-                    }
-                )
-                .order(
-                    "provider_name",
-                    {
-                        ascending: true
-                    }
-                );
-
-            if (error) {
-                throw error;
-            }
-
-            providers = data || [];
-
-            renderProviders();
-
-            hideMessage();
         }
 
+    }
 
-        /* ==========================================================
-           RENDER PROVIDERS
-        ========================================================== */
 
-        function renderProviders() {
+    /* ==========================================================
+       SESSION
+    ========================================================== */
 
-            elements.provider.innerHTML = "";
+    async function checkSession() {
 
-            if (!providers.length) {
+        const {
+            data,
+            error
+        } =
+            await supabaseClient.auth.getSession();
 
-                elements.provider.innerHTML = `
-                    <option value="">
-                        Tidak ada provider aktif
-                    </option>
-                `;
-
-                elements.model.innerHTML = `
-                    <option value="">
-                        Tidak ada model
-                    </option>
-                `;
-
-                return;
-            }
-
-            const defaultProvider =
-                providers.find(
-                    provider =>
-                        provider.is_default
-                ) || providers[0];
-
-            providers.forEach(provider => {
-
-                const option =
-                    document.createElement("option");
-
-                /*
-                 * VALUE = ID teknis provider
-                 * TEXT  = nama provider yang tampil
-                 *
-                 * Jadi:
-                 *
-                 * chinaapi
-                 *     ↓
-                 * ByteDance
-                 */
-
-                option.value =
-                    provider.id;
-
-                option.dataset.providerId =
-                    provider.provider_id;
-
-                option.dataset.providerName =
-                    provider.provider_name;
-
-                option.textContent =
-                    provider.provider_name;
-
-                elements.provider.appendChild(
-                    option
-                );
-            });
-
-            elements.provider.value =
-                defaultProvider.id;
-
-            loadModels(
-                defaultProvider.id
-            );
+        if (error) {
+            throw error;
         }
 
-
-        /* ==========================================================
-           PROVIDER CHANGE
-        ========================================================== */
-
-        elements.provider.addEventListener(
-            "change",
-            async function () {
-
-                const providerId =
-                    this.value;
-
-                if (!providerId) {
-
-                    elements.model.innerHTML = `
-                        <option value="">
-                            Pilih provider
-                        </option>
-                    `;
-
-                    elements.modelInfo.textContent =
-                        "-";
-
-                    return;
-                }
-
-                await loadModels(providerId);
-            }
-        );
-
-
-        /* ==========================================================
-           MODELS
-        ========================================================== */
-
-        async function loadModels(
-            providerUuid
-        ) {
-
-            elements.model.innerHTML = `
-                <option value="">
-                    Memuat model...
-                </option>
-            `;
-
-            elements.modelInfo.textContent =
-                "Memuat model...";
-
-            const {
-                data,
-                error
-            } = await supabaseClient
-                .from("models")
-                .select(
-                    "id,model_id,model_name,credit_cost,status"
-                )
-                .eq(
-                    "provider_id",
-                    providerUuid
-                )
-                .eq(
-                    "status",
-                    "active"
-                )
-                .order(
-                    "model_name",
-                    {
-                        ascending: true
-                    }
-                );
-
-            if (error) {
-                throw error;
-            }
-
-            models = data || [];
-
-            renderModels();
-        }
-
-
-        /* ==========================================================
-           RENDER MODELS
-        ========================================================== */
-
-        function renderModels() {
-
-            elements.model.innerHTML = "";
-
-            if (!models.length) {
-
-                elements.model.innerHTML = `
-                    <option value="">
-                        Tidak ada model aktif
-                    </option>
-                `;
-
-                elements.modelInfo.textContent =
-                    "Provider belum memiliki model aktif.";
-
-                return;
-            }
-
-            models.forEach(model => {
-
-                const option =
-                    document.createElement("option");
-
-                option.value =
-                    model.id;
-
-                option.dataset.modelId =
-                    model.model_id;
-
-                option.dataset.creditCost =
-                    model.credit_cost || 0;
-
-                const cost =
-                    model.credit_cost || 0;
-
-                option.textContent =
-                    `${model.model_name} • ${formatNumber(cost)} credit`;
-
-                elements.model.appendChild(
-                    option
-                );
-            });
-
-            updateModelInfo();
-        }
-
-
-        /* ==========================================================
-           MODEL CHANGE
-        ========================================================== */
-
-        elements.model.addEventListener(
-            "change",
-            updateModelInfo
-        );
-
-
-        function updateModelInfo() {
-
-            const option =
-                elements.model.selectedOptions[0];
-
-            if (!option) {
-
-                elements.modelInfo.textContent =
-                    "-";
-
-                return;
-            }
-
-            const modelId =
-                option.dataset.modelId ||
-                "";
-
-            const cost =
-                option.dataset.creditCost ||
-                "0";
-
-            elements.modelInfo.textContent =
-                `Model ID: ${modelId} • Biaya: ${formatNumber(cost)} credit`;
-        }
-
-
-        /* ==========================================================
-           IMAGE UPLOAD
-        ========================================================== */
-
-        elements.imageInput.addEventListener(
-            "change",
-            function () {
-
-                const file =
-                    this.files[0];
-
-                if (!file) {
-                    return;
-                }
-
-                selectedImageFile = file;
-
-                elements.imageFilename.textContent =
-                    file.name;
-
-                elements.imageUploadBox.classList.add(
-                    "has-file"
-                );
-
-                const objectUrl =
-                    URL.createObjectURL(file);
-
-                elements.imagePreview.src =
-                    objectUrl;
-
-                elements.imagePreviewArea.classList.add(
-                    "active"
-                );
-            }
-        );
-
-
-        /* ==========================================================
-           VIDEO UPLOAD
-        ========================================================== */
-
-        elements.videoInput.addEventListener(
-            "change",
-            function () {
-
-                const file =
-                    this.files[0];
-
-                if (!file) {
-                    return;
-                }
-
-                selectedVideoFile = file;
-
-                elements.videoFilename.textContent =
-                    file.name;
-
-                elements.videoUploadBox.classList.add(
-                    "has-file"
-                );
-
-                const objectUrl =
-                    URL.createObjectURL(file);
-
-                elements.videoPreview.src =
-                    objectUrl;
-
-                elements.videoPreviewArea.classList.add(
-                    "active"
-                );
-            }
-        );
-
-
-        /* ==========================================================
-           MENU
-        ========================================================== */
-
-        function setupMenu() {
-
-            elements.menuButton.addEventListener(
-                "click",
-                toggleMenu
-            );
-
-            elements.overlay.addEventListener(
-                "click",
-                closeMenu
-            );
-        }
-
-
-        function toggleMenu() {
-
-            elements.sidebar.classList.toggle(
-                "open"
-            );
-
-            elements.overlay.classList.toggle(
-                "active"
-            );
-        }
-
-
-        function closeMenu() {
-
-            elements.sidebar.classList.remove(
-                "open"
-            );
-
-            elements.overlay.classList.remove(
-                "active"
-            );
-        }
-
-
-        /* ==========================================================
-           EVENTS
-        ========================================================== */
-
-        function setupEvents() {
-
-            elements.logoutButton.addEventListener(
-                "click",
-                logout
-            );
-
-            elements.resetButton.addEventListener(
-                "click",
-                resetGenerator
-            );
-
-            elements.generateButton.addEventListener(
-                "click",
-                generateVideo
-            );
-        }
-
-
-        /* ==========================================================
-           LOGOUT
-        ========================================================== */
-
-        async function logout() {
-
-            elements.logoutButton.disabled =
-                true;
-
-            const {
-                error
-            } = await supabaseClient.auth.signOut();
-
-            if (error) {
-
-                console.error(
-                    "Logout error:",
-                    error
-                );
-
-                elements.logoutButton.disabled =
-                    false;
-
-                showMessage(
-                    "Gagal logout.",
-                    "error"
-                );
-
-                return;
-            }
+        if (!data.session) {
 
             window.location.replace(
                 "../login.html"
             );
+
+            return;
+
         }
 
+        currentUser =
+            data.session.user;
 
-        /* ==========================================================
-           RESET
-        ========================================================== */
+        await loadProfile();
 
-        function resetGenerator() {
+    }
 
-            elements.prompt.value = "";
 
-            elements.ratio.value =
-                "9:16";
+    /* ==========================================================
+       PROFILE
+    ========================================================== */
 
-            elements.duration.value =
-                "5";
+    async function loadProfile() {
 
-            elements.resolution.value =
-                "720p";
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("profiles")
+                .select(
+                    "id,email,name,role,credits,status"
+                )
+                .eq(
+                    "id",
+                    currentUser.id
+                )
+                .single();
 
-            elements.imageInput.value = "";
-            elements.videoInput.value = "";
-
-            selectedImageFile = null;
-            selectedVideoFile = null;
-
-            elements.imageFilename.textContent =
-                "";
-
-            elements.videoFilename.textContent =
-                "";
-
-            elements.imageUploadBox.classList.remove(
-                "has-file"
-            );
-
-            elements.videoUploadBox.classList.remove(
-                "has-file"
-            );
-
-            elements.imagePreviewArea.classList.remove(
-                "active"
-            );
-
-            elements.videoPreviewArea.classList.remove(
-                "active"
-            );
-
-            elements.imagePreview.removeAttribute(
-                "src"
-            );
-
-            elements.videoPreview.removeAttribute(
-                "src"
-            );
-
-            hideMessage();
+        if (error) {
+            throw error;
         }
 
+        if (!data) {
 
-        /* ==========================================================
-           GENERATE
-        ========================================================== */
-
-        async function generateVideo() {
-
-            const providerOption =
-                elements.provider.selectedOptions[0];
-
-            const modelOption =
-                elements.model.selectedOptions[0];
-
-            const prompt =
-                elements.prompt.value.trim();
-
-            if (!providerOption) {
-
-                showMessage(
-                    "Silakan pilih provider.",
-                    "warning"
-                );
-
-                return;
-            }
-
-            if (!modelOption) {
-
-                showMessage(
-                    "Silakan pilih model.",
-                    "warning"
-                );
-
-                return;
-            }
-
-            if (!prompt) {
-
-                showMessage(
-                    "Prompt belum diisi.",
-                    "warning"
-                );
-
-                elements.prompt.focus();
-
-                return;
-            }
-
-            const providerUuid =
-                providerOption.value;
-
-            const providerId =
-                providerOption.dataset.providerId;
-
-            const providerName =
-                providerOption.dataset.providerName;
-
-            const modelUuid =
-                modelOption.value;
-
-            const modelId =
-                modelOption.dataset.modelId;
-
-            const creditCost =
-                Number(
-                    modelOption.dataset.creditCost || 0
-                );
-
-            const ratio =
-                elements.ratio.value;
-
-            const duration =
-                elements.duration.value;
-
-            const resolution =
-                elements.resolution.value;
-
-            /*
-             * ======================================================
-             * DATA GENERATION
-             * ======================================================
-             */
-
-            const generationData = {
-
-                user_id:
-                    currentUser.id,
-
-                provider_uuid:
-                    providerUuid,
-
-                provider_id:
-                    providerId,
-
-                provider_name:
-                    providerName,
-
-                model_uuid:
-                    modelUuid,
-
-                model_id:
-                    modelId,
-
-                prompt:
-                    prompt,
-
-                ratio:
-                    ratio,
-
-                duration:
-                    Number(duration),
-
-                resolution:
-                    resolution,
-
-                credit_cost:
-                    creditCost,
-
-                image_reference:
-                    selectedImageFile
-                        ? selectedImageFile.name
-                        : null,
-
-                video_reference:
-                    selectedVideoFile
-                        ? selectedVideoFile.name
-                        : null
-            };
-
-            console.log(
-                "GEN-Z.AI GENERATION REQUEST",
-                generationData
+            throw new Error(
+                "Profil pengguna tidak ditemukan."
             );
 
-            /*
-             * ======================================================
-             * BACKEND ENGINE BELUM DIHUBUNGKAN
-             * ======================================================
-             *
-             * Jangan melakukan fake request.
-             *
-             * Tahap berikutnya akan menghubungkan:
-             *
-             * USER
-             *   ↓
-             * generate/index.html
-             *   ↓
-             * generation engine
-             *   ↓
-             * provider
-             *   ↓
-             * Kie.ai / ByteDance
-             *   ↓
-             * generation_history
-             *   ↓
-             * credit deduction
-             *
-             * Untuk sekarang hanya validasi UI.
-             */
-
-            setGenerateLoading(true);
-
-            showMessage(
-                `Permintaan siap diproses menggunakan ${providerName} / ${modelId}. Backend generation belum dihubungkan.`,
-                "info"
-            );
-
-            setTimeout(
-                function () {
-
-                    setGenerateLoading(false);
-
-                    showMessage(
-                        "Generator UI berhasil. Engine video belum dipanggil karena backend generation belum terhubung.",
-                        "warning"
-                    );
-
-                },
-                700
-            );
         }
 
-
-        /* ==========================================================
-           GENERATE BUTTON STATE
-        ========================================================== */
-
-        function setGenerateLoading(
-            loading
+        if (
+            data.status !== "active"
         ) {
 
-            elements.generateButton.disabled =
-                loading;
+            await supabaseClient.auth.signOut();
 
-            if (loading) {
-
-                elements.generateButton.innerHTML = `
-                    <span class="loading">
-                        <span class="spinner"></span>
-                        MENYIAPKAN...
-                    </span>
-                `;
-
-            } else {
-
-                elements.generateButton.textContent =
-                    "GENERATE VIDEO";
-            }
-        }
-
-
-        /* ==========================================================
-           MESSAGE
-        ========================================================== */
-
-        function showMessage(
-            text,
-            type = "info"
-        ) {
-
-            elements.message.textContent =
-                text;
-
-            elements.message.className =
-                `message show ${type}`;
-        }
-
-
-        function hideMessage() {
-
-            elements.message.textContent =
-                "";
-
-            elements.message.className =
-                "message";
-        }
-
-
-        /* ==========================================================
-           FORMAT NUMBER
-        ========================================================== */
-
-        function formatNumber(
-            number
-        ) {
-
-            return Number(
-                number || 0
-            ).toLocaleString(
-                "id-ID"
+            window.location.replace(
+                "../login.html"
             );
+
+            return;
+
         }
 
+        const allowedRoles = [
+            "USER",
+            "ADMIN",
+            "OWNER"
+        ];
 
-        /* ==========================================================
-           CLEANUP OBJECT URL
-        ========================================================== */
+        if (
+            !allowedRoles.includes(
+                data.role
+            )
+        ) {
 
-        window.addEventListener(
-            "beforeunload",
-            function () {
+            await supabaseClient.auth.signOut();
 
-                if (
-                    elements.imagePreview.src &&
-                    elements.imagePreview.src.startsWith(
-                        "blob:"
-                    )
-                ) {
-                    URL.revokeObjectURL(
-                        elements.imagePreview.src
-                    );
+            window.location.replace(
+                "../login.html"
+            );
+
+            return;
+
+        }
+
+        currentProfile = data;
+
+        renderUser();
+
+        await loadKieConfiguration();
+
+    }
+
+
+    /* ==========================================================
+       USER
+    ========================================================== */
+
+    function renderUser() {
+
+        elements.sidebarEmail.textContent =
+            currentProfile.email ||
+            currentUser.email ||
+            "-";
+
+        elements.creditBalance.textContent =
+            formatNumber(
+                currentProfile.credits || 0
+            );
+
+        elements.roleBadge.textContent =
+            currentProfile.role;
+
+        buildNavigation();
+
+    }
+
+
+    /* ==========================================================
+       NAVIGATION
+    ========================================================== */
+
+    function buildNavigation() {
+
+        const role =
+            currentProfile.role;
+
+        let html = "";
+
+        if (role === "USER") {
+
+            html = `
+                <a href="../user/dashboard.html">
+                    Dashboard
+                </a>
+
+                <a href="../history/index.html">
+                    History
+                </a>
+
+                <a href="../user/topup.html">
+                    Top Up
+                </a>
+
+                <a href="../user/hub-admin.html">
+                    Hub Admin
+                </a>
+            `;
+
+        } else {
+
+            html = `
+                <a href="../admin/dashboard.html">
+                    Dashboard
+                </a>
+
+                <a href="../history/index.html">
+                    History
+                </a>
+
+                <a href="../admin-control/admin-panel.html">
+                    Admin Panel
+                </a>
+            `;
+
+        }
+
+        elements.navigation.innerHTML =
+            html;
+
+    }
+
+
+    /* ==========================================================
+       KIE CONFIGURATION
+       ========================================================== */
+
+    async function loadKieConfiguration() {
+
+        showMessage(
+            "Memuat model KIE.AI dari Supabase...",
+            "info"
+        );
+
+        const {
+            data: sessionData,
+            error: sessionError
+        } =
+            await supabaseClient.auth.getSession();
+
+        if (sessionError) {
+            throw sessionError;
+        }
+
+        const session =
+            sessionData.session;
+
+        if (!session) {
+
+            window.location.replace(
+                "../login.html"
+            );
+
+            return;
+
+        }
+
+        const response =
+            await fetch(
+                "/api/kie-config",
+                {
+                    method: "GET",
+
+                    headers: {
+                        Authorization:
+                            `Bearer ${session.access_token}`,
+
+                        Accept:
+                            "application/json"
+                    }
                 }
+            );
 
-                if (
-                    elements.videoPreview.src &&
-                    elements.videoPreview.src.startsWith(
-                        "blob:"
-                    )
-                ) {
-                    URL.revokeObjectURL(
-                        elements.videoPreview.src
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data?.error ||
+                "Gagal memuat konfigurasi KIE.AI."
+            );
+
+        }
+
+        kieConfig =
+            data;
+
+        kieModels =
+            Array.isArray(
+                data.models
+            )
+                ? data.models
+                : [];
+
+        renderKieProvider();
+
+        hideMessage();
+
+    }
+
+
+    /* ==========================================================
+       PROVIDER
+       ========================================================== */
+
+    function renderKieProvider() {
+
+        elements.provider.innerHTML =
+            "";
+
+        if (!kieModels.length) {
+
+            elements.provider.innerHTML = `
+                <option value="">
+                    Tidak ada model KIE.AI
+                </option>
+            `;
+
+            elements.model.innerHTML = `
+                <option value="">
+                    Tidak ada model
+                </option>
+            `;
+
+            return;
+
+        }
+
+        const providerOption =
+            document.createElement(
+                "option"
+            );
+
+        providerOption.value =
+            "kie_ai";
+
+        providerOption.dataset.providerId =
+            "kie_ai";
+
+        providerOption.dataset.providerName =
+            "KIE.AI";
+
+        providerOption.textContent =
+            "KIE.AI";
+
+        elements.provider.appendChild(
+            providerOption
+        );
+
+        elements.provider.value =
+            "kie_ai";
+
+        renderKieModels();
+
+    }
+
+
+    /* ==========================================================
+       MODELS
+    ========================================================== */
+
+    function renderKieModels() {
+
+        elements.model.innerHTML =
+            "";
+
+        if (!kieModels.length) {
+
+            elements.model.innerHTML = `
+                <option value="">
+                    Tidak ada model aktif
+                </option>
+            `;
+
+            elements.modelInfo.textContent =
+                "-";
+
+            return;
+
+        }
+
+        kieModels.forEach(
+            model => {
+
+                const option =
+                    document.createElement(
+                        "option"
                     );
-                }
+
+                option.value =
+                    model.model_id ||
+                    model.id;
+
+                option.dataset.modelId =
+                    model.model_id ||
+                    "";
+
+                option.dataset.modelUuid =
+                    model.id ||
+                    "";
+
+                option.dataset.creditCost =
+                    model.credit_cost ||
+                    model.credit_final ||
+                    0;
+
+                option.textContent =
+                    model.model_name ||
+                    model.name ||
+                    model.model_id;
+
+                elements.model.appendChild(
+                    option
+                );
+
             }
         );
 
-    </script>
+        updateModelInfo();
+
+        loadModelConfiguration();
+
+    }
+
+
+    /* ==========================================================
+       MODEL CHANGE
+    ========================================================== */
+
+    elements.model.addEventListener(
+        "change",
+        async function () {
+
+            updateModelInfo();
+
+            await loadModelConfiguration();
+
+        }
+    );
+
+
+    function updateModelInfo() {
+
+        const option =
+            elements.model.selectedOptions[0];
+
+        if (!option) {
+
+            elements.modelInfo.textContent =
+                "-";
+
+            return;
+
+        }
+
+        const modelId =
+            option.dataset.modelId ||
+            "";
+
+        const model =
+            kieModels.find(
+                item =>
+                    (
+                        item.model_id ||
+                        item.id
+                    ) === modelId
+            );
+
+        const cost =
+            model?.credit_cost ??
+            model?.credit_final ??
+            option.dataset.creditCost ??
+            0;
+
+        elements.modelInfo.textContent =
+            `Model ID: ${modelId} • Biaya: ${formatNumber(cost)} credit`;
+
+    }
+
+
+    /* ==========================================================
+       MODEL CONFIG
+       ========================================================== */
+
+    async function loadModelConfiguration() {
+
+        const option =
+            elements.model.selectedOptions[0];
+
+        if (!option) {
+            return;
+        }
+
+        const modelId =
+            option.dataset.modelId;
+
+        if (!modelId) {
+            return;
+        }
+
+        try {
+
+            const {
+                data: sessionData
+            } =
+                await supabaseClient.auth.getSession();
+
+            const token =
+                sessionData?.session?.access_token;
+
+            if (!token) {
+                return;
+            }
+
+            showMessage(
+                "Memuat workflow dan parameter model...",
+                "info"
+            );
+
+            const response =
+                await fetch(
+                    `/api/kie-config?model_id=${encodeURIComponent(modelId)}`,
+                    {
+                        method: "GET",
+
+                        headers: {
+                            Authorization:
+                                `Bearer ${token}`,
+
+                            Accept:
+                                "application/json"
+                        }
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data?.error ||
+                    "Gagal memuat konfigurasi model."
+                );
+
+            }
+
+            kieConfig =
+                data;
+
+            buildDynamicParameters(
+                data
+            );
+
+            hideMessage();
+
+        } catch (error) {
+
+            console.error(
+                "KIE model configuration error:",
+                error
+            );
+
+            showMessage(
+                error.message ||
+                "Gagal memuat konfigurasi model.",
+                "error"
+            );
+
+        }
+
+    }
+
+
+    /* ==========================================================
+       DYNAMIC PARAMETERS
+       ========================================================== */
+
+    function buildDynamicParameters(
+        config
+    ) {
+
+        const parameters =
+            Array.isArray(
+                config.parameters
+            )
+                ? config.parameters
+                : [];
+
+        const ratioParameter =
+            findParameter(
+                parameters,
+                [
+                    "aspect_ratio",
+                    "aspectRatio",
+                    "ratio"
+                ]
+            );
+
+        const durationParameter =
+            findParameter(
+                parameters,
+                [
+                    "duration"
+                ]
+            );
+
+        const resolutionParameter =
+            findParameter(
+                parameters,
+                [
+                    "resolution"
+                ]
+            );
+
+        configureSelectFromParameter(
+            elements.ratio,
+            ratioParameter
+        );
+
+        configureSelectFromParameter(
+            elements.duration,
+            durationParameter
+        );
+
+        configureSelectFromParameter(
+            elements.resolution,
+            resolutionParameter
+        );
+
+        applyParameterDefaults(
+            elements.ratio,
+            ratioParameter
+        );
+
+        applyParameterDefaults(
+            elements.duration,
+            durationParameter
+        );
+
+        applyParameterDefaults(
+            elements.resolution,
+            resolutionParameter
+        );
+
+    }
+
+
+    function findParameter(
+        parameters,
+        names
+    ) {
+
+        return parameters.find(
+            parameter =>
+                names.includes(
+                    parameter.parameter_name
+                )
+        ) || null;
+
+    }
+
+
+    function configureSelectFromParameter(
+        select,
+        parameter
+    ) {
+
+        if (
+            !select ||
+            !parameter
+        ) {
+            return;
+        }
+
+        let values =
+            parameter.enum_values;
+
+        if (
+            typeof values === "string"
+        ) {
+
+            try {
+                values =
+                    JSON.parse(values);
+            } catch {
+                values = [];
+            }
+
+        }
+
+        if (
+            !Array.isArray(values) ||
+            !values.length
+        ) {
+
+            return;
+
+        }
+
+        select.innerHTML =
+            "";
+
+        values.forEach(
+            value => {
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+                option.value =
+                    String(value);
+
+                option.textContent =
+                    formatParameterLabel(
+                        parameter.parameter_name,
+                        value
+                    );
+
+                select.appendChild(
+                    option
+                );
+
+            }
+        );
+
+    }
+
+
+    function applyParameterDefaults(
+        select,
+        parameter
+    ) {
+
+        if (
+            !select ||
+            !parameter
+        ) {
+            return;
+        }
+
+        if (
+            parameter.default_value ===
+            null ||
+            parameter.default_value ===
+            undefined
+        ) {
+            return;
+        }
+
+        let value =
+            parameter.default_value;
+
+        if (
+            typeof value === "string"
+        ) {
+
+            try {
+                value =
+                    JSON.parse(value);
+            } catch {
+                // Keep original string.
+            }
+
+        }
+
+        const exists =
+            Array.from(
+                select.options
+            ).some(
+                option =>
+                    option.value ===
+                    String(value)
+            );
+
+        if (exists) {
+
+            select.value =
+                String(value);
+
+        }
+
+    }
+
+
+    function formatParameterLabel(
+        name,
+        value
+    ) {
+
+        const text =
+            String(value);
+
+        if (
+            name === "aspect_ratio"
+        ) {
+
+            return text;
+
+        }
+
+        if (
+            name === "duration"
+        ) {
+
+            return `${text} detik`;
+
+        }
+
+        return text;
+
+    }
+
+
+    /* ==========================================================
+       IMAGE UPLOAD
+       ========================================================== */
+
+    elements.imageInput.addEventListener(
+        "change",
+        function () {
+
+            const file =
+                this.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            selectedImageFile =
+                file;
+
+            elements.imageFilename.textContent =
+                file.name;
+
+            elements.imageUploadBox.classList.add(
+                "has-file"
+            );
+
+            const objectUrl =
+                URL.createObjectURL(
+                    file
+                );
+
+            elements.imagePreview.src =
+                objectUrl;
+
+            elements.imagePreviewArea.classList.add(
+                "active"
+            );
+
+        }
+    );
+
+
+    /* ==========================================================
+       VIDEO UPLOAD
+       ========================================================== */
+
+    elements.videoInput.addEventListener(
+        "change",
+        function () {
+
+            const file =
+                this.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            selectedVideoFile =
+                file;
+
+            elements.videoFilename.textContent =
+                file.name;
+
+            elements.videoUploadBox.classList.add(
+                "has-file"
+            );
+
+            const objectUrl =
+                URL.createObjectURL(
+                    file
+                );
+
+            elements.videoPreview.src =
+                objectUrl;
+
+            elements.videoPreviewArea.classList.add(
+                "active"
+            );
+
+        }
+    );
+
+
+    /* ==========================================================
+       MENU
+       ========================================================== */
+
+    function setupMenu() {
+
+        elements.menuButton.addEventListener(
+            "click",
+            toggleMenu
+        );
+
+        elements.overlay.addEventListener(
+            "click",
+            closeMenu
+        );
+
+    }
+
+
+    function toggleMenu() {
+
+        elements.sidebar.classList.toggle(
+            "open"
+        );
+
+        elements.overlay.classList.toggle(
+            "active"
+        );
+
+    }
+
+
+    function closeMenu() {
+
+        elements.sidebar.classList.remove(
+            "open"
+        );
+
+        elements.overlay.classList.remove(
+            "active"
+        );
+
+    }
+
+
+    /* ==========================================================
+       EVENTS
+       ========================================================== */
+
+    function setupEvents() {
+
+        elements.logoutButton.addEventListener(
+            "click",
+            logout
+        );
+
+        elements.resetButton.addEventListener(
+            "click",
+            resetGenerator
+        );
+
+        elements.generateButton.addEventListener(
+            "click",
+            generateVideo
+        );
+
+    }
+
+
+    /* ==========================================================
+       LOGOUT
+       ========================================================== */
+
+    async function logout() {
+
+        elements.logoutButton.disabled =
+            true;
+
+        const {
+            error
+        } =
+            await supabaseClient.auth.signOut();
+
+        if (error) {
+
+            console.error(
+                "Logout error:",
+                error
+            );
+
+            elements.logoutButton.disabled =
+                false;
+
+            showMessage(
+                "Gagal logout.",
+                "error"
+            );
+
+            return;
+
+        }
+
+        window.location.replace(
+            "../login.html"
+        );
+
+    }
+
+
+    /* ==========================================================
+       RESET
+       ========================================================== */
+
+    function resetGenerator() {
+
+        elements.prompt.value =
+            "";
+
+        selectedImageFile =
+            null;
+
+        selectedVideoFile =
+            null;
+
+        elements.imageInput.value =
+            "";
+
+        elements.videoInput.value =
+            "";
+
+        elements.imageFilename.textContent =
+            "";
+
+        elements.videoFilename.textContent =
+            "";
+
+        elements.imageUploadBox.classList.remove(
+            "has-file"
+        );
+
+        elements.videoUploadBox.classList.remove(
+            "has-file"
+        );
+
+        elements.imagePreviewArea.classList.remove(
+            "active"
+        );
+
+        elements.videoPreviewArea.classList.remove(
+            "active"
+        );
+
+        elements.imagePreview.removeAttribute(
+            "src"
+        );
+
+        elements.videoPreview.removeAttribute(
+            "src"
+        );
+
+        hideMessage();
+
+        if (kieConfig) {
+
+            buildDynamicParameters(
+                kieConfig
+            );
+
+        }
+
+    }
+
+
+    /* ==========================================================
+       BUILD GENERATION PARAMETERS
+       ========================================================== */
+
+    function buildGenerationParameters() {
+
+        const parameters =
+            Array.isArray(
+                kieConfig?.parameters
+            )
+                ? kieConfig.parameters
+                : [];
+
+        const values = {};
+
+        parameters.forEach(
+            parameter => {
+
+                const name =
+                    parameter.parameter_name;
+
+                if (!name) {
+                    return;
+                }
+
+                let value;
+
+                if (
+                    name === "prompt"
+                ) {
+
+                    value =
+                        elements.prompt.value.trim();
+
+                } else if (
+                    name === "aspect_ratio"
+                ) {
+
+                    value =
+                        elements.ratio.value;
+
+                } else if (
+                    name === "duration"
+                ) {
+
+                    value =
+                        elements.duration.value;
+
+                } else if (
+                    name === "resolution"
+                ) {
+
+                    value =
+                        elements.resolution.value;
+
+                } else {
+
+                    return;
+
+                }
+
+                if (
+                    value !== undefined &&
+                    value !== null &&
+                    value !== ""
+                ) {
+
+                    values[name] =
+                        value;
+
+                }
+
+            }
+        );
+
+        return values;
+
+    }
+
+
+    /* ==========================================================
+       GENERATE
+    ========================================================== */
+
+    async function generateVideo() {
+
+        const providerOption =
+            elements.provider.selectedOptions[0];
+
+        const modelOption =
+            elements.model.selectedOptions[0];
+
+        if (!providerOption) {
+
+            showMessage(
+                "Silakan pilih provider.",
+                "warning"
+            );
+
+            return;
+
+        }
+
+        if (!modelOption) {
+
+            showMessage(
+                "Silakan pilih model.",
+                "warning"
+            );
+
+            return;
+
+        }
+
+        if (
+            !elements.prompt.value.trim()
+        ) {
+
+            showMessage(
+                "Prompt belum diisi.",
+                "warning"
+            );
+
+            elements.prompt.focus();
+
+            return;
+
+        }
+
+        const modelId =
+            modelOption.dataset.modelId;
+
+        if (!modelId) {
+
+            showMessage(
+                "Model ID tidak ditemukan.",
+                "error"
+            );
+
+            return;
+
+        }
+
+        const parameters =
+            buildGenerationParameters();
+
+        const {
+            data: sessionData,
+            error: sessionError
+        } =
+            await supabaseClient.auth.getSession();
+
+        if (sessionError) {
+
+            showMessage(
+                sessionError.message,
+                "error"
+            );
+
+            return;
+
+        }
+
+        const session =
+            sessionData.session;
+
+        if (!session) {
+
+            window.location.replace(
+                "../login.html"
+            );
+
+            return;
+
+        }
+
+        setGenerateLoading(
+            true
+        );
+
+        showMessage(
+            "Mengirim permintaan ke KIE.AI...",
+            "info"
+        );
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/generate",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+
+                            Authorization:
+                                `Bearer ${session.access_token}`,
+
+                            Accept:
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    provider:
+                                        "kie_ai",
+
+                                    model:
+                                        modelId,
+
+                                    model_id:
+                                        modelId,
+
+                                    parameters,
+
+                                    prompt:
+                                        elements.prompt.value.trim(),
+
+                                    ratio:
+                                        elements.ratio.value,
+
+                                    duration:
+                                        elements.duration.value,
+
+                                    resolution:
+                                        elements.resolution.value
+                                }
+                            )
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                const errorText =
+                    Array.isArray(
+                        data?.errors
+                    )
+                        ? data.errors.join(
+                            " "
+                        )
+                        : data?.error ||
+                          "KIE.AI gagal memproses generate.";
+
+                throw new Error(
+                    errorText
+                );
+
+            }
+
+            if (!data.jobId) {
+
+                throw new Error(
+                    "KIE.AI menerima request tetapi task ID tidak ditemukan."
+                );
+
+            }
+
+            showMessage(
+                `Generate berhasil dikirim. Task ID: ${data.jobId}`,
+                "success"
+            );
+
+            console.log(
+                "GEN-Z.AI KIE TASK",
+                data
+            );
+
+        } catch (error) {
+
+            console.error(
+                "GEN-Z.AI generate error:",
+                error
+            );
+
+            showMessage(
+                error.message ||
+                "Gagal mengirim generate.",
+                "error"
+            );
+
+        } finally {
+
+            setGenerateLoading(
+                false
+            );
+
+        }
+
+    }
+
+
+    /* ==========================================================
+       BUTTON LOADING
+    ========================================================== */
+
+    function setGenerateLoading(
+        loading
+    ) {
+
+        elements.generateButton.disabled =
+            loading;
+
+        if (loading) {
+
+            elements.generateButton.innerHTML = `
+                <span class="loading">
+                    <span class="spinner"></span>
+                    MENGIRIM...
+                </span>
+            `;
+
+        } else {
+
+            elements.generateButton.textContent =
+                "GENERATE VIDEO";
+
+        }
+
+    }
+
+
+    /* ==========================================================
+       MESSAGE
+    ========================================================== */
+
+    function showMessage(
+        text,
+        type = "info"
+    ) {
+
+        elements.message.textContent =
+            text;
+
+        elements.message.className =
+            `message show ${type}`;
+
+    }
+
+
+    function hideMessage() {
+
+        elements.message.textContent =
+            "";
+
+        elements.message.className =
+            "message";
+
+    }
+
+
+    /* ==========================================================
+       FORMAT NUMBER
+    ========================================================== */
+
+    function formatNumber(
+        number
+    ) {
+
+        return Number(
+            number || 0
+        ).toLocaleString(
+            "id-ID"
+        );
+
+    }
+
+
+    /* ==========================================================
+       CLEANUP
+    ========================================================== */
+
+    window.addEventListener(
+        "beforeunload",
+        function () {
+
+            if (
+                elements.imagePreview.src &&
+                elements.imagePreview.src.startsWith(
+                    "blob:"
+                )
+            ) {
+
+                URL.revokeObjectURL(
+                    elements.imagePreview.src
+                );
+
+            }
+
+            if (
+                elements.videoPreview.src &&
+                elements.videoPreview.src.startsWith(
+                    "blob:"
+                )
+            ) {
+
+                URL.revokeObjectURL(
+                    elements.videoPreview.src
+                );
+
+            }
+
+        }
+    );
+
+</script>
 
 </body>
 </html>
