@@ -97,7 +97,8 @@ const verifyAdmin = async (
         return {
             ok: false,
             status: 401,
-            error: "Session tidak ditemukan."
+            error:
+                "Session tidak ditemukan."
         };
     }
 
@@ -251,6 +252,62 @@ const parseBody = (req) => {
 };
 
 // ========================================
+// GET PROVIDER ID
+// ========================================
+
+const getProviderId = (req) => {
+
+    const body =
+        parseBody(req);
+
+    const query =
+        req.query || {};
+
+    return String(
+        body.provider_id ||
+        body.providerId ||
+        query.provider_id ||
+        query.providerId ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+};
+
+// ========================================
+// VALIDATE PROVIDER ID
+// ========================================
+
+const validateProviderId = (
+    providerId
+) => {
+
+    if (!providerId) {
+        return {
+            ok: false,
+            error:
+                "Provider ID wajib diisi."
+        };
+    }
+
+    if (
+        !/^[a-z0-9_-]+$/.test(
+            providerId
+        )
+    ) {
+        return {
+            ok: false,
+            error:
+                "Provider ID tidak valid."
+        };
+    }
+
+    return {
+        ok: true
+    };
+};
+
+// ========================================
 // ENCRYPT API KEY
 // ========================================
 
@@ -258,6 +315,7 @@ const encryptApiKey = (
     apiKey,
     encryptionKey
 ) => {
+
     const crypto =
         require("crypto");
 
@@ -267,7 +325,9 @@ const encryptApiKey = (
             "hex"
         );
 
-    if (key.length !== 32) {
+    if (
+        key.length !== 32
+    ) {
         throw new Error(
             "PROVIDER_CREDENTIAL_ENCRYPTION_KEY harus 64 karakter hexadecimal."
         );
@@ -314,6 +374,127 @@ const encryptApiKey = (
 };
 
 // ========================================
+// SAVE CREDENTIAL
+// ========================================
+
+const saveCredential = async (
+    config,
+    providerId,
+    apiKey
+) => {
+
+    const encrypted =
+        encryptApiKey(
+            apiKey,
+            process.env
+                .PROVIDER_CREDENTIAL_ENCRYPTION_KEY
+        );
+
+    const response =
+        await fetch(
+            `${config.url}/rest/v1/provider_credentials?on_conflict=provider_id`,
+            {
+                method: "POST",
+
+                headers: {
+                    apikey:
+                        config.serviceRoleKey,
+
+                    Authorization:
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    Prefer:
+                        "resolution=merge-duplicates,return=minimal"
+                },
+
+                body:
+                    JSON.stringify({
+                        provider_id:
+                            providerId,
+
+                        api_key_ciphertext:
+                            encrypted.ciphertext,
+
+                        api_key_iv:
+                            encrypted.iv,
+
+                        api_key_tag:
+                            encrypted.tag,
+
+                        updated_at:
+                            new Date()
+                                .toISOString()
+                    })
+            }
+        );
+
+    if (!response.ok) {
+
+        const text =
+            await response.text();
+
+        console.error(
+            "PROVIDER CREDENTIAL SAVE ERROR:",
+            text
+        );
+
+        throw new Error(
+            "Gagal menyimpan credential provider."
+        );
+    }
+};
+
+// ========================================
+// DELETE CREDENTIAL
+// ========================================
+
+const deleteCredential = async (
+    config,
+    providerId
+) => {
+
+    const response =
+        await fetch(
+            `${config.url}/rest/v1/provider_credentials?provider_id=eq.${encodeURIComponent(providerId)}`,
+            {
+                method: "DELETE",
+
+                headers: {
+                    apikey:
+                        config.serviceRoleKey,
+
+                    Authorization:
+                        `Bearer ${config.serviceRoleKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    Prefer:
+                        "return=minimal"
+                }
+            }
+        );
+
+    if (!response.ok) {
+
+        const text =
+            await response.text();
+
+        console.error(
+            "PROVIDER CREDENTIAL DELETE ERROR:",
+            text
+        );
+
+        throw new Error(
+            "Gagal menghapus API key provider."
+        );
+    }
+};
+
+// ========================================
 // MAIN HANDLER
 // ========================================
 
@@ -321,6 +502,7 @@ export default async function handler(
     req,
     res
 ) {
+
     res.setHeader(
         "Access-Control-Allow-Origin",
         "*"
@@ -333,8 +515,12 @@ export default async function handler(
 
     res.setHeader(
         "Access-Control-Allow-Methods",
-        "POST, OPTIONS"
+        "POST, DELETE, OPTIONS"
     );
+
+    // ====================================
+    // PREFLIGHT
+    // ====================================
 
     if (
         req.method === "OPTIONS"
@@ -344,19 +530,9 @@ export default async function handler(
             .end();
     }
 
-    if (
-        req.method !== "POST"
-    ) {
-        return json(
-            res,
-            405,
-            {
-                success: false,
-                error:
-                    "Method tidak diizinkan."
-            }
-        );
-    }
+    // ====================================
+    // CONFIG
+    // ====================================
 
     const config =
         getSupabaseConfig();
@@ -390,6 +566,10 @@ export default async function handler(
         );
     }
 
+    // ====================================
+    // VERIFY ENCRYPTION KEY
+    // ====================================
+
     if (
         !process.env
             .PROVIDER_CREDENTIAL_ENCRYPTION_KEY
@@ -405,15 +585,22 @@ export default async function handler(
         );
     }
 
+    // ====================================
+    // VERIFY ADMIN
+    // ====================================
+
     let admin;
 
     try {
+
         admin =
             await verifyAdmin(
                 req,
                 config
             );
+
     } catch (error) {
+
         console.error(
             "ADMIN VERIFY ERROR:",
             error
@@ -431,6 +618,7 @@ export default async function handler(
     }
 
     if (!admin.ok) {
+
         return json(
             res,
             admin.status,
@@ -438,6 +626,94 @@ export default async function handler(
                 success: false,
                 error:
                     admin.error
+            }
+        );
+    }
+
+    // ====================================
+    // DELETE
+    // ====================================
+
+    if (
+        req.method === "DELETE"
+    ) {
+
+        const providerId =
+            getProviderId(req);
+
+        const validation =
+            validateProviderId(
+                providerId
+            );
+
+        if (!validation.ok) {
+
+            return json(
+                res,
+                400,
+                {
+                    success: false,
+                    error:
+                        validation.error
+                }
+            );
+        }
+
+        try {
+
+            await deleteCredential(
+                config,
+                providerId
+            );
+
+            return json(
+                res,
+                200,
+                {
+                    success: true,
+
+                    deleted: true,
+
+                    provider_id:
+                        providerId
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                "PROVIDER CREDENTIAL DELETE ERROR:",
+                error
+            );
+
+            return json(
+                res,
+                500,
+                {
+                    success: false,
+                    error:
+                        error.message ||
+                        "Gagal menghapus API key provider."
+                }
+            );
+        }
+    }
+
+    // ====================================
+    // POST
+    // ====================================
+
+    if (
+        req.method !== "POST"
+    ) {
+
+        return json(
+            res,
+            405,
+            {
+                success: false,
+                error:
+                    "Method tidak diizinkan."
             }
         );
     }
@@ -461,19 +737,34 @@ export default async function handler(
             ""
         ).trim();
 
-    if (!providerId) {
+    // ====================================
+    // VALIDATE PROVIDER
+    // ====================================
+
+    const validation =
+        validateProviderId(
+            providerId
+        );
+
+    if (!validation.ok) {
+
         return json(
             res,
             400,
             {
                 success: false,
                 error:
-                    "Provider ID wajib diisi."
+                    validation.error
             }
         );
     }
 
+    // ====================================
+    // VALIDATE API KEY
+    // ====================================
+
     if (!apiKey) {
+
         return json(
             res,
             400,
@@ -485,102 +776,31 @@ export default async function handler(
         );
     }
 
-    if (
-        !/^[a-z0-9_-]+$/.test(
-            providerId
-        )
-    ) {
-        return json(
-            res,
-            400,
-            {
-                success: false,
-                error:
-                    "Provider ID tidak valid."
-            }
-        );
-    }
+    // ====================================
+    // SAVE
+    // ====================================
 
     try {
-        const encrypted =
-            encryptApiKey(
-                apiKey,
-                process.env
-                    .PROVIDER_CREDENTIAL_ENCRYPTION_KEY
-            );
 
-        const response =
-            await fetch(
-                `${config.url}/rest/v1/provider_credentials?on_conflict=provider_id`,
-                {
-                    method: "POST",
-
-                    headers: {
-                        apikey:
-                            config.serviceRoleKey,
-
-                        Authorization:
-                            `Bearer ${config.serviceRoleKey}`,
-
-                        "Content-Type":
-                            "application/json",
-
-                        Prefer:
-                            "resolution=merge-duplicates,return=minimal"
-                    },
-
-                    body:
-                        JSON.stringify({
-                            provider_id:
-                                providerId,
-
-                            api_key_ciphertext:
-                                encrypted.ciphertext,
-
-                            api_key_iv:
-                                encrypted.iv,
-
-                            api_key_tag:
-                                encrypted.tag,
-
-                            updated_at:
-                                new Date()
-                                    .toISOString()
-                        })
-                }
-            );
-
-        if (!response.ok) {
-            const text =
-                await response.text();
-
-            console.error(
-                "PROVIDER CREDENTIAL SAVE ERROR:",
-                text
-            );
-
-            return json(
-                res,
-                500,
-                {
-                    success: false,
-                    error:
-                        "Gagal menyimpan credential provider."
-                }
-            );
-        }
+        await saveCredential(
+            config,
+            providerId,
+            apiKey
+        );
 
         return json(
             res,
             200,
             {
                 success: true,
+
                 provider_id:
                     providerId
             }
         );
 
     } catch (error) {
+
         console.error(
             "PROVIDER CREDENTIAL ERROR:",
             error
