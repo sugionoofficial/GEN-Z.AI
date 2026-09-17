@@ -475,32 +475,62 @@
     async function openCreateForm() {
     editingModel = null;
 
-    clearForm();
-
-    setFormMode("create");
+    /*
+     * Modal dibuka PALING AWAL.
+     * Jangan biarkan proses reset form atau
+     * Supabase menghalangi modal.
+     */
+    try {
+        openModal();
+    } catch (error) {
+        console.error(
+            "[models-form] Gagal membuka modal:",
+            error
+        );
+    }
 
     /*
-     * Modal harus dibuka terlebih dahulu.
-     * Jangan menunggu Supabase/provider selesai,
-     * karena jika request lambat atau gagal,
-     * tombol "Tambah Model" akan terlihat tidak bekerja.
+     * Reset form setelah modal sudah terlihat.
+     * Jika ada error, modal tetap terbuka.
      */
-    openModal();
+    try {
+        clearForm();
+    } catch (error) {
+        console.error(
+            "[models-form] Gagal reset form:",
+            error
+        );
+    }
+
+    try {
+        setFormMode("create");
+    } catch (error) {
+        console.error(
+            "[models-form] Gagal mengatur mode create:",
+            error
+        );
+    }
 
     const search =
-        getElement(
-            "modelCodeSearch"
-        );
+        getElement("modelCodeSearch");
 
     if (search) {
         window.setTimeout(() => {
-            search.focus();
+            try {
+                search.focus();
+            } catch (error) {
+                console.warn(
+                    "[models-form] Gagal focus modelCodeSearch:",
+                    error
+                );
+            }
         }, 100);
     }
 
     /*
-     * Provider dimuat setelah modal terbuka.
-     * Jika gagal, modal tetap terbuka.
+     * Provider dimuat SETELAH modal terbuka.
+     * Kegagalan provider tidak boleh membuat
+     * tombol Tambah Model terlihat mati.
      */
     try {
         await loadProviders({
@@ -514,7 +544,7 @@
         );
 
         notify(
-            "Provider gagal dimuat dari Supabase. Silakan coba lagi.",
+            "Provider gagal dimuat dari Supabase.",
             "warning"
         );
     }
