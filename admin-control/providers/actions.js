@@ -193,6 +193,39 @@
     }
 
     // ========================================
+    // GET PROVIDER REFERENCE ID
+    // ========================================
+    //
+    // PENTING:
+    // Relasi provider dan credential
+    // menggunakan provider_id yang sama.
+    //
+    // providers.provider_id
+    // =
+    // provider_credentials.provider_id
+    //
+    // Jangan gunakan provider.id untuk
+    // menghapus credential.
+    // ========================================
+
+    function getProviderReferenceId(
+        provider
+    ) {
+        const providerId =
+            String(
+                provider?.provider_id || ""
+            ).trim();
+
+        if (!providerId) {
+            throw new Error(
+                "Provider ID tidak ditemukan."
+            );
+        }
+
+        return providerId;
+    }
+
+    // ========================================
     // EDIT
     // ========================================
 
@@ -312,20 +345,27 @@
     }
 
     // ========================================
-    // DELETE API KEY
+    // DELETE API KEY / CREDENTIAL
+    // ========================================
+    //
+    // Credential dihapus berdasarkan:
+    //
+    // provider_credentials.provider_id
+    // =
+    // providers.provider_id
+    //
+    // BUKAN berdasarkan providers.id.
     // ========================================
 
     async function deleteProviderCredential(
         providerId
     ) {
-        const providerPublicId =
+        const providerReferenceId =
             String(
                 providerId || ""
-            )
-                .trim()
-                .toLowerCase();
+            ).trim();
 
-        if (!providerPublicId) {
+        if (!providerReferenceId) {
             throw new Error(
                 "Provider ID untuk API key tidak ditemukan."
             );
@@ -361,7 +401,7 @@
                     body:
                         JSON.stringify({
                             provider_id:
-                                providerPublicId
+                                providerReferenceId
                         })
                 }
             );
@@ -388,6 +428,16 @@
     // ========================================
     // DELETE PROVIDER
     // ========================================
+    //
+    // URUTAN:
+    //
+    // 1. Ambil providers.provider_id
+    // 2. Hapus credential dengan provider_id
+    // 3. Hapus provider dengan provider_id
+    //
+    // Tidak menggunakan provider.id sebagai
+    // referensi hubungan credential.
+    // ========================================
 
     async function deleteProvider(
         databaseId,
@@ -404,9 +454,18 @@
             );
         }
 
+        // ====================================
+        // SATU-SATUNYA REFERENSI RELASI
+        // ====================================
+
+        const providerReferenceId =
+            getProviderReferenceId(
+                provider
+            );
+
         const providerName =
             provider.provider_name ||
-            provider.provider_id ||
+            providerReferenceId ||
             "provider ini";
 
         const confirmed =
@@ -428,29 +487,6 @@
         await supabaseModule
             .requireSession();
 
-        const databaseIdValue =
-            provider.id ||
-            provider.uuid;
-
-        if (!databaseIdValue) {
-            throw new Error(
-                "ID database provider tidak ditemukan."
-            );
-        }
-
-        const providerPublicId =
-            String(
-                provider.provider_id || ""
-            )
-                .trim()
-                .toLowerCase();
-
-        if (!providerPublicId) {
-            throw new Error(
-                "Provider ID tidak ditemukan."
-            );
-        }
-
         setButtonBusy(
             button,
             true
@@ -460,24 +496,63 @@
 
             // ====================================
             // STEP 1
-            // HAPUS API KEY
+            // HAPUS CREDENTIAL
+            // ====================================
+            //
+            // providers.provider_id
+            // =
+            // provider_credentials.provider_id
+            //
+            // Nilai providerReferenceId yang sama
+            // dikirim ke endpoint credential.
             // ====================================
 
-            await deleteProviderCredential(
-                providerPublicId
+            const credentialResult =
+                await deleteProviderCredential(
+                    providerReferenceId
+                );
+
+            const deletedCredentialCount =
+                Number(
+                    credentialResult?.deleted_count || 0
+                );
+
+            console.log(
+                "[GEN-Z.AI] Credential provider dihapus:",
+                {
+                    provider_id:
+                        providerReferenceId,
+
+                    deleted_count:
+                        deletedCredentialCount
+                }
             );
 
             // ====================================
             // STEP 2
             // HAPUS PROVIDER
             // ====================================
+            //
+            // PENTING:
+            // Penghapusan provider juga memakai
+            // provider_id yang sama.
+            //
+            // RPC yang dipakai:
+            //
+            // admin_delete_provider
+            //
+            // dengan:
+            //
+            // p_provider_id
+            //
+            // ====================================
 
             const result =
                 await supabase.rpc(
                     "admin_delete_provider",
                     {
-                        p_id:
-                            databaseIdValue
+                        p_provider_id:
+                            providerReferenceId
                     }
                 );
 
@@ -499,7 +574,7 @@
                     "function"
             ) {
                 apiKeyModule.clearStatus(
-                    providerPublicId
+                    providerReferenceId
                 );
             }
 
@@ -511,8 +586,15 @@
             await getList()
                 .refresh();
 
+            // ====================================
+            // STEP 5
+            // SUCCESS MESSAGE
+            // ====================================
+
             showPageMessage(
-                "Provider dan API key berhasil dihapus.",
+                deletedCredentialCount > 0
+                    ? `Provider berhasil dihapus. ${deletedCredentialCount} API key/credential ikut dihapus.`
+                    : "Provider berhasil dihapus. Tidak ada credential yang tersisa.",
                 "success"
             );
 
