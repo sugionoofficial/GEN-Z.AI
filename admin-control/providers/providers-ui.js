@@ -24,53 +24,8 @@
             : "inactive";
     }
 
-    function renderActions(provider) {
-        const id = provider.id || provider.uuid || "";
-
-        const status = normalizeStatus(provider.status);
-
-        const toggleText =
-            status === "active"
-                ? "Nonaktifkan"
-                : "Aktifkan";
-
-        const toggleClass =
-            status === "active"
-                ? "provider-btn-warning"
-                : "provider-btn-success";
-
-        return `
-            <div class="provider-actions">
-
-                <button
-                    type="button"
-                    class="provider-action-btn provider-btn-edit"
-                    data-provider-action="edit"
-                    data-provider-id="${escapeHtml(id)}">
-                    ✏️ Edit
-                </button>
-
-                <button
-                    type="button"
-                    class="provider-action-btn ${toggleClass}"
-                    data-provider-action="toggle"
-                    data-provider-id="${escapeHtml(id)}">
-                    ${status === "active" ? "⏸️" : "▶️"} ${toggleText}
-                </button>
-
-                <button
-                    type="button"
-                    class="provider-action-btn provider-btn-delete"
-                    data-provider-action="delete"
-                    data-provider-id="${escapeHtml(id)}">
-                    🗑️ Hapus
-                </button>
-
-            </div>
-        `;
-    }
-
     function renderProviderCard(provider) {
+
         const databaseId =
             provider.id ||
             provider.uuid ||
@@ -89,12 +44,27 @@
             "Tidak ada deskripsi.";
 
         const status =
-            normalizeStatus(provider.status);
+            normalizeStatus(
+                provider.status
+            );
 
         const statusText =
             status === "active"
                 ? "AKTIF"
                 : "NONAKTIF";
+
+        // FIX UTAMA:
+        // toggleClass sekarang dibuat
+        // DI DALAM renderProviderCard().
+        const toggleClass =
+            status === "active"
+                ? "provider-btn-warning"
+                : "provider-btn-success";
+
+        const toggleText =
+            status === "active"
+                ? "⏸️ Nonaktifkan"
+                : "▶️ Aktifkan";
 
         const createdAt =
             provider.created_at
@@ -111,6 +81,7 @@
                     position:relative;
                     width:100%;
                     margin-bottom:16px;
+                    overflow:visible;
                 "
             >
 
@@ -123,7 +94,8 @@
                         </h3>
 
                         <div class="provider-id">
-                            ID: ${escapeHtml(providerId)}
+                            ID:
+                            ${escapeHtml(providerId)}
                         </div>
 
                     </div>
@@ -151,7 +123,8 @@
                     </div>
 
                     <div class="provider-meta">
-                        Dibuat: ${escapeHtml(createdAt)}
+                        Dibuat:
+                        ${escapeHtml(createdAt)}
                     </div>
 
                     ${
@@ -166,74 +139,213 @@
 
                 </div>
 
+                <!-- AKSI PROVIDER -->
+
                 <div
                     class="provider-actions"
                     style="
                         display:flex !important;
                         flex-wrap:wrap !important;
                         gap:8px !important;
+
                         margin-top:18px !important;
                         padding-top:14px !important;
-                        border-top:1px solid rgba(255,255,255,.08) !important;
+
+                        border-top:
+                            1px solid
+                            rgba(255,255,255,.10)
+                            !important;
+
                         position:relative !important;
-                        z-index:999 !important;
+                        z-index:9999 !important;
+
                         visibility:visible !important;
                         opacity:1 !important;
+
+                        pointer-events:auto !important;
                     "
                 >
 
+                    <!-- EDIT -->
+
                     <button
                         type="button"
-                        class="provider-action-btn provider-btn-edit"
+                        class="
+                            provider-action-btn
+                            provider-btn-edit
+                        "
                         data-provider-action="edit"
                         data-provider-id="${escapeHtml(databaseId)}"
                         style="
                             display:inline-flex !important;
                             align-items:center !important;
                             justify-content:center !important;
+
                             min-height:40px !important;
-                            padding:8px 14px !important;
-                            cursor:pointer !important;
-                            pointer-events:auto !important;
-                            z-index:1000 !important;
+
+                            padding:
+                                8px 16px
+                                !important;
+
+                            border-radius:
+                                10px
+                                !important;
+
+                            background:
+                                rgba(99,102,241,.25)
+                                !important;
+
+                            border:
+                                1px solid
+                                rgba(99,102,241,.65)
+                                !important;
+
+                            color:#ffffff
+                                !important;
+
+                            cursor:pointer
+                                !important;
+
+                            pointer-events:auto
+                                !important;
+
+                            visibility:visible
+                                !important;
+
+                            opacity:1
+                                !important;
+
+                            z-index:10000
+                                !important;
                         "
                     >
                         ✏️ Edit
                     </button>
 
+
+                    <!-- AKTIF / NONAKTIF -->
+
                     <button
                         type="button"
-                        class="provider-action-btn ${toggleClass}"
+                        class="
+                            provider-action-btn
+                            ${toggleClass}
+                        "
                         data-provider-action="toggle"
                         data-provider-id="${escapeHtml(databaseId)}"
                         style="
                             display:inline-flex !important;
                             align-items:center !important;
                             justify-content:center !important;
+
                             min-height:40px !important;
-                            padding:8px 14px !important;
-                            cursor:pointer !important;
-                            pointer-events:auto !important;
-                            z-index:1000 !important;
+
+                            padding:
+                                8px 16px
+                                !important;
+
+                            border-radius:
+                                10px
+                                !important;
+
+                            ${
+                                status === "active"
+                                    ? `
+                                        background:
+                                            rgba(245,158,11,.25)
+                                            !important;
+
+                                        border:
+                                            1px solid
+                                            rgba(245,158,11,.65)
+                                            !important;
+                                    `
+                                    : `
+                                        background:
+                                            rgba(34,197,94,.25)
+                                            !important;
+
+                                        border:
+                                            1px solid
+                                            rgba(34,197,94,.65)
+                                            !important;
+                                    `
+                            }
+
+                            color:#ffffff
+                                !important;
+
+                            cursor:pointer
+                                !important;
+
+                            pointer-events:auto
+                                !important;
+
+                            visibility:visible
+                                !important;
+
+                            opacity:1
+                                !important;
+
+                            z-index:10000
+                                !important;
                         "
                     >
-                        ${status === "active" ? "⏸️ Nonaktifkan" : "▶️ Aktifkan"}
+                        ${toggleText}
                     </button>
+
+
+                    <!-- HAPUS -->
 
                     <button
                         type="button"
-                        class="provider-action-btn provider-btn-delete"
+                        class="
+                            provider-action-btn
+                            provider-btn-delete
+                        "
                         data-provider-action="delete"
                         data-provider-id="${escapeHtml(databaseId)}"
                         style="
                             display:inline-flex !important;
                             align-items:center !important;
                             justify-content:center !important;
+
                             min-height:40px !important;
-                            padding:8px 14px !important;
-                            cursor:pointer !important;
-                            pointer-events:auto !important;
-                            z-index:1000 !important;
+
+                            padding:
+                                8px 16px
+                                !important;
+
+                            border-radius:
+                                10px
+                                !important;
+
+                            background:
+                                rgba(239,68,68,.25)
+                                !important;
+
+                            border:
+                                1px solid
+                                rgba(239,68,68,.65)
+                                !important;
+
+                            color:#ffffff
+                                !important;
+
+                            cursor:pointer
+                                !important;
+
+                            pointer-events:auto
+                                !important;
+
+                            visibility:visible
+                                !important;
+
+                            opacity:1
+                                !important;
+
+                            z-index:10000
+                                !important;
                         "
                     >
                         🗑️ Hapus
@@ -245,7 +357,9 @@
         `;
     }
 
+
     function renderProviders(providers) {
+
         currentProviders =
             Array.isArray(providers)
                 ? providers
@@ -257,28 +371,46 @@
             getElement("providerPanel");
 
         if (!container) {
+
             console.error(
                 "[GEN-Z.AI] Container provider tidak ditemukan."
             );
+
             return;
         }
 
-        if (currentProviders.length === 0) {
-            renderEmptyState(container);
+        if (
+            currentProviders.length === 0
+        ) {
+
+            renderEmptyState(
+                container
+            );
+
             updateStats([]);
+
             return;
         }
 
         container.innerHTML =
             currentProviders
-                .map(renderProviderCard)
+                .map(
+                    renderProviderCard
+                )
                 .join("");
 
-        updateStats(currentProviders);
+        updateStats(
+            currentProviders
+        );
     }
 
-    function renderEmptyState(container) {
+
+    function renderEmptyState(
+        container
+    ) {
+
         container.innerHTML = `
+
             <div
                 class="provider-empty"
                 style="
@@ -286,6 +418,7 @@
                     text-align:center;
                 "
             >
+
                 <div
                     style="
                         font-size:32px;
@@ -295,41 +428,60 @@
                     ＋
                 </div>
 
-                <h3>Belum ada provider</h3>
+                <h3>
+                    Belum ada provider
+                </h3>
 
                 <p>
                     Tambahkan provider AI
                     untuk mulai menggunakan
                     engine GEN-Z.AI.
                 </p>
+
             </div>
+
         `;
     }
 
-    function updateStats(providers) {
+
+    function updateStats(
+        providers
+    ) {
+
         const list =
             Array.isArray(providers)
                 ? providers
                 : [];
 
-        const total = list.length;
+        const total =
+            list.length;
 
         const active =
-            list.filter(function (provider) {
-                return normalizeStatus(
-                    provider.status
-                ) === "active";
-            }).length;
+            list.filter(
+                function (provider) {
+
+                    return (
+                        normalizeStatus(
+                            provider.status
+                        ) === "active"
+                    );
+
+                }
+            ).length;
 
         const inactive =
             total - active;
 
         const defaults =
-            list.filter(function (provider) {
-                return Boolean(
-                    provider.is_default
-                );
-            }).length;
+            list.filter(
+                function (provider) {
+
+                    return Boolean(
+                        provider.is_default
+                    );
+
+                }
+            ).length;
 
         setText(
             [
@@ -368,37 +520,55 @@
         );
     }
 
-    function setText(ids, value) {
-        ids.some(function (id) {
-            const element =
-                getElement(id);
 
-            if (!element) {
-                return false;
+    function setText(
+        ids,
+        value
+    ) {
+
+        ids.some(
+            function (id) {
+
+                const element =
+                    getElement(id);
+
+                if (!element) {
+                    return false;
+                }
+
+                element.textContent =
+                    String(value);
+
+                return true;
             }
-
-            element.textContent =
-                String(value);
-
-            return true;
-        });
+        );
     }
 
-    function findProvider(providerId) {
+
+    function findProvider(
+        providerId
+    ) {
+
         return (
             currentProviders.find(
                 function (provider) {
-                    return String(
-                        provider.id ||
-                        provider.uuid ||
-                        ""
-                    ) === String(
-                        providerId
+
+                    return (
+                        String(
+                            provider.id ||
+                            provider.uuid ||
+                            ""
+                        ) ===
+                        String(
+                            providerId
+                        )
                     );
+
                 }
             ) || null
         );
     }
+
 
     window.GENZProvidersUI = {
 
@@ -412,11 +582,12 @@
 
         findProvider,
 
-        getProviders: function () {
-            return [
-                ...currentProviders
-            ];
-        }
+        getProviders:
+            function () {
+                return [
+                    ...currentProviders
+                ];
+            }
 
     };
 
