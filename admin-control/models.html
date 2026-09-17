@@ -53,6 +53,10 @@
                 sans-serif;
         }
 
+        body.modal-open {
+            overflow: hidden;
+        }
+
         button,
         input,
         select,
@@ -333,6 +337,12 @@
             z-index: 4800;
             background: rgba(0, 0, 0, .60);
             display: none;
+            pointer-events: none;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+            pointer-events: auto;
         }
 
         /* =====================================================
@@ -711,350 +721,325 @@
         }
 
         /* =====================================================
-   MODAL
-===================================================== */
+           MODAL
+        ===================================================== */
 
-/*
- * DEFAULT:
- * Modal benar-benar tidak aktif ketika tertutup.
- * Ini penting agar overlay tidak menangkap klik navigasi.
- */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
 
-    display: none;
+            display: none;
 
-    align-items: center;
-    justify-content: center;
+            align-items: center;
+            justify-content: center;
 
-    padding: 20px;
+            padding: 20px;
 
-    background: rgba(0, 0, 0, .72);
+            background: rgba(0, 0, 0, .72);
 
-    /*
-     * Lebih tinggi dari sidebar.
-     */
-    z-index: 30000;
+            /*
+             * Lebih tinggi dari sidebar.
+             */
+            z-index: 30000;
 
-    /*
-     * KUNCI UTAMA:
-     * Overlay tertutup tidak boleh menerima klik.
-     */
-    pointer-events: none;
+            /*
+             * Modal tertutup TIDAK boleh menangkap klik.
+             */
+            pointer-events: none;
 
-    isolation: isolate;
-}
+            isolation: isolate;
+        }
 
-/*
- * Hanya modal yang sedang terbuka yang menerima interaksi.
- */
-.modal-overlay.show,
-.modal-overlay.open {
-    display: flex;
-    pointer-events: auto;
-}
+        /*
+         * Hanya modal yang benar-benar terbuka
+         * yang menerima interaksi.
+         */
+        .modal-overlay.show,
+        .modal-overlay.open {
+            display: flex;
+            pointer-events: auto;
+        }
 
-/*
- * Kompatibilitas dengan class hidden.
- */
-.modal-overlay.hidden {
-    display: none;
-    pointer-events: none;
-}
+        /*
+         * hidden selalu berarti benar-benar tertutup.
+         */
+        .modal-overlay.hidden {
+            display: none !important;
+            pointer-events: none !important;
+        }
 
-/* =====================================================
-   MODAL CONTENT
-===================================================== */
+        .modal {
+            position: relative;
 
-.modal {
-    position: relative;
+            width: 100%;
+            max-width: 850px;
 
-    width: 100%;
-    max-width: 850px;
+            max-height: 92vh;
 
-    max-height: 92vh;
+            overflow-y: auto;
+            overflow-x: hidden;
 
-    overflow-y: auto;
-    overflow-x: hidden;
+            background: var(--panel);
 
-    background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 18px;
 
-    border: 1px solid var(--border);
-    border-radius: 18px;
+            box-shadow:
+                0 30px 80px rgba(0, 0, 0, .65);
 
-    box-shadow:
-        0 30px 80px rgba(0, 0, 0, .65);
+            z-index: 30001;
 
-    z-index: 30001;
+            pointer-events: auto;
+        }
 
-    /*
-     * Isi modal bisa diklik.
-     */
-    pointer-events: auto;
-}
+        .modal-header {
+            position: sticky;
+            top: 0;
 
-/* =====================================================
-   MODAL HEADER
-===================================================== */
+            z-index: 20;
 
-.modal-header {
-    position: sticky;
-    top: 0;
+            padding: 20px;
 
-    z-index: 20;
+            background: var(--panel);
 
-    padding: 20px;
+            border-bottom: 1px solid var(--border);
 
-    background: var(--panel);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
 
-    border-bottom: 1px solid var(--border);
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
 
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-}
+        .close {
+            position: relative;
+            z-index: 21;
 
-.modal-header h2 {
-    margin: 0;
-    font-size: 20px;
-}
+            width: 36px;
+            height: 36px;
 
-.close {
-    position: relative;
-    z-index: 21;
+            border: 1px solid var(--border);
+            border-radius: 9px;
 
-    width: 36px;
-    height: 36px;
+            background: var(--panel2);
+            color: white;
 
-    border: 1px solid var(--border);
-    border-radius: 9px;
+            font-size: 20px;
 
-    background: var(--panel2);
-    color: white;
+            pointer-events: auto;
+        }
 
-    font-size: 20px;
+        .close:hover {
+            background: rgba(99, 102, 241, .18);
+            border-color: rgba(99, 102, 241, .4);
+        }
 
-    pointer-events: auto;
-}
+        .modal-body {
+            padding: 20px;
+        }
 
-.close:hover {
-    background: rgba(99, 102, 241, .18);
-    border-color: rgba(99, 102, 241, .4);
-}
+        .modal-footer {
+            position: sticky;
+            bottom: 0;
 
-/* =====================================================
-   MODAL BODY
-===================================================== */
+            z-index: 20;
 
-.modal-body {
-    padding: 20px;
-}
+            padding: 15px 20px;
 
-/* =====================================================
-   MODAL FOOTER
-===================================================== */
+            background: var(--panel);
 
-.modal-footer {
-    position: sticky;
-    bottom: 0;
+            border-top: 1px solid var(--border);
 
-    z-index: 20;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
 
-    padding: 15px 20px;
+        .delete-confirm {
+            max-width: 450px;
+        }
 
-    background: var(--panel);
+        .delete-confirm .modal-body {
+            line-height: 1.6;
+            color: #d1d5db;
+        }
 
-    border-top: 1px solid var(--border);
-
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-/* =====================================================
-   MODEL SEARCH
-===================================================== */
-
-.model-search-box {
-    position: relative;
-    z-index: 100;
-}
-
-.model-search-results {
-    position: absolute;
-
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-
-    z-index: 1000;
-
-    max-height: 360px;
-
-    overflow-y: auto;
-
-    background: #0d1424;
-
-    border: 1px solid var(--border);
-
-    border-radius: 10px;
-
-    box-shadow:
-        0 18px 45px rgba(0, 0, 0, .60);
-
-    pointer-events: auto;
-}
-
-/* =====================================================
-   ADD MODEL BUTTON
-===================================================== */
-
-/*
- * Tombol halaman tidak boleh mengambang.
- * Tidak ada z-index tinggi.
- */
-#addModelBtn {
-    position: relative;
-    z-index: auto !important;
-    pointer-events: auto;
-}
         /* =====================================================
-   MODEL ID SEARCH
-===================================================== */
+           MODEL SEARCH
+        ===================================================== */
 
-.model-search-box {
-    position: relative;
-}
+        .model-search-box {
+            position: relative;
+            z-index: 100;
+        }
 
-.model-search-results {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    z-index: 10000;
-    max-height: 360px;
-    overflow-y: auto;
-    background: #0d1424;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 18px 45px rgba(0, 0, 0, .45);
-}
+        .model-search-results {
+            position: absolute;
 
-.model-search-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 11px 12px;
-    border-bottom: 1px solid rgba(255,255,255,.07);
-    transition: background .18s ease;
-}
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
 
-.model-search-item:last-child {
-    border-bottom: 0;
-}
+            z-index: 1000;
 
-.model-search-item:hover {
-    background: rgba(99,102,241,.10);
-}
+            max-height: 360px;
 
-.model-search-info {
-    min-width: 0;
-    flex: 1;
-}
+            overflow-y: auto;
 
-.model-search-id {
-    color: #f8fafc;
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1.4;
-    word-break: break-all;
-}
+            background: #0d1424;
 
-.model-search-name {
-    margin-top: 3px;
-    color: #cbd5e1;
-    font-size: 11px;
-    line-height: 1.4;
-}
+            border: 1px solid var(--border);
 
-.model-search-provider {
-    margin-top: 3px;
-    color: var(--muted);
-    font-size: 10px;
-    line-height: 1.4;
-}
+            border-radius: 10px;
 
-.model-select-check {
-    flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
-    border: 1px solid rgba(34,197,94,.35);
-    border-radius: 8px;
-    background: rgba(34,197,94,.08);
-    color: #86efac;
-    font-size: 17px;
-    font-weight: 900;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition:
-        background .18s ease,
-        border-color .18s ease,
-        transform .18s ease;
-}
+            box-shadow:
+                0 18px 45px rgba(0, 0, 0, .60);
 
-.model-select-check:hover {
-    background: rgba(34,197,94,.18);
-    border-color: rgba(34,197,94,.60);
-    transform: scale(1.04);
-}
+            pointer-events: auto;
+        }
 
-.model-select-check.selected {
-    background: rgba(34,197,94,.22);
-    border-color: rgba(34,197,94,.70);
-    color: #bbf7d0;
-}
+        .model-search-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 11px 12px;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+            transition: background .18s ease;
+        }
 
-.model-search-empty {
-    padding: 15px;
-    color: var(--muted);
-    font-size: 12px;
-    text-align: center;
-}
+        .model-search-item:last-child {
+            border-bottom: 0;
+        }
 
-#selectedModelInfo {
-    margin-top: 6px;
-}
+        .model-search-item:hover {
+            background: rgba(99,102,241,.10);
+        }
 
-#selectedModelInfo strong {
-    color: #e2e8f0;
-}
+        .model-search-info {
+            min-width: 0;
+            flex: 1;
+        }
 
-#selectedModelInfo span {
-    color: var(--muted);
-}
+        .model-search-id {
+            color: #f8fafc;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.4;
+            word-break: break-all;
+        }
 
-@media (max-width: 600px) {
-    .model-search-results {
-        max-height: 300px;
-    }
+        .model-search-name {
+            margin-top: 3px;
+            color: #cbd5e1;
+            font-size: 11px;
+            line-height: 1.4;
+        }
 
-    .model-search-item {
-        padding: 10px;
-    }
+        .model-search-provider {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.4;
+        }
 
-    .model-search-id {
-        font-size: 11px;
-    }
+        .model-select-check {
+            flex: 0 0 auto;
+            width: 32px;
+            height: 32px;
+            border: 1px solid rgba(34,197,94,.35);
+            border-radius: 8px;
+            background: rgba(34,197,94,.08);
+            color: #86efac;
+            font-size: 17px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition:
+                background .18s ease,
+                border-color .18s ease,
+                transform .18s ease;
+        }
 
-    .model-select-check {
-        width: 30px;
-        height: 30px;
-    }
-}
+        .model-select-check:hover {
+            background: rgba(34,197,94,.18);
+            border-color: rgba(34,197,94,.60);
+            transform: scale(1.04);
+        }
+
+        .model-select-check.selected {
+            background: rgba(34,197,94,.22);
+            border-color: rgba(34,197,94,.70);
+            color: #bbf7d0;
+        }
+
+        .model-search-empty {
+            padding: 15px;
+            color: var(--muted);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        #selectedModelInfo {
+            margin-top: 6px;
+        }
+
+        #selectedModelInfo strong {
+            color: #e2e8f0;
+        }
+
+        #selectedModelInfo span {
+            color: var(--muted);
+        }
+
+        /* =====================================================
+           ADD MODEL BUTTON
+        ===================================================== */
+
+        #addModelBtn {
+            position: relative;
+            z-index: auto !important;
+            pointer-events: auto !important;
+        }
+
+        /* =====================================================
+           FORM
+        ===================================================== */
+
+        .form-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .field {
+            min-width: 0;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 7px;
+            color: #dbe4ff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .hint {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.45;
+        }
 
         .credit-preview {
             background: rgba(34,197,94,.08);
@@ -1080,21 +1065,41 @@
             font-weight: 800;
         }
 
-        .modal-footer {
-            padding: 15px 20px;
-            border-top: 1px solid var(--border);
+        /* =====================================================
+           KIE PRICE FORM
+        ===================================================== */
+
+        .kie-price-preview {
+            margin-top: 0;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(56, 189, 248, .06);
+            border: 1px solid rgba(56, 189, 248, .18);
+        }
+
+        .kie-price-preview-row {
             display: flex;
-            justify-content: flex-end;
-            gap: 10px;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 6px;
+            font-size: 12px;
         }
 
-        .delete-confirm {
-            max-width: 450px;
+        .kie-price-preview-row:last-child {
+            margin-bottom: 0;
+            padding-top: 7px;
+            border-top: 1px solid rgba(255,255,255,.08);
+            font-size: 14px;
+            font-weight: 800;
         }
 
-        .delete-confirm .modal-body {
-            line-height: 1.6;
-            color: #d1d5db;
+        .kie-price-preview-label {
+            color: var(--muted);
+        }
+
+        .kie-price-preview-idr {
+            color: #86efac;
         }
 
         /* =====================================================
@@ -1162,6 +1167,7 @@
 
             .sidebar-overlay.show {
                 display: block;
+                pointer-events: auto;
             }
 
             .main-content,
@@ -1211,6 +1217,44 @@
 
             .search {
                 min-width: 100%;
+            }
+
+            .model-search-results {
+                max-height: 300px;
+            }
+
+            .model-search-item {
+                padding: 10px;
+            }
+
+            .model-search-id {
+                font-size: 11px;
+            }
+
+            .model-select-check {
+                width: 30px;
+                height: 30px;
+            }
+
+            .modal-overlay {
+                padding: 10px;
+            }
+
+            .modal {
+                max-height: 94vh;
+                border-radius: 14px;
+            }
+
+            .modal-body {
+                padding: 15px;
+            }
+
+            .modal-header {
+                padding: 15px;
+            }
+
+            .modal-footer {
+                padding: 12px 15px;
             }
         }
     </style>
@@ -1404,7 +1448,9 @@
 
 </aside>
 
-<!-- MOBILE MENU -->
+<!-- =====================================================
+     MOBILE MENU
+===================================================== -->
 
 <button
     type="button"
@@ -1448,12 +1494,14 @@
             </div>
 
             <button
-    type="button"
-    class="btn btn-primary"
-    id="addModelBtn"
-    data-action="add-model">
-    + Tambah Model
-</button>
+                type="button"
+                class="btn btn-primary"
+                id="addModelBtn"
+                data-action="add-model">
+
+                + Tambah Model
+
+            </button>
 
         </div>
 
@@ -1559,6 +1607,7 @@
             </select>
 
             <button
+                type="button"
                 class="btn btn-secondary"
                 id="refreshBtn">
 
@@ -1653,8 +1702,9 @@
 ===================================================== -->
 
 <div
-    class="modal-overlay"
-    id="modelModal">
+    class="modal-overlay hidden"
+    id="modelModal"
+    aria-hidden="true">
 
     <div class="modal">
 
@@ -1667,7 +1717,8 @@
             <button
                 type="button"
                 class="close"
-                id="closeModalBtn">
+                id="closeModalBtn"
+                aria-label="Tutup">
 
                 ×
 
@@ -1731,39 +1782,39 @@
 
                     <div class="field">
 
-    <label for="modelCode">
-        Model ID *
-    </label>
+                        <label for="modelCode">
+                            Model ID *
+                        </label>
 
-    <div class="model-search-box">
+                        <div class="model-search-box">
 
-        <input
-            id="modelCodeSearch"
-            type="search"
-            autocomplete="off"
-            placeholder="Cari Model ID, contoh: kling-3.0..."
-        >
+                            <input
+                                id="modelCodeSearch"
+                                type="search"
+                                autocomplete="off"
+                                placeholder="Cari Model ID, contoh: kling-3.0...">
 
-        <input
-            id="modelCode"
-            type="hidden"
-            required
-        >
+                            <input
+                                id="modelCode"
+                                type="hidden"
+                                required>
 
-        <div
-            id="modelSearchResults"
-            class="model-search-results">
-        </div>
+                            <div
+                                id="modelSearchResults"
+                                class="model-search-results">
+                            </div>
 
-    </div>
+                        </div>
 
-    <div
-        id="selectedModelInfo"
-        class="hint">
-        Belum ada model dipilih.
-    </div>
+                        <div
+                            id="selectedModelInfo"
+                            class="hint">
 
-</div>
+                            Belum ada model dipilih.
+
+                        </div>
+
+                    </div>
 
                     <div class="field">
 
@@ -1896,7 +1947,9 @@
                         <div
                             class="hint"
                             id="kiePriceHint">
+
                             Harga per unit dari pricing KIE di Supabase.
+
                         </div>
 
                     </div>
@@ -1942,7 +1995,9 @@
                                 <strong
                                     class="kie-price-preview-idr"
                                     id="previewKieIdr">
+
                                     -
+
                                 </strong>
 
                             </div>
@@ -1956,8 +2011,10 @@
                         <div
                             class="hint"
                             id="kiePricingStatusHint">
+
                             Harga KIE hanya dapat diedit jika model memiliki
                             data pricing di Supabase.
+
                         </div>
 
                     </div>
@@ -2063,8 +2120,9 @@
 ===================================================== -->
 
 <div
-    class="modal-overlay"
-    id="deleteModal">
+    class="modal-overlay hidden"
+    id="deleteModal"
+    aria-hidden="true">
 
     <div class="modal delete-confirm">
 
@@ -2077,7 +2135,8 @@
             <button
                 type="button"
                 class="close"
-                id="closeDeleteBtn">
+                id="closeDeleteBtn"
+                aria-label="Tutup">
 
                 ×
 
@@ -2127,9 +2186,79 @@
     </div>
 
 </div>
+
+<!-- =====================================================
+     MODAL / NAVIGATION SAFETY FALLBACK
+===================================================== -->
+
 <script>
 (function () {
     "use strict";
+
+    /*
+     * =========================================================
+     * MODAL STATE
+     * =========================================================
+     *
+     * Satu-satunya fungsi fallback untuk membuka/menutup modal.
+     *
+     * Tidak menggunakan:
+     * modal.style.display = "flex"
+     * modal.style.display = "none"
+     *
+     * Karena inline display dapat mengalahkan CSS .hidden
+     * dan membuat overlay tetap menangkap klik.
+     */
+
+    function setModalState(modal, open) {
+        if (!modal) {
+            return;
+        }
+
+        if (open) {
+            modal.classList.remove("hidden");
+            modal.classList.add("show");
+            modal.classList.add("open");
+
+            modal.setAttribute("aria-hidden", "false");
+
+            document.body.classList.add("modal-open");
+
+            return;
+        }
+
+        modal.classList.remove("show");
+        modal.classList.remove("open");
+        modal.classList.add("hidden");
+
+        modal.setAttribute("aria-hidden", "true");
+
+        /*
+         * Hanya hapus modal-open apabila tidak ada modal
+         * lain yang masih terbuka.
+         */
+        const anotherOpenModal = document.querySelector(
+            ".modal-overlay.show, .modal-overlay.open"
+        );
+
+        if (!anotherOpenModal) {
+            document.body.classList.remove("modal-open");
+        }
+    }
+
+    /*
+     * Expose agar modul lain dapat menggunakan fungsi yang sama
+     * apabila diperlukan.
+     */
+    window.GENZModal = Object.freeze({
+        setModalState: setModalState
+    });
+
+    /*
+     * =========================================================
+     * ADD MODEL BUTTON
+     * =========================================================
+     */
 
     function bindAddModelButton() {
         const button = document.getElementById("addModelBtn");
@@ -2150,6 +2279,9 @@
 
             const form = window.GENZModelsForm;
 
+            /*
+             * Prioritas utama tetap module form yang sudah ada.
+             */
             if (
                 form &&
                 typeof form.openCreateForm === "function"
@@ -2158,6 +2290,9 @@
                 return;
             }
 
+            /*
+             * Fallback apabila module form belum siap.
+             */
             const modal = document.getElementById("modelModal");
 
             if (!modal) {
@@ -2167,40 +2302,361 @@
                 return;
             }
 
-            modal.classList.remove("hidden");
-            modal.classList.add("show");
-            modal.classList.add("open");
-
-            modal.style.display = "flex";
-
-            modal.removeAttribute("aria-hidden");
-
-            document.body.classList.add("modal-open");
+            setModalState(modal, true);
         });
     }
 
-    if (document.readyState === "loading") {
-        document.addEventListener(
-            "DOMContentLoaded",
-            bindAddModelButton,
-            { once: true }
-        );
-    } else {
-        bindAddModelButton();
+    /*
+     * =========================================================
+     * CLOSE MODEL MODAL
+     * =========================================================
+     */
+
+    function bindModelModalButtons() {
+        const modal = document.getElementById("modelModal");
+
+        if (!modal) {
+            return;
+        }
+
+        const closeButton =
+            document.getElementById("closeModalBtn");
+
+        const cancelButton =
+            document.getElementById("cancelModalBtn");
+
+        if (
+            closeButton &&
+            closeButton.dataset.modalBound !== "true"
+        ) {
+            closeButton.dataset.modalBound = "true";
+
+            closeButton.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                setModalState(modal, false);
+            });
+        }
+
+        if (
+            cancelButton &&
+            cancelButton.dataset.modalBound !== "true"
+        ) {
+            cancelButton.dataset.modalBound = "true";
+
+            cancelButton.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                setModalState(modal, false);
+            });
+        }
+
+        /*
+         * Klik area gelap menutup modal.
+         * Klik isi modal tidak menutup.
+         */
+        if (modal.dataset.overlayBound !== "true") {
+            modal.dataset.overlayBound = "true";
+
+            modal.addEventListener("click", function (event) {
+                if (event.target === modal) {
+                    setModalState(modal, false);
+                }
+            });
+        }
     }
 
+    /*
+     * =========================================================
+     * DELETE MODAL
+     * =========================================================
+     */
+
+    function bindDeleteModalButtons() {
+        const modal = document.getElementById("deleteModal");
+
+        if (!modal) {
+            return;
+        }
+
+        const closeButton =
+            document.getElementById("closeDeleteBtn");
+
+        const cancelButton =
+            document.getElementById("cancelDeleteBtn");
+
+        if (
+            closeButton &&
+            closeButton.dataset.modalBound !== "true"
+        ) {
+            closeButton.dataset.modalBound = "true";
+
+            closeButton.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                setModalState(modal, false);
+            });
+        }
+
+        if (
+            cancelButton &&
+            cancelButton.dataset.modalBound !== "true"
+        ) {
+            cancelButton.dataset.modalBound = "true";
+
+            cancelButton.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                setModalState(modal, false);
+            });
+        }
+
+        if (modal.dataset.overlayBound !== "true") {
+            modal.dataset.overlayBound = "true";
+
+            modal.addEventListener("click", function (event) {
+                if (event.target === modal) {
+                    setModalState(modal, false);
+                }
+            });
+        }
+    }
+
+    /*
+     * =========================================================
+     * ESC KEY
+     * =========================================================
+     */
+
+    function bindEscapeKey() {
+        if (document.body.dataset.modelEscapeBound === "true") {
+            return;
+        }
+
+        document.body.dataset.modelEscapeBound = "true";
+
+        document.addEventListener("keydown", function (event) {
+
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            const modelModal =
+                document.getElementById("modelModal");
+
+            const deleteModal =
+                document.getElementById("deleteModal");
+
+            if (
+                modelModal &&
+                (
+                    modelModal.classList.contains("show") ||
+                    modelModal.classList.contains("open")
+                )
+            ) {
+                setModalState(modelModal, false);
+                return;
+            }
+
+            if (
+                deleteModal &&
+                (
+                    deleteModal.classList.contains("show") ||
+                    deleteModal.classList.contains("open")
+                )
+            ) {
+                setModalState(deleteModal, false);
+            }
+        });
+    }
+
+    /*
+     * =========================================================
+     * SIDEBAR FALLBACK
+     * =========================================================
+     *
+     * Tidak mengambil alih fungsi sidebar module jika sudah ada.
+     * Hanya memastikan navigasi mobile tetap dapat bekerja jika
+     * belum ada handler dari module lain.
+     */
+
+    function bindSidebarFallback() {
+        const sidebar =
+            document.getElementById("sidebar");
+
+        const sidebarToggle =
+            document.getElementById("sidebarToggle");
+
+        const mobileMenuButton =
+            document.getElementById("mobileMenuButton");
+
+        const sidebarOverlay =
+            document.getElementById("sidebarOverlay");
+
+        const mainContent =
+            document.getElementById("mainContent");
+
+        if (
+            sidebar &&
+            sidebarToggle &&
+            sidebarToggle.dataset.fallbackBound !== "true"
+        ) {
+            sidebarToggle.dataset.fallbackBound = "true";
+
+            sidebarToggle.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    sidebar.classList.toggle("collapsed");
+
+                    if (mainContent) {
+                        mainContent.classList.toggle(
+                            "collapsed"
+                        );
+                    }
+
+                    sidebarToggle.textContent =
+                        sidebar.classList.contains("collapsed")
+                            ? "›"
+                            : "‹";
+                }
+            );
+        }
+
+        if (
+            sidebar &&
+            mobileMenuButton &&
+            mobileMenuButton.dataset.fallbackBound !== "true"
+        ) {
+            mobileMenuButton.dataset.fallbackBound = "true";
+
+            mobileMenuButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    sidebar.classList.add("mobile-open");
+
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.add("show");
+                    }
+                }
+            );
+        }
+
+        function closeMobileSidebar() {
+            if (sidebar) {
+                sidebar.classList.remove("mobile-open");
+            }
+
+            if (sidebarOverlay) {
+                sidebarOverlay.classList.remove("show");
+            }
+        }
+
+        if (
+            sidebarOverlay &&
+            sidebarOverlay.dataset.fallbackBound !== "true"
+        ) {
+            sidebarOverlay.dataset.fallbackBound = "true";
+
+            sidebarOverlay.addEventListener(
+                "click",
+                function () {
+                    closeMobileSidebar();
+                }
+            );
+        }
+
+        if (
+            sidebar &&
+            sidebar.dataset.mobileLinksBound !== "true"
+        ) {
+            sidebar.dataset.mobileLinksBound = "true";
+
+            const links =
+                sidebar.querySelectorAll(
+                    ".sidebar-link"
+                );
+
+            links.forEach(function (link) {
+                link.addEventListener(
+                    "click",
+                    function () {
+                        closeMobileSidebar();
+                    }
+                );
+            });
+        }
+    }
+
+    /*
+     * =========================================================
+     * INITIALIZE
+     * =========================================================
+     */
+
+    function initializeFallback() {
+        bindAddModelButton();
+        bindModelModalButtons();
+        bindDeleteModalButtons();
+        bindEscapeKey();
+        bindSidebarFallback();
+    }
+
+    if (document.readyState === "loading") {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeFallback,
+            { once: true }
+        );
+
+    } else {
+
+        initializeFallback();
+
+    }
+
+    /*
+     * Module loader dimuat setelah script ini.
+     * Jalankan binding ulang setelah module selesai.
+     * Tidak membuat duplicate listener karena semua fungsi
+     * menggunakan flag dataset.
+     */
+
     window.setTimeout(
-        bindAddModelButton,
+        initializeFallback,
         500
     );
 
     window.setTimeout(
-        bindAddModelButton,
+        initializeFallback,
         1500
     );
+
+    window.setTimeout(
+        initializeFallback,
+        3000
+    );
+
 })();
 </script>
 
+<!-- =====================================================
+     MODEL MODULE LOADER
+===================================================== -->
+
 <script src="./models/models-loader.js"></script>
+
 </body>
 </html>
