@@ -6,7 +6,10 @@
 
     <title>Providers - GEN-Z.AI</title>
 
+    <!-- SUPABASE -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- GEN-Z CONFIG -->
     <script src="../assets/js/config.js"></script>
 
     <style>
@@ -15,7 +18,6 @@
             --bg-2: #0b0f15;
             --panel: rgba(17, 22, 31, 0.82);
             --panel-solid: #11161f;
-            --panel-soft: rgba(255, 255, 255, 0.035);
 
             --text: #f5f7fb;
             --text-soft: #c8ced8;
@@ -29,13 +31,8 @@
             --accent-soft: rgba(139, 92, 246, 0.13);
 
             --success: #22c55e;
-            --success-soft: rgba(34, 197, 94, 0.12);
-
             --warning: #f59e0b;
-            --warning-soft: rgba(245, 158, 11, 0.12);
-
             --danger: #ef4444;
-            --danger-soft: rgba(239, 68, 68, 0.12);
 
             --shadow:
                 0 25px 70px rgba(0, 0, 0, 0.42);
@@ -62,7 +59,9 @@
         body {
             margin: 0;
             min-height: 100vh;
+
             color: var(--text);
+
             font-family:
                 Inter,
                 ui-sans-serif,
@@ -82,11 +81,6 @@
                     circle at 90% 0%,
                     rgba(139, 92, 246, 0.12),
                     transparent 28%
-                ),
-                radial-gradient(
-                    circle at 50% 100%,
-                    rgba(30, 64, 175, 0.08),
-                    transparent 35%
                 ),
                 linear-gradient(
                     180deg,
@@ -119,7 +113,7 @@
 
         ::selection {
             background: rgba(139, 92, 246, 0.35);
-            color: #ffffff;
+            color: #fff;
         }
 
         ::-webkit-scrollbar {
@@ -136,9 +130,9 @@
             border-radius: 999px;
         }
 
-        /* =========================================================
-           TOP BAR
-           ========================================================= */
+        /* =====================================================
+           TOPBAR
+           ===================================================== */
 
         .topbar {
             position: fixed;
@@ -198,7 +192,7 @@
                     rgba(99, 102, 241, 0.95)
                 );
 
-            color: white;
+            color: #fff;
             cursor: pointer;
 
             box-shadow:
@@ -211,6 +205,7 @@
 
         .menu-button:hover {
             transform: translateY(-1px);
+
             box-shadow:
                 0 12px 32px rgba(99, 102, 241, 0.34);
         }
@@ -229,7 +224,7 @@
             height: 2px;
 
             border-radius: 99px;
-            background: #ffffff;
+            background: #fff;
 
             transition: all var(--transition);
         }
@@ -311,14 +306,14 @@
 
         .back-button:hover {
             background: rgba(255, 255, 255, 0.075);
-            color: #ffffff;
+            color: #fff;
             border-color: rgba(139, 92, 246, 0.35);
             transform: translateY(-1px);
         }
 
-        /* =========================================================
+        /* =====================================================
            SIDEBAR
-           ========================================================= */
+           ===================================================== */
 
         .menu-overlay {
             position: fixed;
@@ -372,6 +367,7 @@
             -webkit-backdrop-filter: blur(28px);
 
             transform: translateX(calc(-100% - 35px));
+
             transition:
                 transform 240ms cubic-bezier(.2, .8, .2, 1);
 
@@ -401,7 +397,7 @@
             background:
                 linear-gradient(
                     135deg,
-                    #ffffff,
+                    #fff,
                     #b9b5ff
                 );
 
@@ -411,6 +407,7 @@
 
         .sidebar-brand span {
             display: block;
+
             margin-top: 6px;
 
             color: var(--muted);
@@ -462,7 +459,7 @@
         .nav a:hover,
         .nav button:hover {
             background: rgba(255, 255, 255, 0.045);
-            color: #ffffff;
+            color: #fff;
             border-color: rgba(255, 255, 255, 0.05);
             transform: translateX(2px);
         }
@@ -497,9 +494,9 @@
             border-color: rgba(239, 68, 68, 0.12) !important;
         }
 
-        /* =========================================================
+        /* =====================================================
            MAIN
-           ========================================================= */
+           ===================================================== */
 
         .main {
             width: 100%;
@@ -566,7 +563,7 @@
             background:
                 linear-gradient(
                     135deg,
-                    #ffffff 10%,
+                    #fff 10%,
                     #c8c5ff 80%
                 );
 
@@ -621,9 +618,9 @@
             white-space: nowrap;
         }
 
-        /* =========================================================
+        /* =====================================================
            HERO
-           ========================================================= */
+           ===================================================== */
 
         .hero-card {
             position: relative;
@@ -648,49 +645,6 @@
                 );
 
             box-shadow: var(--shadow);
-
-            isolation: isolate;
-        }
-
-        .hero-card::before {
-            content: "";
-
-            position: absolute;
-
-            width: 420px;
-            height: 420px;
-
-            right: -180px;
-            top: -230px;
-
-            border-radius: 50%;
-
-            background:
-                radial-gradient(
-                    circle,
-                    rgba(139, 92, 246, 0.22),
-                    transparent 68%
-                );
-
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .hero-card::after {
-            content: "";
-
-            position: absolute;
-            inset: 0;
-
-            background:
-                linear-gradient(
-                    120deg,
-                    transparent 0%,
-                    rgba(255, 255, 255, 0.025) 45%,
-                    transparent 70%
-                );
-
-            pointer-events: none;
         }
 
         .hero-content {
@@ -745,7 +699,7 @@
                     #6366f1
                 );
 
-            color: #ffffff;
+            color: #fff;
 
             font-size: 12px;
             font-weight: 850;
@@ -770,14 +724,9 @@
                 0 16px 38px rgba(99, 102, 241, 0.34);
         }
 
-        .add-provider-button svg {
-            width: 17px;
-            height: 17px;
-        }
-
-        /* =========================================================
+        /* =====================================================
            STATS
-           ========================================================= */
+           ===================================================== */
 
         .stats-grid {
             display: grid;
@@ -791,9 +740,6 @@
         }
 
         .stat-card {
-            position: relative;
-            overflow: hidden;
-
             padding: 20px;
 
             border: 1px solid var(--border);
@@ -822,7 +768,6 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
         }
 
         .stat-label {
@@ -867,9 +812,9 @@
             font-size: 11px;
         }
 
-        /* =========================================================
+        /* =====================================================
            PROVIDER PANEL
-           ========================================================= */
+           ===================================================== */
 
         .provider-panel {
             overflow: hidden;
@@ -965,67 +910,41 @@
             background: #6366f1;
         }
 
-        .provider-empty {
-            min-height: 330px;
+        /* IMPORTANT:
+           list.js mencari #providerList.
+           Jangan ubah ID ini.
+        */
 
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+        #providerList {
+            display: grid;
 
-            padding: 50px 25px;
-
-            text-align: center;
-        }
-
-        .empty-icon {
-            width: 70px;
-            height: 70px;
-
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-
-            margin-bottom: 18px;
-
-            border: 1px solid rgba(139, 92, 246, 0.16);
-            border-radius: 21px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(139, 92, 246, 0.13),
-                    rgba(99, 102, 241, 0.05)
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(280px, 1fr)
                 );
 
-            color: #a78bfa;
+            gap: 14px;
 
-            box-shadow:
-                0 15px 40px rgba(0, 0, 0, 0.2);
+            padding: 20px;
         }
 
-        .empty-title {
-            margin: 0;
-
-            font-size: 17px;
-            font-weight: 850;
-            letter-spacing: -0.02em;
+        #providerList:empty {
+            min-height: 220px;
         }
 
-        .empty-text {
-            max-width: 470px;
-
-            margin: 8px 0 0;
-
-            color: #697386;
-
-            font-size: 12px;
-            line-height: 1.7;
+        .provider-list-loading,
+        .provider-list-empty {
+            grid-column: 1 / -1;
         }
 
-        /* =========================================================
+        .provider-list-error {
+            grid-column: 1 / -1;
+        }
+
+        /* =====================================================
            MODAL
-           ========================================================= */
+           ===================================================== */
 
         .modal-backdrop {
             position: fixed;
@@ -1126,15 +1045,11 @@
             color: #9aa3b2;
 
             cursor: pointer;
-
-            transition:
-                background var(--transition),
-                color var(--transition);
         }
 
         .modal-close:hover {
             background: rgba(255, 255, 255, 0.075);
-            color: #ffffff;
+            color: #fff;
         }
 
         .modal-body {
@@ -1143,7 +1058,10 @@
 
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
             gap: 15px;
         }
 
@@ -1180,11 +1098,6 @@
             background: rgba(255, 255, 255, 0.035);
 
             color: #f5f7fb;
-
-            transition:
-                border-color var(--transition),
-                background var(--transition),
-                box-shadow var(--transition);
         }
 
         .form-input,
@@ -1209,15 +1122,13 @@
         .form-textarea:focus {
             border-color: rgba(139, 92, 246, 0.55);
 
-            background: rgba(139, 92, 246, 0.035);
-
             box-shadow:
                 0 0 0 3px rgba(139, 92, 246, 0.08);
         }
 
         .form-select option {
             background: #11161f;
-            color: #ffffff;
+            color: #fff;
         }
 
         .api-key-wrap {
@@ -1253,7 +1164,7 @@
 
         .api-toggle:hover {
             background: rgba(255, 255, 255, 0.05);
-            color: #ffffff;
+            color: #fff;
         }
 
         .modal-footer {
@@ -1290,11 +1201,6 @@
             color: #aeb6c4;
         }
 
-        .button-secondary:hover {
-            background: rgba(255, 255, 255, 0.065);
-            color: #ffffff;
-        }
-
         .button-primary {
             border: 1px solid rgba(139, 92, 246, 0.3);
 
@@ -1305,19 +1211,12 @@
                     #6366f1
                 );
 
-            color: #ffffff;
-
-            box-shadow:
-                0 8px 22px rgba(99, 102, 241, 0.2);
+            color: #fff;
         }
 
-        .button-primary:hover {
-            filter: brightness(1.08);
-        }
-
-        /* =========================================================
+        /* =====================================================
            MESSAGE
-           ========================================================= */
+           ===================================================== */
 
         .message {
             position: fixed;
@@ -1365,9 +1264,9 @@
             transform: translateY(0);
         }
 
-        /* =========================================================
+        /* =====================================================
            RESPONSIVE
-           ========================================================= */
+           ===================================================== */
 
         @media (max-width: 1100px) {
             .stats-grid {
@@ -1418,12 +1317,13 @@
                     35px;
             }
 
-            .hero-card {
-                padding: 21px;
-            }
-
             .stats-grid {
                 grid-template-columns: 1fr;
+            }
+
+            #providerList {
+                grid-template-columns: 1fr;
+                padding: 14px;
             }
 
             .panel-header {
@@ -1452,6 +1352,7 @@
                 left: 14px;
                 right: 14px;
                 bottom: 14px;
+
                 min-width: 0;
                 max-width: none;
             }
@@ -1461,9 +1362,9 @@
 
 <body>
 
-    <!-- =========================================================
-         TOP BAR
-         ========================================================= -->
+    <!-- =====================================================
+         TOPBAR
+         ===================================================== -->
 
     <header class="topbar">
 
@@ -1517,9 +1418,9 @@
 
     </header>
 
-    <!-- =========================================================
+    <!-- =====================================================
          MENU OVERLAY
-         ========================================================= -->
+         ===================================================== -->
 
     <div
         class="menu-overlay"
@@ -1527,9 +1428,9 @@
         onclick="closeMenu()"
     ></div>
 
-    <!-- =========================================================
+    <!-- =====================================================
          SIDEBAR
-         ========================================================= -->
+         ===================================================== -->
 
     <aside
         class="sidebar"
@@ -1636,9 +1537,9 @@
 
     </aside>
 
-    <!-- =========================================================
+    <!-- =====================================================
          MAIN
-         ========================================================= -->
+         ===================================================== -->
 
     <main class="main">
 
@@ -1660,8 +1561,9 @@
                     </h1>
 
                     <p class="page-subtitle">
-                        Kelola koneksi AI provider, API key, status layanan,
-                        dan konfigurasi provider dari satu tempat.
+                        Kelola koneksi AI provider, API key,
+                        status layanan, dan konfigurasi provider
+                        dari satu tempat.
                     </p>
 
                 </div>
@@ -1683,7 +1585,9 @@
 
             </section>
 
-            <!-- HERO -->
+            <!-- =================================================
+                 HERO
+                 ================================================= -->
 
             <section class="hero-card">
 
@@ -1696,20 +1600,22 @@
                         </h2>
 
                         <p>
-                            Tambahkan dan kelola provider AI yang akan
-                            digunakan oleh sistem GEN-Z.AI. Konfigurasi
-                            provider dapat mencakup API key, status,
-                            dan informasi internal.
+                            Tambahkan dan kelola provider AI
+                            yang akan digunakan oleh sistem
+                            GEN-Z.AI.
                         </p>
 
                     </div>
 
                     <button
                         class="add-provider-button"
+                        id="addProviderBtn"
+                        data-provider-action="create"
                         type="button"
-                        onclick="openProviderModal()"
                     >
                         <svg
+                            width="17"
+                            height="17"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -1727,11 +1633,11 @@
 
             </section>
 
-            <!-- STATS -->
+            <!-- =================================================
+                 STATS
+                 ================================================= -->
 
             <section class="stats-grid">
-
-                <!-- TOTAL -->
 
                 <div class="stat-card">
 
@@ -1781,8 +1687,6 @@
 
                 </div>
 
-                <!-- ACTIVE -->
-
                 <div class="stat-card">
 
                     <div class="stat-top">
@@ -1820,8 +1724,6 @@
                     </div>
 
                 </div>
-
-                <!-- INACTIVE -->
 
                 <div class="stat-card">
 
@@ -1868,8 +1770,6 @@
 
                 </div>
 
-                <!-- MAINTENANCE -->
-
                 <div class="stat-card">
 
                     <div class="stat-top">
@@ -1912,7 +1812,9 @@
 
             </section>
 
-            <!-- PROVIDER PANEL -->
+            <!-- =================================================
+                 PROVIDER PANEL
+                 ================================================= -->
 
             <section class="provider-panel">
 
@@ -1945,7 +1847,9 @@
 
                         <div>
                             <strong>Provider Registry</strong>
-                            <span>Daftar provider AI yang terhubung</span>
+                            <span>
+                                Daftar provider AI yang terhubung
+                            </span>
                         </div>
 
                     </div>
@@ -1957,47 +1861,16 @@
 
                 </div>
 
-                <div class="provider-empty">
+                <!--
+                    WAJIB:
+                    list.js menggunakan #providerList.
+                    Jangan hapus ID ini.
+                -->
 
-                    <div class="empty-icon">
-
-                        <svg
-                            width="30"
-                            height="30"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.5"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <rect
-                                x="3"
-                                y="3"
-                                width="18"
-                                height="18"
-                                rx="4"
-                            ></rect>
-
-                            <path d="M8 9h8"></path>
-                            <path d="M8 13h5"></path>
-                            <path d="M8 17h3"></path>
-                        </svg>
-
-                    </div>
-
-                    <h3 class="empty-title">
-                        Belum ada provider
-                    </h3>
-
-                    <p class="empty-text">
-                        Provider yang ditambahkan nantinya akan muncul
-                        di sini. Gunakan tombol
-                        <strong>Tambah Provider</strong>
-                        untuk membuat konfigurasi provider baru.
-                    </p>
-
-                </div>
+                <div
+                    id="providerList"
+                    class="provider-list"
+                ></div>
 
             </section>
 
@@ -2005,9 +1878,9 @@
 
     </main>
 
-    <!-- =========================================================
-         ADD PROVIDER MODAL
-         ========================================================= -->
+    <!-- =====================================================
+         PROVIDER MODAL
+         ===================================================== -->
 
     <div
         class="modal-backdrop"
@@ -2021,7 +1894,10 @@
 
                 <div>
 
-                    <h2 class="modal-title">
+                    <h2
+                        class="modal-title"
+                        id="providerFormTitle"
+                    >
                         Tambah Provider
                     </h2>
 
@@ -2057,19 +1933,24 @@
 
                 <form
                     id="providerForm"
+                    autocomplete="off"
                 >
 
                     <div class="form-grid">
 
                         <div class="form-group">
 
-                            <label class="form-label">
+                            <label
+                                class="form-label"
+                                for="providerName"
+                            >
                                 Nama Provider
                             </label>
 
                             <input
                                 class="form-input"
                                 id="providerName"
+                                name="providerName"
                                 type="text"
                                 placeholder="Contoh: OpenAI"
                                 autocomplete="off"
@@ -2080,13 +1961,17 @@
 
                         <div class="form-group">
 
-                            <label class="form-label">
+                            <label
+                                class="form-label"
+                                for="providerId"
+                            >
                                 Provider ID
                             </label>
 
                             <input
                                 class="form-input"
                                 id="providerId"
+                                name="providerId"
                                 type="text"
                                 placeholder="Contoh: openai"
                                 autocomplete="off"
@@ -2097,7 +1982,10 @@
 
                         <div class="form-group full">
 
-                            <label class="form-label">
+                            <label
+                                class="form-label"
+                                for="providerApiKey"
+                            >
                                 API Key
                             </label>
 
@@ -2106,10 +1994,10 @@
                                 <input
                                     class="form-input"
                                     id="providerApiKey"
+                                    name="apiKey"
                                     type="password"
                                     placeholder="Masukkan API key provider"
                                     autocomplete="new-password"
-                                    required
                                 >
 
                                 <button
@@ -2144,24 +2032,24 @@
 
                         <div class="form-group">
 
-                            <label class="form-label">
+                            <label
+                                class="form-label"
+                                for="providerStatus"
+                            >
                                 Status
                             </label>
 
                             <select
                                 class="form-select"
                                 id="providerStatus"
+                                name="status"
                             >
                                 <option value="active">
-                                    Active
+                                    Aktif
                                 </option>
 
                                 <option value="inactive">
-                                    Inactive
-                                </option>
-
-                                <option value="maintenance">
-                                    Maintenance
+                                    Nonaktif
                                 </option>
                             </select>
 
@@ -2169,31 +2057,21 @@
 
                         <div class="form-group">
 
-                            <label class="form-label">
+                            <label
+                                class="form-label"
+                                for="providerDescription"
+                            >
                                 Keterangan
                             </label>
 
                             <input
                                 class="form-input"
                                 id="providerDescription"
+                                name="description"
                                 type="text"
                                 placeholder="Keterangan singkat"
                                 autocomplete="off"
                             >
-
-                        </div>
-
-                        <div class="form-group full">
-
-                            <label class="form-label">
-                                Catatan Internal
-                            </label>
-
-                            <textarea
-                                class="form-textarea"
-                                id="providerNotes"
-                                placeholder="Catatan internal provider..."
-                            ></textarea>
 
                         </div>
 
@@ -2211,6 +2089,7 @@
 
                         <button
                             class="button-primary"
+                            id="providerFormSubmit"
                             type="submit"
                         >
                             Simpan Provider
@@ -2226,20 +2105,376 @@
 
     </div>
 
-    <!-- MESSAGE -->
+    <!-- =====================================================
+         MESSAGE
+         ===================================================== -->
 
     <div
-    class="message"
-    id="message"
-></div>
+        class="message"
+        id="message"
+    ></div>
 
-<!-- GEN-Z.AI Provider Modules -->
-<script src="providers/supabase.js?v=20260917-01"></script>
-<script src="providers/api-key.js?v=20260917-01"></script>
-<script src="providers/list.js?v=20260917-01"></script>
-<script src="providers/form.js?v=20260917-01"></script>
-<script src="providers/actions.js?v=20260917-01"></script>
-<script src="providers/init.js?v=20260917-01"></script>
+    <!-- =====================================================
+         PROVIDER MODULES
+         ===================================================== -->
+
+    <script src="providers/supabase.js?v=20260917-02"></script>
+    <script src="providers/api-key.js?v=20260917-02"></script>
+    <script src="providers/list.js?v=20260917-02"></script>
+    <script src="providers/form.js?v=20260917-02"></script>
+    <script src="providers/actions.js?v=20260917-02"></script>
+
+    <!-- =====================================================
+         PAGE BRIDGE
+         Menjembatani HTML lama dengan module baru.
+         ===================================================== -->
+
+    <script>
+        (function () {
+            "use strict";
+
+            /* =================================================
+               MENU
+               ================================================= */
+
+            window.openMenu = function () {
+                const sidebar =
+                    document.getElementById("sidebar");
+
+                const overlay =
+                    document.getElementById("menuOverlay");
+
+                const button =
+                    document.getElementById("menuButton");
+
+                sidebar?.classList.add("show");
+                overlay?.classList.add("show");
+                button?.classList.add("active");
+
+                document.body.classList.add("menu-open");
+            };
+
+            window.closeMenu = function () {
+                const sidebar =
+                    document.getElementById("sidebar");
+
+                const overlay =
+                    document.getElementById("menuOverlay");
+
+                const button =
+                    document.getElementById("menuButton");
+
+                sidebar?.classList.remove("show");
+                overlay?.classList.remove("show");
+                button?.classList.remove("active");
+
+                document.body.classList.remove("menu-open");
+            };
+
+            /* =================================================
+               PROVIDER MODAL
+               ================================================= */
+
+            window.openProviderModal = function () {
+                const form =
+                    window.GENZProviderForm;
+
+                if (
+                    form &&
+                    typeof form.openCreate === "function"
+                ) {
+                    form.openCreate();
+                    return;
+                }
+
+                console.error(
+                    "[GEN-Z.AI] Provider Form belum siap."
+                );
+            };
+
+            window.closeProviderModal = function () {
+                const form =
+                    window.GENZProviderForm;
+
+                if (
+                    form &&
+                    typeof form.close === "function"
+                ) {
+                    form.close();
+                    return;
+                }
+
+                const modal =
+                    document.getElementById(
+                        "providerModal"
+                    );
+
+                if (modal) {
+                    modal.style.display = "none";
+                    modal.classList.remove("show");
+                }
+            };
+
+            window.handleModalBackdrop =
+                function (event) {
+                    if (
+                        event.target &&
+                        event.target.id ===
+                            "providerModal"
+                    ) {
+                        window.closeProviderModal();
+                    }
+                };
+
+            /* =================================================
+               API KEY TOGGLE
+               ================================================= */
+
+            window.toggleApiKey = function () {
+                const input =
+                    document.getElementById(
+                        "providerApiKey"
+                    );
+
+                const eye =
+                    document.getElementById(
+                        "apiEye"
+                    );
+
+                if (!input) {
+                    return;
+                }
+
+                if (
+                    input.type === "password"
+                ) {
+                    input.type = "text";
+
+                    if (eye) {
+                        eye.style.opacity = "1";
+                    }
+                } else {
+                    input.type = "password";
+
+                    if (eye) {
+                        eye.style.opacity = ".65";
+                    }
+                }
+            };
+
+            /* =================================================
+               LOGOUT
+               ================================================= */
+
+            window.logout = async function () {
+                try {
+                    const providerSupabase =
+                        window.GENZProviderSupabase;
+
+                    if (
+                        providerSupabase &&
+                        providerSupabase.client
+                    ) {
+                        await providerSupabase.client.auth.signOut();
+                    }
+                } catch (error) {
+                    console.error(
+                        "[GEN-Z.AI] Logout error:",
+                        error
+                    );
+                } finally {
+                    window.location.replace(
+                        "../login.html"
+                    );
+                }
+            };
+
+            /* =================================================
+               ADMIN EMAIL
+               ================================================= */
+
+            async function loadAdminEmail() {
+                const element =
+                    document.getElementById(
+                        "adminUserEmail"
+                    );
+
+                if (!element) {
+                    return;
+                }
+
+                try {
+                    const module =
+                        window.GENZProviderSupabase;
+
+                    if (
+                        !module ||
+                        !module.ready
+                    ) {
+                        return;
+                    }
+
+                    const user =
+                        await module.getUser();
+
+                    element.textContent =
+                        user?.email ||
+                        "Admin";
+                } catch (error) {
+                    console.warn(
+                        "[GEN-Z.AI] Tidak dapat membaca email admin:",
+                        error
+                    );
+
+                    element.textContent =
+                        "Admin";
+                }
+            }
+
+            /* =================================================
+               UPDATE STATS
+               ================================================= */
+
+            function updateStats() {
+                const list =
+                    window.GENZProviderList;
+
+                if (
+                    !list ||
+                    typeof list.getAll !==
+                        "function"
+                ) {
+                    return;
+                }
+
+                const providers =
+                    Array.isArray(
+                        list.getAll()
+                    )
+                        ? list.getAll()
+                        : [];
+
+                let active = 0;
+                let inactive = 0;
+                let maintenance = 0;
+
+                providers.forEach(
+                    function (provider) {
+                        const status =
+                            String(
+                                provider?.status ||
+                                    ""
+                            )
+                                .trim()
+                                .toLowerCase();
+
+                        if (
+                            status ===
+                            "maintenance"
+                        ) {
+                            maintenance++;
+                        } else if (
+                            status ===
+                            "inactive"
+                        ) {
+                            inactive++;
+                        } else {
+                            active++;
+                        }
+                    }
+                );
+
+                const totalElement =
+                    document.getElementById(
+                        "totalProviders"
+                    );
+
+                const activeElement =
+                    document.getElementById(
+                        "activeProviders"
+                    );
+
+                const inactiveElement =
+                    document.getElementById(
+                        "inactiveProviders"
+                    );
+
+                const maintenanceElement =
+                    document.getElementById(
+                        "maintenanceProviders"
+                    );
+
+                if (totalElement) {
+                    totalElement.textContent =
+                        providers.length;
+                }
+
+                if (activeElement) {
+                    activeElement.textContent =
+                        active;
+                }
+
+                if (inactiveElement) {
+                    inactiveElement.textContent =
+                        inactive;
+                }
+
+                if (maintenanceElement) {
+                    maintenanceElement.textContent =
+                        maintenance;
+                }
+            }
+
+            /* =================================================
+               PROVIDER READY EVENT
+               ================================================= */
+
+            document.addEventListener(
+                "genz:providers-ready",
+                function () {
+                    loadAdminEmail();
+                    updateStats();
+                }
+            );
+
+            /*
+             * Refresh setelah aksi provider.
+             * Mutation list akan selesai sebelum event berikutnya.
+             */
+
+            document.addEventListener(
+                "click",
+                function () {
+                    setTimeout(
+                        updateStats,
+                        450
+                    );
+                }
+            );
+
+            /* =================================================
+               ESC CLOSE
+               ================================================= */
+
+            document.addEventListener(
+                "keydown",
+                function (event) {
+                    if (
+                        event.key === "Escape"
+                    ) {
+                        window.closeProviderModal();
+                        window.closeMenu();
+                    }
+                }
+            );
+        })();
+    </script>
+
+    <!-- =====================================================
+         PROVIDER INIT
+         ===================================================== -->
+
+    <script src="providers/init.js?v=20260917-02"></script>
 
 </body>
 </html>
