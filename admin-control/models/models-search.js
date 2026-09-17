@@ -2,7 +2,17 @@
    GEN-Z.AI
    ADMIN MODEL MANAGEMENT
    MODEL SEARCH MODULE
-   File: admin-control/models/models-search.js
+
+   File:
+   admin-control/models/models-search.js
+
+   Fungsi:
+   - Memuat model KIE dari Supabase
+   - Pencarian Model ID
+   - Pemilihan model dengan tombol ✓
+   - Mengisi Model ID otomatis
+   - Mengisi Provider ID otomatis dari model.provider
+   - Menjaga kompatibilitas dengan models-ui.js
 ========================================================= */
 
 (function () {
@@ -10,6 +20,7 @@
 
     let models = [];
     let selectedModel = null;
+    let eventsBound = false;
 
     function escapeHtml(value) {
         return String(value ?? "")
@@ -23,24 +34,19 @@
     function getElements() {
         return {
             searchInput:
-                document.getElementById(
-                    "modelCodeSearch"
-                ),
+                document.getElementById("modelCodeSearch"),
 
             results:
-                document.getElementById(
-                    "modelSearchResults"
-                ),
+                document.getElementById("modelSearchResults"),
 
             hiddenInput:
-                document.getElementById(
-                    "modelCode"
-                ),
+                document.getElementById("modelCode"),
 
             selectedInfo:
-                document.getElementById(
-                    "selectedModelInfo"
-                )
+                document.getElementById("selectedModelInfo"),
+
+            providerInput:
+                document.getElementById("providerId")
         };
     }
 
@@ -96,11 +102,20 @@
     }
 
     function bindEvents() {
-        const elements = getElements();
-
-        if (!elements.searchInput) {
+        if (eventsBound) {
             return;
         }
+
+        const elements = getElements();
+
+        if (
+            !elements.searchInput ||
+            !elements.results
+        ) {
+            return;
+        }
+
+        eventsBound = true;
 
         elements.searchInput.addEventListener(
             "input",
@@ -200,10 +215,16 @@
                             model.model_family || ""
                         ).toLowerCase();
 
+                    const provider =
+                        String(
+                            model.provider || ""
+                        ).toLowerCase();
+
                     return (
                         modelId.includes(term) ||
                         modelName.includes(term) ||
-                        family.includes(term)
+                        family.includes(term) ||
+                        provider.includes(term)
                     );
                 }
             );
@@ -234,8 +255,12 @@
                             model.id;
 
                     return `
-                        <div class="model-search-item">
+                        <div
+                            class="model-search-item"
+                            data-model-row="${index}"
+                        >
                             <div class="model-search-info">
+
                                 <div class="model-search-id">
                                     ${escapeHtml(
                                         model.model_id
@@ -263,6 +288,7 @@
                                             : ""
                                     }
                                 </div>
+
                             </div>
 
                             <button
@@ -286,42 +312,128 @@
                 .join("");
     }
 
+    function setProviderFromModel(model) {
+        if (!model) {
+            return;
+        }
+
+        const elements = getElements();
+
+        const provider =
+            String(
+                model.provider || ""
+            ).trim();
+
+        if (
+            !provider ||
+            !elements.providerInput
+        ) {
+            return;
+        }
+
+        elements.providerInput.value =
+            provider;
+
+        elements.providerInput.dispatchEvent(
+            new Event("input", {
+                bubbles: true
+            })
+        );
+
+        elements.providerInput.dispatchEvent(
+            new Event("change", {
+                bubbles: true
+            })
+        );
+    }
+
     function selectModel(model) {
+        if (!model) {
+            return;
+        }
+
         selectedModel = model;
 
         const elements = getElements();
 
+        const modelId =
+            String(
+                model.model_id || ""
+            ).trim();
+
         if (elements.hiddenInput) {
             elements.hiddenInput.value =
-                model.model_id || "";
+                modelId;
+
+            elements.hiddenInput.dispatchEvent(
+                new Event("input", {
+                    bubbles: true
+                })
+            );
+
+            elements.hiddenInput.dispatchEvent(
+                new Event("change", {
+                    bubbles: true
+                })
+            );
         }
 
         if (elements.searchInput) {
             elements.searchInput.value =
-                model.model_id || "";
+                modelId;
         }
+
+        /*
+         * Provider otomatis mengikuti model.
+         *
+         * Contoh:
+         * model.provider = "kie"
+         *
+         * Maka:
+         * providerId = "kie"
+         */
+        setProviderFromModel(model);
 
         if (elements.selectedInfo) {
             elements.selectedInfo.innerHTML = `
                 <strong>Model dipilih:</strong>
                 ${escapeHtml(
                     model.model_name ||
-                    model.model_id ||
+                    modelId ||
                     "-"
                 )}
                 <br>
                 <span>
                     ${escapeHtml(
-                        model.model_id || "-"
+                        modelId || "-"
                     )}
                 </span>
+                ${
+                    model.provider
+                        ? `
+                            <br>
+                            <span>
+                                Provider:
+                                ${escapeHtml(
+                                    model.provider
+                                )}
+                            </span>
+                        `
+                        : ""
+                }
             `;
         }
 
-        render(
-            model.model_id || ""
-        );
+        /*
+         * Setelah model dipilih,
+         * tampilkan model tersebut sebagai
+         * pilihan aktif.
+         */
+        render(modelId);
 
+        /*
+         * Callback untuk modul lain.
+         */
         if (
             typeof window.GENZModelsSearch?.onSelect ===
             "function"
@@ -330,12 +442,46 @@
                 model
             );
         }
+
+        /*
+         * Event global agar modul lain
+         * bisa menerima model terpilih
+         * tanpa saling bergantung langsung.
+         */
+        document.dispatchEvent(
+            new CustomEvent(
+                "genz-model-selected",
+                {
+                    detail: model
+                }
+            )
+        );
     }
 
     function setModels(data) {
         models = Array.isArray(data)
             ? [...data]
             : [];
+
+        /*
+         * Jika model yang sedang dipilih
+         * masih ada di data baru,
+         * pertahankan pilihan tersebut.
+         */
+        if (selectedModel) {
+            const currentId =
+                selectedModel.id;
+
+            const updated =
+                models.find(
+                    model =>
+                        model.id ===
+                        currentId
+                );
+
+            selectedModel =
+                updated || null;
+        }
 
         render();
     }
@@ -365,6 +511,10 @@
         render();
     }
 
+    function getModels() {
+        return [...models];
+    }
+
     window.GENZModelsSearch = {
         initialize,
         render,
@@ -372,6 +522,7 @@
         setModels,
         getSelectedModel,
         clearSelection,
+        getModels,
 
         onSelect: null
     };
