@@ -12,196 +12,229 @@
 
     let loadingPromise = null;
 
-    // =========================================================
-    // PREPARE PROVIDER PAGE
-    // =========================================================
+    /*
+     * =========================================================
+     * FIX PROVIDER PAGE
+     * =========================================================
+     */
+    function installPageFixes() {
+        if (document.getElementById("genz-provider-page-fixes")) {
+            return;
+        }
 
+        const style = document.createElement("style");
+        style.id = "genz-provider-page-fixes";
+
+        style.textContent = `
+            /*
+             * PROVIDER LIST
+             */
+            .provider-panel > .provider-empty {
+                min-height: 80px;
+            }
+
+            #providerList,
+            #providersList,
+            #providerPanel {
+                position: relative;
+                z-index: 1;
+                width: 100%;
+            }
+
+            /*
+             * =================================================
+             * NAVIGATION
+             * =================================================
+             *
+             * Navigation harus berada DI ATAS modal backdrop.
+             * Kalau tidak, overlay modal akan menangkap klik.
+             */
+
+            .topbar {
+                position: fixed !important;
+                z-index: 3000 !important;
+                pointer-events: auto !important;
+            }
+
+            .topbar-left,
+            .topbar-right,
+            .topbar a,
+            .topbar button {
+                position: relative;
+                z-index: 3002 !important;
+                pointer-events: auto !important;
+            }
+
+            .menu-button {
+                position: relative;
+                z-index: 3003 !important;
+                pointer-events: auto !important;
+            }
+
+            .sidebar {
+                position: fixed !important;
+                z-index: 3000 !important;
+                pointer-events: auto !important;
+            }
+
+            .sidebar .nav,
+            .sidebar .nav a,
+            .sidebar .nav button {
+                position: relative;
+                z-index: 3002 !important;
+                pointer-events: auto !important;
+            }
+
+            /*
+             * Overlay menu tetap di bawah sidebar.
+             */
+            .menu-overlay {
+                z-index: 2900 !important;
+            }
+
+            /*
+             * =================================================
+             * MODAL
+             * =================================================
+             *
+             * Modal tetap bisa digunakan, tetapi tidak boleh
+             * menutup navigation.
+             */
+
+            .modal-backdrop {
+                z-index: 2000 !important;
+            }
+
+            .modal-backdrop .modal,
+            .modal-backdrop .modal-card,
+            .modal-backdrop .provider-modal {
+                position: relative;
+                z-index: 2001 !important;
+            }
+
+            /*
+             * Tombol close/modal tetap bisa diklik.
+             */
+            .modal-backdrop button,
+            .modal-backdrop input,
+            .modal-backdrop select,
+            .modal-backdrop textarea {
+                pointer-events: auto;
+            }
+
+            /*
+             * =================================================
+             * PROVIDER ACTION BUTTON
+             * =================================================
+             */
+
+            .provider-actions {
+                position: relative;
+                z-index: 10;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .provider-action-btn {
+                position: relative;
+                z-index: 11;
+                pointer-events: auto !important;
+                cursor: pointer !important;
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    /*
+     * =========================================================
+     * PREPARE PROVIDER PAGE
+     * =========================================================
+     */
     function prepareProviderPage() {
-        /*
-         * providers-ui.js mencari container:
-         * - providerList
-         * - providersList
-         * - providerPanel
-         *
-         * providers.html saat ini menggunakan:
-         * .provider-panel
-         * .provider-empty
-         *
-         * Kita gunakan elemen yang sudah ada.
-         */
+        installPageFixes();
 
-        const list =
+        /*
+         * Cari container yang sudah ada.
+         */
+        const existing =
             document.getElementById("providerList") ||
             document.getElementById("providersList") ||
             document.getElementById("providerPanel");
 
-        if (!list) {
-            const emptyState =
-                document.querySelector(
-                    ".provider-panel .provider-empty"
-                );
-
-            if (emptyState) {
-                emptyState.id = "providerList";
-            }
+        if (existing) {
+            return existing;
         }
 
-        // =====================================================
-        // NAVIGATION FIX
-        // =====================================================
         /*
-         * Modal provider menggunakan z-index 1000.
-         * Sidebar sebelumnya berada di bawah modal.
-         *
-         * Naikkan navigasi supaya tetap bisa diklik.
+         * Kalau tidak ada, gunakan provider-empty
+         * sebagai container render provider.
          */
+        const panel =
+            document.querySelector(".provider-panel");
 
-        if (
-            !document.getElementById(
-                "genz-provider-navigation-fix"
-            )
-        ) {
-            const style =
-                document.createElement("style");
+        if (!panel) {
+            console.warn(
+                "GEN-Z.AI: .provider-panel tidak ditemukan."
+            );
 
-            style.id =
-                "genz-provider-navigation-fix";
-
-            style.textContent = `
-                /* ==============================
-                   PROVIDER NAVIGATION FIX
-                   ============================== */
-
-                .topbar {
-                    z-index: 1200 !important;
-                }
-
-                .sidebar {
-                    z-index: 1200 !important;
-                }
-
-                .menu-button,
-                .back-button,
-                .nav a,
-                .nav button {
-                    position: relative;
-                    z-index: 1201 !important;
-                }
-
-                /* Pastikan sidebar tidak tertutup
-                   backdrop modal */
-                .sidebar.show {
-                    z-index: 1200 !important;
-                }
-
-                /* Tombol menu tetap aktif */
-                .menu-button {
-                    pointer-events: auto !important;
-                }
-
-                /* Link navigasi tetap aktif */
-                .nav a {
-                    pointer-events: auto !important;
-                    cursor: pointer !important;
-                }
-
-                /* Tombol navigasi tetap aktif */
-                .nav button {
-                    pointer-events: auto !important;
-                    cursor: pointer !important;
-                }
-            `;
-
-            document.head.appendChild(style);
+            return null;
         }
+
+        let empty =
+            panel.querySelector(".provider-empty");
+
+        if (!empty) {
+            empty =
+                document.createElement("div");
+
+            empty.className =
+                "provider-empty";
+
+            panel.appendChild(empty);
+        }
+
+        empty.id = "providerList";
+
+        return empty;
     }
 
-    // =========================================================
-    // LOAD SCRIPT
-    // =========================================================
-
+    /*
+     * =========================================================
+     * LOAD SCRIPT
+     * =========================================================
+     */
     function loadScript(src) {
-        return new Promise(
-            (resolve, reject) => {
-                const existing =
-                    document.querySelector(
-                        `script[data-genz-provider-module="${src}"]`
-                    );
+        return new Promise((resolve, reject) => {
 
-                /*
-                 * Jika module sudah ada
-                 */
-                if (existing) {
-                    if (
-                        existing.dataset.loaded ===
-                        "true"
-                    ) {
-                        resolve();
-                        return;
-                    }
+            const existing =
+                document.querySelector(
+                    `script[data-genz-provider-module="${src}"]`
+                );
 
-                    existing.addEventListener(
-                        "load",
-                        resolve,
-                        {
-                            once: true
-                        }
-                    );
+            /*
+             * Script sudah pernah dimuat.
+             */
+            if (existing) {
 
-                    existing.addEventListener(
-                        "error",
-                        () => {
-                            reject(
-                                new Error(
-                                    `Gagal memuat module: ${src}`
-                                )
-                            );
-                        },
-                        {
-                            once: true
-                        }
-                    );
-
+                if (
+                    existing.dataset.loaded ===
+                    "true"
+                ) {
+                    resolve();
                     return;
                 }
 
-                /*
-                 * Buat script module
-                 */
-                const script =
-                    document.createElement(
-                        "script"
-                    );
-
-                script.src =
-                    BASE_PATH + src;
-
-                script.async = false;
-
-                script.dataset
-                    .genzProviderModule =
-                    src;
-
-                /*
-                 * Berhasil dimuat
-                 */
-                script.addEventListener(
+                existing.addEventListener(
                     "load",
-                    () => {
-                        script.dataset.loaded =
-                            "true";
-
-                        resolve();
-                    },
+                    resolve,
                     {
                         once: true
                     }
                 );
 
-                /*
-                 * Gagal dimuat
-                 */
-                script.addEventListener(
+                existing.addEventListener(
                     "error",
                     () => {
                         reject(
@@ -215,28 +248,79 @@
                     }
                 );
 
-                document.head.appendChild(
-                    script
-                );
+                return;
             }
-        );
+
+            /*
+             * Buat script baru.
+             */
+            const script =
+                document.createElement(
+                    "script"
+                );
+
+            script.src =
+                BASE_PATH + src;
+
+            script.async = false;
+
+            script.dataset.genzProviderModule =
+                src;
+
+            script.addEventListener(
+                "load",
+                () => {
+
+                    script.dataset.loaded =
+                        "true";
+
+                    resolve();
+                },
+                {
+                    once: true
+                }
+            );
+
+            script.addEventListener(
+                "error",
+                () => {
+
+                    reject(
+                        new Error(
+                            `Gagal memuat module: ${src}`
+                        )
+                    );
+                },
+                {
+                    once: true
+                }
+            );
+
+            document.head.appendChild(
+                script
+            );
+        });
     }
 
-    // =========================================================
-    // LOAD ALL MODULES
-    // =========================================================
-
+    /*
+     * =========================================================
+     * LOAD ALL PROVIDER MODULES
+     * =========================================================
+     */
     async function loadModules() {
+
         if (loadingPromise) {
             return loadingPromise;
         }
 
         loadingPromise =
             (async () => {
+
                 for (
                     const moduleName
                     of MODULES
                 ) {
+
                     await loadScript(
                         moduleName
                     );
@@ -246,8 +330,11 @@
             })();
 
         try {
+
             return await loadingPromise;
+
         } catch (error) {
+
             loadingPromise = null;
 
             console.error(
@@ -259,24 +346,25 @@
         }
     }
 
-    // =========================================================
-    // INITIALIZE
-    // =========================================================
-
+    /*
+     * =========================================================
+     * INITIALIZE PROVIDER CONTROL
+     * =========================================================
+     */
     async function initialize() {
 
         /*
-         * Siapkan halaman terlebih dahulu
+         * Siapkan DOM dan CSS terlebih dahulu.
          */
         prepareProviderPage();
 
         /*
-         * Load seluruh module provider
+         * Load semua module provider.
          */
         await loadModules();
 
         /*
-         * Ambil initializer
+         * Ambil initializer.
          */
         const init =
             window.GENZProvidersInit;
@@ -286,38 +374,42 @@
             typeof init.initialize !==
                 "function"
         ) {
+
             throw new Error(
                 "GENZProvidersInit tidak tersedia."
             );
         }
 
         /*
-         * Jalankan provider system
+         * Jalankan provider system.
          */
         return init.initialize();
     }
 
-    // =========================================================
-    // GLOBAL API
-    // =========================================================
-
+    /*
+     * =========================================================
+     * PUBLIC API
+     * =========================================================
+     */
     window.GENZProvidersLoader =
         Object.freeze({
             loadModules,
             initialize
         });
 
-    // =========================================================
-    // AUTO INITIALIZE
-    // =========================================================
+    /*
+     * =========================================================
+     * AUTO INITIALIZE
+     * =========================================================
+     */
+    initialize()
+        .catch(error => {
 
-    initialize().catch(
-        error => {
             console.error(
                 "Gagal menginisialisasi Provider Control:",
                 error
             );
-        }
-    );
+
+        });
 
 })();
