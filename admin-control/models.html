@@ -2008,6 +2008,80 @@
     </div>
 
 </div>
+<script>
+(function () {
+    "use strict";
+
+    function bindAddModelButton() {
+        const button = document.getElementById("addModelBtn");
+
+        if (!button) {
+            return;
+        }
+
+        if (button.dataset.directAddModelBound === "true") {
+            return;
+        }
+
+        button.dataset.directAddModelBound = "true";
+
+        button.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const form = window.GENZModelsForm;
+
+            if (
+                form &&
+                typeof form.openCreateForm === "function"
+            ) {
+                form.openCreateForm();
+                return;
+            }
+
+            const modal = document.getElementById("modelModal");
+
+            if (!modal) {
+                console.error(
+                    "[GEN-Z.AI] #modelModal tidak ditemukan."
+                );
+                return;
+            }
+
+            modal.classList.remove("hidden");
+            modal.classList.add("show");
+            modal.classList.add("open");
+
+            modal.style.display = "flex";
+
+            modal.removeAttribute("aria-hidden");
+
+            document.body.classList.add("modal-open");
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            bindAddModelButton,
+            { once: true }
+        );
+    } else {
+        bindAddModelButton();
+    }
+
+    window.setTimeout(
+        bindAddModelButton,
+        500
+    );
+
+    window.setTimeout(
+        bindAddModelButton,
+        1500
+    );
+})();
+</script>
+
 <script src="./models/models-loader.js"></script>
 </body>
 </html>
