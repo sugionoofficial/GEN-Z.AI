@@ -312,13 +312,14 @@ async function createTask(
     }
 
     const data =
-        await request(
-            CREATE_TASK_PATH,
-            {
-                method: "POST",
-                body: payload
-            }
-        );
+    await request(
+        CREATE_TASK_PATH,
+        {
+            method: "POST",
+            body: payload,
+            apiKey
+        }
+    );
 
     const taskId =
         data?.data?.taskId ||
