@@ -281,38 +281,20 @@ async function createTask(
     apiKey = null
 ) {
 
-    if (
-        !payload ||
-        typeof payload !== "object"
-    ) {
+    const data =
+        await request(
+            CREATE_TASK_PATH,
+            {
+                method: "POST",
 
-        throw new Error(
-            "Payload KIE.AI tidak valid."
+                body: payload,
+
+                apiKey
+            }
         );
 
-    }
-
-    if (
-        !payload.model ||
-        typeof payload.model !== "string"
-    ) {
-
-        throw new Error(
-            "Model KIE.AI wajib diisi."
-        );
-
-    }
-
-    if (
-        !payload.input ||
-        typeof payload.input !== "object"
-    ) {
-
-        throw new Error(
-            "Input model KIE.AI wajib berupa object."
-        );
-
-    }
+    return data;
+}
 
     const data =
     await request(
