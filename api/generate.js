@@ -3,6 +3,7 @@
 // KIE.AI VIDEO GENERATION API
 // File: api/generate.js
 // ========================================
+import crypto from "node:crypto";
 
 import {
     createTask
