@@ -59,7 +59,6 @@
         body {
             margin: 0;
             min-height: 100vh;
-
             color: var(--text);
 
             font-family:
@@ -269,9 +268,7 @@
 
         .topbar-brand span {
             margin-top: 4px;
-
             color: var(--muted);
-
             font-size: 9px;
             font-weight: 800;
             letter-spacing: 0.15em;
@@ -910,11 +907,6 @@
             background: #6366f1;
         }
 
-        /* IMPORTANT:
-           list.js mencari #providerList.
-           Jangan ubah ID ini.
-        */
-
         #providerList {
             display: grid;
 
@@ -934,10 +926,7 @@
         }
 
         .provider-list-loading,
-        .provider-list-empty {
-            grid-column: 1 / -1;
-        }
-
+        .provider-list-empty,
         .provider-list-error {
             grid-column: 1 / -1;
         }
@@ -1376,6 +1365,7 @@
                 type="button"
                 onclick="openMenu()"
                 aria-label="Buka menu"
+                aria-expanded="false"
             >
                 <span class="menu-icon">
                     <span></span>
@@ -1418,9 +1408,7 @@
 
     </header>
 
-    <!-- =====================================================
-         MENU OVERLAY
-         ===================================================== -->
+    <!-- MENU OVERLAY -->
 
     <div
         class="menu-overlay"
@@ -1428,9 +1416,7 @@
         onclick="closeMenu()"
     ></div>
 
-    <!-- =====================================================
-         SIDEBAR
-         ===================================================== -->
+    <!-- SIDEBAR -->
 
     <aside
         class="sidebar"
@@ -1461,7 +1447,6 @@
                         <path d="M9 21v-6h6v6"></path>
                     </svg>
                 </span>
-
                 Dashboard
             </a>
 
@@ -1481,7 +1466,6 @@
                         <path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"></path>
                     </svg>
                 </span>
-
                 Generate
             </a>
 
@@ -1502,7 +1486,6 @@
                         <path d="M12 7v5l3 2"></path>
                     </svg>
                 </span>
-
                 History
             </a>
 
@@ -1531,15 +1514,12 @@
                     <path d="M21 19V5a2 2 0 0 0-2-2h-7"></path>
                 </svg>
             </span>
-
             Log Out
         </button>
 
     </aside>
 
-    <!-- =====================================================
-         MAIN
-         ===================================================== -->
+    <!-- MAIN -->
 
     <main class="main">
 
@@ -1585,9 +1565,7 @@
 
             </section>
 
-            <!-- =================================================
-                 HERO
-                 ================================================= -->
+            <!-- HERO -->
 
             <section class="hero-card">
 
@@ -1633,9 +1611,7 @@
 
             </section>
 
-            <!-- =================================================
-                 STATS
-                 ================================================= -->
+            <!-- STATS -->
 
             <section class="stats-grid">
 
@@ -1665,7 +1641,6 @@
                                     height="18"
                                     rx="3"
                                 ></rect>
-
                                 <path d="M8 8h8"></path>
                                 <path d="M8 12h8"></path>
                                 <path d="M8 16h5"></path>
@@ -1749,7 +1724,6 @@
                                     cy="12"
                                     r="9"
                                 ></circle>
-
                                 <path d="M9 9l6 6"></path>
                                 <path d="M15 9l-6 6"></path>
                             </svg>
@@ -1812,9 +1786,7 @@
 
             </section>
 
-            <!-- =================================================
-                 PROVIDER PANEL
-                 ================================================= -->
+            <!-- PROVIDER PANEL -->
 
             <section class="provider-panel">
 
@@ -1861,12 +1833,6 @@
 
                 </div>
 
-                <!--
-                    WAJIB:
-                    list.js menggunakan #providerList.
-                    Jangan hapus ID ini.
-                -->
-
                 <div
                     id="providerList"
                     class="provider-list"
@@ -1878,9 +1844,7 @@
 
     </main>
 
-    <!-- =====================================================
-         PROVIDER MODAL
-         ===================================================== -->
+    <!-- PROVIDER MODAL -->
 
     <div
         class="modal-backdrop"
@@ -2105,9 +2069,7 @@
 
     </div>
 
-    <!-- =====================================================
-         MESSAGE
-         ===================================================== -->
+    <!-- MESSAGE -->
 
     <div
         class="message"
@@ -2118,15 +2080,14 @@
          PROVIDER MODULES
          ===================================================== -->
 
-    <script src="providers/supabase.js?v=20260917-02"></script>
-    <script src="providers/api-key.js?v=20260917-02"></script>
-    <script src="providers/list.js?v=20260917-02"></script>
-    <script src="providers/form.js?v=20260917-02"></script>
-    <script src="providers/actions.js?v=20260917-02"></script>
+    <script src="providers/supabase.js?v=20260917-03"></script>
+    <script src="providers/api-key.js?v=20260917-03"></script>
+    <script src="providers/list.js?v=20260917-03"></script>
+    <script src="providers/form.js?v=20260917-03"></script>
+    <script src="providers/actions.js?v=20260917-03"></script>
 
     <!-- =====================================================
          PAGE BRIDGE
-         Menjembatani HTML lama dengan module baru.
          ===================================================== -->
 
     <script>
@@ -2147,11 +2108,25 @@
                 const button =
                     document.getElementById("menuButton");
 
-                sidebar?.classList.add("show");
-                overlay?.classList.add("show");
-                button?.classList.add("active");
+                if (sidebar) {
+                    sidebar.classList.add("show");
+                }
 
-                document.body.classList.add("menu-open");
+                if (overlay) {
+                    overlay.classList.add("show");
+                }
+
+                if (button) {
+                    button.classList.add("active");
+                    button.setAttribute(
+                        "aria-expanded",
+                        "true"
+                    );
+                }
+
+                document.body.classList.add(
+                    "menu-open"
+                );
             };
 
             window.closeMenu = function () {
@@ -2164,11 +2139,25 @@
                 const button =
                     document.getElementById("menuButton");
 
-                sidebar?.classList.remove("show");
-                overlay?.classList.remove("show");
-                button?.classList.remove("active");
+                if (sidebar) {
+                    sidebar.classList.remove("show");
+                }
 
-                document.body.classList.remove("menu-open");
+                if (overlay) {
+                    overlay.classList.remove("show");
+                }
+
+                if (button) {
+                    button.classList.remove("active");
+                    button.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
+                }
+
+                document.body.classList.remove(
+                    "menu-open"
+                );
             };
 
             /* =================================================
@@ -2181,7 +2170,8 @@
 
                 if (
                     form &&
-                    typeof form.openCreate === "function"
+                    typeof form.openCreate ===
+                        "function"
                 ) {
                     form.openCreate();
                     return;
@@ -2198,7 +2188,8 @@
 
                 if (
                     form &&
-                    typeof form.close === "function"
+                    typeof form.close ===
+                        "function"
                 ) {
                     form.close();
                     return;
@@ -2210,14 +2201,15 @@
                     );
 
                 if (modal) {
-                    modal.style.display = "none";
                     modal.classList.remove("show");
+                    modal.style.display = "none";
                 }
             };
 
             window.handleModalBackdrop =
                 function (event) {
                     if (
+                        event &&
                         event.target &&
                         event.target.id ===
                             "providerModal"
@@ -2227,7 +2219,7 @@
                 };
 
             /* =================================================
-               API KEY TOGGLE
+               API KEY VISIBILITY
                ================================================= */
 
             window.toggleApiKey = function () {
@@ -2246,7 +2238,8 @@
                 }
 
                 if (
-                    input.type === "password"
+                    input.type ===
+                    "password"
                 ) {
                     input.type = "text";
 
@@ -2257,7 +2250,7 @@
                     input.type = "password";
 
                     if (eye) {
-                        eye.style.opacity = ".65";
+                        eye.style.opacity = "0.65";
                     }
                 }
             };
@@ -2275,7 +2268,10 @@
                         providerSupabase &&
                         providerSupabase.client
                     ) {
-                        await providerSupabase.client.auth.signOut();
+                        await providerSupabase
+                            .client
+                            .auth
+                            .signOut();
                     }
                 } catch (error) {
                     console.error(
@@ -2284,7 +2280,7 @@
                     );
                 } finally {
                     window.location.replace(
-                        "../login.html"
+                        "../index.html"
                     );
                 }
             };
@@ -2307,10 +2303,26 @@
                     const module =
                         window.GENZProviderSupabase;
 
+                    if (!module) {
+                        element.textContent =
+                            "Admin";
+                        return;
+                    }
+
                     if (
-                        !module ||
-                        !module.ready
+                        module.ready &&
+                        typeof module.ready.then ===
+                            "function"
                     ) {
+                        await module.ready;
+                    }
+
+                    if (
+                        typeof module.getUser !==
+                        "function"
+                    ) {
+                        element.textContent =
+                            "Admin";
                         return;
                     }
 
@@ -2318,8 +2330,11 @@
                         await module.getUser();
 
                     element.textContent =
-                        user?.email ||
-                        "Admin";
+                        user &&
+                        user.email
+                            ? user.email
+                            : "Admin";
+
                 } catch (error) {
                     console.warn(
                         "[GEN-Z.AI] Tidak dapat membaca email admin:",
@@ -2347,11 +2362,12 @@
                     return;
                 }
 
+                const result =
+                    list.getAll();
+
                 const providers =
-                    Array.isArray(
-                        list.getAll()
-                    )
-                        ? list.getAll()
+                    Array.isArray(result)
+                        ? result
                         : [];
 
                 let active = 0;
@@ -2362,8 +2378,10 @@
                     function (provider) {
                         const status =
                             String(
-                                provider?.status ||
-                                    ""
+                                provider &&
+                                provider.status
+                                    ? provider.status
+                                    : ""
                             )
                                 .trim()
                                 .toLowerCase();
@@ -2406,27 +2424,29 @@
 
                 if (totalElement) {
                     totalElement.textContent =
-                        providers.length;
+                        String(
+                            providers.length
+                        );
                 }
 
                 if (activeElement) {
                     activeElement.textContent =
-                        active;
+                        String(active);
                 }
 
                 if (inactiveElement) {
                     inactiveElement.textContent =
-                        inactive;
+                        String(inactive);
                 }
 
                 if (maintenanceElement) {
                     maintenanceElement.textContent =
-                        maintenance;
+                        String(maintenance);
                 }
             }
 
             /* =================================================
-               PROVIDER READY EVENT
+               PROVIDER EVENTS
                ================================================= */
 
             document.addEventListener(
@@ -2437,36 +2457,72 @@
                 }
             );
 
-            /*
-             * Refresh setelah aksi provider.
-             * Mutation list akan selesai sebelum event berikutnya.
-             */
-
             document.addEventListener(
-                "click",
+                "genz:providers-rendered",
                 function () {
-                    setTimeout(
-                        updateStats,
-                        450
-                    );
+                    updateStats();
                 }
             );
 
             /* =================================================
-               ESC CLOSE
+               MENU LINK
+               ================================================= */
+
+            document.addEventListener(
+                "click",
+                function (event) {
+                    const link =
+                        event.target &&
+                        event.target.closest
+                            ? event.target.closest(
+                                ".sidebar a"
+                            )
+                            : null;
+
+                    if (link) {
+                        window.closeMenu();
+                    }
+                }
+            );
+
+            /* =================================================
+               ESC
                ================================================= */
 
             document.addEventListener(
                 "keydown",
                 function (event) {
                     if (
-                        event.key === "Escape"
+                        event.key ===
+                        "Escape"
                     ) {
                         window.closeProviderModal();
                         window.closeMenu();
                     }
                 }
             );
+
+            /* =================================================
+               PAGE API
+               ================================================= */
+
+            window.GENZProviderPage = {
+                updateStats,
+                loadAdminEmail,
+                openMenu:
+                    window.openMenu,
+                closeMenu:
+                    window.closeMenu,
+                openProviderModal:
+                    window.openProviderModal,
+                closeProviderModal:
+                    window.closeProviderModal,
+                toggleApiKey:
+                    window.toggleApiKey,
+                logout:
+                    window.logout
+            };
+
         })();
     </script>
 
@@ -2474,7 +2530,7 @@
          PROVIDER INIT
          ===================================================== -->
 
-    <script src="providers/init.js?v=20260917-02"></script>
+    <script src="providers/init.js?v=20260917-03"></script>
 
 </body>
 </html>
