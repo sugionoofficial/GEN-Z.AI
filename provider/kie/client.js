@@ -274,7 +274,8 @@ const headers = {
  * }
  */
 async function createTask(
-    payload
+    payload,
+    apiKey = null
 ) {
 
     if (
