@@ -1,15 +1,18 @@
 (function () {
     "use strict";
 
-    function getProviders() {
-        if (
-            window.GENZProvidersData &&
-            typeof window.GENZProvidersData.getProviders === "function"
-        ) {
-            return window.GENZProvidersData.getProviders();
-        }
+    // =========================================================
+    // GEN-Z.AI - PROVIDERS UI
+    // =========================================================
 
-        return [];
+    let currentProviders = [];
+
+    // ---------------------------------------------------------
+    // ELEMENT HELPERS
+    // ---------------------------------------------------------
+
+    function getElement(id) {
+        return document.getElementById(id);
     }
 
     function escapeHtml(value) {
@@ -21,508 +24,411 @@
             .replace(/'/g, "&#039;");
     }
 
+    function normalizeStatus(status) {
+        return String(status || "")
+            .trim()
+            .toLowerCase() === "active"
+            ? "active"
+            : "inactive";
+    }
+
+    // ---------------------------------------------------------
+    // STATUS
+    // ---------------------------------------------------------
+
     function getStatusLabel(status) {
-        const value =
-            String(status || "")
-                .trim()
-                .toLowerCase();
-
-        if (value === "active") {
-            return "Active";
-        }
-
-        if (value === "inactive") {
-            return "Inactive";
-        }
-
-        if (value === "maintenance") {
-            return "Maintenance";
-        }
-
-        return status || "-";
+        return normalizeStatus(status) === "active"
+            ? "Aktif"
+            : "Nonaktif";
     }
 
     function getStatusClass(status) {
-        const value =
-            String(status || "")
-                .trim()
-                .toLowerCase();
-
-        if (value === "active") {
-            return "active";
-        }
-
-        if (value === "maintenance") {
-            return "maintenance";
-        }
-
-        return "inactive";
+        return normalizeStatus(status) === "active"
+            ? "active"
+            : "inactive";
     }
 
-    function updateProviderStats() {
-        const providers =
-            getProviders();
+    // ---------------------------------------------------------
+    // PROVIDER ACTION BUTTONS
+    // ---------------------------------------------------------
 
-        const total =
-            providers.length;
+    function renderActions(provider) {
+        const id =
+            provider.id ||
+            provider.uuid ||
+            "";
 
-        const active =
-            providers.filter(
-                provider =>
-                    String(provider.status || "")
-                        .trim()
-                        .toLowerCase() === "active"
-            ).length;
-
-        const inactive =
-            providers.filter(
-                provider =>
-                    String(provider.status || "")
-                        .trim()
-                        .toLowerCase() === "inactive"
-            ).length;
-
-        const maintenance =
-            providers.filter(
-                provider =>
-                    String(provider.status || "")
-                        .trim()
-                        .toLowerCase() === "maintenance"
-            ).length;
-
-        const totalElement =
-            document.getElementById(
-                "totalProviders"
+        const status =
+            normalizeStatus(
+                provider.status
             );
 
-        const activeElement =
-            document.getElementById(
-                "activeProviders"
-            );
+        const toggleText =
+            status === "active"
+                ? "Nonaktifkan"
+                : "Aktifkan";
 
-        const inactiveElement =
-            document.getElementById(
-                "inactiveProviders"
-            );
+        const toggleClass =
+            status === "active"
+                ? "provider-btn-warning"
+                : "provider-btn-success";
 
-        const maintenanceElement =
-            document.getElementById(
-                "maintenanceProviders"
-            );
-
-        if (totalElement) {
-            totalElement.textContent =
-                total;
-        }
-
-        if (activeElement) {
-            activeElement.textContent =
-                active;
-        }
-
-        if (inactiveElement) {
-            inactiveElement.textContent =
-                inactive;
-        }
-
-        if (maintenanceElement) {
-            maintenanceElement.textContent =
-                maintenance;
-        }
-
-        return {
-            total,
-            active,
-            inactive,
-            maintenance
-        };
-    }
-
-    function renderEmptyState() {
         return `
-            <div class="panel-header">
+            <div class="provider-actions">
 
-                <div class="panel-title">
+                <button
+                    type="button"
+                    class="provider-action-btn provider-btn-edit"
+                    data-provider-action="edit"
+                    data-provider-id="${escapeHtml(id)}"
+                >
+                    Edit
+                </button>
 
-                    <span class="panel-title-icon">
-                        <svg
-                            width="17"
-                            height="17"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <circle
-                                cx="12"
-                                cy="12"
-                                r="3"
-                            ></circle>
+                <button
+                    type="button"
+                    class="provider-action-btn ${toggleClass}"
+                    data-provider-action="toggle"
+                    data-provider-id="${escapeHtml(id)}"
+                >
+                    ${toggleText}
+                </button>
 
-                            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.9 1.9-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V22h-2.7v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.9-1.9.06-.06A1.7 1.7 0 0 0 5.76 15a1.7 1.7 0 0 0-1.56-1.03H4v-2.7h.2A1.7 1.7 0 0 0 5.76 10a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.9-1.9.06.06A1.7 1.7 0 0 0 9.2 6.56 1.7 1.7 0 0 0 10.23 5V4h2.7v1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.9 1.9-.06.06A1.7 1.7 0 0 0 17.4 10a1.7 1.7 0 0 0 1.56 1.03H20v2.7h-1.03A1.7 1.7 0 0 0 17.4 15z"></path>
-                        </svg>
-                    </span>
+                <button
+                    type="button"
+                    class="provider-action-btn provider-btn-delete"
+                    data-provider-action="delete"
+                    data-provider-id="${escapeHtml(id)}"
+                >
+                    Hapus
+                </button>
 
-                    <div>
-                        <strong>Provider Registry</strong>
-                        <span>Daftar provider AI yang terhubung</span>
+            </div>
+        `;
+    }
+
+    // ---------------------------------------------------------
+    // PROVIDER CARD
+    // ---------------------------------------------------------
+
+    function renderProviderCard(provider) {
+        const providerId =
+            provider.provider_id ||
+            "-";
+
+        const providerName =
+            provider.provider_name ||
+            providerId;
+
+        const description =
+            provider.description ||
+            "Tidak ada deskripsi.";
+
+        const status =
+            normalizeStatus(
+                provider.status
+            );
+
+        const statusLabel =
+            getStatusLabel(status);
+
+        const statusClass =
+            getStatusClass(status);
+
+        const isDefault =
+            Boolean(
+                provider.is_default
+            );
+
+        const createdAt =
+            provider.created_at
+                ? new Date(
+                    provider.created_at
+                ).toLocaleString(
+                    "id-ID"
+                )
+                : "-";
+
+        return `
+            <article
+                class="provider-card"
+                data-provider-id="${escapeHtml(
+                    provider.id ||
+                    provider.uuid ||
+                    ""
+                )}"
+            >
+
+                <div class="provider-card-header">
+
+                    <div class="provider-title-area">
+
+                        <h3 class="provider-name">
+                            ${escapeHtml(
+                                providerName
+                            )}
+                        </h3>
+
+                        <div class="provider-id">
+                            ${escapeHtml(
+                                providerId
+                            )}
+                        </div>
+
+                    </div>
+
+                    <div class="provider-status ${statusClass}">
+                        ${statusLabel}
                     </div>
 
                 </div>
 
-                <div class="panel-badge">
-                    <span class="panel-badge-dot"></span>
-                    Provider Control
+
+                <div class="provider-card-body">
+
+                    <div class="provider-description">
+                        ${escapeHtml(
+                            description
+                        )}
+                    </div>
+
+
+                    <div class="provider-meta">
+
+                        <span>
+                            Dibuat:
+                            ${escapeHtml(
+                                createdAt
+                            )}
+                        </span>
+
+                        ${
+                            isDefault
+                                ? `
+                                    <span class="provider-default">
+                                        Provider Default
+                                    </span>
+                                  `
+                                : ""
+                        }
+
+                    </div>
+
                 </div>
 
-            </div>
 
+                ${renderActions(provider)}
+
+            </article>
+        `;
+    }
+
+    // ---------------------------------------------------------
+    // RENDER PROVIDERS
+    // ---------------------------------------------------------
+
+    function renderProviders(providers) {
+        currentProviders =
+            Array.isArray(providers)
+                ? providers
+                : [];
+
+        const container =
+            getElement("providerList") ||
+            getElement("providersList") ||
+            getElement("providerPanel");
+
+        if (!container) {
+            console.warn(
+                "[GEN-Z.AI] Container provider tidak ditemukan."
+            );
+
+            return;
+        }
+
+        if (
+            !Array.isArray(
+                currentProviders
+            ) ||
+            currentProviders.length === 0
+        ) {
+            renderEmptyState(
+                container
+            );
+
+            updateStats([]);
+
+            return;
+        }
+
+        container.innerHTML =
+            currentProviders
+                .map(
+                    renderProviderCard
+                )
+                .join("");
+
+        updateStats(
+            currentProviders
+        );
+    }
+
+    // ---------------------------------------------------------
+    // EMPTY STATE
+    // ---------------------------------------------------------
+
+    function renderEmptyState(container) {
+        container.innerHTML = `
             <div class="provider-empty">
 
-                <div class="empty-icon">
-
-                    <svg
-                        width="30"
-                        height="30"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <rect
-                            x="3"
-                            y="3"
-                            width="18"
-                            height="18"
-                            rx="4"
-                        ></rect>
-
-                        <path d="M8 9h8"></path>
-                        <path d="M8 13h5"></path>
-                        <path d="M8 17h3"></path>
-                    </svg>
-
+                <div class="provider-empty-icon">
+                    +
                 </div>
 
-                <h3 class="empty-title">
+                <h3>
                     Belum ada provider
                 </h3>
 
-                <p class="empty-text">
-                    Provider yang ditambahkan nantinya akan muncul
-                    di sini. Gunakan tombol
-                    <strong>Tambah Provider</strong>
-                    untuk membuat konfigurasi provider baru.
+                <p>
+                    Tambahkan provider AI
+                    untuk mulai menggunakan
+                    engine GEN-Z.AI.
                 </p>
 
             </div>
         `;
     }
 
-    function renderProviderCard(provider) {
-        const statusClass =
-            getStatusClass(
-                provider.status
-            );
+    // ---------------------------------------------------------
+    // STATS
+    // ---------------------------------------------------------
 
-        const statusLabel =
-            getStatusLabel(
-                provider.status
-            );
+    function updateStats(providers) {
+        const list =
+            Array.isArray(providers)
+                ? providers
+                : [];
 
-        const providerName =
-            provider.provider_name ||
-            "Provider";
+        const total =
+            list.length;
 
-        const providerId =
-            provider.provider_id ||
-            "-";
+        const active =
+            list.filter(function (provider) {
+                return (
+                    normalizeStatus(
+                        provider.status
+                    ) === "active"
+                );
+            }).length;
 
-        const initial =
-            String(providerName)
-                .charAt(0)
-                .toUpperCase() ||
-            "P";
+        const inactive =
+            total - active;
 
-        const description =
-            provider.description
-                ? `
-                    <div
-                        style="
-                            margin-top:5px;
-                            color:#7f8998;
-                            font-size:11px;
-                        "
-                    >
-                        ${escapeHtml(
-                            provider.description
-                        )}
-                    </div>
-                `
-                : "";
+        const defaults =
+            list.filter(function (provider) {
+                return Boolean(
+                    provider.is_default
+                );
+            }).length;
 
-        const defaultBadge =
-            provider.is_default
-                ? `
-                    <span
-                        style="
-                            display:inline-flex;
-                            align-items:center;
-                            padding:5px 8px;
-                            border-radius:999px;
-                            background:var(--accent-soft);
-                            color:#a78bfa;
-                            font-size:9px;
-                            font-weight:850;
-                        "
-                    >
-                        Default
-                    </span>
-                `
-                : "";
+        setText(
+            [
+                "providerTotal",
+                "totalProviders",
+                "providersTotal"
+            ],
+            total
+        );
 
-        const statusBackground =
-            statusClass === "active"
-                ? "var(--success-soft)"
-                : statusClass === "maintenance"
-                    ? "var(--warning-soft)"
-                    : "var(--danger-soft)";
+        setText(
+            [
+                "providerActive",
+                "activeProviders",
+                "providersActive"
+            ],
+            active
+        );
 
-        const statusColor =
-            statusClass === "active"
-                ? "var(--success)"
-                : statusClass === "maintenance"
-                    ? "var(--warning)"
-                    : "var(--danger)";
+        setText(
+            [
+                "providerInactive",
+                "inactiveProviders",
+                "providersInactive"
+            ],
+            inactive
+        );
 
-        return `
-            <article
-                style="
-                    padding:22px;
-                    border-bottom:1px solid var(--border);
-                    display:flex;
-                    align-items:center;
-                    justify-content:space-between;
-                    gap:20px;
-                    flex-wrap:wrap;
-                "
-            >
-
-                <div
-                    style="
-                        display:flex;
-                        align-items:center;
-                        gap:15px;
-                        min-width:0;
-                    "
-                >
-
-                    <div
-                        style="
-                            width:46px;
-                            height:46px;
-                            flex:0 0 46px;
-                            display:flex;
-                            align-items:center;
-                            justify-content:center;
-                            border:1px solid rgba(139,92,246,.18);
-                            border-radius:13px;
-                            background:var(--accent-soft);
-                            color:#a78bfa;
-                            font-size:18px;
-                            font-weight:900;
-                        "
-                    >
-                        ${escapeHtml(initial)}
-                    </div>
-
-                    <div
-                        style="
-                            min-width:0;
-                        "
-                    >
-
-                        <div
-                            style="
-                                display:flex;
-                                align-items:center;
-                                gap:9px;
-                                flex-wrap:wrap;
-                            "
-                        >
-
-                            <strong
-                                style="
-                                    font-size:14px;
-                                    font-weight:850;
-                                "
-                            >
-                                ${escapeHtml(providerName)}
-                            </strong>
-
-                            <span
-                                style="
-                                    display:inline-flex;
-                                    align-items:center;
-                                    padding:5px 8px;
-                                    border-radius:999px;
-                                    background:${statusBackground};
-                                    color:${statusColor};
-                                    font-size:9px;
-                                    font-weight:850;
-                                "
-                            >
-                                ${escapeHtml(statusLabel)}
-                            </span>
-
-                            ${defaultBadge}
-
-                        </div>
-
-                        <div
-                            style="
-                                margin-top:5px;
-                                color:#697386;
-                                font-size:10px;
-                            "
-                        >
-                            ID:
-                            ${escapeHtml(providerId)}
-                        </div>
-
-                        ${description}
-
-                    </div>
-
-                </div>
-
-                <div
-                    style="
-                        color:#596477;
-                        font-size:10px;
-                        font-weight:700;
-                    "
-                >
-                    ${
-                        provider.is_default
-                            ? "Provider default aktif"
-                            : "Provider terdaftar"
-                    }
-                </div>
-
-            </article>
-        `;
+        setText(
+            [
+                "providerDefault",
+                "defaultProviders",
+                "providersDefault"
+            ],
+            defaults
+        );
     }
 
-    function renderProviderRegistry() {
-        const panel =
-            document.querySelector(
-                ".provider-panel"
-            );
+    function setText(ids, value) {
+        ids.some(function (id) {
+            const element =
+                getElement(id);
 
-        if (!panel) {
-            console.warn(
-                "Element .provider-panel tidak ditemukan."
-            );
+            if (!element) {
+                return false;
+            }
 
-            return;
-        }
+            element.textContent =
+                String(value);
 
-        const providers =
-            getProviders();
-
-        updateProviderStats();
-
-        if (!providers.length) {
-            panel.innerHTML =
-                renderEmptyState();
-
-            return;
-        }
-
-        const cards =
-            providers
-                .map(
-                    provider =>
-                        renderProviderCard(
-                            provider
-                        )
-                )
-                .join("");
-
-        panel.innerHTML = `
-            <div class="panel-header">
-
-                <div class="panel-title">
-
-                    <span class="panel-title-icon">
-                        <svg
-                            width="17"
-                            height="17"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <circle
-                                cx="12"
-                                cy="12"
-                                r="3"
-                            ></circle>
-
-                            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.9 1.9-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V22h-2.7v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.9-1.9.06-.06A1.7 1.7 0 0 0 5.76 15a1.7 1.7 0 0 0-1.56-1.03H4v-2.7h.2A1.7 1.7 0 0 0 5.76 10a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.9-1.9.06.06A1.7 1.7 0 0 0 9.2 6.56 1.7 1.7 0 0 0 10.23 5V4h2.7v1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l-.06-.06 1.9 1.9-.06.06A1.7 1.7 0 0 0 17.4 10a1.7 1.7 0 0 0 1.56 1.03H20v2.7h-1.03A1.7 1.7 0 0 0 17.4 15z"></path>
-                        </svg>
-                    </span>
-
-                    <div>
-                        <strong>Provider Registry</strong>
-                        <span>Daftar provider AI yang terhubung</span>
-                    </div>
-
-                </div>
-
-                <div class="panel-badge">
-                    <span class="panel-badge-dot"></span>
-                    ${providers.length} Provider
-                </div>
-
-            </div>
-
-            ${cards}
-        `;
-    }
-
-    function refresh() {
-        renderProviderRegistry();
-    }
-
-    window.GENZProvidersUI =
-        Object.freeze({
-            escapeHtml,
-            getStatusLabel,
-            getStatusClass,
-            updateProviderStats,
-            renderProviderRegistry,
-            renderProviderCard,
-            renderEmptyState,
-            refresh
+            return true;
         });
+    }
 
-    /*
-     * Compatibility layer untuk providers.html lama.
-     * Akan tetap tersedia selama proses migrasi.
-     */
+    // ---------------------------------------------------------
+    // FIND PROVIDER
+    // ---------------------------------------------------------
 
-    window.updateProviderStats =
-        updateProviderStats;
+    function findProvider(providerId) {
+        return (
+            currentProviders.find(
+                function (provider) {
+                    return (
+                        String(
+                            provider.id ||
+                            provider.uuid ||
+                            ""
+                        ) ===
+                        String(
+                            providerId
+                        )
+                    );
+                }
+            ) || null
+        );
+    }
 
-    window.renderProviderRegistry =
-        renderProviderRegistry;
+    // ---------------------------------------------------------
+    // PUBLIC API
+    // ---------------------------------------------------------
+
+    window.GENZProvidersUI = {
+
+        renderProviders,
+
+        renderProviderCard,
+
+        renderEmptyState,
+
+        updateStats,
+
+        findProvider,
+
+        getProviders: function () {
+            return [
+                ...currentProviders
+            ];
+        }
+
+    };
 
 })();
