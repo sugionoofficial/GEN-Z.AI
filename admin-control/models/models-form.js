@@ -7,22 +7,25 @@
    admin-control/models/models-form.js
 
    Fungsi:
-   - Membuka modal Tambah Model
-   - Membuka modal Edit Model
-   - Menutup modal
-   - Sinkronisasi Model ID dengan Model Search
-   - Membaca data form
+   - Tambah Model
+   - Edit Model
+   - Tutup modal
+   - Model ID dari pencarian Supabase
    - Validasi form
-   - Cocok dengan ID aktual models.html
+   - Save ke /api/admin-models
+   - Auth Bearer token Supabase
+   - Refresh data setelah save
 ========================================================= */
 
 (function () {
     "use strict";
 
     let editingModel = null;
+    let initialized = false;
+    let saving = false;
 
     /* =====================================================
-       ELEMENT HELPER
+       ELEMENT
     ===================================================== */
 
     function getElement(id) {
@@ -88,20 +91,107 @@
     }
 
     /* =====================================================
+       NOTIFICATION
+    ===================================================== */
+
+    function notify(message, type = "info") {
+        const existing =
+            getElement("modelNotification") ||
+            getElement("notification") ||
+            getElement("toast");
+
+        if (existing) {
+            existing.textContent = message;
+
+            existing.classList.remove(
+                "success",
+                "error",
+                "warning",
+                "info",
+                "show"
+            );
+
+            existing.classList.add(type);
+
+            requestAnimationFrame(() => {
+                existing.classList.add("show");
+            });
+
+            window.clearTimeout(
+                existing.__genzTimer
+            );
+
+            existing.__genzTimer =
+                window.setTimeout(() => {
+                    existing.classList.remove("show");
+                }, 3500);
+
+            return;
+        }
+
+        const toast =
+            document.createElement("div");
+
+        toast.id = "modelNotification";
+
+        toast.className =
+            `genz-model-notification ${type}`;
+
+        toast.textContent = message;
+
+        Object.assign(
+            toast.style,
+            {
+                position: "fixed",
+                right: "24px",
+                bottom: "24px",
+                zIndex: "99999",
+                maxWidth: "420px",
+                padding: "14px 18px",
+                borderRadius: "12px",
+                background: "rgba(17,24,39,.96)",
+                border: "1px solid rgba(255,255,255,.12)",
+                color: "#fff",
+                boxShadow:
+                    "0 14px 40px rgba(0,0,0,.35)",
+                fontSize: "14px",
+                lineHeight: "1.45",
+                pointerEvents: "none"
+            }
+        );
+
+        document.body.appendChild(toast);
+
+        window.setTimeout(() => {
+            toast.style.opacity = "0";
+            toast.style.transform =
+                "translateY(8px)";
+            toast.style.transition =
+                "opacity .2s ease, transform .2s ease";
+
+            window.setTimeout(() => {
+                toast.remove();
+            }, 250);
+        }, 3500);
+    }
+
+    /* =====================================================
        FORM MODE
     ===================================================== */
 
     function setFormMode(mode) {
-        const title = firstElement([
-            "modalTitle",
-            "modelModalTitle"
-        ]);
+        const title =
+            firstElement([
+                "modalTitle",
+                "modelModalTitle"
+            ]);
 
-        const submitButton = firstElement([
-            "saveModelBtn",
-            "saveModelButton",
-            "saveModel"
-        ]);
+        const submitButton =
+            firstElement([
+                "saveModelBtn",
+                "saveModelButton",
+                "saveModel"
+            ]);
 
         if (mode === "edit") {
             if (title) {
@@ -139,9 +229,8 @@
 
         openModal();
 
-        const search = getElement(
-            "modelCodeSearch"
-        );
+        const search =
+            getElement("modelCodeSearch");
 
         if (search) {
             window.setTimeout(() => {
@@ -175,18 +264,27 @@
     }
 
     /* =====================================================
-       POPULATE FORM
+       POPULATE
     ===================================================== */
 
     function populateForm(model) {
+        setValue(
+            "modelId",
+            model.id || ""
+        );
+
+        setValue(
+            "providerId",
+            model.provider_id || model.provider || ""
+        );
+
         setValue(
             "modelCode",
             model.model_id || ""
         );
 
-        const modelSearch = getElement(
-            "modelCodeSearch"
-        );
+        const modelSearch =
+            getElement("modelCodeSearch");
 
         if (modelSearch) {
             modelSearch.value =
@@ -198,10 +296,6 @@
             model.model_name || ""
         );
 
-        /*
-         * models.html menggunakan:
-         * id="description"
-         */
         setValue(
             "description",
             model.description || ""
@@ -255,13 +349,12 @@
     }
 
     /* =====================================================
-       CLEAR FORM
+       CLEAR
     ===================================================== */
 
     function clearForm() {
-        const form = getElement(
-            "modelForm"
-        );
+        const form =
+            getElement("modelForm");
 
         if (form) {
             form.reset();
@@ -287,10 +380,6 @@
             ""
         );
 
-        /*
-         * ID aktual models.html:
-         * description
-         */
         setValue(
             "description",
             ""
@@ -336,85 +425,63 @@
             "active"
         );
 
-        const search = getElement(
-            "modelCodeSearch"
-        );
+        const search =
+            getElement("modelCodeSearch");
 
         if (search) {
             search.value = "";
         }
 
-        const selectedInfo = getElement(
-            "selectedModelInfo"
-        );
+        const selectedInfo =
+            getElement("selectedModelInfo");
 
         if (selectedInfo) {
             selectedInfo.textContent =
                 "Belum ada model dipilih.";
         }
 
-        const searchResults = getElement(
-            "modelSearchResults"
-        );
+        const searchResults =
+            getElement("modelSearchResults");
 
         if (searchResults) {
             searchResults.innerHTML = "";
         }
 
+        resetPricePreview();
+
         editingModel = null;
+    }
 
-        /*
-         * Reset preview harga.
-         */
-        const previewNormal = getElement(
-            "previewNormal"
-        );
+    /* =====================================================
+       RESET PRICE PREVIEW
+    ===================================================== */
 
-        const previewDiscount = getElement(
-            "previewDiscount"
-        );
-
-        const previewFinal = getElement(
-            "previewFinal"
-        );
-
-        const previewKieUsd = getElement(
-            "previewKieUsd"
-        );
-
-        const previewKieIdr = getElement(
+    function resetPricePreview() {
+        const ids = [
+            "previewNormal",
+            "previewDiscount",
+            "previewFinal",
+            "previewKieUsd",
             "previewKieIdr"
-        );
+        ];
 
-        if (previewNormal) {
-            previewNormal.textContent = "-";
-        }
+        for (const id of ids) {
+            const element =
+                getElement(id);
 
-        if (previewDiscount) {
-            previewDiscount.textContent = "-";
-        }
-
-        if (previewFinal) {
-            previewFinal.textContent = "-";
-        }
-
-        if (previewKieUsd) {
-            previewKieUsd.textContent = "-";
-        }
-
-        if (previewKieIdr) {
-            previewKieIdr.textContent = "-";
+            if (element) {
+                element.textContent = "-";
+            }
         }
     }
 
     /* =====================================================
-       OPEN MODAL
+       MODAL
     ===================================================== */
 
     function openModal() {
-        const modal = getElement(
-            "modelModal"
-        );
+        const modal =
+            getElement("modelModal");
 
         if (!modal) {
             console.error(
@@ -425,19 +492,13 @@
         }
 
         modal.classList.add("open");
-
         modal.classList.add("show");
-
         modal.classList.remove("hidden");
 
         modal.removeAttribute(
             "aria-hidden"
         );
 
-        /*
-         * Jangan memaksa display jika CSS
-         * modal sudah mengaturnya.
-         */
         if (
             window.getComputedStyle(modal)
                 .display === "none"
@@ -450,30 +511,17 @@
         );
     }
 
-    /* =====================================================
-       CLOSE MODAL
-    ===================================================== */
-
     function closeModal() {
-        const modal = getElement(
-            "modelModal"
-        );
+        const modal =
+            getElement("modelModal");
 
         if (!modal) {
             return;
         }
 
-        modal.classList.remove(
-            "open"
-        );
-
-        modal.classList.remove(
-            "show"
-        );
-
-        modal.classList.add(
-            "hidden"
-        );
+        modal.classList.remove("open");
+        modal.classList.remove("show");
+        modal.classList.add("hidden");
 
         modal.setAttribute(
             "aria-hidden",
@@ -492,53 +540,47 @@
     ===================================================== */
 
     function getFormData() {
-        const data = {
+        return {
             provider_id:
-                value("providerId"),
+                value("providerId").trim(),
 
             model_id:
-                value("modelCode"),
+                value("modelCode").trim(),
 
             model_name:
-                value("modelName"),
+                value("modelName").trim(),
 
             description:
-                value("description"),
+                value("description").trim(),
 
             credit_cost:
-                value("creditCost"),
+                value("creditCost").trim(),
 
             discount_percent:
-                value("discountPercent"),
+                value("discountPercent").trim(),
 
             credit_final:
-                value("creditFinal"),
+                value("creditFinal").trim(),
 
             min_duration:
-                value("minDuration"),
+                value("minDuration").trim(),
 
             max_duration:
-                value("maxDuration"),
+                value("maxDuration").trim(),
 
             supported_ratios:
                 normalizeArray(
-                    value(
-                        "supportedRatios"
-                    )
+                    value("supportedRatios")
                 ),
 
             supported_resolutions:
                 normalizeArray(
-                    value(
-                        "supportedResolutions"
-                    )
+                    value("supportedResolutions")
                 ),
 
             status:
-                value("modelStatus")
+                value("modelStatus").trim()
         };
-
-        return data;
     }
 
     /* =====================================================
@@ -546,6 +588,10 @@
     ===================================================== */
 
     function validateForm(data) {
+        if (!data.provider_id) {
+            return "Provider wajib dipilih.";
+        }
+
         if (!data.model_id) {
             return "Model ID wajib dipilih.";
         }
@@ -556,37 +602,27 @@
 
         if (
             data.credit_cost !== "" &&
-            Number.isNaN(
+            !Number.isFinite(
                 Number(data.credit_cost)
             )
         ) {
-            return (
-                "Credit Cost harus berupa angka."
-            );
+            return "Credit Cost harus berupa angka.";
         }
 
         if (
             data.discount_percent !== "" &&
-            Number.isNaN(
-                Number(
-                    data.discount_percent
-                )
+            !Number.isFinite(
+                Number(data.discount_percent)
             )
         ) {
-            return (
-                "Discount Percent harus berupa angka."
-            );
+            return "Discount Percent harus berupa angka.";
         }
 
         if (
             data.discount_percent !== "" &&
             (
-                Number(
-                    data.discount_percent
-                ) < 0 ||
-                Number(
-                    data.discount_percent
-                ) > 100
+                Number(data.discount_percent) < 0 ||
+                Number(data.discount_percent) > 100
             )
         ) {
             return (
@@ -596,7 +632,7 @@
 
         if (
             data.min_duration !== "" &&
-            Number.isNaN(
+            !Number.isFinite(
                 Number(data.min_duration)
             )
         ) {
@@ -607,7 +643,7 @@
 
         if (
             data.max_duration !== "" &&
-            Number.isNaN(
+            !Number.isFinite(
                 Number(data.max_duration)
             )
         ) {
@@ -627,7 +663,260 @@
             );
         }
 
+        if (
+            data.status &&
+            ![
+                "active",
+                "inactive",
+                "maintenance"
+            ].includes(
+                data.status.toLowerCase()
+            )
+        ) {
+            return (
+                "Status model tidak valid."
+            );
+        }
+
         return null;
+    }
+
+    /* =====================================================
+       API AUTH
+    ===================================================== */
+
+    async function getAccessToken() {
+        const supabase =
+            window.GENZ_SUPABASE ||
+            window.supabaseClient ||
+            null;
+
+        if (!supabase) {
+            throw new Error(
+                "Supabase client belum tersedia."
+            );
+        }
+
+        const result =
+            await supabase.auth.getSession();
+
+        const session =
+            result?.data?.session || null;
+
+        if (!session?.access_token) {
+            throw new Error(
+                "Session login tidak ditemukan. Silakan login kembali."
+            );
+        }
+
+        return session.access_token;
+    }
+
+    /* =====================================================
+       API SAVE
+    ===================================================== */
+
+    async function saveToApi(data) {
+        const token =
+            await getAccessToken();
+
+        const payload = {
+            ...data
+        };
+
+        if (editingModel?.id) {
+            payload.id =
+                editingModel.id;
+        }
+
+        const method =
+            editingModel?.id
+                ? "PATCH"
+                : "POST";
+
+        const response =
+            await fetch(
+                "/api/admin-models",
+                {
+                    method,
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Accept":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${token}`
+                    },
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+                }
+            );
+
+        const text =
+            await response.text();
+
+        let result = null;
+
+        if (text) {
+            try {
+                result =
+                    JSON.parse(text);
+            } catch {
+                result = {
+                    message: text
+                };
+            }
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                result?.error ||
+                result?.message ||
+                result?.details ||
+                `Gagal menyimpan model (${response.status}).`
+            );
+        }
+
+        return result;
+    }
+
+    /* =====================================================
+       SAVE MODEL
+    ===================================================== */
+
+    async function saveModel(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        if (saving) {
+            return;
+        }
+
+        const data =
+            getFormData();
+
+        const validationError =
+            validateForm(data);
+
+        if (validationError) {
+            notify(
+                validationError,
+                "error"
+            );
+
+            return;
+        }
+
+        saving = true;
+
+        const button =
+            firstElement([
+                "saveModelBtn",
+                "saveModelButton",
+                "saveModel"
+            ]);
+
+        const originalText =
+            button?.textContent || "";
+
+        if (button) {
+            button.disabled = true;
+            button.textContent =
+                editingModel?.id
+                    ? "Menyimpan..."
+                    : "Menambahkan...";
+        }
+
+        try {
+            const result =
+                await saveToApi(data);
+
+            notify(
+                editingModel?.id
+                    ? "Model berhasil diperbarui."
+                    : "Model berhasil ditambahkan.",
+                "success"
+            );
+
+            closeModal();
+
+            const dataModule =
+                window.GENZModelsData;
+
+            if (
+                dataModule &&
+                typeof dataModule.clearCache ===
+                    "function"
+            ) {
+                dataModule.clearCache();
+            }
+
+            const ui =
+                window.GENZModelsUI;
+
+            if (
+                ui &&
+                typeof ui.refreshModels ===
+                    "function"
+            ) {
+                await ui.refreshModels();
+            }
+
+            document.dispatchEvent(
+                new CustomEvent(
+                    "genz-model-saved",
+                    {
+                        detail: {
+                            result,
+                            model: data,
+                            editing:
+                                Boolean(
+                                    editingModel?.id
+                                )
+                        }
+                    }
+                )
+            );
+
+            editingModel = null;
+
+            return result;
+
+        } catch (error) {
+            console.error(
+                "[models-form] Save error:",
+                error
+            );
+
+            notify(
+                error?.message ||
+                "Gagal menyimpan model.",
+                "error"
+            );
+
+            throw error;
+
+        } finally {
+            saving = false;
+
+            if (button) {
+                button.disabled = false;
+
+                button.textContent =
+                    originalText ||
+                    (
+                        editingModel?.id
+                            ? "Simpan Perubahan"
+                            : "Tambah Model"
+                    );
+            }
+        }
     }
 
     /* =====================================================
@@ -635,9 +924,10 @@
     ===================================================== */
 
     function updateSelectedModelInfo(model) {
-        const info = getElement(
-            "selectedModelInfo"
-        );
+        const info =
+            getElement(
+                "selectedModelInfo"
+            );
 
         if (!info || !model) {
             return;
@@ -691,7 +981,7 @@
     }
 
     /* =====================================================
-       SELECT MODEL FROM SEARCH
+       SELECT MODEL
     ===================================================== */
 
     function setSelectedModel(model) {
@@ -704,9 +994,10 @@
             model.model_id || ""
         );
 
-        const search = getElement(
-            "modelCodeSearch"
-        );
+        const search =
+            getElement(
+                "modelCodeSearch"
+            );
 
         if (search) {
             search.value =
@@ -718,9 +1009,6 @@
             model.model_name || ""
         );
 
-        /*
-         * Provider dari model Supabase.
-         */
         if (model.provider) {
             setValue(
                 "providerId",
@@ -734,7 +1022,7 @@
     }
 
     /* =====================================================
-       GET STATE
+       STATE
     ===================================================== */
 
     function getEditingModel() {
@@ -747,11 +1035,47 @@
         );
     }
 
+    function isSaving() {
+        return saving;
+    }
+
     /* =====================================================
-       BIND CLOSE BUTTONS
+       FORM SUBMIT
     ===================================================== */
 
-    function initialize() {
+    function bindFormSubmit() {
+        const form =
+            getElement("modelForm");
+
+        if (!form) {
+            console.warn(
+                "[models-form] #modelForm tidak ditemukan."
+            );
+
+            return;
+        }
+
+        if (
+            form.dataset
+                .genzSaveBound === "true"
+        ) {
+            return;
+        }
+
+        form.dataset
+            .genzSaveBound = "true";
+
+        form.addEventListener(
+            "submit",
+            saveModel
+        );
+    }
+
+    /* =====================================================
+       CLOSE BUTTON
+    ===================================================== */
+
+    function bindCloseButtons() {
         const closeButton =
             firstElement([
                 "closeModalBtn",
@@ -769,73 +1093,143 @@
             ]);
 
         if (closeButton) {
-            closeButton.addEventListener(
-                "click",
-                function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
+            if (
+                closeButton.dataset
+                    .genzFormBound !== "true"
+            ) {
+                closeButton.dataset
+                    .genzFormBound = "true";
 
-                    closeModal();
-                }
-            );
+                closeButton.addEventListener(
+                    "click",
+                    function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        closeModal();
+                    }
+                );
+            }
         }
 
         if (cancelButton) {
-            cancelButton.addEventListener(
-                "click",
-                function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
+            if (
+                cancelButton.dataset
+                    .genzFormBound !== "true"
+            ) {
+                cancelButton.dataset
+                    .genzFormBound = "true";
 
-                    closeModal();
-                }
-            );
-        }
+                cancelButton.addEventListener(
+                    "click",
+                    function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
 
-        const modal = getElement(
-            "modelModal"
-        );
-
-        if (modal) {
-            modal.addEventListener(
-                "click",
-                function (event) {
-                    if (
-                        event.target ===
-                        modal
-                    ) {
                         closeModal();
                     }
-                }
-            );
+                );
+            }
         }
+    }
+
+    /* =====================================================
+       MODAL BACKDROP
+    ===================================================== */
+
+    function bindModalBackdrop() {
+        const modal =
+            getElement("modelModal");
+
+        if (!modal) {
+            return;
+        }
+
+        if (
+            modal.dataset
+                .genzBackdropBound === "true"
+        ) {
+            return;
+        }
+
+        modal.dataset
+            .genzBackdropBound = "true";
+
+        modal.addEventListener(
+            "click",
+            function (event) {
+                if (
+                    event.target === modal
+                ) {
+                    closeModal();
+                }
+            }
+        );
+    }
+
+    /* =====================================================
+       ESCAPE
+    ===================================================== */
+
+    function bindEscape() {
+        if (
+            document.body.dataset
+                .genzModelEscapeBound === "true"
+        ) {
+            return;
+        }
+
+        document.body.dataset
+            .genzModelEscapeBound = "true";
 
         document.addEventListener(
             "keydown",
             function (event) {
                 if (
-                    event.key ===
+                    event.key !==
                     "Escape"
                 ) {
-                    const modal =
-                        getElement(
-                            "modelModal"
-                        );
+                    return;
+                }
 
-                    if (
-                        modal &&
-                        (
-                            modal.classList
-                                .contains("open") ||
-                            modal.classList
-                                .contains("show")
-                        )
-                    ) {
-                        closeModal();
-                    }
+                const modal =
+                    getElement(
+                        "modelModal"
+                    );
+
+                if (!modal) {
+                    return;
+                }
+
+                if (
+                    modal.classList.contains(
+                        "show"
+                    ) ||
+                    modal.classList.contains(
+                        "open"
+                    )
+                ) {
+                    closeModal();
                 }
             }
         );
+    }
+
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
+
+    function initialize() {
+        if (initialized) {
+            return;
+        }
+
+        initialized = true;
+
+        bindFormSubmit();
+        bindCloseButtons();
+        bindModalBackdrop();
+        bindEscape();
     }
 
     /* =====================================================
@@ -844,18 +1238,30 @@
 
     window.GENZModelsForm = {
         initialize,
+
         openCreateForm,
         openEditForm,
-        openModal,
+
         closeModal,
+        openModal,
+
         clearForm,
+
+        populateForm,
+
         getFormData,
         validateForm,
+
+        saveModel,
+        saveToApi,
+
+        setSelectedModel,
+
         getEditingModel,
         isEditing,
-        setSelectedModel,
-        updateSelectedModelInfo,
+        isSaving,
 
-        onModelSelected: null
+        updateSelectedModelInfo
     };
+
 })();
