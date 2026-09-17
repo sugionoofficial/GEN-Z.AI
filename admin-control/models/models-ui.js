@@ -12,6 +12,7 @@
    - Statistics
    - Refresh model data
    - Hubungkan data/search/form/price module
+   - Binding tombol Add / Close / Cancel / Refresh
    - Tidak menyimpan API key
 ========================================================= */
 
@@ -189,7 +190,8 @@
         modal.classList.remove("show");
         modal.classList.add("hidden");
 
-        modal.style.display = "none";
+        modal.style.display =
+            "none";
 
         document.body.classList.remove(
             "modal-open"
@@ -215,6 +217,10 @@
     }
 
     function openEditModal(model) {
+        if (!model) {
+            return;
+        }
+
         const form =
             getModelsForm();
 
@@ -641,6 +647,46 @@
        BUTTON EVENTS
     ===================================================== */
 
+    function executeHandler(
+        handler,
+        event
+    ) {
+        try {
+            const result =
+                handler(event);
+
+            if (
+                result &&
+                typeof result.then ===
+                    "function"
+            ) {
+                result.catch(
+                    error => {
+                        console.error(
+                            "[models-ui] Async button error:",
+                            error
+                        );
+
+                        notify(
+                            "Terjadi kesalahan saat menjalankan aksi.",
+                            "error"
+                        );
+                    }
+                );
+            }
+        } catch (error) {
+            console.error(
+                "[models-ui] Button error:",
+                error
+            );
+
+            notify(
+                "Terjadi kesalahan saat menjalankan aksi.",
+                "error"
+            );
+        }
+    }
+
     function bindButton(
         ids,
         handler
@@ -672,60 +718,40 @@
                 event => {
                     event.preventDefault();
 
-                    try {
-                        const result =
-                            handler(event);
-
-                        if (
-                            result &&
-                            typeof result.then ===
-                                "function"
-                        ) {
-                            result.catch(
-                                error => {
-                                    console.error(
-                                        "[models-ui] Async button error:",
-                                        error
-                                    );
-
-                                    notify(
-                                        "Terjadi kesalahan saat menjalankan aksi.",
-                                        "error"
-                                    );
-                                }
-                            );
-                        }
-                    } catch (error) {
-                        console.error(
-                            "[models-ui] Button error:",
-                            error
-                        );
-
-                        notify(
-                            "Terjadi kesalahan saat menjalankan aksi.",
-                            "error"
-                        );
-                    }
+                    executeHandler(
+                        handler,
+                        event
+                    );
                 }
             );
         }
     }
 
     function bindButtons() {
-        /* ADD MODEL */
+        /* =================================================
+           ADD MODEL
+
+           Mendukung beberapa ID agar kompatibel
+           dengan HTML lama maupun baru.
+        ================================================= */
 
         bindButton(
             [
                 "addModelButton",
                 "addModelBtn",
-                "createModelButton"
+                "createModelButton",
+                "addModel",
+                "btnAddModel",
+                "newModelBtn"
             ],
             () => {
                 openModal();
             }
         );
 
-        /* CLOSE MODAL */
+        /* =================================================
+           CLOSE MODAL
+        ================================================= */
 
         bindButton(
             [
@@ -739,10 +765,16 @@
             }
         );
 
-        /* CANCEL */
+        /* =================================================
+           CANCEL MODAL
+
+           cancelModalBtn adalah ID yang dipakai
+           pada models.html saat ini.
+        ================================================= */
 
         bindButton(
             [
+                "cancelModalBtn",
                 "cancelModelButton",
                 "cancelModelBtn",
                 "cancelBtn"
@@ -752,7 +784,9 @@
             }
         );
 
-        /* REFRESH */
+        /* =================================================
+           REFRESH
+        ================================================= */
 
         bindButton(
             [
@@ -763,6 +797,74 @@
             ],
             () => {
                 return refreshModels();
+            }
+        );
+    }
+
+    /* =====================================================
+       ADD MODEL FALLBACK
+
+       Jika tombol Add Model menggunakan ID yang
+       belum dikenal, gunakan atribut data-action.
+
+       Contoh:
+       data-action="add-model"
+    ===================================================== */
+
+    function bindActionFallback() {
+        if (
+            document.body.dataset
+                .genzModelActionFallbackBound ===
+            "true"
+        ) {
+            return;
+        }
+
+        document.body.dataset
+            .genzModelActionFallbackBound = "true";
+
+        document.addEventListener(
+            "click",
+            event => {
+                const target =
+                    event.target.closest(
+                        "[data-action]"
+                    );
+
+                if (!target) {
+                    return;
+                }
+
+                const action =
+                    String(
+                        target.getAttribute(
+                            "data-action"
+                        ) || ""
+                    )
+                    .trim()
+                    .toLowerCase();
+
+                if (
+                    action ===
+                    "add-model"
+                ) {
+                    event.preventDefault();
+
+                    openModal();
+
+                    return;
+                }
+
+                if (
+                    action ===
+                    "close-model"
+                ) {
+                    event.preventDefault();
+
+                    closeModal();
+
+                    return;
+                }
             }
         );
     }
@@ -1024,12 +1126,13 @@
 
         try {
             /*
-             * Event handler dipasang lebih dulu.
-             * Dengan begitu UI tetap responsif
-             * walaupun Supabase sedang loading.
+             * Semua event handler dipasang terlebih dahulu.
+             * UI tetap dapat merespons walaupun Supabase
+             * masih dalam proses loading.
              */
 
             bindButtons();
+            bindActionFallback();
             bindModalEvents();
             bindFormEvents();
             bindSearchEvents();
@@ -1105,27 +1208,17 @@
                 state.loading
         });
 
-    /* =====================================================
-       AUTO START
-    ===================================================== */
-
-    function start() {
-        initialize();
-    }
-
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-        document.addEventListener(
-            "DOMContentLoaded",
-            start,
-            {
-                once: true
-            }
-        );
-    } else {
-        start();
-    }
+    /*
+     * TIDAK ADA AUTO START DI SINI.
+     *
+     * models-loader.js adalah orchestrator utama.
+     * Loader akan memanggil:
+     *
+     * GENZModelsInit.initialize()
+     *
+     * dan models-init.js akan memanggil:
+     *
+     * GENZModelsUI.initialize()
+     */
 
 })();
