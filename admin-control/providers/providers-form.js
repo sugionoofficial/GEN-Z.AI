@@ -34,7 +34,6 @@
     // ---------------------------------------------------------
 
     function getSupabaseClient() {
-        // Gunakan client dari Providers Data jika tersedia.
         if (
             window.GENZProvidersData &&
             typeof window.GENZProvidersData.getSupabase ===
@@ -48,12 +47,10 @@
             }
         }
 
-        // Fallback ke global Supabase client.
         if (window.supabaseClient) {
             return window.supabaseClient;
         }
 
-        // Fallback terakhir: buat client dari config.
         if (
             window.supabase &&
             typeof window.supabase.createClient ===
@@ -264,13 +261,18 @@
                     }
                 );
 
-                // API key hanya disimpan jika
-                // user memasukkan API key baru.
+                // =================================================
+                // API KEY BARU
+                // =================================================
+                // PENTING:
+                // Kirim provider.provider_id
+                // BUKAN provider.id / UUID database.
+
                 if (
                     values.providerApiKey
                 ) {
                     await saveApiKey(
-                        editingProviderId,
+                        provider.provider_id,
                         values.providerApiKey
                     );
                 }
@@ -357,21 +359,22 @@
                         result;
                 }
 
-                // Simpan API key menggunakan ID database provider.
+                // =================================================
+                // SIMPAN API KEY
+                // =================================================
+                // PENTING:
+                // Gunakan provider_id seperti "bytedance",
+                // bukan UUID database.
+
                 if (
                     values.providerApiKey &&
-                    createdProvider
+                    createdProvider &&
+                    createdProvider.provider_id
                 ) {
-                    const createdId =
-                        createdProvider.id ||
-                        createdProvider.uuid;
-
-                    if (createdId) {
-                        await saveApiKey(
-                            createdId,
-                            values.providerApiKey
-                        );
-                    }
+                    await saveApiKey(
+                        createdProvider.provider_id,
+                        values.providerApiKey
+                    );
                 }
 
                 showMessage(
@@ -445,6 +448,23 @@
             return null;
         }
 
+        // =====================================================
+        // NORMALISASI PROVIDER ID
+        // =====================================================
+
+        const normalizedProviderId =
+            String(
+                providerId || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        if (!normalizedProviderId) {
+            throw new Error(
+                "Provider ID untuk API key tidak ditemukan."
+            );
+        }
+
         try {
             // -------------------------------------------------
             // AMBIL SESSION SUPABASE
@@ -455,7 +475,6 @@
 
             // -------------------------------------------------
             // KIRIM API KEY KE BACKEND
-            // DENGAN BEARER TOKEN
             // -------------------------------------------------
 
             const response =
@@ -477,7 +496,7 @@
                             JSON.stringify(
                                 {
                                     provider_id:
-                                        providerId,
+                                        normalizedProviderId,
 
                                     api_key:
                                         key
@@ -513,7 +532,11 @@
             }
 
             console.log(
-                "[GEN-Z.AI] API key berhasil disimpan ke Supabase."
+                "[GEN-Z.AI] API key berhasil disimpan ke Supabase.",
+                {
+                    provider_id:
+                        normalizedProviderId
+                }
             );
 
             return result;
@@ -583,8 +606,7 @@
         // =====================================================
         // KEAMANAN API KEY
         // =====================================================
-        // API key lama TIDAK pernah diambil atau ditampilkan.
-        // User harus memasukkan API key baru jika ingin mengganti.
+        // API key lama TIDAK pernah ditampilkan.
 
         setValue(
             "providerApiKey",
@@ -696,8 +718,7 @@
             "active"
         );
 
-        // Jangan pernah mempertahankan API key
-        // setelah form ditutup/disimpan.
+        // Jangan pernah mempertahankan API key.
         setValue(
             "providerApiKey",
             ""
