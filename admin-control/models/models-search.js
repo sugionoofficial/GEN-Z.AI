@@ -11,7 +11,7 @@
    - Pencarian Model ID
    - Pemilihan model dengan tombol ✓
    - Mengisi Model ID otomatis
-   - Mengisi Provider ID otomatis dari model.provider
+   - Sinkronisasi Provider otomatis
    - Menjaga kompatibilitas dengan models-ui.js
 ========================================================= */
 
@@ -22,36 +22,96 @@
     let selectedModel = null;
     let eventsBound = false;
 
+    /* =====================================================
+       ESCAPE HTML
+    ===================================================== */
+
     function escapeHtml(value) {
         return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
     }
+
+    /* =====================================================
+       ELEMENT
+    ===================================================== */
 
     function getElements() {
         return {
             searchInput:
-                document.getElementById("modelCodeSearch"),
+                document.getElementById(
+                    "modelCodeSearch"
+                ),
 
             results:
-                document.getElementById("modelSearchResults"),
+                document.getElementById(
+                    "modelSearchResults"
+                ),
 
             hiddenInput:
-                document.getElementById("modelCode"),
+                document.getElementById(
+                    "modelCode"
+                ),
 
             selectedInfo:
-                document.getElementById("selectedModelInfo"),
+                document.getElementById(
+                    "selectedModelInfo"
+                ),
 
             providerInput:
-                document.getElementById("providerId")
+                document.getElementById(
+                    "providerId"
+                )
         };
     }
 
+    /* =====================================================
+       DATA MODULE
+    ===================================================== */
+
+    function getDataModule() {
+        return (
+            window.GENZModelsData ||
+            null
+        );
+    }
+
+    /* =====================================================
+       FORM MODULE
+    ===================================================== */
+
+    function getFormModule() {
+        return (
+            window.GENZModelsForm ||
+            null
+        );
+    }
+
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
+
     async function initialize() {
-        const elements = getElements();
+        const elements =
+            getElements();
 
         if (
             !elements.searchInput ||
@@ -64,9 +124,12 @@
             return;
         }
 
+        const data =
+            getDataModule();
+
         if (
-            !window.GENZModelsData ||
-            typeof window.GENZModelsData.loadKieModels !==
+            !data ||
+            typeof data.loadKieModels !==
                 "function"
         ) {
             console.error(
@@ -78,7 +141,7 @@
 
         try {
             models =
-                await window.GENZModelsData.loadKieModels({
+                await data.loadKieModels({
                     activeOnly: true
                 });
 
@@ -87,6 +150,7 @@
             render(
                 elements.searchInput.value
             );
+
         } catch (error) {
             console.error(
                 "[models-search] Gagal memuat model:",
@@ -101,12 +165,17 @@
         }
     }
 
+    /* =====================================================
+       EVENTS
+    ===================================================== */
+
     function bindEvents() {
         if (eventsBound) {
             return;
         }
 
-        const elements = getElements();
+        const elements =
+            getElements();
 
         if (
             !elements.searchInput ||
@@ -147,9 +216,11 @@
                     return;
                 }
 
-                const index = Number(
-                    button.dataset.modelIndex
-                );
+                const index =
+                    Number(
+                        button.dataset
+                            .modelIndex
+                    );
 
                 if (
                     Number.isNaN(index) ||
@@ -174,60 +245,85 @@
 
                 if (
                     box &&
-                    !box.contains(event.target)
+                    !box.contains(
+                        event.target
+                    )
                 ) {
-                    elements.results.innerHTML = "";
+                    elements.results.innerHTML =
+                        "";
                 }
             }
         );
     }
 
-    function render(keyword = "") {
-        const elements = getElements();
+    /* =====================================================
+       RENDER
+    ===================================================== */
+
+    function render(
+        keyword = ""
+    ) {
+        const elements =
+            getElements();
 
         if (!elements.results) {
             return;
         }
 
-        const term = String(
-            keyword || ""
-        )
-            .trim()
-            .toLowerCase();
+        const term =
+            String(
+                keyword || ""
+            )
+                .trim()
+                .toLowerCase();
 
-        let filtered = models;
+        let filtered =
+            models;
 
         if (term) {
-            filtered = models.filter(
-                model => {
-                    const modelId =
-                        String(
-                            model.model_id || ""
-                        ).toLowerCase();
+            filtered =
+                models.filter(
+                    model => {
+                        const modelId =
+                            String(
+                                model.model_id ||
+                                ""
+                            ).toLowerCase();
 
-                    const modelName =
-                        String(
-                            model.model_name || ""
-                        ).toLowerCase();
+                        const modelName =
+                            String(
+                                model.model_name ||
+                                ""
+                            ).toLowerCase();
 
-                    const family =
-                        String(
-                            model.model_family || ""
-                        ).toLowerCase();
+                        const family =
+                            String(
+                                model.model_family ||
+                                ""
+                            ).toLowerCase();
 
-                    const provider =
-                        String(
-                            model.provider || ""
-                        ).toLowerCase();
+                        const provider =
+                            String(
+                                model.provider ||
+                                ""
+                            ).toLowerCase();
 
-                    return (
-                        modelId.includes(term) ||
-                        modelName.includes(term) ||
-                        family.includes(term) ||
-                        provider.includes(term)
-                    );
-                }
-            );
+                        return (
+                            modelId.includes(
+                                term
+                            ) ||
+                            modelName.includes(
+                                term
+                            ) ||
+                            family.includes(
+                                term
+                            ) ||
+                            provider.includes(
+                                term
+                            )
+                        );
+                    }
+                );
         }
 
         if (!filtered.length) {
@@ -241,160 +337,288 @@
         }
 
         const limited =
-            filtered.slice(0, 30);
+            filtered.slice(
+                0,
+                30
+            );
 
         elements.results.innerHTML =
             limited
-                .map(model => {
-                    const index =
-                        models.indexOf(model);
+                .map(
+                    model => {
+                        const index =
+                            models.indexOf(
+                                model
+                            );
 
-                    const isSelected =
-                        selectedModel &&
-                        selectedModel.id ===
-                            model.id;
+                        const isSelected =
+                            selectedModel &&
+                            selectedModel.id ===
+                                model.id;
 
-                    return `
-                        <div
-                            class="model-search-item"
-                            data-model-row="${index}"
-                        >
-                            <div class="model-search-info">
-
-                                <div class="model-search-id">
-                                    ${escapeHtml(
-                                        model.model_id
-                                    )}
-                                </div>
-
-                                <div class="model-search-name">
-                                    ${escapeHtml(
-                                        model.model_name ||
-                                        "-"
-                                    )}
-                                </div>
-
-                                <div class="model-search-provider">
-                                    ${escapeHtml(
-                                        model.provider ||
-                                        "kie"
-                                    )}
-                                    ${
-                                        model.model_family
-                                            ? " • " +
-                                              escapeHtml(
-                                                  model.model_family
-                                              )
-                                            : ""
-                                    }
-                                </div>
-
-                            </div>
-
-                            <button
-                                type="button"
-                                class="model-select-check ${
-                                    isSelected
-                                        ? "selected"
-                                        : ""
-                                }"
-                                data-model-index="${index}"
-                                aria-label="Pilih ${escapeHtml(
-                                    model.model_id
-                                )}"
-                                title="Pilih model"
+                        return `
+                            <div
+                                class="model-search-item"
+                                data-model-row="${index}"
                             >
-                                ✓
-                            </button>
-                        </div>
-                    `;
-                })
+                                <div class="model-search-info">
+
+                                    <div class="model-search-id">
+                                        ${escapeHtml(
+                                            model.model_id
+                                        )}
+                                    </div>
+
+                                    <div class="model-search-name">
+                                        ${escapeHtml(
+                                            model.model_name ||
+                                            "-"
+                                        )}
+                                    </div>
+
+                                    <div class="model-search-provider">
+                                        ${escapeHtml(
+                                            model.provider ||
+                                            "-"
+                                        )}
+                                        ${
+                                            model.model_family
+                                                ? " • " +
+                                                  escapeHtml(
+                                                      model.model_family
+                                                  )
+                                                : ""
+                                        }
+                                    </div>
+
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="model-select-check ${
+                                        isSelected
+                                            ? "selected"
+                                            : ""
+                                    }"
+                                    data-model-index="${index}"
+                                    aria-label="Pilih ${escapeHtml(
+                                        model.model_id
+                                    )}"
+                                    title="Pilih model"
+                                >
+                                    ✓
+                                </button>
+                            </div>
+                        `;
+                    }
+                )
                 .join("");
     }
 
-    function setProviderFromModel(model) {
+    /* =====================================================
+       PROVIDER SYNC
+    ===================================================== */
+
+    async function setProviderFromModel(
+        model
+    ) {
         if (!model) {
-            return;
+            return null;
         }
 
-        const elements = getElements();
-
-        const provider =
+        const providerId =
             String(
-                model.provider || ""
+                model.provider_id ||
+                model.provider ||
+                ""
             ).trim();
 
-        if (
-            !provider ||
-            !elements.providerInput
-        ) {
-            return;
+        if (!providerId) {
+            return null;
         }
 
-        elements.providerInput.value =
-            provider;
+        /*
+         * Prioritas utama:
+         * gunakan models-form.js karena module
+         * tersebut sudah mengetahui cara mengambil
+         * provider aktif dari public.providers.
+         */
+        const form =
+            getFormModule();
 
-        elements.providerInput.dispatchEvent(
-            new Event("input", {
-                bubbles: true
-            })
+        if (
+            form &&
+            typeof form.setProvider ===
+                "function"
+        ) {
+            try {
+                const provider =
+                    await form.setProvider(
+                        providerId
+                    );
+
+                if (provider) {
+                    return provider;
+                }
+            } catch (error) {
+                console.error(
+                    "[models-search] Gagal sinkronisasi provider melalui form:",
+                    error
+                );
+            }
+        }
+
+        /*
+         * Fallback:
+         * jika models-form belum tersedia,
+         * coba gunakan option yang sudah ada
+         * di select.
+         */
+        const elements =
+            getElements();
+
+        const select =
+            elements.providerInput;
+
+        if (
+            !select ||
+            select.tagName !==
+                "SELECT"
+        ) {
+            return null;
+        }
+
+        const option =
+            Array.from(
+                select.options
+            ).find(
+                item =>
+                    String(
+                        item.value || ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    providerId.toLowerCase()
+            );
+
+        if (!option) {
+            return null;
+        }
+
+        select.value =
+            option.value;
+
+        select.dispatchEvent(
+            new Event(
+                "input",
+                {
+                    bubbles: true
+                }
+            )
         );
 
-        elements.providerInput.dispatchEvent(
-            new Event("change", {
-                bubbles: true
-            })
+        select.dispatchEvent(
+            new Event(
+                "change",
+                {
+                    bubbles: true
+                }
+            )
         );
+
+        return {
+            provider_id:
+                option.value,
+            provider_name:
+                option.textContent
+        };
     }
 
-    function selectModel(model) {
+    /* =====================================================
+       SELECT MODEL
+    ===================================================== */
+
+    async function selectModel(
+        model
+    ) {
         if (!model) {
             return;
         }
 
-        selectedModel = model;
+        selectedModel =
+            model;
 
-        const elements = getElements();
+        const elements =
+            getElements();
 
         const modelId =
             String(
-                model.model_id || ""
+                model.model_id ||
+                ""
             ).trim();
 
-        if (elements.hiddenInput) {
+        /* =================================================
+           MODEL ID
+        ================================================= */
+
+        if (
+            elements.hiddenInput
+        ) {
             elements.hiddenInput.value =
                 modelId;
 
             elements.hiddenInput.dispatchEvent(
-                new Event("input", {
-                    bubbles: true
-                })
+                new Event(
+                    "input",
+                    {
+                        bubbles: true
+                    }
+                )
             );
 
             elements.hiddenInput.dispatchEvent(
-                new Event("change", {
-                    bubbles: true
-                })
+                new Event(
+                    "change",
+                    {
+                        bubbles: true
+                    }
+                )
             );
         }
 
-        if (elements.searchInput) {
+        if (
+            elements.searchInput
+        ) {
             elements.searchInput.value =
                 modelId;
         }
 
-        /*
-         * Provider otomatis mengikuti model.
-         *
-         * Contoh:
-         * model.provider = "kie"
-         *
-         * Maka:
-         * providerId = "kie"
-         */
-        setProviderFromModel(model);
+        /* =================================================
+           PROVIDER
+        ================================================= */
 
-        if (elements.selectedInfo) {
+        const providerId =
+            model.provider_id ||
+            model.provider ||
+            "";
+
+        let provider =
+            null;
+
+        if (providerId) {
+            provider =
+                await setProviderFromModel(
+                    model
+                );
+        }
+
+        /* =================================================
+           SELECTED MODEL INFO
+        ================================================= */
+
+        if (
+            elements.selectedInfo
+        ) {
             elements.selectedInfo.innerHTML = `
                 <strong>Model dipilih:</strong>
                 ${escapeHtml(
@@ -405,17 +629,20 @@
                 <br>
                 <span>
                     ${escapeHtml(
-                        modelId || "-"
+                        modelId ||
+                        "-"
                     )}
                 </span>
+
                 ${
-                    model.provider
+                    providerId
                         ? `
                             <br>
                             <span>
                                 Provider:
                                 ${escapeHtml(
-                                    model.provider
+                                    provider?.provider_name ||
+                                    providerId
                                 )}
                             </span>
                         `
@@ -424,18 +651,22 @@
             `;
         }
 
-        /*
-         * Setelah model dipilih,
-         * tampilkan model tersebut sebagai
-         * pilihan aktif.
-         */
-        render(modelId);
+        /* =================================================
+           RENDER SELECTED
+        ================================================= */
 
-        /*
-         * Callback untuk modul lain.
-         */
+        render(
+            modelId
+        );
+
+        /* =================================================
+           CALLBACK
+        ================================================= */
+
         if (
-            typeof window.GENZModelsSearch?.onSelect ===
+            typeof window
+                .GENZModelsSearch
+                ?.onSelect ===
             "function"
         ) {
             window.GENZModelsSearch.onSelect(
@@ -443,25 +674,32 @@
             );
         }
 
-        /*
-         * Event global agar modul lain
-         * bisa menerima model terpilih
-         * tanpa saling bergantung langsung.
-         */
+        /* =================================================
+           GLOBAL EVENT
+        ================================================= */
+
         document.dispatchEvent(
             new CustomEvent(
                 "genz-model-selected",
                 {
-                    detail: model
+                    detail:
+                        model
                 }
             )
         );
     }
 
-    function setModels(data) {
-        models = Array.isArray(data)
-            ? [...data]
-            : [];
+    /* =====================================================
+       SET MODELS
+    ===================================================== */
+
+    function setModels(
+        data
+    ) {
+        models =
+            Array.isArray(data)
+                ? [...data]
+                : [];
 
         /*
          * Jika model yang sedang dipilih
@@ -480,30 +718,49 @@
                 );
 
             selectedModel =
-                updated || null;
+                updated ||
+                null;
         }
 
         render();
     }
 
+    /* =====================================================
+       GET SELECTED MODEL
+    ===================================================== */
+
     function getSelectedModel() {
         return selectedModel;
     }
 
+    /* =====================================================
+       CLEAR SELECTION
+    ===================================================== */
+
     function clearSelection() {
-        selectedModel = null;
+        selectedModel =
+            null;
 
-        const elements = getElements();
+        const elements =
+            getElements();
 
-        if (elements.hiddenInput) {
-            elements.hiddenInput.value = "";
+        if (
+            elements.hiddenInput
+        ) {
+            elements.hiddenInput.value =
+                "";
         }
 
-        if (elements.searchInput) {
-            elements.searchInput.value = "";
+        if (
+            elements.searchInput
+        ) {
+            elements.searchInput.value =
+                "";
         }
 
-        if (elements.selectedInfo) {
+        if (
+            elements.selectedInfo
+        ) {
             elements.selectedInfo.textContent =
                 "Belum ada model dipilih.";
         }
@@ -511,9 +768,19 @@
         render();
     }
 
+    /* =====================================================
+       GET MODELS
+    ===================================================== */
+
     function getModels() {
-        return [...models];
+        return [
+            ...models
+        ];
     }
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
 
     window.GENZModelsSearch = {
         initialize,
@@ -526,4 +793,5 @@
 
         onSelect: null
     };
+
 })();
