@@ -25,7 +25,7 @@
     /*
      * NAIKKAN VERSION setiap ada perubahan module.
      */
-    const CACHE_VERSION = "20260918-02";
+    const CACHE_VERSION = "20260918-03";
 
     const MODULES = [
         "models-data.js",
