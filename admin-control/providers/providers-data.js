@@ -1,218 +1,128 @@
+// ============================================================
+// GEN-Z.AI - PROVIDER DATA MANAGER
+// CRUD + STATUS MANAGEMENT
+// ============================================================
+
 (function () {
     "use strict";
 
     let supabaseClient = null;
-    let providers = [];
+    let providersCache = [];
+
+    // ----------------------------------------------------------
+    // SUPABASE INIT
+    // ----------------------------------------------------------
 
     function initSupabase() {
-        try {
-            if (
-                typeof supabase === "undefined" ||
-                !window.GENZ_CONFIG
-            ) {
-                console.error(
-                    "Supabase library atau GENZ_CONFIG tidak tersedia."
-                );
-
-                return false;
-            }
-
-            supabaseClient = supabase.createClient(
-                GENZ_CONFIG.SUPABASE_URL,
-                GENZ_CONFIG.SUPABASE_KEY
-            );
-
-            return true;
-        } catch (error) {
-            console.error(
-                "Gagal menginisialisasi Supabase:",
-                error
-            );
-
-            return false;
+        if (supabaseClient) {
+            return supabaseClient;
         }
-    }
 
-    function getSupabase() {
+        if (
+            typeof window.supabase === "undefined" ||
+            typeof window.supabase.createClient !== "function"
+        ) {
+            throw new Error("Supabase library belum dimuat.");
+        }
+
+        const config = window.GENZConfig || {};
+
+        const supabaseUrl =
+            config.SUPABASE_URL ||
+            window.SUPABASE_URL ||
+            window.supabaseUrl;
+
+        const supabaseAnonKey =
+            config.SUPABASE_ANON_KEY ||
+            window.SUPABASE_ANON_KEY ||
+            window.supabaseAnonKey;
+
+        if (!supabaseUrl || !supabaseAnonKey) {
+            throw new Error(
+                "Konfigurasi Supabase tidak ditemukan."
+            );
+        }
+
+        supabaseClient = window.supabase.createClient(
+            supabaseUrl,
+            supabaseAnonKey
+        );
+
         return supabaseClient;
     }
 
-    function getProviders() {
-        return Array.isArray(providers)
-            ? [...providers]
-            : [];
+    function getSupabase() {
+        if (!supabaseClient) {
+            initSupabase();
+        }
+
+        return supabaseClient;
     }
 
-    function getProviderById(providerId) {
-        const normalizedId = String(providerId || "")
-            .trim()
-            .toLowerCase();
-
-        return providers.find(
-            provider =>
-                String(provider.provider_id || "")
-                    .trim()
-                    .toLowerCase() === normalizedId
-        ) || null;
-    }
+    // ----------------------------------------------------------
+    // HELPERS
+    // ----------------------------------------------------------
 
     function normalizeProviderId(value) {
         return String(value || "")
             .trim()
             .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9_-]/g, "");
+            .replace(/\s+/g, "-");
     }
 
-    async function providerIdExists(providerId) {
-        if (!supabaseClient) {
-            throw new Error(
-                "Supabase belum diinisialisasi."
-            );
+    function normalizeStatus(value) {
+        const status = String(value || "")
+            .trim()
+            .toLowerCase();
+
+        if (
+            status === "inactive" ||
+            status === "disabled" ||
+            status === "off" ||
+            status === "nonaktif"
+        ) {
+            return "inactive";
         }
 
-        const normalizedId =
-            normalizeProviderId(providerId);
-
-        if (!normalizedId) {
-            return false;
-        }
-
-        const {
-            data,
-            error
-        } = await supabaseClient
-            .from("providers")
-            .select("id, provider_id")
-            .eq("provider_id", normalizedId)
-            .maybeSingle();
-
-        if (error) {
-            throw error;
-        }
-
-        return Boolean(data);
+        return "active";
     }
 
-    async function createProvider({
-        providerId,
-        providerName,
-        description,
-        status = "active",
-        isDefault = false
-    }) {
-        if (!supabaseClient) {
-            throw new Error(
-                "Supabase belum diinisialisasi."
-            );
+    function getProviderId(provider) {
+        if (!provider) {
+            return null;
         }
 
-        const normalizedId =
-            normalizeProviderId(providerId);
+        return provider.id || provider.uuid || null;
+    }
 
-        const name =
-            String(providerName || "").trim();
+    function providerIdExists(providerId, excludeId = null) {
+        const normalized = normalizeProviderId(providerId);
 
-        const providerDescription =
-            String(description || "").trim();
+        return providersCache.some(function (provider) {
+            const currentId = getProviderId(provider);
 
-        const normalizedStatus =
-            String(status || "active")
-                .trim()
-                .toLowerCase();
-
-        if (!normalizedId) {
-            throw new Error(
-                "Provider ID wajib diisi."
-            );
-        }
-
-        if (!name) {
-            throw new Error(
-                "Nama provider wajib diisi."
-            );
-        }
-
-        const allowedStatuses = [
-            "active",
-            "inactive",
-            "maintenance"
-        ];
-
-        if (!allowedStatuses.includes(normalizedStatus)) {
-            throw new Error(
-                "Status provider tidak valid."
-            );
-        }
-
-        const exists =
-            await providerIdExists(normalizedId);
-
-        if (exists) {
-            const error =
-                new Error(
-                    `Provider ID "${normalizedId}" sudah terdaftar.`
-                );
-
-            error.code = "PROVIDER_EXISTS";
-
-            throw error;
-        }
-
-        /*
-         * Jangan menggunakan:
-         *
-         * supabaseClient
-         *     .from("providers")
-         *     .insert(...)
-         *
-         * karena tabel providers dilindungi RLS.
-         *
-         * Provider dibuat melalui SECURITY DEFINER RPC:
-         * admin_create_provider(...)
-         */
-
-        const {
-            data,
-            error
-        } = await supabaseClient.rpc(
-            "admin_create_provider",
-            {
-                p_provider_id:
-                    normalizedId,
-
-                p_provider_name:
-                    name,
-
-                p_description:
-                    providerDescription || null,
-
-                p_status:
-                    normalizedStatus,
-
-                p_is_default:
-                    Boolean(isDefault)
+            if (
+                excludeId &&
+                String(currentId) === String(excludeId)
+            ) {
+                return false;
             }
-        );
 
-        if (error) {
-            throw error;
-        }
-
-        return data;
+            return (
+                normalizeProviderId(provider.provider_id) ===
+                normalized
+            );
+        });
     }
 
-    async function loadProviders() {
-        if (!supabaseClient) {
-            throw new Error(
-                "Supabase belum diinisialisasi."
-            );
-        }
+    // ----------------------------------------------------------
+    // GET PROVIDERS
+    // ----------------------------------------------------------
 
-        const {
-            data,
-            error
-        } = await supabaseClient
+    async function getProviders(options = {}) {
+        const supabase = getSupabase();
+
+        let query = supabase
             .from("providers")
             .select(
                 [
@@ -224,75 +134,478 @@
                     "is_default",
                     "created_at",
                     "updated_at"
-                ].join(", ")
+                ].join(",")
             )
-            .order(
-                "created_at",
+            .order("created_at", {
+                ascending: true
+            });
+
+        if (options.status) {
+            query = query.eq(
+                "status",
+                normalizeStatus(options.status)
+            );
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error(
+                "[GEN-Z.AI] getProviders error:",
+                error
+            );
+
+            throw error;
+        }
+
+        providersCache = Array.isArray(data)
+            ? data
+            : [];
+
+        return providersCache;
+    }
+
+    // ----------------------------------------------------------
+    // GET SINGLE PROVIDER
+    // ----------------------------------------------------------
+
+    function getProviderById(providerId) {
+        if (!providerId) {
+            return null;
+        }
+
+        return (
+            providersCache.find(function (provider) {
+                return (
+                    String(getProviderId(provider)) ===
+                    String(providerId)
+                );
+            }) || null
+        );
+    }
+
+    // ----------------------------------------------------------
+    // CREATE PROVIDER
+    // ----------------------------------------------------------
+
+    async function createProvider({
+        providerId,
+        providerName,
+        description,
+        status = "active",
+        isDefault = false
+    }) {
+        const supabase = getSupabase();
+
+        const normalizedProviderId =
+            normalizeProviderId(providerId);
+
+        const cleanProviderName =
+            String(providerName || "").trim();
+
+        const cleanDescription =
+            String(description || "").trim();
+
+        const cleanStatus =
+            normalizeStatus(status);
+
+        if (!normalizedProviderId) {
+            throw new Error(
+                "Provider ID wajib diisi."
+            );
+        }
+
+        if (!cleanProviderName) {
+            throw new Error(
+                "Nama provider wajib diisi."
+            );
+        }
+
+        if (
+            providerIdExists(
+                normalizedProviderId
+            )
+        ) {
+            throw new Error(
+                "Provider ID sudah digunakan."
+            );
+        }
+
+        const { data, error } =
+            await supabase.rpc(
+                "admin_create_provider",
                 {
-                    ascending: false
+                    p_provider_id:
+                        normalizedProviderId,
+
+                    p_provider_name:
+                        cleanProviderName,
+
+                    p_description:
+                        cleanDescription || null,
+
+                    p_status:
+                        cleanStatus,
+
+                    p_is_default:
+                        Boolean(isDefault)
                 }
             );
 
         if (error) {
+            console.error(
+                "[GEN-Z.AI] createProvider error:",
+                error
+            );
+
             throw error;
         }
 
-        providers =
-            Array.isArray(data)
-                ? data
-                : [];
+        await getProviders();
 
-        return getProviders();
+        return data;
     }
 
+    // ----------------------------------------------------------
+    // UPDATE PROVIDER
+    // ----------------------------------------------------------
+
+    async function updateProvider(
+        providerId,
+        {
+            providerName,
+            description,
+            status = "active",
+            isDefault = false
+        } = {}
+    ) {
+        const supabase = getSupabase();
+
+        const provider =
+            getProviderById(providerId);
+
+        if (!provider) {
+            throw new Error(
+                "Provider tidak ditemukan."
+            );
+        }
+
+        const databaseId =
+            getProviderId(provider);
+
+        const cleanProviderId =
+            normalizeProviderId(
+                provider.provider_id
+            );
+
+        const cleanProviderName =
+            String(
+                providerName ??
+                provider.provider_name ??
+                ""
+            ).trim();
+
+        const cleanDescription =
+            String(
+                description ??
+                provider.description ??
+                ""
+            ).trim();
+
+        const cleanStatus =
+            normalizeStatus(
+                status ??
+                provider.status
+            );
+
+        if (!cleanProviderName) {
+            throw new Error(
+                "Nama provider wajib diisi."
+            );
+        }
+
+        const { data, error } =
+            await supabase.rpc(
+                "admin_update_provider",
+                {
+                    p_id:
+                        databaseId,
+
+                    p_provider_id:
+                        cleanProviderId,
+
+                    p_provider_name:
+                        cleanProviderName,
+
+                    p_description:
+                        cleanDescription || null,
+
+                    p_status:
+                        cleanStatus,
+
+                    p_is_default:
+                        Boolean(isDefault)
+                }
+            );
+
+        if (error) {
+            console.error(
+                "[GEN-Z.AI] updateProvider error:",
+                error
+            );
+
+            throw error;
+        }
+
+        await getProviders();
+
+        return data;
+    }
+
+    // ----------------------------------------------------------
+    // TOGGLE ACTIVE / INACTIVE
+    // ----------------------------------------------------------
+
+    async function toggleProvider(
+        providerId
+    ) {
+        const provider =
+            getProviderById(providerId);
+
+        if (!provider) {
+            throw new Error(
+                "Provider tidak ditemukan."
+            );
+        }
+
+        const currentStatus =
+            normalizeStatus(
+                provider.status
+            );
+
+        const nextStatus =
+            currentStatus === "active"
+                ? "inactive"
+                : "active";
+
+        return updateProvider(
+            providerId,
+            {
+                providerName:
+                    provider.provider_name,
+
+                description:
+                    provider.description,
+
+                status:
+                    nextStatus,
+
+                isDefault:
+                    Boolean(
+                        provider.is_default
+                    )
+            }
+        );
+    }
+
+    // ----------------------------------------------------------
+    // ACTIVATE PROVIDER
+    // ----------------------------------------------------------
+
+    async function activateProvider(
+        providerId
+    ) {
+        const provider =
+            getProviderById(providerId);
+
+        if (!provider) {
+            throw new Error(
+                "Provider tidak ditemukan."
+            );
+        }
+
+        return updateProvider(
+            providerId,
+            {
+                providerName:
+                    provider.provider_name,
+
+                description:
+                    provider.description,
+
+                status: "active",
+
+                isDefault:
+                    Boolean(
+                        provider.is_default
+                    )
+            }
+        );
+    }
+
+    // ----------------------------------------------------------
+    // DEACTIVATE PROVIDER
+    // ----------------------------------------------------------
+
+    async function deactivateProvider(
+        providerId
+    ) {
+        const provider =
+            getProviderById(providerId);
+
+        if (!provider) {
+            throw new Error(
+                "Provider tidak ditemukan."
+            );
+        }
+
+        return updateProvider(
+            providerId,
+            {
+                providerName:
+                    provider.provider_name,
+
+                description:
+                    provider.description,
+
+                status: "inactive",
+
+                isDefault:
+                    Boolean(
+                        provider.is_default
+                    )
+            }
+        );
+    }
+
+    // ----------------------------------------------------------
+    // DELETE PROVIDER
+    // ----------------------------------------------------------
+
+    async function deleteProvider(
+        providerId
+    ) {
+        const supabase = getSupabase();
+
+        const provider =
+            getProviderById(providerId);
+
+        if (!provider) {
+            throw new Error(
+                "Provider tidak ditemukan."
+            );
+        }
+
+        const databaseId =
+            getProviderId(provider);
+
+        const { data, error } =
+            await supabase.rpc(
+                "admin_delete_provider",
+                {
+                    p_id:
+                        databaseId
+                }
+            );
+
+        if (error) {
+            console.error(
+                "[GEN-Z.AI] deleteProvider error:",
+                error
+            );
+
+            throw error;
+        }
+
+        await getProviders();
+
+        return data;
+    }
+
+    // ----------------------------------------------------------
+    // REFRESH
+    // ----------------------------------------------------------
+
+    async function loadProviders(
+        options = {}
+    ) {
+        return getProviders(options);
+    }
+
+    // ----------------------------------------------------------
+    // PROVIDER STATISTICS
+    // ----------------------------------------------------------
+
     function getProviderStats() {
+        const providers =
+            Array.isArray(providersCache)
+                ? providersCache
+                : [];
+
         const total =
             providers.length;
 
         const active =
-            providers.filter(
-                provider =>
-                    String(provider.status || "")
-                        .toLowerCase() === "active"
-            ).length;
+            providers.filter(function (provider) {
+                return (
+                    normalizeStatus(
+                        provider.status
+                    ) === "active"
+                );
+            }).length;
 
         const inactive =
-            providers.filter(
-                provider =>
-                    String(provider.status || "")
-                        .toLowerCase() === "inactive"
-            ).length;
+            total - active;
 
-        const maintenance =
-            providers.filter(
-                provider =>
-                    String(provider.status || "")
-                        .toLowerCase() === "maintenance"
-            ).length;
+        const defaults =
+            providers.filter(function (provider) {
+                return Boolean(
+                    provider.is_default
+                );
+            }).length;
 
         return {
             total,
             active,
             inactive,
-            maintenance
+            defaults
         };
     }
 
+    // ----------------------------------------------------------
+    // CLEAR CACHE
+    // ----------------------------------------------------------
+
     function clearProviders() {
-        providers = [];
+        providersCache = [];
     }
 
-    window.GENZProvidersData =
-        Object.freeze({
-            initSupabase,
-            getSupabase,
-            getProviders,
-            getProviderById,
-            normalizeProviderId,
-            providerIdExists,
-            createProvider,
-            loadProviders,
-            getProviderStats,
-            clearProviders
-        });
+    // ----------------------------------------------------------
+    // EXPORT
+    // ----------------------------------------------------------
+
+    window.GENZProvidersData = {
+        initSupabase,
+        getSupabase,
+
+        getProviders,
+        getProviderById,
+
+        normalizeProviderId,
+        providerIdExists,
+
+        createProvider,
+        updateProvider,
+
+        toggleProvider,
+        activateProvider,
+        deactivateProvider,
+
+        deleteProvider,
+
+        loadProviders,
+        getProviderStats,
+        clearProviders
+    };
+
 })();
