@@ -240,6 +240,55 @@ apiKey:
                     false
             });
 
+            if (values.apiKey) {
+    const {
+        data: sessionData
+    } = await supabaseClient.auth.getSession();
+
+    const accessToken =
+        sessionData?.session?.access_token;
+
+    if (!accessToken) {
+        throw new Error(
+            "Session admin tidak ditemukan."
+        );
+    }
+
+    const response =
+        await fetch(
+            "/api/admin-provider-credentials",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    "Authorization":
+                        `Bearer ${accessToken}`
+                },
+
+                body: JSON.stringify({
+                    provider_id:
+                        providerId,
+
+                    api_key:
+                        values.apiKey
+                })
+            }
+        );
+
+    const result =
+        await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            result?.error ||
+            "Gagal menyimpan API key provider."
+        );
+    }
+}
+
             console.log(
                 "Provider berhasil disimpan:",
                 providerId
