@@ -11,6 +11,7 @@
    - Edit Model
    - Tutup modal
    - Model ID dari pencarian Supabase
+   - Provider dari public.providers
    - Validasi form
    - Save ke /api/admin-models
    - Auth Bearer token Supabase
@@ -176,6 +177,255 @@
     }
 
     /* =====================================================
+       PROVIDER
+    ===================================================== */
+
+    function getModelsData() {
+        return window.GENZModelsData || null;
+    }
+
+    async function loadProviders(options = {}) {
+        const data =
+            getModelsData();
+
+        if (
+            !data ||
+            typeof data.loadProviders !==
+                "function"
+        ) {
+            return [];
+        }
+
+        try {
+            return await data.loadProviders({
+                force:
+                    options.force === true,
+                activeOnly:
+                    options.activeOnly !== false
+            });
+        } catch (error) {
+            console.error(
+                "[models-form] Provider load error:",
+                error
+            );
+
+            return [];
+        }
+    }
+
+    function findProvider(
+        providerId
+    ) {
+        const normalized =
+            String(
+                providerId || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        if (!normalized) {
+            return null;
+        }
+
+        const data =
+            getModelsData();
+
+        if (
+            data &&
+            typeof data.findProviderById ===
+                "function"
+        ) {
+            const provider =
+                data.findProviderById(
+                    normalized
+                );
+
+            if (provider) {
+                return provider;
+            }
+        }
+
+        const providers =
+            window.GENZModelsUI &&
+            typeof window.GENZModelsUI.getProviders ===
+                "function"
+                ? window.GENZModelsUI.getProviders()
+                : [];
+
+        return (
+            providers.find(
+                provider =>
+                    String(
+                        provider.provider_id || ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    normalized
+            ) || null
+        );
+    }
+
+    function ensureProviderOption(
+        providerId,
+        provider = null
+    ) {
+        const select =
+            getElement("providerId");
+
+        if (
+            !select ||
+            select.tagName !== "SELECT"
+        ) {
+            return false;
+        }
+
+        const normalized =
+            String(
+                providerId || ""
+            ).trim();
+
+        if (!normalized) {
+            return false;
+        }
+
+        const existing =
+            Array.from(
+                select.options
+            ).find(
+                option =>
+                    String(
+                        option.value || ""
+                    ).trim().toLowerCase() ===
+                    normalized.toLowerCase()
+            );
+
+        if (existing) {
+            select.value =
+                existing.value;
+
+            return true;
+        }
+
+        if (!provider) {
+            provider =
+                findProvider(
+                    normalized
+                );
+        }
+
+        if (!provider) {
+            return false;
+        }
+
+        const option =
+            document.createElement(
+                "option"
+            );
+
+        option.value =
+            provider.provider_id;
+
+        option.textContent =
+            provider.provider_name
+                ? `${provider.provider_name} (${provider.provider_id})`
+                : provider.provider_id;
+
+        select.appendChild(
+            option
+        );
+
+        select.value =
+            provider.provider_id;
+
+        return true;
+    }
+
+    async function setProvider(
+        providerId,
+        options = {}
+    ) {
+        const normalized =
+            String(
+                providerId || ""
+            ).trim();
+
+        if (!normalized) {
+            setValue(
+                "providerId",
+                ""
+            );
+
+            return null;
+        }
+
+        let provider =
+            findProvider(
+                normalized
+            );
+
+        if (!provider) {
+            const providers =
+                await loadProviders({
+                    force:
+                        options.force === true,
+                    activeOnly: true
+                });
+
+            provider =
+                providers.find(
+                    item =>
+                        String(
+                            item.provider_id || ""
+                        )
+                            .trim()
+                            .toLowerCase() ===
+                        normalized.toLowerCase()
+                ) || null;
+        }
+
+        if (provider) {
+            ensureProviderOption(
+                normalized,
+                provider
+            );
+
+            setValue(
+                "providerId",
+                provider.provider_id
+            );
+
+            const select =
+                getElement("providerId");
+
+            if (select) {
+                select.dispatchEvent(
+                    new Event(
+                        "change",
+                        {
+                            bubbles: true
+                        }
+                    )
+                );
+            }
+
+            return provider;
+        }
+
+        /*
+         * Jangan membuat provider palsu.
+         * Jika provider tidak ditemukan di
+         * public.providers, biarkan kosong
+         * agar validasi menangkapnya.
+         */
+        setValue(
+            "providerId",
+            ""
+        );
+
+        return null;
+    }
+
+    /* =====================================================
        FORM MODE
     ===================================================== */
 
@@ -195,7 +445,8 @@
 
         if (mode === "edit") {
             if (title) {
-                title.textContent = "Edit Model";
+                title.textContent =
+                    "Edit Model";
             }
 
             if (submitButton) {
@@ -207,7 +458,8 @@
         }
 
         if (title) {
-            title.textContent = "Tambah Model";
+            title.textContent =
+                "Tambah Model";
         }
 
         if (submitButton) {
@@ -220,17 +472,28 @@
        OPEN CREATE
     ===================================================== */
 
-    function openCreateForm() {
+    async function openCreateForm() {
         editingModel = null;
 
         clearForm();
 
         setFormMode("create");
 
+        /*
+         * Pastikan provider aktif sudah
+         * tersedia sebelum modal digunakan.
+         */
+        await loadProviders({
+            force: false,
+            activeOnly: true
+        });
+
         openModal();
 
         const search =
-            getElement("modelCodeSearch");
+            getElement(
+                "modelCodeSearch"
+            );
 
         if (search) {
             window.setTimeout(() => {
@@ -243,7 +506,7 @@
        OPEN EDIT
     ===================================================== */
 
-    function openEditForm(model) {
+    async function openEditForm(model) {
         if (!model) {
             console.warn(
                 "[models-form] Model tidak tersedia."
@@ -252,13 +515,24 @@
             return;
         }
 
+        /*
+         * Provider harus dimuat lebih dahulu
+         * sebelum populateForm memilih option.
+         */
+        await loadProviders({
+            force: false,
+            activeOnly: true
+        });
+
         editingModel = {
             ...model
         };
 
         setFormMode("edit");
 
-        populateForm(model);
+        await populateForm(
+            model
+        );
 
         openModal();
     }
@@ -267,15 +541,19 @@
        POPULATE
     ===================================================== */
 
-    function populateForm(model) {
+    async function populateForm(model) {
         setValue(
             "modelId",
             model.id || ""
         );
 
-        setValue(
-            "providerId",
-            model.provider_id || model.provider || ""
+        const providerId =
+            model.provider_id ||
+            model.provider ||
+            "";
+
+        await setProvider(
+            providerId
         );
 
         setValue(
@@ -284,7 +562,9 @@
         );
 
         const modelSearch =
-            getElement("modelCodeSearch");
+            getElement(
+                "modelCodeSearch"
+            );
 
         if (modelSearch) {
             modelSearch.value =
@@ -345,7 +625,9 @@
             model.status || "active"
         );
 
-        updateSelectedModelInfo(model);
+        updateSelectedModelInfo(
+            model
+        );
     }
 
     /* =====================================================
@@ -426,14 +708,18 @@
         );
 
         const search =
-            getElement("modelCodeSearch");
+            getElement(
+                "modelCodeSearch"
+            );
 
         if (search) {
             search.value = "";
         }
 
         const selectedInfo =
-            getElement("selectedModelInfo");
+            getElement(
+                "selectedModelInfo"
+            );
 
         if (selectedInfo) {
             selectedInfo.textContent =
@@ -441,10 +727,13 @@
         }
 
         const searchResults =
-            getElement("modelSearchResults");
+            getElement(
+                "modelSearchResults"
+            );
 
         if (searchResults) {
-            searchResults.innerHTML = "";
+            searchResults.innerHTML =
+                "";
         }
 
         resetPricePreview();
@@ -470,7 +759,8 @@
                 getElement(id);
 
             if (element) {
-                element.textContent = "-";
+                element.textContent =
+                    "-";
             }
         }
     }
@@ -481,7 +771,9 @@
 
     function openModal() {
         const modal =
-            getElement("modelModal");
+            getElement(
+                "modelModal"
+            );
 
         if (!modal) {
             console.error(
@@ -491,19 +783,29 @@
             return;
         }
 
-        modal.classList.add("open");
-        modal.classList.add("show");
-        modal.classList.remove("hidden");
+        modal.classList.add(
+            "open"
+        );
+
+        modal.classList.add(
+            "show"
+        );
+
+        modal.classList.remove(
+            "hidden"
+        );
 
         modal.removeAttribute(
             "aria-hidden"
         );
 
         if (
-            window.getComputedStyle(modal)
-                .display === "none"
+            window.getComputedStyle(
+                modal
+            ).display === "none"
         ) {
-            modal.style.display = "flex";
+            modal.style.display =
+                "flex";
         }
 
         document.body.classList.add(
@@ -513,22 +815,33 @@
 
     function closeModal() {
         const modal =
-            getElement("modelModal");
+            getElement(
+                "modelModal"
+            );
 
         if (!modal) {
             return;
         }
 
-        modal.classList.remove("open");
-        modal.classList.remove("show");
-        modal.classList.add("hidden");
+        modal.classList.remove(
+            "open"
+        );
+
+        modal.classList.remove(
+            "show"
+        );
+
+        modal.classList.add(
+            "hidden"
+        );
 
         modal.setAttribute(
             "aria-hidden",
             "true"
         );
 
-        modal.style.display = "none";
+        modal.style.display =
+            "none";
 
         document.body.classList.remove(
             "modal-open"
@@ -542,44 +855,68 @@
     function getFormData() {
         return {
             provider_id:
-                value("providerId").trim(),
+                value(
+                    "providerId"
+                ).trim(),
 
             model_id:
-                value("modelCode").trim(),
+                value(
+                    "modelCode"
+                ).trim(),
 
             model_name:
-                value("modelName").trim(),
+                value(
+                    "modelName"
+                ).trim(),
 
             description:
-                value("description").trim(),
+                value(
+                    "description"
+                ).trim(),
 
             credit_cost:
-                value("creditCost").trim(),
+                value(
+                    "creditCost"
+                ).trim(),
 
             discount_percent:
-                value("discountPercent").trim(),
+                value(
+                    "discountPercent"
+                ).trim(),
 
             credit_final:
-                value("creditFinal").trim(),
+                value(
+                    "creditFinal"
+                ).trim(),
 
             min_duration:
-                value("minDuration").trim(),
+                value(
+                    "minDuration"
+                ).trim(),
 
             max_duration:
-                value("maxDuration").trim(),
+                value(
+                    "maxDuration"
+                ).trim(),
 
             supported_ratios:
                 normalizeArray(
-                    value("supportedRatios")
+                    value(
+                        "supportedRatios"
+                    )
                 ),
 
             supported_resolutions:
                 normalizeArray(
-                    value("supportedResolutions")
+                    value(
+                        "supportedResolutions"
+                    )
                 ),
 
             status:
-                value("modelStatus").trim()
+                value(
+                    "modelStatus"
+                ).trim()
         };
     }
 
@@ -603,26 +940,38 @@
         if (
             data.credit_cost !== "" &&
             !Number.isFinite(
-                Number(data.credit_cost)
+                Number(
+                    data.credit_cost
+                )
             )
         ) {
-            return "Credit Cost harus berupa angka.";
+            return (
+                "Credit Cost harus berupa angka."
+            );
         }
 
         if (
             data.discount_percent !== "" &&
             !Number.isFinite(
-                Number(data.discount_percent)
+                Number(
+                    data.discount_percent
+                )
             )
         ) {
-            return "Discount Percent harus berupa angka.";
+            return (
+                "Discount Percent harus berupa angka."
+            );
         }
 
         if (
             data.discount_percent !== "" &&
             (
-                Number(data.discount_percent) < 0 ||
-                Number(data.discount_percent) > 100
+                Number(
+                    data.discount_percent
+                ) < 0 ||
+                Number(
+                    data.discount_percent
+                ) > 100
             )
         ) {
             return (
@@ -633,7 +982,9 @@
         if (
             data.min_duration !== "" &&
             !Number.isFinite(
-                Number(data.min_duration)
+                Number(
+                    data.min_duration
+                )
             )
         ) {
             return (
@@ -644,7 +995,9 @@
         if (
             data.max_duration !== "" &&
             !Number.isFinite(
-                Number(data.max_duration)
+                Number(
+                    data.max_duration
+                )
             )
         ) {
             return (
@@ -655,8 +1008,12 @@
         if (
             data.min_duration !== "" &&
             data.max_duration !== "" &&
-            Number(data.min_duration) >
-                Number(data.max_duration)
+            Number(
+                data.min_duration
+            ) >
+            Number(
+                data.max_duration
+            )
         ) {
             return (
                 "Minimum Duration tidak boleh lebih besar dari Maximum Duration."
@@ -701,7 +1058,8 @@
             await supabase.auth.getSession();
 
         const session =
-            result?.data?.session || null;
+            result?.data?.session ||
+            null;
 
         if (!session?.access_token) {
             throw new Error(
@@ -749,6 +1107,7 @@
                         "Authorization":
                             `Bearer ${token}`
                     },
+
                     body:
                         JSON.stringify(
                             payload
@@ -802,7 +1161,9 @@
             getFormData();
 
         const validationError =
-            validateForm(data);
+            validateForm(
+                data
+            );
 
         if (validationError) {
             notify(
@@ -823,10 +1184,13 @@
             ]);
 
         const originalText =
-            button?.textContent || "";
+            button?.textContent ||
+            "";
 
         if (button) {
-            button.disabled = true;
+            button.disabled =
+                true;
+
             button.textContent =
                 editingModel?.id
                     ? "Menyimpan..."
@@ -835,10 +1199,17 @@
 
         try {
             const result =
-                await saveToApi(data);
+                await saveToApi(
+                    data
+                );
+
+            const wasEditing =
+                Boolean(
+                    editingModel?.id
+                );
 
             notify(
-                editingModel?.id
+                wasEditing
                     ? "Model berhasil diperbarui."
                     : "Model berhasil ditambahkan.",
                 "success"
@@ -876,9 +1247,7 @@
                             result,
                             model: data,
                             editing:
-                                Boolean(
-                                    editingModel?.id
-                                )
+                                wasEditing
                         }
                     }
                 )
@@ -906,7 +1275,8 @@
             saving = false;
 
             if (button) {
-                button.disabled = false;
+                button.disabled =
+                    false;
 
                 button.textContent =
                     originalText ||
@@ -923,7 +1293,9 @@
        SELECTED MODEL INFO
     ===================================================== */
 
-    function updateSelectedModelInfo(model) {
+    function updateSelectedModelInfo(
+        model
+    ) {
         const info =
             getElement(
                 "selectedModelInfo"
@@ -984,7 +1356,9 @@
        SELECT MODEL
     ===================================================== */
 
-    function setSelectedModel(model) {
+    function setSelectedModel(
+        model
+    ) {
         if (!model) {
             return;
         }
@@ -1009,11 +1383,45 @@
             model.model_name || ""
         );
 
-        if (model.provider) {
-            setValue(
-                "providerId",
-                model.provider
-            );
+        /*
+         * Model KIE pada kie_models menggunakan
+         * kolom provider.
+         *
+         * API/admin-models menggunakan
+         * provider_id.
+         *
+         * Dukung keduanya.
+         */
+        const providerId =
+            model.provider_id ||
+            model.provider ||
+            "";
+
+        if (providerId) {
+            /*
+             * Jika option sudah ada, langsung pilih.
+             */
+            const selected =
+                ensureProviderOption(
+                    providerId
+                );
+
+            /*
+             * Jika belum ada, load provider
+             * aktif lalu pilih.
+             */
+            if (!selected) {
+                setProvider(
+                    providerId
+                ).catch(
+                    error => {
+                        console.error(
+                            "[models-form] Gagal menyinkronkan provider:",
+                            error
+                        );
+                    }
+                );
+            }
         }
 
         updateSelectedModelInfo(
@@ -1045,7 +1453,9 @@
 
     function bindFormSubmit() {
         const form =
-            getElement("modelForm");
+            getElement(
+                "modelForm"
+            );
 
         if (!form) {
             console.warn(
@@ -1057,7 +1467,8 @@
 
         if (
             form.dataset
-                .genzSaveBound === "true"
+                .genzSaveBound ===
+            "true"
         ) {
             return;
         }
@@ -1095,10 +1506,12 @@
         if (closeButton) {
             if (
                 closeButton.dataset
-                    .genzFormBound !== "true"
+                    .genzFormBound !==
+                "true"
             ) {
                 closeButton.dataset
-                    .genzFormBound = "true";
+                    .genzFormBound =
+                    "true";
 
                 closeButton.addEventListener(
                     "click",
@@ -1115,10 +1528,12 @@
         if (cancelButton) {
             if (
                 cancelButton.dataset
-                    .genzFormBound !== "true"
+                    .genzFormBound !==
+                "true"
             ) {
                 cancelButton.dataset
-                    .genzFormBound = "true";
+                    .genzFormBound =
+                    "true";
 
                 cancelButton.addEventListener(
                     "click",
@@ -1139,7 +1554,9 @@
 
     function bindModalBackdrop() {
         const modal =
-            getElement("modelModal");
+            getElement(
+                "modelModal"
+            );
 
         if (!modal) {
             return;
@@ -1147,19 +1564,22 @@
 
         if (
             modal.dataset
-                .genzBackdropBound === "true"
+                .genzBackdropBound ===
+            "true"
         ) {
             return;
         }
 
         modal.dataset
-            .genzBackdropBound = "true";
+            .genzBackdropBound =
+            "true";
 
         modal.addEventListener(
             "click",
             function (event) {
                 if (
-                    event.target === modal
+                    event.target ===
+                    modal
                 ) {
                     closeModal();
                 }
@@ -1174,13 +1594,15 @@
     function bindEscape() {
         if (
             document.body.dataset
-                .genzModelEscapeBound === "true"
+                .genzModelEscapeBound ===
+            "true"
         ) {
             return;
         }
 
         document.body.dataset
-            .genzModelEscapeBound = "true";
+            .genzModelEscapeBound =
+            "true";
 
         document.addEventListener(
             "keydown",
@@ -1256,6 +1678,8 @@
         saveToApi,
 
         setSelectedModel,
+        setProvider,
+        loadProviders,
 
         getEditingModel,
         isEditing,
