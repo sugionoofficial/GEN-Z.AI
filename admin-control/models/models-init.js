@@ -9,8 +9,9 @@
    Fungsi:
    - Menunggu seluruh module tersedia
    - Menjalankan initialization satu kali
+   - Menyerahkan seluruh proses UI kepada models-ui.js
    - Tidak melakukan auto-start sendiri
-   - Initialization dikendalikan oleh models-loader.js
+   - Tidak melakukan loading Supabase berulang
 ========================================================= */
 
 (function () {
@@ -26,7 +27,8 @@
     function waitForModules(timeout = 10000) {
         return new Promise((resolve, reject) => {
 
-            const startedAt = Date.now();
+            const startedAt =
+                Date.now();
 
             function check() {
 
@@ -38,17 +40,22 @@
                     "GENZModelsUI"
                 ];
 
-                const missing = required.filter(
-                    name => !window[name]
-                );
+                const missing =
+                    required.filter(
+                        name =>
+                            !window[name]
+                    );
 
-                if (missing.length === 0) {
+                if (
+                    missing.length === 0
+                ) {
                     resolve();
                     return;
                 }
 
                 if (
-                    Date.now() - startedAt >=
+                    Date.now() -
+                    startedAt >=
                     timeout
                 ) {
                     reject(
@@ -85,141 +92,92 @@
             return initializing;
         }
 
-        initializing = (async () => {
+        initializing =
+            (async () => {
 
-            try {
+                try {
 
-                /*
-                 * Pastikan semua module sudah tersedia.
-                 */
-                await waitForModules();
+                    /*
+                     * Pastikan seluruh module sudah
+                     * tersedia sebelum UI dijalankan.
+                     */
 
-                /* =========================================
-                   1. LOAD MODEL DATA
-                ========================================= */
+                    await waitForModules();
 
-                if (
-                    window.GENZModelsData &&
-                    typeof window
-                        .GENZModelsData
-                        .loadKieModels ===
-                        "function"
-                ) {
+                    /*
+                     * models-ui.js adalah pusat
+                     * initialization Model Management.
+                     *
+                     * Jangan menjalankan:
+                     * - loadKieModels()
+                     * - Price.initialize()
+                     * - Search.initialize()
+                     * - Form.initialize()
+                     *
+                     * secara terpisah di sini.
+                     *
+                     * models-ui.js sudah mengatur
+                     * semuanya secara berurutan.
+                     */
 
-                    await window
-                        .GENZModelsData
-                        .loadKieModels({
-                            force: false,
-                            activeOnly: false
-                        });
-                }
-
-                /* =========================================
-                   2. INITIALIZE PRICING
-                ========================================= */
-
-                if (
-                    window.GENZModelsPrice &&
-                    typeof window
-                        .GENZModelsPrice
-                        .initialize ===
-                        "function"
-                ) {
-
-                    await window
-                        .GENZModelsPrice
-                        .initialize();
-                }
-
-                /* =========================================
-                   3. INITIALIZE SEARCH
-                ========================================= */
-
-                if (
-                    window.GENZModelsSearch &&
-                    typeof window
-                        .GENZModelsSearch
-                        .initialize ===
-                        "function"
-                ) {
-
-                    await window
-                        .GENZModelsSearch
-                        .initialize();
-                }
-
-                /* =========================================
-                   4. INITIALIZE FORM
-                ========================================= */
-
-                if (
-                    window.GENZModelsForm &&
-                    typeof window
-                        .GENZModelsForm
-                        .initialize ===
-                        "function"
-                ) {
-
-                    await window
-                        .GENZModelsForm
-                        .initialize();
-                }
-
-                /* =========================================
-                   5. INITIALIZE UI
-                ========================================= */
-
-                if (
-                    window.GENZModelsUI &&
-                    typeof window
-                        .GENZModelsUI
-                        .initialize ===
-                        "function"
-                ) {
+                    if (
+                        !window.GENZModelsUI ||
+                        typeof
+                            window
+                                .GENZModelsUI
+                                .initialize !==
+                            "function"
+                    ) {
+                        throw new Error(
+                            "GENZModelsUI.initialize tidak tersedia."
+                        );
+                    }
 
                     await window
                         .GENZModelsUI
                         .initialize();
+
+                    initialized =
+                        true;
+
+                    console.info(
+                        "[GEN-Z.AI] Model Management initialization selesai."
+                    );
+
+                    window.dispatchEvent(
+                        new CustomEvent(
+                            "genz-models-ready"
+                        )
+                    );
+
+                    return true;
+
+                } catch (error) {
+
+                    console.error(
+                        "[GEN-Z.AI] Model Management initialization gagal:",
+                        error
+                    );
+
+                    window.dispatchEvent(
+                        new CustomEvent(
+                            "genz-models-error",
+                            {
+                                detail:
+                                    error
+                            }
+                        )
+                    );
+
+                    throw error;
+
+                } finally {
+
+                    initializing =
+                        null;
                 }
 
-                initialized = true;
-
-                console.info(
-                    "[GEN-Z.AI] Model Management initialization selesai."
-                );
-
-                window.dispatchEvent(
-                    new CustomEvent(
-                        "genz-models-ready"
-                    )
-                );
-
-                return true;
-
-            } catch (error) {
-
-                console.error(
-                    "[GEN-Z.AI] Model Management initialization gagal:",
-                    error
-                );
-
-                window.dispatchEvent(
-                    new CustomEvent(
-                        "genz-models-error",
-                        {
-                            detail: error
-                        }
-                    )
-                );
-
-                throw error;
-
-            } finally {
-
-                initializing = null;
-            }
-
-        })();
+            })();
 
         return initializing;
     }
