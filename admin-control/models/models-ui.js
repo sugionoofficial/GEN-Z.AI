@@ -33,6 +33,125 @@
         return document.getElementById(id);
     }
 
+       /*
+     * =====================================================
+     * EMERGENCY ADD MODEL HANDLER
+     * =====================================================
+     *
+     * Handler ini dipasang SEGERA saat models-ui.js
+     * dimuat, tanpa menunggu initialization Supabase,
+     * pricing, search, atau module lainnya.
+     *
+     * Tujuan:
+     * tombol "+ Tambah Model" tetap dapat membuka modal
+     * walaupun initialization module lain bermasalah.
+     */
+
+    function bindEmergencyAddModel() {
+        if (
+            document.body &&
+            document.body.dataset
+                .genzEmergencyAddModelBound === "true"
+        ) {
+            return;
+        }
+
+        const handler = event => {
+            const target =
+                event.target.closest(
+                    "#addModelBtn, #addModelButton, [data-action=\"add-model\"]"
+                );
+
+            if (!target) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const modal =
+                document.getElementById(
+                    "modelModal"
+                );
+
+            if (!modal) {
+                console.error(
+                    "[models-ui] #modelModal tidak ditemukan."
+                );
+
+                return;
+            }
+
+            /*
+             * Buka modal SECARA LANGSUNG.
+             * Tidak menunggu GENZModelsForm.
+             * Tidak menunggu Supabase.
+             */
+            modal.classList.add("show");
+            modal.classList.remove("hidden");
+
+            modal.style.display = "flex";
+
+            modal.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+            document.body.classList.add(
+                "modal-open"
+            );
+
+            /*
+             * Setelah modal tampil, baru coba
+             * reset form jika module tersedia.
+             */
+            const form =
+                window.GENZModelsForm;
+
+            if (
+                form &&
+                typeof form.openCreateForm ===
+                    "function"
+            ) {
+                Promise.resolve(
+                    form.openCreateForm()
+                ).catch(error => {
+                    console.error(
+                        "[models-ui] openCreateForm error:",
+                        error
+                    );
+                });
+            }
+        };
+
+        document.addEventListener(
+            "click",
+            handler,
+            true
+        );
+
+        if (document.body) {
+            document.body.dataset
+                .genzEmergencyAddModelBound =
+                "true";
+        }
+    }
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            bindEmergencyAddModel,
+            {
+                once: true
+            }
+        );
+    } else {
+        bindEmergencyAddModel();
+    }
+
     function getModelsData() {
         return window.GENZModelsData || null;
     }
