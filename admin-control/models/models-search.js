@@ -12,6 +12,7 @@
    - Pemilihan model dengan tombol ✓
    - Mengisi Model ID otomatis
    - Sinkronisasi Provider otomatis
+   - Menyisipkan CSS dropdown secara otomatis
    - Menjaga kompatibilitas dengan models-ui.js
 ========================================================= */
 
@@ -23,31 +24,173 @@
     let eventsBound = false;
 
     /* =====================================================
+       INJECT STYLES
+    ===================================================== */
+
+    function injectStyles() {
+        const styleId = "genz-model-search-styles";
+
+        if (document.getElementById(styleId)) {
+            return;
+        }
+
+        const style = document.createElement("style");
+
+        style.id = styleId;
+
+        style.textContent = `
+            /* =================================================
+               MODEL ID SEARCH
+            ================================================= */
+
+            .model-search-box {
+                position: relative;
+            }
+
+            .model-search-results {
+                position: absolute;
+                top: calc(100% + 6px);
+                left: 0;
+                right: 0;
+                z-index: 10000;
+                max-height: 360px;
+                overflow-y: auto;
+                background: #0d1424;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                box-shadow: 0 18px 45px rgba(0, 0, 0, .45);
+            }
+
+            .model-search-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 11px 12px;
+                border-bottom: 1px solid rgba(255,255,255,.07);
+                transition: background .18s ease;
+            }
+
+            .model-search-item:last-child {
+                border-bottom: 0;
+            }
+
+            .model-search-item:hover {
+                background: rgba(99,102,241,.10);
+            }
+
+            .model-search-info {
+                min-width: 0;
+                flex: 1;
+            }
+
+            .model-search-id {
+                color: #f8fafc;
+                font-size: 12px;
+                font-weight: 800;
+                line-height: 1.4;
+                word-break: break-all;
+            }
+
+            .model-search-name {
+                margin-top: 3px;
+                color: #cbd5e1;
+                font-size: 11px;
+                line-height: 1.4;
+            }
+
+            .model-search-provider {
+                margin-top: 3px;
+                color: var(--muted);
+                font-size: 10px;
+                line-height: 1.4;
+            }
+
+            .model-select-check {
+                flex: 0 0 auto;
+                width: 32px;
+                height: 32px;
+                border: 1px solid rgba(34,197,94,.35);
+                border-radius: 8px;
+                background: rgba(34,197,94,.08);
+                color: #86efac;
+                font-size: 17px;
+                font-weight: 900;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition:
+                    background .18s ease,
+                    border-color .18s ease,
+                    transform .18s ease;
+                cursor: pointer;
+            }
+
+            .model-select-check:hover {
+                background: rgba(34,197,94,.18);
+                border-color: rgba(34,197,94,.60);
+                transform: scale(1.04);
+            }
+
+            .model-select-check.selected {
+                background: rgba(34,197,94,.22);
+                border-color: rgba(34,197,94,.70);
+                color: #bbf7d0;
+            }
+
+            .model-search-empty {
+                padding: 15px;
+                color: var(--muted);
+                font-size: 12px;
+                text-align: center;
+            }
+
+            #selectedModelInfo {
+                margin-top: 6px;
+            }
+
+            #selectedModelInfo strong {
+                color: #e2e8f0;
+            }
+
+            #selectedModelInfo span {
+                color: var(--muted);
+            }
+
+            @media (max-width: 600px) {
+                .model-search-results {
+                    max-height: 300px;
+                }
+
+                .model-search-item {
+                    padding: 10px;
+                }
+
+                .model-search-id {
+                    font-size: 11px;
+                }
+
+                .model-select-check {
+                    width: 30px;
+                    height: 30px;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    /* =====================================================
        ESCAPE HTML
     ===================================================== */
 
     function escapeHtml(value) {
         return String(value ?? "")
-            .replace(
-                /&/g,
-                "&amp;"
-            )
-            .replace(
-                /</g,
-                "&lt;"
-            )
-            .replace(
-                />/g,
-                "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#039;"
-            );
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     /* =====================================================
@@ -110,6 +253,8 @@
     ===================================================== */
 
     async function initialize() {
+        injectStyles();
+
         const elements =
             getElements();
 
@@ -437,12 +582,6 @@
             return null;
         }
 
-        /*
-         * Prioritas utama:
-         * gunakan models-form.js karena module
-         * tersebut sudah mengetahui cara mengambil
-         * provider aktif dari public.providers.
-         */
         const form =
             getFormModule();
 
@@ -468,12 +607,6 @@
             }
         }
 
-        /*
-         * Fallback:
-         * jika models-form belum tersedia,
-         * coba gunakan option yang sudah ada
-         * di select.
-         */
         const elements =
             getElements();
 
@@ -529,6 +662,7 @@
         return {
             provider_id:
                 option.value,
+
             provider_name:
                 option.textContent
         };
@@ -701,11 +835,6 @@
                 ? [...data]
                 : [];
 
-        /*
-         * Jika model yang sedang dipilih
-         * masih ada di data baru,
-         * pertahankan pilihan tersebut.
-         */
         if (selectedModel) {
             const currentId =
                 selectedModel.id;
