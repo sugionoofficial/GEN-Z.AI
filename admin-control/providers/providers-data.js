@@ -1,6 +1,6 @@
 // ============================================================
 // GEN-Z.AI - PROVIDER DATA MANAGER
-// CRUD + STATUS MANAGEMENT
+// SUPABASE + CRUD + STATUS MANAGEMENT
 // ============================================================
 
 (function () {
@@ -14,44 +14,64 @@
     // ----------------------------------------------------------
 
     function initSupabase() {
+
         if (supabaseClient) {
             return supabaseClient;
         }
 
         if (
-            typeof window.supabase === "undefined" ||
-            typeof window.supabase.createClient !== "function"
+            !window.supabase ||
+            typeof window.supabase.createClient !==
+                "function"
         ) {
-            throw new Error("Supabase library belum dimuat.");
+            throw new Error(
+                "Supabase library belum dimuat."
+            );
         }
 
-        const config = window.GENZConfig || {};
+        // ======================================================
+        // GUNAKAN CONFIG YANG BENAR
+        // ======================================================
+
+        const config =
+            window.GENZ_CONFIG || {};
 
         const supabaseUrl =
             config.SUPABASE_URL ||
             window.SUPABASE_URL ||
             window.supabaseUrl;
 
-        const supabaseAnonKey =
+        const supabaseKey =
+            config.SUPABASE_KEY ||
             config.SUPABASE_ANON_KEY ||
+            window.SUPABASE_KEY ||
             window.SUPABASE_ANON_KEY ||
             window.supabaseAnonKey;
 
-        if (!supabaseUrl || !supabaseAnonKey) {
+        if (
+            !supabaseUrl ||
+            !supabaseKey
+        ) {
             throw new Error(
                 "Konfigurasi Supabase tidak ditemukan."
             );
         }
 
-        supabaseClient = window.supabase.createClient(
-            supabaseUrl,
-            supabaseAnonKey
-        );
+        supabaseClient =
+            window.supabase.createClient(
+                supabaseUrl,
+                supabaseKey
+            );
 
         return supabaseClient;
     }
 
+    // ----------------------------------------------------------
+    // GET SUPABASE
+    // ----------------------------------------------------------
+
     function getSupabase() {
+
         if (!supabaseClient) {
             initSupabase();
         }
@@ -60,20 +80,64 @@
     }
 
     // ----------------------------------------------------------
+    // SESSION
+    // ----------------------------------------------------------
+
+    async function getSession() {
+
+        const supabase =
+            getSupabase();
+
+        const {
+            data,
+            error
+        } =
+            await supabase.auth.getSession();
+
+        if (error) {
+            throw error;
+        }
+
+        if (
+            !data ||
+            !data.session
+        ) {
+            throw new Error(
+                "Session Supabase tidak ditemukan. Silakan login kembali."
+            );
+        }
+
+        return data.session;
+    }
+
+    // ----------------------------------------------------------
     // HELPERS
     // ----------------------------------------------------------
 
-    function normalizeProviderId(value) {
-        return String(value || "")
+    function normalizeProviderId(
+        value
+    ) {
+        return String(
+            value || ""
+        )
             .trim()
             .toLowerCase()
-            .replace(/\s+/g, "-");
+            .replace(
+                /\s+/g,
+                "-"
+            );
     }
 
-    function normalizeStatus(value) {
-        const status = String(value || "")
-            .trim()
-            .toLowerCase();
+    function normalizeStatus(
+        value
+    ) {
+
+        const status =
+            String(
+                value || ""
+            )
+                .trim()
+                .toLowerCase();
 
         if (
             status === "inactive" ||
@@ -87,69 +151,128 @@
         return "active";
     }
 
-    function getProviderId(provider) {
+    function getProviderId(
+        provider
+    ) {
+
         if (!provider) {
             return null;
         }
 
-        return provider.id || provider.uuid || null;
+        return (
+            provider.id ||
+            provider.uuid ||
+            null
+        );
     }
 
-    function providerIdExists(providerId, excludeId = null) {
-        const normalized = normalizeProviderId(providerId);
+    function getProviderPublicId(
+        provider
+    ) {
 
-        return providersCache.some(function (provider) {
-            const currentId = getProviderId(provider);
+        if (!provider) {
+            return null;
+        }
 
-            if (
-                excludeId &&
-                String(currentId) === String(excludeId)
-            ) {
-                return false;
-            }
+        return normalizeProviderId(
+            provider.provider_id
+        );
+    }
 
-            return (
-                normalizeProviderId(provider.provider_id) ===
-                normalized
+    function providerIdExists(
+        providerId,
+        excludeId = null
+    ) {
+
+        const normalized =
+            normalizeProviderId(
+                providerId
             );
-        });
+
+        return providersCache.some(
+            function (provider) {
+
+                const currentDatabaseId =
+                    getProviderId(
+                        provider
+                    );
+
+                if (
+                    excludeId &&
+                    String(
+                        currentDatabaseId
+                    ) ===
+                    String(
+                        excludeId
+                    )
+                ) {
+                    return false;
+                }
+
+                return (
+                    getProviderPublicId(
+                        provider
+                    ) ===
+                    normalized
+                );
+            }
+        );
     }
 
     // ----------------------------------------------------------
     // GET PROVIDERS
     // ----------------------------------------------------------
 
-    async function getProviders(options = {}) {
-        const supabase = getSupabase();
+    async function getProviders(
+        options = {}
+    ) {
 
-        let query = supabase
-            .from("providers")
-            .select(
-                [
-                    "id",
-                    "provider_id",
-                    "provider_name",
-                    "description",
-                    "status",
-                    "is_default",
+        const supabase =
+            getSupabase();
+
+        let query =
+            supabase
+                .from("providers")
+                .select(
+                    [
+                        "id",
+                        "provider_id",
+                        "provider_name",
+                        "description",
+                        "status",
+                        "is_default",
+                        "created_at",
+                        "updated_at"
+                    ].join(",")
+                )
+                .order(
                     "created_at",
-                    "updated_at"
-                ].join(",")
-            )
-            .order("created_at", {
-                ascending: true
-            });
+                    {
+                        ascending: true
+                    }
+                );
 
-        if (options.status) {
-            query = query.eq(
-                "status",
-                normalizeStatus(options.status)
-            );
+        if (
+            options.status
+        ) {
+
+            query =
+                query.eq(
+                    "status",
+                    normalizeStatus(
+                        options.status
+                    )
+                );
         }
 
-        const { data, error } = await query;
+        const {
+            data,
+            error
+        } =
+            await query;
 
         if (error) {
+
             console.error(
                 "[GEN-Z.AI] getProviders error:",
                 error
@@ -158,29 +281,81 @@
             throw error;
         }
 
-        providersCache = Array.isArray(data)
-            ? data
-            : [];
+        providersCache =
+            Array.isArray(data)
+                ? data
+                : [];
 
-        return providersCache;
+        return [
+            ...providersCache
+        ];
     }
 
     // ----------------------------------------------------------
     // GET SINGLE PROVIDER
     // ----------------------------------------------------------
 
-    function getProviderById(providerId) {
+    function getProviderById(
+        providerId
+    ) {
+
         if (!providerId) {
             return null;
         }
 
+        const searchId =
+            String(
+                providerId
+            );
+
         return (
-            providersCache.find(function (provider) {
-                return (
-                    String(getProviderId(provider)) ===
-                    String(providerId)
-                );
-            }) || null
+            providersCache.find(
+                function (
+                    provider
+                ) {
+
+                    return (
+                        String(
+                            getProviderId(
+                                provider
+                            )
+                        ) ===
+                        searchId
+                    );
+                }
+            ) ||
+            null
+        );
+    }
+
+    // ----------------------------------------------------------
+    // GET SINGLE PROVIDER BY PROVIDER_ID
+    // ----------------------------------------------------------
+
+    function getProviderByProviderId(
+        providerId
+    ) {
+
+        const normalized =
+            normalizeProviderId(
+                providerId
+            );
+
+        return (
+            providersCache.find(
+                function (
+                    provider
+                ) {
+
+                    return (
+                        getProviderPublicId(
+                            provider
+                        ) ===
+                        normalized
+                    );
+                }
+            ) ||
+            null
         );
     }
 
@@ -195,27 +370,53 @@
         status = "active",
         isDefault = false
     }) {
-        const supabase = getSupabase();
+
+        const supabase =
+            getSupabase();
+
+        await getSession();
 
         const normalizedProviderId =
-            normalizeProviderId(providerId);
+            normalizeProviderId(
+                providerId
+            );
 
         const cleanProviderName =
-            String(providerName || "").trim();
+            String(
+                providerName || ""
+            ).trim();
 
         const cleanDescription =
-            String(description || "").trim();
+            String(
+                description || ""
+            ).trim();
 
         const cleanStatus =
-            normalizeStatus(status);
+            normalizeStatus(
+                status
+            );
 
-        if (!normalizedProviderId) {
+        if (
+            !normalizedProviderId
+        ) {
             throw new Error(
                 "Provider ID wajib diisi."
             );
         }
 
-        if (!cleanProviderName) {
+        if (
+            !/^[a-zA-Z0-9._-]+$/.test(
+                normalizedProviderId
+            )
+        ) {
+            throw new Error(
+                "Provider ID tidak valid."
+            );
+        }
+
+        if (
+            !cleanProviderName
+        ) {
             throw new Error(
                 "Nama provider wajib diisi."
             );
@@ -231,7 +432,10 @@
             );
         }
 
-        const { data, error } =
+        const {
+            data,
+            error
+        } =
             await supabase.rpc(
                 "admin_create_provider",
                 {
@@ -242,17 +446,21 @@
                         cleanProviderName,
 
                     p_description:
-                        cleanDescription || null,
+                        cleanDescription ||
+                        null,
 
                     p_status:
                         cleanStatus,
 
                     p_is_default:
-                        Boolean(isDefault)
+                        Boolean(
+                            isDefault
+                        )
                 }
             );
 
         if (error) {
+
             console.error(
                 "[GEN-Z.AI] createProvider error:",
                 error
@@ -279,10 +487,16 @@
             isDefault = false
         } = {}
     ) {
-        const supabase = getSupabase();
+
+        const supabase =
+            getSupabase();
+
+        await getSession();
 
         const provider =
-            getProviderById(providerId);
+            getProviderById(
+                providerId
+            );
 
         if (!provider) {
             throw new Error(
@@ -291,11 +505,13 @@
         }
 
         const databaseId =
-            getProviderId(provider);
+            getProviderId(
+                provider
+            );
 
         const cleanProviderId =
-            normalizeProviderId(
-                provider.provider_id
+            getProviderPublicId(
+                provider
             );
 
         const cleanProviderName =
@@ -318,13 +534,30 @@
                 provider.status
             );
 
-        if (!cleanProviderName) {
+        if (
+            !cleanProviderName
+        ) {
             throw new Error(
                 "Nama provider wajib diisi."
             );
         }
 
-        const { data, error } =
+        if (!databaseId) {
+            throw new Error(
+                "ID database provider tidak ditemukan."
+            );
+        }
+
+        if (!cleanProviderId) {
+            throw new Error(
+                "Provider ID tidak ditemukan."
+            );
+        }
+
+        const {
+            data,
+            error
+        } =
             await supabase.rpc(
                 "admin_update_provider",
                 {
@@ -338,17 +571,21 @@
                         cleanProviderName,
 
                     p_description:
-                        cleanDescription || null,
+                        cleanDescription ||
+                        null,
 
                     p_status:
                         cleanStatus,
 
                     p_is_default:
-                        Boolean(isDefault)
+                        Boolean(
+                            isDefault
+                        )
                 }
             );
 
         if (error) {
+
             console.error(
                 "[GEN-Z.AI] updateProvider error:",
                 error
@@ -363,14 +600,17 @@
     }
 
     // ----------------------------------------------------------
-    // TOGGLE ACTIVE / INACTIVE
+    // TOGGLE
     // ----------------------------------------------------------
 
     async function toggleProvider(
         providerId
     ) {
+
         const provider =
-            getProviderById(providerId);
+            getProviderById(
+                providerId
+            );
 
         if (!provider) {
             throw new Error(
@@ -409,14 +649,17 @@
     }
 
     // ----------------------------------------------------------
-    // ACTIVATE PROVIDER
+    // ACTIVATE
     // ----------------------------------------------------------
 
     async function activateProvider(
         providerId
     ) {
+
         const provider =
-            getProviderById(providerId);
+            getProviderById(
+                providerId
+            );
 
         if (!provider) {
             throw new Error(
@@ -433,7 +676,8 @@
                 description:
                     provider.description,
 
-                status: "active",
+                status:
+                    "active",
 
                 isDefault:
                     Boolean(
@@ -444,14 +688,17 @@
     }
 
     // ----------------------------------------------------------
-    // DEACTIVATE PROVIDER
+    // DEACTIVATE
     // ----------------------------------------------------------
 
     async function deactivateProvider(
         providerId
     ) {
+
         const provider =
-            getProviderById(providerId);
+            getProviderById(
+                providerId
+            );
 
         if (!provider) {
             throw new Error(
@@ -468,7 +715,8 @@
                 description:
                     provider.description,
 
-                status: "inactive",
+                status:
+                    "inactive",
 
                 isDefault:
                     Boolean(
@@ -479,16 +727,22 @@
     }
 
     // ----------------------------------------------------------
-    // DELETE PROVIDER
+    // DELETE
     // ----------------------------------------------------------
 
     async function deleteProvider(
         providerId
     ) {
-        const supabase = getSupabase();
+
+        const supabase =
+            getSupabase();
+
+        await getSession();
 
         const provider =
-            getProviderById(providerId);
+            getProviderById(
+                providerId
+            );
 
         if (!provider) {
             throw new Error(
@@ -497,9 +751,33 @@
         }
 
         const databaseId =
-            getProviderId(provider);
+            getProviderId(
+                provider
+            );
 
-        const { data, error } =
+        if (!databaseId) {
+            throw new Error(
+                "ID database provider tidak ditemukan."
+            );
+        }
+
+        // ======================================================
+        // HAPUS CREDENTIAL TERLEBIH DAHULU
+        // ======================================================
+        //
+        // Credential menggunakan provider_id seperti:
+        // "bytedance"
+        //
+        // Provider utama menggunakan UUID database.
+        //
+        // Backend/RPC delete provider seharusnya menangani
+        // relasi credential. Kita tetap panggil RPC utama.
+        // ======================================================
+
+        const {
+            data,
+            error
+        } =
             await supabase.rpc(
                 "admin_delete_provider",
                 {
@@ -509,6 +787,7 @@
             );
 
         if (error) {
+
             console.error(
                 "[GEN-Z.AI] deleteProvider error:",
                 error
@@ -529,16 +808,22 @@
     async function loadProviders(
         options = {}
     ) {
-        return getProviders(options);
+
+        return getProviders(
+            options
+        );
     }
 
     // ----------------------------------------------------------
-    // PROVIDER STATISTICS
+    // STATISTICS
     // ----------------------------------------------------------
 
     function getProviderStats() {
+
         const providers =
-            Array.isArray(providersCache)
+            Array.isArray(
+                providersCache
+            )
                 ? providersCache
                 : [];
 
@@ -546,23 +831,32 @@
             providers.length;
 
         const active =
-            providers.filter(function (provider) {
-                return (
-                    normalizeStatus(
-                        provider.status
-                    ) === "active"
-                );
-            }).length;
+            providers.filter(
+                function (
+                    provider
+                ) {
+                    return (
+                        normalizeStatus(
+                            provider.status
+                        ) ===
+                        "active"
+                    );
+                }
+            ).length;
 
         const inactive =
             total - active;
 
         const defaults =
-            providers.filter(function (provider) {
-                return Boolean(
-                    provider.is_default
-                );
-            }).length;
+            providers.filter(
+                function (
+                    provider
+                ) {
+                    return Boolean(
+                        provider.is_default
+                    );
+                }
+            ).length;
 
         return {
             total,
@@ -585,27 +879,43 @@
     // ----------------------------------------------------------
 
     window.GENZProvidersData = {
+
         initSupabase,
+
         getSupabase,
 
+        getSession,
+
         getProviders,
+
         getProviderById,
 
+        getProviderByProviderId,
+
         normalizeProviderId,
+
+        normalizeStatus,
+
         providerIdExists,
 
         createProvider,
+
         updateProvider,
 
         toggleProvider,
+
         activateProvider,
+
         deactivateProvider,
 
         deleteProvider,
 
         loadProviders,
+
         getProviderStats,
+
         clearProviders
+
     };
 
 })();
