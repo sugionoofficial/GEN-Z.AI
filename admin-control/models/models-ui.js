@@ -11,6 +11,7 @@
    - Notification
    - Statistics
    - Refresh model data
+   - Load provider dari public.providers
    - Hubungkan data/search/form/price module
    - Binding tombol Add / Close / Cancel / Refresh
    - Tidak menyimpan API key
@@ -23,6 +24,7 @@
 
     const state = {
         models: [],
+        providers: [],
         pricing: [],
         loading: false
     };
@@ -253,6 +255,171 @@
 
         hideModalElement(
             getModal()
+        );
+    }
+
+    /* =====================================================
+       PROVIDER DATA
+    ===================================================== */
+
+    async function loadProviders(
+        options = {}
+    ) {
+        const data =
+            getModelsData();
+
+        if (
+            !data ||
+            typeof data.loadProviders !==
+                "function"
+        ) {
+            console.warn(
+                "[models-ui] GENZModelsData.loadProviders belum tersedia."
+            );
+
+            return [];
+        }
+
+        try {
+            state.providers =
+                await data.loadProviders({
+                    force:
+                        options.force === true,
+                    activeOnly:
+                        options.activeOnly !== false
+                });
+
+            populateProviderSelect(
+                state.providers
+            );
+
+            return state.providers;
+        } catch (error) {
+            console.error(
+                "[models-ui] Gagal memuat provider:",
+                error
+            );
+
+            notify(
+                "Gagal memuat daftar provider.",
+                "error"
+            );
+
+            return [];
+        }
+    }
+
+    function populateProviderSelect(
+        providers = state.providers
+    ) {
+        const select =
+            $("providerId");
+
+        if (
+            !select ||
+            select.tagName !== "SELECT"
+        ) {
+            return;
+        }
+
+        const currentValue =
+            String(
+                select.value || ""
+            ).trim();
+
+        const fragment =
+            document.createDocumentFragment();
+
+        const placeholder =
+            document.createElement("option");
+
+        placeholder.value = "";
+        placeholder.textContent =
+            "Pilih Provider";
+
+        fragment.appendChild(
+            placeholder
+        );
+
+        const list =
+            Array.isArray(providers)
+                ? providers
+                : [];
+
+        for (const provider of list) {
+            const providerId =
+                String(
+                    provider.provider_id || ""
+                ).trim();
+
+            if (!providerId) {
+                continue;
+            }
+
+            const option =
+                document.createElement("option");
+
+            option.value =
+                providerId;
+
+            option.textContent =
+                provider.provider_name
+                    ? `${provider.provider_name} (${providerId})`
+                    : providerId;
+
+            fragment.appendChild(
+                option
+            );
+        }
+
+        select.innerHTML = "";
+
+        select.appendChild(
+            fragment
+        );
+
+        if (currentValue) {
+            const exists =
+                Array.from(
+                    select.options
+                ).some(
+                    option =>
+                        option.value ===
+                        currentValue
+                );
+
+            if (exists) {
+                select.value =
+                    currentValue;
+            }
+        }
+    }
+
+    function findProviderById(
+        providerId
+    ) {
+        const normalized =
+            String(
+                providerId || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        if (!normalized) {
+            return null;
+        }
+
+        return (
+            state.providers.find(
+                provider =>
+                    String(
+                        provider.provider_id || ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    normalized
+            ) ||
+            null
         );
     }
 
@@ -502,6 +669,12 @@
         }
 
         try {
+            const providers =
+                await loadProviders({
+                    force: true,
+                    activeOnly: true
+                });
+
             const models =
                 await loadModels({
                     force: true,
@@ -510,8 +683,12 @@
 
             await loadPricing();
 
+            populateProviderSelect(
+                providers
+            );
+
             notify(
-                "Data model berhasil diperbarui.",
+                "Data model dan provider berhasil diperbarui.",
                 "success"
             );
 
@@ -566,6 +743,39 @@
             );
         }
 
+        const providerId =
+            String(
+                model.provider_id ||
+                model.provider ||
+                ""
+            ).trim();
+
+        if (providerId) {
+            const provider =
+                findProviderById(
+                    providerId
+                );
+
+            if (provider) {
+                const select =
+                    $("providerId");
+
+                if (select) {
+                    select.value =
+                        provider.provider_id;
+
+                    select.dispatchEvent(
+                        new Event(
+                            "change",
+                            {
+                                bubbles: true
+                            }
+                        )
+                    );
+                }
+            }
+        }
+
         return model;
     }
 
@@ -576,8 +786,8 @@
             String(
                 modelId || ""
             )
-            .trim()
-            .toLowerCase();
+                .trim()
+                .toLowerCase();
 
         if (!normalized) {
             return null;
@@ -590,8 +800,8 @@
                         model.model_id ||
                         ""
                     )
-                    .trim()
-                    .toLowerCase() ===
+                        .trim()
+                        .toLowerCase() ===
                     normalized
             ) ||
             null
@@ -728,13 +938,6 @@
     }
 
     function bindButtons() {
-        /* =================================================
-           ADD MODEL
-
-           Mendukung beberapa ID agar kompatibel
-           dengan HTML lama maupun baru.
-        ================================================= */
-
         bindButton(
             [
                 "addModelButton",
@@ -749,10 +952,6 @@
             }
         );
 
-        /* =================================================
-           CLOSE MODAL
-        ================================================= */
-
         bindButton(
             [
                 "closeModalBtn",
@@ -765,13 +964,6 @@
             }
         );
 
-        /* =================================================
-           CANCEL MODAL
-
-           cancelModalBtn adalah ID yang dipakai
-           pada models.html saat ini.
-        ================================================= */
-
         bindButton(
             [
                 "cancelModalBtn",
@@ -783,10 +975,6 @@
                 closeModal();
             }
         );
-
-        /* =================================================
-           REFRESH
-        ================================================= */
 
         bindButton(
             [
@@ -803,12 +991,6 @@
 
     /* =====================================================
        ADD MODEL FALLBACK
-
-       Jika tombol Add Model menggunakan ID yang
-       belum dikenal, gunakan atribut data-action.
-
-       Contoh:
-       data-action="add-model"
     ===================================================== */
 
     function bindActionFallback() {
@@ -841,8 +1023,8 @@
                             "data-action"
                         ) || ""
                     )
-                    .trim()
-                    .toLowerCase();
+                        .trim()
+                        .toLowerCase();
 
                 if (
                     action ===
@@ -1125,18 +1307,23 @@
         initialized = true;
 
         try {
-            /*
-             * Semua event handler dipasang terlebih dahulu.
-             * UI tetap dapat merespons walaupun Supabase
-             * masih dalam proses loading.
-             */
-
             bindButtons();
             bindActionFallback();
             bindModalEvents();
             bindFormEvents();
             bindSearchEvents();
             bindTableEvents();
+
+            /*
+             * Provider harus dimuat lebih dahulu
+             * supaya <select id="providerId">
+             * sudah mempunyai option ketika
+             * model dipilih atau modal Edit dibuka.
+             */
+            await loadProviders({
+                force: false,
+                activeOnly: true
+            });
 
             await loadModels({
                 force: false,
@@ -1190,16 +1377,21 @@
 
             loadModels,
             refreshModels,
+            loadProviders,
 
             updateStatistics,
 
             selectModel,
             findModelById,
+            findProviderById,
 
             renderModelPrice,
 
             getModels: () =>
                 [...state.models],
+
+            getProviders: () =>
+                [...state.providers],
 
             getPricing: () =>
                 [...state.pricing],
@@ -1212,6 +1404,7 @@
      * TIDAK ADA AUTO START DI SINI.
      *
      * models-loader.js adalah orchestrator utama.
+     *
      * Loader akan memanggil:
      *
      * GENZModelsInit.initialize()
