@@ -9,26 +9,30 @@
    Fungsi:
    - Memuat seluruh module Model Management
    - Menjaga urutan dependency
+   - Cache busting setiap deployment
    - Mencegah initialization ganda
    - Menunggu semua module siap
    - Menjalankan initializer utama satu kali
-   - Tidak mengubah UI utama
-   - Tidak mengakses API key
 ========================================================= */
 
 (function () {
     "use strict";
 
-    /*
-     * Tandai bahwa loader sedang mengendalikan
-     * initialization Model Management.
-     *
-     * Module lain dapat membaca flag ini
-     * jika diperlukan.
-     */
+    /* =====================================================
+       CONFIG
+    ===================================================== */
+
     window.GENZ_MODELS_LOADER_ACTIVE = true;
 
     const BASE_PATH = "./models/";
+
+    /*
+     * Ganti angka ini setiap kali ada perubahan module.
+     *
+     * Tujuannya supaya browser tidak menggunakan
+     * file JavaScript lama dari cache.
+     */
+    const CACHE_VERSION = "20260918-01";
 
     const MODULES = [
         "models-data.js",
@@ -53,13 +57,18 @@
         return new Promise(
             (resolve, reject) => {
 
-                if (
-                    loaded.has(filename)
-                ) {
+                /*
+                 * Jangan load module yang sama dua kali
+                 * dalam satu session.
+                 */
+                if (loaded.has(filename)) {
                     resolve();
                     return;
                 }
 
+                /*
+                 * Cari script yang mungkin sudah ada.
+                 */
                 const existing =
                     document.querySelector(
                         `script[data-genz-model-module="${filename}"]`
@@ -67,26 +76,40 @@
 
                 if (existing) {
 
+                    /*
+                     * Jika script sudah selesai dimuat.
+                     */
                     if (
                         existing.dataset
                             .genzModelLoaded ===
                         "true"
                     ) {
+
                         loaded.add(filename);
+
                         resolve();
+
                         return;
                     }
 
+                    /*
+                     * Jika sedang loading,
+                     * tunggu sampai selesai.
+                     */
                     existing.addEventListener(
                         "load",
                         () => {
-                            loaded.add(filename);
+
+                            loaded.add(
+                                filename
+                            );
 
                             existing.dataset
                                 .genzModelLoaded =
                                 "true";
 
                             resolve();
+
                         },
                         {
                             once: true
@@ -96,12 +119,14 @@
                     existing.addEventListener(
                         "error",
                         () => {
+
                             reject(
                                 new Error(
                                     "Gagal memuat module: " +
                                         filename
                                 )
                             );
+
                         },
                         {
                             once: true
@@ -111,18 +136,34 @@
                     return;
                 }
 
+                /* =================================================
+                   CREATE SCRIPT
+                ================================================== */
+
                 const script =
                     document.createElement(
                         "script"
                     );
 
+                /*
+                 * CACHE BUSTING
+                 *
+                 * Contoh:
+                 * ./models/models-data.js?v=20260918-01
+                 *
+                 * Browser akan menganggapnya sebagai
+                 * resource baru setiap kali version berubah.
+                 */
                 script.src =
                     BASE_PATH +
-                    filename;
+                    filename +
+                    "?v=" +
+                    encodeURIComponent(
+                        CACHE_VERSION
+                    );
 
                 /*
-                 * Module harus dijalankan
-                 * sesuai urutan dependency.
+                 * Dependency harus berurutan.
                  */
                 script.async = false;
 
@@ -131,6 +172,14 @@
                 script.dataset
                     .genzModelModule =
                     filename;
+
+                script.dataset
+                    .genzModelVersion =
+                    CACHE_VERSION;
+
+                /* =================================================
+                   ON LOAD
+                ================================================== */
 
                 script.onload = () => {
 
@@ -142,10 +191,26 @@
                         .genzModelLoaded =
                         "true";
 
+                    console.info(
+                        "[GEN-Z.AI] Module loaded:",
+                        filename,
+                        "version:",
+                        CACHE_VERSION
+                    );
+
                     resolve();
                 };
 
+                /* =================================================
+                   ON ERROR
+                ================================================== */
+
                 script.onerror = () => {
+
+                    console.error(
+                        "[GEN-Z.AI] Module gagal dimuat:",
+                        filename
+                    );
 
                     reject(
                         new Error(
@@ -156,8 +221,7 @@
                 };
 
                 /*
-                 * Masukkan ke HEAD agar module
-                 * tidak mengganggu struktur UI.
+                 * Masukkan ke HEAD.
                  */
                 document.head.appendChild(
                     script
@@ -183,12 +247,14 @@
                     const module
                     of MODULES
                 ) {
+
                     await loadScript(
                         module
                     );
                 }
 
                 return true;
+
             })();
 
         try {
@@ -210,12 +276,19 @@
     function getMissingModules() {
 
         const required = [
+
             "GENZModelsData",
+
             "GENZModelsSearch",
+
             "GENZModelsForm",
+
             "GENZModelsPrice",
+
             "GENZModelsUI",
+
             "GENZModelsInit"
+
         ];
 
         return required.filter(
@@ -223,6 +296,10 @@
                 !window[name]
         );
     }
+
+    /* =====================================================
+       WAIT FOR MODULES
+    ===================================================== */
 
     function waitForModules(
         timeout = 10000
@@ -239,18 +316,28 @@
                     const missing =
                         getMissingModules();
 
+                    /*
+                     * Semua module tersedia.
+                     */
                     if (
-                        missing.length === 0
+                        missing.length ===
+                        0
                     ) {
+
                         resolve();
+
                         return;
                     }
 
+                    /*
+                     * Timeout.
+                     */
                     if (
                         Date.now() -
                             startedAt >=
                         timeout
                     ) {
+
                         reject(
                             new Error(
                                 "Module Model Management belum tersedia: " +
@@ -286,49 +373,69 @@
 
         try {
 
-            /*
-             * Pastikan semua file module
-             * sudah tersedia.
-             */
+            /* ==============================================
+               LOAD MODULE
+            ============================================== */
+
             await loadModules();
 
-            /*
-             * Tunggu object global benar-benar
-             * tersedia sebelum menjalankan init.
-             */
+            /* ==============================================
+               WAIT MODULE OBJECT
+            ============================================== */
+
             await waitForModules();
 
-            /*
-             * Hanya models-init.js yang menjadi
-             * initializer utama.
-             */
+            /* ==============================================
+               GET MAIN INITIALIZER
+            ============================================== */
+
             const initializer =
                 window.GENZModelsInit;
 
             if (
                 !initializer ||
-                typeof initializer.initialize !==
+                typeof
+                    initializer.initialize !==
                     "function"
             ) {
+
                 throw new Error(
                     "GENZModelsInit.initialize() tidak tersedia."
                 );
             }
 
-            /*
-             * Jalankan initializer utama.
-             */
+            /* ==============================================
+               INITIALIZE
+            ============================================== */
+
             await initializer.initialize();
 
             initialized = true;
 
             console.info(
-                "[GEN-Z.AI] Model Management berhasil diinisialisasi melalui loader."
+                "[GEN-Z.AI] Model Management berhasil diinisialisasi."
             );
+
+            console.info(
+                "[GEN-Z.AI] Module version:",
+                CACHE_VERSION
+            );
+
+            /* ==============================================
+               READY EVENT
+            ============================================== */
 
             window.dispatchEvent(
                 new CustomEvent(
-                    "genz-models-loader-ready"
+                    "genz-models-loader-ready",
+                    {
+                        detail: {
+                            version:
+                                CACHE_VERSION,
+                            modules:
+                                getLoadedModules()
+                        }
+                    }
                 )
             );
 
@@ -340,6 +447,10 @@
                 "[GEN-Z.AI] Model Management loader initialization error:",
                 error
             );
+
+            /* ==============================================
+               ERROR EVENT
+            ============================================== */
 
             window.dispatchEvent(
                 new CustomEvent(
@@ -361,19 +472,27 @@
     function isLoaded(
         filename
     ) {
+
         return loaded.has(
             filename
         );
     }
 
     function isInitialized() {
+
         return initialized;
     }
 
     function getLoadedModules() {
+
         return [
             ...loaded
         ];
+    }
+
+    function getVersion() {
+
+        return CACHE_VERSION;
     }
 
     /* =====================================================
@@ -382,13 +501,22 @@
 
     window.GENZModelsLoader =
         Object.freeze({
+
             loadModules,
+
             initialize,
+
             waitForModules,
+
             getMissingModules,
+
             isLoaded,
+
             isInitialized,
-            getLoadedModules
+
+            getLoadedModules,
+
+            getVersion
         });
 
     /* =====================================================
@@ -397,20 +525,22 @@
 
     function start() {
 
-        /*
-         * Loader menjadi satu pintu
-         * untuk Model Management.
-         */
         initialize()
-            .catch(error => {
+            .catch(
+                error => {
 
-                console.error(
-                    "[GEN-Z.AI] Model Management gagal dimulai:",
-                    error
-                );
+                    console.error(
+                        "[GEN-Z.AI] Model Management gagal dimulai:",
+                        error
+                    );
 
-            });
+                }
+            );
     }
+
+    /* =====================================================
+       DOM READY
+    ===================================================== */
 
     if (
         document.readyState ===
