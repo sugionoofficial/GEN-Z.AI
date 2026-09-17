@@ -473,34 +473,52 @@
     ===================================================== */
 
     async function openCreateForm() {
-        editingModel = null;
+    editingModel = null;
 
-        clearForm();
+    clearForm();
 
-        setFormMode("create");
+    setFormMode("create");
 
-        /*
-         * Pastikan provider aktif sudah
-         * tersedia sebelum modal digunakan.
-         */
+    /*
+     * Modal harus dibuka terlebih dahulu.
+     * Jangan menunggu Supabase/provider selesai,
+     * karena jika request lambat atau gagal,
+     * tombol "Tambah Model" akan terlihat tidak bekerja.
+     */
+    openModal();
+
+    const search =
+        getElement(
+            "modelCodeSearch"
+        );
+
+    if (search) {
+        window.setTimeout(() => {
+            search.focus();
+        }, 100);
+    }
+
+    /*
+     * Provider dimuat setelah modal terbuka.
+     * Jika gagal, modal tetap terbuka.
+     */
+    try {
         await loadProviders({
             force: false,
             activeOnly: true
         });
+    } catch (error) {
+        console.error(
+            "[models-form] Gagal memuat provider:",
+            error
+        );
 
-        openModal();
-
-        const search =
-            getElement(
-                "modelCodeSearch"
-            );
-
-        if (search) {
-            window.setTimeout(() => {
-                search.focus();
-            }, 100);
-        }
+        notify(
+            "Provider gagal dimuat dari Supabase. Silakan coba lagi.",
+            "warning"
+        );
     }
+}
 
     /* =====================================================
        OPEN EDIT
