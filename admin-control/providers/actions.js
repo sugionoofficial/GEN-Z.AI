@@ -7,7 +7,6 @@
 (function () {
     "use strict";
 
-    // Jangan load dua kali
     if (window.GENZProviderActions) {
         return;
     }
@@ -66,14 +65,12 @@
         message,
         type = "error"
     ) {
-
         let element =
             document.getElementById(
                 "providerActionMessage"
             );
 
         if (!element) {
-
             element =
                 document.createElement(
                     "div"
@@ -108,15 +105,12 @@
             "block";
 
         if (type === "success") {
-
             element.style.background =
                 "rgba(30,160,90,.95)";
 
             element.style.color =
                 "#fff";
-
         } else {
-
             element.style.background =
                 "rgba(190,45,45,.95)";
 
@@ -146,13 +140,11 @@
         button,
         busyState
     ) {
-
         if (!button) {
             return;
         }
 
         if (busyState) {
-
             if (
                 !button.dataset.originalText
             ) {
@@ -160,8 +152,7 @@
                     button.textContent;
             }
 
-            button.disabled =
-                true;
+            button.disabled = true;
 
             button.style.opacity =
                 ".55";
@@ -171,11 +162,8 @@
 
             button.textContent =
                 "Memproses...";
-
         } else {
-
-            button.disabled =
-                false;
+            button.disabled = false;
 
             button.style.opacity =
                 "1";
@@ -199,11 +187,7 @@
     function findProvider(
         databaseId
     ) {
-
-        const list =
-            getList();
-
-        return list.getById(
+        return getList().getById(
             databaseId
         );
     }
@@ -215,7 +199,6 @@
     function editProvider(
         databaseId
     ) {
-
         const provider =
             findProvider(
                 databaseId
@@ -227,10 +210,7 @@
             );
         }
 
-        const form =
-            getForm();
-
-        form.openEdit(
+        getForm().openEdit(
             provider
         );
     }
@@ -243,7 +223,6 @@
         databaseId,
         button
     ) {
-
         const provider =
             findProvider(
                 databaseId
@@ -282,7 +261,6 @@
         );
 
         try {
-
             const result =
                 await supabase.rpc(
                     "admin_update_provider",
@@ -326,7 +304,6 @@
                 .refresh();
 
         } finally {
-
             setButtonBusy(
                 button,
                 false
@@ -335,14 +312,87 @@
     }
 
     // ========================================
-    // DELETE
+    // DELETE API KEY
+    // ========================================
+
+    async function deleteProviderCredential(
+        providerId
+    ) {
+        const providerPublicId =
+            String(
+                providerId || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        if (!providerPublicId) {
+            throw new Error(
+                "Provider ID untuk API key tidak ditemukan."
+            );
+        }
+
+        const supabaseModule =
+            getSupabase();
+
+        const token =
+            await supabaseModule
+                .getAccessToken();
+
+        if (!token) {
+            throw new Error(
+                "Session admin tidak ditemukan."
+            );
+        }
+
+        const response =
+            await fetch(
+                "/api/admin-provider-credentials",
+                {
+                    method: "DELETE",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        Authorization:
+                            `Bearer ${token}`
+                    },
+
+                    body:
+                        JSON.stringify({
+                            provider_id:
+                                providerPublicId
+                        })
+                }
+            );
+
+        let data = null;
+
+        try {
+            data =
+                await response.json();
+        } catch {
+            data = null;
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                data?.error ||
+                "Gagal menghapus API key provider."
+            );
+        }
+
+        return data;
+    }
+
+    // ========================================
+    // DELETE PROVIDER
     // ========================================
 
     async function deleteProvider(
         databaseId,
         button
     ) {
-
         const provider =
             findProvider(
                 databaseId
@@ -362,7 +412,7 @@
         const confirmed =
             window.confirm(
                 `Hapus ${providerName}?\n\n` +
-                "Provider yang dihapus tidak dapat digunakan lagi."
+                "Provider dan API key yang tersimpan akan dihapus permanen."
             );
 
         if (!confirmed) {
@@ -388,12 +438,39 @@
             );
         }
 
+        const providerPublicId =
+            String(
+                provider.provider_id || ""
+            )
+                .trim()
+                .toLowerCase();
+
+        if (!providerPublicId) {
+            throw new Error(
+                "Provider ID tidak ditemukan."
+            );
+        }
+
         setButtonBusy(
             button,
             true
         );
 
         try {
+
+            // ====================================
+            // STEP 1
+            // HAPUS API KEY
+            // ====================================
+
+            await deleteProviderCredential(
+                providerPublicId
+            );
+
+            // ====================================
+            // STEP 2
+            // HAPUS PROVIDER
+            // ====================================
 
             const result =
                 await supabase.rpc(
@@ -408,16 +485,38 @@
                 throw result.error;
             }
 
-            showPageMessage(
-                "Provider berhasil dihapus.",
-                "success"
-            );
+            // ====================================
+            // STEP 3
+            // BERSIHKAN STATUS SESSION
+            // ====================================
+
+            const apiKeyModule =
+                window.GENZProviderApiKey;
+
+            if (
+                apiKeyModule &&
+                typeof apiKeyModule.clearStatus ===
+                    "function"
+            ) {
+                apiKeyModule.clearStatus(
+                    providerPublicId
+                );
+            }
+
+            // ====================================
+            // STEP 4
+            // REFRESH LIST
+            // ====================================
 
             await getList()
                 .refresh();
 
-        } finally {
+            showPageMessage(
+                "Provider dan API key berhasil dihapus.",
+                "success"
+            );
 
+        } finally {
             setButtonBusy(
                 button,
                 false
@@ -432,7 +531,6 @@
     async function handleAction(
         button
     ) {
-
         if (!button) {
             return;
         }
