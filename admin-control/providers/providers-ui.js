@@ -1,15 +1,7 @@
 (function () {
     "use strict";
 
-    // =========================================================
-    // GEN-Z.AI - PROVIDERS UI
-    // =========================================================
-
     let currentProviders = [];
-
-    // ---------------------------------------------------------
-    // ELEMENT HELPERS
-    // ---------------------------------------------------------
 
     function getElement(id) {
         return document.getElementById(id);
@@ -32,36 +24,10 @@
             : "inactive";
     }
 
-    // ---------------------------------------------------------
-    // STATUS
-    // ---------------------------------------------------------
-
-    function getStatusLabel(status) {
-        return normalizeStatus(status) === "active"
-            ? "Aktif"
-            : "Nonaktif";
-    }
-
-    function getStatusClass(status) {
-        return normalizeStatus(status) === "active"
-            ? "active"
-            : "inactive";
-    }
-
-    // ---------------------------------------------------------
-    // PROVIDER ACTION BUTTONS
-    // ---------------------------------------------------------
-
     function renderActions(provider) {
-        const id =
-            provider.id ||
-            provider.uuid ||
-            "";
+        const id = provider.id || provider.uuid || "";
 
-        const status =
-            normalizeStatus(
-                provider.status
-            );
+        const status = normalizeStatus(provider.status);
 
         const toggleText =
             status === "active"
@@ -80,38 +46,36 @@
                     type="button"
                     class="provider-action-btn provider-btn-edit"
                     data-provider-action="edit"
-                    data-provider-id="${escapeHtml(id)}"
-                >
-                    Edit
+                    data-provider-id="${escapeHtml(id)}">
+                    ✏️ Edit
                 </button>
 
                 <button
                     type="button"
                     class="provider-action-btn ${toggleClass}"
                     data-provider-action="toggle"
-                    data-provider-id="${escapeHtml(id)}"
-                >
-                    ${toggleText}
+                    data-provider-id="${escapeHtml(id)}">
+                    ${status === "active" ? "⏸️" : "▶️"} ${toggleText}
                 </button>
 
                 <button
                     type="button"
                     class="provider-action-btn provider-btn-delete"
                     data-provider-action="delete"
-                    data-provider-id="${escapeHtml(id)}"
-                >
-                    Hapus
+                    data-provider-id="${escapeHtml(id)}">
+                    🗑️ Hapus
                 </button>
 
             </div>
         `;
     }
 
-    // ---------------------------------------------------------
-    // PROVIDER CARD
-    // ---------------------------------------------------------
-
     function renderProviderCard(provider) {
+        const databaseId =
+            provider.id ||
+            provider.uuid ||
+            "";
+
         const providerId =
             provider.provider_id ||
             "-";
@@ -125,38 +89,29 @@
             "Tidak ada deskripsi.";
 
         const status =
-            normalizeStatus(
-                provider.status
-            );
+            normalizeStatus(provider.status);
 
-        const statusLabel =
-            getStatusLabel(status);
-
-        const statusClass =
-            getStatusClass(status);
-
-        const isDefault =
-            Boolean(
-                provider.is_default
-            );
+        const statusText =
+            status === "active"
+                ? "AKTIF"
+                : "NONAKTIF";
 
         const createdAt =
             provider.created_at
                 ? new Date(
                     provider.created_at
-                ).toLocaleString(
-                    "id-ID"
-                )
+                ).toLocaleString("id-ID")
                 : "-";
 
         return `
             <article
                 class="provider-card"
-                data-provider-id="${escapeHtml(
-                    provider.id ||
-                    provider.uuid ||
-                    ""
-                )}"
+                data-provider-id="${escapeHtml(databaseId)}"
+                style="
+                    position:relative;
+                    width:100%;
+                    margin-bottom:16px;
+                "
             >
 
                 <div class="provider-card-header">
@@ -164,68 +119,131 @@
                     <div class="provider-title-area">
 
                         <h3 class="provider-name">
-                            ${escapeHtml(
-                                providerName
-                            )}
+                            ${escapeHtml(providerName)}
                         </h3>
 
                         <div class="provider-id">
-                            ${escapeHtml(
-                                providerId
-                            )}
+                            ID: ${escapeHtml(providerId)}
                         </div>
 
                     </div>
 
-                    <div class="provider-status ${statusClass}">
-                        ${statusLabel}
+                    <div
+                        class="provider-status ${status}"
+                        style="
+                            display:inline-flex;
+                            align-items:center;
+                            padding:6px 10px;
+                            border-radius:999px;
+                            font-size:11px;
+                            font-weight:800;
+                        "
+                    >
+                        ${statusText}
                     </div>
 
                 </div>
-
 
                 <div class="provider-card-body">
 
                     <div class="provider-description">
-                        ${escapeHtml(
-                            description
-                        )}
+                        ${escapeHtml(description)}
                     </div>
-
 
                     <div class="provider-meta">
-
-                        <span>
-                            Dibuat:
-                            ${escapeHtml(
-                                createdAt
-                            )}
-                        </span>
-
-                        ${
-                            isDefault
-                                ? `
-                                    <span class="provider-default">
-                                        Provider Default
-                                    </span>
-                                  `
-                                : ""
-                        }
-
+                        Dibuat: ${escapeHtml(createdAt)}
                     </div>
+
+                    ${
+                        provider.is_default
+                            ? `
+                                <div class="provider-default">
+                                    ⭐ Provider Default
+                                </div>
+                            `
+                            : ""
+                    }
 
                 </div>
 
+                <div
+                    class="provider-actions"
+                    style="
+                        display:flex !important;
+                        flex-wrap:wrap !important;
+                        gap:8px !important;
+                        margin-top:18px !important;
+                        padding-top:14px !important;
+                        border-top:1px solid rgba(255,255,255,.08) !important;
+                        position:relative !important;
+                        z-index:999 !important;
+                        visibility:visible !important;
+                        opacity:1 !important;
+                    "
+                >
 
-                ${renderActions(provider)}
+                    <button
+                        type="button"
+                        class="provider-action-btn provider-btn-edit"
+                        data-provider-action="edit"
+                        data-provider-id="${escapeHtml(databaseId)}"
+                        style="
+                            display:inline-flex !important;
+                            align-items:center !important;
+                            justify-content:center !important;
+                            min-height:40px !important;
+                            padding:8px 14px !important;
+                            cursor:pointer !important;
+                            pointer-events:auto !important;
+                            z-index:1000 !important;
+                        "
+                    >
+                        ✏️ Edit
+                    </button>
+
+                    <button
+                        type="button"
+                        class="provider-action-btn ${toggleClass}"
+                        data-provider-action="toggle"
+                        data-provider-id="${escapeHtml(databaseId)}"
+                        style="
+                            display:inline-flex !important;
+                            align-items:center !important;
+                            justify-content:center !important;
+                            min-height:40px !important;
+                            padding:8px 14px !important;
+                            cursor:pointer !important;
+                            pointer-events:auto !important;
+                            z-index:1000 !important;
+                        "
+                    >
+                        ${status === "active" ? "⏸️ Nonaktifkan" : "▶️ Aktifkan"}
+                    </button>
+
+                    <button
+                        type="button"
+                        class="provider-action-btn provider-btn-delete"
+                        data-provider-action="delete"
+                        data-provider-id="${escapeHtml(databaseId)}"
+                        style="
+                            display:inline-flex !important;
+                            align-items:center !important;
+                            justify-content:center !important;
+                            min-height:40px !important;
+                            padding:8px 14px !important;
+                            cursor:pointer !important;
+                            pointer-events:auto !important;
+                            z-index:1000 !important;
+                        "
+                    >
+                        🗑️ Hapus
+                    </button>
+
+                </div>
 
             </article>
         `;
     }
-
-    // ---------------------------------------------------------
-    // RENDER PROVIDERS
-    // ---------------------------------------------------------
 
     function renderProviders(providers) {
         currentProviders =
@@ -239,69 +257,54 @@
             getElement("providerPanel");
 
         if (!container) {
-            console.warn(
+            console.error(
                 "[GEN-Z.AI] Container provider tidak ditemukan."
             );
-
             return;
         }
 
-        if (
-            !Array.isArray(
-                currentProviders
-            ) ||
-            currentProviders.length === 0
-        ) {
-            renderEmptyState(
-                container
-            );
-
+        if (currentProviders.length === 0) {
+            renderEmptyState(container);
             updateStats([]);
-
             return;
         }
 
         container.innerHTML =
             currentProviders
-                .map(
-                    renderProviderCard
-                )
+                .map(renderProviderCard)
                 .join("");
 
-        updateStats(
-            currentProviders
-        );
+        updateStats(currentProviders);
     }
-
-    // ---------------------------------------------------------
-    // EMPTY STATE
-    // ---------------------------------------------------------
 
     function renderEmptyState(container) {
         container.innerHTML = `
-            <div class="provider-empty">
-
-                <div class="provider-empty-icon">
-                    +
+            <div
+                class="provider-empty"
+                style="
+                    padding:30px;
+                    text-align:center;
+                "
+            >
+                <div
+                    style="
+                        font-size:32px;
+                        margin-bottom:10px;
+                    "
+                >
+                    ＋
                 </div>
 
-                <h3>
-                    Belum ada provider
-                </h3>
+                <h3>Belum ada provider</h3>
 
                 <p>
                     Tambahkan provider AI
                     untuk mulai menggunakan
                     engine GEN-Z.AI.
                 </p>
-
             </div>
         `;
     }
-
-    // ---------------------------------------------------------
-    // STATS
-    // ---------------------------------------------------------
 
     function updateStats(providers) {
         const list =
@@ -309,16 +312,13 @@
                 ? providers
                 : [];
 
-        const total =
-            list.length;
+        const total = list.length;
 
         const active =
             list.filter(function (provider) {
-                return (
-                    normalizeStatus(
-                        provider.status
-                    ) === "active"
-                );
+                return normalizeStatus(
+                    provider.status
+                ) === "active";
             }).length;
 
         const inactive =
@@ -384,32 +384,21 @@
         });
     }
 
-    // ---------------------------------------------------------
-    // FIND PROVIDER
-    // ---------------------------------------------------------
-
     function findProvider(providerId) {
         return (
             currentProviders.find(
                 function (provider) {
-                    return (
-                        String(
-                            provider.id ||
-                            provider.uuid ||
-                            ""
-                        ) ===
-                        String(
-                            providerId
-                        )
+                    return String(
+                        provider.id ||
+                        provider.uuid ||
+                        ""
+                    ) === String(
+                        providerId
                     );
                 }
             ) || null
         );
     }
-
-    // ---------------------------------------------------------
-    // PUBLIC API
-    // ---------------------------------------------------------
 
     window.GENZProvidersUI = {
 
