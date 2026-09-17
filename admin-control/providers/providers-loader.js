@@ -12,12 +12,16 @@
 
     let loadingPromise = null;
 
+    // Versi cache.
+    // Setiap perubahan angka akan memaksa browser
+    // mengambil JavaScript terbaru.
+    const VERSION = "20260917-02";
+
     // =========================================================
-    // FIX CSS + NAVIGATION
+    // CSS + NAVIGATION
     // =========================================================
 
     function installPageFixes() {
-
         if (
             document.getElementById(
                 "genz-provider-page-fixes"
@@ -33,14 +37,10 @@
             "genz-provider-page-fixes";
 
         style.textContent = `
-
-            /* =================================================
-               PROVIDER CONTAINER
-               ================================================= */
-
             .provider-panel {
                 position: relative !important;
                 z-index: 1 !important;
+                overflow: visible !important;
             }
 
             #providerList,
@@ -50,74 +50,66 @@
                 z-index: 2 !important;
                 width: 100% !important;
                 pointer-events: auto !important;
+                overflow: visible !important;
             }
 
-
-            /* =================================================
-               PROVIDER ACTION BUTTONS
-               ================================================= */
+            .provider-card {
+                position: relative !important;
+                z-index: 3 !important;
+                overflow: visible !important;
+            }
 
             .provider-actions {
                 position: relative !important;
                 z-index: 20 !important;
-
                 display: flex !important;
                 flex-wrap: wrap !important;
                 gap: 8px !important;
-
                 margin-top: 18px !important;
-
+                padding-top: 14px !important;
                 pointer-events: auto !important;
+                visibility: visible !important;
+                opacity: 1 !important;
             }
 
             .provider-action-btn {
                 position: relative !important;
                 z-index: 21 !important;
-
                 display: inline-flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-
-                min-height: 38px !important;
+                min-height: 40px !important;
                 padding: 8px 14px !important;
-
                 border-radius: 10px !important;
-
                 cursor: pointer !important;
                 pointer-events: auto !important;
-
-                opacity: 1 !important;
                 visibility: visible !important;
+                opacity: 1 !important;
             }
 
             .provider-btn-edit {
-                background: rgba(99,102,241,.18) !important;
-                border: 1px solid rgba(99,102,241,.45) !important;
+                background: rgba(99,102,241,.25) !important;
+                border: 1px solid rgba(99,102,241,.65) !important;
                 color: #ffffff !important;
             }
 
             .provider-btn-success {
-                background: rgba(34,197,94,.18) !important;
-                border: 1px solid rgba(34,197,94,.45) !important;
+                background: rgba(34,197,94,.25) !important;
+                border: 1px solid rgba(34,197,94,.65) !important;
                 color: #ffffff !important;
             }
 
             .provider-btn-warning {
-                background: rgba(245,158,11,.18) !important;
-                border: 1px solid rgba(245,158,11,.45) !important;
+                background: rgba(245,158,11,.25) !important;
+                border: 1px solid rgba(245,158,11,.65) !important;
                 color: #ffffff !important;
             }
 
             .provider-btn-delete {
-                background: rgba(239,68,68,.18) !important;
-                border: 1px solid rgba(239,68,68,.45) !important;
+                background: rgba(239,68,68,.25) !important;
+                border: 1px solid rgba(239,68,68,.65) !important;
                 color: #ffffff !important;
             }
-
-
-            /* =================================================
-               TOP NAVIGATION
-               ================================================= */
 
             .topbar {
                 position: fixed !important;
@@ -147,11 +139,6 @@
                 cursor: pointer !important;
             }
 
-
-            /* =================================================
-               SIDEBAR
-               ================================================= */
-
             .sidebar {
                 position: fixed !important;
                 z-index: 3000 !important;
@@ -164,26 +151,9 @@
                 pointer-events: auto !important;
             }
 
-            .sidebar a,
-            .sidebar button {
-                position: relative !important;
-                z-index: 3002 !important;
-                cursor: pointer !important;
-            }
-
-
-            /* =================================================
-               MENU OVERLAY
-               ================================================= */
-
             .menu-overlay {
                 z-index: 2900 !important;
             }
-
-
-            /* =================================================
-               MODAL
-               ================================================= */
 
             .modal-backdrop {
                 z-index: 2000 !important;
@@ -195,55 +165,26 @@
                 position: relative !important;
                 z-index: 2001 !important;
             }
-
-            .modal-backdrop button,
-            .modal-backdrop input,
-            .modal-backdrop select,
-            .modal-backdrop textarea {
-                pointer-events: auto !important;
-            }
-
         `;
 
         document.head.appendChild(style);
     }
 
-
     // =========================================================
-    // PREPARE PROVIDER PAGE
+    // PREPARE PAGE
     // =========================================================
 
     function prepareProviderPage() {
-
         installPageFixes();
 
-        /*
-         * Cari container yang sudah ada.
-         */
-
         let container =
-            document.getElementById(
-                "providerList"
-            ) ||
-            document.getElementById(
-                "providersList"
-            ) ||
-            document.getElementById(
-                "providerPanel"
-            );
+            document.getElementById("providerList") ||
+            document.getElementById("providersList") ||
+            document.getElementById("providerPanel");
 
         if (container) {
             return container;
         }
-
-        /*
-         * HTML GEN-Z.AI menggunakan:
-         *
-         * <section class="provider-panel">
-         *
-         * Jadi kita gunakan panel tersebut
-         * sebagai container provider.
-         */
 
         const panel =
             document.querySelector(
@@ -251,7 +192,6 @@
             );
 
         if (!panel) {
-
             console.warn(
                 "[GEN-Z.AI] .provider-panel tidak ditemukan."
             );
@@ -259,39 +199,20 @@
             return null;
         }
 
-        /*
-         * Cari provider-empty.
-         */
-
         container =
             panel.querySelector(
                 ".provider-empty"
             );
 
-        /*
-         * Jika belum ada,
-         * buat container baru.
-         */
-
         if (!container) {
-
             container =
-                document.createElement(
-                    "div"
-                );
+                document.createElement("div");
 
             container.className =
                 "provider-empty";
 
-            panel.appendChild(
-                container
-            );
+            panel.appendChild(container);
         }
-
-        /*
-         * Beri ID agar providers-ui.js
-         * dapat menemukannya.
-         */
 
         container.id =
             "providerList";
@@ -305,78 +226,48 @@
         container.style.zIndex =
             "2";
 
+        container.style.overflow =
+            "visible";
+
         return container;
     }
 
-
     // =========================================================
-    // LOAD SCRIPT
+    // LOAD SCRIPT DENGAN CACHE BUSTING
     // =========================================================
 
     function loadScript(src) {
-
         return new Promise(
             function (resolve, reject) {
 
+                const selector =
+                    `script[data-genz-provider-module="${src}"]`;
+
                 const existing =
                     document.querySelector(
-                        `script[data-genz-provider-module="${src}"]`
+                        selector
                     );
-
-                /*
-                 * Jika sudah dimuat,
-                 * jangan load ulang.
-                 */
 
                 if (existing) {
-
-                    if (
-                        existing.dataset.loaded ===
-                        "true"
-                    ) {
-                        resolve();
-                        return;
-                    }
-
-                    existing.addEventListener(
-                        "load",
-                        resolve,
-                        {
-                            once: true
-                        }
-                    );
-
-                    existing.addEventListener(
-                        "error",
-                        function () {
-
-                            reject(
-                                new Error(
-                                    `Gagal memuat module: ${src}`
-                                )
-                            );
-
-                        },
-                        {
-                            once: true
-                        }
-                    );
-
-                    return;
+                    existing.remove();
                 }
-
-
-                /*
-                 * Buat script.
-                 */
 
                 const script =
                     document.createElement(
                         "script"
                     );
 
+                /*
+                 * Cache busting.
+                 *
+                 * Contoh:
+                 * providers-ui.js?v=20260917-02
+                 */
                 script.src =
-                    BASE_PATH + src;
+                    BASE_PATH +
+                    src +
+                    "?v=" +
+                    VERSION;
 
                 script.async =
                     false;
@@ -385,13 +276,17 @@
                     .genzProviderModule =
                     src;
 
-
                 script.addEventListener(
                     "load",
                     function () {
 
                         script.dataset.loaded =
                             "true";
+
+                        console.log(
+                            "[GEN-Z.AI] Module loaded:",
+                            src
+                        );
 
                         resolve();
 
@@ -401,10 +296,14 @@
                     }
                 );
 
-
                 script.addEventListener(
                     "error",
                     function () {
+
+                        console.error(
+                            "[GEN-Z.AI] Module gagal:",
+                            src
+                        );
 
                         reject(
                             new Error(
@@ -418,14 +317,12 @@
                     }
                 );
 
-
                 document.head.appendChild(
                     script
                 );
             }
         );
     }
-
 
     // =========================================================
     // LOAD ALL MODULES
@@ -454,7 +351,6 @@
 
             })();
 
-
         try {
 
             return await loadingPromise;
@@ -473,35 +369,18 @@
         }
     }
 
-
     // =========================================================
     // INITIALIZE
     // =========================================================
 
     async function initialize() {
 
-        /*
-         * Pastikan DOM provider
-         * disiapkan terlebih dahulu.
-         */
-
         prepareProviderPage();
-
-
-        /*
-         * Load semua module.
-         */
 
         await loadModules();
 
-
-        /*
-         * Ambil initializer.
-         */
-
         const init =
             window.GENZProvidersInit;
-
 
         if (
             !init ||
@@ -514,14 +393,8 @@
             );
         }
 
-
-        /*
-         * Jalankan sistem provider.
-         */
-
         return init.initialize();
     }
-
 
     // =========================================================
     // PUBLIC API
@@ -535,7 +408,6 @@
             initialize
 
         });
-
 
     // =========================================================
     // AUTO INITIALIZE
