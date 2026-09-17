@@ -1,400 +1,526 @@
 (function () {
     "use strict";
 
+    // =========================================================
+    // GEN-Z.AI - PROVIDER FORM
+    // CREATE + EDIT
+    // =========================================================
+
+    let editingProviderId = null;
+    let initialized = false;
+    let saving = false;
+
+    // ---------------------------------------------------------
+    // HELPERS
+    // ---------------------------------------------------------
+
     function getElement(id) {
         return document.getElementById(id);
     }
 
+    function getData() {
+        if (!window.GENZProvidersData) {
+            throw new Error(
+                "GENZProvidersData belum dimuat."
+            );
+        }
+
+        return window.GENZProvidersData;
+    }
+
+    function value(id) {
+        const element = getElement(id);
+
+        return element
+            ? String(element.value || "").trim()
+            : "";
+    }
+
+    function setValue(id, value) {
+        const element = getElement(id);
+
+        if (element) {
+            element.value = value ?? "";
+        }
+    }
+
+    // ---------------------------------------------------------
+    // FORM VALUES
+    // ---------------------------------------------------------
+
     function getFormValues() {
-        const providerName =
-            getElement("providerName");
-
-        const providerId =
-            getElement("providerId");
-
-        const providerStatus =
-            getElement("providerStatus");
-
-        const providerDescription =
-            getElement("providerDescription");
-
-        const providerNotes =
-            getElement("providerNotes");
-
-        const providerApiKey =
-    getElement("providerApiKey");
-
         return {
-            name:
-                providerName
-                    ? providerName.value.trim()
-                    : "",
+            providerName:
+                value("providerName"),
 
-            rawId:
-                providerId
-                    ? providerId.value.trim()
-                    : "",
+            providerId:
+                value("providerId"),
 
-            status:
-                providerStatus
-                    ? providerStatus.value
-                        .trim()
-                        .toLowerCase()
-                    : "active",
+            providerStatus:
+                value("providerStatus") ||
+                "active",
 
-            description:
-                providerDescription
-                    ? providerDescription.value.trim()
-                    : "",
+            providerDescription:
+                value(
+                    "providerDescription"
+                ),
 
-            notes:
-    providerNotes
-        ? providerNotes.value.trim()
-        : "",
+            providerNotes:
+                value("providerNotes"),
 
-apiKey:
-    providerApiKey
-        ? providerApiKey.value.trim()
-        : ""
+            providerApiKey:
+                value("providerApiKey")
         };
     }
 
-    function setSubmitState(disabled, text) {
-        const button =
-            document.querySelector(
-                "#providerForm .button-primary"
-            );
-
-        if (!button) {
-            return;
-        }
-
-        if (
-            typeof button.dataset.originalText ===
-            "undefined"
-        ) {
-            button.dataset.originalText =
-                button.textContent.trim();
-        }
-
-        button.disabled = Boolean(disabled);
-
-        if (text) {
-            button.textContent = text;
-        } else {
-            button.textContent =
-                button.dataset.originalText ||
-                "Simpan Provider";
-        }
-    }
+    // ---------------------------------------------------------
+    // VALIDATION
+    // ---------------------------------------------------------
 
     function validateForm(values) {
-        const providerData =
-            window.GENZProvidersData;
-
-        if (!providerData) {
-            return {
-                valid: false,
-                message:
-                    "Module provider belum dimuat."
-            };
-        }
-
-        const providerId =
-            providerData.normalizeProviderId(
-                values.rawId
+        if (!values.providerName) {
+            throw new Error(
+                "Nama provider wajib diisi."
             );
-
-        if (!values.name) {
-            return {
-                valid: false,
-                message:
-                    "Nama provider wajib diisi."
-            };
         }
 
-        if (!providerId) {
-            return {
-                valid: false,
-                message:
-                    "Provider ID wajib diisi."
-            };
+        if (!values.providerId) {
+            throw new Error(
+                "Provider ID wajib diisi."
+            );
         }
-
-        const allowedStatuses = [
-            "active",
-            "inactive",
-            "maintenance"
-        ];
 
         if (
-            !allowedStatuses.includes(
-                values.status
+            !/^[a-zA-Z0-9._-]+$/.test(
+                values.providerId
             )
         ) {
-            return {
-                valid: false,
-                message:
-                    "Status provider tidak valid."
-            };
+            throw new Error(
+                "Provider ID hanya boleh menggunakan huruf, angka, titik, underscore, dan tanda minus."
+            );
         }
 
-        return {
-            valid: true,
-            providerId
-        };
+        return true;
     }
 
-    function showFormMessage(message) {
-        if (
-            typeof window.showMessage ===
-            "function"
-        ) {
-            window.showMessage(message);
-            return;
-        }
-
-        console.error(message);
-    }
+    // ---------------------------------------------------------
+    // SAVE PROVIDER
+    // ---------------------------------------------------------
 
     async function saveProvider(event) {
-        event.preventDefault();
+        if (event) {
+            event.preventDefault();
+        }
 
-        const providerData =
-            window.GENZProvidersData;
-
-        if (!providerData) {
-            showFormMessage(
-                "Module provider belum dimuat."
-            );
-
+        if (saving) {
             return;
         }
 
-        const supabaseClient =
-            providerData.getSupabase();
-
-        if (!supabaseClient) {
-            showFormMessage(
-                "Supabase belum terhubung."
-            );
-
-            return;
-        }
-
-        const values =
-            getFormValues();
-
-        const validation =
-            validateForm(values);
-
-        if (!validation.valid) {
-            showFormMessage(
-                validation.message
-            );
-
-            return;
-        }
-
-        const providerId =
-            validation.providerId;
-
-        /*
-         * API key tidak diproses di module ini.
-         *
-         * API key provider tidak boleh dikirim
-         * ke tabel public.providers.
-         *
-         * Penyimpanan credential akan ditangani
-         * melalui mekanisme server-side tersendiri.
-         */
-
-        setSubmitState(
-            true,
-            "Menyimpan..."
-        );
+        saving = true;
 
         try {
-            const exists =
-                await providerData.providerIdExists(
-                    providerId
+            const data =
+                getData();
+
+            const values =
+                getFormValues();
+
+            validateForm(values);
+
+            // =================================================
+            // EDIT MODE
+            // =================================================
+
+            if (editingProviderId) {
+                const provider =
+                    data.getProviderById(
+                        editingProviderId
+                    );
+
+                if (!provider) {
+                    throw new Error(
+                        "Provider yang akan diedit tidak ditemukan."
+                    );
+                }
+
+                await data.updateProvider(
+                    editingProviderId,
+                    {
+                        providerName:
+                            values.providerName,
+
+                        description:
+                            values.providerDescription,
+
+                        status:
+                            values.providerStatus,
+
+                        isDefault:
+                            Boolean(
+                                provider.is_default
+                            )
+                    }
                 );
 
-            if (exists) {
-                showFormMessage(
-                    `Provider ID "${providerId}" sudah terdaftar.`
+                // API key hanya dikirim
+                // jika user benar-benar
+                // mengisi API key baru.
+                if (
+                    values.providerApiKey
+                ) {
+                    await saveApiKey(
+                        editingProviderId,
+                        values.providerApiKey
+                    );
+                }
+
+                showMessage(
+                    "Provider berhasil diperbarui."
                 );
 
-                return;
+            // =================================================
+            // CREATE MODE
+            // =================================================
+
+            } else {
+                const normalizedId =
+                    data.normalizeProviderId(
+                        values.providerId
+                    );
+
+                if (
+                    data.providerIdExists(
+                        normalizedId
+                    )
+                ) {
+                    throw new Error(
+                        "Provider ID sudah digunakan."
+                    );
+                }
+
+                const result =
+                    await data.createProvider(
+                        {
+                            providerId:
+                                normalizedId,
+
+                            providerName:
+                                values.providerName,
+
+                            description:
+                                values.providerDescription,
+
+                            status:
+                                values.providerStatus,
+
+                            isDefault:
+                                false
+                        }
+                    );
+
+                // Ambil provider baru
+                // setelah create.
+                await data.loadProviders();
+
+                let createdProvider =
+                    data.getProviders
+                        ? data.getProviders()
+                            .find(function (
+                                provider
+                            ) {
+                                return (
+                                    data.normalizeProviderId(
+                                        provider.provider_id
+                                    ) ===
+                                    normalizedId
+                                );
+                            })
+                        : null;
+
+                // Fallback jika RPC
+                // mengembalikan object.
+                if (
+                    !createdProvider &&
+                    result &&
+                    typeof result ===
+                        "object"
+                ) {
+                    createdProvider =
+                        result;
+                }
+
+                if (
+                    values.providerApiKey &&
+                    createdProvider
+                ) {
+                    const createdId =
+                        createdProvider.id ||
+                        createdProvider.uuid;
+
+                    if (createdId) {
+                        await saveApiKey(
+                            createdId,
+                            values.providerApiKey
+                        );
+                    }
+                }
+
+                showMessage(
+                    "Provider berhasil ditambahkan."
+                );
             }
 
-            await providerData.createProvider({
-                providerId,
-                providerName:
-                    values.name,
-                description:
-                    values.description,
-                status:
-                    values.status,
-                isDefault:
-                    false
-            });
+            resetForm();
 
-            if (values.apiKey) {
-    const {
-        data: sessionData
-    } = await supabaseClient.auth.getSession();
-
-    const accessToken =
-        sessionData?.session?.access_token;
-
-    if (!accessToken) {
-        throw new Error(
-            "Session admin tidak ditemukan."
-        );
-    }
-
-    const response =
-        await fetch(
-            "/api/admin-provider-credentials",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json",
-
-                    "Authorization":
-                        `Bearer ${accessToken}`
-                },
-
-                body: JSON.stringify({
-                    provider_id:
-                        providerId,
-
-                    api_key:
-                        values.apiKey
-                })
-            }
-        );
-
-    const result =
-        await response.json();
-
-    if (!response.ok) {
-        throw new Error(
-            result?.error ||
-            "Gagal menyimpan API key provider."
-        );
-    }
-}
-
-            console.log(
-                "Provider berhasil disimpan:",
-                providerId
-            );
-
-            showFormMessage(
-                `Provider "${values.name}" berhasil ditambahkan.`
-            );
-
+            // Tutup modal melalui
+            // initializer jika tersedia.
             if (
-                typeof window.closeProviderModal ===
-                "function"
+                window.GENZProvidersInit &&
+                typeof window
+                    .GENZProvidersInit
+                    .closeProviderModal ===
+                    "function"
             ) {
-                window.closeProviderModal();
+                window.GENZProvidersInit
+                    .closeProviderModal();
             }
 
+            // Refresh list.
             if (
-                typeof window.loadProviders ===
-                "function"
+                window.GENZProvidersInit &&
+                typeof window
+                    .GENZProvidersInit
+                    .loadProviders ===
+                    "function"
             ) {
-                await window.loadProviders();
+                await window.GENZProvidersInit
+                    .loadProviders();
             }
 
         } catch (error) {
             console.error(
-                "Gagal menyimpan provider:",
+                "[GEN-Z.AI] Save provider:",
                 error
             );
 
-            let message =
-                "Gagal menyimpan provider.";
-
-            if (
-                error?.code ===
-                "23505"
-            ) {
-                message =
-                    "Provider ID sudah digunakan.";
-            } else if (
-                error?.code ===
-                "PROVIDER_EXISTS"
-            ) {
-                message =
-                    error.message;
-            } else if (
-                error?.message
-            ) {
-                message =
-                    error.message;
-            }
-
-            showFormMessage(message);
+            showMessage(
+                error.message ||
+                "Gagal menyimpan provider.",
+                "error"
+            );
 
         } finally {
-            setSubmitState(
-                false
-            );
+            saving = false;
         }
     }
 
-    function toggleApiKey() {
-        const input =
-            getElement(
-                "providerApiKey"
-            );
+    // ---------------------------------------------------------
+    // SAVE API KEY
+    // ---------------------------------------------------------
 
-        const eye =
-            getElement(
-                "apiEye"
-            );
+    async function saveApiKey(
+        providerId,
+        apiKey
+    ) {
+        const key =
+            String(apiKey || "").trim();
 
-        if (!input || !eye) {
-            return;
+        if (!key) {
+            return null;
         }
 
-        if (
-            input.type ===
-            "password"
-        ) {
-            input.type =
-                "text";
+        try {
+            const response =
+                await fetch(
+                    "/api/admin-provider-credentials",
+                    {
+                        method: "POST",
 
-            eye.innerHTML = `
-                <path d="M3 3l18 18"></path>
-                <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path>
-                <path d="M9.9 4.3A10.6 10.6 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-3.1 4.5"></path>
-                <path d="M6.6 6.6C3.7 8.5 2 12 2 12s3.5 8 10 8c1.5 0 2.9-.4 4.1-1"></path>
-            `;
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
 
-            return;
+                        body: JSON.stringify({
+                            provider_id:
+                                providerId,
+
+                            api_key:
+                                key
+                        })
+                    }
+                );
+
+            const result =
+                await response
+                    .json()
+                    .catch(
+                        function () {
+                            return {};
+                        }
+                    );
+
+            if (!response.ok) {
+                throw new Error(
+                    result.error ||
+                    "Gagal menyimpan API key."
+                );
+            }
+
+            return result;
+
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI] API key:",
+                error
+            );
+
+            throw error;
         }
-
-        input.type =
-            "password";
-
-        eye.innerHTML = `
-            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"></path>
-            <circle
-                cx="12"
-                cy="12"
-                r="2.5"
-            ></circle>
-        `;
     }
+
+    // ---------------------------------------------------------
+    // EDIT PROVIDER
+    // ---------------------------------------------------------
+
+    function editProvider(provider) {
+        if (!provider) {
+            throw new Error(
+                "Provider tidak ditemukan."
+            );
+        }
+
+        editingProviderId =
+            provider.id ||
+            provider.uuid ||
+            null;
+
+        if (!editingProviderId) {
+            throw new Error(
+                "ID database provider tidak ditemukan."
+            );
+        }
+
+        setValue(
+            "providerName",
+            provider.provider_name
+        );
+
+        setValue(
+            "providerId",
+            provider.provider_id
+        );
+
+        setValue(
+            "providerDescription",
+            provider.description || ""
+        );
+
+        setValue(
+            "providerStatus",
+            provider.status ||
+            "active"
+        );
+
+        setValue(
+            "providerNotes",
+            provider.notes || ""
+        );
+
+        // API key sengaja dikosongkan.
+        // Jangan pernah menampilkan
+        // API key lama ke halaman.
+        setValue(
+            "providerApiKey",
+            ""
+        );
+
+        // Provider ID tidak boleh
+        // berubah saat edit.
+        const providerIdInput =
+            getElement(
+                "providerId"
+            );
+
+        if (providerIdInput) {
+            providerIdInput.readOnly =
+                true;
+
+            providerIdInput.style.opacity =
+                "0.65";
+        }
+
+        updateFormMode(true);
+    }
+
+    // ---------------------------------------------------------
+    // CREATE MODE
+    // ---------------------------------------------------------
+
+    function startCreateMode() {
+        editingProviderId =
+            null;
+
+        resetForm();
+
+        const providerIdInput =
+            getElement(
+                "providerId"
+            );
+
+        if (providerIdInput) {
+            providerIdInput.readOnly =
+                false;
+
+            providerIdInput.style.opacity =
+                "1";
+        }
+
+        updateFormMode(false);
+    }
+
+    // ---------------------------------------------------------
+    // FORM MODE
+    // ---------------------------------------------------------
+
+    function updateFormMode(editing) {
+        const title =
+            document.querySelector(
+                "#providerModal h2, " +
+                "#providerModal h3, " +
+                ".provider-modal h2, " +
+                ".provider-modal h3"
+            );
+
+        if (title) {
+            title.textContent =
+                editing
+                    ? "Edit Provider"
+                    : "Tambah Provider";
+        }
+
+        const submit =
+            document.querySelector(
+                "#providerModal button[type='submit'], " +
+                ".provider-modal button[type='submit']"
+            );
+
+        if (submit) {
+            submit.textContent =
+                editing
+                    ? "Simpan Perubahan"
+                    : "Simpan Provider";
+        }
+    }
+
+    // ---------------------------------------------------------
+    // RESET
+    // ---------------------------------------------------------
 
     function resetForm() {
+        editingProviderId =
+            null;
+
         const form =
             getElement(
                 "providerForm"
@@ -404,88 +530,188 @@ apiKey:
             form.reset();
         }
 
-        const apiKey =
+        setValue(
+            "providerStatus",
+            "active"
+        );
+
+        setValue(
+            "providerApiKey",
+            ""
+        );
+
+        const providerIdInput =
+            getElement(
+                "providerId"
+            );
+
+        if (providerIdInput) {
+            providerIdInput.readOnly =
+                false;
+
+            providerIdInput.style.opacity =
+                "1";
+        }
+
+        updateFormMode(false);
+    }
+
+    // ---------------------------------------------------------
+    // API KEY VISIBILITY
+    // ---------------------------------------------------------
+
+    function toggleApiKey() {
+        const input =
             getElement(
                 "providerApiKey"
             );
 
-        if (apiKey) {
-            apiKey.type =
-                "password";
+        if (!input) {
+            return;
         }
 
-        const eye =
-            getElement(
-                "apiEye"
-            );
-
-        if (eye) {
-            eye.innerHTML = `
-                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"></path>
-                <circle
-                    cx="12"
-                    cy="12"
-                    r="2.5"
-                ></circle>
-            `;
-        }
-
-        setSubmitState(
-            false
-        );
+        input.type =
+            input.type === "password"
+                ? "text"
+                : "password";
     }
 
+    // ---------------------------------------------------------
+    // MESSAGE
+    // ---------------------------------------------------------
+
+    function showMessage(
+        message,
+        type = "success"
+    ) {
+        if (
+            window.GENZProvidersInit &&
+            typeof window
+                .GENZProvidersInit
+                .showMessage ===
+                "function"
+        ) {
+            window.GENZProvidersInit
+                .showMessage(
+                    message,
+                    type
+                );
+
+            return;
+        }
+
+        console.log(
+            `[GEN-Z.AI][${type}]`,
+            message
+        );
+
+        if (
+            type === "error"
+        ) {
+            alert(
+                "Error: " +
+                message
+            );
+        }
+    }
+
+    // ---------------------------------------------------------
+    // FORM INIT
+    // ---------------------------------------------------------
+
     function initForm() {
+        if (initialized) {
+            return;
+        }
+
         const form =
             getElement(
                 "providerForm"
             );
 
-        if (!form) {
-            return;
+        if (form) {
+            form.addEventListener(
+                "submit",
+                saveProvider
+            );
         }
 
-        form.addEventListener(
-            "submit",
-            saveProvider
-        );
+        const apiKeyToggle =
+            document.querySelector(
+                "[data-action='toggle-api-key'], " +
+                "#toggleApiKey"
+            );
 
-        /*
-         * Hapus inline onsubmit agar event
-         * tidak dipasang dua kali ketika nanti
-         * providers.html sudah dimodularisasi.
-         */
-        form.removeAttribute(
-            "onsubmit"
-        );
+        if (apiKeyToggle) {
+            apiKeyToggle.addEventListener(
+                "click",
+                function (event) {
+                    event.preventDefault();
+
+                    toggleApiKey();
+                }
+            );
+        }
+
+        initialized = true;
     }
 
-    window.GENZProvidersForm =
-        Object.freeze({
-            initForm,
-            getFormValues,
-            validateForm,
-            saveProvider,
-            toggleApiKey,
-            resetForm
-        });
+    // ---------------------------------------------------------
+    // PUBLIC API
+    // ---------------------------------------------------------
 
-    /*
-     * Compatibility layer.
-     *
-     * providers.html lama masih menggunakan
-     * fungsi global. Fungsi ini akan tetap tersedia
-     * sampai HTML utama selesai dipindahkan
-     * ke sistem loader/module baru.
-     */
+    window.GENZProvidersForm = {
+        initForm,
 
-    window.saveProvider =
-        saveProvider;
+        getFormValues,
+        validateForm,
 
-    window.toggleApiKey =
-        toggleApiKey;
+        saveProvider,
 
-    window.resetProviderForm =
-        resetForm;
+        editProvider,
+        startCreateMode,
+
+        resetForm,
+        toggleApiKey,
+
+        openForm:
+            function (provider) {
+                if (provider) {
+                    editProvider(
+                        provider
+                    );
+                } else {
+                    startCreateMode();
+                }
+            },
+
+        isEditing:
+            function () {
+                return Boolean(
+                    editingProviderId
+                );
+            },
+
+        getEditingProviderId:
+            function () {
+                return editingProviderId;
+            }
+    };
+
+    // ---------------------------------------------------------
+    // AUTO INIT
+    // ---------------------------------------------------------
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            initForm
+        );
+    } else {
+        initForm();
+    }
 
 })();
