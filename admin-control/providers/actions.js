@@ -196,16 +196,14 @@
     // GET PROVIDER REFERENCE ID
     // ========================================
     //
-    // PENTING:
-    // Relasi provider dan credential
-    // menggunakan provider_id yang sama.
+    // RELASI CREDENTIAL:
     //
     // providers.provider_id
     // =
     // provider_credentials.provider_id
     //
-    // Jangan gunakan provider.id untuk
-    // menghapus credential.
+    // provider.id TIDAK digunakan untuk
+    // menghapus credential/API key.
     // ========================================
 
     function getProviderReferenceId(
@@ -432,11 +430,12 @@
     // URUTAN:
     //
     // 1. Ambil providers.provider_id
-    // 2. Hapus credential dengan provider_id
-    // 3. Hapus provider dengan provider_id
+    // 2. Hapus credential berdasarkan
+    //    provider_credentials.provider_id
+    // 3. Hapus provider menggunakan
+    //    providers.id melalui RPC UUID
     //
-    // Tidak menggunakan provider.id sebagai
-    // referensi hubungan credential.
+    // MODEL TIDAK DIHAPUS OLEH MODULE INI.
     // ========================================
 
     async function deleteProvider(
@@ -455,7 +454,8 @@
         }
 
         // ====================================
-        // SATU-SATUNYA REFERENSI RELASI
+        // PROVIDER REFERENCE
+        // UNTUK CREDENTIAL
         // ====================================
 
         const providerReferenceId =
@@ -467,6 +467,24 @@
             provider.provider_name ||
             providerReferenceId ||
             "provider ini";
+
+        // ====================================
+        // DATABASE UUID
+        // UNTUK RPC admin_delete_provider
+        // ====================================
+
+        const databaseUuid =
+            String(
+                provider.id ||
+                provider.uuid ||
+                ""
+            ).trim();
+
+        if (!databaseUuid) {
+            throw new Error(
+                "UUID database provider tidak ditemukan."
+            );
+        }
 
         const confirmed =
             window.confirm(
@@ -496,15 +514,16 @@
 
             // ====================================
             // STEP 1
-            // HAPUS CREDENTIAL
+            // HAPUS CREDENTIAL / API KEY
             // ====================================
+            //
+            // RELASI:
             //
             // providers.provider_id
             // =
             // provider_credentials.provider_id
             //
-            // Nilai providerReferenceId yang sama
-            // dikirim ke endpoint credential.
+            // Menggunakan providerReferenceId.
             // ====================================
 
             const credentialResult =
@@ -533,26 +552,25 @@
             // HAPUS PROVIDER
             // ====================================
             //
-            // PENTING:
-            // Penghapusan provider juga memakai
-            // provider_id yang sama.
+            // RPC DATABASE YANG TERSEDIA:
             //
-            // RPC yang dipakai:
+            // admin_delete_provider(uuid)
             //
-            // admin_delete_provider
+            // Jadi parameter yang benar adalah:
             //
-            // dengan:
+            // p_id
             //
-            // p_provider_id
+            // dengan nilai providers.id.
             //
+            // INI BUKAN RELASI CREDENTIAL.
             // ====================================
 
             const result =
                 await supabase.rpc(
                     "admin_delete_provider",
                     {
-                        p_provider_id:
-                            providerReferenceId
+                        p_id:
+                            databaseUuid
                     }
                 );
 
@@ -562,7 +580,7 @@
 
             // ====================================
             // STEP 3
-            // BERSIHKAN STATUS SESSION
+            // BERSIHKAN STATUS API KEY
             // ====================================
 
             const apiKeyModule =
@@ -580,7 +598,7 @@
 
             // ====================================
             // STEP 4
-            // REFRESH LIST
+            // REFRESH LIST PROVIDER
             // ====================================
 
             await getList()
