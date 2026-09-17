@@ -15,9 +15,11 @@
     let form = null;
     let mode = "create";
     let editingProvider = null;
+    let eventsBound = false;
+    let submitting = false;
 
     // ========================================
-    // HELPERS
+    // MODULE HELPERS
     // ========================================
 
     function getListModule() {
@@ -59,14 +61,9 @@
         return module;
     }
 
-    function escapeHtml(value) {
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
+    // ========================================
+    // NORMALIZE
+    // ========================================
 
     function normalizeProviderId(value) {
         return String(value || "")
@@ -74,15 +71,117 @@
             .toLowerCase();
     }
 
+    function normalizeStatus(value) {
+        const status =
+            String(value || "")
+                .trim()
+                .toLowerCase();
+
+        if (status === "inactive") {
+            return "inactive";
+        }
+
+        if (status === "maintenance") {
+            return "maintenance";
+        }
+
+        return "active";
+    }
+
     // ========================================
-    // CREATE MODAL
+    // VALIDATE PROVIDER ID
+    // ========================================
+
+    function validateProviderId(value) {
+        const providerId =
+            normalizeProviderId(value);
+
+        if (!providerId) {
+            throw new Error(
+                "Provider ID wajib diisi."
+            );
+        }
+
+        if (
+            !/^[a-z0-9_-]+$/.test(
+                providerId
+            )
+        ) {
+            throw new Error(
+                "Provider ID hanya boleh menggunakan huruf kecil, angka, garis bawah (_) atau tanda hubung (-)."
+            );
+        }
+
+        if (providerId.length < 2) {
+            throw new Error(
+                "Provider ID minimal 2 karakter."
+            );
+        }
+
+        if (providerId.length > 100) {
+            throw new Error(
+                "Provider ID terlalu panjang."
+            );
+        }
+
+        return providerId;
+    }
+
+    // ========================================
+    // VALIDATE NAME
+    // ========================================
+
+    function validateProviderName(value) {
+        const name =
+            String(value || "").trim();
+
+        if (!name) {
+            throw new Error(
+                "Nama Provider wajib diisi."
+            );
+        }
+
+        if (name.length > 150) {
+            throw new Error(
+                "Nama Provider terlalu panjang."
+            );
+        }
+
+        return name;
+    }
+
+    // ========================================
+    // VALIDATE DESCRIPTION
+    // ========================================
+
+    function normalizeDescription(value) {
+        const description =
+            String(value || "").trim();
+
+        if (description.length > 1000) {
+            throw new Error(
+                "Deskripsi terlalu panjang."
+            );
+        }
+
+        return description || null;
+    }
+
+    // ========================================
+    // CREATE / FIND MODAL
     // ========================================
 
     function createModal() {
-
-        if (modal && document.body.contains(modal)) {
-            return modal;
-        }
+        /*
+         * Modal sudah ada di providers.html.
+         * Masalah sebelumnya:
+         *
+         * jika modal ditemukan, function langsung
+         * return sehingga bindEvents() tidak pernah
+         * dipanggil.
+         *
+         * Sekarang event tetap dipasang.
+         */
 
         modal =
             document.getElementById(
@@ -95,8 +194,23 @@
                     "#providerForm"
                 );
 
+            if (!form) {
+                throw new Error(
+                    "Form provider (#providerForm) tidak ditemukan."
+                );
+            }
+
+            bindEvents();
+
             return modal;
         }
+
+        // ====================================
+        // FALLBACK
+        // ====================================
+        // Jika suatu saat modal tidak ada di HTML,
+        // buat modal sederhana secara otomatis.
+        // ====================================
 
         modal =
             document.createElement(
@@ -106,391 +220,205 @@
         modal.id =
             "providerModal";
 
-        modal.style.cssText = `
-            position:fixed;
-            inset:0;
-            z-index:99999;
-            display:none;
-            align-items:center;
-            justify-content:center;
-            padding:20px;
-            background:rgba(0,0,0,.72);
-            backdrop-filter:blur(5px);
-        `;
+        modal.className =
+            "modal-backdrop";
 
         modal.innerHTML = `
-            <div
-                class="provider-modal-box"
-                style="
-                    width:min(560px,100%);
-                    max-height:90vh;
-                    overflow:auto;
-                    border-radius:16px;
-                    padding:24px;
-                    background:#151515;
-                    border:1px solid rgba(255,255,255,.12);
-                    box-shadow:0 20px 70px rgba(0,0,0,.5);
-                "
-            >
+            <div class="modal">
 
-                <div
-                    style="
-                        display:flex;
-                        align-items:center;
-                        justify-content:space-between;
-                        gap:12px;
-                        margin-bottom:20px;
-                    "
-                >
+                <div class="modal-header">
 
                     <div>
                         <h2
+                            class="modal-title"
                             id="providerFormTitle"
-                            style="
-                                margin:0;
-                                font-size:20px;
-                            "
                         >
                             Tambah Provider
                         </h2>
 
-                        <div
-                            style="
-                                margin-top:5px;
-                                font-size:12px;
-                                opacity:.6;
-                            "
-                        >
-                            Kelola konfigurasi provider AI.
-                        </div>
+                        <p class="modal-subtitle">
+                            Konfigurasi provider AI.
+                        </p>
                     </div>
 
                     <button
+                        class="modal-close"
                         type="button"
                         data-provider-form-action="close"
-                        style="
-                            width:36px;
-                            height:36px;
-                            border:0;
-                            border-radius:8px;
-                            background:rgba(255,255,255,.08);
-                            color:inherit;
-                            cursor:pointer;
-                            font-size:18px;
-                        "
                     >
                         ×
                     </button>
 
                 </div>
 
-                <form
-                    id="providerForm"
-                    autocomplete="off"
-                >
+                <div class="modal-body">
 
-                    <!-- PROVIDER ID -->
+                    <form
+                        id="providerForm"
+                        autocomplete="off"
+                    >
 
-                    <div style="margin-bottom:16px;">
+                        <div class="form-grid">
 
-                        <label
-                            for="providerId"
-                            style="
-                                display:block;
-                                margin-bottom:7px;
-                                font-size:13px;
-                                font-weight:600;
-                            "
-                        >
-                            Provider ID
-                        </label>
+                            <div class="form-group">
 
-                        <input
-                            id="providerId"
-                            name="providerId"
-                            type="text"
-                            placeholder="contoh: kieai"
-                            autocomplete="off"
-                            required
-                            style="
-                                width:100%;
-                                box-sizing:border-box;
-                                padding:11px 12px;
-                                border-radius:9px;
-                                border:1px solid rgba(255,255,255,.14);
-                                background:rgba(255,255,255,.05);
-                                color:inherit;
-                                outline:none;
-                            "
-                        />
+                                <label
+                                    class="form-label"
+                                    for="providerName"
+                                >
+                                    Nama Provider
+                                </label>
 
-                        <div
-                            style="
-                                margin-top:6px;
-                                font-size:11px;
-                                opacity:.55;
-                            "
-                        >
-                            ID unik provider. Gunakan huruf kecil,
-                            angka, titik, garis bawah, atau tanda hubung.
+                                <input
+                                    class="form-input"
+                                    id="providerName"
+                                    name="providerName"
+                                    type="text"
+                                    required
+                                >
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label
+                                    class="form-label"
+                                    for="providerId"
+                                >
+                                    Provider ID
+                                </label>
+
+                                <input
+                                    class="form-input"
+                                    id="providerId"
+                                    name="providerId"
+                                    type="text"
+                                    required
+                                >
+
+                            </div>
+
+                            <div class="form-group full">
+
+                                <label
+                                    class="form-label"
+                                    for="providerApiKey"
+                                >
+                                    API Key
+                                </label>
+
+                                <input
+                                    class="form-input"
+                                    id="providerApiKey"
+                                    name="apiKey"
+                                    type="password"
+                                    autocomplete="new-password"
+                                >
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label
+                                    class="form-label"
+                                    for="providerStatus"
+                                >
+                                    Status
+                                </label>
+
+                                <select
+                                    class="form-select"
+                                    id="providerStatus"
+                                    name="status"
+                                >
+                                    <option value="active">
+                                        Aktif
+                                    </option>
+
+                                    <option value="inactive">
+                                        Nonaktif
+                                    </option>
+                                </select>
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label
+                                    class="form-label"
+                                    for="providerDescription"
+                                >
+                                    Keterangan
+                                </label>
+
+                                <input
+                                    class="form-input"
+                                    id="providerDescription"
+                                    name="description"
+                                    type="text"
+                                >
+
+                            </div>
+
+                            <div class="form-group full">
+
+                                <label
+                                    style="
+                                        display:flex;
+                                        align-items:center;
+                                        gap:8px;
+                                        cursor:pointer;
+                                    "
+                                >
+                                    <input
+                                        id="providerDefault"
+                                        name="isDefault"
+                                        type="checkbox"
+                                    >
+
+                                    Jadikan provider default
+                                </label>
+
+                            </div>
+
                         </div>
 
-                    </div>
-
-                    <!-- PROVIDER NAME -->
-
-                    <div style="margin-bottom:16px;">
-
-                        <label
-                            for="providerName"
-                            style="
-                                display:block;
-                                margin-bottom:7px;
-                                font-size:13px;
-                                font-weight:600;
-                            "
-                        >
-                            Nama Provider
-                        </label>
-
-                        <input
-                            id="providerName"
-                            name="providerName"
-                            type="text"
-                            placeholder="Contoh: KIE AI"
-                            autocomplete="off"
-                            required
-                            style="
-                                width:100%;
-                                box-sizing:border-box;
-                                padding:11px 12px;
-                                border-radius:9px;
-                                border:1px solid rgba(255,255,255,.14);
-                                background:rgba(255,255,255,.05);
-                                color:inherit;
-                                outline:none;
-                            "
-                        />
-
-                    </div>
-
-                    <!-- DESCRIPTION -->
-
-                    <div style="margin-bottom:16px;">
-
-                        <label
-                            for="providerDescription"
-                            style="
-                                display:block;
-                                margin-bottom:7px;
-                                font-size:13px;
-                                font-weight:600;
-                            "
-                        >
-                            Deskripsi
-                        </label>
-
-                        <textarea
-                            id="providerDescription"
-                            name="description"
-                            rows="3"
-                            placeholder="Deskripsi provider..."
-                            autocomplete="off"
-                            style="
-                                width:100%;
-                                box-sizing:border-box;
-                                resize:vertical;
-                                padding:11px 12px;
-                                border-radius:9px;
-                                border:1px solid rgba(255,255,255,.14);
-                                background:rgba(255,255,255,.05);
-                                color:inherit;
-                                outline:none;
-                            "
-                        ></textarea>
-
-                    </div>
-
-                    <!-- STATUS -->
-
-                    <div style="margin-bottom:16px;">
-
-                        <label
-                            for="providerStatus"
-                            style="
-                                display:block;
-                                margin-bottom:7px;
-                                font-size:13px;
-                                font-weight:600;
-                            "
-                        >
-                            Status
-                        </label>
-
-                        <select
-                            id="providerStatus"
-                            name="status"
-                            style="
-                                width:100%;
-                                box-sizing:border-box;
-                                padding:11px 12px;
-                                border-radius:9px;
-                                border:1px solid rgba(255,255,255,.14);
-                                background:#151515;
-                                color:inherit;
-                                outline:none;
-                            "
-                        >
-                            <option value="active">
-                                Aktif
-                            </option>
-
-                            <option value="inactive">
-                                Nonaktif
-                            </option>
-                        </select>
-
-                    </div>
-
-                    <!-- DEFAULT -->
-
-                    <label
-                        style="
-                            display:flex;
-                            align-items:center;
-                            gap:9px;
-                            margin-bottom:16px;
-                            font-size:13px;
-                            cursor:pointer;
-                        "
-                    >
-
-                        <input
-                            id="providerDefault"
-                            name="isDefault"
-                            type="checkbox"
-                        />
-
-                        Jadikan provider default
-
-                    </label>
-
-                    <!-- API KEY -->
-
-                    <div
-                        style="
-                            margin-bottom:20px;
-                            padding:14px;
-                            border-radius:10px;
-                            border:1px solid rgba(255,255,255,.08);
-                            background:rgba(255,255,255,.025);
-                        "
-                    >
-
-                        <label
-                            for="providerApiKey"
-                            style="
-                                display:block;
-                                margin-bottom:7px;
-                                font-size:13px;
-                                font-weight:600;
-                            "
-                        >
-                            API Key
-                        </label>
-
-                        <input
-                            id="providerApiKey"
-                            name="apiKey"
-                            type="password"
-                            placeholder="Masukkan API Key"
-                            autocomplete="new-password"
-                            style="
-                                width:100%;
-                                box-sizing:border-box;
-                                padding:11px 12px;
-                                border-radius:9px;
-                                border:1px solid rgba(255,255,255,.14);
-                                background:rgba(255,255,255,.05);
-                                color:inherit;
-                                outline:none;
-                            "
-                        />
-
                         <div
-                            id="providerApiKeyHint"
+                            id="providerFormMessage"
+                            role="alert"
                             style="
-                                margin-top:7px;
-                                font-size:11px;
+                                display:none;
+                                margin-top:15px;
+                                padding:11px 13px;
+                                border-radius:10px;
+                                font-size:12px;
                                 line-height:1.5;
-                                opacity:.6;
                             "
-                        >
-                            API Key disimpan secara aman melalui backend.
-                            Saat edit, API Key lama tidak ditampilkan.
+                        ></div>
+
+                        <div class="modal-footer">
+
+                            <button
+                                class="button-secondary"
+                                type="button"
+                                data-provider-form-action="close"
+                            >
+                                Batal
+                            </button>
+
+                            <button
+                                class="button-primary"
+                                id="providerFormSubmit"
+                                type="submit"
+                            >
+                                Simpan Provider
+                            </button>
+
                         </div>
 
-                    </div>
+                    </form>
 
-                    <!-- MESSAGE -->
-
-                    <div
-                        id="providerFormMessage"
-                        role="alert"
-                        style="
-                            display:none;
-                            margin-bottom:15px;
-                            padding:10px 12px;
-                            border-radius:8px;
-                            font-size:12px;
-                        "
-                    ></div>
-
-                    <!-- BUTTONS -->
-
-                    <div
-                        style="
-                            display:flex;
-                            justify-content:flex-end;
-                            gap:9px;
-                        "
-                    >
-
-                        <button
-                            type="button"
-                            data-provider-form-action="close"
-                            style="
-                                padding:10px 16px;
-                                border:1px solid rgba(255,255,255,.12);
-                                border-radius:8px;
-                                background:rgba(255,255,255,.05);
-                                color:inherit;
-                                cursor:pointer;
-                                font-weight:600;
-                            "
-                        >
-                            Batal
-                        </button>
-
-                        <button
-                            id="providerFormSubmit"
-                            type="submit"
-                            style="
-                                padding:10px 18px;
-                                border:0;
-                                border-radius:8px;
-                                background:#fff;
-                                color:#111;
-                                cursor:pointer;
-                                font-weight:700;
-                            "
-                        >
-                            Simpan Provider
-                        </button>
-
-                    </div>
-
-                </form>
+                </div>
 
             </div>
         `;
@@ -510,46 +438,107 @@
     }
 
     // ========================================
-    // MESSAGE
+    // FORM MESSAGE
     // ========================================
 
     function showMessage(
         message,
         type = "error"
     ) {
-
-        const element =
+        let element =
             document.getElementById(
                 "providerFormMessage"
             );
 
+        /*
+         * Jika HTML utama tidak menyediakan
+         * message element, buat otomatis.
+         */
+
+        if (!element && form) {
+            element =
+                document.createElement(
+                    "div"
+                );
+
+            element.id =
+                "providerFormMessage";
+
+            element.setAttribute(
+                "role",
+                "alert"
+            );
+
+            element.style.cssText = `
+                display:block;
+                margin-top:15px;
+                padding:11px 13px;
+                border-radius:10px;
+                font-size:12px;
+                line-height:1.5;
+            `;
+
+            const footer =
+                form.querySelector(
+                    ".modal-footer"
+                );
+
+            if (footer) {
+                footer.parentNode.insertBefore(
+                    element,
+                    footer
+                );
+            } else {
+                form.appendChild(
+                    element
+                );
+            }
+        }
+
         if (!element) {
+            /*
+             * Fallback terakhir supaya error tidak
+             * hilang begitu saja.
+             */
+            console.error(
+                "[GEN-Z.AI] Provider Form:",
+                message
+            );
+
             return;
         }
 
         element.textContent =
-            String(message || "");
+            String(
+                message ||
+                "Terjadi kesalahan."
+            );
 
         element.style.display =
             "block";
 
         if (type === "success") {
             element.style.background =
-                "rgba(40,200,120,.12)";
+                "rgba(34,197,94,.12)";
 
             element.style.border =
-                "1px solid rgba(40,200,120,.25)";
+                "1px solid rgba(34,197,94,.28)";
+
+            element.style.color =
+                "#86efac";
         } else {
             element.style.background =
-                "rgba(255,70,70,.10)";
+                "rgba(239,68,68,.12)";
 
             element.style.border =
-                "1px solid rgba(255,70,70,.25)";
+                "1px solid rgba(239,68,68,.28)";
+
+            element.style.color =
+                "#fca5a5";
         }
     }
 
     function hideMessage() {
-
         const element =
             document.getElementById(
                 "providerFormMessage"
@@ -567,11 +556,110 @@
     }
 
     // ========================================
+    // BUTTON STATE
+    // ========================================
+
+    function setSubmitting(
+        state
+    ) {
+        submitting =
+            Boolean(state);
+
+        const button =
+            document.getElementById(
+                "providerFormSubmit"
+            );
+
+        if (!button) {
+            return;
+        }
+
+        if (state) {
+            button.disabled =
+                true;
+
+            button.dataset.originalText =
+                button.textContent;
+
+            button.textContent =
+                "Menyimpan...";
+
+            button.style.opacity =
+                ".6";
+
+            button.style.cursor =
+                "wait";
+        } else {
+            button.disabled =
+                false;
+
+            button.textContent =
+                button.dataset.originalText ||
+                "Simpan Provider";
+
+            button.style.opacity =
+                "1";
+
+            button.style.cursor =
+                "pointer";
+        }
+    }
+
+    // ========================================
+    // RESET FORM
+    // ========================================
+
+    function resetForm() {
+        if (!form) {
+            return;
+        }
+
+        form.reset();
+
+        const providerId =
+            document.getElementById(
+                "providerId"
+            );
+
+        const providerStatus =
+            document.getElementById(
+                "providerStatus"
+            );
+
+        const apiKey =
+            document.getElementById(
+                "providerApiKey"
+            );
+
+        if (providerId) {
+            providerId.disabled =
+                false;
+
+            providerId.style.opacity =
+                "1";
+        }
+
+        if (providerStatus) {
+            providerStatus.value =
+                "active";
+        }
+
+        if (apiKey) {
+            apiKey.value =
+                "";
+
+            apiKey.type =
+                "password";
+        }
+
+        hideMessage();
+    }
+
+    // ========================================
     // OPEN CREATE
     // ========================================
 
     function openCreate() {
-
         createModal();
 
         mode =
@@ -615,20 +703,24 @@
                 "1";
         }
 
-        const hint =
+        const apiKeyHint =
             document.getElementById(
                 "providerApiKeyHint"
             );
 
-        if (hint) {
-            hint.textContent =
-                "API Key disimpan secara aman melalui backend.";
+        if (apiKeyHint) {
+            apiKeyHint.textContent =
+                "API Key wajib diisi saat menambahkan provider baru.";
         }
 
-        hideMessage();
+        if (modal) {
+            modal.classList.add(
+                "show"
+            );
 
-        modal.style.display =
-            "flex";
+            modal.style.display =
+                "flex";
+        }
 
         setTimeout(
             function () {
@@ -645,7 +737,6 @@
     function openEdit(
         provider
     ) {
-
         if (!provider) {
             throw new Error(
                 "Provider tidak ditemukan."
@@ -694,11 +785,9 @@
 
         if (providerId) {
             providerId.value =
-                provider.provider_id || "";
+                provider.provider_id ||
+                "";
 
-            // Provider ID tidak boleh diganti
-            // saat edit karena merupakan identifier
-            // publik yang digunakan credential.
             providerId.disabled =
                 true;
 
@@ -708,24 +797,21 @@
 
         if (providerName) {
             providerName.value =
-                provider.provider_name || "";
+                provider.provider_name ||
+                "";
         }
 
         if (description) {
             description.value =
-                provider.description || "";
+                provider.description ||
+                "";
         }
 
         if (status) {
-            const currentStatus =
-                String(
-                    provider.status || "active"
-                ).toLowerCase();
-
             status.value =
-                currentStatus === "inactive"
-                    ? "inactive"
-                    : "active";
+                normalizeStatus(
+                    provider.status
+                );
         }
 
         if (defaultCheckbox) {
@@ -735,10 +821,16 @@
                 );
         }
 
-        // Jangan pernah mengisi API Key lama.
+        /*
+         * Jangan pernah memasukkan API Key lama
+         * ke dalam input.
+         */
         if (apiKey) {
             apiKey.value =
                 "";
+
+            apiKey.type =
+                "password";
         }
 
         const title =
@@ -761,20 +853,26 @@
                 "Simpan Perubahan";
         }
 
-        const hint =
+        const apiKeyHint =
             document.getElementById(
                 "providerApiKeyHint"
             );
 
-        if (hint) {
-            hint.textContent =
-                "API Key lama tidak ditampilkan. Isi hanya jika ingin mengganti API Key.";
+        if (apiKeyHint) {
+            apiKeyHint.textContent =
+                "Kosongkan jika tidak ingin mengganti API Key yang tersimpan.";
         }
 
         hideMessage();
 
-        modal.style.display =
-            "flex";
+        if (modal) {
+            modal.classList.add(
+                "show"
+            );
+
+            modal.style.display =
+                "flex";
+        }
 
         setTimeout(
             function () {
@@ -785,213 +883,48 @@
     }
 
     // ========================================
-    // RESET
-    // ========================================
-
-    function resetForm() {
-
-        if (!form) {
-            return;
-        }
-
-        form.reset();
-
-        const status =
-            document.getElementById(
-                "providerStatus"
-            );
-
-        if (status) {
-            status.value =
-                "active";
-        }
-
-        const apiKey =
-            document.getElementById(
-                "providerApiKey"
-            );
-
-        if (apiKey) {
-            apiKey.value =
-                "";
-        }
-    }
-
-    // ========================================
     // CLOSE
     // ========================================
 
     function close() {
+        if (!modal) {
+            modal =
+                document.getElementById(
+                    "providerModal"
+                );
+        }
 
         if (!modal) {
             return;
         }
 
-        modal.style.display =
-            "none";
-
-        hideMessage();
-
-        editingProvider =
-            null;
-    }
-
-    // ========================================
-    // COLLECT FORM
-    // ========================================
-
-    function collectForm() {
-
-        const providerId =
-            document.getElementById(
-                "providerId"
-            )?.value || "";
-
-        const providerName =
-            document.getElementById(
-                "providerName"
-            )?.value || "";
-
-        const description =
-            document.getElementById(
-                "providerDescription"
-            )?.value || "";
-
-        const status =
-            document.getElementById(
-                "providerStatus"
-            )?.value || "active";
-
-        const isDefault =
-            document.getElementById(
-                "providerDefault"
-            )?.checked || false;
-
-        const apiKey =
-            document.getElementById(
-                "providerApiKey"
-            )?.value || "";
-
-        return {
-            providerId:
-                normalizeProviderId(
-                    providerId
-                ),
-
-            providerName:
-                String(
-                    providerName
-                ).trim(),
-
-            description:
-                String(
-                    description
-                ).trim(),
-
-            status:
-                status === "inactive"
-                    ? "inactive"
-                    : "active",
-
-            isDefault:
-                Boolean(
-                    isDefault
-                ),
-
-            apiKey:
-                String(
-                    apiKey
-                ).trim()
-        };
-    }
-
-    // ========================================
-    // VALIDATE
-    // ========================================
-
-    function validate(data) {
-
-        if (!data.providerId) {
-            throw new Error(
-                "Provider ID wajib diisi."
-            );
-        }
-
-        if (
-            !/^[a-z0-9._-]+$/.test(
-                data.providerId
-            )
-        ) {
-            throw new Error(
-                "Provider ID hanya boleh berisi huruf kecil, angka, titik, garis bawah, dan tanda hubung."
-            );
-        }
-
-        if (!data.providerName) {
-            throw new Error(
-                "Nama provider wajib diisi."
-            );
-        }
-
-        if (
-            mode === "create" &&
-            !data.apiKey
-        ) {
-            throw new Error(
-                "API Key wajib diisi untuk provider baru."
-            );
-        }
-    }
-
-    // ========================================
-    // SET SUBMIT STATE
-    // ========================================
-
-    function setSubmitting(
-        submitting
-    ) {
-
-        const button =
-            document.getElementById(
-                "providerFormSubmit"
-            );
-
-        if (!button) {
+        if (submitting) {
             return;
         }
 
-        button.disabled =
-            Boolean(submitting);
+        modal.classList.remove(
+            "show"
+        );
 
-        button.style.opacity =
-            submitting
-                ? ".55"
-                : "1";
+        modal.style.display =
+            "none";
 
-        button.style.cursor =
-            submitting
-                ? "wait"
-                : "pointer";
+        editingProvider =
+            null;
 
-        if (submitting) {
-            button.textContent =
-                "Menyimpan...";
-        } else {
-            button.textContent =
-                mode === "edit"
-                    ? "Simpan Perubahan"
-                    : "Simpan Provider";
-        }
+        mode =
+            "create";
+
+        hideMessage();
     }
 
     // ========================================
-    // CREATE
+    // CREATE PROVIDER
     // ========================================
 
     async function createProvider(
         data
     ) {
-
         const supabaseModule =
             getSupabaseModule();
 
@@ -1004,26 +937,18 @@
         await supabaseModule
             .requireSession();
 
-        // Cek ID provider di database
-        const existing =
-            await supabase
-                .from("providers")
-                .select("id")
-                .eq(
-                    "provider_id",
-                    data.providerId
-                )
-                .maybeSingle();
-
-        if (existing.error) {
-            throw existing.error;
-        }
-
-        if (existing.data) {
-            throw new Error(
-                "Provider ID sudah digunakan."
-            );
-        }
+        /*
+         * Pastikan RPC menerima tipe parameter
+         * yang sesuai:
+         *
+         * admin_create_provider(
+         *   text,
+         *   text,
+         *   text,
+         *   text,
+         *   boolean
+         * )
+         */
 
         const result =
             await supabase.rpc(
@@ -1036,8 +961,7 @@
                         data.providerName,
 
                     p_description:
-                        data.description ||
-                        null,
+                        data.description,
 
                     p_status:
                         data.status,
@@ -1051,30 +975,42 @@
             throw result.error;
         }
 
-        // API Key disimpan setelah provider
-        // berhasil dibuat.
-        await apiKeyModule.save(
-            data.providerId,
-            data.apiKey
-        );
+        /*
+         * Provider berhasil dibuat.
+         * Sekarang simpan API Key.
+         */
+
+        try {
+            await apiKeyModule.save(
+                data.providerId,
+                data.apiKey
+            );
+        } catch (apiKeyError) {
+            /*
+             * Provider sudah masuk database,
+             * tetapi credential gagal disimpan.
+             *
+             * Berikan error yang jelas.
+             */
+            throw new Error(
+                "Provider berhasil dibuat, tetapi API Key gagal disimpan: " +
+                (
+                    apiKeyError?.message ||
+                    "Unknown error"
+                )
+            );
+        }
 
         return result.data;
     }
 
     // ========================================
-    // UPDATE
+    // UPDATE PROVIDER
     // ========================================
 
     async function updateProvider(
         data
     ) {
-
-        if (!editingProvider) {
-            throw new Error(
-                "Provider yang diedit tidak ditemukan."
-            );
-        }
-
         const supabaseModule =
             getSupabaseModule();
 
@@ -1088,8 +1024,8 @@
             .requireSession();
 
         const databaseId =
-            editingProvider.id ||
-            editingProvider.uuid;
+            editingProvider?.id ||
+            editingProvider?.uuid;
 
         if (!databaseId) {
             throw new Error(
@@ -1101,6 +1037,12 @@
             normalizeProviderId(
                 editingProvider.provider_id
             );
+
+        if (!providerId) {
+            throw new Error(
+                "Provider ID lama tidak ditemukan."
+            );
+        }
 
         const result =
             await supabase.rpc(
@@ -1116,8 +1058,7 @@
                         data.providerName,
 
                     p_description:
-                        data.description ||
-                        null,
+                        data.description,
 
                     p_status:
                         data.status,
@@ -1131,10 +1072,11 @@
             throw result.error;
         }
 
-        // API Key hanya diganti jika user
-        // benar-benar memasukkan key baru.
+        /*
+         * API Key hanya diperbarui jika user
+         * benar-benar mengisi field API Key.
+         */
         if (data.apiKey) {
-
             await apiKeyModule.save(
                 providerId,
                 data.apiKey
@@ -1149,53 +1091,152 @@
     // ========================================
 
     async function submit() {
+        if (submitting) {
+            return;
+        }
 
-        const data =
-            collectForm();
+        if (!form) {
+            createModal();
+        }
 
-        validate(data);
+        if (!form) {
+            throw new Error(
+                "Form provider tidak ditemukan."
+            );
+        }
+
+        hideMessage();
+
+        /*
+         * Browser validation
+         */
+        if (
+            !form.checkValidity()
+        ) {
+            form.reportValidity();
+
+            return;
+        }
+
+        const providerIdInput =
+            document.getElementById(
+                "providerId"
+            );
+
+        const providerNameInput =
+            document.getElementById(
+                "providerName"
+            );
+
+        const descriptionInput =
+            document.getElementById(
+                "providerDescription"
+            );
+
+        const statusInput =
+            document.getElementById(
+                "providerStatus"
+            );
+
+        const defaultInput =
+            document.getElementById(
+                "providerDefault"
+            );
+
+        const apiKeyInput =
+            document.getElementById(
+                "providerApiKey"
+            );
+
+        const providerId =
+            validateProviderId(
+                providerIdInput?.value
+            );
+
+        const providerName =
+            validateProviderName(
+                providerNameInput?.value
+            );
+
+        const description =
+            normalizeDescription(
+                descriptionInput?.value
+            );
+
+        const status =
+            normalizeStatus(
+                statusInput?.value
+            );
+
+        const isDefault =
+            Boolean(
+                defaultInput?.checked
+            );
+
+        const apiKey =
+            String(
+                apiKeyInput?.value ||
+                ""
+            ).trim();
+
+        /*
+         * API Key wajib ketika CREATE.
+         * Saat EDIT boleh kosong.
+         */
+        if (
+            mode === "create" &&
+            !apiKey
+        ) {
+            throw new Error(
+                "API Key wajib diisi saat menambahkan provider baru."
+            );
+        }
+
+        const data = {
+            providerId,
+            providerName,
+            description,
+            status,
+            isDefault,
+            apiKey
+        };
 
         setSubmitting(
             true
         );
 
-        hideMessage();
-
         try {
-
             if (
                 mode === "create"
             ) {
-
                 await createProvider(
                     data
                 );
-
-                showMessage(
-                    "Provider berhasil dibuat.",
-                    "success"
-                );
-
             } else {
-
                 await updateProvider(
                     data
                 );
-
-                showMessage(
-                    "Provider berhasil diperbarui.",
-                    "success"
-                );
             }
 
-            // Refresh daftar.
+            showMessage(
+                mode === "create"
+                    ? "Provider berhasil ditambahkan."
+                    : "Provider berhasil diperbarui.",
+                "success"
+            );
+
+            /*
+             * Refresh list sebelum menutup modal.
+             */
             const list =
                 getListModule();
 
             await list.refresh();
 
-            // Beri waktu agar pesan sukses
-            // terlihat sebelum modal ditutup.
+            /*
+             * Beri sedikit waktu agar user melihat
+             * pesan sukses, kemudian tutup.
+             */
             setTimeout(
                 function () {
                     close();
@@ -1204,19 +1245,53 @@
             );
 
         } catch (error) {
-
             console.error(
-                "[GEN-Z.AI] Provider form error:",
+                "[GEN-Z.AI] Provider form submit error:",
                 error
             );
 
-            showMessage(
+            let message =
                 error?.message ||
-                "Gagal menyimpan provider."
+                "Gagal menyimpan provider.";
+
+            /*
+             * Supabase RPC kadang memberikan object
+             * error dengan message/detail/hint.
+             */
+            if (
+                error &&
+                typeof error === "object"
+            ) {
+                if (
+                    error.message
+                ) {
+                    message =
+                        error.message;
+                } else if (
+                    error.details
+                ) {
+                    message =
+                        error.details;
+                } else if (
+                    error.hint
+                ) {
+                    message =
+                        error.hint;
+                }
+            }
+
+            showMessage(
+                message,
+                "error"
             );
 
-        } finally {
+            /*
+             * Lempar lagi supaya caller lain juga
+             * mengetahui bahwa operasi gagal.
+             */
+            throw error;
 
+        } finally {
             setSubmitting(
                 false
             );
@@ -1224,69 +1299,109 @@
     }
 
     // ========================================
-    // EVENTS
+    // BIND EVENTS
     // ========================================
 
     function bindEvents() {
-
-        if (!modal) {
+        if (
+            !form ||
+            eventsBound
+        ) {
             return;
         }
 
-        form?.addEventListener(
+        /*
+         * SUBMIT FORM
+         *
+         * Ini bagian penting yang sebelumnya tidak
+         * terpasang ketika modal berasal dari HTML.
+         */
+        form.addEventListener(
             "submit",
-            function (event) {
+            async function (event) {
                 event.preventDefault();
+                event.stopPropagation();
 
-                submit();
+                try {
+                    await submit();
+                } catch (error) {
+                    /*
+                     * Error sudah ditampilkan oleh submit().
+                     * Jangan biarkan menjadi unhandled rejection.
+                     */
+                    console.error(
+                        "[GEN-Z.AI] Submit handler:",
+                        error
+                    );
+                }
             }
         );
 
+        /*
+         * TOMBOL CLOSE
+         */
         modal.addEventListener(
             "click",
             function (event) {
-
-                // Klik backdrop
-                if (
-                    event.target === modal
-                ) {
-                    close();
-                    return;
-                }
-
-                const button =
+                const closeButton =
                     event.target.closest(
-                        "[data-provider-form-action]"
+                        "[data-provider-form-action='close']"
                     );
 
-                if (!button) {
+                if (closeButton) {
+                    event.preventDefault();
+                    close();
                     return;
                 }
 
-                const action =
-                    button.dataset
-                        .providerFormAction;
-
+                /*
+                 * Klik backdrop menutup modal.
+                 */
                 if (
-                    action === "close"
+                    event.target ===
+                    modal
                 ) {
                     close();
                 }
             }
         );
 
+        eventsBound =
+            true;
+    }
+
+    // ========================================
+    // INITIALIZE
+    // ========================================
+
+    function initialize() {
+        try {
+            createModal();
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI] Provider Form initialize error:",
+                error
+            );
+        }
+    }
+
+    // ========================================
+    // INITIALIZE AFTER DOM READY
+    // ========================================
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
         document.addEventListener(
-            "keydown",
-            function (event) {
-
-                if (
-                    event.key === "Escape" &&
-                    modal.style.display === "flex"
-                ) {
-                    close();
-                }
+            "DOMContentLoaded",
+            initialize,
+            {
+                once: true
             }
         );
+    } else {
+        initialize();
     }
 
     // ========================================
@@ -1294,7 +1409,6 @@
     // ========================================
 
     window.GENZProviderForm = {
-
         ready: true,
 
         createModal,
