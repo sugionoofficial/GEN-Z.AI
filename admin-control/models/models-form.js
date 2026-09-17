@@ -2,7 +2,18 @@
    GEN-Z.AI
    ADMIN MODEL MANAGEMENT
    MODEL FORM MODULE
-   File: admin-control/models/models-form.js
+
+   File:
+   admin-control/models/models-form.js
+
+   Fungsi:
+   - Membuka modal Tambah Model
+   - Membuka modal Edit Model
+   - Menutup modal
+   - Sinkronisasi Model ID dengan Model Search
+   - Membaca data form
+   - Validasi form
+   - Cocok dengan ID aktual models.html
 ========================================================= */
 
 (function () {
@@ -10,8 +21,24 @@
 
     let editingModel = null;
 
+    /* =====================================================
+       ELEMENT HELPER
+    ===================================================== */
+
     function getElement(id) {
         return document.getElementById(id);
+    }
+
+    function firstElement(ids) {
+        for (const id of ids) {
+            const element = getElement(id);
+
+            if (element) {
+                return element;
+            }
+        }
+
+        return null;
     }
 
     function value(id) {
@@ -31,42 +58,77 @@
             return;
         }
 
-        if (
-            Array.isArray(newValue)
-        ) {
-            element.value =
-                newValue.join(", ");
+        if (Array.isArray(newValue)) {
+            element.value = newValue.join(", ");
             return;
         }
 
-        element.value =
-            newValue ?? "";
+        element.value = newValue ?? "";
     }
 
-    function normalizeArray(value) {
-        if (Array.isArray(value)) {
-            return value
-                .map(item =>
-                    String(item).trim()
-                )
+    function normalizeArray(input) {
+        if (Array.isArray(input)) {
+            return input
+                .map(item => String(item).trim())
                 .filter(Boolean);
         }
 
         if (
-            value === null ||
-            value === undefined ||
-            value === ""
+            input === null ||
+            input === undefined ||
+            input === ""
         ) {
             return [];
         }
 
-        return String(value)
+        return String(input)
             .split(",")
-            .map(item =>
-                item.trim()
-            )
+            .map(item => item.trim())
             .filter(Boolean);
     }
+
+    /* =====================================================
+       FORM MODE
+    ===================================================== */
+
+    function setFormMode(mode) {
+        const title = firstElement([
+            "modalTitle",
+            "modelModalTitle"
+        ]);
+
+        const submitButton = firstElement([
+            "saveModelBtn",
+            "saveModelButton",
+            "saveModel"
+        ]);
+
+        if (mode === "edit") {
+            if (title) {
+                title.textContent = "Edit Model";
+            }
+
+            if (submitButton) {
+                submitButton.textContent =
+                    "Simpan Perubahan";
+            }
+
+            return;
+        }
+
+        if (title) {
+            title.textContent = "Tambah Model";
+        }
+
+        if (submitButton) {
+            submitButton.textContent =
+                "Tambah Model";
+        }
+    }
+
+    /* =====================================================
+       OPEN CREATE
+    ===================================================== */
 
     function openCreateForm() {
         editingModel = null;
@@ -76,7 +138,21 @@
         setFormMode("create");
 
         openModal();
+
+        const search = getElement(
+            "modelCodeSearch"
+        );
+
+        if (search) {
+            window.setTimeout(() => {
+                search.focus();
+            }, 100);
+        }
     }
+
+    /* =====================================================
+       OPEN EDIT
+    ===================================================== */
 
     function openEditForm(model) {
         if (!model) {
@@ -98,16 +174,19 @@
         openModal();
     }
 
+    /* =====================================================
+       POPULATE FORM
+    ===================================================== */
+
     function populateForm(model) {
         setValue(
             "modelCode",
             model.model_id || ""
         );
 
-        const modelSearch =
-            getElement(
-                "modelCodeSearch"
-            );
+        const modelSearch = getElement(
+            "modelCodeSearch"
+        );
 
         if (modelSearch) {
             modelSearch.value =
@@ -119,8 +198,12 @@
             model.model_name || ""
         );
 
+        /*
+         * models.html menggunakan:
+         * id="description"
+         */
         setValue(
-            "modelDescription",
+            "description",
             model.description || ""
         );
 
@@ -171,13 +254,28 @@
         updateSelectedModelInfo(model);
     }
 
+    /* =====================================================
+       CLEAR FORM
+    ===================================================== */
+
     function clearForm() {
-        const form =
-            getElement("modelForm");
+        const form = getElement(
+            "modelForm"
+        );
 
         if (form) {
             form.reset();
         }
+
+        setValue(
+            "modelId",
+            ""
+        );
+
+        setValue(
+            "providerId",
+            ""
+        );
 
         setValue(
             "modelCode",
@@ -189,8 +287,12 @@
             ""
         );
 
+        /*
+         * ID aktual models.html:
+         * description
+         */
         setValue(
-            "modelDescription",
+            "description",
             ""
         );
 
@@ -234,98 +336,160 @@
             "active"
         );
 
-        const search =
-            getElement(
-                "modelCodeSearch"
-            );
+        const search = getElement(
+            "modelCodeSearch"
+        );
 
         if (search) {
             search.value = "";
         }
 
-        const selectedInfo =
-            getElement(
-                "selectedModelInfo"
-            );
+        const selectedInfo = getElement(
+            "selectedModelInfo"
+        );
 
         if (selectedInfo) {
             selectedInfo.textContent =
                 "Belum ada model dipilih.";
         }
 
+        const searchResults = getElement(
+            "modelSearchResults"
+        );
+
+        if (searchResults) {
+            searchResults.innerHTML = "";
+        }
+
         editingModel = null;
+
+        /*
+         * Reset preview harga.
+         */
+        const previewNormal = getElement(
+            "previewNormal"
+        );
+
+        const previewDiscount = getElement(
+            "previewDiscount"
+        );
+
+        const previewFinal = getElement(
+            "previewFinal"
+        );
+
+        const previewKieUsd = getElement(
+            "previewKieUsd"
+        );
+
+        const previewKieIdr = getElement(
+            "previewKieIdr"
+        );
+
+        if (previewNormal) {
+            previewNormal.textContent = "-";
+        }
+
+        if (previewDiscount) {
+            previewDiscount.textContent = "-";
+        }
+
+        if (previewFinal) {
+            previewFinal.textContent = "-";
+        }
+
+        if (previewKieUsd) {
+            previewKieUsd.textContent = "-";
+        }
+
+        if (previewKieIdr) {
+            previewKieIdr.textContent = "-";
+        }
     }
 
-    function setFormMode(mode) {
-        const title =
-            getElement("modalTitle");
-
-        const submitButton =
-            getElement("saveModelButton");
-
-        if (mode === "edit") {
-            if (title) {
-                title.textContent =
-                    "Edit Model";
-            }
-
-            if (submitButton) {
-                submitButton.textContent =
-                    "Simpan Perubahan";
-            }
-
-            return;
-        }
-
-        if (title) {
-            title.textContent =
-                "Tambah Model";
-        }
-
-        if (submitButton) {
-            submitButton.textContent =
-                "Tambah Model";
-        }
-    }
+    /* =====================================================
+       OPEN MODAL
+    ===================================================== */
 
     function openModal() {
-        const modal =
-            getElement("modelModal");
+        const modal = getElement(
+            "modelModal"
+        );
 
         if (!modal) {
+            console.error(
+                "[models-form] #modelModal tidak ditemukan."
+            );
+
             return;
         }
 
         modal.classList.add("open");
 
+        modal.classList.add("show");
+
+        modal.classList.remove("hidden");
+
         modal.removeAttribute(
             "aria-hidden"
         );
+
+        /*
+         * Jangan memaksa display jika CSS
+         * modal sudah mengaturnya.
+         */
+        if (
+            window.getComputedStyle(modal)
+                .display === "none"
+        ) {
+            modal.style.display = "flex";
+        }
 
         document.body.classList.add(
             "modal-open"
         );
     }
 
+    /* =====================================================
+       CLOSE MODAL
+    ===================================================== */
+
     function closeModal() {
-        const modal =
-            getElement("modelModal");
+        const modal = getElement(
+            "modelModal"
+        );
 
         if (!modal) {
             return;
         }
 
-        modal.classList.remove("open");
+        modal.classList.remove(
+            "open"
+        );
+
+        modal.classList.remove(
+            "show"
+        );
+
+        modal.classList.add(
+            "hidden"
+        );
 
         modal.setAttribute(
             "aria-hidden",
             "true"
         );
 
+        modal.style.display = "none";
+
         document.body.classList.remove(
             "modal-open"
         );
     }
+
+    /* =====================================================
+       FORM DATA
+    ===================================================== */
 
     function getFormData() {
         const data = {
@@ -339,7 +503,7 @@
                 value("modelName"),
 
             description:
-                value("modelDescription"),
+                value("description"),
 
             credit_cost:
                 value("creditCost"),
@@ -377,6 +541,10 @@
         return data;
     }
 
+    /* =====================================================
+       VALIDATE
+    ===================================================== */
+
     function validateForm(data) {
         if (!data.model_id) {
             return "Model ID wajib dipilih.";
@@ -392,16 +560,22 @@
                 Number(data.credit_cost)
             )
         ) {
-            return "Credit Cost harus berupa angka.";
+            return (
+                "Credit Cost harus berupa angka."
+            );
         }
 
         if (
             data.discount_percent !== "" &&
             Number.isNaN(
-                Number(data.discount_percent)
+                Number(
+                    data.discount_percent
+                )
             )
         ) {
-            return "Discount Percent harus berupa angka.";
+            return (
+                "Discount Percent harus berupa angka."
+            );
         }
 
         if (
@@ -415,7 +589,9 @@
                 ) > 100
             )
         ) {
-            return "Discount Percent harus antara 0 sampai 100.";
+            return (
+                "Discount Percent harus antara 0 sampai 100."
+            );
         }
 
         if (
@@ -424,7 +600,9 @@
                 Number(data.min_duration)
             )
         ) {
-            return "Minimum Duration harus berupa angka.";
+            return (
+                "Minimum Duration harus berupa angka."
+            );
         }
 
         if (
@@ -433,17 +611,33 @@
                 Number(data.max_duration)
             )
         ) {
-            return "Maximum Duration harus berupa angka.";
+            return (
+                "Maximum Duration harus berupa angka."
+            );
+        }
+
+        if (
+            data.min_duration !== "" &&
+            data.max_duration !== "" &&
+            Number(data.min_duration) >
+                Number(data.max_duration)
+        ) {
+            return (
+                "Minimum Duration tidak boleh lebih besar dari Maximum Duration."
+            );
         }
 
         return null;
     }
 
+    /* =====================================================
+       SELECTED MODEL INFO
+    ===================================================== */
+
     function updateSelectedModelInfo(model) {
-        const info =
-            getElement(
-                "selectedModelInfo"
-            );
+        const info = getElement(
+            "selectedModelInfo"
+        );
 
         if (!info || !model) {
             return;
@@ -465,6 +659,10 @@
             </span>
         `;
     }
+
+    /* =====================================================
+       ESCAPE HTML
+    ===================================================== */
 
     function escapeHtml(value) {
         return String(
@@ -492,6 +690,10 @@
             );
     }
 
+    /* =====================================================
+       SELECT MODEL FROM SEARCH
+    ===================================================== */
+
     function setSelectedModel(model) {
         if (!model) {
             return;
@@ -502,10 +704,9 @@
             model.model_id || ""
         );
 
-        const search =
-            getElement(
-                "modelCodeSearch"
-            );
+        const search = getElement(
+            "modelCodeSearch"
+        );
 
         if (search) {
             search.value =
@@ -517,22 +718,24 @@
             model.model_name || ""
         );
 
+        /*
+         * Provider dari model Supabase.
+         */
+        if (model.provider) {
+            setValue(
+                "providerId",
+                model.provider
+            );
+        }
+
         updateSelectedModelInfo(
             model
         );
-
-        if (
-            typeof window
-                .GENZModelsForm
-                ?.onModelSelected ===
-            "function"
-        ) {
-            window.GENZModelsForm
-                .onModelSelected(
-                    model
-                );
-        }
     }
+
+    /* =====================================================
+       GET STATE
+    ===================================================== */
 
     function getEditingModel() {
         return editingModel;
@@ -544,33 +747,54 @@
         );
     }
 
+    /* =====================================================
+       BIND CLOSE BUTTONS
+    ===================================================== */
+
     function initialize() {
         const closeButton =
-            getElement(
-                "closeModelModal"
-            );
+            firstElement([
+                "closeModalBtn",
+                "closeModelModal",
+                "closeModalButton",
+                "modelModalClose"
+            ]);
 
         const cancelButton =
-            getElement(
-                "cancelModelButton"
-            );
+            firstElement([
+                "cancelModalBtn",
+                "cancelModelButton",
+                "cancelModelBtn",
+                "cancelBtn"
+            ]);
 
         if (closeButton) {
             closeButton.addEventListener(
                 "click",
-                closeModal
+                function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    closeModal();
+                }
             );
         }
 
         if (cancelButton) {
             cancelButton.addEventListener(
                 "click",
-                closeModal
+                function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    closeModal();
+                }
             );
         }
 
-        const modal =
-            getElement("modelModal");
+        const modal = getElement(
+            "modelModal"
+        );
 
         if (modal) {
             modal.addEventListener(
@@ -590,18 +814,39 @@
             "keydown",
             function (event) {
                 if (
-                    event.key === "Escape"
+                    event.key ===
+                    "Escape"
                 ) {
-                    closeModal();
+                    const modal =
+                        getElement(
+                            "modelModal"
+                        );
+
+                    if (
+                        modal &&
+                        (
+                            modal.classList
+                                .contains("open") ||
+                            modal.classList
+                                .contains("show")
+                        )
+                    ) {
+                        closeModal();
+                    }
                 }
             }
         );
     }
 
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
+
     window.GENZModelsForm = {
         initialize,
         openCreateForm,
         openEditForm,
+        openModal,
         closeModal,
         clearForm,
         getFormData,
@@ -609,6 +854,7 @@
         getEditingModel,
         isEditing,
         setSelectedModel,
+        updateSelectedModelInfo,
 
         onModelSelected: null
     };
