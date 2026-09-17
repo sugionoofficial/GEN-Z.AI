@@ -21,6 +21,9 @@
         const providerNotes =
             getElement("providerNotes");
 
+        const providerApiKey =
+    getElement("providerApiKey");
+
         return {
             name:
                 providerName
@@ -45,9 +48,14 @@
                     : "",
 
             notes:
-                providerNotes
-                    ? providerNotes.value.trim()
-                    : ""
+    providerNotes
+        ? providerNotes.value.trim()
+        : "",
+
+apiKey:
+    providerApiKey
+        ? providerApiKey.value.trim()
+        : ""
         };
     }
 
