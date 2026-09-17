@@ -9,7 +9,7 @@
    Fungsi:
    - Memuat seluruh module Model Management
    - Menjaga urutan dependency
-   - Cache busting setiap deployment
+   - Cache busting
    - Mencegah initialization ganda
    - Menunggu semua module siap
    - Menjalankan initializer utama satu kali
@@ -18,21 +18,14 @@
 (function () {
     "use strict";
 
-    /* =====================================================
-       CONFIG
-    ===================================================== */
-
     window.GENZ_MODELS_LOADER_ACTIVE = true;
 
     const BASE_PATH = "./models/";
 
     /*
-     * Ganti angka ini setiap kali ada perubahan module.
-     *
-     * Tujuannya supaya browser tidak menggunakan
-     * file JavaScript lama dari cache.
+     * NAIKKAN VERSION setiap ada perubahan module.
      */
-    const CACHE_VERSION = "20260918-01";
+    const CACHE_VERSION = "20260918-02";
 
     const MODULES = [
         "models-data.js",
@@ -46,7 +39,6 @@
     const loaded = new Set();
 
     let loadingPromise = null;
-
     let initialized = false;
 
     /* =====================================================
@@ -54,20 +46,17 @@
     ===================================================== */
 
     function loadScript(filename) {
+
         return new Promise(
             (resolve, reject) => {
 
-                /*
-                 * Jangan load module yang sama dua kali
-                 * dalam satu session.
-                 */
                 if (loaded.has(filename)) {
                     resolve();
                     return;
                 }
 
                 /*
-                 * Cari script yang mungkin sudah ada.
+                 * Cari script module yang sudah ada.
                  */
                 const existing =
                     document.querySelector(
@@ -77,12 +66,23 @@
                 if (existing) {
 
                     /*
-                     * Jika script sudah selesai dimuat.
+                     * Pastikan script tersebut
+                     * berasal dari version terbaru.
+                     */
+                    const existingVersion =
+                        existing.dataset
+                            .genzModelVersion || "";
+
+                    /*
+                     * Jika sudah version terbaru
+                     * dan sudah loaded, gunakan.
                      */
                     if (
+                        existingVersion ===
+                            CACHE_VERSION &&
                         existing.dataset
                             .genzModelLoaded ===
-                        "true"
+                            "true"
                     ) {
 
                         loaded.add(filename);
@@ -93,67 +93,22 @@
                     }
 
                     /*
-                     * Jika sedang loading,
-                     * tunggu sampai selesai.
+                     * Jika script lama ditemukan,
+                     * hapus agar browser memuat
+                     * versi baru.
                      */
-                    existing.addEventListener(
-                        "load",
-                        () => {
-
-                            loaded.add(
-                                filename
-                            );
-
-                            existing.dataset
-                                .genzModelLoaded =
-                                "true";
-
-                            resolve();
-
-                        },
-                        {
-                            once: true
-                        }
-                    );
-
-                    existing.addEventListener(
-                        "error",
-                        () => {
-
-                            reject(
-                                new Error(
-                                    "Gagal memuat module: " +
-                                        filename
-                                )
-                            );
-
-                        },
-                        {
-                            once: true
-                        }
-                    );
-
-                    return;
+                    existing.remove();
                 }
 
                 /* =================================================
                    CREATE SCRIPT
-                ================================================== */
+                ================================================= */
 
                 const script =
                     document.createElement(
                         "script"
                     );
 
-                /*
-                 * CACHE BUSTING
-                 *
-                 * Contoh:
-                 * ./models/models-data.js?v=20260918-01
-                 *
-                 * Browser akan menganggapnya sebagai
-                 * resource baru setiap kali version berubah.
-                 */
                 script.src =
                     BASE_PATH +
                     filename +
@@ -166,7 +121,6 @@
                  * Dependency harus berurutan.
                  */
                 script.async = false;
-
                 script.defer = false;
 
                 script.dataset
@@ -178,8 +132,8 @@
                     CACHE_VERSION;
 
                 /* =================================================
-                   ON LOAD
-                ================================================== */
+                   LOAD
+                ================================================= */
 
                 script.onload = () => {
 
@@ -202,8 +156,8 @@
                 };
 
                 /* =================================================
-                   ON ERROR
-                ================================================== */
+                   ERROR
+                ================================================= */
 
                 script.onerror = () => {
 
@@ -215,14 +169,11 @@
                     reject(
                         new Error(
                             "Gagal memuat module: " +
-                                filename
+                            filename
                         )
                     );
                 };
 
-                /*
-                 * Masukkan ke HEAD.
-                 */
                 document.head.appendChild(
                     script
                 );
@@ -254,7 +205,6 @@
                 }
 
                 return true;
-
             })();
 
         try {
@@ -278,15 +228,10 @@
         const required = [
 
             "GENZModelsData",
-
             "GENZModelsSearch",
-
             "GENZModelsForm",
-
             "GENZModelsPrice",
-
             "GENZModelsUI",
-
             "GENZModelsInit"
 
         ];
@@ -316,9 +261,6 @@
                     const missing =
                         getMissingModules();
 
-                    /*
-                     * Semua module tersedia.
-                     */
                     if (
                         missing.length ===
                         0
@@ -329,9 +271,6 @@
                         return;
                     }
 
-                    /*
-                     * Timeout.
-                     */
                     if (
                         Date.now() -
                             startedAt >=
@@ -341,9 +280,7 @@
                         reject(
                             new Error(
                                 "Module Model Management belum tersedia: " +
-                                    missing.join(
-                                        ", "
-                                    )
+                                missing.join(", ")
                             )
                         );
 
@@ -373,21 +310,15 @@
 
         try {
 
-            /* ==============================================
-               LOAD MODULE
-            ============================================== */
-
+            /*
+             * Load semua module berurutan.
+             */
             await loadModules();
 
-            /* ==============================================
-               WAIT MODULE OBJECT
-            ============================================== */
-
+            /*
+             * Pastikan semua global tersedia.
+             */
             await waitForModules();
-
-            /* ==============================================
-               GET MAIN INITIALIZER
-            ============================================== */
 
             const initializer =
                 window.GENZModelsInit;
@@ -404,10 +335,9 @@
                 );
             }
 
-            /* ==============================================
-               INITIALIZE
-            ============================================== */
-
+            /*
+             * Jalankan Model Management.
+             */
             await initializer.initialize();
 
             initialized = true;
@@ -421,10 +351,9 @@
                 CACHE_VERSION
             );
 
-            /* ==============================================
-               READY EVENT
-            ============================================== */
-
+            /*
+             * READY EVENT
+             */
             window.dispatchEvent(
                 new CustomEvent(
                     "genz-models-loader-ready",
@@ -447,10 +376,6 @@
                 "[GEN-Z.AI] Model Management loader initialization error:",
                 error
             );
-
-            /* ==============================================
-               ERROR EVENT
-            ============================================== */
 
             window.dispatchEvent(
                 new CustomEvent(
@@ -517,6 +442,7 @@
             getLoadedModules,
 
             getVersion
+
         });
 
     /* =====================================================
