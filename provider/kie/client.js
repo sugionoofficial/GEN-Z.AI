@@ -184,21 +184,24 @@ async function request(
     options = {}
 ) {
 
-    const method =
-        options.method ||
-        "GET";
-
     const apiKey =
-    options.apiKey ||
-    getApiKey();
+        options.apiKey ||
+        getApiKey();
 
-const headers = {
-    Accept:
-        "application/json",
-    Authorization:
-        `Bearer ${apiKey}`,
-    ...(options.headers || {})
-};
+    const headers = {
+
+        Accept:
+            "application/json",
+
+        Authorization:
+            `Bearer ${apiKey}`,
+
+        ...(options.headers || {})
+
+    };
+
+    // lanjutkan kode request yang sudah ada...
+}
 
     if (
         options.body !== undefined &&
