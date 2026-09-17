@@ -3,6 +3,7 @@
 // KIE.AI VIDEO GENERATION API
 // File: api/generate.js
 // ========================================
+
 import crypto from "node:crypto";
 
 import {
@@ -15,6 +16,9 @@ const SUPABASE_URL =
 
 const SUPABASE_SERVICE_ROLE_KEY =
     process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
+    process.env.PROVIDER_CREDENTIAL_ENCRYPTION_KEY;
 
 
 // ========================================
@@ -52,6 +56,169 @@ function jsonValue(value) {
         return value;
 
     }
+
+}
+
+
+// ========================================
+// PROVIDER API KEY DECRYPTION
+// ========================================
+
+function decryptProviderApiKey(
+    credential
+) {
+
+    if (
+        !PROVIDER_CREDENTIAL_ENCRYPTION_KEY
+    ) {
+
+        throw new Error(
+            "PROVIDER_CREDENTIAL_ENCRYPTION_KEY belum dikonfigurasi."
+        );
+
+    }
+
+    const key =
+        Buffer.from(
+            PROVIDER_CREDENTIAL_ENCRYPTION_KEY,
+            "hex"
+        );
+
+    if (
+        key.length !== 32
+    ) {
+
+        throw new Error(
+            "PROVIDER_CREDENTIAL_ENCRYPTION_KEY harus 32 byte."
+        );
+
+    }
+
+    if (
+        !credential ||
+        !credential.api_key_ciphertext ||
+        !credential.api_key_iv ||
+        !credential.api_key_tag
+    ) {
+
+        throw new Error(
+            "Credential provider tidak lengkap."
+        );
+
+    }
+
+    const iv =
+        Buffer.from(
+            credential.api_key_iv,
+            "base64"
+        );
+
+    const tag =
+        Buffer.from(
+            credential.api_key_tag,
+            "base64"
+        );
+
+    if (
+        iv.length !== 12
+    ) {
+
+        throw new Error(
+            "IV credential provider tidak valid."
+        );
+
+    }
+
+    if (
+        tag.length !== 16
+    ) {
+
+        throw new Error(
+            "Authentication tag credential provider tidak valid."
+        );
+
+    }
+
+    const decipher =
+        crypto.createDecipheriv(
+            "aes-256-gcm",
+            key,
+            iv
+        );
+
+    decipher.setAuthTag(tag);
+
+    const encrypted =
+        Buffer.from(
+            credential.api_key_ciphertext,
+            "base64"
+        );
+
+    const decrypted =
+        Buffer.concat([
+
+            decipher.update(
+                encrypted
+            ),
+
+            decipher.final()
+
+        ]);
+
+    const apiKey =
+        decrypted.toString(
+            "utf8"
+        ).trim();
+
+    if (!apiKey) {
+
+        throw new Error(
+            "API key provider hasil decrypt kosong."
+        );
+
+    }
+
+    return apiKey;
+
+}
+
+
+// ========================================
+// LOAD PROVIDER API KEY
+// ========================================
+
+async function loadProviderApiKey(
+    providerId
+) {
+
+    const rows =
+        await supabaseQuery(
+            "provider_credentials",
+            {
+                select:
+                    "api_key_ciphertext,api_key_iv,api_key_tag",
+
+                provider_id:
+                    `eq.${providerId}`,
+
+                limit:
+                    "1"
+            }
+        );
+
+    if (
+        rows.length === 0
+    ) {
+
+        throw new Error(
+            `API key provider "${providerId}" belum tersimpan.`
+        );
+
+    }
+
+    return decryptProviderApiKey(
+        rows[0]
+    );
 
 }
 
@@ -1105,12 +1272,6 @@ function dependencyErrors(
         const target =
             dependency.target_parameter;
 
-        /*
-         * PREVIOUS_KIE_TASK
-         *
-         * Dependency ini berarti workflow
-         * membutuhkan task KIE sebelumnya.
-         */
         if (
             String(
                 dependency.dependency_type ||
@@ -1140,12 +1301,6 @@ function dependencyErrors(
 
         }
 
-        /*
-         * Untuk dependency parameter biasa,
-         * hanya validasi target jika dependency
-         * memang menyatakan target sebagai
-         * parameter wajib.
-         */
         if (!target) {
 
             continue;
@@ -1225,6 +1380,21 @@ export default async function handler(
 
         }
 
+        if (
+            !PROVIDER_CREDENTIAL_ENCRYPTION_KEY
+        ) {
+
+            return res.status(500).json({
+
+                success: false,
+
+                error:
+                    "PROVIDER_CREDENTIAL_ENCRYPTION_KEY belum dikonfigurasi."
+
+            });
+
+        }
+
 
         // ========================================
         // AUTH CHECK
@@ -1278,12 +1448,17 @@ export default async function handler(
         // PROVIDER
         // ========================================
 
-        const provider =
+        const requestedProvider =
             body.provider ||
             "kie_ai";
 
+        const providerId =
+            requestedProvider === "kie_ai"
+                ? "kie"
+                : requestedProvider;
+
         if (
-            provider !== "kie_ai"
+            providerId !== "kie"
         ) {
 
             return res.status(400).json({
@@ -1296,6 +1471,16 @@ export default async function handler(
             });
 
         }
+
+
+        // ========================================
+        // LOAD PROVIDER API KEY
+        // ========================================
+
+        const providerApiKey =
+            await loadProviderApiKey(
+                providerId
+            );
 
 
         // ========================================
@@ -1460,7 +1645,6 @@ export default async function handler(
                 body
             );
 
-
         const errors = [
 
             ...built.errors,
@@ -1535,6 +1719,10 @@ export default async function handler(
         };
 
 
+        // ========================================
+        // SAFE LOG
+        // ========================================
+
         console.log(
             "GEN-Z.AI → KIE.AI request:",
             JSON.stringify({
@@ -1565,7 +1753,8 @@ export default async function handler(
 
         const kieResponse =
             await createTask(
-                kiePayload
+                kiePayload,
+                providerApiKey
             );
 
 
