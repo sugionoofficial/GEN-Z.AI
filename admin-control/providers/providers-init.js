@@ -1,658 +1,1090 @@
 (function () {
     "use strict";
 
+    // =========================================================
+    // GEN-Z.AI - PROVIDERS INITIALIZER
+    // CRUD CONTROLLER
+    // =========================================================
+
     let initialized = false;
+    let busy = false;
 
-    function getDataModule() {
-        return window.GENZProvidersData || null;
+    // ---------------------------------------------------------
+    // HELPERS
+    // ---------------------------------------------------------
+
+    function getElement(id) {
+        return document.getElementById(id);
     }
 
-    function getFormModule() {
-        return window.GENZProvidersForm || null;
-    }
-
-    function getUiModule() {
-        return window.GENZProvidersUI || null;
-    }
-
-    function showMessage(message) {
-        const element =
-            document.getElementById("message");
-
-        if (!element) {
-            console.log(message);
-            return;
-        }
-
-        element.textContent =
-            String(message || "");
-
-        element.classList.add("show");
-
-        clearTimeout(
-            showMessage.timer
-        );
-
-        showMessage.timer =
-            setTimeout(() => {
-                element.classList.remove(
-                    "show"
-                );
-            }, 3200);
-    }
-
-    function openMenu() {
-        const overlay =
-            document.querySelector(
-                ".menu-overlay"
-            );
-
-        const sidebar =
-            document.querySelector(
-                ".sidebar"
-            );
-
-        const button =
-            document.querySelector(
-                ".menu-button"
-            );
-
-        if (overlay) {
-            overlay.classList.add("show");
-        }
-
-        if (sidebar) {
-            sidebar.classList.add("show");
-        }
-
-        if (button) {
-            button.classList.add("active");
-        }
-
-        document.body.classList.add(
-            "menu-open"
-        );
-    }
-
-    function closeMenu() {
-        const overlay =
-            document.querySelector(
-                ".menu-overlay"
-            );
-
-        const sidebar =
-            document.querySelector(
-                ".sidebar"
-            );
-
-        const button =
-            document.querySelector(
-                ".menu-button"
-            );
-
-        if (overlay) {
-            overlay.classList.remove(
-                "show"
-            );
-        }
-
-        if (sidebar) {
-            sidebar.classList.remove(
-                "show"
-            );
-        }
-
-        if (button) {
-            button.classList.remove(
-                "active"
-            );
-        }
-
-        document.body.classList.remove(
-            "menu-open"
-        );
-    }
-
-    function openProviderModal() {
-        const backdrop =
-            document.getElementById(
-                "providerModal"
-            );
-
-        if (!backdrop) {
-            return;
-        }
-
-        const form =
-            getFormModule();
-
+    function getData() {
         if (
-            form &&
-            typeof form.resetForm ===
-                "function"
+            !window.GENZProvidersData
         ) {
-            form.resetForm();
-        }
-
-        backdrop.classList.add(
-            "show"
-        );
-
-        document.body.classList.add(
-            "menu-open"
-        );
-
-        const providerName =
-            document.getElementById(
-                "providerName"
+            throw new Error(
+                "GENZProvidersData belum dimuat."
             );
-
-        if (providerName) {
-            setTimeout(() => {
-                providerName.focus();
-            }, 80);
         }
+
+        return window.GENZProvidersData;
     }
 
-    function closeProviderModal() {
-        const backdrop =
-            document.getElementById(
-                "providerModal"
+    function getUI() {
+        if (
+            !window.GENZProvidersUI
+        ) {
+            throw new Error(
+                "GENZProvidersUI belum dimuat."
+            );
+        }
+
+        return window.GENZProvidersUI;
+    }
+
+    function getForm() {
+        return (
+            window.GENZProvidersForm ||
+            null
+        );
+    }
+
+    function showMessage(
+        message,
+        type = "success"
+    ) {
+        console.log(
+            `[GEN-Z.AI][${type}]`,
+            message
+        );
+
+        const existing =
+            getElement(
+                "providerMessage"
             );
 
-        if (!backdrop) {
+        if (existing) {
+            existing.textContent =
+                message;
+
+            existing.className =
+                `provider-message ${type}`;
+
+            existing.style.display =
+                "block";
+
+            setTimeout(
+                function () {
+                    existing.style.display =
+                        "none";
+                },
+                4000
+            );
+
             return;
         }
 
-        backdrop.classList.remove(
-            "show"
-        );
-
-        document.body.classList.remove(
-            "menu-open"
-        );
-
-        const form =
-            getFormModule();
-
+        // Fallback sederhana
         if (
-            form &&
-            typeof form.resetForm ===
-                "function"
+            type === "error"
         ) {
-            form.resetForm();
-        }
-    }
-
-    function handleModalBackdrop(event) {
-        const backdrop =
-            document.getElementById(
-                "providerModal"
+            alert(
+                "Error: " +
+                message
             );
-
-        if (!backdrop) {
-            return;
-        }
-
-        if (
-            event.target ===
-            backdrop
-        ) {
-            closeProviderModal();
         }
     }
+
+    // ---------------------------------------------------------
+    // LOAD PROVIDERS
+    // ---------------------------------------------------------
 
     async function loadProviders() {
         const data =
-            getDataModule();
+            getData();
 
         const ui =
-            getUiModule();
-
-        if (!data) {
-            showMessage(
-                "Module provider data belum dimuat."
-            );
-
-            return [];
-        }
-
-        if (!ui) {
-            showMessage(
-                "Module provider UI belum dimuat."
-            );
-
-            return [];
-        }
+            getUI();
 
         try {
             const providers =
                 await data.loadProviders();
 
-            ui.renderProviderRegistry();
+            ui.renderProviders(
+                providers
+            );
 
             return providers;
 
         } catch (error) {
             console.error(
-                "Gagal memuat provider:",
+                "[GEN-Z.AI] Gagal memuat provider:",
                 error
             );
 
             showMessage(
-                error?.message ||
-                "Gagal memuat daftar provider."
+                error.message ||
+                "Gagal memuat provider.",
+                "error"
             );
 
             return [];
         }
     }
 
-    async function loadCurrentUser() {
-        const data =
-            getDataModule();
+    // ---------------------------------------------------------
+    // OPEN PROVIDER MODAL
+    // ---------------------------------------------------------
 
-        if (!data) {
-            return null;
+    function openProviderModal(
+        provider = null
+    ) {
+        const form =
+            getForm();
+
+        // Jika providers-form.js
+        // memiliki fungsi openForm,
+        // gunakan fungsi tersebut.
+        if (
+            form &&
+            typeof form.openForm ===
+                "function"
+        ) {
+            form.openForm(
+                provider
+            );
+
+            showModal();
+
+            return;
         }
 
-        const supabaseClient =
-            data.getSupabase();
-
-        if (!supabaseClient) {
-            return null;
+        // Jika hanya tersedia
+        // resetForm, kita isi manual.
+        if (form) {
+            if (
+                provider &&
+                typeof form.editProvider ===
+                    "function"
+            ) {
+                form.editProvider(
+                    provider
+                );
+            } else if (
+                typeof form.resetForm ===
+                    "function"
+            ) {
+                form.resetForm();
+            }
         }
 
-        try {
-            const {
-                data: userData,
-                error
-            } =
-                await supabaseClient.auth.getUser();
+        // -----------------------------------------------------
+        // Fallback form population
+        // -----------------------------------------------------
 
-            if (error) {
-                throw error;
-            }
+        if (provider) {
+            fillProviderForm(
+                provider
+            );
+        } else {
+            clearProviderForm();
+        }
 
-            const user =
-                userData?.user || null;
+        showModal();
 
-            if (!user) {
-                return null;
-            }
+        updateModalTitle(
+            Boolean(provider)
+        );
+    }
 
-            const email =
-                user.email ||
-                "Administrator";
+    // ---------------------------------------------------------
+    // FILL EDIT FORM
+    // ---------------------------------------------------------
 
-            const metadata =
-                user.user_metadata ||
-                {};
+    function fillProviderForm(
+        provider
+    ) {
+        setValue(
+            [
+                "providerName",
+                "provider_name"
+            ],
+            provider.provider_name
+        );
 
-            const displayName =
-                metadata.full_name ||
-                metadata.name ||
-                email
-                    .split("@")[0] ||
-                "Administrator";
+        setValue(
+            [
+                "providerId",
+                "provider_id"
+            ],
+            provider.provider_id
+        );
 
-            const nameElements =
-                document.querySelectorAll(
-                    "[data-user-name]"
-                );
+        setValue(
+            [
+                "providerDescription",
+                "provider_description"
+            ],
+            provider.description || ""
+        );
 
-            nameElements.forEach(
-                element => {
-                    element.textContent =
-                        displayName;
-                }
+        setValue(
+            [
+                "providerStatus",
+                "provider_status"
+            ],
+            provider.status || "active"
+        );
+
+        setValue(
+            [
+                "providerNotes",
+                "provider_notes"
+            ],
+            provider.notes || ""
+        );
+
+        setValue(
+            [
+                "providerApiKey",
+                "provider_api_key"
+            ],
+            ""
+        );
+
+        // ID jangan diganti
+        // saat edit.
+        const idInput =
+            getElement(
+                "providerId"
             );
 
-            const emailElements =
-                document.querySelectorAll(
-                    "[data-user-email]"
-                );
+        if (idInput) {
+            idInput.readOnly =
+                true;
 
-            emailElements.forEach(
-                element => {
-                    element.textContent =
-                        email;
-                }
+            idInput.dataset.editing =
+                "true";
+        }
+
+        // Simpan ID database
+        const formElement =
+            getElement(
+                "providerForm"
             );
 
-            const fallbackName =
-                document.getElementById(
-                    "adminName"
-                );
-
-            if (fallbackName) {
-                fallbackName.textContent =
-                    displayName;
-            }
-
-            const fallbackEmail =
-                document.getElementById(
-                    "adminEmail"
-                );
-
-            if (fallbackEmail) {
-                fallbackEmail.textContent =
-                    email;
-            }
-
-            return user;
-
-        } catch (error) {
-            console.error(
-                "Gagal memuat user:",
-                error
-            );
-
-            return null;
+        if (formElement) {
+            formElement.dataset.editingId =
+                provider.id ||
+                provider.uuid ||
+                "";
         }
     }
 
-    async function logout() {
+    // ---------------------------------------------------------
+    // CLEAR FORM
+    // ---------------------------------------------------------
+
+    function clearProviderForm() {
+        const form =
+            getForm();
+
+        if (
+            form &&
+            typeof form.resetForm ===
+                "function"
+        ) {
+            try {
+                form.resetForm();
+            } catch (error) {
+                console.warn(
+                    "[GEN-Z.AI] resetForm:",
+                    error
+                );
+            }
+        }
+
+        const formElement =
+            getElement(
+                "providerForm"
+            );
+
+        if (formElement) {
+            delete formElement.dataset
+                .editingId;
+        }
+
+        const idInput =
+            getElement(
+                "providerId"
+            );
+
+        if (idInput) {
+            idInput.readOnly =
+                false;
+
+            delete idInput.dataset.editing;
+        }
+
+        [
+            "providerName",
+            "providerId",
+            "providerDescription",
+            "providerNotes",
+            "providerApiKey"
+        ].forEach(
+            function (id) {
+                const input =
+                    getElement(id);
+
+                if (input) {
+                    input.value =
+                        "";
+                }
+            }
+        );
+
+        const status =
+            getElement(
+                "providerStatus"
+            );
+
+        if (status) {
+            status.value =
+                "active";
+        }
+    }
+
+    // ---------------------------------------------------------
+    // FORM VALUE HELPER
+    // ---------------------------------------------------------
+
+    function setValue(
+        ids,
+        value
+    ) {
+        for (
+            let i = 0;
+            i < ids.length;
+            i++
+        ) {
+            const element =
+                getElement(ids[i]);
+
+            if (element) {
+                element.value =
+                    value ?? "";
+
+                return;
+            }
+        }
+    }
+
+    // ---------------------------------------------------------
+    // MODAL
+    // ---------------------------------------------------------
+
+    function getModal() {
+        return (
+            getElement(
+                "providerModal"
+            ) ||
+            getElement(
+                "providerEditorModal"
+            ) ||
+            document.querySelector(
+                ".provider-modal"
+            )
+        );
+    }
+
+    function showModal() {
+        const modal =
+            getModal();
+
+        if (!modal) {
+            return;
+        }
+
+        modal.style.display =
+            "flex";
+
+        modal.classList.add(
+            "active",
+            "open"
+        );
+
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+    }
+
+    function closeProviderModal() {
+        const modal =
+            getModal();
+
+        if (!modal) {
+            return;
+        }
+
+        modal.classList.remove(
+            "active",
+            "open"
+        );
+
+        modal.style.display =
+            "none";
+
+        modal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        const idInput =
+            getElement(
+                "providerId"
+            );
+
+        if (idInput) {
+            idInput.readOnly =
+                false;
+        }
+    }
+
+    function updateModalTitle(
+        editing
+    ) {
+        const title =
+            document.querySelector(
+                "#providerModal h2, " +
+                "#providerModal h3, " +
+                ".provider-modal h2, " +
+                ".provider-modal h3"
+            );
+
+        if (title) {
+            title.textContent =
+                editing
+                    ? "Edit Provider"
+                    : "Tambah Provider";
+        }
+
+        const submit =
+            document.querySelector(
+                "#providerModal button[type='submit'], " +
+                ".provider-modal button[type='submit']"
+            );
+
+        if (submit) {
+            submit.textContent =
+                editing
+                    ? "Simpan Perubahan"
+                    : "Simpan Provider";
+        }
+    }
+
+    function handleModalBackdrop(
+        event
+    ) {
+        const modal =
+            getModal();
+
+        if (
+            modal &&
+            event.target === modal
+        ) {
+            closeProviderModal();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // EDIT
+    // ---------------------------------------------------------
+
+    async function editProvider(
+        providerId
+    ) {
         const data =
-            getDataModule();
+            getData();
 
-        if (!data) {
+        const provider =
+            data.getProviderById(
+                providerId
+            );
+
+        if (!provider) {
+            showMessage(
+                "Provider tidak ditemukan.",
+                "error"
+            );
+
             return;
         }
 
-        const supabaseClient =
-            data.getSupabase();
+        openProviderModal(
+            provider
+        );
+    }
 
-        if (!supabaseClient) {
+    // ---------------------------------------------------------
+    // TOGGLE STATUS
+    // ---------------------------------------------------------
+
+    async function toggleProvider(
+        providerId
+    ) {
+        if (busy) {
             return;
         }
+
+        busy = true;
 
         try {
-            const {
-                error
-            } =
-                await supabaseClient.auth.signOut({
-                    scope: "local"
-                });
+            const data =
+                getData();
 
-            if (error) {
-                throw error;
+            const provider =
+                data.getProviderById(
+                    providerId
+                );
+
+            if (!provider) {
+                throw new Error(
+                    "Provider tidak ditemukan."
+                );
             }
 
-            window.location.href =
-                "../login.html";
+            const current =
+                String(
+                    provider.status || ""
+                ).toLowerCase();
+
+            const next =
+                current === "active"
+                    ? "inactive"
+                    : "active";
+
+            const label =
+                next === "active"
+                    ? "mengaktifkan"
+                    : "menonaktifkan";
+
+            const confirmed =
+                window.confirm(
+                    `Yakin ingin ${label} provider "${provider.provider_name}"?`
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+            await data.toggleProvider(
+                providerId
+            );
+
+            await loadProviders();
+
+            showMessage(
+                next === "active"
+                    ? "Provider berhasil diaktifkan."
+                    : "Provider berhasil dinonaktifkan."
+            );
 
         } catch (error) {
             console.error(
-                "Gagal logout:",
+                "[GEN-Z.AI] Toggle provider:",
                 error
             );
 
             showMessage(
-                error?.message ||
-                "Gagal keluar dari akun."
+                error.message ||
+                "Gagal mengubah status provider.",
+                "error"
             );
+
+        } finally {
+            busy = false;
         }
     }
 
-    function bindMenuEvents() {
-        const menuButton =
-            document.querySelector(
-                ".menu-button"
-            );
+    // ---------------------------------------------------------
+    // DELETE
+    // ---------------------------------------------------------
 
-        const overlay =
-            document.querySelector(
-                ".menu-overlay"
-            );
-
-        if (menuButton) {
-            menuButton.addEventListener(
-                "click",
-                () => {
-                    const sidebar =
-                        document.querySelector(
-                            ".sidebar"
-                        );
-
-                    if (
-                        sidebar &&
-                        sidebar.classList.contains(
-                            "show"
-                        )
-                    ) {
-                        closeMenu();
-                    } else {
-                        openMenu();
-                    }
-                }
-            );
+    async function deleteProvider(
+        providerId
+    ) {
+        if (busy) {
+            return;
         }
 
-        if (overlay) {
-            overlay.addEventListener(
-                "click",
-                closeMenu
-            );
-        }
+        busy = true;
 
-        document
-            .querySelectorAll(
-                ".sidebar a"
-            )
-            .forEach(link => {
-                link.addEventListener(
-                    "click",
-                    () => {
-                        closeMenu();
-                    }
+        try {
+            const data =
+                getData();
+
+            const provider =
+                data.getProviderById(
+                    providerId
                 );
-            });
+
+            if (!provider) {
+                throw new Error(
+                    "Provider tidak ditemukan."
+                );
+            }
+
+            const confirmed =
+                window.confirm(
+                    `Hapus provider "${provider.provider_name}"?\n\nTindakan ini tidak dapat dibatalkan.`
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+            await data.deleteProvider(
+                providerId
+            );
+
+            await loadProviders();
+
+            showMessage(
+                "Provider berhasil dihapus."
+            );
+
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI] Delete provider:",
+                error
+            );
+
+            showMessage(
+                error.message ||
+                "Gagal menghapus provider.",
+                "error"
+            );
+
+        } finally {
+            busy = false;
+        }
     }
 
-    function bindModalEvents() {
-        const backdrop =
-            document.getElementById(
-                "providerModal"
-            );
+    // ---------------------------------------------------------
+    // ACTION EVENT DELEGATION
+    // ---------------------------------------------------------
 
-        if (backdrop) {
-            backdrop.addEventListener(
-                "click",
-                handleModalBackdrop
-            );
-        }
+    function bindProviderActions() {
+        const containers = [
+            getElement(
+                "providerList"
+            ),
+            getElement(
+                "providersList"
+            ),
+            getElement(
+                "providerPanel"
+            )
+        ].filter(Boolean);
 
-        const closeButtons =
-            document.querySelectorAll(
-                "[data-close-provider-modal]"
-            );
+        containers.forEach(
+            function (container) {
+                if (
+                    container.dataset
+                        .providerActionsBound ===
+                    "true"
+                ) {
+                    return;
+                }
 
-        closeButtons.forEach(
-            button => {
-                button.addEventListener(
+                container.dataset
+                    .providerActionsBound =
+                    "true";
+
+                container.addEventListener(
                     "click",
-                    closeProviderModal
+                    async function (
+                        event
+                    ) {
+                        const button =
+                            event.target.closest(
+                                "[data-provider-action]"
+                            );
+
+                        if (!button) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        const action =
+                            button.dataset
+                                .providerAction;
+
+                        const providerId =
+                            button.dataset
+                                .providerId;
+
+                        if (!providerId) {
+                            showMessage(
+                                "ID provider tidak ditemukan.",
+                                "error"
+                            );
+
+                            return;
+                        }
+
+                        if (
+                            action ===
+                            "edit"
+                        ) {
+                            await editProvider(
+                                providerId
+                            );
+
+                            return;
+                        }
+
+                        if (
+                            action ===
+                            "toggle"
+                        ) {
+                            await toggleProvider(
+                                providerId
+                            );
+
+                            return;
+                        }
+
+                        if (
+                            action ===
+                            "delete"
+                        ) {
+                            await deleteProvider(
+                                providerId
+                            );
+
+                            return;
+                        }
+                    }
                 );
             }
         );
     }
 
-    function bindEscapeKey() {
+    // ---------------------------------------------------------
+    // MENU
+    // ---------------------------------------------------------
+
+    function openMenu() {
+        const menu =
+            getElement(
+                "adminMenu"
+            ) ||
+            document.querySelector(
+                ".admin-menu"
+            );
+
+        if (menu) {
+            menu.classList.add(
+                "active",
+                "open"
+            );
+        }
+    }
+
+    function closeMenu() {
+        const menu =
+            getElement(
+                "adminMenu"
+            ) ||
+            document.querySelector(
+                ".admin-menu"
+            );
+
+        if (menu) {
+            menu.classList.remove(
+                "active",
+                "open"
+            );
+        }
+    }
+
+    // ---------------------------------------------------------
+    // CURRENT USER
+    // ---------------------------------------------------------
+
+    async function loadCurrentUser() {
+        try {
+            const data =
+                getData();
+
+            const supabase =
+                data.getSupabase();
+
+            const {
+                data: result,
+                error
+            } =
+                await supabase.auth
+                    .getUser();
+
+            if (error) {
+                console.warn(
+                    "[GEN-Z.AI] User:",
+                    error
+                );
+
+                return null;
+            }
+
+            const user =
+                result?.user ||
+                null;
+
+            const emailElements =
+                document.querySelectorAll(
+                    "[data-user-email], #userEmail"
+                );
+
+            emailElements.forEach(
+                function (element) {
+                    element.textContent =
+                        user?.email ||
+                        "";
+                }
+            );
+
+            return user;
+
+        } catch (error) {
+            console.warn(
+                "[GEN-Z.AI] loadCurrentUser:",
+                error
+            );
+
+            return null;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // LOGOUT
+    // ---------------------------------------------------------
+
+    async function logout() {
+        try {
+            const data =
+                getData();
+
+            const supabase =
+                data.getSupabase();
+
+            await supabase.auth.signOut();
+
+            window.location.href =
+                "/login.html";
+
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI] Logout:",
+                error
+            );
+
+            showMessage(
+                "Gagal logout.",
+                "error"
+            );
+        }
+    }
+
+    // ---------------------------------------------------------
+    // GLOBAL EVENTS
+    // ---------------------------------------------------------
+
+    function bindGlobalEvents() {
+        // Add Provider
+        const addButtons =
+            document.querySelectorAll(
+                [
+                    "#addProviderBtn",
+                    "#addProvider",
+                    "[data-action='add-provider']"
+                ].join(",")
+            );
+
+        addButtons.forEach(
+            function (button) {
+                if (
+                    button.dataset
+                        .providerBound ===
+                    "true"
+                ) {
+                    return;
+                }
+
+                button.dataset
+                    .providerBound =
+                    "true";
+
+                button.addEventListener(
+                    "click",
+                    function (event) {
+                        event.preventDefault();
+
+                        openProviderModal();
+                    }
+                );
+            }
+        );
+
+        // Close buttons
+        const closeButtons =
+            document.querySelectorAll(
+                [
+                    "#closeProviderModal",
+                    "#cancelProvider",
+                    "[data-action='close-provider']"
+                ].join(",")
+            );
+
+        closeButtons.forEach(
+            function (button) {
+                button.addEventListener(
+                    "click",
+                    function (event) {
+                        event.preventDefault();
+
+                        closeProviderModal();
+                    }
+                );
+            }
+        );
+
+        // Refresh
+        const refreshButtons =
+            document.querySelectorAll(
+                [
+                    "#refreshProviders",
+                    "#refreshProvider",
+                    "[data-action='refresh-providers']"
+                ].join(",")
+            );
+
+        refreshButtons.forEach(
+            function (button) {
+                button.addEventListener(
+                    "click",
+                    async function (
+                        event
+                    ) {
+                        event.preventDefault();
+
+                        await loadProviders();
+                    }
+                );
+            }
+        );
+
+        // Logout
+        const logoutButtons =
+            document.querySelectorAll(
+                [
+                    "#logoutBtn",
+                    "#logout",
+                    "[data-action='logout']"
+                ].join(",")
+            );
+
+        logoutButtons.forEach(
+            function (button) {
+                button.addEventListener(
+                    "click",
+                    function (event) {
+                        event.preventDefault();
+
+                        logout();
+                    }
+                );
+            }
+        );
+
+        // Modal backdrop
+        const modal =
+            getModal();
+
+        if (modal) {
+            modal.addEventListener(
+                "click",
+                handleModalBackdrop
+            );
+        }
+
+        // Escape
         document.addEventListener(
             "keydown",
-            event => {
+            function (event) {
                 if (
-                    event.key !==
+                    event.key ===
                     "Escape"
                 ) {
-                    return;
-                }
-
-                const modal =
-                    document.getElementById(
-                        "providerModal"
-                    );
-
-                if (
-                    modal &&
-                    modal.classList.contains(
-                        "show"
-                    )
-                ) {
                     closeProviderModal();
-                    return;
-                }
-
-                const sidebar =
-                    document.querySelector(
-                        ".sidebar"
-                    );
-
-                if (
-                    sidebar &&
-                    sidebar.classList.contains(
-                        "show"
-                    )
-                ) {
                     closeMenu();
                 }
             }
         );
     }
 
-    function bindGlobalButtons() {
-        document
-            .querySelectorAll(
-                "[data-open-provider-modal]"
-            )
-            .forEach(button => {
-                button.addEventListener(
-                    "click",
-                    openProviderModal
-                );
-            });
-
-        document
-            .querySelectorAll(
-                "[data-close-provider-modal]"
-            )
-            .forEach(button => {
-                button.addEventListener(
-                    "click",
-                    closeProviderModal
-                );
-            });
-
-        document
-            .querySelectorAll(
-                "[data-provider-logout]"
-            )
-            .forEach(button => {
-                button.addEventListener(
-                    "click",
-                    logout
-                );
-            });
-    }
+    // ---------------------------------------------------------
+    // INIT
+    // ---------------------------------------------------------
 
     async function initialize() {
         if (initialized) {
             return;
         }
 
-        initialized = true;
+        try {
+            const data =
+                getData();
 
-        const data =
-            getDataModule();
-
-        const form =
-            getFormModule();
-
-        if (!data) {
-            console.error(
-                "GENZProvidersData belum tersedia."
-            );
-
-            return;
-        }
-
-        const supabaseReady =
             data.initSupabase();
 
-        if (!supabaseReady) {
-            showMessage(
-                "Supabase gagal diinisialisasi."
+            bindGlobalEvents();
+
+            // Penting:
+            // event delegation provider
+            // harus dipasang setelah DOM ada.
+            bindProviderActions();
+
+            await loadCurrentUser();
+
+            await loadProviders();
+
+            initialized = true;
+
+            console.log(
+                "[GEN-Z.AI] Provider manager siap."
             );
 
-            return;
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI] Provider initialization gagal:",
+                error
+            );
+
+            showMessage(
+                error.message ||
+                "Provider manager gagal dimuat.",
+                "error"
+            );
         }
-
-        if (form) {
-            form.initForm();
-        }
-
-        bindMenuEvents();
-        bindModalEvents();
-        bindEscapeKey();
-        bindGlobalButtons();
-
-        await loadCurrentUser();
-
-        await loadProviders();
     }
 
-    window.GENZProvidersInit =
-        Object.freeze({
-            initialize,
-            loadProviders,
-            loadCurrentUser,
-            logout,
-            openMenu,
-            closeMenu,
-            openProviderModal,
-            closeProviderModal,
-            handleModalBackdrop,
-            showMessage
-        });
-
-    /*
-     * Compatibility layer.
-     *
-     * providers.html versi lama masih memanggil
-     * fungsi-fungsi global ini.
-     */
-
-    window.loadProviders =
-        loadProviders;
-
-    window.loadCurrentUser =
-        loadCurrentUser;
-
-    window.logout =
-        logout;
-
-    window.openMenu =
-        openMenu;
-
-    window.closeMenu =
-        closeMenu;
-
-    window.openProviderModal =
-        openProviderModal;
-
-    window.closeProviderModal =
-        closeProviderModal;
-
-    window.handleModalBackdrop =
-        handleModalBackdrop;
-
-    window.showMessage =
-        showMessage;
-
-    /*
-     * Inisialisasi hanya jika DOM sudah siap.
-     */
+    // ---------------------------------------------------------
+    // DOM READY
+    // ---------------------------------------------------------
 
     if (
         document.readyState ===
@@ -660,13 +1092,35 @@
     ) {
         document.addEventListener(
             "DOMContentLoaded",
-            initialize,
-            {
-                once: true
-            }
+            initialize
         );
     } else {
         initialize();
     }
+
+    // ---------------------------------------------------------
+    // PUBLIC API
+    // ---------------------------------------------------------
+
+    window.GENZProvidersInit = {
+        initialize,
+        loadProviders,
+        loadCurrentUser,
+        logout,
+
+        openMenu,
+        closeMenu,
+
+        openProviderModal,
+        closeProviderModal,
+
+        handleModalBackdrop,
+
+        editProvider,
+        toggleProvider,
+        deleteProvider,
+
+        showMessage
+    };
 
 })();
