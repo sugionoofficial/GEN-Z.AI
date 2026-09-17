@@ -188,13 +188,17 @@ async function request(
         options.method ||
         "GET";
 
-    const headers = {
-        Accept:
-            "application/json",
-        Authorization:
-            `Bearer ${getApiKey()}`,
-        ...(options.headers || {})
-    };
+    const apiKey =
+    options.apiKey ||
+    getApiKey();
+
+const headers = {
+    Accept:
+        "application/json",
+    Authorization:
+        `Bearer ${apiKey}`,
+    ...(options.headers || {})
+};
 
     if (
         options.body !== undefined &&
