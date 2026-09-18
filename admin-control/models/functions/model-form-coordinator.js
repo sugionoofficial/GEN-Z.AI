@@ -2,251 +2,306 @@
    GEN-Z.AI
    MODEL FORM COORDINATOR
    ---------------------------------------------------------
-   Tanggung jawab:
-   - Menjadi penghubung fungsi Create
-   - Menjadi penghubung fungsi Edit
-   - Menjadi penghubung fungsi Delete
-   - Menjadi penghubung Provider
-   - Menjadi penghubung Price
-   - Tidak menyimpan business logic CRUD
+   File:
+   admin-control/models/functions/model-form-coordinator.js
+
+   TANGGUNG JAWAB:
+   - Menghubungkan Create Model
+   - Menghubungkan Edit Model
+   - Menghubungkan Delete Model
+   - Menjadi satu pintu untuk operasi CRUD Form
+
+   TIDAK BERTANGGUNG JAWAB:
+   - Provider dropdown
+   - Model ID dropdown
+   - Search Model
+   - Kalkulasi Credit
+   - Kalkulasi Harga
+   - Event Listener
+   - Render UI
+   - Query Supabase langsung
+
+   Prinsip:
+   Satu fungsi = satu owner.
+   Coordinator hanya meneruskan pekerjaan ke module owner.
    ========================================================= */
 
 (function () {
+
     "use strict";
 
+
+    /* =====================================================
+       MODULE ACCESS
+    ===================================================== */
+
     function getCreate() {
-        return window.GENZModelFormCreate || null;
+
+        return (
+            window.GENZModelFormCreate ||
+            null
+        );
+
     }
+
 
     function getEdit() {
-        return window.GENZModelFormEdit || null;
+
+        return (
+            window.GENZModelFormEdit ||
+            null
+        );
+
     }
+
 
     function getDelete() {
-        return window.GENZModelFormDelete || null;
-    }
 
-    function getProvider() {
         return (
-            window.GENZModelProviderDropdown ||
-            window.GENZModelsProvider ||
+            window.GENZModelFormDelete ||
             null
         );
+
     }
 
-    function getPrice() {
-        return (
-            window.GENZModelPriceCalculation ||
-            window.GENZModelsPrice ||
-            null
-        );
+
+    /* =====================================================
+       VALIDATE MODULE
+    ===================================================== */
+
+    function requireModule(
+        module,
+        name
+    ) {
+
+        if (!module) {
+
+            throw new Error(
+                `Module ${name} belum tersedia.`
+            );
+
+        }
+
+        return module;
+
     }
 
-    function create(data) {
 
-        const module =
-            getCreate();
+    function requireFunction(
+        module,
+        functionName,
+        moduleName
+    ) {
 
         if (
             !module ||
-            typeof module.create !== "function"
+            typeof module[functionName] !==
+                "function"
         ) {
+
             throw new Error(
-                "Module Create Model belum tersedia."
+                `Fungsi ${functionName} pada Module ${moduleName} belum tersedia.`
             );
+
         }
 
-        return module.create(data);
+        return module[functionName];
+
     }
+
+
+    /* =====================================================
+       CREATE
+    ===================================================== */
+
+    function create(
+        data
+    ) {
+
+        const module =
+            requireModule(
+                getCreate(),
+                "Create Model"
+            );
+
+        const handler =
+            requireFunction(
+                module,
+                "create",
+                "Create Model"
+            );
+
+        return handler.call(
+            module,
+            data
+        );
+
+    }
+
 
     function createFromForm() {
 
         const module =
-            getCreate();
-
-        if (
-            !module ||
-            typeof module.createFromForm !==
-                "function"
-        ) {
-            throw new Error(
-                "Module Create Model belum tersedia."
+            requireModule(
+                getCreate(),
+                "Create Model"
             );
-        }
 
-        return module.createFromForm();
-    }
-
-    function update(data) {
-
-        const module =
-            getEdit();
-
-        if (
-            !module ||
-            typeof module.update !== "function"
-        ) {
-            throw new Error(
-                "Module Edit Model belum tersedia."
+        const handler =
+            requireFunction(
+                module,
+                "createFromForm",
+                "Create Model"
             );
-        }
 
-        return module.update(data);
-    }
-
-    function updateFromForm(model) {
-
-        const module =
-            getEdit();
-
-        if (
-            !module ||
-            typeof module.updateFromForm !==
-                "function"
-        ) {
-            throw new Error(
-                "Module Edit Model belum tersedia."
-            );
-        }
-
-        return module.updateFromForm(
-            model
+        return handler.call(
+            module
         );
+
     }
 
-    function populateEdit(model) {
+
+    /* =====================================================
+       EDIT
+    ===================================================== */
+
+    function update(
+        data
+    ) {
 
         const module =
-            getEdit();
-
-        if (
-            !module ||
-            typeof module.populate !==
-                "function"
-        ) {
-            throw new Error(
-                "Module Edit Model belum tersedia."
+            requireModule(
+                getEdit(),
+                "Edit Model"
             );
-        }
 
-        return module.populate(
-            model
-        );
-    }
-
-    function remove(model) {
-
-        const module =
-            getDelete();
-
-        if (
-            !module ||
-            typeof module.remove !==
-                "function"
-        ) {
-            throw new Error(
-                "Module Delete Model belum tersedia."
+        const handler =
+            requireFunction(
+                module,
+                "update",
+                "Edit Model"
             );
-        }
 
-        return module.remove(
-            model
-        );
-    }
-
-    function removeById(modelId) {
-
-        const module =
-            getDelete();
-
-        if (
-            !module ||
-            typeof module.removeById !==
-                "function"
-        ) {
-            throw new Error(
-                "Module Delete Model belum tersedia."
-            );
-        }
-
-        return module.removeById(
-            modelId
-        );
-    }
-
-    function setProvider(providerId) {
-
-        const module =
-            getProvider();
-
-        if (
-            !module ||
-            typeof module.setValue !==
-                "function"
-        ) {
-            throw new Error(
-                "Module Provider belum tersedia."
-            );
-        }
-
-        return module.setValue(
-            providerId
-        );
-    }
-
-    function clearProvider() {
-
-        const module =
-            getProvider();
-
-        if (
-            !module ||
-            typeof module.clear !==
-                "function"
-        ) {
-            return false;
-        }
-
-        return module.clear();
-    }
-
-    function calculatePrice(data) {
-
-        const module =
-            getPrice();
-
-        if (
-            !module ||
-            typeof module.calculate !==
-                "function"
-        ) {
-            return null;
-        }
-
-        return module.calculate(
+        return handler.call(
+            module,
             data
         );
+
     }
 
-    function syncPrice() {
+
+    function updateFromForm(
+        model
+    ) {
 
         const module =
-            getPrice();
+            requireModule(
+                getEdit(),
+                "Edit Model"
+            );
 
-        if (
-            !module ||
-            typeof module.syncForm !==
-                "function"
-        ) {
-            return null;
-        }
+        const handler =
+            requireFunction(
+                module,
+                "updateFromForm",
+                "Edit Model"
+            );
 
-        return module.syncForm();
+        return handler.call(
+            module,
+            model
+        );
+
     }
+
+
+    function populateEdit(
+        model
+    ) {
+
+        const module =
+            requireModule(
+                getEdit(),
+                "Edit Model"
+            );
+
+        const handler =
+            requireFunction(
+                module,
+                "populate",
+                "Edit Model"
+            );
+
+        return handler.call(
+            module,
+            model
+        );
+
+    }
+
+
+    /* =====================================================
+       DELETE
+    ===================================================== */
+
+    function remove(
+        model
+    ) {
+
+        const module =
+            requireModule(
+                getDelete(),
+                "Delete Model"
+            );
+
+        const handler =
+            requireFunction(
+                module,
+                "remove",
+                "Delete Model"
+            );
+
+        return handler.call(
+            module,
+            model
+        );
+
+    }
+
+
+    function removeById(
+        modelId
+    ) {
+
+        const module =
+            requireModule(
+                getDelete(),
+                "Delete Model"
+            );
+
+        const handler =
+            requireFunction(
+                module,
+                "removeById",
+                "Delete Model"
+            );
+
+        return handler.call(
+            module,
+            modelId
+        );
+
+    }
+
+
+    /* =====================================================
+       MODULE STATUS
+    ===================================================== */
 
     function getModules() {
 
         return {
+
             create:
                 getCreate(),
 
@@ -254,15 +309,12 @@
                 getEdit(),
 
             delete:
-                getDelete(),
+                getDelete()
 
-            provider:
-                getProvider(),
-
-            price:
-                getPrice()
         };
+
     }
+
 
     function status() {
 
@@ -270,43 +322,52 @@
             getModules();
 
         return {
+
             create:
-                !!modules.create,
+                Boolean(
+                    modules.create
+                ),
 
             edit:
-                !!modules.edit,
+                Boolean(
+                    modules.edit
+                ),
 
             delete:
-                !!modules.delete,
+                Boolean(
+                    modules.delete
+                )
 
-            provider:
-                !!modules.provider,
-
-            price:
-                !!modules.price
         };
+
     }
+
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
 
     window.GENZModelFormCoordinator =
         Object.freeze({
+
+            /* Create */
             create,
             createFromForm,
 
+            /* Edit */
             update,
             updateFromForm,
             populateEdit,
 
+            /* Delete */
             remove,
             removeById,
 
-            setProvider,
-            clearProvider,
-
-            calculatePrice,
-            syncPrice,
-
+            /* Diagnostics */
             getModules,
             status
+
         });
+
 
 })();
