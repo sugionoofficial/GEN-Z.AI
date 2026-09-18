@@ -6,29 +6,34 @@
    File:
    admin-control/models/models-loader.js
 
-   Fungsi:
-   - Memuat seluruh module Model Management
-   - Menjaga urutan dependency
-   - Cache busting
-   - Mencegah initialization ganda
-   - Menunggu semua module siap
-   - Menjalankan initializer utama satu kali
+   ARCHITECTURE:
+   Data
+   ↓
+   Provider
+   ↓
+   Search
+   ↓
+   Form
+   ↓
+   Price
+   ↓
+   UI
+   ↓
+   Init
+
+   FIX:
+   - models-provider.js wajib dimuat
+   - Module dimuat secara berurutan
+   - Tidak menjalankan module sebelum dependency tersedia
+   - Aman terhadap module yang terlambat
 ========================================================= */
 
 (function () {
     "use strict";
 
-    window.GENZ_MODELS_LOADER_ACTIVE = true;
-
-    const BASE_PATH = "./models/";
-
-    /*
-     * NAIKKAN VERSION setiap ada perubahan module.
-     */
-    const CACHE_VERSION = "20260918-04";
-
     const MODULES = [
         "models-data.js",
+        "models-provider.js",
         "models-search.js",
         "models-form.js",
         "models-price.js",
@@ -36,73 +41,99 @@
         "models-init.js"
     ];
 
-    const loaded = new Set();
+    const BASE_PATH =
+        "./models/";
+
+    const loadedModules =
+        new Set();
 
     let loadingPromise = null;
-    let initialized = false;
 
     /* =====================================================
-       LOAD SINGLE SCRIPT
+       EXPECTED GLOBALS
     ===================================================== */
 
-    function loadScript(filename) {
+    const REQUIRED_GLOBALS = [
+        "GENZModelsData",
+        "GENZModelsProvider",
+        "GENZModelsSearch",
+        "GENZModelsForm",
+        "GENZModelsPrice",
+        "GENZModelsUI",
+        "GENZModelsInit"
+    ];
 
-        return new Promise(
-            (resolve, reject) => {
+    /* =====================================================
+       SCRIPT FINDER
+    ===================================================== */
 
-                if (loaded.has(filename)) {
-                    resolve();
-                    return;
-                }
+    function findExistingScript(
+        src
+    ) {
 
-                /*
-                 * Cari script module yang sudah ada.
-                 */
-                const existing =
-                    document.querySelector(
-                        `script[data-genz-model-module="${filename}"]`
+        const scripts =
+            Array.from(
+                document.scripts
+            );
+
+        return scripts.find(
+            script => {
+
+                const value =
+                    String(
+                        script.src || ""
                     );
 
-                if (existing) {
+                return (
+                    value.endsWith(
+                        src
+                    ) ||
+                    value.includes(
+                        src
+                    )
+                );
+            }
+        );
+    }
 
-                    /*
-                     * Pastikan script tersebut
-                     * berasal dari version terbaru.
-                     */
-                    const existingVersion =
-                        existing.dataset
-                            .genzModelVersion || "";
+    /* =====================================================
+       LOAD SCRIPT
+    ===================================================== */
 
-                    /*
-                     * Jika sudah version terbaru
-                     * dan sudah loaded, gunakan.
-                     */
-                    if (
-                        existingVersion ===
-                            CACHE_VERSION &&
-                        existing.dataset
-                            .genzModelLoaded ===
-                            "true"
-                    ) {
+    function loadScript(
+        filename
+    ) {
 
-                        loaded.add(filename);
+        if (
+            loadedModules.has(
+                filename
+            )
+        ) {
 
-                        resolve();
+            return Promise.resolve();
 
-                        return;
-                    }
+        }
 
-                    /*
-                     * Jika script lama ditemukan,
-                     * hapus agar browser memuat
-                     * versi baru.
-                     */
-                    existing.remove();
-                }
+        const existing =
+            findExistingScript(
+                filename
+            );
 
-                /* =================================================
-                   CREATE SCRIPT
-                ================================================= */
+        if (existing) {
+
+            loadedModules.add(
+                filename
+            );
+
+            return Promise.resolve();
+
+        }
+
+        return new Promise(
+            (
+                resolve,
+                reject
+            ) => {
 
                 const script =
                     document.createElement(
@@ -111,68 +142,51 @@
 
                 script.src =
                     BASE_PATH +
-                    filename +
-                    "?v=" +
-                    encodeURIComponent(
-                        CACHE_VERSION
-                    );
-
-                /*
-                 * Dependency harus berurutan.
-                 */
-                script.async = false;
-                script.defer = false;
-
-                script.dataset
-                    .genzModelModule =
                     filename;
 
+                script.async =
+                    false;
+
+                script.defer =
+                    false;
+
                 script.dataset
-                    .genzModelVersion =
-                    CACHE_VERSION;
+                    .genzModule =
+                    filename;
 
-                /* =================================================
-                   LOAD
-                ================================================= */
+                script.onload =
+                    () => {
 
-                script.onload = () => {
-
-                    loaded.add(
-                        filename
-                    );
-
-                    script.dataset
-                        .genzModelLoaded =
-                        "true";
-
-                    console.info(
-                        "[GEN-Z.AI] Module loaded:",
-                        filename,
-                        "version:",
-                        CACHE_VERSION
-                    );
-
-                    resolve();
-                };
-
-                /* =================================================
-                   ERROR
-                ================================================= */
-
-                script.onerror = () => {
-
-                    console.error(
-                        "[GEN-Z.AI] Module gagal dimuat:",
-                        filename
-                    );
-
-                    reject(
-                        new Error(
-                            "Gagal memuat module: " +
+                        loadedModules.add(
                             filename
-                        )
-                    );
-                };
+                        );
+
+                        console.info(
+                            "[models-loader] Loaded:",
+                            filename
+                        );
+
+                        resolve();
+
+                    };
+
+                script.onerror =
+                    error => {
+
+                        console.error(
+                            "[models-loader] Failed:",
+                            filename,
+                            error
+                        );
+
+                        reject(
+                            new Error(
+                                "Gagal memuat module: " +
+                                filename
+                            )
+                        );
+
+                    };
 
                 document.head.appendChild(
                     script
@@ -182,10 +196,109 @@
     }
 
     /* =====================================================
+       VERIFY GLOBAL
+    ===================================================== */
+
+    function isGlobalReady(
+        name
+    ) {
+
+        return Boolean(
+            window[name]
+        );
+    }
+
+    function getMissingModules() {
+
+        return REQUIRED_GLOBALS.filter(
+            name =>
+                !isGlobalReady(
+                    name
+                )
+        );
+    }
+
+    /* =====================================================
+       WAIT FOR GLOBAL
+    ===================================================== */
+
+    function waitForGlobal(
+        name,
+        timeout = 10000
+    ) {
+
+        if (
+            isGlobalReady(
+                name
+            )
+        ) {
+
+            return Promise.resolve(
+                true
+            );
+
+        }
+
+        return new Promise(
+            (
+                resolve,
+                reject
+            ) => {
+
+                const started =
+                    Date.now();
+
+                const timer =
+                    window.setInterval(
+                        () => {
+
+                            if (
+                                isGlobalReady(
+                                    name
+                                )
+                            ) {
+
+                                window.clearInterval(
+                                    timer
+                                );
+
+                                resolve(
+                                    true
+                                );
+
+                                return;
+                            }
+
+                            if (
+                                Date.now() -
+                                    started >=
+                                timeout
+                            ) {
+
+                                window.clearInterval(
+                                    timer
+                                );
+
+                                reject(
+                                    new Error(
+                                        "Module global tidak tersedia: " +
+                                        name
+                                    )
+                                );
+                            }
+
+                        },
+                        50
+                    );
+            }
+        );
+    }
+
+    /* =====================================================
        LOAD ALL MODULES
     ===================================================== */
 
-    async function loadModules() {
+    async function loadAll() {
 
         if (loadingPromise) {
             return loadingPromise;
@@ -194,230 +307,174 @@
         loadingPromise =
             (async () => {
 
+                console.info(
+                    "[models-loader] Memulai module loading..."
+                );
+
+                /*
+                 * Load satu per satu.
+                 *
+                 * Jangan Promise.all().
+                 *
+                 * Karena urutan dependency penting.
+                 */
+
                 for (
-                    const module
-                    of MODULES
+                    const moduleName of
+                    MODULES
                 ) {
 
                     await loadScript(
-                        module
+                        moduleName
                     );
+
+                    /*
+                     * Beri browser kesempatan
+                     * menjalankan script.
+                     */
+                    await new Promise(
+                        resolve =>
+                            setTimeout(
+                                resolve,
+                                0
+                            )
+                    );
+                }
+
+                /*
+                 * Pastikan semua global
+                 * benar-benar tersedia.
+                 */
+                for (
+                    const globalName of
+                    REQUIRED_GLOBALS
+                ) {
+
+                    await waitForGlobal(
+                        globalName
+                    );
+                }
+
+                console.info(
+                    "[models-loader] Semua module tersedia."
+                );
+
+                console.info(
+                    "[models-loader] Globals:",
+                    REQUIRED_GLOBALS
+                );
+
+                /*
+                 * Setelah seluruh module tersedia,
+                 * jalankan initialization.
+                 */
+                if (
+                    window.GENZModelsInit &&
+                    typeof
+                        window.GENZModelsInit
+                            .initialize ===
+                        "function"
+                ) {
+
+                    await window.GENZModelsInit.initialize();
+
                 }
 
                 return true;
-            })();
 
-        try {
+            })()
+                .catch(error => {
 
-            return await loadingPromise;
-
-        } catch (error) {
-
-            loadingPromise = null;
-
-            throw error;
-        }
-    }
-
-    /* =====================================================
-       CHECK MODULES
-    ===================================================== */
-
-    function getMissingModules() {
-
-        const required = [
-
-            "GENZModelsData",
-            "GENZModelsSearch",
-            "GENZModelsForm",
-            "GENZModelsPrice",
-            "GENZModelsUI",
-            "GENZModelsInit"
-
-        ];
-
-        return required.filter(
-            name =>
-                !window[name]
-        );
-    }
-
-    /* =====================================================
-       WAIT FOR MODULES
-    ===================================================== */
-
-    function waitForModules(
-        timeout = 10000
-    ) {
-
-        return new Promise(
-            (resolve, reject) => {
-
-                const startedAt =
-                    Date.now();
-
-                function check() {
-
-                    const missing =
-                        getMissingModules();
-
-                    if (
-                        missing.length ===
-                        0
-                    ) {
-
-                        resolve();
-
-                        return;
-                    }
-
-                    if (
-                        Date.now() -
-                            startedAt >=
-                        timeout
-                    ) {
-
-                        reject(
-                            new Error(
-                                "Module Model Management belum tersedia: " +
-                                missing.join(", ")
-                            )
-                        );
-
-                        return;
-                    }
-
-                    window.setTimeout(
-                        check,
-                        50
+                    console.error(
+                        "[models-loader] Initialization gagal:",
+                        error
                     );
-                }
 
-                check();
-            }
-        );
-    }
+                    loadingPromise =
+                        null;
 
-    /* =====================================================
-       INITIALIZE
-    ===================================================== */
+                    throw error;
 
-    async function initialize() {
+                });
 
-        if (initialized) {
-            return true;
-        }
-
-        try {
-
-            /*
-             * Load semua module berurutan.
-             */
-            await loadModules();
-
-            /*
-             * Pastikan semua global tersedia.
-             */
-            await waitForModules();
-
-            const initializer =
-                window.GENZModelsInit;
-
-            if (
-                !initializer ||
-                typeof
-                    initializer.initialize !==
-                    "function"
-            ) {
-
-                throw new Error(
-                    "GENZModelsInit.initialize() tidak tersedia."
-                );
-            }
-
-            /*
-             * Jalankan Model Management.
-             */
-            await initializer.initialize();
-
-            initialized = true;
-
-            console.info(
-                "[GEN-Z.AI] Model Management berhasil diinisialisasi."
-            );
-
-            console.info(
-                "[GEN-Z.AI] Module version:",
-                CACHE_VERSION
-            );
-
-            /*
-             * READY EVENT
-             */
-            window.dispatchEvent(
-                new CustomEvent(
-                    "genz-models-loader-ready",
-                    {
-                        detail: {
-                            version:
-                                CACHE_VERSION,
-                            modules:
-                                getLoadedModules()
-                        }
-                    }
-                )
-            );
-
-            return true;
-
-        } catch (error) {
-
-            console.error(
-                "[GEN-Z.AI] Model Management loader initialization error:",
-                error
-            );
-
-            window.dispatchEvent(
-                new CustomEvent(
-                    "genz-models-loader-error",
-                    {
-                        detail: error
-                    }
-                )
-            );
-
-            throw error;
-        }
+        return loadingPromise;
     }
 
     /* =====================================================
        STATUS
     ===================================================== */
 
-    function isLoaded(
-        filename
-    ) {
-
-        return loaded.has(
-            filename
-        );
-    }
-
-    function isInitialized() {
-
-        return initialized;
-    }
-
     function getLoadedModules() {
 
         return [
-            ...loaded
+            ...loadedModules
         ];
     }
 
-    function getVersion() {
+    function getStatus() {
 
-        return CACHE_VERSION;
+        const missing =
+            getMissingModules();
+
+        return {
+            modules:
+                getLoadedModules(),
+
+            required:
+                [...MODULES],
+
+            missing,
+
+            ready:
+                missing.length === 0
+        };
+    }
+
+    /* =====================================================
+       AUTO START
+    ===================================================== */
+
+    function autoStart() {
+
+        if (
+            document.readyState ===
+            "loading"
+        ) {
+
+            document.addEventListener(
+                "DOMContentLoaded",
+                () => {
+
+                    loadAll().catch(
+                        error => {
+
+                            console.error(
+                                "[models-loader] Auto-start error:",
+                                error
+                            );
+
+                        }
+                    );
+
+                },
+                {
+                    once: true
+                }
+            );
+
+            return;
+        }
+
+        loadAll().catch(
+            error => {
+
+                console.error(
+                    "[models-loader] Auto-start error:",
+                    error
+                );
+
+            }
+        );
     }
 
     /* =====================================================
@@ -427,63 +484,23 @@
     window.GENZModelsLoader =
         Object.freeze({
 
-            loadModules,
+            loadAll,
 
-            initialize,
+            loadScript,
 
-            waitForModules,
-
-            getMissingModules,
-
-            isLoaded,
-
-            isInitialized,
+            waitForGlobal,
 
             getLoadedModules,
 
-            getVersion
+            getMissingModules,
+
+            getStatus
 
         });
 
-    /* =====================================================
-       START
-    ===================================================== */
-
-    function start() {
-
-        initialize()
-            .catch(
-                error => {
-
-                    console.error(
-                        "[GEN-Z.AI] Model Management gagal dimulai:",
-                        error
-                    );
-
-                }
-            );
-    }
-
-    /* =====================================================
-       DOM READY
-    ===================================================== */
-
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            start,
-            {
-                once: true
-            }
-        );
-
-    } else {
-
-        start();
-    }
+    /*
+     * Jalankan loader.
+     */
+    autoStart();
 
 })();
