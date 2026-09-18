@@ -2172,39 +2172,35 @@
                     bindTableEvents();
 
                     /* =============================================
-                       STEP 2
-                       PROVIDER
-                    ============================================= */
+   STEP 2
+   PROVIDER
+============================================= */
 
-                    /*
-                     * Jika Provider module sudah diinisialisasi
-                     * oleh models-init.js, cukup sinkronkan state.
-                     *
-                     * Jika belum, loadProviders() akan menjalankannya.
-                     */
-                    syncProviderState();
+/*
+ * Provider lifecycle sekarang sepenuhnya
+ * dimiliki oleh GENZModelsInit.
+ *
+ * models-ui hanya mengambil state Provider
+ * yang sudah dimuat oleh GENZModelsProvider.
+ *
+ * JANGAN memanggil loadProviders() di sini.
+ * Ini mencegah:
+ *
+ * 1. Query Provider dua kali
+ * 2. Dropdown Provider ditimpa
+ * 3. Provider hilang setelah Search initialize
+ * 4. Konflik antara models-init.js dan models-ui.js
+ */
+syncProviderState();
 
-                    if (
-                        state.providers.length === 0
-                    ) {
+populateProviderSelect(
+    state.providers
+);
 
-                        await loadProviders({
-                            force: false,
-                            activeOnly: true
-                        });
-
-                    } else {
-
-                        populateProviderSelect(
-                            state.providers
-                        );
-
-                    }
-
-                    console.info(
-                        "[models-ui] Provider siap:",
-                        state.providers.length
-                    );
+console.info(
+    "[models-ui] Provider siap:",
+    state.providers.length
+);
 
                     /* =============================================
                        STEP 3
