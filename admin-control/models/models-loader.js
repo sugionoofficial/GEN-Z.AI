@@ -1,35 +1,20 @@
 /* =========================================================
-   GEN-Z.AI
-   ADMIN MODEL MANAGEMENT
-   MODULE LOADER
-
+   GEN-Z.AI - MODELS MODULE LOADER
    File:
    admin-control/models/models-loader.js
 
-   ARCHITECTURE:
-   Data
-   ↓
-   Provider
-   ↓
-   Search
-   ↓
-   Form
-   ↓
-   Price
-   ↓
-   UI
-   ↓
-   Init
-
-   FIX:
-   - models-provider.js wajib dimuat
-   - Module dimuat secara berurutan
-   - Tidak menjalankan module sebelum dependency tersedia
-   - Aman terhadap module yang terlambat
-========================================================= */
+   Tugas:
+   - Memuat seluruh module Models secara berurutan
+   - Menjamin dependency tersedia sebelum module berikutnya
+   - Menjalankan GENZModelsInit sebagai lifecycle owner
+   - Tidak memuat module dua kali
+   ========================================================= */
 
 (function () {
     "use strict";
+
+    const BASE_PATH =
+        "./models/";
 
     const MODULES = [
         "models-data.js",
@@ -41,151 +26,314 @@
         "models-init.js"
     ];
 
-    const BASE_PATH =
-        "./models/";
-
     const loadedModules =
         new Set();
 
-    let loadingPromise = null;
+    let loading =
+        false;
+
+    let initialized =
+        false;
 
     /* =====================================================
-       EXPECTED GLOBALS
-    ===================================================== */
+       LOG
+       ===================================================== */
 
-    const REQUIRED_GLOBALS = [
-        "GENZModelsData",
-        "GENZModelsProvider",
-        "GENZModelsSearch",
-        "GENZModelsForm",
-        "GENZModelsPrice",
-        "GENZModelsUI",
-        "GENZModelsInit"
-    ];
+    function log(...args) {
+        console.log(
+            "[GEN-Z.AI][ModelsLoader]",
+            ...args
+        );
+    }
+
+    function warn(...args) {
+        console.warn(
+            "[GEN-Z.AI][ModelsLoader]",
+            ...args
+        );
+    }
+
+    function error(...args) {
+        console.error(
+            "[GEN-Z.AI][ModelsLoader]",
+            ...args
+        );
+    }
 
     /* =====================================================
-       SCRIPT FINDER
-    ===================================================== */
+       SCRIPT DETECTION
+       ===================================================== */
 
-    function findExistingScript(
-        src
+    function getScriptUrl(
+        file
     ) {
+        return new URL(
+            BASE_PATH + file,
+            document.baseURI
+        ).href;
+    }
 
+    function scriptAlreadyExists(
+        url
+    ) {
         const scripts =
             Array.from(
                 document.scripts
             );
 
-        return scripts.find(
-            script => {
-
-                const value =
-                    String(
-                        script.src || ""
+        return scripts.some(
+            function (script) {
+                try {
+                    return (
+                        new URL(
+                            script.src,
+                            document.baseURI
+                        ).href ===
+                        url
                     );
-
-                return (
-                    value.endsWith(
-                        src
-                    ) ||
-                    value.includes(
-                        src
-                    )
-                );
+                } catch (
+                    e
+                ) {
+                    return false;
+                }
             }
         );
     }
 
     /* =====================================================
        LOAD SCRIPT
-    ===================================================== */
+       ===================================================== */
 
     function loadScript(
-        filename
+        file
     ) {
-
-        if (
-            loadedModules.has(
-                filename
-            )
-        ) {
-
-            return Promise.resolve();
-
-        }
-
-        const existing =
-            findExistingScript(
-                filename
-            );
-
-        if (existing) {
-
-            loadedModules.add(
-                filename
-            );
-
-            return Promise.resolve();
-
-        }
-
         return new Promise(
-            (
-                resolve,
-                reject
-            ) => {
+            function (resolve, reject) {
+                if (
+                    loadedModules.has(
+                        file
+                    )
+                ) {
+                    resolve();
+                    return;
+                }
 
+                const url =
+                    getScriptUrl(
+                        file
+                    );
+
+                /*
+                 * Cari script yang sudah ada.
+                 *
+                 * Jika script sudah dibuat oleh loader,
+                 * tunggu event load/error.
+                 */
+                const existing =
+                    Array.from(
+                        document.scripts
+                    ).find(
+                        function (script) {
+                            try {
+                                return (
+                                    new URL(
+                                        script.src,
+                                        document.baseURI
+                                    ).href ===
+                                    url
+                                );
+                            } catch (
+                                e
+                            ) {
+                                return false;
+                            }
+                        }
+                    );
+
+                if (existing) {
+                    /*
+                     * Script existing bisa saja masih loading.
+                     * Jangan langsung menganggap selesai.
+                     */
+                    if (
+                        existing.dataset
+                            .genzLoaded ===
+                        "true"
+                    ) {
+                        loadedModules.add(
+                            file
+                        );
+
+                        resolve();
+                        return;
+                    }
+
+                    let settled =
+                        false;
+
+                    const cleanup =
+                        function () {
+                            existing.removeEventListener(
+                                "load",
+                                onLoad
+                            );
+
+                            existing.removeEventListener(
+                                "error",
+                                onError
+                            );
+                        };
+
+                    const onLoad =
+                        function () {
+                            if (
+                                settled
+                            ) {
+                                return;
+                            }
+
+                            settled =
+                                true;
+
+                            cleanup();
+
+                            existing.dataset
+                                .genzLoaded =
+                                "true";
+
+                            loadedModules.add(
+                                file
+                            );
+
+                            resolve();
+                        };
+
+                    const onError =
+                        function () {
+                            if (
+                                settled
+                            ) {
+                                return;
+                            }
+
+                            settled =
+                                true;
+
+                            cleanup();
+
+                            reject(
+                                new Error(
+                                    "Gagal memuat " +
+                                    file
+                                )
+                            );
+                        };
+
+                    existing.addEventListener(
+                        "load",
+                        onLoad,
+                        {
+                            once: true
+                        }
+                    );
+
+                    existing.addEventListener(
+                        "error",
+                        onError,
+                        {
+                            once: true
+                        }
+                    );
+
+                    /*
+                     * Jika script sudah selesai tetapi event
+                     * sudah lewat sebelum listener terpasang,
+                     * cek global setelah delay singkat.
+                     */
+                    setTimeout(
+                        function () {
+                            if (
+                                settled
+                            ) {
+                                return;
+                            }
+
+                            if (
+                                moduleGlobalReady(
+                                    file
+                                )
+                            ) {
+                                settled =
+                                    true;
+
+                                cleanup();
+
+                                existing.dataset
+                                    .genzLoaded =
+                                    "true";
+
+                                loadedModules.add(
+                                    file
+                                );
+
+                                resolve();
+                            }
+                        },
+                        100
+                    );
+
+                    return;
+                }
+
+                /*
+                 * Buat script baru.
+                 */
                 const script =
                     document.createElement(
                         "script"
                     );
 
                 script.src =
-                    BASE_PATH +
-                    filename;
+                    url;
 
                 script.async =
                     false;
 
-                script.defer =
-                    false;
-
                 script.dataset
                     .genzModule =
-                    filename;
+                    file;
 
                 script.onload =
-                    () => {
+                    function () {
+                        script.dataset
+                            .genzLoaded =
+                            "true";
 
                         loadedModules.add(
-                            filename
+                            file
                         );
 
-                        console.info(
-                            "[models-loader] Loaded:",
-                            filename
+                        log(
+                            "Loaded:",
+                            file
                         );
 
                         resolve();
-
                     };
 
                 script.onerror =
-                    error => {
-
-                        console.error(
-                            "[models-loader] Failed:",
-                            filename,
-                            error
+                    function () {
+                        error(
+                            "Failed:",
+                            file
                         );
 
                         reject(
                             new Error(
                                 "Gagal memuat module: " +
-                                filename
+                                file
                             )
                         );
-
                     };
 
                 document.head.appendChild(
@@ -196,311 +344,309 @@
     }
 
     /* =====================================================
-       VERIFY GLOBAL
-    ===================================================== */
+       GLOBAL CHECK
+       ===================================================== */
 
-    function isGlobalReady(
-        name
+    function moduleGlobalReady(
+        file
     ) {
+        switch (
+            file
+        ) {
+            case "models-data.js":
+                return !!(
+                    window.GENZModelsData
+                );
 
-        return Boolean(
-            window[name]
-        );
-    }
+            case "models-provider.js":
+                return !!(
+                    window.GENZModelsProvider
+                );
 
-    function getMissingModules() {
+            case "models-search.js":
+                return !!(
+                    window.GENZModelsSearch
+                );
 
-        return REQUIRED_GLOBALS.filter(
-            name =>
-                !isGlobalReady(
-                    name
-                )
-        );
+            case "models-form.js":
+                return !!(
+                    window.GENZModelsForm
+                );
+
+            case "models-price.js":
+                return !!(
+                    window.GENZModelsPrice
+                );
+
+            case "models-ui.js":
+                return !!(
+                    window.GENZModelsUI
+                );
+
+            case "models-init.js":
+                return !!(
+                    window.GENZModelsInit
+                );
+
+            default:
+                return false;
+        }
     }
 
     /* =====================================================
        WAIT FOR GLOBAL
-    ===================================================== */
+       ===================================================== */
 
     function waitForGlobal(
-        name,
+        file,
         timeout = 10000
     ) {
-
-        if (
-            isGlobalReady(
-                name
-            )
-        ) {
-
-            return Promise.resolve(
-                true
-            );
-
-        }
-
         return new Promise(
-            (
-                resolve,
-                reject
-            ) => {
-
-                const started =
+            function (resolve, reject) {
+                const start =
                     Date.now();
 
-                const timer =
-                    window.setInterval(
-                        () => {
+                function check() {
+                    if (
+                        moduleGlobalReady(
+                            file
+                        )
+                    ) {
+                        resolve();
+                        return;
+                    }
 
-                            if (
-                                isGlobalReady(
-                                    name
-                                )
-                            ) {
+                    if (
+                        Date.now() -
+                            start >=
+                        timeout
+                    ) {
+                        reject(
+                            new Error(
+                                "Global module tidak tersedia setelah load: " +
+                                file
+                            )
+                        );
 
-                                window.clearInterval(
-                                    timer
-                                );
+                        return;
+                    }
 
-                                resolve(
-                                    true
-                                );
-
-                                return;
-                            }
-
-                            if (
-                                Date.now() -
-                                    started >=
-                                timeout
-                            ) {
-
-                                window.clearInterval(
-                                    timer
-                                );
-
-                                reject(
-                                    new Error(
-                                        "Module global tidak tersedia: " +
-                                        name
-                                    )
-                                );
-                            }
-
-                        },
-                        50
+                    setTimeout(
+                        check,
+                        25
                     );
+                }
+
+                check();
             }
         );
     }
 
     /* =====================================================
        LOAD ALL MODULES
-    ===================================================== */
+       ===================================================== */
 
-    async function loadAll() {
-
-        if (loadingPromise) {
-            return loadingPromise;
+    async function loadModules() {
+        if (loading) {
+            return false;
         }
 
-        loadingPromise =
-            (async () => {
+        loading =
+            true;
 
-                console.info(
-                    "[models-loader] Memulai module loading..."
+        try {
+            for (
+                const file
+                of MODULES
+            ) {
+                log(
+                    "Loading:",
+                    file
                 );
 
-                /*
-                 * Load satu per satu.
-                 *
-                 * Jangan Promise.all().
-                 *
-                 * Karena urutan dependency penting.
-                 */
-
-                for (
-                    const moduleName of
-                    MODULES
-                ) {
-
-                    await loadScript(
-                        moduleName
-                    );
-
-                    /*
-                     * Beri browser kesempatan
-                     * menjalankan script.
-                     */
-                    await new Promise(
-                        resolve =>
-                            setTimeout(
-                                resolve,
-                                0
-                            )
-                    );
-                }
-
-                /*
-                 * Pastikan semua global
-                 * benar-benar tersedia.
-                 */
-                for (
-                    const globalName of
-                    REQUIRED_GLOBALS
-                ) {
-
-                    await waitForGlobal(
-                        globalName
-                    );
-                }
-
-                console.info(
-                    "[models-loader] Semua module tersedia."
+                await loadScript(
+                    file
                 );
 
-                console.info(
-                    "[models-loader] Globals:",
-                    REQUIRED_GLOBALS
+                await waitForGlobal(
+                    file
+                );
+            }
+
+            log(
+                "All Models modules loaded."
+            );
+
+            return true;
+
+        } catch (
+            err
+        ) {
+            error(
+                "Module loading failed:",
+                err
+            );
+
+            throw err;
+
+        } finally {
+            loading =
+                false;
+        }
+    }
+
+    /* =====================================================
+       INITIALIZE
+       ===================================================== */
+
+    async function initialize() {
+        if (
+            initialized
+        ) {
+            return true;
+        }
+
+        try {
+            await loadModules();
+
+            if (
+                !window.GENZModelsInit
+            ) {
+                throw new Error(
+                    "GENZModelsInit tidak tersedia."
+                );
+            }
+
+            if (
+                typeof
+                    window.GENZModelsInit
+                        .initialize !==
+                "function"
+            ) {
+                throw new Error(
+                    "GENZModelsInit.initialize() tidak tersedia."
+                );
+            }
+
+            const result =
+                await window.GENZModelsInit
+                    .initialize();
+
+            if (
+                result === false
+            ) {
+                throw new Error(
+                    "Models initialization gagal."
+                );
+            }
+
+            initialized =
+                true;
+
+            log(
+                "GEN-Z.AI Models ready."
+            );
+
+            return true;
+
+        } catch (
+            err
+        ) {
+            error(
+                "Models initialization failed:",
+                err
+            );
+
+            const alertBox =
+                document.getElementById(
+                    "alertBox"
                 );
 
-                /*
-                 * Setelah seluruh module tersedia,
-                 * jalankan initialization.
-                 */
-                if (
-                    window.GENZModelsInit &&
-                    typeof
-                        window.GENZModelsInit
-                            .initialize ===
-                        "function"
-                ) {
-
-                    await window.GENZModelsInit.initialize();
-
-                }
-
-                return true;
-
-            })()
-                .catch(error => {
-
-                    console.error(
-                        "[models-loader] Initialization gagal:",
-                        error
+            if (alertBox) {
+                alertBox.textContent =
+                    "Gagal memuat Models: " +
+                    (
+                        err?.message ||
+                        "Unknown error"
                     );
 
-                    loadingPromise =
-                        null;
+                alertBox.className =
+                    "alert alert-error show";
+            }
 
-                    throw error;
-
-                });
-
-        return loadingPromise;
+            return false;
+        }
     }
 
     /* =====================================================
        STATUS
-    ===================================================== */
+       ===================================================== */
+
+    function isLoaded(
+        file
+    ) {
+        return loadedModules.has(
+            file
+        );
+    }
+
+    function isInitialized() {
+        return initialized;
+    }
 
     function getLoadedModules() {
-
         return [
             ...loadedModules
         ];
     }
 
-    function getStatus() {
-
-        const missing =
-            getMissingModules();
-
-        return {
-            modules:
-                getLoadedModules(),
-
-            required:
-                [...MODULES],
-
-            missing,
-
-            ready:
-                missing.length === 0
-        };
-    }
-
-    /* =====================================================
-       AUTO START
-    ===================================================== */
-
-    function autoStart() {
-
-        if (
-            document.readyState ===
-            "loading"
-        ) {
-
-            document.addEventListener(
-                "DOMContentLoaded",
-                () => {
-
-                    loadAll().catch(
-                        error => {
-
-                            console.error(
-                                "[models-loader] Auto-start error:",
-                                error
-                            );
-
-                        }
-                    );
-
-                },
-                {
-                    once: true
-                }
-            );
-
-            return;
-        }
-
-        loadAll().catch(
-            error => {
-
-                console.error(
-                    "[models-loader] Auto-start error:",
-                    error
-                );
-
-            }
-        );
-    }
-
     /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
 
     window.GENZModelsLoader =
         Object.freeze({
-
-            loadAll,
-
             loadScript,
+            loadModules,
+            initialize,
 
-            waitForGlobal,
+            isLoaded,
+            isInitialized,
 
-            getLoadedModules,
-
-            getMissingModules,
-
-            getStatus
-
+            getLoadedModules
         });
 
-    /*
-     * Jalankan loader.
-     */
-    autoStart();
+    /* =====================================================
+       DOM READY
+       ===================================================== */
+
+    function start() {
+        /*
+         * Hindari start dua kali.
+         */
+        if (
+            initialized ||
+            loading
+        ) {
+            return;
+        }
+
+        initialize();
+    }
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            start,
+            {
+                once: true
+            }
+        );
+    } else {
+        start();
+    }
 
 })();
