@@ -44,6 +44,7 @@
     "functions/model-form-edit.js",
     "functions/model-form-delete.js",
     "functions/model-form-coordinator.js",
+    "functions/model-form-events.js",
 
     "functions/model-price-calculation.js",
     "models-price.js",
