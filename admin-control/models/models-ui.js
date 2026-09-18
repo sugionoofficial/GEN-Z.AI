@@ -18,23 +18,17 @@
    - Lifecycle utama ditangani GENZModelsInit
    - UI hanya mengorkestrasi tampilan dan state
 
-   FIX:
-   - Provider tidak query Supabase langsung dari UI
-   - Provider module diprioritaskan
-   - Provider tetap tersimpan di state UI
-   - Model catalog dimuat sebelum sinkronisasi Search
-   - Search menerima state.models
-   - Manual Model ID tetap dapat digunakan
-   - Tidak bergantung pada kie_models untuk mengetik Model ID
-   - Initialization tidak dikunci sebelum benar-benar selesai
-   - Aman terhadap module yang terlambat dimuat
-   - Refresh tetap sinkron antara Provider, Model, Search dan Pricing
-   - Form Events tidak diinisialisasi dua kali oleh UI
-   - Search tidak diinisialisasi dua kali oleh UI
-   - Table Events tidak diinisialisasi dua kali oleh UI
-   - Tidak ada emergency capture handler
-   - Provider dropdown tidak ditimpa oleh event module lain
-   - GENZModelsUI tetap tersedia untuk models-loader/models-init
+   IMPORTANT:
+   - models-ui TIDAK menjadi owner dropdown Provider
+   - models-ui TIDAK merender Provider setelah Provider module
+     selesai melakukan load
+   - models-ui hanya menyimpan/sinkronisasi state Provider
+   - Provider rendering dimiliki GENZModelsProvider
+   - Form/Search/Table lifecycle tetap dimiliki models-init.js
+   - Tidak ada double initialization
+   - Tidak ada double Provider rendering
+   - Identifier Provider mendukung UUID maupun provider_id
+   - Model catalog tetap disinkronkan ke Search dan Table
 ========================================================= */
 
 (function () {
@@ -123,7 +117,9 @@
 
             existing.__genzTimer =
                 window.setTimeout(() => {
-                    existing.classList.remove("show");
+                    existing.classList.remove(
+                        "show"
+                    );
                 }, duration);
 
             return;
@@ -254,7 +250,8 @@
         modal.classList.remove("show");
         modal.classList.add("hidden");
 
-        modal.style.display = "none";
+        modal.style.display =
+            "none";
 
         modal.setAttribute(
             "aria-hidden",
@@ -349,9 +346,18 @@
     }
 
     /* =====================================================
-       PROVIDERS
-       Provider lifecycle dimiliki
+       PROVIDER
+       
+       OWNER:
        GENZModelsProvider
+
+       models-ui hanya:
+       - meminta load
+       - menyimpan state
+       - membaca provider
+
+       models-ui TIDAK melakukan render dropdown
+       setelah GENZModelsProvider selesai load.
     ===================================================== */
 
     async function loadProviders(
@@ -361,9 +367,11 @@
             getModelsProvider();
 
         /*
-         * PRIORITAS UTAMA:
-         * Gunakan Provider module jika tersedia.
+         * =================================================
+         * PRIMARY PROVIDER MODULE
+         * =================================================
          */
+
         if (
             providerModule &&
             typeof providerModule.loadProviders ===
@@ -387,21 +395,15 @@
                         : [];
 
                 /*
-                 * Sinkronisasi dropdown melalui
-                 * Provider module jika tersedia.
+                 * IMPORTANT:
+                 *
+                 * Jangan panggil populateSelect()
+                 * di sini.
+                 *
+                 * GENZModelsProvider.loadProviders()
+                 * sudah menjadi owner Provider lifecycle
+                 * dan dropdown rendering.
                  */
-                if (
-                    typeof providerModule.populateSelect ===
-                        "function"
-                ) {
-                    providerModule.populateSelect(
-                        state.providers
-                    );
-                } else {
-                    populateProviderSelect(
-                        state.providers
-                    );
-                }
 
                 console.info(
                     "[models-ui] Provider loaded via GENZModelsProvider:",
@@ -417,7 +419,10 @@
 
                 state.providers = [];
 
-                populateProviderSelect([]);
+                /*
+                 * Jangan merender ulang dropdown.
+                 * Provider module tetap menjadi owner.
+                 */
 
                 notify(
                     "Gagal memuat daftar provider.",
@@ -429,11 +434,14 @@
         }
 
         /*
-         * FALLBACK LEGACY
+         * =================================================
+         * LEGACY FALLBACK
          *
-         * Dipertahankan untuk kompatibilitas.
-         * Jalur utama tetap GENZModelsProvider.
+         * Hanya digunakan jika Provider module
+         * memang belum tersedia.
+         * =================================================
          */
+
         const data =
             getModelsData();
 
@@ -464,6 +472,14 @@
                     ? providers
                     : [];
 
+            /*
+             * Legacy fallback masih memakai helper
+             * agar halaman lama tidak langsung rusak.
+             *
+             * Jalur ini tidak digunakan ketika
+             * GENZModelsProvider tersedia.
+             */
+
             populateProviderSelect(
                 state.providers
             );
@@ -493,16 +509,24 @@
         }
     }
 
+    /*
+     * =====================================================
+     * LEGACY COMPATIBILITY
+     *
+     * Fungsi ini tetap tersedia karena mungkin masih
+     * dipanggil module lama.
+     *
+     * Jika GENZModelsProvider tersedia, fungsi ini
+     * mendelegasikan sepenuhnya ke Provider module.
+     * =====================================================
+     */
+
     function populateProviderSelect(
         providers = state.providers
     ) {
         const providerModule =
             getModelsProvider();
 
-        /*
-         * Provider module adalah pemilik utama
-         * dropdown Provider.
-         */
         if (
             providerModule &&
             typeof providerModule.populateSelect ===
@@ -525,12 +549,17 @@
                     "[models-ui] Provider populateSelect error:",
                     error
                 );
+
+                return;
             }
         }
 
         /*
-         * FALLBACK RENDERING
+         * =================================================
+         * TRUE LEGACY FALLBACK
+         * =================================================
          */
+
         const select =
             $("providerId");
 
@@ -572,10 +601,23 @@
         for (
             const provider of list
         ) {
+            if (!provider) {
+                continue;
+            }
+
+            /*
+             * Provider ID dapat berbentuk:
+             *
+             * provider.provider_id
+             * provider.provider
+             * provider.id
+             */
+
             const providerId =
                 String(
                     provider.provider_id ||
                     provider.provider ||
+                    provider.id ||
                     ""
                 ).trim();
 
@@ -596,13 +638,41 @@
                     ? `${provider.provider_name} (${providerId})`
                     : providerId;
 
+            /*
+             * Simpan metadata tambahan.
+             */
+
+            if (provider.id) {
+                option.dataset.providerUuid =
+                    String(
+                        provider.id
+                    );
+            }
+
+            if (provider.provider_id) {
+                option.dataset.providerId =
+                    String(
+                        provider.provider_id
+                    );
+            }
+
+            if (provider.provider_name) {
+                option.dataset.providerName =
+                    String(
+                        provider.provider_name
+                    );
+            }
+
             fragment.appendChild(
                 option
             );
         }
 
         select.innerHTML = "";
-        select.appendChild(fragment);
+
+        select.appendChild(
+            fragment
+        );
 
         if (currentValue) {
             const exists =
@@ -621,7 +691,7 @@
         }
 
         console.info(
-            "[models-ui] Provider dropdown:",
+            "[models-ui] Legacy Provider dropdown:",
             Math.max(
                 0,
                 select.options.length - 1
@@ -643,22 +713,53 @@
             return null;
         }
 
+        /*
+         * =================================================
+         * LOCAL STATE LOOKUP
+         *
+         * Support:
+         * - UUID providers.id
+         * - providers.provider_id
+         * - provider
+         * - provider_name
+         * =================================================
+         */
+
         const localProvider =
             state.providers.find(
-                provider =>
-                    String(
-                        provider.provider_id ||
-                        provider.provider ||
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase() ===
-                    normalized
+                provider => {
+                    if (!provider) {
+                        return false;
+                    }
+
+                    const values = [
+                        provider.id,
+                        provider.provider_id,
+                        provider.provider,
+                        provider.provider_name
+                    ];
+
+                    return values.some(
+                        value =>
+                            String(
+                                value || ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            normalized
+                    );
+                }
             );
 
         if (localProvider) {
             return localProvider;
         }
+
+        /*
+         * =================================================
+         * PROVIDER MODULE LOOKUP
+         * =================================================
+         */
 
         const providerModule =
             getModelsProvider();
@@ -731,9 +832,11 @@
             );
 
             /*
-             * Search selalu menerima
-             * catalog terbaru.
+             * =================================================
+             * SEARCH SYNCHRONIZATION
+             * =================================================
              */
+
             const search =
                 getModelsSearch();
 
@@ -753,9 +856,11 @@
             }
 
             /*
-             * Table module menerima
-             * catalog terbaru jika tersedia.
+             * =================================================
+             * TABLE SYNCHRONIZATION
+             * =================================================
              */
+
             const table =
                 window.GENZModelTable;
 
@@ -826,342 +931,244 @@
     }
 
     /* =====================================================
-       PRICING
+       REFRESH
     ===================================================== */
 
-    async function loadPricing() {
-        const price =
-            getModelsPrice();
+    async function refreshModels() {
+        console.info(
+            "[models-ui] Refresh Models..."
+        );
+
+        /*
+         * Provider refresh
+         */
+
+        await loadProviders({
+            force: true,
+            activeOnly: false
+        });
+
+        /*
+         * Model refresh
+         */
+
+        await loadModels({
+            force: true,
+            activeOnly: false
+        });
+
+        /*
+         * Pricing refresh
+         */
+
+        await initializePrice({
+            force: true
+        });
+
+        /*
+         * Provider state terakhir.
+         *
+         * Jangan render dropdown lagi.
+         * GENZModelsProvider sudah menangani UI Provider.
+         */
+
+        syncProviderState();
+
+        /*
+         * Search catalog final sync
+         */
+
+        const search =
+            getModelsSearch();
 
         if (
-            !price ||
-            typeof price.loadPricing !==
+            search &&
+            typeof search.setModels ===
                 "function"
         ) {
-            return [];
+            search.setModels(
+                state.models
+            );
         }
 
-        try {
-            state.pricing =
-                await price.loadPricing({
-                    force: false
-                });
+        /*
+         * Table catalog final sync
+         */
 
-            if (
-                !Array.isArray(
-                    state.pricing
-                )
-            ) {
-                state.pricing = [];
+        const table =
+            window.GENZModelTable;
+
+        if (
+            table &&
+            typeof table.setModels ===
+                "function"
+        ) {
+            try {
+                table.setModels(
+                    state.models
+                );
+            } catch (error) {
+                console.warn(
+                    "[models-ui] Refresh table sync warning:",
+                    error
+                );
             }
-
-            return state.pricing;
-        } catch (error) {
-            console.error(
-                "[models-ui] Pricing load error:",
-                error
-            );
-
-            state.pricing = [];
-
-            return [];
-        }
-    }
-
-    async function initializePrice() {
-        const price =
-            getModelsPrice();
-
-        if (
-            !price ||
-            typeof price.initialize !==
-                "function"
-        ) {
-            return [];
         }
 
-        try {
-            const result =
-                await price.initialize();
+        updateStatistics(
+            state.models
+        );
 
-            state.pricing =
-                Array.isArray(result)
-                    ? result
-                    : [];
+        console.info(
+            "[models-ui] Refresh selesai.",
+            {
+                providers:
+                    state.providers.length,
+                models:
+                    state.models.length
+            }
+        );
 
-            return state.pricing;
-        } catch (error) {
-            console.error(
-                "[models-ui] Price initialization error:",
-                error
-            );
-
-            state.pricing = [];
-
-            return [];
-        }
+        return {
+            providers:
+                [...state.providers],
+            models:
+                [...state.models]
+        };
     }
 
     /* =====================================================
        STATISTICS
     ===================================================== */
 
-    function setText(
-        ids,
-        value
-    ) {
-        if (!Array.isArray(ids)) {
-            ids = [ids];
-        }
-
-        for (
-            const id of ids
-        ) {
-            const element =
-                $(id);
-
-            if (element) {
-                element.textContent =
-                    value;
-            }
-        }
-    }
-
     function updateStatistics(
         models = state.models
     ) {
-        if (
-            !Array.isArray(
-                models
-            )
-        ) {
-            models = [];
-        }
+        const list =
+            Array.isArray(models)
+                ? models
+                : [];
 
         const total =
-            models.length;
+            list.length;
 
         const active =
-            models.filter(
+            list.filter(
                 model =>
                     String(
-                        model.status ||
+                        model?.status ||
                         ""
                     )
+                        .trim()
                         .toLowerCase() ===
                     "active"
             ).length;
 
         const inactive =
-            models.filter(
-                model =>
-                    String(
-                        model.status ||
-                        ""
-                    )
-                        .toLowerCase() ===
-                    "inactive"
-            ).length;
+            total - active;
 
-        const maintenance =
-            models.filter(
-                model =>
-                    String(
-                        model.status ||
-                        ""
-                    )
-                        .toLowerCase() ===
-                    "maintenance"
-            ).length;
+        const totalEl =
+            $(
+                "totalModels"
+            ) ||
+            $(
+                "modelTotal"
+            ) ||
+            $(
+                "modelsTotal"
+            );
 
-        const providers =
-            new Set(
-                models
-                    .map(
-                        model =>
-                            String(
-                                model.provider ||
-                                model.provider_id ||
-                                ""
-                            ).trim()
-                    )
-                    .filter(Boolean)
-            ).size;
+        const activeEl =
+            $(
+                "activeModels"
+            ) ||
+            $(
+                "modelActive"
+            ) ||
+            $(
+                "modelsActive"
+            );
 
-        setText(
-            [
-                "totalModels",
-                "modelsTotal",
-                "statTotalModels",
-                "totalModelCount",
-                "statTotal"
-            ],
-            total
-        );
+        const inactiveEl =
+            $(
+                "inactiveModels"
+            ) ||
+            $(
+                "modelInactive"
+            ) ||
+            $(
+                "modelsInactive"
+            );
 
-        setText(
-            [
-                "activeModels",
-                "modelsActive",
-                "statActiveModels",
-                "activeModelCount",
-                "statActive"
-            ],
-            active
-        );
+        if (totalEl) {
+            totalEl.textContent =
+                String(total);
+        }
 
-        setText(
-            [
-                "inactiveModels",
-                "modelsInactive",
-                "statInactiveModels",
-                "inactiveModelCount",
-                "statInactive"
-            ],
-            inactive
-        );
+        if (activeEl) {
+            activeEl.textContent =
+                String(active);
+        }
 
-        setText(
-            [
-                "maintenanceModels",
-                "modelsMaintenance",
-                "statMaintenanceModels",
-                "statMaintenance"
-            ],
-            maintenance
-        );
+        if (inactiveEl) {
+            inactiveEl.textContent =
+                String(inactive);
+        }
 
-        setText(
-            [
-                "providerCount",
-                "providersCount",
-                "statProviders"
-            ],
-            providers
-        );
+        /*
+         * Generic data-stat support.
+         */
+
+        document
+            .querySelectorAll(
+                "[data-model-stat]"
+            )
+            .forEach(
+                element => {
+                    const stat =
+                        String(
+                            element.getAttribute(
+                                "data-model-stat"
+                            ) || ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    if (
+                        stat ===
+                        "total"
+                    ) {
+                        element.textContent =
+                            String(total);
+                    }
+
+                    if (
+                        stat ===
+                        "active"
+                    ) {
+                        element.textContent =
+                            String(active);
+                    }
+
+                    if (
+                        stat ===
+                        "inactive"
+                    ) {
+                        element.textContent =
+                            String(inactive);
+                    }
+                }
+            );
 
         return {
             total,
             active,
-            inactive,
-            maintenance,
-            providers
+            inactive
         };
     }
 
     /* =====================================================
-       REFRESH
-    ===================================================== */
-
-    async function refreshModels() {
-        const data =
-            getModelsData();
-
-        if (
-            data &&
-            typeof data.clearCache ===
-                "function"
-        ) {
-            data.clearCache();
-        }
-
-        try {
-            /*
-             * Provider refresh.
-             */
-            const providers =
-                await loadProviders({
-                    force: true,
-                    activeOnly: true
-                });
-
-            /*
-             * Model refresh.
-             */
-            const models =
-                await loadModels({
-                    force: true,
-                    activeOnly: false
-                });
-
-            /*
-             * Pricing refresh.
-             */
-            await loadPricing();
-
-            /*
-             * Provider dropdown final sync.
-             */
-            populateProviderSelect(
-                providers
-            );
-
-            /*
-             * Search final sync.
-             */
-            const search =
-                getModelsSearch();
-
-            if (
-                search &&
-                typeof search.setModels ===
-                    "function"
-            ) {
-                search.setModels(
-                    models
-                );
-            }
-
-            /*
-             * Table final sync.
-             */
-            const table =
-                window.GENZModelTable;
-
-            if (
-                table &&
-                typeof table.setModels ===
-                    "function"
-            ) {
-                try {
-                    table.setModels(
-                        models
-                    );
-                } catch (error) {
-                    console.warn(
-                        "[models-ui] Table refresh sync warning:",
-                        error
-                    );
-                }
-            }
-
-            updateStatistics(
-                models
-            );
-
-            notify(
-                "Data model dan provider berhasil diperbarui.",
-                "success"
-            );
-
-            return models;
-        } catch (error) {
-            console.error(
-                "[models-ui] Refresh error:",
-                error
-            );
-
-            notify(
-                "Gagal memperbarui data model.",
-                "error"
-            );
-
-            return [];
-        }
-    }
-
-    /* =====================================================
-       MODEL SELECTION
+       MODEL LOOKUP
     ===================================================== */
 
     function selectModel(
@@ -1171,72 +1178,23 @@
             return null;
         }
 
-        const form =
-            getModelsForm();
-
         const search =
             getModelsSearch();
 
         if (
             search &&
-            typeof search.selectModel ===
+            typeof search.chooseModel ===
                 "function"
         ) {
-            search.selectModel(
-                model
-            );
-        }
-
-        if (
-            form &&
-            typeof form.setSelectedModel ===
-                "function"
-        ) {
-            form.setSelectedModel(
-                model
-            );
-        }
-
-        const providerId =
-            String(
-                model.provider_id ||
-                model.provider ||
-                ""
-            ).trim();
-
-        if (providerId) {
-            const provider =
-                findProviderById(
-                    providerId
+            try {
+                return search.chooseModel(
+                    model
                 );
-
-            const select =
-                $("providerId");
-
-            if (
-                provider &&
-                select
-            ) {
-                const value =
-                    String(
-                        provider.provider_id ||
-                        provider.provider ||
-                        ""
-                    ).trim();
-
-                if (value) {
-                    select.value =
-                        value;
-
-                    select.dispatchEvent(
-                        new Event(
-                            "change",
-                            {
-                                bubbles: true
-                            }
-                        )
-                    );
-                }
+            } catch (error) {
+                console.error(
+                    "[models-ui] selectModel error:",
+                    error
+                );
             }
         }
 
@@ -1261,7 +1219,7 @@
             state.models.find(
                 model =>
                     String(
-                        model.model_id ||
+                        model?.model_id ||
                         ""
                     )
                         .trim()
@@ -1292,7 +1250,8 @@
         }
 
         const element =
-            typeof target === "string"
+            typeof target ===
+                "string"
                 ? $(target)
                 : target;
 
@@ -1318,7 +1277,93 @@
     }
 
     /* =====================================================
+       PRICE
+    ===================================================== */
+
+    async function initializePrice(
+        options = {}
+    ) {
+        const price =
+            getModelsPrice();
+
+        if (!price) {
+            state.pricing = [];
+
+            return [];
+        }
+
+        /*
+         * Jika module pricing menyediakan
+         * loadPricing(), gunakan itu.
+         */
+
+        if (
+            typeof price.loadPricing ===
+                "function"
+        ) {
+            try {
+                const pricing =
+                    await price.loadPricing(
+                        options
+                    );
+
+                state.pricing =
+                    Array.isArray(pricing)
+                        ? pricing
+                        : [];
+
+                return state.pricing;
+            } catch (error) {
+                console.warn(
+                    "[models-ui] Pricing load warning:",
+                    error
+                );
+
+                state.pricing = [];
+
+                return [];
+            }
+        }
+
+        /*
+         * Jika module pricing hanya memiliki
+         * initialize(), tetap kompatibel.
+         */
+
+        if (
+            typeof price.initialize ===
+                "function"
+        ) {
+            try {
+                const result =
+                    await price.initialize(
+                        options
+                    );
+
+                if (
+                    Array.isArray(result)
+                ) {
+                    state.pricing =
+                        result;
+                }
+
+                return state.pricing;
+            } catch (error) {
+                console.warn(
+                    "[models-ui] Pricing initialization warning:",
+                    error
+                );
+
+                return state.pricing;
+            }
+        }
+
+        return state.pricing;
+    }
+
+    /* =====================================================
        BUTTON EVENTS
+       
        UI hanya menangani:
        - Add
        - Refresh
@@ -1389,9 +1434,9 @@
             }
 
             /*
-             * Jangan menimpa listener
-             * yang sudah dipasang module lain.
+             * Hindari duplicate listener.
              */
+
             if (
                 button.dataset
                     .genzUiBound ===
@@ -1422,6 +1467,7 @@
         /*
          * ADD MODEL
          */
+
         bindButton(
             [
                 "addModelButton",
@@ -1439,6 +1485,7 @@
         /*
          * REFRESH
          */
+
         bindButton(
             [
                 "refreshBtn",
@@ -1454,8 +1501,9 @@
 
     /* =====================================================
        ACTION FALLBACK
-       Hanya untuk data-action yang belum
-       ditangani module event utama.
+       
+       Hanya untuk action yang belum dimiliki
+       module event utama.
     ===================================================== */
 
     function bindActionFallback() {
@@ -1488,7 +1536,10 @@
                  * Jangan mengambil alih event
                  * yang sudah ditangani module utama.
                  */
-                if (event.defaultPrevented) {
+
+                if (
+                    event.defaultPrevented
+                ) {
                     return;
                 }
 
@@ -1504,6 +1555,7 @@
                 /*
                  * ADD MODEL
                  */
+
                 if (
                     action ===
                     "add-model"
@@ -1516,12 +1568,12 @@
                 }
 
                 /*
-                 * Close-model sekarang dimiliki
-                 * GENZModelFormEvents.
+                 * CLOSE MODEL
                  *
-                 * Jika module event tersedia,
-                 * UI tidak ikut campur.
+                 * Form Events adalah owner jika
+                 * tersedia.
                  */
+
                 if (
                     action ===
                     "close-model"
@@ -1550,14 +1602,8 @@
     /* =====================================================
        LEGACY COMPATIBILITY HELPERS
        
-       Fungsi berikut sengaja dipertahankan
-       agar module lain yang mungkin masih
-       memanggil API lama tidak rusak.
-
-       PENTING:
-       Fungsi-fungsi ini TIDAK dipanggil
-       dari initialize() untuk menghindari
-       double initialization.
+       Tetap diekspos untuk module lama.
+       Tidak dipanggil dari initialize().
     ===================================================== */
 
     function bindModalEvents() {
@@ -1599,14 +1645,6 @@
         }
 
         try {
-            /*
-             * Form initialize hanya dipanggil
-             * jika ada module lama yang secara
-             * eksplisit meminta helper ini.
-             *
-             * initialize() utama UI tidak
-             * memanggil helper ini.
-             */
             const result =
                 form.initialize();
 
@@ -1616,15 +1654,19 @@
                     "function"
             ) {
                 return result
-                    .then(() => true)
-                    .catch(error => {
-                        console.error(
-                            "[models-ui] Form initialization error:",
-                            error
-                        );
+                    .then(
+                        () => true
+                    )
+                    .catch(
+                        error => {
+                            console.error(
+                                "[models-ui] Form initialization error:",
+                                error
+                            );
 
-                        return false;
-                    });
+                            return false;
+                        }
+                    );
             }
 
             return result !== false;
@@ -1673,15 +1715,19 @@
                     "function"
             ) {
                 return result
-                    .then(() => true)
-                    .catch(error => {
-                        console.error(
-                            "[models-ui] Search initialization error:",
-                            error
-                        );
+                    .then(
+                        () => true
+                    )
+                    .catch(
+                        error => {
+                            console.error(
+                                "[models-ui] Search initialization error:",
+                                error
+                            );
 
-                        return false;
-                    });
+                            return false;
+                        }
+                    );
             }
 
             return result !== false;
@@ -1721,6 +1767,9 @@
 
     /* =====================================================
        PROVIDER STATE SYNC
+       
+       Hanya membaca state dari Provider module.
+       Tidak melakukan render.
     ===================================================== */
 
     function syncProviderState() {
@@ -1761,17 +1810,15 @@
     /* =====================================================
        FULL INITIALIZATION
        
-       PENTING:
-       Lifecycle Form/Search/Table Events
-       dimiliki models-init.js.
+       OWNER:
+       GENZModelsInit
 
        models-ui hanya:
        - bind tombol UI
-       - sinkronisasi Provider
+       - sinkronisasi state Provider
        - load catalog
        - load pricing
        - update statistics
-       - final synchronization
     ===================================================== */
 
     async function initialize() {
@@ -1792,37 +1839,24 @@
 
                     /* =============================================
                        STEP 1
-                       UI BASIC EVENTS
-
-                       Hanya:
-                       - Add
-                       - Refresh
-
-                       Form / Search / Table Events
-                       TIDAK diinisialisasi di sini.
+                       BASIC UI EVENTS
                     ============================================= */
 
                     bindButtons();
 
-                    /*
-                     * data-action fallback dipertahankan
-                     * untuk kompatibilitas tombol lama.
-                     */
                     bindActionFallback();
 
                     /* =============================================
                        STEP 2
                        PROVIDER STATE
-
-                       Provider lifecycle dilakukan
+                       
+                       Provider lifecycle sudah dilakukan
                        oleh GENZModelsInit.
+
+                       Tidak render dropdown di sini.
                     ============================================= */
 
                     syncProviderState();
-
-                    populateProviderSelect(
-                        state.providers
-                    );
 
                     console.info(
                         "[models-ui] Provider siap:",
@@ -1854,9 +1888,9 @@
                     /* =============================================
                        STEP 5
                        FORM
-
-                       Tidak melakukan initialize Form.
-                       GENZModelsInit menjadi lifecycle owner.
+                       
+                       Lifecycle tetap milik
+                       GENZModelsInit.
                     ============================================= */
 
                     console.info(
@@ -1866,9 +1900,8 @@
                     /* =============================================
                        STEP 6
                        SEARCH
-
-                       Tidak melakukan initialize Search.
-                       UI hanya sinkronisasi catalog.
+                       
+                       UI hanya mengirim catalog.
                     ============================================= */
 
                     const search =
@@ -1892,9 +1925,8 @@
                     /* =============================================
                        STEP 7
                        TABLE
-
-                       Tidak melakukan bind Table Events.
-                       GENZModelsInit menjadi lifecycle owner.
+                       
+                       UI hanya mengirim catalog.
                     ============================================= */
 
                     const table =
@@ -1919,7 +1951,9 @@
 
                     /* =============================================
                        STEP 8
-                       FINAL SYNC
+                       FINAL STATE SYNC
+                       
+                       Tidak render Provider.
                     ============================================= */
 
                     updateStatistics(
@@ -1928,14 +1962,17 @@
 
                     syncProviderState();
 
-                    populateProviderSelect(
-                        state.providers
-                    );
-
                     /*
-                     * Jangan menganggap initialized
-                     * sebelum seluruh proses UI selesai.
+                     * Jangan memanggil:
+                     *
+                     * populateProviderSelect()
+                     *
+                     * di sini.
+                     *
+                     * Provider module sudah menjadi
+                     * owner dropdown.
                      */
+
                     initialized = true;
 
                     console.info(
