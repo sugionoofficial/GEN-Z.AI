@@ -7,12 +7,16 @@
 
    TANGGUNG JAWAB:
    - Memuat seluruh module Models
-   - Menjamin urutan dependency
+   - Menjamin dependency order
    - Mencegah duplicate script
    - Memverifikasi global module
    - Menjalankan GENZModelsInit
-   - Menjadi satu-satunya entry point Models
-   ========================================================= */
+
+   CATATAN:
+   models-loader.js hanya bertugas sebagai LOADER.
+   Tidak boleh mengandung logic Provider,
+   Search, Form, Pricing, atau Table.
+========================================================= */
 
 (function () {
     "use strict";
@@ -21,147 +25,272 @@
        CONFIG
     ===================================================== */
 
-    const BASE_PATH = "./models/";
+    const BASE_PATH =
+        "./models/";
 
+    const FUNCTION_PATH =
+        "./models/functions/";
+
+    /*
+     * Urutan sangat penting.
+     *
+     * Pricing harus dimuat sebelum
+     * model-form-layout.js karena layout
+     * menggunakan GENZModelsPrice.
+     */
     const MODULES = [
+        /*
+         * DATA
+         */
+        {
+            src:
+                BASE_PATH +
+                "models-data.js",
 
-        /* =================================================
-           1. DATA
-        ================================================= */
+            global:
+                "GENZModelsData"
+        },
 
-        "models-data.js",
+        /*
+         * PROVIDER
+         */
+        {
+            src:
+                BASE_PATH +
+                "models-provider.js",
 
-        /* =================================================
-           2. PROVIDER CORE
-        ================================================= */
+            global:
+                "GENZModelsProvider"
+        },
 
-        "models-provider.js",
+        /*
+         * PRICE
+         *
+         * Harus sebelum form layout.
+         */
+        {
+            src:
+                BASE_PATH +
+                "models-price.js",
 
-        /* =================================================
-           3. MODEL SEARCH FUNCTIONS
-        ================================================= */
+            global:
+                "GENZModelsPrice"
+        },
 
-        "functions/model-search-dropdown.js",
-        "functions/model-search-render.js",
-        "functions/model-search-select.js",
-        "functions/model-search-events.js",
+        {
+            src:
+                FUNCTION_PATH +
+                "model-price-calculation.js",
 
-        /* =================================================
-           4. MODEL SEARCH COORDINATOR
-        ================================================= */
+            global:
+                "GENZModelPriceCalculation"
+        },
 
-        "models-search.js",
+        /*
+         * PROVIDER DROPDOWN
+         */
+        {
+            src:
+                FUNCTION_PATH +
+                "model-provider-dropdown.js",
 
-        /* =================================================
-           5. PROVIDER DROPDOWN
-        ================================================= */
+            global:
+                "GENZModelProviderDropdown"
+        },
 
-        "functions/model-provider-dropdown.js",
+        /*
+         * MODEL FORM LAYOUT
+         */
+        {
+            src:
+                FUNCTION_PATH +
+                "model-form-layout.js",
 
-        /* =================================================
-           6. FORM LAYOUT
-           -------------------------------------------------
-           Modul ini harus dimuat sebelum CRUD Form.
-           ================================================= */
+            global:
+                "GENZModelFormLayout"
+        },
 
-        "functions/model-form-layout.js",
+        /*
+         * FORM CRUD
+         */
+        {
+            src:
+                FUNCTION_PATH +
+                "model-form-create.js",
 
-        /* =================================================
-           7. FORM FUNCTIONS
-        ================================================= */
+            global:
+                "GENZModelFormCreate"
+        },
 
-        "functions/model-form-create.js",
-        "functions/model-form-edit.js",
-        "functions/model-form-delete.js",
-        "functions/model-form-coordinator.js",
-        "functions/model-form-events.js",
+        {
+            src:
+                FUNCTION_PATH +
+                "model-form-edit.js",
 
-        /* =================================================
-           8. PRICE
-        ================================================= */
+            global:
+                "GENZModelFormEdit"
+        },
 
-        "functions/model-price-calculation.js",
-        "models-price.js",
+        {
+            src:
+                FUNCTION_PATH +
+                "model-form-delete.js",
 
-        /* =================================================
-           9. TABLE
-        ================================================= */
+            global:
+                "GENZModelFormDelete"
+        },
 
-        "functions/model-table.js",
-        "functions/model-table-events.js",
+        {
+            src:
+                FUNCTION_PATH +
+                "model-form-coordinator.js",
 
-        /* =================================================
-           10. FORM COORDINATOR
-        ================================================= */
+            global:
+                "GENZModelFormCoordinator"
+        },
 
-        "models-form.js",
+        {
+            src:
+                FUNCTION_PATH +
+                "model-form-events.js",
 
-        /* =================================================
-           11. UI
-        ================================================= */
+            global:
+                "GENZModelFormEvents"
+        },
 
-        "models-ui.js",
+        /*
+         * SEARCH
+         */
+        {
+            src:
+                FUNCTION_PATH +
+                "model-search-dropdown.js",
 
-        /* =================================================
-           12. INITIALIZATION
-        ================================================= */
+            global:
+                "GENZModelSearchDropdown"
+        },
 
-        "models-init.js"
+        {
+            src:
+                FUNCTION_PATH +
+                "model-search-render.js",
 
+            global:
+                "GENZModelSearchRender"
+        },
+
+        {
+            src:
+                FUNCTION_PATH +
+                "model-search-select.js",
+
+            global:
+                "GENZModelSearchSelect"
+        },
+
+        {
+            src:
+                FUNCTION_PATH +
+                "model-search-events.js",
+
+            global:
+                "GENZModelSearchEvents"
+        },
+
+        {
+            src:
+                BASE_PATH +
+                "models-search.js",
+
+            global:
+                "GENZModelsSearch"
+        },
+
+        /*
+         * TABLE
+         */
+        {
+            src:
+                FUNCTION_PATH +
+                "model-table.js",
+
+            global:
+                "GENZModelTable"
+        },
+
+        {
+            src:
+                FUNCTION_PATH +
+                "model-table-events.js",
+
+            global:
+                "GENZModelTableEvents"
+        },
+
+        /*
+         * FORM COORDINATOR
+         */
+        {
+            src:
+                BASE_PATH +
+                "models-form.js",
+
+            global:
+                "GENZModelsForm"
+        },
+
+        /*
+         * UI
+         */
+        {
+            src:
+                BASE_PATH +
+                "models-ui.js",
+
+            global:
+                "GENZModelsUI"
+        },
+
+        /*
+         * LIFECYCLE
+         */
+        {
+            src:
+                BASE_PATH +
+                "models-init.js",
+
+            global:
+                "GENZModelsInit"
+        }
     ];
 
-    /* =====================================================
-       STATE
-    ===================================================== */
-
-    const loadedModules =
+    const loaded =
         new Map();
 
-    let loadingPromise =
-        null;
-
-    let started =
-        false;
+    let started = false;
 
     /* =====================================================
-       LOGGING
+       UTIL
     ===================================================== */
 
-    function log() {
+    function getGlobal(name) {
+        if (!name) {
+            return null;
+        }
 
-        console.log(
-            "[GENZ Models]",
-            ...arguments
+        return (
+            window[name] ||
+            null
         );
-
     }
 
-    function warn() {
-
-        console.warn(
-            "[GENZ Models]",
-            ...arguments
+    function hasGlobal(name) {
+        return Boolean(
+            getGlobal(name)
         );
-
     }
 
-    function error() {
-
-        console.error(
-            "[GENZ Models]",
-            ...arguments
-        );
-
-    }
-
-    /* =====================================================
-       SCRIPT LOOKUP
-    ===================================================== */
-
-    function getScript(
-        src
-    ) {
-
+    function findExistingScript(src) {
         const scripts =
             Array.from(
                 document.scripts
@@ -169,216 +298,112 @@
 
         return (
             scripts.find(
-                function (
-                    script
-                ) {
-
+                function (script) {
                     const current =
                         script.getAttribute(
                             "src"
                         );
 
                     if (!current) {
-
                         return false;
-
                     }
 
                     return (
-                        current ===
-                            src ||
-                        current.endsWith(
-                            src
-                        )
+                        current === src ||
+                        current.endsWith(src)
                     );
-
                 }
             ) ||
             null
         );
-
     }
 
     /* =====================================================
-       GLOBAL MODULE CHECK
+       LOAD SCRIPT
     ===================================================== */
 
-    function moduleGlobalReady(
-        module
-    ) {
-
-        switch (
-            module
-        ) {
-
-            /* =============================================
-               DATA
-            ============================================= */
-
-            case "models-data.js":
-
-                return !!(
-                    window.GENZModelsData
-                );
-
-            /* =============================================
-               PROVIDER
-            ============================================= */
-
-            case "models-provider.js":
-
-                return !!(
-                    window.GENZModelsProvider
-                );
-
-            case "functions/model-provider-dropdown.js":
-
-                return !!(
-                    window.GENZModelProviderDropdown
-                );
-
-            /* =============================================
-               SEARCH
-            ============================================= */
-
-            case "functions/model-search-dropdown.js":
-
-                return !!(
-                    window.GENZModelSearchDropdown
-                );
-
-            case "functions/model-search-render.js":
-
-                return !!(
-                    window.GENZModelSearchRender
-                );
-
-            case "functions/model-search-select.js":
-
-                return !!(
-                    window.GENZModelSearchSelect
-                );
-
-            case "functions/model-search-events.js":
-
-                return !!(
-                    window.GENZModelSearchEvents
-                );
-
-            case "models-search.js":
-
-                return !!(
-                    window.GENZModelsSearch
-                );
-
-            /* =============================================
-               FORM LAYOUT
-            ============================================= */
-
-            case "functions/model-form-layout.js":
-
-                return !!(
-                    window.GENZModelFormLayout
-                );
-
-            /* =============================================
-               FORM
-            ============================================= */
-
-            case "functions/model-form-create.js":
-
-                return !!(
-                    window.GENZModelFormCreate
-                );
-
-            case "functions/model-form-edit.js":
-
-                return !!(
-                    window.GENZModelFormEdit
-                );
-
-            case "functions/model-form-delete.js":
-
-                return !!(
-                    window.GENZModelFormDelete
-                );
-
-            case "functions/model-form-coordinator.js":
-
-                return !!(
-                    window.GENZModelFormCoordinator
-                );
-
-            case "functions/model-form-events.js":
-
-                return !!(
-                    window.GENZModelFormEvents
-                );
-
-            case "models-form.js":
-
-                return !!(
-                    window.GENZModelsForm
-                );
-
-            /* =============================================
-               PRICE
-            ============================================= */
-
-            case "functions/model-price-calculation.js":
-
-                return !!(
-                    window.GENZModelPriceCalculation
-                );
-
-            case "models-price.js":
-
-                return !!(
-                    window.GENZModelsPrice
-                );
-
-            /* =============================================
-               TABLE
-            ============================================= */
-
-            case "functions/model-table.js":
-
-                return !!(
-                    window.GENZModelTable
-                );
-
-            case "functions/model-table-events.js":
-
-                return !!(
-                    window.GENZModelTableEvents
-                );
-
-            /* =============================================
-               UI
-            ============================================= */
-
-            case "models-ui.js":
-
-                return !!(
-                    window.GENZModelsUI
-                );
-
-            /* =============================================
-               INIT
-            ============================================= */
-
-            case "models-init.js":
-
-                return !!(
-                    window.GENZModelsInit
-                );
-
-            default:
-
-                return false;
-
+    function loadScript(module) {
+        if (!module) {
+            return Promise.reject(
+                new Error(
+                    "Module kosong."
+                )
+            );
         }
 
+        /*
+         * Jika global sudah tersedia,
+         * tidak perlu memuat ulang.
+         */
+        if (
+            module.global &&
+            hasGlobal(module.global)
+        ) {
+            return Promise.resolve(
+                module
+            );
+        }
+
+        /*
+         * Jika script sudah ada di DOM,
+         * tunggu sampai global tersedia.
+         */
+        const existing =
+            findExistingScript(
+                module.src
+            );
+
+        if (existing) {
+            return waitForGlobal(
+                module,
+                10000
+            );
+        }
+
+        return new Promise(
+            function (
+                resolve,
+                reject
+            ) {
+                const script =
+                    document.createElement(
+                        "script"
+                    );
+
+                script.src =
+                    module.src;
+
+                script.async = false;
+
+                script.dataset
+                    .genzModelsModule =
+                    "true";
+
+                script.onload =
+                    function () {
+                        waitForGlobal(
+                            module,
+                            10000
+                        )
+                            .then(resolve)
+                            .catch(reject);
+                    };
+
+                script.onerror =
+                    function () {
+                        reject(
+                            new Error(
+                                "Gagal memuat module Models: " +
+                                module.src
+                            )
+                        );
+                    };
+
+                document.head.appendChild(
+                    script
+                );
+            }
+        );
     }
 
     /* =====================================================
@@ -389,30 +414,26 @@
         module,
         timeout = 10000
     ) {
-
         return new Promise(
             function (
                 resolve,
                 reject
             ) {
-
                 const start =
                     Date.now();
 
                 function check() {
-
                     if (
-                        moduleGlobalReady(
-                            module
+                        !module.global ||
+                        hasGlobal(
+                            module.global
                         )
                     ) {
-
                         resolve(
                             module
                         );
 
                         return;
-
                     }
 
                     if (
@@ -420,270 +441,80 @@
                             start >=
                         timeout
                     ) {
-
                         reject(
                             new Error(
                                 "Global module tidak tersedia: " +
-                                module
+                                module.global +
+                                " dari " +
+                                module.src
                             )
                         );
 
                         return;
-
                     }
 
                     window.setTimeout(
                         check,
                         25
                     );
-
                 }
 
                 check();
-
             }
         );
-
     }
 
     /* =====================================================
-       EXISTING SCRIPT
+       LOAD ONE MODULE
     ===================================================== */
 
-    function waitExistingScript(
-        script,
+    async function loadModule(
         module
     ) {
-
-        return new Promise(
-            function (
-                resolve,
-                reject
-            ) {
-
-                let finished =
-                    false;
-
-                function finish() {
-
-                    if (
-                        finished
-                    ) {
-
-                        return;
-
-                    }
-
-                    finished =
-                        true;
-
-                    resolve(
-                        module
-                    );
-
-                }
-
-                function fail() {
-
-                    if (
-                        finished
-                    ) {
-
-                        return;
-
-                    }
-
-                    finished =
-                        true;
-
-                    reject(
-                        new Error(
-                            "Gagal memuat module: " +
-                            module
-                        )
-                    );
-
-                }
-
-                if (
-                    moduleGlobalReady(
-                        module
-                    )
-                ) {
-
-                    finish();
-
-                    return;
-
-                }
-
-                script.addEventListener(
-                    "load",
-                    function () {
-
-                        waitForGlobal(
-                            module
-                        )
-                            .then(
-                                finish
-                            )
-                            .catch(
-                                reject
-                            );
-
-                    },
-                    {
-                        once: true
-                    }
-                );
-
-                script.addEventListener(
-                    "error",
-                    fail,
-                    {
-                        once: true
-                    }
-                );
-
-                window.setTimeout(
-                    function () {
-
-                        if (
-                            moduleGlobalReady(
-                                module
-                            )
-                        ) {
-
-                            finish();
-
-                        }
-
-                    },
-                    100
-                );
-
-            }
-        );
-
-    }
-
-    /* =====================================================
-       LOAD ONE SCRIPT
-    ===================================================== */
-
-    function loadScript(
-        module
-    ) {
+        const key =
+            module.src;
 
         if (
-            loadedModules.has(
-                module
-            )
+            loaded.has(key)
         ) {
-
-            return loadedModules.get(
-                module
+            return loaded.get(
+                key
             );
-
-        }
-
-        const src =
-            BASE_PATH +
-            module;
-
-        const existing =
-            getScript(
-                src
-            );
-
-        if (
-            existing
-        ) {
-
-            const promise =
-                waitExistingScript(
-                    existing,
-                    module
-                );
-
-            loadedModules.set(
-                module,
-                promise
-            );
-
-            return promise;
-
         }
 
         const promise =
-            new Promise(
-                function (
-                    resolve,
-                    reject
-                ) {
-
-                    const script =
-                        document.createElement(
-                            "script"
-                        );
-
-                    script.src =
-                        src;
-
-                    script.async =
-                        false;
-
-                    script.dataset
-                        .genzModule =
-                        module;
-
-                    script.onload =
-                        function () {
-
-                            waitForGlobal(
-                                module
-                            )
-                                .then(
-                                    function () {
-
-                                        resolve(
-                                            module
-                                        );
-
-                                    }
-                                )
-                                .catch(
-                                    reject
-                                );
-
-                        };
-
-                    script.onerror =
-                        function () {
-
-                            reject(
-                                new Error(
-                                    "Gagal memuat module: " +
-                                    module
-                                )
-                            );
-
-                        };
-
-                    document.head.appendChild(
-                        script
-                    );
-
-                }
+            loadScript(
+                module
             );
 
-        loadedModules.set(
-            module,
+        loaded.set(
+            key,
             promise
         );
 
-        return promise;
+        try {
+            await promise;
 
+            console.info(
+                "[GEN-Z.AI] Models module loaded:",
+                module.src
+            );
+
+            return module;
+
+        } catch (error) {
+            loaded.delete(
+                key
+            );
+
+            console.error(
+                "[GEN-Z.AI] Models module failed:",
+                module.src,
+                error
+            );
+
+            throw error;
+        }
     }
 
     /* =====================================================
@@ -691,306 +522,111 @@
     ===================================================== */
 
     async function loadAll() {
-
-        if (
-            loadingPromise
-        ) {
-
-            return loadingPromise;
-
-        }
-
-        loadingPromise =
-            (async function () {
-
-                log(
-                    "========================================"
-                );
-
-                log(
-                    "Memulai Models Module Loader"
-                );
-
-                log(
-                    "Total module:",
-                    MODULES.length
-                );
-
-                log(
-                    "========================================"
-                );
-
-                for (
-                    let index = 0;
-                    index <
-                    MODULES.length;
-                    index++
-                ) {
-
-                    const module =
-                        MODULES[index];
-
-                    log(
-                        "[" +
-                        (
-                            index +
-                            1
-                        ) +
-                        "/" +
-                        MODULES.length +
-                        "] Loading:",
-                        module
-                    );
-
-                    await loadScript(
-                        module
-                    );
-
-                    if (
-                        !moduleGlobalReady(
-                            module
-                        )
-                    ) {
-
-                        throw new Error(
-                            "Module loaded tetapi global tidak tersedia: " +
-                            module
-                        );
-
-                    }
-
-                    log(
-                        "[" +
-                        (
-                            index +
-                            1
-                        ) +
-                        "/" +
-                        MODULES.length +
-                        "] Loaded:",
-                        module
-                    );
-
-                }
-
-                log(
-                    "========================================"
-                );
-
-                log(
-                    "Semua Models module berhasil dimuat."
-                );
-
-                log(
-                    "========================================"
-                );
-
-                return true;
-
-            })()
-                .catch(
-                    function (
-                        loadError
-                    ) {
-
-                        error(
-                            "Models module loader gagal:",
-                            loadError
-                        );
-
-                        showLoaderError(
-                            loadError
-                        );
-
-                        loadingPromise =
-                            null;
-
-                        throw loadError;
-
-                    }
-                );
-
-        return loadingPromise;
-
-    }
-
-    /* =====================================================
-       ERROR UI
-    ===================================================== */
-
-    function showLoaderError(
-        loadError
-    ) {
-
-        const message =
-            loadError?.message ||
-            "Gagal memuat halaman Models.";
-
-        const alertBox =
-            document.getElementById(
-                "alertBox"
-            );
-
-        if (
-            alertBox
-        ) {
-
-            alertBox.textContent =
-                message;
-
-            alertBox.className =
-                "alert alert-error show";
-
-            alertBox.style.display =
-                "block";
-
-            return;
-
-        }
-
-        error(
-            message
-        );
-
-    }
-
-    /* =====================================================
-       START
-    ===================================================== */
-
-    async function start() {
-
-        if (
-            started
-        ) {
-
-            warn(
-                "Models loader sudah dijalankan."
-            );
-
+        if (started) {
             return true;
-
         }
 
-        started =
-            true;
+        started = true;
 
         try {
+            /*
+             * Sequential loading.
+             *
+             * Jangan Promise.all().
+             * Dependency antar module memang
+             * membutuhkan urutan.
+             */
+            for (
+                const module
+                of MODULES
+            ) {
+                await loadModule(
+                    module
+                );
+            }
 
-            await loadAll();
+            /*
+             * Semua module tersedia.
+             */
+            console.info(
+                "[GEN-Z.AI] Semua Models module berhasil dimuat."
+            );
 
+            /*
+             * Jalankan lifecycle.
+             */
             const init =
                 window.GENZModelsInit;
 
-            if (!init) {
-
-                throw new Error(
-                    "GENZModelsInit belum tersedia."
-                );
-
-            }
-
             if (
-                typeof init.initialize !==
-                "function"
+                init &&
+                typeof init.initialize ===
+                    "function"
             ) {
-
-                throw new Error(
-                    "GENZModelsInit.initialize() belum tersedia."
-                );
-
-            }
-
-            const result =
                 await init.initialize();
-
-            if (
-                result === false
-            ) {
-
-                throw new Error(
-                    "GENZModelsInit.initialize() gagal."
-                );
-
             }
-
-            log(
-                "========================================"
-            );
-
-            log(
-                "GEN-Z.AI Models berhasil dijalankan."
-            );
-
-            log(
-                "========================================"
-            );
 
             return true;
 
-        } catch (
-            startError
-        ) {
-
-            error(
-                "Models gagal dijalankan:",
-                startError
+        } catch (error) {
+            console.error(
+                "[GEN-Z.AI] Models loader error:",
+                error
             );
 
-            showLoaderError(
-                startError
-            );
-
-            started =
-                false;
+            started = false;
 
             return false;
-
         }
-
     }
 
     /* =====================================================
-       RESET
+       STATUS
     ===================================================== */
 
-    function reset() {
+    function getModules() {
+        return MODULES.map(
+            function (module) {
+                return {
+                    src:
+                        module.src,
 
-        started =
-            false;
+                    global:
+                        module.global,
 
-        loadingPromise =
-            null;
-
-        loadedModules.clear();
-
-        if (
-            window.GENZModelsInit &&
-            typeof window.GENZModelsInit.reset ===
-                "function"
-        ) {
-
-            try {
-
-                window.GENZModelsInit.reset();
-
-            } catch (
-                resetError
-            ) {
-
-                warn(
-                    "Models Init reset gagal:",
-                    resetError
-                );
-
+                    loaded:
+                        hasGlobal(
+                            module.global
+                        )
+                };
             }
+        );
+    }
 
+    function isLoaded(
+        src
+    ) {
+        const module =
+            MODULES.find(
+                function (item) {
+                    return (
+                        item.src ===
+                        src
+                    );
+                }
+            );
+
+        if (!module) {
+            return false;
         }
 
-        log(
-            "Models loader reset."
+        return hasGlobal(
+            module.global
         );
+    }
 
+    function isStarted() {
+        return started;
     }
 
     /* =====================================================
@@ -999,78 +635,25 @@
 
     window.GENZModelsLoader =
         Object.freeze({
-
             loadAll,
-
-            start,
-
-            reset,
-
-            getLoadedModules:
-                function () {
-
-                    return Array.from(
-                        loadedModules.keys()
-                    );
-
-                },
-
-            isModuleLoaded:
-                function (
-                    module
-                ) {
-
-                    return (
-                        loadedModules.has(
-                            module
-                        ) &&
-                        moduleGlobalReady(
-                            module
-                        )
-                    );
-
-                },
-
-            getModules:
-                function () {
-
-                    return [
-                        ...MODULES
-                    ];
-
-                },
-
-            isStarted:
-                function () {
-
-                    return started;
-
-                },
-
-            isLoading:
-                function () {
-
-                    return !!loadingPromise;
-
-                }
-
+            loadModule,
+            getModules,
+            isLoaded,
+            isStarted
         });
 
     /* =====================================================
-       DOM READY
+       AUTO START
     ===================================================== */
 
     function boot() {
-
-        start();
-
+        loadAll();
     }
 
     if (
         document.readyState ===
         "loading"
     ) {
-
         document.addEventListener(
             "DOMContentLoaded",
             boot,
@@ -1078,11 +661,8 @@
                 once: true
             }
         );
-
     } else {
-
         boot();
-
     }
 
 })();
