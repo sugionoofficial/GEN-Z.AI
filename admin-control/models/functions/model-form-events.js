@@ -1,29 +1,59 @@
 /* =========================================================
    GEN-Z.AI
-   MODEL FORM EVENTS MODULE
+   ADMIN MODEL MANAGEMENT
+   MODEL FORM EVENTS
 
    File:
    admin-control/models/functions/model-form-events.js
 
-   TUGAS:
-   - Event submit form
-   - Event tombol close
-   - Event tombol cancel
-   - Event backdrop modal
-   - Event Escape
-   - Tidak mengelola API
-   - Tidak mengelola Provider
-   - Tidak mengelola Model Search
-   - Tidak mengelola Pricing
+   OWNER:
+   Seluruh event Form Model.
+
+   Tanggung jawab:
+   - Submit form
+   - Provider change
+   - Model ID change
+   - Tombol close
+   - Backdrop modal
+   - Escape keyboard
+   - Tombol cancel
+   - Sinkronisasi event ke module pemilik
+
+   TIDAK BOLEH:
+   - Query Supabase
+   - CRUD langsung
+   - Menghitung credit sendiri
+   - Mengelola Provider sendiri
+   - Mengelola Model catalog sendiri
+   - Mengambil alih layout
+
+   OWNER LAIN:
+   Provider:
+       GENZModelsProvider
+       GENZModelProviderDropdown
+
+   Model catalog/layout:
+       GENZModelFormLayout
+
+   Pricing:
+       GENZModelPriceCalculation
+
+   CRUD:
+       GENZModelFormCreate
+       GENZModelFormEdit
+       GENZModelFormDelete
+       GENZModelFormCoordinator
 ========================================================= */
 
 (function () {
     "use strict";
 
-    let bound = false;
+    let initialized = false;
+
+    const handlers = [];
 
     /* =====================================================
-       HELPERS
+       ELEMENT
     ===================================================== */
 
     function getElement(id) {
@@ -43,425 +73,1022 @@
         return null;
     }
 
-    function getFormModule() {
+    /* =====================================================
+       FORM
+    ===================================================== */
+
+    function getForm() {
+        return (
+            getElement("modelForm") ||
+            getElement("modelsForm")
+        );
+    }
+
+    /* =====================================================
+       MODELS FORM
+    ===================================================== */
+
+    function getModelsForm() {
         return (
             window.GENZModelsForm ||
             null
         );
     }
 
-    function getModal() {
+    /* =====================================================
+       FORM CREATE
+    ===================================================== */
+
+    function getCreateModule() {
         return (
-            getElement("modelModal") ||
-            getElement("modelEditModal") ||
-            getElement("editModelModal") ||
-            document.querySelector(
-                "[data-model-modal]"
-            )
+            window.GENZModelFormCreate ||
+            null
         );
     }
 
     /* =====================================================
-       FORM SUBMIT
+       FORM EDIT
     ===================================================== */
 
-    function bindSubmit() {
-        const form =
-            getElement(
-                "modelForm"
-            );
+    function getEditModule() {
+        return (
+            window.GENZModelFormEdit ||
+            null
+        );
+    }
 
-        if (!form) {
-            console.warn(
-                "[model-form-events] #modelForm tidak ditemukan."
-            );
+    /* =====================================================
+       FORM COORDINATOR
+    ===================================================== */
 
+    function getCoordinator() {
+        return (
+            window.GENZModelFormCoordinator ||
+            null
+        );
+    }
+
+    /* =====================================================
+       FORM LAYOUT
+    ===================================================== */
+
+    function getLayout() {
+        return (
+            window.GENZModelFormLayout ||
+            null
+        );
+    }
+
+    /* =====================================================
+       PRICE
+    ===================================================== */
+
+    function getPriceCalculation() {
+        return (
+            window.GENZModelPriceCalculation ||
+            null
+        );
+    }
+
+    /* =====================================================
+       SAFE CALL
+    ===================================================== */
+
+    async function callAsync(
+        fn,
+        ...args
+    ) {
+        if (
+            typeof fn !==
+            "function"
+        ) {
+            return undefined;
+        }
+
+        return await fn(
+            ...args
+        );
+    }
+
+    /* =====================================================
+       EVENT REGISTRY
+    =====================================================
+
+       Semua listener dicatat agar bind()
+       tidak menghasilkan duplicate listener.
+
+    ===================================================== */
+
+    function addListener(
+        element,
+        event,
+        handler,
+        options
+    ) {
+        if (!element) {
             return false;
         }
 
-        if (
-            form.dataset
-                .genzFormEventsSubmitBound ===
-            "true"
-        ) {
-            return true;
-        }
-
-        const handler =
-            function (event) {
-                const formModule =
-                    getFormModule();
-
-                if (
-                    formModule &&
-                    typeof formModule.saveModel ===
-                        "function"
-                ) {
-                    return formModule.saveModel(
-                        event
-                    );
-                }
-
-                console.error(
-                    "[model-form-events] GENZModelsForm.saveModel() belum tersedia."
-                );
-
-                event.preventDefault();
-
-                return false;
-            };
-
-        form.addEventListener(
-            "submit",
-            handler
+        element.addEventListener(
+            event,
+            handler,
+            options
         );
 
-        form.dataset
-            .genzFormEventsSubmitBound =
-            "true";
-
-        /*
-         * Simpan reference agar bisa di-unbind.
-         */
-        form.__genzFormSubmitHandler =
-            handler;
+        handlers.push({
+            element,
+            event,
+            handler,
+            options
+        });
 
         return true;
     }
 
     /* =====================================================
-       CLOSE / CANCEL
+       REMOVE ALL
     ===================================================== */
 
-    function bindCloseButtons() {
-        const selectors = [
-            "closeModalBtn",
-            "closeModelModal",
-            "closeModalButton",
-            "modelModalClose",
-            "cancelModalBtn",
-            "cancelModelButton",
-            "cancelModelBtn",
-            "cancelBtn"
-        ];
-
-        let count = 0;
-
-        for (
-            const id of selectors
+    function unbind() {
+        while (
+            handlers.length
         ) {
-            const button =
-                getElement(id);
+            const item =
+                handlers.pop();
 
-            if (!button) {
-                continue;
+            try {
+                item.element.removeEventListener(
+                    item.event,
+                    item.handler,
+                    item.options
+                );
+            } catch (error) {
+                console.warn(
+                    "[model-form-events] Gagal remove listener:",
+                    error
+                );
             }
-
-            if (
-                button.dataset
-                    .genzFormEventsCloseBound ===
-                "true"
-            ) {
-                continue;
-            }
-
-            const handler =
-                function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    const formModule =
-                        getFormModule();
-
-                    if (
-                        formModule &&
-                        typeof formModule.closeModal ===
-                            "function"
-                    ) {
-                        formModule.closeModal();
-
-                        return;
-                    }
-
-                    console.warn(
-                        "[model-form-events] closeModal() belum tersedia."
-                    );
-                };
-
-            button.addEventListener(
-                "click",
-                handler
-            );
-
-            button.dataset
-                .genzFormEventsCloseBound =
-                "true";
-
-            button.__genzFormCloseHandler =
-                handler;
-
-            count++;
         }
 
-        return count > 0;
+        initialized = false;
+
+        return true;
+    }
+
+    /* =====================================================
+       MODAL
+    ===================================================== */
+
+    function closeModal() {
+        const form =
+            getModelsForm();
+
+        if (
+            form &&
+            typeof form.closeModal ===
+                "function"
+        ) {
+            try {
+                form.closeModal();
+
+                return true;
+            } catch (error) {
+                console.warn(
+                    "[model-form-events] Form close error:",
+                    error
+                );
+            }
+        }
+
+        const modal =
+            getElement(
+                "modelModal"
+            );
+
+        if (!modal) {
+            return false;
+        }
+
+        modal.classList.remove(
+            "open",
+            "show"
+        );
+
+        modal.classList.add(
+            "hidden"
+        );
+
+        modal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        modal.style.display =
+            "none";
+
+        document.body.classList.remove(
+            "modal-open"
+        );
+
+        return true;
+    }
+
+    /* =====================================================
+       IS MODAL OPEN
+    ===================================================== */
+
+    function isModalOpen() {
+        const modal =
+            getElement(
+                "modelModal"
+            );
+
+        if (!modal) {
+            return false;
+        }
+
+        return (
+            modal.classList.contains(
+                "open"
+            ) ||
+            modal.classList.contains(
+                "show"
+            ) ||
+            modal.getAttribute(
+                "aria-hidden"
+            ) !== "true"
+        );
+    }
+
+    /* =====================================================
+       SUBMIT
+    ===================================================== */
+
+    async function handleSubmit(
+        event
+    ) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        /*
+         * Coordinator menjadi prioritas.
+         */
+        const coordinator =
+            getCoordinator();
+
+        if (
+            coordinator &&
+            typeof coordinator.updateFromForm ===
+                "function" &&
+            typeof coordinator.createFromForm ===
+                "function"
+        ) {
+            try {
+                /*
+                 * Tentukan mode berdasarkan
+                 * state Form.
+                 */
+                const form =
+                    getModelsForm();
+
+                const editing =
+                    Boolean(
+                        form &&
+                        typeof form.isEditing ===
+                            "function" &&
+                        form.isEditing()
+                    );
+
+                if (editing) {
+                    return await coordinator.updateFromForm(
+                        event
+                    );
+                }
+
+                return await coordinator.createFromForm(
+                    event
+                );
+
+            } catch (error) {
+                console.error(
+                    "[model-form-events] Coordinator submit error:",
+                    error
+                );
+
+                throw error;
+            }
+        }
+
+        /*
+         * Fallback Edit module.
+         */
+        const edit =
+            getEditModule();
+
+        if (
+            edit &&
+            typeof edit.isEditing ===
+                "function" &&
+            edit.isEditing() &&
+            typeof edit.updateFromForm ===
+                "function"
+        ) {
+            return await edit.updateFromForm(
+                event
+            );
+        }
+
+        /*
+         * Fallback Form owner.
+         */
+        const form =
+            getModelsForm();
+
+        if (
+            form &&
+            typeof form.saveModel ===
+                "function"
+        ) {
+            return await form.saveModel(
+                event
+            );
+        }
+
+        /*
+         * Fallback Create module.
+         */
+        const create =
+            getCreateModule();
+
+        if (
+            create &&
+            typeof create.createFromForm ===
+                "function"
+        ) {
+            return await create.createFromForm(
+                event
+            );
+        }
+
+        console.error(
+            "[model-form-events] Tidak ada handler submit yang tersedia."
+        );
+
+        return null;
+    }
+
+    /* =====================================================
+       PROVIDER CHANGE
+    =====================================================
+
+       Event Provider hanya memberi tahu module
+       yang memang memiliki tanggung jawab.
+
+       Tidak mengambil alih filtering Model.
+
+    ===================================================== */
+
+    async function handleProviderChange(
+        event
+    ) {
+        const select =
+            event?.currentTarget ||
+            getElement(
+                "providerId"
+            );
+
+        if (!select) {
+            return;
+        }
+
+        const providerId =
+            String(
+                select.value || ""
+            ).trim();
+
+        /*
+         * Provider kosong:
+         * Model ID harus dikosongkan oleh Layout.
+         */
+        const layout =
+            getLayout();
+
+        if (!providerId) {
+            if (
+                layout &&
+                typeof layout.clearModelSelection ===
+                    "function"
+            ) {
+                try {
+                    layout.clearModelSelection();
+                } catch (error) {
+                    console.warn(
+                        "[model-form-events] Gagal clear Model ID:",
+                        error
+                    );
+                }
+            }
+
+            return;
+        }
+
+        /*
+         * Layout menjadi owner refresh
+         * Model ID berdasarkan Provider.
+         */
+        if (
+            layout &&
+            typeof layout.refresh ===
+                "function"
+        ) {
+            try {
+                await layout.refresh();
+            } catch (error) {
+                console.warn(
+                    "[model-form-events] Gagal refresh Model Layout:",
+                    error
+                );
+            }
+        }
+
+        /*
+         * Beritahu module lain bahwa Provider
+         * berubah.
+         */
+        document.dispatchEvent(
+            new CustomEvent(
+                "genz-model-provider-changed",
+                {
+                    detail: {
+                        providerId,
+                        source: "model-form-events"
+                    }
+                }
+            )
+        );
+    }
+
+    /* =====================================================
+       MODEL ID CHANGE
+    ===================================================== */
+
+    function handleModelChange(
+        event
+    ) {
+        const select =
+            event?.currentTarget ||
+            getElement(
+                "modelCodeSearch"
+            );
+
+        if (!select) {
+            return;
+        }
+
+        const modelId =
+            String(
+                select.value || ""
+            ).trim();
+
+        const layout =
+            getLayout();
+
+        /*
+         * Model ID selection dimiliki Layout.
+         *
+         * Jangan menulis ulang option.
+         */
+        if (
+            layout &&
+            typeof layout.findModel ===
+                "function" &&
+            modelId
+        ) {
+            try {
+                const model =
+                    layout.findModel(
+                        modelId
+                    );
+
+                if (model) {
+                    /*
+                     * Hidden modelCode.
+                     */
+                    const hidden =
+                        getElement(
+                            "modelCode"
+                        );
+
+                    if (hidden) {
+                        hidden.value =
+                            modelId;
+                    }
+
+                    /*
+                     * Model Name.
+                     *
+                     * Hanya isi apabila kosong.
+                     * Ini mencegah edit menimpa
+                     * nama custom dari database.
+                     */
+                    const modelName =
+                        getElement(
+                            "modelName"
+                        );
+
+                    if (
+                        modelName &&
+                        !String(
+                            modelName.value || ""
+                        ).trim()
+                    ) {
+                        modelName.value =
+                            model.model_name ||
+                            modelId;
+                    }
+
+                    /*
+                     * Informasi Model.
+                     */
+                    document.dispatchEvent(
+                        new CustomEvent(
+                            "genz-model-selected",
+                            {
+                                detail: {
+                                    model,
+                                    source:
+                                        "model-form-events"
+                                }
+                            }
+                        )
+                    );
+                }
+            } catch (error) {
+                console.warn(
+                    "[model-form-events] Model selection warning:",
+                    error
+                );
+            }
+        }
+    }
+
+    /* =====================================================
+       PRICE INPUT
+    =====================================================
+
+       Price calculation owner menangani
+       kalkulasi sebenarnya.
+
+       Event module hanya meneruskan perubahan.
+
+    ===================================================== */
+
+    function handlePriceInput(
+        event
+    ) {
+        const calculation =
+            getPriceCalculation();
+
+        if (
+            !calculation
+        ) {
+            return;
+        }
+
+        if (
+            typeof calculation.syncForm ===
+                "function"
+        ) {
+            try {
+                calculation.syncForm();
+                return;
+            } catch (error) {
+                console.warn(
+                    "[model-form-events] Price sync warning:",
+                    error
+                );
+            }
+        }
+
+        if (
+            typeof calculation.updatePreview ===
+                "function"
+        ) {
+            try {
+                calculation.updatePreview();
+            } catch (error) {
+                console.warn(
+                    "[model-form-events] Price preview warning:",
+                    error
+                );
+            }
+        }
+    }
+
+    /* =====================================================
+       CLOSE BUTTON
+    ===================================================== */
+
+    function handleCloseClick(
+        event
+    ) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        closeModal();
     }
 
     /* =====================================================
        BACKDROP
     ===================================================== */
 
-    function bindBackdrop() {
+    function handleBackdropClick(
+        event
+    ) {
         const modal =
-            getModal();
+            getElement(
+                "modelModal"
+            );
 
         if (!modal) {
-            return false;
+            return;
         }
 
+        /*
+         * Hanya klik langsung pada backdrop.
+         *
+         * Klik di dalam modal tidak boleh
+         * menutup modal.
+         */
         if (
-            modal.dataset
-                .genzFormEventsBackdropBound ===
-            "true"
+            event.target !==
+            modal
         ) {
-            return true;
+            return;
         }
 
-        const handler =
-            function (event) {
-                if (
-                    event.target !==
-                    modal
-                ) {
-                    return;
-                }
-
-                const formModule =
-                    getFormModule();
-
-                if (
-                    formModule &&
-                    typeof formModule.closeModal ===
-                        "function"
-                ) {
-                    formModule.closeModal();
-                }
-            };
-
-        modal.addEventListener(
-            "click",
-            handler
-        );
-
-        modal.dataset
-            .genzFormEventsBackdropBound =
-            "true";
-
-        modal.__genzFormBackdropHandler =
-            handler;
-
-        return true;
+        closeModal();
     }
 
     /* =====================================================
        ESCAPE
     ===================================================== */
 
-    function bindEscape() {
-        if (!document.body) {
-            return false;
+    function handleEscape(
+        event
+    ) {
+        if (
+            event.key !==
+            "Escape"
+        ) {
+            return;
         }
 
         if (
-            document.body.dataset
-                .genzFormEventsEscapeBound ===
-            "true"
+            !isModalOpen()
         ) {
-            return true;
+            return;
         }
 
-        const handler =
-            function (event) {
-                if (
-                    event.key !==
-                    "Escape"
-                ) {
-                    return;
-                }
+        event.preventDefault();
 
-                const modal =
-                    getModal();
-
-                if (!modal) {
-                    return;
-                }
-
-                const visible =
-                    modal.classList.contains(
-                        "show"
-                    ) ||
-                    modal.classList.contains(
-                        "open"
-                    ) ||
-                    (
-                        window.getComputedStyle(
-                            modal
-                        ).display !==
-                        "none"
-                    );
-
-                if (!visible) {
-                    return;
-                }
-
-                const formModule =
-                    getFormModule();
-
-                if (
-                    formModule &&
-                    typeof formModule.closeModal ===
-                        "function"
-                ) {
-                    formModule.closeModal();
-                }
-            };
-
-        document.addEventListener(
-            "keydown",
-            handler
-        );
-
-        document.body.dataset
-            .genzFormEventsEscapeBound =
-            "true";
-
-        document.body.__genzFormEscapeHandler =
-            handler;
-
-        return true;
+        closeModal();
     }
 
     /* =====================================================
-       BIND ALL
+       CANCEL
     ===================================================== */
 
-    function bind() {
-        if (bound) {
-            return true;
+    function handleCancel(
+        event
+    ) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        closeModal();
+    }
+
+    /* =====================================================
+       BIND SUBMIT
+    ===================================================== */
+
+    function bindSubmit() {
+        const form =
+            getForm();
+
+        if (!form) {
+            return false;
+        }
+
+        return addListener(
+            form,
+            "submit",
+            handleSubmit
+        );
+    }
+
+    /* =====================================================
+       BIND PROVIDER
+    ===================================================== */
+
+    function bindProvider() {
+        const provider =
+            getElement(
+                "providerId"
+            );
+
+        if (!provider) {
+            return false;
+        }
+
+        return addListener(
+            provider,
+            "change",
+            handleProviderChange
+        );
+    }
+
+    /* =====================================================
+       BIND MODEL
+    ===================================================== */
+
+    function bindModel() {
+        const model =
+            getElement(
+                "modelCodeSearch"
+            );
+
+        if (!model) {
+            return false;
         }
 
         /*
-         * DOM harus tersedia.
+         * Model Code Search sekarang dapat berupa
+         * SELECT maupun INPUT legacy.
+         *
+         * Event tetap kompatibel.
          */
-        if (!document.body) {
+        return addListener(
+            model,
+            "change",
+            handleModelChange
+        );
+    }
+
+    /* =====================================================
+       BIND PRICE
+    ===================================================== */
+
+    function bindPrice() {
+        const fields = [
+            "creditCost",
+            "credit_cost",
+            "discountPercent",
+            "discount_percent"
+        ];
+
+        let count = 0;
+
+        for (const id of fields) {
+            const element =
+                getElement(id);
+
+            if (!element) {
+                continue;
+            }
+
+            addListener(
+                element,
+                "input",
+                handlePriceInput
+            );
+
+            addListener(
+                element,
+                "change",
+                handlePriceInput
+            );
+
+            count += 1;
+        }
+
+        return count > 0;
+    }
+
+    /* =====================================================
+       BIND CLOSE
+    ===================================================== */
+
+    function bindCloseButtons() {
+        const selectors = [
+            "closeModelModal",
+            "closeModelBtn",
+            "closeModelButton",
+            "cancelModelBtn",
+            "cancelModelButton",
+            "modelModalClose"
+        ];
+
+        let count = 0;
+
+        for (const id of selectors) {
+            const element =
+                getElement(id);
+
+            if (!element) {
+                continue;
+            }
+
+            /*
+             * Tombol cancel/close tidak boleh
+             * submit form.
+             */
+            if (
+                element.tagName ===
+                "BUTTON"
+            ) {
+                element.type =
+                    "button";
+            }
+
+            addListener(
+                element,
+                "click",
+                handleCloseClick
+            );
+
+            count += 1;
+        }
+
+        return count > 0;
+    }
+
+    /* =====================================================
+       BIND CANCEL
+    ===================================================== */
+
+    function bindCancel() {
+        const buttons =
+            document.querySelectorAll(
+                "[data-model-cancel]"
+            );
+
+        let count = 0;
+
+        buttons.forEach(
+            button => {
+                if (
+                    button.tagName ===
+                    "BUTTON"
+                ) {
+                    button.type =
+                        "button";
+                }
+
+                addListener(
+                    button,
+                    "click",
+                    handleCancel
+                );
+
+                count += 1;
+            }
+        );
+
+        return count > 0;
+    }
+
+    /* =====================================================
+       BIND BACKDROP
+    ===================================================== */
+
+    function bindBackdrop() {
+        const modal =
+            getElement(
+                "modelModal"
+            );
+
+        if (!modal) {
             return false;
         }
 
+        return addListener(
+            modal,
+            "click",
+            handleBackdropClick
+        );
+    }
+
+    /* =====================================================
+       BIND ESCAPE
+    ===================================================== */
+
+    function bindEscape() {
+        return addListener(
+            document,
+            "keydown",
+            handleEscape
+        );
+    }
+
+    /* =====================================================
+       BIND
+    ===================================================== */
+
+    function bind() {
+        /*
+         * Sangat penting:
+         *
+         * Jika bind dipanggil berkali-kali,
+         * listener lama dibuang terlebih dahulu.
+         */
+        if (initialized) {
+            unbind();
+        }
+
+        /*
+         * Submit.
+         */
         bindSubmit();
+
+        /*
+         * Provider.
+         */
+        bindProvider();
+
+        /*
+         * Model ID.
+         */
+        bindModel();
+
+        /*
+         * Credit / Discount.
+         */
+        bindPrice();
+
+        /*
+         * Close.
+         */
         bindCloseButtons();
+
+        /*
+         * Cancel.
+         */
+        bindCancel();
+
+        /*
+         * Backdrop.
+         */
         bindBackdrop();
+
+        /*
+         * Escape.
+         */
         bindEscape();
 
-        bound = true;
+        initialized = true;
 
-        console.info(
-            "[GEN-Z.AI] Model form events initialized."
+        console.log(
+            "[GEN-Z.AI] GENZModelFormEvents bound."
         );
 
         return true;
     }
 
     /* =====================================================
-       UNBIND
+       REBIND
     ===================================================== */
 
-    function unbind() {
-        const form =
-            getElement(
-                "modelForm"
-            );
+    function rebind() {
+        return bind();
+    }
 
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
+
+    function initialize() {
         if (
-            form &&
-            form.__genzFormSubmitHandler
+            initialized
         ) {
-            form.removeEventListener(
-                "submit",
-                form.__genzFormSubmitHandler
-            );
-
-            delete form.__genzFormSubmitHandler;
-            delete form.dataset
-                .genzFormEventsSubmitBound;
+            return true;
         }
 
-        const ids = [
-            "closeModalBtn",
-            "closeModelModal",
-            "closeModalButton",
-            "modelModalClose",
-            "cancelModalBtn",
-            "cancelModelButton",
-            "cancelModelBtn",
-            "cancelBtn"
-        ];
+        return bind();
+    }
 
-        for (
-            const id of ids
-        ) {
-            const button =
-                getElement(id);
+    /* =====================================================
+       STATUS
+    ===================================================== */
 
-            if (
-                button &&
-                button.__genzFormCloseHandler
-            ) {
-                button.removeEventListener(
-                    "click",
-                    button.__genzFormCloseHandler
-                );
-
-                delete button.__genzFormCloseHandler;
-                delete button.dataset
-                    .genzFormEventsCloseBound;
-            }
-        }
-
-        const modal =
-            getModal();
-
-        if (
-            modal &&
-            modal.__genzFormBackdropHandler
-        ) {
-            modal.removeEventListener(
-                "click",
-                modal.__genzFormBackdropHandler
-            );
-
-            delete modal.__genzFormBackdropHandler;
-            delete modal.dataset
-                .genzFormEventsBackdropBound;
-        }
-
-        if (
-            document.body &&
-            document.body.__genzFormEscapeHandler
-        ) {
-            document.removeEventListener(
-                "keydown",
-                document.body.__genzFormEscapeHandler
-            );
-
-            delete document.body
-                .__genzFormEscapeHandler;
-
-            delete document.body.dataset
-                .genzFormEventsEscapeBound;
-        }
-
-        bound = false;
-
-        return true;
+    function isBound() {
+        return initialized;
     }
 
     /* =====================================================
@@ -470,15 +1097,24 @@
 
     window.GENZModelFormEvents =
         Object.freeze({
+            initialize,
+
             bind,
+            rebind,
             unbind,
-            bindSubmit,
-            bindCloseButtons,
-            bindBackdrop,
-            bindEscape,
-            isBound: function () {
-                return bound;
-            }
+
+            isBound,
+
+            closeModal,
+
+            handleSubmit,
+            handleProviderChange,
+            handleModelChange,
+            handlePriceInput,
+            handleCloseClick,
+            handleBackdropClick,
+            handleEscape,
+            handleCancel
         });
 
 })();
