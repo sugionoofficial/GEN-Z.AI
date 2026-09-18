@@ -1,27 +1,18 @@
 /* =========================================================
-   GEN-Z.AI
-   ADMIN MODEL MANAGEMENT
-   MODEL SEARCH MODULE
-
+   GEN-Z.AI - MODELS SEARCH MODULE
    File:
    admin-control/models/models-search.js
 
-   Fungsi:
+   Tugas:
    - Autocomplete Model ID
-   - Search Model Name
-   - Search Model Family
-   - Search Provider
-   - Provider-aware search
-   - Manual Model ID fallback
-   - Select model
-   - Auto-fill Model ID
-   - Auto-sync Provider
-   - Menampilkan model yang dipilih
-   - Tidak melakukan query Supabase sendiri
-   - Data diterima dari models-ui.js
-   - Retry initialization untuk dynamic loader
-   - Tetap bisa input Model ID manual
-========================================================= */
+   - Pencarian model dari catalog kie_models
+   - Filter berdasarkan Provider yang dipilih
+   - Mendukung input Model ID manual
+   - Sinkronisasi model -> provider
+   - Tidak melakukan query Supabase langsung
+   - Tidak melakukan auto-initialize
+   - Lifecycle dikendalikan oleh models-init.js
+   ========================================================= */
 
 (function () {
     "use strict";
@@ -29,93 +20,119 @@
     let models = [];
     let initialized = false;
 
-    let input = null;
-    let hiddenInput = null;
-    let dropdown = null;
-    let selectedInfo = null;
-    let providerSelect = null;
-
-    let selectedIndex = -1;
-
-    let initializeTimer = null;
-    let initializeAttempts = 0;
-
-    const MAX_INITIALIZE_ATTEMPTS = 40;
-    const INITIALIZE_RETRY_DELAY = 250;
-
     /* =====================================================
-       DOM
-    ===================================================== */
+       DOM HELPERS
+       ===================================================== */
 
-    function getElements() {
-        input = document.getElementById(
-            "modelCodeSearch"
+    function getElement(id) {
+        return document.getElementById(id);
+    }
+
+    function getSearchInput() {
+        return (
+            getElement("modelCodeSearch") ||
+            getElement("modelSearch") ||
+            getElement("modelIdSearch")
         );
+    }
 
-        hiddenInput = document.getElementById(
-            "modelCode"
+    function getHiddenModelInput() {
+        return (
+            getElement("modelCode") ||
+            getElement("modelId")
         );
+    }
 
-        dropdown = document.getElementById(
-            "modelSearchResults"
+    function getResultsBox() {
+        return (
+            getElement("modelSearchResults") ||
+            getElement("modelResults") ||
+            getElement("modelDropdown")
         );
+    }
 
-        if (!dropdown) {
-            dropdown = document.getElementById(
-                "modelSearchDropdown"
-            );
-        }
-
-        if (!dropdown) {
-            dropdown = document.querySelector(
-                ".model-search-results"
-            );
-        }
-
-        selectedInfo = document.getElementById(
-            "selectedModelInfo"
+    function getSelectedInfo() {
+        return (
+            getElement("selectedModelInfo") ||
+            getElement("modelSelectedInfo")
         );
+    }
 
-        providerSelect = document.getElementById(
-            "providerId"
-        );
-
-        return {
-            input,
-            hiddenInput,
-            dropdown,
-            selectedInfo,
-            providerSelect
-        };
+    function getProviderSelect() {
+        return getElement("providerId");
     }
 
     /* =====================================================
-       NORMALIZE MODEL
-    ===================================================== */
+       NORMALIZATION
+       ===================================================== */
 
     function normalizeModel(model) {
-        if (!model || typeof model !== "object") {
+        if (
+            !model ||
+            typeof model !== "object"
+        ) {
             return null;
         }
 
-        const provider = String(
-            model.provider ??
-            model.provider_id ??
-            model.provider_name ??
+        const modelId = String(
+            model.model_id ??
+            model.modelId ??
+            model.id ??
             ""
         ).trim();
+
+        if (!modelId) {
+            return null;
+        }
 
         const providerId = String(
             model.provider_id ??
             model.provider ??
+            model.providerId ??
+            ""
+        ).trim();
+
+        const modelName = String(
+            model.model_name ??
+            model.modelName ??
+            model.name ??
+            ""
+        ).trim();
+
+        const modelFamily = String(
+            model.model_family ??
+            model.modelFamily ??
+            model.family ??
+            ""
+        ).trim();
+
+        const providerName = String(
+            model.provider_name ??
+            model.providerName ??
             ""
         ).trim();
 
         return {
             ...model,
 
-            provider,
-            provider_id: providerId
+            model_id: modelId,
+
+            provider_id:
+                providerId,
+
+            provider:
+                providerId ||
+                model.provider ||
+                "",
+
+            model_name:
+                modelName,
+
+            model_family:
+                modelFamily,
+
+            provider_name:
+                providerName
         };
     }
 
@@ -124,124 +141,170 @@
             return [];
         }
 
-        return list
-            .map(normalizeModel)
-            .filter(Boolean);
+        const result = [];
+        const seen = new Set();
+
+        list.forEach(function (item) {
+            const model =
+                normalizeModel(item);
+
+            if (!model) {
+                return;
+            }
+
+            const key =
+                model.model_id
+                    .trim()
+                    .toLowerCase();
+
+            /*
+             * Model ID harus unik di autocomplete.
+             */
+            if (seen.has(key)) {
+                return;
+            }
+
+            seen.add(key);
+            result.push(model);
+        });
+
+        return result;
     }
 
     /* =====================================================
-       SET MODELS
-    ===================================================== */
-
-    function setModels(list) {
-        models = normalizeModels(list);
-
-        console.log(
-            "[GEN-Z Models Search] Models received:",
-            models.length
-        );
-
-        /*
-         * Pastikan DOM sudah tersedia.
-         */
-        getElements();
-
-        /*
-         * Jika user sedang mengetik,
-         * refresh hasil pencarian.
-         */
-        if (
-            input &&
-            document.activeElement === input
-        ) {
-            renderResults(
-                search(input.value)
-            );
-        }
-
-        return [...models];
-    }
-
-    /* =====================================================
-       GET MODELS
-    ===================================================== */
-
-    function getModels() {
-        return [...models];
-    }
-
-    /* =====================================================
-       MODEL STATUS
-    ===================================================== */
+       STATUS
+       ===================================================== */
 
     function isActive(model) {
         const status = String(
-            model?.status ?? ""
+            model?.status ??
+            "active"
         )
             .trim()
             .toLowerCase();
-
-        /*
-         * Status kosong tetap boleh tampil.
-         *
-         * Berguna untuk katalog lama,
-         * custom provider, atau data legacy.
-         */
-        if (!status) {
-            return true;
-        }
 
         return (
             status === "active" ||
             status === "enabled" ||
             status === "published" ||
-            status === "available"
+            status === ""
         );
     }
 
     /* =====================================================
-       GET SELECTED PROVIDER
-    ===================================================== */
+       MODEL STATE
+       ===================================================== */
 
-    function getSelectedProviderData() {
-        if (!providerSelect) {
-            providerSelect =
-                document.getElementById(
-                    "providerId"
-                );
-        }
+    function setModels(list) {
+        models =
+            normalizeModels(list);
 
-        if (!providerSelect) {
-            return {
-                id: "",
-                text: "",
-                value: ""
-            };
-        }
+        return [
+            ...models
+        ];
+    }
 
-        const option =
-            providerSelect.options[
-                providerSelect.selectedIndex
-            ];
-
-        const value = String(
-            providerSelect.value || ""
-        ).trim();
-
-        const text = String(
-            option?.textContent || ""
-        ).trim();
-
-        return {
-            id: value.toLowerCase(),
-            value,
-            text: text.toLowerCase()
-        };
+    function getModels() {
+        return [
+            ...models
+        ];
     }
 
     /* =====================================================
-       PROVIDER MATCH
-    ===================================================== */
+       PROVIDER STATE
+       ===================================================== */
+
+    function getSelectedProviderData() {
+        const select =
+            getProviderSelect();
+
+        if (!select) {
+            return {
+                value: "",
+                text: "",
+                id: "",
+                name: ""
+            };
+        }
+
+        const value =
+            String(
+                select.value || ""
+            ).trim();
+
+        const option =
+            select.options[
+                select.selectedIndex
+            ];
+
+        const text =
+            String(
+                option?.textContent ||
+                ""
+            ).trim();
+
+        /*
+         * Value provider dropdown normalnya:
+         * provider_id
+         *
+         * Text normalnya:
+         * Provider Name (provider_id)
+         */
+
+        let name = text;
+
+        const match =
+            text.match(
+                /^(.*?)\s*\(([^()]*)\)\s*$/
+            );
+
+        if (match) {
+            name =
+                String(
+                    match[1] || ""
+                ).trim();
+        }
+
+        return {
+            value,
+            text,
+            id: value,
+            name
+        };
+    }
+
+    function getModelProviderValues(model) {
+        const values = [];
+
+        const add = function (value) {
+            const normalized =
+                String(
+                    value ??
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+            if (
+                normalized &&
+                !values.includes(
+                    normalized
+                )
+            ) {
+                values.push(
+                    normalized
+                );
+            }
+        };
+
+        add(model?.provider_id);
+        add(model?.provider);
+        add(model?.providerId);
+        add(model?.provider_name);
+        add(model?.providerName);
+
+        return values;
+    }
 
     function providerMatches(model) {
         const selected =
@@ -249,51 +312,87 @@
 
         if (
             !selected.id &&
+            !selected.name &&
             !selected.text
         ) {
+            /*
+             * Tidak ada provider dipilih.
+             * Semua provider boleh dicari.
+             */
             return true;
         }
 
-        const values = [
-            model?.provider_id,
-            model?.provider,
-            model?.provider_name
-        ]
-            .map(value =>
-                String(
-                    value ?? ""
-                )
-                    .trim()
-                    .toLowerCase()
-            )
-            .filter(Boolean);
+        const modelProviders =
+            getModelProviderValues(
+                model
+            );
+
+        if (
+            modelProviders.length === 0
+        ) {
+            return false;
+        }
 
         const selectedValues = [
             selected.id,
+            selected.name,
             selected.text
-        ].filter(Boolean);
+        ]
+            .map(function (value) {
+                return String(
+                    value || ""
+                )
+                    .trim()
+                    .toLowerCase();
+            })
+            .filter(Boolean);
 
+        /*
+         * Cocokkan ID provider terlebih dahulu.
+         */
         for (
-            const modelValue
-            of values
+            const modelProvider
+            of modelProviders
         ) {
             for (
                 const selectedValue
                 of selectedValues
             ) {
                 if (
-                    modelValue ===
+                    modelProvider ===
                     selectedValue
                 ) {
                     return true;
                 }
+            }
+        }
 
+        /*
+         * Beberapa data lama mungkin menyimpan
+         * nama provider, sedangkan dropdown memakai ID.
+         *
+         * Contoh:
+         * model.provider = "ChinaApi"
+         * dropdown value = "bytedance"
+         * dropdown text = "ChinaApi (bytedance)"
+         *
+         * Maka pencocokan parsial digunakan sebagai
+         * fallback yang aman.
+         */
+        for (
+            const modelProvider
+            of modelProviders
+        ) {
+            for (
+                const selectedValue
+                of selectedValues
+            ) {
                 if (
-                    selectedValue.includes(
-                        modelValue
-                    ) ||
-                    modelValue.includes(
+                    modelProvider.includes(
                         selectedValue
+                    ) ||
+                    selectedValue.includes(
+                        modelProvider
                     )
                 ) {
                     return true;
@@ -304,232 +403,264 @@
         return false;
     }
 
-    /* =====================================================
-       PROVIDER SCORE
-    ===================================================== */
-
     function getProviderScore(model) {
         const selected =
             getSelectedProviderData();
 
         if (
             !selected.id &&
+            !selected.name &&
             !selected.text
         ) {
             return 0;
         }
 
-        const values = [
-            model?.provider_id,
-            model?.provider,
-            model?.provider_name
-        ]
-            .map(value =>
-                String(
-                    value ?? ""
-                )
-                    .trim()
-                    .toLowerCase()
-            )
-            .filter(Boolean);
-
-        let score = 0;
-
-        for (
-            const modelValue
-            of values
-        ) {
-            if (
-                selected.id &&
-                modelValue ===
-                    selected.id
-            ) {
-                score = Math.max(
-                    score,
-                    100
-                );
-            }
-
-            if (
-                selected.text &&
-                modelValue ===
-                    selected.text
-            ) {
-                score = Math.max(
-                    score,
-                    90
-                );
-            }
-
-            if (
-                selected.text &&
-                selected.text.includes(
-                    modelValue
-                )
-            ) {
-                score = Math.max(
-                    score,
-                    70
-                );
-            }
-
-            if (
-                selected.id &&
-                modelValue.includes(
-                    selected.id
-                )
-            ) {
-                score = Math.max(
-                    score,
-                    60
-                );
-            }
-        }
-
-        return score;
+        return providerMatches(model)
+            ? 1000
+            : 0;
     }
 
     /* =====================================================
        SEARCH
-    ===================================================== */
+       ===================================================== */
 
     function search(keyword = "") {
-        const term = String(
-            keyword ?? ""
-        )
-            .trim()
-            .toLowerCase();
+        const term =
+            String(
+                keyword ??
+                ""
+            )
+                .trim()
+                .toLowerCase();
 
-        /*
-         * ================================================
-         * SEARCH KATALOG
-         * ================================================
-         */
+        const selected =
+            getSelectedProviderData();
 
-        let results = models.filter(
-            model => {
-                if (!isActive(model)) {
-                    return false;
-                }
+        const hasProvider =
+            !!(
+                selected.id ||
+                selected.name ||
+                selected.text
+            );
 
-                /*
-                 * Keyword kosong:
-                 * tampilkan seluruh katalog.
-                 */
-                if (!term) {
-                    return true;
-                }
+        let results =
+            models.filter(
+                function (model) {
+                    /*
+                     * Hanya model aktif.
+                     */
+                    if (
+                        !isActive(model)
+                    ) {
+                        return false;
+                    }
 
-                const modelId =
-                    String(
-                        model.model_id ??
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase();
+                    /*
+                     * Jika provider dipilih,
+                     * autocomplete hanya menampilkan
+                     * model milik provider tersebut.
+                     */
+                    if (
+                        hasProvider &&
+                        !providerMatches(model)
+                    ) {
+                        return false;
+                    }
 
-                const modelName =
-                    String(
-                        model.model_name ??
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase();
+                    /*
+                     * Jika keyword kosong,
+                     * tampilkan semua model provider tersebut.
+                     */
+                    if (!term) {
+                        return true;
+                    }
 
-                const family =
-                    String(
-                        model.model_family ??
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase();
-
-                const provider =
-                    String(
-                        model.provider ??
-                        model.provider_id ??
-                        model.provider_name ??
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase();
-
-                return (
-                    modelId.includes(
-                        term
-                    ) ||
-                    modelName.includes(
-                        term
-                    ) ||
-                    family.includes(
-                        term
-                    ) ||
-                    provider.includes(
-                        term
-                    )
-                );
-            }
-        );
-
-        /*
-         * ================================================
-         * PRIORITAS PROVIDER
-         * ================================================
-         */
-
-        results.sort(
-            (a, b) =>
-                getProviderScore(b) -
-                getProviderScore(a)
-        );
-
-        /*
-         * ================================================
-         * MANUAL MODEL ID
-         * ================================================
-         *
-         * INI BAGIAN PENTING.
-         *
-         * Provider sudah tersedia di database,
-         * tetapi model belum tentu ada di kie_models.
-         *
-         * Jadi user tetap boleh mengetik:
-         *
-         * kling-3.0
-         * veo-3
-         * seedance-1.0
-         * model-custom-123
-         *
-         * dan memilihnya sebagai Model ID manual.
-         */
-
-        if (term) {
-            const exactExists =
-                results.some(
-                    model =>
+                    const modelId =
                         String(
                             model.model_id ??
                             ""
                         )
                             .trim()
-                            .toLowerCase() ===
+                            .toLowerCase();
+
+                    const modelName =
+                        String(
+                            model.model_name ??
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    const family =
+                        String(
+                            model.model_family ??
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    const provider =
+                        String(
+                            model.provider_id ??
+                            model.provider ??
+                            model.provider_name ??
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    return (
+                        modelId.includes(
+                            term
+                        ) ||
+                        modelName.includes(
+                            term
+                        ) ||
+                        family.includes(
+                            term
+                        ) ||
+                        provider.includes(
+                            term
+                        )
+                    );
+                }
+            );
+
+        /*
+         * Urutan hasil:
+         *
+         * 1. Exact Model ID
+         * 2. Provider match
+         * 3. Model ID diawali keyword
+         * 4. Alphabetical
+         */
+        results.sort(
+            function (a, b) {
+                const aId =
+                    String(
+                        a.model_id ??
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+                const bId =
+                    String(
+                        b.model_id ??
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+                const aExact =
+                    term &&
+                    aId === term
+                        ? 1000
+                        : 0;
+
+                const bExact =
+                    term &&
+                    bId === term
+                        ? 1000
+                        : 0;
+
+                if (
+                    aExact !==
+                    bExact
+                ) {
+                    return (
+                        bExact -
+                        aExact
+                    );
+                }
+
+                const providerDiff =
+                    getProviderScore(b) -
+                    getProviderScore(a);
+
+                if (
+                    providerDiff !==
+                    0
+                ) {
+                    return providerDiff;
+                }
+
+                const aStarts =
+                    term &&
+                    aId.startsWith(
                         term
+                    )
+                        ? 100
+                        : 0;
+
+                const bStarts =
+                    term &&
+                    bId.startsWith(
+                        term
+                    )
+                        ? 100
+                        : 0;
+
+                if (
+                    aStarts !==
+                    bStarts
+                ) {
+                    return (
+                        bStarts -
+                        aStarts
+                    );
+                }
+
+                return aId.localeCompare(
+                    bId,
+                    "id",
+                    {
+                        sensitivity:
+                            "base"
+                    }
+                );
+            }
+        );
+
+        /*
+         * Manual Model ID
+         *
+         * Jika user mengetik Model ID yang belum
+         * ada di catalog, tetap berikan opsi tersebut.
+         *
+         * Ini penting karena tidak semua model API
+         * harus sudah terdaftar di kie_models.
+         */
+        if (term) {
+            const exactExists =
+                results.some(
+                    function (model) {
+                        return (
+                            String(
+                                model.model_id ??
+                                ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            term
+                        );
+                    }
                 );
 
             if (!exactExists) {
-                const selectedProvider =
-                    getSelectedProviderData();
-
                 results.push({
                     __manual: true,
 
                     id: null,
 
                     provider:
-                        selectedProvider.value,
+                        selected.value,
 
                     provider_id:
-                        selectedProvider.value,
+                        selected.value,
+
+                    provider_name:
+                        selected.name,
 
                     model_id:
                         String(
@@ -540,15 +671,9 @@
 
                     model_family: "",
 
-                    status: "active"
+                    status:
+                        "active"
                 });
-
-                console.log(
-                    "[GEN-Z Models Search] Manual model option created:",
-                    String(
-                        keyword
-                    ).trim()
-                );
             }
         }
 
@@ -556,347 +681,13 @@
     }
 
     /* =====================================================
-       FORCE DROPDOWN VISIBLE
-    ===================================================== */
-
-    function showDropdown() {
-        if (!dropdown) {
-            getElements();
-        }
-
-        if (!dropdown) {
-            return;
-        }
-
-        /*
-         * !important dipasang melalui JS agar
-         * tidak kalah oleh CSS halaman/admin layout.
-         */
-        dropdown.style.setProperty(
-            "display",
-            "block",
-            "important"
-        );
-
-        dropdown.style.setProperty(
-            "position",
-            "absolute",
-            "important"
-        );
-
-        dropdown.style.setProperty(
-            "z-index",
-            "99999",
-            "important"
-        );
-
-        dropdown.style.setProperty(
-            "pointer-events",
-            "auto",
-            "important"
-        );
-
-        dropdown.style.setProperty(
-            "visibility",
-            "visible",
-            "important"
-        );
-
-        dropdown.style.setProperty(
-            "opacity",
-            "1",
-            "important"
-        );
-    }
-
-    /* =====================================================
-       RENDER RESULTS
-    ===================================================== */
-
-    function renderResults(results) {
-        getElements();
-
-        if (!dropdown) {
-            console.warn(
-                "[GEN-Z Models Search] Dropdown belum ditemukan."
-            );
-
-            return;
-        }
-
-        dropdown.innerHTML = "";
-
-        /*
-         * ==================================================
-         * FALLBACK PALING PENTING
-         * ==================================================
-         *
-         * Jika results kosong tetapi user mengetik
-         * sesuatu, buat manual Model ID langsung.
-         *
-         * Ini membuat search tetap bekerja bahkan
-         * ketika katalog kie_models benar-benar kosong.
-         */
-
-        if (
-            (!Array.isArray(results) ||
-                results.length === 0) &&
-            input &&
-            String(
-                input.value || ""
-            ).trim()
-        ) {
-            const keyword =
-                String(
-                    input.value
-                ).trim();
-
-            const provider =
-                getSelectedProviderData();
-
-            results = [
-                {
-                    __manual: true,
-
-                    id: null,
-
-                    provider:
-                        provider.value,
-
-                    provider_id:
-                        provider.value,
-
-                    model_id:
-                        keyword,
-
-                    model_name: "",
-
-                    model_family: "",
-
-                    status: "active"
-                }
-            ];
-        }
-
-        /*
-         * Jika tetap kosong.
-         */
-        if (
-            !Array.isArray(results) ||
-            results.length === 0
-        ) {
-            hideDropdown();
-
-            return;
-        }
-
-        results.forEach(
-            (
-                model,
-                index
-            ) => {
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-                item.className =
-                    "model-search-item";
-
-                item.dataset.index =
-                    String(index);
-
-                /*
-                 * Tambahkan class manual.
-                 */
-                if (
-                    model.__manual
-                ) {
-                    item.classList.add(
-                        "model-search-manual"
-                    );
-                }
-
-                /*
-                 * Inline style dasar.
-                 *
-                 * Tidak bergantung pada CSS eksternal.
-                 */
-                item.style.cursor =
-                    "pointer";
-
-                item.style.pointerEvents =
-                    "auto";
-
-                const modelId =
-                    String(
-                        model.model_id ??
-                        ""
-                    ).trim();
-
-                const modelName =
-                    String(
-                        model.model_name ??
-                        ""
-                    ).trim();
-
-                const family =
-                    String(
-                        model.model_family ??
-                        ""
-                    ).trim();
-
-                const provider =
-                    String(
-                        model.provider ??
-                        model.provider_id ??
-                        model.provider_name ??
-                        ""
-                    ).trim();
-
-                if (
-                    model.__manual
-                ) {
-                    item.innerHTML = `
-                        <div class="model-search-main">
-                            <strong>
-                                ${escapeHtml(
-                                    modelId
-                                )}
-                            </strong>
-                        </div>
-
-                        <div class="model-search-name">
-                            Gunakan Model ID ini
-                        </div>
-
-                        <div class="model-search-meta">
-                            <span>
-                                Model manual
-                            </span>
-                            ${
-                                provider
-                                    ? `
-                                <span>
-                                    Provider:
-                                    ${escapeHtml(
-                                        provider
-                                    )}
-                                </span>
-                                `
-                                    : ""
-                            }
-                        </div>
-                    `;
-                } else {
-                    item.innerHTML = `
-                        <div class="model-search-main">
-                            <strong>
-                                ${escapeHtml(
-                                    modelId
-                                )}
-                            </strong>
-                        </div>
-
-                        ${
-                            modelName
-                                ? `
-                            <div class="model-search-name">
-                                ${escapeHtml(
-                                    modelName
-                                )}
-                            </div>
-                            `
-                                : ""
-                        }
-
-                        <div class="model-search-meta">
-
-                            ${
-                                provider
-                                    ? `
-                                <span>
-                                    Provider:
-                                    ${escapeHtml(
-                                        provider
-                                    )}
-                                </span>
-                                `
-                                    : ""
-                            }
-
-                            ${
-                                family
-                                    ? `
-                                <span>
-                                    ${escapeHtml(
-                                        family
-                                    )}
-                                </span>
-                                `
-                                    : ""
-                            }
-
-                        </div>
-                    `;
-                }
-
-                /*
-                 * MOUSEDOWN
-                 *
-                 * Dipakai agar browser tidak menjalankan
-                 * blur sebelum pilihan diproses.
-                 */
-                item.addEventListener(
-                    "mousedown",
-                    event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        selectModel(
-                            model
-                        );
-                    }
-                );
-
-                /*
-                 * CLICK FALLBACK
-                 */
-                item.addEventListener(
-                    "click",
-                    event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        selectModel(
-                            model
-                        );
-                    }
-                );
-
-                dropdown.appendChild(
-                    item
-                );
-            }
-        );
-
-        showDropdown();
-
-        selectedIndex = -1;
-
-        console.log(
-            "[GEN-Z Models Search] Results rendered:",
-            results.length
-        );
-    }
-
-    /* =====================================================
-       ESCAPE HTML
-    ===================================================== */
+       HTML SAFETY
+       ===================================================== */
 
     function escapeHtml(value) {
         return String(
-            value ?? ""
+            value ??
+            ""
         )
             .replace(
                 /&/g,
@@ -921,68 +712,226 @@
     }
 
     /* =====================================================
-       UPDATE SELECTED MODEL INFO
-    ===================================================== */
+       DROPDOWN
+       ===================================================== */
+
+    function showDropdown() {
+        const box =
+            getResultsBox();
+
+        if (!box) {
+            return;
+        }
+
+        box.style.display =
+            "block";
+
+        box.classList.add(
+            "show"
+        );
+    }
+
+    function hideDropdown() {
+        const box =
+            getResultsBox();
+
+        if (!box) {
+            return;
+        }
+
+        box.style.display =
+            "none";
+
+        box.classList.remove(
+            "show"
+        );
+    }
+
+    function renderResults(
+        results
+    ) {
+        const box =
+            getResultsBox();
+
+        if (!box) {
+            return;
+        }
+
+        if (
+            !Array.isArray(results) ||
+            results.length === 0
+        ) {
+            box.innerHTML =
+                '<div class="model-search-empty">' +
+                'Model tidak ditemukan.' +
+                '</div>';
+
+            showDropdown();
+
+            return;
+        }
+
+        const html =
+            results
+                .map(
+                    function (model) {
+                        const modelId =
+                            String(
+                                model.model_id ??
+                                ""
+                            ).trim();
+
+                        const modelName =
+                            String(
+                                model.model_name ??
+                                ""
+                            ).trim();
+
+                        const family =
+                            String(
+                                model.model_family ??
+                                ""
+                            ).trim();
+
+                        const provider =
+                            String(
+                                model.provider_name ??
+                                model.provider_id ??
+                                model.provider ??
+                                ""
+                            ).trim();
+
+                        const manual =
+                            model.__manual ===
+                            true;
+
+                        return (
+                            '<div ' +
+                            'class="model-search-item' +
+                            (
+                                manual
+                                    ? " manual"
+                                    : ""
+                            ) +
+                            '" ' +
+                            'data-model-id="' +
+                            escapeHtml(
+                                modelId
+                            ) +
+                            '">' +
+
+                            '<div class="model-search-item-main">' +
+
+                            '<div class="model-search-item-id">' +
+                            escapeHtml(
+                                modelId
+                            ) +
+                            '</div>' +
+
+                            (
+                                modelName
+                                    ? (
+                                        '<div class="model-search-item-name">' +
+                                        escapeHtml(
+                                            modelName
+                                        ) +
+                                        '</div>'
+                                    )
+                                    : ""
+                            ) +
+
+                            '</div>' +
+
+                            (
+                                family ||
+                                provider
+                                    ? (
+                                        '<div class="model-search-item-meta">' +
+                                        (
+                                            family
+                                                ? escapeHtml(
+                                                    family
+                                                )
+                                                : ""
+                                        ) +
+                                        (
+                                            family &&
+                                            provider
+                                                ? " • "
+                                                : ""
+                                        ) +
+                                        (
+                                            provider
+                                                ? escapeHtml(
+                                                    provider
+                                                )
+                                                : ""
+                                        ) +
+                                        '</div>'
+                                    )
+                                    : ""
+                            ) +
+
+                            (
+                                manual
+                                    ? (
+                                        '<div class="model-search-item-manual">' +
+                                        'Gunakan Model ID ini' +
+                                        '</div>'
+                                    )
+                                    : ""
+                            ) +
+
+                            '</div>'
+                        );
+                    }
+                )
+                .join("");
+
+        box.innerHTML =
+            html;
+
+        showDropdown();
+    }
+
+    /* =====================================================
+       SELECTED MODEL INFO
+       ===================================================== */
 
     function updateSelectedModelInfo(
         model
     ) {
-        if (!selectedInfo) {
-            selectedInfo =
-                document.getElementById(
-                    "selectedModelInfo"
-                );
-        }
+        const info =
+            getSelectedInfo();
 
-        if (!selectedInfo) {
+        if (!info) {
             return;
         }
 
-        const normalized =
-            normalizeModel(
-                model
-            );
-
-        if (!normalized) {
-            selectedInfo.textContent =
+        if (!model) {
+            info.textContent =
                 "Belum ada model dipilih.";
-
-            selectedInfo.classList.remove(
-                "model-selected"
-            );
-
-            delete selectedInfo.dataset
-                .modelId;
-
-            delete selectedInfo.dataset
-                .provider;
 
             return;
         }
 
         const modelId =
             String(
-                normalized.model_id ??
+                model.model_id ??
                 ""
             ).trim();
 
         const modelName =
             String(
-                normalized.model_name ??
+                model.model_name ??
                 ""
             ).trim();
 
         const provider =
             String(
-                normalized.provider ??
-                normalized.provider_id ??
-                normalized.provider_name ??
-                ""
-            ).trim();
-
-        const family =
-            String(
-                normalized.model_family ??
+                model.provider_name ??
+                model.provider_id ??
+                model.provider ??
                 ""
             ).trim();
 
@@ -990,243 +939,61 @@
 
         if (modelId) {
             parts.push(
-                `Model ID: ${modelId}`
+                modelId
             );
         }
 
         if (modelName) {
             parts.push(
-                `Nama: ${modelName}`
+                modelName
             );
         }
 
         if (provider) {
             parts.push(
-                `Provider: ${provider}`
+                "Provider: " +
+                provider
             );
         }
 
-        if (family) {
-            parts.push(
-                `Family: ${family}`
-            );
-        }
-
-        selectedInfo.textContent =
-            `✓ Model dipilih | ${parts.join(
-                " • "
-            )}`;
-
-        selectedInfo.classList.add(
-            "model-selected"
-        );
-
-        selectedInfo.dataset.modelId =
-            modelId;
-
-        selectedInfo.dataset.provider =
-            provider;
+        info.textContent =
+            parts.length
+                ? parts.join(
+                    " • "
+                )
+                : "Model dipilih.";
     }
-
-    /* =====================================================
-       CLEAR SELECTED MODEL INFO
-    ===================================================== */
 
     function clearSelectedModelInfo() {
-        if (!selectedInfo) {
-            selectedInfo =
-                document.getElementById(
-                    "selectedModelInfo"
-                );
-        }
+        const info =
+            getSelectedInfo();
 
-        if (!selectedInfo) {
+        if (!info) {
             return;
         }
 
-        selectedInfo.textContent =
+        info.textContent =
             "Belum ada model dipilih.";
-
-        selectedInfo.classList.remove(
-            "model-selected"
-        );
-
-        delete selectedInfo.dataset
-            .modelId;
-
-        delete selectedInfo.dataset
-            .provider;
     }
 
     /* =====================================================
-       SELECT MODEL
-    ===================================================== */
+       PROVIDER SYNC
+       ===================================================== */
 
-    async function selectModel(
+    function syncProvider(
         model
     ) {
-        if (!model) {
-            return;
-        }
-
-        const normalized =
-            normalizeModel(
-                model
-            );
-
-        if (!normalized) {
-            return;
-        }
-
-        const modelId =
-            String(
-                normalized.model_id ??
-                ""
-            ).trim();
-
-        if (!modelId) {
-            console.warn(
-                "[GEN-Z Models Search] Model ID kosong."
-            );
-
-            return;
-        }
-
-        getElements();
-
-        /*
-         * Isi input visible.
-         */
-        if (input) {
-            input.value =
-                modelId;
-        }
-
-        /*
-         * Isi hidden Model ID.
-         */
-        if (hiddenInput) {
-            hiddenInput.value =
-                modelId;
-        }
-
-        /*
-         * Simpan model global.
-         */
-        window.GENZ_SELECTED_MODEL =
-            normalized;
-
-        /*
-         * Tampilkan informasi model.
-         */
-        updateSelectedModelInfo(
-            normalized
-        );
-
-        /*
-         * ==================================================
-         * PROVIDER
-         * ==================================================
-         *
-         * Manual:
-         * provider berasal dari dropdown.
-         *
-         * Catalog:
-         * provider mengikuti model catalog.
-         */
         if (
-            !normalized.__manual
+            !model ||
+            model.__manual === true
         ) {
-            await syncProvider(
-                normalized
-            );
+            return;
         }
 
-        /*
-         * Sinkron ke Models Form.
-         */
-        try {
-            const form =
-                window.GENZModelsForm;
-
-            if (
-                form &&
-                typeof form.setSelectedModel ===
-                    "function"
-            ) {
-                form.setSelectedModel(
-                    normalized
-                );
-            }
-        } catch (
-            error
-        ) {
-            console.warn(
-                "[GEN-Z Models Search] Gagal sinkronisasi ke form:",
-                error
-            );
-        }
-
-        /*
-         * Tutup dropdown.
-         */
-        hideDropdown();
-
-        /*
-         * Trigger input event.
-         */
-        if (input) {
-            input.dispatchEvent(
-                new Event(
-                    "input",
-                    {
-                        bubbles: true
-                    }
-                )
-            );
-
-            input.dispatchEvent(
-                new Event(
-                    "change",
-                    {
-                        bubbles: true
-                    }
-                )
-            );
-        }
-
-        /*
-         * Trigger hidden input change.
-         */
-        if (hiddenInput) {
-            hiddenInput.dispatchEvent(
-                new Event(
-                    "change",
-                    {
-                        bubbles: true
-                    }
-                )
-            );
-        }
-
-        console.log(
-            "[GEN-Z Models Search] Model selected:",
-            normalized
-        );
-    }
-
-    /* =====================================================
-       SYNC PROVIDER
-    ===================================================== */
-
-    async function syncProvider(
-        model
-    ) {
         const providerId =
             String(
-                model?.provider_id ??
-                model?.provider ??
-                model?.provider_name ??
+                model.provider_id ??
+                model.provider ??
                 ""
             ).trim();
 
@@ -1234,430 +1001,556 @@
             return;
         }
 
+        /*
+         * Gunakan module Provider jika tersedia.
+         * Jangan mengambil alih provider dropdown.
+         */
+        if (
+            window.GENZModelsProvider &&
+            typeof
+                window.GENZModelsProvider.setValue ===
+                "function"
+        ) {
+            const success =
+                window.GENZModelsProvider.setValue(
+                    providerId
+                );
+
+            if (success) {
+                return;
+            }
+        }
+
+        /*
+         * Fallback langsung ke select.
+         */
         const select =
-            document.getElementById(
-                "providerId"
-            );
+            getProviderSelect();
 
         if (!select) {
             return;
         }
-
-        const normalizedProvider =
-            providerId.toLowerCase();
 
         const options =
             Array.from(
                 select.options
             );
 
-        /*
-         * Match exact value.
-         */
-        const matched =
+        const exact =
             options.find(
-                option =>
-                    String(
-                        option.value ??
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase() ===
-                    normalizedProvider
-            );
-
-        if (matched) {
-            select.value =
-                matched.value;
-
-            select.dispatchEvent(
-                new Event(
-                    "change",
-                    {
-                        bubbles: true
-                    }
-                )
-            );
-
-            return;
-        }
-
-        /*
-         * Match label.
-         */
-        const matchedText =
-            options.find(
-                option =>
-                    String(
-                        option.textContent ??
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase()
-                        .includes(
-                            normalizedProvider
+                function (option) {
+                    return (
+                        String(
+                            option.value ||
+                            ""
                         )
-            );
-
-        if (matchedText) {
-            select.value =
-                matchedText.value;
-
-            select.dispatchEvent(
-                new Event(
-                    "change",
-                    {
-                        bubbles: true
-                    }
-                )
-            );
-
-            return;
-        }
-
-        console.warn(
-            "[GEN-Z Models Search] Provider tidak ditemukan:",
-            providerId
-        );
-    }
-
-    /* =====================================================
-       HIDE DROPDOWN
-    ===================================================== */
-
-    function hideDropdown() {
-        if (!dropdown) {
-            getElements();
-        }
-
-        if (dropdown) {
-            dropdown.style.setProperty(
-                "display",
-                "none",
-                "important"
-            );
-
-            dropdown.style.setProperty(
-                "visibility",
-                "hidden",
-                "important"
-            );
-        }
-
-        selectedIndex = -1;
-    }
-
-    /* =====================================================
-       KEYBOARD
-    ===================================================== */
-
-    function handleKeyboard(
-        event
-    ) {
-        if (!dropdown) {
-            getElements();
-        }
-
-        if (!dropdown) {
-            return;
-        }
-
-        const computedDisplay =
-            window.getComputedStyle(
-                dropdown
-            ).display;
-
-        if (
-            computedDisplay ===
-                "none" ||
-            dropdown.style.visibility ===
-                "hidden"
-        ) {
-            return;
-        }
-
-        const items =
-            Array.from(
-                dropdown.querySelectorAll(
-                    ".model-search-item"
-                )
-            );
-
-        if (!items.length) {
-            return;
-        }
-
-        /*
-         * Arrow Down
-         */
-        if (
-            event.key ===
-            "ArrowDown"
-        ) {
-            event.preventDefault();
-
-            selectedIndex =
-                Math.min(
-                    selectedIndex + 1,
-                    items.length - 1
-                );
-
-            updateKeyboardSelection(
-                items
-            );
-
-            return;
-        }
-
-        /*
-         * Arrow Up
-         */
-        if (
-            event.key ===
-            "ArrowUp"
-        ) {
-            event.preventDefault();
-
-            selectedIndex =
-                Math.max(
-                    selectedIndex - 1,
-                    0
-                );
-
-            updateKeyboardSelection(
-                items
-            );
-
-            return;
-        }
-
-        /*
-         * Enter
-         */
-        if (
-            event.key ===
-            "Enter"
-        ) {
-            if (
-                selectedIndex >= 0 &&
-                selectedIndex <
-                    items.length
-            ) {
-                event.preventDefault();
-
-                const index =
-                    Number(
-                        items[
-                            selectedIndex
-                        ].dataset.index
-                    );
-
-                const results =
-                    search(
-                        input
-                            ? input.value
-                            : ""
-                    );
-
-                if (
-                    results[index]
-                ) {
-                    selectModel(
-                        results[index]
+                            .trim()
+                            .toLowerCase() ===
+                        providerId
+                            .toLowerCase()
                     );
                 }
-            }
+            );
 
+        if (exact) {
+            select.value =
+                exact.value;
+        }
+    }
+
+    /* =====================================================
+       SELECT MODEL
+       ===================================================== */
+
+    function selectModel(
+        model
+    ) {
+        if (!model) {
             return;
         }
 
-        /*
-         * Escape
-         */
-        if (
-            event.key ===
-            "Escape"
-        ) {
-            event.preventDefault();
+        const modelId =
+            String(
+                model.model_id ??
+                ""
+            ).trim();
 
-            hideDropdown();
+        if (!modelId) {
+            return;
         }
-    }
 
-    /* =====================================================
-       KEYBOARD SELECTION
-    ===================================================== */
+        const searchInput =
+            getSearchInput();
 
-    function updateKeyboardSelection(
-        items
-    ) {
-        items.forEach(
-            (
-                item,
-                index
-            ) => {
-                item.classList.toggle(
-                    "selected",
-                    index ===
-                        selectedIndex
+        const hiddenInput =
+            getHiddenModelInput();
+
+        if (searchInput) {
+            searchInput.value =
+                modelId;
+        }
+
+        if (hiddenInput) {
+            hiddenInput.value =
+                modelId;
+
+            /*
+             * Trigger input/change agar module Form
+             * lain dapat mengetahui perubahan.
+             */
+            try {
+                hiddenInput.dispatchEvent(
+                    new Event(
+                        "input",
+                        {
+                            bubbles: true
+                        }
+                    )
+                );
+
+                hiddenInput.dispatchEvent(
+                    new Event(
+                        "change",
+                        {
+                            bubbles: true
+                        }
+                    )
+                );
+            } catch (
+                error
+            ) {
+                console.warn(
+                    "[GEN-Z.AI] Model hidden input event error:",
+                    error
                 );
             }
+        }
+
+        /*
+         * Sinkronkan provider hanya untuk
+         * model yang berasal dari catalog.
+         */
+        syncProvider(
+            model
         );
 
-        if (
-            selectedIndex >= 0 &&
-            items[
-                selectedIndex
-            ]
-        ) {
-            items[
-                selectedIndex
-            ].scrollIntoView({
-                block: "nearest"
-            });
-        }
+        updateSelectedModelInfo(
+            model
+        );
+
+        hideDropdown();
+
+        /*
+         * Beri kesempatan module lain
+         * menangani model yang dipilih.
+         */
+        document.dispatchEvent(
+            new CustomEvent(
+                "genz-model-selected",
+                {
+                    detail: {
+                        model:
+                            model
+                    }
+                }
+            )
+        );
+
+        return model;
     }
 
     /* =====================================================
-       INPUT
-    ===================================================== */
+       EVENT HANDLERS
+       ===================================================== */
 
-    function handleInput() {
-        getElements();
+    function handleInput(
+        event
+    ) {
+        const input =
+            event.currentTarget;
 
         if (!input) {
             return;
         }
 
         const keyword =
-            input.value;
+            String(
+                input.value ??
+                ""
+            ).trim();
 
         /*
-         * Jika user mengubah Model ID
-         * setelah memilih sebelumnya,
-         * kosongkan hidden value.
+         * Jika user mengubah text setelah memilih
+         * model, hidden Model ID harus ikut direset
+         * sampai user memilih hasil baru.
          */
+        const hiddenInput =
+            getHiddenModelInput();
+
         if (hiddenInput) {
-            const current =
+            if (
                 String(
                     hiddenInput.value ??
                     ""
-                ).trim();
-
-            const typed =
+                ).trim() !==
                 String(
-                    keyword ??
+                    input.value ??
                     ""
-                ).trim();
-
-            if (
-                current &&
-                current !== typed
+                ).trim()
             ) {
                 hiddenInput.value =
                     "";
-
-                window.GENZ_SELECTED_MODEL =
-                    null;
-
-                clearSelectedModelInfo();
             }
         }
 
-        /*
-         * Search selalu dijalankan,
-         * termasuk ketika models = [].
-         *
-         * search() akan membuat manual fallback.
-         */
         const results =
-            search(keyword);
+            search(
+                keyword
+            );
 
         renderResults(
             results
         );
+
+        if (
+            keyword
+        ) {
+            showDropdown();
+        } else {
+            /*
+             * Saat kosong, tampilkan daftar model
+             * provider yang dipilih.
+             */
+            if (
+                results.length
+            ) {
+                showDropdown();
+            } else {
+                hideDropdown();
+            }
+        }
     }
 
-    /* =====================================================
-       FOCUS
-    ===================================================== */
-
-    function handleFocus() {
-        getElements();
+    function handleFocus(
+        event
+    ) {
+        const input =
+            event.currentTarget;
 
         if (!input) {
             return;
         }
 
+        const keyword =
+            String(
+                input.value ??
+                ""
+            ).trim();
+
         const results =
             search(
-                input.value
+                keyword
             );
-
-        renderResults(
-            results
-        );
-    }
-
-    /* =====================================================
-       BLUR
-    ===================================================== */
-
-    function handleBlur() {
-        setTimeout(
-            () => {
-                hideDropdown();
-            },
-            250
-        );
-    }
-
-    /* =====================================================
-       PROVIDER CHANGE
-    ===================================================== */
-
-    function handleProviderChange() {
-        getElements();
-
-        if (input) {
-            renderResults(
-                search(
-                    input.value
-                )
-            );
-        }
-
-        console.log(
-            "[GEN-Z Models Search] Provider changed:",
-            getSelectedProviderData()
-        );
-    }
-
-    /* =====================================================
-       CLICK OUTSIDE
-    ===================================================== */
-
-    function handleDocumentClick(
-        event
-    ) {
-        getElements();
 
         if (
-            !input ||
-            !dropdown
+            results.length
+        ) {
+            renderResults(
+                results
+            );
+        }
+    }
+
+    function handleKeydown(
+        event
+    ) {
+        const box =
+            getResultsBox();
+
+        if (!box) {
+            return;
+        }
+
+        const items =
+            Array.from(
+                box.querySelectorAll(
+                    ".model-search-item"
+                )
+            );
+
+        if (
+            !items.length
         ) {
             return;
         }
 
-        const target =
-            event.target;
+        const active =
+            box.querySelector(
+                ".model-search-item.active"
+            );
+
+        let index =
+            active
+                ? items.indexOf(
+                    active
+                )
+                : -1;
 
         if (
-            input.contains(
-                target
-            ) ||
-            dropdown.contains(
-                target
+            event.key ===
+            "ArrowDown"
+        ) {
+            event.preventDefault();
+
+            index =
+                Math.min(
+                    index + 1,
+                    items.length - 1
+                );
+
+            items.forEach(
+                function (item) {
+                    item.classList.remove(
+                        "active"
+                    );
+                }
+            );
+
+            items[index].classList.add(
+                "active"
+            );
+
+            items[index].scrollIntoView({
+                block:
+                    "nearest"
+            });
+
+            return;
+        }
+
+        if (
+            event.key ===
+            "ArrowUp"
+        ) {
+            event.preventDefault();
+
+            index =
+                Math.max(
+                    index - 1,
+                    0
+                );
+
+            items.forEach(
+                function (item) {
+                    item.classList.remove(
+                        "active"
+                    );
+                }
+            );
+
+            items[index].classList.add(
+                "active"
+            );
+
+            items[index].scrollIntoView({
+                block:
+                    "nearest"
+            );
+
+            return;
+        }
+
+        if (
+            event.key ===
+            "Enter"
+        ) {
+            if (
+                active &&
+                active.dataset.modelId
+            ) {
+                event.preventDefault();
+
+                const model =
+                    findModelById(
+                        active.dataset.modelId
+                    );
+
+                if (model) {
+                    selectModel(
+                        model
+                    );
+                } else {
+                    /*
+                     * Manual Model ID.
+                     */
+                    selectModel({
+                        __manual:
+                            true,
+
+                        model_id:
+                            active.dataset.modelId,
+
+                        provider_id:
+                            getSelectedProviderData()
+                                .value,
+
+                        provider:
+                            getSelectedProviderData()
+                                .value,
+
+                        status:
+                            "active"
+                    });
+                }
+            }
+
+            return;
+        }
+
+        if (
+            event.key ===
+            "Escape"
+        ) {
+            hideDropdown();
+        }
+    }
+
+    function handleResultsClick(
+        event
+    ) {
+        const item =
+            event.target.closest(
+                ".model-search-item"
+            );
+
+        if (!item) {
+            return;
+        }
+
+        const modelId =
+            String(
+                item.dataset.modelId ??
+                ""
+            ).trim();
+
+        if (!modelId) {
+            return;
+        }
+
+        const model =
+            findModelById(
+                modelId
+            );
+
+        if (model) {
+            selectModel(
+                model
+            );
+
+            return;
+        }
+
+        /*
+         * Manual model.
+         */
+        selectModel({
+            __manual:
+                true,
+
+            model_id:
+                modelId,
+
+            provider_id:
+                getSelectedProviderData()
+                    .value,
+
+            provider:
+                getSelectedProviderData()
+                    .value,
+
+            provider_name:
+                getSelectedProviderData()
+                    .name,
+
+            status:
+                "active"
+        });
+    }
+
+    function handleProviderChange() {
+        const input =
+            getSearchInput();
+
+        if (!input) {
+            return;
+        }
+
+        /*
+         * Provider berubah:
+         * hasil autocomplete harus berubah
+         * mengikuti provider baru.
+         */
+        const keyword =
+            String(
+                input.value ??
+                ""
+            ).trim();
+
+        const hidden =
+            getHiddenModelInput();
+
+        /*
+         * Model sebelumnya bisa berasal dari provider
+         * berbeda. Reset hidden value agar tidak
+         * tersimpan model yang salah.
+         */
+        if (hidden) {
+            hidden.value =
+                "";
+        }
+
+        clearSelectedModelInfo();
+
+        const results =
+            search(
+                keyword
+            );
+
+        if (
+            results.length
+        ) {
+            renderResults(
+                results
+            );
+        } else {
+            hideDropdown();
+        }
+    }
+
+    function handleDocumentClick(
+        event
+    ) {
+        const searchInput =
+            getSearchInput();
+
+        const box =
+            getResultsBox();
+
+        if (!searchInput) {
+            return;
+        }
+
+        if (
+            event.target ===
+            searchInput
+        ) {
+            return;
+        }
+
+        if (
+            box &&
+            box.contains(
+                event.target
             )
         ) {
             return;
@@ -1667,116 +1560,106 @@
     }
 
     /* =====================================================
+       MODEL LOOKUP
+       ===================================================== */
+
+    function findModelById(
+        modelId
+    ) {
+        const id =
+            String(
+                modelId ??
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        if (!id) {
+            return null;
+        }
+
+        return (
+            models.find(
+                function (model) {
+                    return (
+                        String(
+                            model.model_id ??
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase() ===
+                        id
+                    );
+                }
+            ) ||
+            null
+        );
+    }
+
+    /* =====================================================
        INITIALIZE
-       RETRY SAFE
-    ===================================================== */
+       ===================================================== */
 
     function initialize() {
-        /*
-         * Sudah initialized.
-         */
         if (initialized) {
             return true;
         }
 
-        getElements();
+        const searchInput =
+            getSearchInput();
 
-        /*
-         * Jika HTML belum tersedia,
-         * jangan menyerah.
-         *
-         * models-loader.js dapat memuat module
-         * sebelum elemen form selesai tersedia.
-         */
-        if (!input) {
-            initializeAttempts++;
+        const resultsBox =
+            getResultsBox();
 
+        const providerSelect =
+            getProviderSelect();
+
+        if (!searchInput) {
             console.warn(
-                "[GEN-Z Models Search] #modelCodeSearch belum ditemukan. Retry:",
-                initializeAttempts
+                "[GEN-Z.AI] #modelCodeSearch tidak ditemukan."
             );
-
-            if (
-                initializeAttempts <=
-                MAX_INITIALIZE_ATTEMPTS
-            ) {
-                if (
-                    initializeTimer
-                ) {
-                    clearTimeout(
-                        initializeTimer
-                    );
-                }
-
-                initializeTimer =
-                    setTimeout(
-                        () => {
-                            initialize();
-                        },
-                        INITIALIZE_RETRY_DELAY
-                    );
-            }
 
             return false;
         }
 
         /*
-         * Reset counter.
+         * Input search.
          */
-        initializeAttempts = 0;
-
-        /*
-         * Hapus timer jika ada.
-         */
-        if (
-            initializeTimer
-        ) {
-            clearTimeout(
-                initializeTimer
-            );
-
-            initializeTimer =
-                null;
-        }
-
-        /*
-         * Event input.
-         */
-        input.addEventListener(
+        searchInput.addEventListener(
             "input",
             handleInput
         );
 
-        /*
-         * Event focus.
-         */
-        input.addEventListener(
+        searchInput.addEventListener(
             "focus",
             handleFocus
         );
 
-        /*
-         * Event blur.
-         */
-        input.addEventListener(
-            "blur",
-            handleBlur
+        searchInput.addEventListener(
+            "keydown",
+            handleKeydown
         );
 
         /*
-         * Keyboard.
+         * Dropdown results.
          */
-        input.addEventListener(
-            "keydown",
-            handleKeyboard
-        );
+        if (resultsBox) {
+            resultsBox.addEventListener(
+                "click",
+                handleResultsClick
+            );
+        }
 
         /*
          * Provider.
+         *
+         * Penting:
+         * listener hanya dipasang oleh Search module
+         * untuk memperbarui hasil pencarian.
+         *
+         * Tidak mengubah isi dropdown provider.
          */
-        if (
-            providerSelect
-        ) {
+        if (providerSelect) {
             providerSelect.addEventListener(
                 "change",
                 handleProviderChange
@@ -1784,82 +1667,66 @@
         }
 
         /*
-         * Click outside.
+         * Klik di luar dropdown.
          */
         document.addEventListener(
             "click",
             handleDocumentClick
         );
 
-        initialized = true;
+        initialized =
+            true;
 
         console.log(
-            "[GEN-Z Models Search] Initialized successfully."
+            "[GEN-Z.AI] GENZModelsSearch initialized."
         );
-
-        /*
-         * Jika user sudah mengetik sebelum
-         * module selesai initialize,
-         * langsung render.
-         */
-        if (
-            input.value.trim()
-        ) {
-            renderResults(
-                search(
-                    input.value
-                )
-            );
-        }
 
         return true;
     }
 
     /* =====================================================
        DESTROY
-    ===================================================== */
+       ===================================================== */
 
     function destroy() {
-        if (
-            initializeTimer
-        ) {
-            clearTimeout(
-                initializeTimer
-            );
+        /*
+         * Karena event listener menggunakan function
+         * reference yang sama, lepaskan semuanya.
+         */
+        const searchInput =
+            getSearchInput();
 
-            initializeTimer =
-                null;
-        }
+        const resultsBox =
+            getResultsBox();
 
-        if (!initialized) {
-            return;
-        }
+        const providerSelect =
+            getProviderSelect();
 
-        if (input) {
-            input.removeEventListener(
+        if (searchInput) {
+            searchInput.removeEventListener(
                 "input",
                 handleInput
             );
 
-            input.removeEventListener(
+            searchInput.removeEventListener(
                 "focus",
                 handleFocus
             );
 
-            input.removeEventListener(
-                "blur",
-                handleBlur
-            );
-
-            input.removeEventListener(
+            searchInput.removeEventListener(
                 "keydown",
-                handleKeyboard
+                handleKeydown
             );
         }
 
-        if (
-            providerSelect
-        ) {
+        if (resultsBox) {
+            resultsBox.removeEventListener(
+                "click",
+                handleResultsClick
+            );
+        }
+
+        if (providerSelect) {
             providerSelect.removeEventListener(
                 "change",
                 handleProviderChange
@@ -1873,77 +1740,38 @@
 
         hideDropdown();
 
-        initialized = false;
+        models =
+            [];
 
-        console.log(
-            "[GEN-Z Models Search] Destroyed."
-        );
+        initialized =
+            false;
     }
 
     /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
 
-    window.GENZModelsSearch = {
-        initialize,
-        destroy,
+    window.GENZModelsSearch =
+        Object.freeze({
+            initialize,
+            destroy,
 
-        setModels,
-        getModels,
+            setModels,
+            getModels,
 
-        search,
-        selectModel,
+            search,
+            findModelById,
 
-        hideDropdown,
+            selectModel,
 
-        updateSelectedModelInfo,
-        clearSelectedModelInfo
-    };
+            hideDropdown,
 
-    /* =====================================================
-       DOM READY
-    ===================================================== */
+            updateSelectedModelInfo,
+            clearSelectedModelInfo
+        });
 
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-        document.addEventListener(
-            "DOMContentLoaded",
-            () => {
-                initialize();
-            },
-            {
-                once: true
-            }
-        );
-    } else {
-        initialize();
-    }
-
-    /*
-     * Safety retry tambahan.
-     *
-     * Berguna apabila models-loader.js,
-     * models-ui.js, atau HTML form dimuat
-     * secara dinamis setelah DOMContentLoaded.
-     */
-    setTimeout(
-        () => {
-            if (!initialized) {
-                initialize();
-            }
-        },
-        300
-    );
-
-    setTimeout(
-        () => {
-            if (!initialized) {
-                initialize();
-            }
-        },
-        1000
+    console.log(
+        "[GEN-Z.AI] GENZModelsSearch loaded."
     );
 
 })();
