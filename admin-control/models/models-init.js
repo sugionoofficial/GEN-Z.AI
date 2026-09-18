@@ -5,80 +5,24 @@
    File:
    admin-control/models/models-init.js
 
-   TANGGUNG JAWAB:
+   Tanggung jawab:
    - Lifecycle halaman Models
-   - Menunggu module tersedia
-   - Menjalankan initialization sesuai dependency
-   - Menghubungkan module melalui public API
+   - Menunggu seluruh module
+   - Initialize module sesuai dependency
    - Bind event modules
+   - Sinkronisasi catalog
    - Reset lifecycle
 
-   TIDAK BERTANGGUNG JAWAB:
+   Tidak bertanggung jawab:
    - Provider CRUD
    - Provider dropdown rendering
-   - Model API / Supabase
    - Search logic
    - Form CRUD
-   - Form layout
    - Table rendering
    - Table CRUD
    - Price calculation
-   - UI rendering
-
-   PRINSIP:
-   Satu fungsi hanya mempunyai satu owner.
-
-   Provider:
-   GENZModelsProvider
-
-   Provider Dropdown:
-   GENZModelProviderDropdown
-
-   Model Catalog:
-   GENZModelsData
-
-   Search:
-   GENZModelsSearch
-
-   Search Events:
-   GENZModelSearchEvents
-
-   Form:
-   GENZModelsForm
-
-   Form Events:
-   GENZModelFormEvents
-
-   Form Coordinator:
-   GENZModelFormCoordinator
-
-   Form Layout:
-   GENZModelFormLayout
-
-   Form Create:
-   GENZModelFormCreate
-
-   Form Edit:
-   GENZModelFormEdit
-
-   Form Delete:
-   GENZModelFormDelete
-
-   Pricing:
-   GENZModelsPrice
-
-   Credit Calculation:
-   GENZModelPriceCalculation
-
-   Table:
-   GENZModelTable
-
-   Table Events:
-   GENZModelTableEvents
-
-   UI:
-   GENZModelsUI
-========================================================= */
+   - API / Supabase
+   ========================================================= */
 
 (function () {
 
@@ -177,12 +121,6 @@
 
     /* =====================================================
        REQUIRED MODULE CHECK
-       -----------------------------------------------------
-       Hanya module yang benar-benar dibutuhkan oleh
-       lifecycle utama yang dijadikan REQUIRED.
-
-       Module tambahan tetap diperiksa melalui
-       dependency masing-masing ketika diperlukan.
     ===================================================== */
 
     function modulesReady() {
@@ -190,6 +128,11 @@
         const modules =
             getModules();
 
+
+        /*
+         * Module inti yang memang diperlukan
+         * oleh halaman Models.
+         */
 
         return (
 
@@ -208,14 +151,6 @@
             !!modules.formEvents &&
 
             !!modules.formCoordinator &&
-
-            !!modules.formLayout &&
-
-            !!modules.formCreate &&
-
-            !!modules.formEdit &&
-
-            !!modules.formDelete &&
 
             !!modules.price &&
 
@@ -240,7 +175,6 @@
 
         const modules =
             getModules();
-
 
         const missing = [];
 
@@ -285,26 +219,6 @@
             [
                 "formCoordinator",
                 "GENZModelFormCoordinator"
-            ],
-
-            [
-                "formLayout",
-                "GENZModelFormLayout"
-            ],
-
-            [
-                "formCreate",
-                "GENZModelFormCreate"
-            ],
-
-            [
-                "formEdit",
-                "GENZModelFormEdit"
-            ],
-
-            [
-                "formDelete",
-                "GENZModelFormDelete"
             ],
 
             [
@@ -408,7 +322,7 @@
 
 
                         const message =
-                            missing.length > 0
+                            missing.length
 
                                 ?
 
@@ -453,56 +367,11 @@
 
 
     /* =====================================================
-       VALIDATE MODULE FUNCTION
-    ===================================================== */
-
-    function requireFunction(
-        module,
-        moduleName,
-        functionName
-    ) {
-
-        if (
-            !module
-        ) {
-
-            throw new Error(
-                moduleName +
-                " belum tersedia."
-            );
-
-        }
-
-
-        if (
-            typeof module[
-                functionName
-            ] !==
-            "function"
-        ) {
-
-            throw new Error(
-                moduleName +
-                "." +
-                functionName +
-                "() tidak tersedia."
-            );
-
-        }
-
-
-        return module[
-            functionName
-        ];
-
-    }
-
-
-    /* =====================================================
        PROVIDER
        -----------------------------------------------------
-       Provider module adalah owner Provider lifecycle.
-    ===================================================== */
+       Provider module adalah owner Provider.
+       Init hanya menjalankan lifecycle.
+       ===================================================== */
 
     async function initializeProvider() {
 
@@ -552,11 +421,7 @@
        PROVIDER DROPDOWN
        -----------------------------------------------------
        Dropdown module adalah owner rendering.
-
-       Init hanya memanggil initialize().
-       Tidak memanggil setProviders() lagi apabila
-       initialize() tersedia.
-    ===================================================== */
+       ===================================================== */
 
     async function initializeProviderDropdown() {
 
@@ -599,8 +464,8 @@
         /*
          * Compatibility fallback.
          *
-         * Jalur ini hanya dipakai jika module
-         * dropdown belum mempunyai initialize().
+         * Hanya dipakai jika module dropdown
+         * tidak mempunyai initialize().
          */
 
         const provider =
@@ -628,11 +493,6 @@
             );
 
 
-            console.info(
-                "[GEN-Z.AI] Provider dropdown initialized through compatibility fallback."
-            );
-
-
             return true;
 
         }
@@ -648,10 +508,8 @@
     /* =====================================================
        UI
        -----------------------------------------------------
-       UI menangani state/tampilan umum.
-
-       UI tidak menangani lifecycle module lain.
-    ===================================================== */
+       UI hanya orchestrator tampilan/state.
+       ===================================================== */
 
     async function initializeUI() {
 
@@ -659,11 +517,27 @@
             window.GENZModelsUI;
 
 
-        requireFunction(
-            ui,
-            "GENZModelsUI",
-            "initialize"
-        );
+        if (
+            !ui
+        ) {
+
+            throw new Error(
+                "GENZModelsUI belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof ui.initialize !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelsUI.initialize() tidak tersedia."
+            );
+
+        }
 
 
         return await ui.initialize();
@@ -675,17 +549,109 @@
        SEARCH
     ===================================================== */
 
+    function syncSearchWithModels() {
+
+        const data =
+            window.GENZModelsData;
+
+        const search =
+            window.GENZModelsSearch;
+
+
+        if (
+            !data ||
+            !search
+        ) {
+
+            return false;
+
+        }
+
+
+        if (
+            typeof data.getCachedModels !==
+            "function" ||
+            typeof search.setModels !==
+            "function"
+        ) {
+
+            return false;
+
+        }
+
+
+        try {
+
+            const models =
+                data.getCachedModels();
+
+
+            if (
+                !Array.isArray(
+                    models
+                )
+            ) {
+
+                return false;
+
+            }
+
+
+            search.setModels(
+                models
+            );
+
+
+            console.info(
+                "[GEN-Z.AI] Search catalog synchronized:",
+                models.length
+            );
+
+
+            return true;
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Search catalog sync gagal:",
+                error
+            );
+
+
+            return false;
+
+        }
+
+    }
+
+
     function initializeSearch() {
 
         const search =
             window.GENZModelsSearch;
 
 
-        requireFunction(
-            search,
-            "GENZModelsSearch",
-            "initialize"
-        );
+        if (
+            !search
+        ) {
+
+            throw new Error(
+                "GENZModelsSearch belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof search.initialize !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelsSearch.initialize() tidak tersedia."
+            );
+
+        }
 
 
         const result =
@@ -714,11 +680,27 @@
             window.GENZModelSearchEvents;
 
 
-        requireFunction(
-            events,
-            "GENZModelSearchEvents",
-            "bind"
-        );
+        if (
+            !events
+        ) {
+
+            throw new Error(
+                "GENZModelSearchEvents belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof events.bind !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelSearchEvents.bind() tidak tersedia."
+            );
+
+        }
 
 
         const result =
@@ -738,64 +720,6 @@
 
 
     /* =====================================================
-       FORM
-       -----------------------------------------------------
-       Form module utama diberi kesempatan initialize
-       sebelum Form Events dipasang.
-
-       CRUD module tidak diinitialize di sini karena
-       coordinator yang menjadi penghubung CRUD.
-    ===================================================== */
-
-    async function initializeForm() {
-
-        const form =
-            window.GENZModelsForm;
-
-
-        if (
-            !form
-        ) {
-
-            throw new Error(
-                "GENZModelsForm belum tersedia."
-            );
-
-        }
-
-
-        if (
-            typeof form.initialize ===
-            "function"
-        ) {
-
-            const result =
-                await form.initialize();
-
-
-            console.info(
-                "[GEN-Z.AI] Model form initialized."
-            );
-
-
-            return (
-                result !== false
-            );
-
-        }
-
-
-        console.info(
-            "[GEN-Z.AI] GENZModelsForm tidak memiliki initialize(); menggunakan lifecycle coordinator."
-        );
-
-
-        return true;
-
-    }
-
-
-    /* =====================================================
        FORM EVENTS
     ===================================================== */
 
@@ -805,11 +729,27 @@
             window.GENZModelFormEvents;
 
 
-        requireFunction(
-            events,
-            "GENZModelFormEvents",
-            "bind"
-        );
+        if (
+            !events
+        ) {
+
+            throw new Error(
+                "GENZModelFormEvents belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof events.bind !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelFormEvents.bind() tidak tersedia."
+            );
+
+        }
 
 
         const result =
@@ -830,59 +770,86 @@
 
     /* =====================================================
        TABLE
-       -----------------------------------------------------
-       Table renderer adalah owner Table.
-
-       Init hanya melakukan initialization dan
-       memastikan catalog sudah tersinkron.
     ===================================================== */
 
-    function initializeTable() {
+    function syncTableWithModels() {
+
+        const data =
+            window.GENZModelsData;
 
         const table =
             window.GENZModelTable;
 
 
         if (
+            !data ||
             !table
         ) {
 
-            throw new Error(
-                "GENZModelTable belum tersedia."
-            );
+            return false;
 
         }
 
 
         if (
-            typeof table.initialize ===
+            typeof data.getCachedModels !==
+            "function" ||
+            typeof table.setModels !==
             "function"
         ) {
 
-            const result =
-                table.initialize();
-
-
-            console.info(
-                "[GEN-Z.AI] Model table initialized."
-            );
-
-
-            return (
-                result !== false
-            );
+            return false;
 
         }
 
 
-        return true;
+        try {
+
+            const models =
+                data.getCachedModels();
+
+
+            if (
+                !Array.isArray(
+                    models
+                )
+            ) {
+
+                return false;
+
+            }
+
+
+            table.setModels(
+                models
+            );
+
+
+            table.render();
+
+
+            console.info(
+                "[GEN-Z.AI] Model table synchronized:",
+                models.length
+            );
+
+
+            return true;
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Model table sync gagal:",
+                error
+            );
+
+
+            return false;
+
+        }
 
     }
 
-
-    /* =====================================================
-       TABLE EVENTS
-    ===================================================== */
 
     function initializeTableEvents() {
 
@@ -890,11 +857,27 @@
             window.GENZModelTableEvents;
 
 
-        requireFunction(
-            events,
-            "GENZModelTableEvents",
-            "bind"
-        );
+        if (
+            !events
+        ) {
+
+            throw new Error(
+                "GENZModelTableEvents belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof events.bind !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelTableEvents.bind() tidak tersedia."
+            );
+
+        }
 
 
         const result =
@@ -916,9 +899,9 @@
     /* =====================================================
        FINAL PROVIDER STATE
        -----------------------------------------------------
-       Read-only.
-       Tidak merender dropdown.
-    ===================================================== */
+       Hanya membaca state.
+       Tidak render ulang dropdown.
+       ===================================================== */
 
     function syncProviderState() {
 
@@ -927,7 +910,15 @@
 
 
         if (
-            !provider ||
+            !provider
+        ) {
+
+            return [];
+
+        }
+
+
+        if (
             typeof provider.getProviders !==
             "function"
         ) {
@@ -966,32 +957,6 @@
 
     /* =====================================================
        INITIALIZE
-       -----------------------------------------------------
-       Dependency order:
-
-       1. Wait modules
-       2. Provider
-       3. Provider dropdown
-       4. UI
-       5. Form
-       6. Search
-       7. Search events
-       8. Form events
-       9. Table
-       10. Table events
-       11. Final provider state
-       12. Ready
-
-       Catatan:
-       UI melakukan catalog synchronization.
-
-       Init TIDAK mengulang:
-       - search.setModels()
-       - table.setModels()
-       - table.render()
-       - provider.setProviders()
-
-       supaya tidak ada double owner.
     ===================================================== */
 
     async function initialize() {
@@ -1019,21 +984,11 @@
 
                 try {
 
-                    console.info(
-                        "[GEN-Z.AI] Models initialization mulai..."
-                    );
-
-
                     /* =========================================
-                       1. WAIT MODULES
+                       1. WAIT ALL MODULES
                     ========================================= */
 
                     await waitForModules();
-
-
-                    console.info(
-                        "[GEN-Z.AI] Semua Models module tersedia."
-                    );
 
 
                     /* =========================================
@@ -1052,16 +1007,19 @@
 
                     /* =========================================
                        4. UI
+                       -----------------------------------------
+                       UI dapat melakukan load catalog,
+                       pricing, statistics, dll.
                     ========================================= */
 
                     await initializeUI();
 
 
                     /* =========================================
-                       5. FORM
+                       5. SEARCH CATALOG SYNC
                     ========================================= */
 
-                    await initializeForm();
+                    syncSearchWithModels();
 
 
                     /* =========================================
@@ -1089,7 +1047,7 @@
                        9. TABLE
                     ========================================= */
 
-                    initializeTable();
+                    syncTableWithModels();
 
 
                     /* =========================================
@@ -1100,10 +1058,10 @@
 
 
                     /* =========================================
-                       11. PROVIDER STATE
+                       11. PROVIDER STATE ONLY
                        -----------------------------------------
-                       READ ONLY.
-                       Tidak render dropdown.
+                       Tidak memanggil setProviders().
+                       Tidak render dropdown kedua kali.
                     ========================================= */
 
                     const providers =
@@ -1135,7 +1093,7 @@
                     } catch (eventError) {
 
                         console.warn(
-                            "[GEN-Z.AI] Models initialized event gagal:",
+                            "[GEN-Z.AI] Ready event gagal:",
                             eventError
                         );
 
@@ -1191,16 +1149,17 @@
                             new CustomEvent(
                                 "genz-models-error",
                                 {
-                                    detail:
-                                        error
+                                    detail: error
                                 }
                             )
                         );
 
-                    } catch (eventError) {
+                    } catch (
+                        eventError
+                    ) {
 
                         console.warn(
-                            "[GEN-Z.AI] Models error event gagal:",
+                            "[GEN-Z.AI] Error event gagal:",
                             eventError
                         );
 
@@ -1226,13 +1185,13 @@
 
     /* =====================================================
        RESET
-       -----------------------------------------------------
-       Reset event listeners saja.
-
-       State owner tidak dihancurkan.
-       ===================================================== */
+    ===================================================== */
 
     function reset() {
+
+        /*
+         * Jangan reset di tengah initialization.
+         */
 
         if (
             initializingPromise
@@ -1279,36 +1238,6 @@
 
 
         /* ================================================
-           SEARCH EVENTS
-        ================================================ */
-
-        const searchEvents =
-            window.GENZModelSearchEvents;
-
-
-        if (
-            searchEvents &&
-            typeof searchEvents.unbind ===
-            "function"
-        ) {
-
-            try {
-
-                searchEvents.unbind();
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Search events reset gagal:",
-                    error
-                );
-
-            }
-
-        }
-
-
-        /* ================================================
            TABLE EVENTS
         ================================================ */
 
@@ -1338,6 +1267,45 @@
         }
 
 
+        /* ================================================
+           SEARCH EVENTS
+        ================================================ */
+
+        const searchEvents =
+            window.GENZModelSearchEvents;
+
+
+        if (
+            searchEvents &&
+            typeof searchEvents.unbind ===
+            "function"
+        ) {
+
+            try {
+
+                searchEvents.unbind();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Search events reset gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        /*
+         * Provider tidak dihancurkan.
+         *
+         * Provider adalah state owner.
+         * Reset lifecycle tidak berarti
+         * menghapus data Provider.
+         */
+
+
         initialized =
             false;
 
@@ -1358,18 +1326,14 @@
 
     function isInitialized() {
 
-        return (
-            initialized
-        );
+        return initialized;
 
     }
 
 
     function isInitializing() {
 
-        return (
-            !!initializingPromise
-        );
+        return !!initializingPromise;
 
     }
 
@@ -1389,21 +1353,21 @@
 
             initializeUI,
 
-            initializeForm,
-
             initializeSearch,
 
             initializeSearchEvents,
 
             initializeFormEvents,
 
-            initializeTable,
-
             initializeTableEvents,
 
             waitForModules,
 
             syncProviderState,
+
+            syncSearchWithModels,
+
+            syncTableWithModels,
 
             isInitialized,
 
