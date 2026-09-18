@@ -16,6 +16,13 @@
    - Save ke /api/admin-models
    - Auth Bearer token Supabase
    - Refresh data setelah save
+
+   Arsitektur:
+   - Provider lifecycle dimiliki GENZModelsProvider
+   - Form hanya membaca / memilih Provider
+   - Search dimiliki GENZModelsSearch
+   - Data dimiliki GENZModelsData
+   - Tidak membuat Provider palsu
 ========================================================= */
 
 (function () {
@@ -181,36 +188,101 @@
     ===================================================== */
 
     function getModelsData() {
-        return window.GENZModelsData || null;
+        return (
+            window.GENZModelsData ||
+            null
+        );
     }
 
+    function getModelsProvider() {
+        return (
+            window.GENZModelsProvider ||
+            null
+        );
+    }
+
+    /*
+     * Provider sekarang memiliki module khusus.
+     *
+     * models-form.js tidak mengambil alih lifecycle
+     * Provider. Fungsi ini hanya menjadi kompatibilitas
+     * untuk kebutuhan form.
+     */
     async function loadProviders(options = {}) {
+        const providerModule =
+            getModelsProvider();
+
+        /*
+         * PRIORITAS 1:
+         * GENZModelsProvider
+         */
+        if (
+            providerModule &&
+            typeof providerModule.loadProviders ===
+                "function"
+        ) {
+            try {
+                const providers =
+                    await providerModule.loadProviders({
+                        force:
+                            options.force === true,
+
+                        activeOnly:
+                            options.activeOnly !== false
+                    });
+
+                return Array.isArray(
+                    providers
+                )
+                    ? providers
+                    : [];
+            } catch (error) {
+                console.error(
+                    "[models-form] Provider module load error:",
+                    error
+                );
+
+                return [];
+            }
+        }
+
+        /*
+         * FALLBACK:
+         * GENZModelsData hanya digunakan jika
+         * Provider module belum tersedia.
+         */
         const data =
             getModelsData();
 
         if (
-            !data ||
-            typeof data.loadProviders !==
+            data &&
+            typeof data.loadProviders ===
                 "function"
         ) {
-            return [];
+            try {
+                const providers =
+                    await data.loadProviders({
+                        force:
+                            options.force === true,
+
+                        activeOnly:
+                            options.activeOnly !== false
+                    });
+
+                return Array.isArray(
+                    providers
+                )
+                    ? providers
+                    : [];
+            } catch (error) {
+                console.error(
+                    "[models-form] Legacy provider load error:",
+                    error
+                );
+            }
         }
 
-        try {
-            return await data.loadProviders({
-                force:
-                    options.force === true,
-                activeOnly:
-                    options.activeOnly !== false
-            });
-        } catch (error) {
-            console.error(
-                "[models-form] Provider load error:",
-                error
-            );
-
-            return [];
-        }
+        return [];
     }
 
     function findProvider(
@@ -218,7 +290,8 @@
     ) {
         const normalized =
             String(
-                providerId || ""
+                providerId ||
+                ""
             )
                 .trim()
                 .toLowerCase();
@@ -227,6 +300,88 @@
             return null;
         }
 
+        /*
+         * PRIORITAS 1:
+         * Provider module.
+         */
+        const providerModule =
+            getModelsProvider();
+
+        if (
+            providerModule &&
+            typeof providerModule.getProviderById ===
+                "function"
+        ) {
+            try {
+                const provider =
+                    providerModule.getProviderById(
+                        normalized
+                    );
+
+                if (provider) {
+                    return provider;
+                }
+            } catch (error) {
+                console.warn(
+                    "[models-form] Provider module lookup error:",
+                    error
+                );
+            }
+        }
+
+        /*
+         * PRIORITAS 2:
+         * UI state.
+         */
+        const ui =
+            window.GENZModelsUI;
+
+        if (
+            ui &&
+            typeof ui.getProviders ===
+                "function"
+        ) {
+            try {
+                const providers =
+                    ui.getProviders();
+
+                if (
+                    Array.isArray(
+                        providers
+                    )
+                ) {
+                    const found =
+                        providers.find(
+                            provider =>
+                                String(
+                                    provider.provider_id ||
+                                    provider.provider ||
+                                    provider.id ||
+                                    ""
+                                )
+                                    .trim()
+                                    .toLowerCase() ===
+                                normalized
+                        );
+
+                    if (found) {
+                        return found;
+                    }
+                }
+            } catch (error) {
+                console.warn(
+                    "[models-form] UI provider lookup error:",
+                    error
+                );
+            }
+        }
+
+        /*
+         * PRIORITAS 3:
+         * Data module.
+         *
+         * Hanya lookup, bukan lifecycle.
+         */
         const data =
             getModelsData();
 
@@ -235,34 +390,22 @@
             typeof data.findProviderById ===
                 "function"
         ) {
-            const provider =
-                data.findProviderById(
-                    normalized
+            try {
+                return (
+                    data.findProviderById(
+                        normalized
+                    ) ||
+                    null
                 );
-
-            if (provider) {
-                return provider;
+            } catch (error) {
+                console.warn(
+                    "[models-form] Data provider lookup error:",
+                    error
+                );
             }
         }
 
-        const providers =
-            window.GENZModelsUI &&
-            typeof window.GENZModelsUI.getProviders ===
-                "function"
-                ? window.GENZModelsUI.getProviders()
-                : [];
-
-        return (
-            providers.find(
-                provider =>
-                    String(
-                        provider.provider_id || ""
-                    )
-                        .trim()
-                        .toLowerCase() ===
-                    normalized
-            ) || null
-        );
+        return null;
     }
 
     function ensureProviderOption(
@@ -270,7 +413,9 @@
         provider = null
     ) {
         const select =
-            getElement("providerId");
+            getElement(
+                "providerId"
+            );
 
         if (
             !select ||
@@ -281,21 +426,28 @@
 
         const normalized =
             String(
-                providerId || ""
+                providerId ||
+                ""
             ).trim();
 
         if (!normalized) {
             return false;
         }
 
+        /*
+         * Cari option yang sudah ada.
+         */
         const existing =
             Array.from(
                 select.options
             ).find(
                 option =>
                     String(
-                        option.value || ""
-                    ).trim().toLowerCase() ===
+                        option.value ||
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
                     normalized.toLowerCase()
             );
 
@@ -306,6 +458,9 @@
             return true;
         }
 
+        /*
+         * Jika option belum ada, cari provider.
+         */
         if (!provider) {
             provider =
                 findProvider(
@@ -317,25 +472,45 @@
             return false;
         }
 
+        const providerValue =
+            String(
+                provider.provider_id ||
+                provider.provider ||
+                provider.id ||
+                ""
+            ).trim();
+
+        if (!providerValue) {
+            return false;
+        }
+
+        const providerName =
+            String(
+                provider.provider_name ||
+                provider.name ||
+                providerValue
+            ).trim();
+
         const option =
             document.createElement(
                 "option"
             );
 
         option.value =
-            provider.provider_id;
+            providerValue;
 
         option.textContent =
-            provider.provider_name
-                ? `${provider.provider_name} (${provider.provider_id})`
-                : provider.provider_id;
+            providerName ===
+            providerValue
+                ? providerValue
+                : `${providerName} (${providerValue})`;
 
         select.appendChild(
             option
         );
 
         select.value =
-            provider.provider_id;
+            providerValue;
 
         return true;
     }
@@ -346,7 +521,8 @@
     ) {
         const normalized =
             String(
-                providerId || ""
+                providerId ||
+                ""
             ).trim();
 
         if (!normalized) {
@@ -363,39 +539,77 @@
                 normalized
             );
 
+        /*
+         * Provider belum tersedia.
+         *
+         * Load hanya melalui Provider module.
+         */
         if (!provider) {
             const providers =
                 await loadProviders({
                     force:
                         options.force === true,
-                    activeOnly: true
+
+                    activeOnly:
+                        options.activeOnly !== false
                 });
 
-            provider =
-                providers.find(
-                    item =>
-                        String(
-                            item.provider_id || ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        normalized.toLowerCase()
-                ) || null;
+            if (
+                Array.isArray(
+                    providers
+                )
+            ) {
+                provider =
+                    providers.find(
+                        item =>
+                            String(
+                                item.provider_id ||
+                                item.provider ||
+                                item.id ||
+                                ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            normalized.toLowerCase()
+                    ) || null;
+            }
         }
 
         if (provider) {
-            ensureProviderOption(
-                normalized,
-                provider
-            );
+            const success =
+                ensureProviderOption(
+                    normalized,
+                    provider
+                );
+
+            if (!success) {
+                setValue(
+                    "providerId",
+                    ""
+                );
+
+                return null;
+            }
 
             setValue(
                 "providerId",
-                provider.provider_id
+                provider.provider_id ||
+                provider.provider ||
+                provider.id ||
+                ""
             );
 
+            /*
+             * Beritahu module Search bahwa Provider
+             * berubah.
+             *
+             * Event listener Search akan melakukan
+             * filtering ulang.
+             */
             const select =
-                getElement("providerId");
+                getElement(
+                    "providerId"
+                );
 
             if (select) {
                 select.dispatchEvent(
@@ -412,10 +626,7 @@
         }
 
         /*
-         * Jangan membuat provider palsu.
-         * Jika provider tidak ditemukan di
-         * public.providers, biarkan kosong
-         * agar validasi menangkapnya.
+         * Jangan membuat Provider palsu.
          */
         setValue(
             "providerId",
@@ -473,88 +684,94 @@
     ===================================================== */
 
     async function openCreateForm() {
-    editingModel = null;
+        editingModel = null;
 
-    /*
-     * Modal dibuka PALING AWAL.
-     * Jangan biarkan proses reset form atau
-     * Supabase menghalangi modal.
-     */
-    try {
-        openModal();
-    } catch (error) {
-        console.error(
-            "[models-form] Gagal membuka modal:",
-            error
-        );
+        /*
+         * Modal dibuka PALING AWAL.
+         */
+        try {
+            openModal();
+        } catch (error) {
+            console.error(
+                "[models-form] Gagal membuka modal:",
+                error
+            );
+        }
+
+        /*
+         * Reset form setelah modal terlihat.
+         */
+        try {
+            clearForm();
+        } catch (error) {
+            console.error(
+                "[models-form] Gagal reset form:",
+                error
+            );
+        }
+
+        try {
+            setFormMode(
+                "create"
+            );
+        } catch (error) {
+            console.error(
+                "[models-form] Gagal mengatur mode create:",
+                error
+            );
+        }
+
+        const search =
+            getElement(
+                "modelCodeSearch"
+            );
+
+        if (search) {
+            window.setTimeout(
+                () => {
+                    try {
+                        search.focus();
+                    } catch (error) {
+                        console.warn(
+                            "[models-form] Gagal focus modelCodeSearch:",
+                            error
+                        );
+                    }
+                },
+                100
+            );
+        }
+
+        /*
+         * Provider dimuat setelah modal terbuka.
+         *
+         * Provider module menjadi sumber utama.
+         */
+        try {
+            await loadProviders({
+                force: false,
+                activeOnly: true
+            });
+        } catch (error) {
+            console.error(
+                "[models-form] Gagal memuat provider:",
+                error
+            );
+
+            notify(
+                "Provider gagal dimuat dari Supabase.",
+                "warning"
+            );
+        }
     }
-
-    /*
-     * Reset form setelah modal sudah terlihat.
-     * Jika ada error, modal tetap terbuka.
-     */
-    try {
-        clearForm();
-    } catch (error) {
-        console.error(
-            "[models-form] Gagal reset form:",
-            error
-        );
-    }
-
-    try {
-        setFormMode("create");
-    } catch (error) {
-        console.error(
-            "[models-form] Gagal mengatur mode create:",
-            error
-        );
-    }
-
-    const search =
-        getElement("modelCodeSearch");
-
-    if (search) {
-        window.setTimeout(() => {
-            try {
-                search.focus();
-            } catch (error) {
-                console.warn(
-                    "[models-form] Gagal focus modelCodeSearch:",
-                    error
-                );
-            }
-        }, 100);
-    }
-
-    /*
-     * Provider dimuat SETELAH modal terbuka.
-     * Kegagalan provider tidak boleh membuat
-     * tombol Tambah Model terlihat mati.
-     */
-    try {
-        await loadProviders({
-            force: false,
-            activeOnly: true
-        });
-    } catch (error) {
-        console.error(
-            "[models-form] Gagal memuat provider:",
-            error
-        );
-
-        notify(
-            "Provider gagal dimuat dari Supabase.",
-            "warning"
-        );
-    }
-}
 
     /* =====================================================
        OPEN EDIT
     ===================================================== */
 
-    async function openEditForm(model) {
+    async function openEditForm(
+        model
+    ) {
         if (!model) {
             console.warn(
                 "[models-form] Model tidak tersedia."
@@ -564,8 +781,8 @@
         }
 
         /*
-         * Provider harus dimuat lebih dahulu
-         * sebelum populateForm memilih option.
+         * Provider harus tersedia sebelum
+         * populateForm memilih option.
          */
         await loadProviders({
             force: false,
@@ -576,7 +793,9 @@
             ...model
         };
 
-        setFormMode("edit");
+        setFormMode(
+            "edit"
+        );
 
         await populateForm(
             model
@@ -589,7 +808,13 @@
        POPULATE
     ===================================================== */
 
-    async function populateForm(model) {
+    async function populateForm(
+        model
+    ) {
+        if (!model) {
+            return;
+        }
+
         setValue(
             "modelId",
             model.id || ""
@@ -670,7 +895,8 @@
 
         setValue(
             "modelStatus",
-            model.status || "active"
+            model.status ||
+            "active"
         );
 
         updateSelectedModelInfo(
@@ -684,7 +910,9 @@
 
     function clearForm() {
         const form =
-            getElement("modelForm");
+            getElement(
+                "modelForm"
+            );
 
         if (form) {
             form.reset();
@@ -782,6 +1010,13 @@
         if (searchResults) {
             searchResults.innerHTML =
                 "";
+
+            searchResults.style.display =
+                "none";
+
+            searchResults.classList.remove(
+                "show"
+            );
         }
 
         resetPricePreview();
@@ -850,7 +1085,8 @@
         if (
             window.getComputedStyle(
                 modal
-            ).display === "none"
+            ).display ===
+            "none"
         ) {
             modal.style.display =
                 "flex";
@@ -894,6 +1130,27 @@
         document.body.classList.remove(
             "modal-open"
         );
+
+        /*
+         * Tutup autocomplete juga.
+         */
+        const search =
+            window.GENZModelsSearch;
+
+        if (
+            search &&
+            typeof search.hideDropdown ===
+                "function"
+        ) {
+            try {
+                search.hideDropdown();
+            } catch (error) {
+                console.warn(
+                    "[models-form] Gagal menutup search dropdown:",
+                    error
+                );
+            }
+        }
     }
 
     /* =====================================================
@@ -901,6 +1158,24 @@
     ===================================================== */
 
     function getFormData() {
+        /*
+         * Model ID utama berasal dari hidden input.
+         *
+         * Jika karena suatu kondisi hidden input kosong,
+         * gunakan input pencarian sebagai fallback.
+         */
+        let modelId =
+            value(
+                "modelCode"
+            ).trim();
+
+        if (!modelId) {
+            modelId =
+                value(
+                    "modelCodeSearch"
+                ).trim();
+        }
+
         return {
             provider_id:
                 value(
@@ -908,9 +1183,7 @@
                 ).trim(),
 
             model_id:
-                value(
-                    "modelCode"
-                ).trim(),
+                modelId,
 
             model_name:
                 value(
@@ -972,7 +1245,9 @@
        VALIDATE
     ===================================================== */
 
-    function validateForm(data) {
+    function validateForm(
+        data
+    ) {
         if (!data.provider_id) {
             return "Provider wajib dipilih.";
         }
@@ -986,7 +1261,8 @@
         }
 
         if (
-            data.credit_cost !== "" &&
+            data.credit_cost !==
+                "" &&
             !Number.isFinite(
                 Number(
                     data.credit_cost
@@ -999,7 +1275,8 @@
         }
 
         if (
-            data.discount_percent !== "" &&
+            data.discount_percent !==
+                "" &&
             !Number.isFinite(
                 Number(
                     data.discount_percent
@@ -1012,7 +1289,8 @@
         }
 
         if (
-            data.discount_percent !== "" &&
+            data.discount_percent !==
+                "" &&
             (
                 Number(
                     data.discount_percent
@@ -1028,7 +1306,22 @@
         }
 
         if (
-            data.min_duration !== "" &&
+            data.credit_final !==
+                "" &&
+            !Number.isFinite(
+                Number(
+                    data.credit_final
+                )
+            )
+        ) {
+            return (
+                "Credit Final harus berupa angka."
+            );
+        }
+
+        if (
+            data.min_duration !==
+                "" &&
             !Number.isFinite(
                 Number(
                     data.min_duration
@@ -1041,7 +1334,8 @@
         }
 
         if (
-            data.max_duration !== "" &&
+            data.max_duration !==
+                "" &&
             !Number.isFinite(
                 Number(
                     data.max_duration
@@ -1054,8 +1348,10 @@
         }
 
         if (
-            data.min_duration !== "" &&
-            data.max_duration !== "" &&
+            data.min_duration !==
+                "" &&
+            data.max_duration !==
+                "" &&
             Number(
                 data.min_duration
             ) >
@@ -1109,7 +1405,9 @@
             result?.data?.session ||
             null;
 
-        if (!session?.access_token) {
+        if (
+            !session?.access_token
+        ) {
             throw new Error(
                 "Session login tidak ditemukan. Silakan login kembali."
             );
@@ -1122,7 +1420,9 @@
        API SAVE
     ===================================================== */
 
-    async function saveToApi(data) {
+    async function saveToApi(
+        data
+    ) {
         const token =
             await getAccessToken();
 
@@ -1130,7 +1430,9 @@
             ...data
         };
 
-        if (editingModel?.id) {
+        if (
+            editingModel?.id
+        ) {
             payload.id =
                 editingModel.id;
         }
@@ -1145,6 +1447,7 @@
                 "/api/admin-models",
                 {
                     method,
+
                     headers: {
                         "Content-Type":
                             "application/json",
@@ -1171,7 +1474,9 @@
         if (text) {
             try {
                 result =
-                    JSON.parse(text);
+                    JSON.parse(
+                        text
+                    );
             } catch {
                 result = {
                     message: text
@@ -1179,7 +1484,9 @@
             }
         }
 
-        if (!response.ok) {
+        if (
+            !response.ok
+        ) {
             throw new Error(
                 result?.error ||
                 result?.message ||
@@ -1195,7 +1502,9 @@
        SAVE MODEL
     ===================================================== */
 
-    async function saveModel(event) {
+    async function saveModel(
+        event
+    ) {
         if (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -1349,7 +1658,14 @@
                 "selectedModelInfo"
             );
 
-        if (!info || !model) {
+        if (!info) {
+            return;
+        }
+
+        if (!model) {
+            info.textContent =
+                "Belum ada model dipilih.";
+
             return;
         }
 
@@ -1374,7 +1690,9 @@
        ESCAPE HTML
     ===================================================== */
 
-    function escapeHtml(value) {
+    function escapeHtml(
+        value
+    ) {
         return String(
             value ?? ""
         )
@@ -1411,9 +1729,15 @@
             return;
         }
 
+        const modelId =
+            String(
+                model.model_id ||
+                ""
+            ).trim();
+
         setValue(
             "modelCode",
-            model.model_id || ""
+            modelId
         );
 
         const search =
@@ -1423,22 +1747,17 @@
 
         if (search) {
             search.value =
-                model.model_id || "";
+                modelId;
         }
 
         setValue(
             "modelName",
-            model.model_name || ""
+            model.model_name ||
+            ""
         );
 
         /*
-         * Model KIE pada kie_models menggunakan
-         * kolom provider.
-         *
-         * API/admin-models menggunakan
-         * provider_id.
-         *
-         * Dukung keduanya.
+         * Provider dari catalog.
          */
         const providerId =
             model.provider_id ||
@@ -1447,7 +1766,7 @@
 
         if (providerId) {
             /*
-             * Jika option sudah ada, langsung pilih.
+             * Coba pilih option yang sudah tersedia.
              */
             const selected =
                 ensureProviderOption(
@@ -1455,8 +1774,8 @@
                 );
 
             /*
-             * Jika belum ada, load provider
-             * aktif lalu pilih.
+             * Jika belum tersedia,
+             * ambil melalui Provider module.
              */
             if (!selected) {
                 setProvider(
@@ -1522,7 +1841,8 @@
         }
 
         form.dataset
-            .genzSaveBound = "true";
+            .genzSaveBound =
+            "true";
 
         form.addEventListener(
             "submit",
