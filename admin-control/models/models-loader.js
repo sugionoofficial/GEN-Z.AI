@@ -29,79 +29,32 @@
      */
 
     const MODULES = [
+    "models-data.js",
+    "models-provider.js",
 
-        /* ================================================
-           CORE DATA
-        ================================================ */
+    "functions/model-search-dropdown.js",
+    "functions/model-search-render.js",
+    "functions/model-search-select.js",
+    "functions/model-search-events.js",
+    "models-search.js",
 
-        "models-data.js",
+    "functions/model-provider-dropdown.js",
 
-        "models-provider.js",
+    "functions/model-form-create.js",
+    "functions/model-form-edit.js",
+    "functions/model-form-delete.js",
+    "functions/model-form-coordinator.js",
 
-        /* ================================================
-           MODEL SEARCH FUNCTIONS
-        ================================================ */
+    "functions/model-price-calculation.js",
+    "models-price.js",
 
-        "functions/model-search-dropdown.js",
+    "functions/model-table.js",
+    "functions/model-table-events.js",
 
-        "functions/model-search-render.js",
-
-        "functions/model-search-select.js",
-
-        "functions/model-search-events.js",
-
-        /* ================================================
-           MODEL SEARCH COORDINATOR
-        ================================================ */
-
-        "models-search.js",
-
-        /* ================================================
-           PROVIDER FUNCTION
-        ================================================ */
-
-        "functions/model-provider-dropdown.js",
-
-        /* ================================================
-           FORM FUNCTIONS
-        ================================================ */
-
-        "functions/model-form-create.js",
-
-        "functions/model-form-edit.js",
-
-        "functions/model-form-delete.js",
-
-        "functions/model-form-coordinator.js",
-
-        /* ================================================
-           PRICE
-        ================================================ */
-
-        "functions/model-price-calculation.js",
-
-        "models-price.js",
-
-        /* ================================================
-           TABLE
-        ================================================ */
-
-        "functions/model-table.js",
-
-        /* ================================================
-           LEGACY / UI COORDINATOR
-        ================================================ */
-
-        "models-form.js",
-
-        "models-ui.js",
-
-        /* ================================================
-           INITIALIZER HARUS PALING AKHIR
-        ================================================ */
-
-        "models-init.js"
-    ];
+    "models-form.js",
+    "models-ui.js",
+    "models-init.js"
+];
 
     const loadedModules =
         new Map();
