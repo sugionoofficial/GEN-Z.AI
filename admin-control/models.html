@@ -737,32 +737,19 @@
 
             background: rgba(0, 0, 0, .72);
 
-            /*
-             * Lebih tinggi dari sidebar.
-             */
             z-index: 30000;
 
-            /*
-             * Modal tertutup TIDAK boleh menangkap klik.
-             */
             pointer-events: none;
 
             isolation: isolate;
         }
 
-        /*
-         * Hanya modal yang benar-benar terbuka
-         * yang menerima interaksi.
-         */
         .modal-overlay.show,
         .modal-overlay.open {
             display: flex;
             pointer-events: auto;
         }
 
-        /*
-         * hidden selalu berarti benar-benar tertutup.
-         */
         .modal-overlay.hidden {
             display: none !important;
             pointer-events: none !important;
@@ -2188,7 +2175,7 @@
 </div>
 
 <!-- =====================================================
-     MODAL / NAVIGATION SAFETY FALLBACK
+     SIDEBAR NAVIGATION FALLBACK
 ===================================================== -->
 
 <script>
@@ -2196,295 +2183,29 @@
     "use strict";
 
     /*
-     * =========================================================
-     * MODAL STATE
-     * =========================================================
+     * Model modal, form, delete, search dan table
+     * sepenuhnya dikelola oleh module di models/.
      *
-     * Satu-satunya fungsi fallback untuk membuka/menutup modal.
+     * Jangan membuat handler kedua untuk:
      *
-     * Tidak menggunakan:
-     * modal.style.display = "flex"
-     * modal.style.display = "none"
+     * - Add Model
+     * - Close Modal
+     * - Cancel Modal
+     * - Delete Modal
+     * - Backdrop Modal
+     * - Escape Modal
      *
-     * Karena inline display dapat mengalahkan CSS .hidden
-     * dan membuat overlay tetap menangkap klik.
-     */
-
-    function setModalState(modal, open) {
-        if (!modal) {
-            return;
-        }
-
-        if (open) {
-            modal.classList.remove("hidden");
-            modal.classList.add("show");
-            modal.classList.add("open");
-
-            modal.setAttribute("aria-hidden", "false");
-
-            document.body.classList.add("modal-open");
-
-            return;
-        }
-
-        modal.classList.remove("show");
-        modal.classList.remove("open");
-        modal.classList.add("hidden");
-
-        modal.setAttribute("aria-hidden", "true");
-
-        /*
-         * Hanya hapus modal-open apabila tidak ada modal
-         * lain yang masih terbuka.
-         */
-        const anotherOpenModal = document.querySelector(
-            ".modal-overlay.show, .modal-overlay.open"
-        );
-
-        if (!anotherOpenModal) {
-            document.body.classList.remove("modal-open");
-        }
-    }
-
-    /*
-     * Expose agar modul lain dapat menggunakan fungsi yang sama
-     * apabila diperlukan.
-     */
-    window.GENZModal = Object.freeze({
-        setModalState: setModalState
-    });
-
-    /*
-     * =========================================================
-     * ADD MODEL BUTTON
-     * =========================================================
-     */
-
-    function bindAddModelButton() {
-        const button = document.getElementById("addModelBtn");
-
-        if (!button) {
-            return;
-        }
-
-        if (button.dataset.directAddModelBound === "true") {
-            return;
-        }
-
-        button.dataset.directAddModelBound = "true";
-
-        button.addEventListener("click", function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const form = window.GENZModelsForm;
-
-            /*
-             * Prioritas utama tetap module form yang sudah ada.
-             */
-            if (
-                form &&
-                typeof form.openCreateForm === "function"
-            ) {
-                form.openCreateForm();
-                return;
-            }
-
-            /*
-             * Fallback apabila module form belum siap.
-             */
-            const modal = document.getElementById("modelModal");
-
-            if (!modal) {
-                console.error(
-                    "[GEN-Z.AI] #modelModal tidak ditemukan."
-                );
-                return;
-            }
-
-            setModalState(modal, true);
-        });
-    }
-
-    /*
-     * =========================================================
-     * CLOSE MODEL MODAL
-     * =========================================================
-     */
-
-    function bindModelModalButtons() {
-        const modal = document.getElementById("modelModal");
-
-        if (!modal) {
-            return;
-        }
-
-        const closeButton =
-            document.getElementById("closeModalBtn");
-
-        const cancelButton =
-            document.getElementById("cancelModalBtn");
-
-        if (
-            closeButton &&
-            closeButton.dataset.modalBound !== "true"
-        ) {
-            closeButton.dataset.modalBound = "true";
-
-            closeButton.addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                setModalState(modal, false);
-            });
-        }
-
-        if (
-            cancelButton &&
-            cancelButton.dataset.modalBound !== "true"
-        ) {
-            cancelButton.dataset.modalBound = "true";
-
-            cancelButton.addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                setModalState(modal, false);
-            });
-        }
-
-        /*
-         * Klik area gelap menutup modal.
-         * Klik isi modal tidak menutup.
-         */
-        if (modal.dataset.overlayBound !== "true") {
-            modal.dataset.overlayBound = "true";
-
-            modal.addEventListener("click", function (event) {
-                if (event.target === modal) {
-                    setModalState(modal, false);
-                }
-            });
-        }
-    }
-
-    /*
-     * =========================================================
-     * DELETE MODAL
-     * =========================================================
-     */
-
-    function bindDeleteModalButtons() {
-        const modal = document.getElementById("deleteModal");
-
-        if (!modal) {
-            return;
-        }
-
-        const closeButton =
-            document.getElementById("closeDeleteBtn");
-
-        const cancelButton =
-            document.getElementById("cancelDeleteBtn");
-
-        if (
-            closeButton &&
-            closeButton.dataset.modalBound !== "true"
-        ) {
-            closeButton.dataset.modalBound = "true";
-
-            closeButton.addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                setModalState(modal, false);
-            });
-        }
-
-        if (
-            cancelButton &&
-            cancelButton.dataset.modalBound !== "true"
-        ) {
-            cancelButton.dataset.modalBound = "true";
-
-            cancelButton.addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                setModalState(modal, false);
-            });
-        }
-
-        if (modal.dataset.overlayBound !== "true") {
-            modal.dataset.overlayBound = "true";
-
-            modal.addEventListener("click", function (event) {
-                if (event.target === modal) {
-                    setModalState(modal, false);
-                }
-            });
-        }
-    }
-
-    /*
-     * =========================================================
-     * ESC KEY
-     * =========================================================
-     */
-
-    function bindEscapeKey() {
-        if (document.body.dataset.modelEscapeBound === "true") {
-            return;
-        }
-
-        document.body.dataset.modelEscapeBound = "true";
-
-        document.addEventListener("keydown", function (event) {
-
-            if (event.key !== "Escape") {
-                return;
-            }
-
-            const modelModal =
-                document.getElementById("modelModal");
-
-            const deleteModal =
-                document.getElementById("deleteModal");
-
-            if (
-                modelModal &&
-                (
-                    modelModal.classList.contains("show") ||
-                    modelModal.classList.contains("open")
-                )
-            ) {
-                setModalState(modelModal, false);
-                return;
-            }
-
-            if (
-                deleteModal &&
-                (
-                    deleteModal.classList.contains("show") ||
-                    deleteModal.classList.contains("open")
-                )
-            ) {
-                setModalState(deleteModal, false);
-            }
-        });
-    }
-
-    /*
-     * =========================================================
-     * SIDEBAR FALLBACK
-     * =========================================================
+     * Handler tersebut dikelola oleh:
      *
-     * Tidak mengambil alih fungsi sidebar module jika sudah ada.
-     * Hanya memastikan navigasi mobile tetap dapat bekerja jika
-     * belum ada handler dari module lain.
+     * - GENZModelsForm
+     * - GENZModelFormEvents
+     * - GENZModelTableEvents
+     *
+     * Fallback di halaman hanya menangani sidebar.
      */
 
     function bindSidebarFallback() {
+
         const sidebar =
             document.getElementById("sidebar");
 
@@ -2500,12 +2221,17 @@
         const mainContent =
             document.getElementById("mainContent");
 
+        /*
+         * Desktop sidebar collapse
+         */
         if (
             sidebar &&
             sidebarToggle &&
             sidebarToggle.dataset.fallbackBound !== "true"
         ) {
-            sidebarToggle.dataset.fallbackBound = "true";
+
+            sidebarToggle.dataset.fallbackBound =
+                "true";
 
             sidebarToggle.addEventListener(
                 "click",
@@ -2514,28 +2240,39 @@
                     event.preventDefault();
                     event.stopPropagation();
 
-                    sidebar.classList.toggle("collapsed");
+                    sidebar.classList.toggle(
+                        "collapsed"
+                    );
 
                     if (mainContent) {
+
                         mainContent.classList.toggle(
                             "collapsed"
                         );
+
                     }
 
                     sidebarToggle.textContent =
-                        sidebar.classList.contains("collapsed")
+                        sidebar.classList.contains(
+                            "collapsed"
+                        )
                             ? "›"
                             : "‹";
                 }
             );
         }
 
+        /*
+         * Mobile sidebar
+         */
         if (
             sidebar &&
             mobileMenuButton &&
             mobileMenuButton.dataset.fallbackBound !== "true"
         ) {
-            mobileMenuButton.dataset.fallbackBound = "true";
+
+            mobileMenuButton.dataset.fallbackBound =
+                "true";
 
             mobileMenuButton.addEventListener(
                 "click",
@@ -2544,108 +2281,131 @@
                     event.preventDefault();
                     event.stopPropagation();
 
-                    sidebar.classList.add("mobile-open");
+                    sidebar.classList.add(
+                        "mobile-open"
+                    );
 
                     if (sidebarOverlay) {
-                        sidebarOverlay.classList.add("show");
+
+                        sidebarOverlay.classList.add(
+                            "show"
+                        );
+
                     }
                 }
             );
         }
 
         function closeMobileSidebar() {
+
             if (sidebar) {
-                sidebar.classList.remove("mobile-open");
+
+                sidebar.classList.remove(
+                    "mobile-open"
+                );
+
             }
 
             if (sidebarOverlay) {
-                sidebarOverlay.classList.remove("show");
+
+                sidebarOverlay.classList.remove(
+                    "show"
+                );
+
             }
         }
 
+        /*
+         * Mobile overlay
+         */
         if (
             sidebarOverlay &&
             sidebarOverlay.dataset.fallbackBound !== "true"
         ) {
-            sidebarOverlay.dataset.fallbackBound = "true";
+
+            sidebarOverlay.dataset.fallbackBound =
+                "true";
 
             sidebarOverlay.addEventListener(
                 "click",
-                function () {
-                    closeMobileSidebar();
-                }
+                closeMobileSidebar
             );
         }
 
+        /*
+         * Tutup sidebar setelah memilih menu
+         */
         if (
             sidebar &&
             sidebar.dataset.mobileLinksBound !== "true"
         ) {
-            sidebar.dataset.mobileLinksBound = "true";
+
+            sidebar.dataset.mobileLinksBound =
+                "true";
 
             const links =
                 sidebar.querySelectorAll(
                     ".sidebar-link"
                 );
 
-            links.forEach(function (link) {
-                link.addEventListener(
-                    "click",
-                    function () {
-                        closeMobileSidebar();
-                    }
-                );
-            });
+            links.forEach(
+                function (link) {
+
+                    link.addEventListener(
+                        "click",
+                        closeMobileSidebar
+                    );
+
+                }
+            );
         }
     }
 
-    /*
-     * =========================================================
-     * INITIALIZE
-     * =========================================================
-     */
+    function initializeSidebarFallback() {
 
-    function initializeFallback() {
-        bindAddModelButton();
-        bindModelModalButtons();
-        bindDeleteModalButtons();
-        bindEscapeKey();
         bindSidebarFallback();
+
     }
 
-    if (document.readyState === "loading") {
+    /*
+     * Jalankan setelah DOM tersedia.
+     */
+    if (
+        document.readyState === "loading"
+    ) {
 
         document.addEventListener(
             "DOMContentLoaded",
-            initializeFallback,
-            { once: true }
+            initializeSidebarFallback,
+            {
+                once: true
+            }
         );
 
     } else {
 
-        initializeFallback();
+        initializeSidebarFallback();
 
     }
 
     /*
-     * Module loader dimuat setelah script ini.
-     * Jalankan binding ulang setelah module selesai.
-     * Tidak membuat duplicate listener karena semua fungsi
-     * menggunakan flag dataset.
+     * Safety retry.
+     *
+     * Ini hanya untuk sidebar.
+     * Tidak menyentuh modal atau form.
      */
-
     window.setTimeout(
-        initializeFallback,
+        initializeSidebarFallback,
         500
     );
 
     window.setTimeout(
-        initializeFallback,
+        initializeSidebarFallback,
         1500
     );
 
     window.setTimeout(
-        initializeFallback,
+        initializeSidebarFallback,
         3000
     );
 
@@ -2660,4 +2420,3 @@
 
 </body>
 </html>
-
