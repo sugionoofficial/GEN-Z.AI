@@ -6,21 +6,21 @@
    File:
    admin-control/models/models-ui.js
 
-   Fungsi:
-   - Modal management
-   - Notification
-   - Statistics
-   - Refresh model data
-   - Load provider dari public.providers
-   - Hubungkan data/search/form/price module
-   - Binding tombol Add / Close / Cancel / Refresh
-   - Tidak menyimpan API key
+   FIX:
+   - Provider dimuat SEBELUM form/search
+   - Model catalog dimuat SEBELUM search initialize
+   - Search selalu menerima state.models
+   - Manual Model ID tetap dapat digunakan
+   - Tidak bergantung pada kie_models untuk mengetik Model ID
+   - Initialization tidak dikunci sebelum benar-benar selesai
+   - Aman terhadap module yang terlambat dimuat
 ========================================================= */
 
 (function () {
     "use strict";
 
     let initialized = false;
+    let initializing = null;
 
     const state = {
         models: [],
@@ -33,124 +33,9 @@
         return document.getElementById(id);
     }
 
-       /*
-     * =====================================================
-     * EMERGENCY ADD MODEL HANDLER
-     * =====================================================
-     *
-     * Handler ini dipasang SEGERA saat models-ui.js
-     * dimuat, tanpa menunggu initialization Supabase,
-     * pricing, search, atau module lainnya.
-     *
-     * Tujuan:
-     * tombol "+ Tambah Model" tetap dapat membuka modal
-     * walaupun initialization module lain bermasalah.
-     */
-
-    function bindEmergencyAddModel() {
-        if (
-            document.body &&
-            document.body.dataset
-                .genzEmergencyAddModelBound === "true"
-        ) {
-            return;
-        }
-
-        const handler = event => {
-            const target =
-                event.target.closest(
-                    "#addModelBtn, #addModelButton, [data-action=\"add-model\"]"
-                );
-
-            if (!target) {
-                return;
-            }
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            const modal =
-                document.getElementById(
-                    "modelModal"
-                );
-
-            if (!modal) {
-                console.error(
-                    "[models-ui] #modelModal tidak ditemukan."
-                );
-
-                return;
-            }
-
-            /*
-             * Buka modal SECARA LANGSUNG.
-             * Tidak menunggu GENZModelsForm.
-             * Tidak menunggu Supabase.
-             */
-            modal.classList.add("show");
-            modal.classList.remove("hidden");
-
-            modal.style.display = "flex";
-
-            modal.setAttribute(
-                "aria-hidden",
-                "false"
-            );
-
-            document.body.classList.add(
-                "modal-open"
-            );
-
-            /*
-             * Setelah modal tampil, baru coba
-             * reset form jika module tersedia.
-             */
-            const form =
-                window.GENZModelsForm;
-
-            if (
-                form &&
-                typeof form.openCreateForm ===
-                    "function"
-            ) {
-                Promise.resolve(
-                    form.openCreateForm()
-                ).catch(error => {
-                    console.error(
-                        "[models-ui] openCreateForm error:",
-                        error
-                    );
-                });
-            }
-        };
-
-        document.addEventListener(
-            "click",
-            handler,
-            true
-        );
-
-        if (document.body) {
-            document.body.dataset
-                .genzEmergencyAddModelBound =
-                "true";
-        }
-    }
-
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-        document.addEventListener(
-            "DOMContentLoaded",
-            bindEmergencyAddModel,
-            {
-                once: true
-            }
-        );
-    } else {
-        bindEmergencyAddModel();
-    }
+    /* =====================================================
+       MODULE ACCESS
+    ===================================================== */
 
     function getModelsData() {
         return window.GENZModelsData || null;
@@ -169,6 +54,118 @@
     }
 
     /* =====================================================
+       EMERGENCY ADD MODEL HANDLER
+    ===================================================== */
+
+    function bindEmergencyAddModel() {
+
+        if (!document.body) {
+            return;
+        }
+
+        if (
+            document.body.dataset
+                .genzEmergencyAddModelBound === "true"
+        ) {
+            return;
+        }
+
+        const handler = event => {
+
+            const target =
+                event.target.closest(
+                    "#addModelBtn, #addModelButton, [data-action=\"add-model\"]"
+                );
+
+            if (!target) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const form =
+                getModelsForm();
+
+            const modal =
+                document.getElementById(
+                    "modelModal"
+                );
+
+            if (!modal) {
+                console.error(
+                    "[models-ui] #modelModal tidak ditemukan."
+                );
+
+                return;
+            }
+
+            /*
+             * Jika Form module sudah tersedia,
+             * biarkan form membuka modal.
+             */
+            if (
+                form &&
+                typeof form.openCreateForm ===
+                    "function"
+            ) {
+
+                Promise.resolve(
+                    form.openCreateForm()
+                ).catch(error => {
+
+                    console.error(
+                        "[models-ui] openCreateForm error:",
+                        error
+                    );
+
+                    showModalElement(
+                        modal
+                    );
+                });
+
+                return;
+            }
+
+            /*
+             * Fallback jika Form belum siap.
+             */
+            showModalElement(
+                modal
+            );
+        };
+
+        document.addEventListener(
+            "click",
+            handler,
+            true
+        );
+
+        document.body.dataset
+            .genzEmergencyAddModelBound =
+            "true";
+    }
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            bindEmergencyAddModel,
+            {
+                once: true
+            }
+        );
+
+    } else {
+
+        bindEmergencyAddModel();
+
+    }
+
+    /* =====================================================
        NOTIFICATION
     ===================================================== */
 
@@ -177,13 +174,16 @@
         type = "info",
         duration = 3500
     ) {
+
         const existing =
             $("modelNotification") ||
             $("notification") ||
             $("toast");
 
         if (existing) {
-            existing.textContent = message;
+
+            existing.textContent =
+                message;
 
             existing.classList.remove(
                 "success",
@@ -193,10 +193,16 @@
                 "show"
             );
 
-            existing.classList.add(type);
+            existing.classList.add(
+                type
+            );
 
             requestAnimationFrame(() => {
-                existing.classList.add("show");
+
+                existing.classList.add(
+                    "show"
+                );
+
             });
 
             window.clearTimeout(
@@ -205,16 +211,23 @@
 
             existing.__genzTimer =
                 window.setTimeout(() => {
-                    existing.classList.remove("show");
+
+                    existing.classList.remove(
+                        "show"
+                    );
+
                 }, duration);
 
             return;
         }
 
         const toast =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
-        toast.id = "modelNotification";
+        toast.id =
+            "modelNotification";
 
         toast.className =
             `genz-model-notification ${type}`;
@@ -243,18 +256,27 @@
             }
         );
 
-        document.body.appendChild(toast);
+        document.body.appendChild(
+            toast
+        );
 
         window.setTimeout(() => {
-            toast.style.opacity = "0";
+
+            toast.style.opacity =
+                "0";
+
             toast.style.transform =
                 "translateY(8px)";
+
             toast.style.transition =
                 "opacity .2s ease, transform .2s ease";
 
             window.setTimeout(() => {
+
                 toast.remove();
+
             }, 250);
+
         }, duration);
     }
 
@@ -263,6 +285,7 @@
     ===================================================== */
 
     function getModal() {
+
         return (
             $("modelModal") ||
             $("modelEditModal") ||
@@ -273,46 +296,82 @@
         );
     }
 
-    function showModalElement(modal) {
+    function showModalElement(
+        modal
+    ) {
+
         if (!modal) {
             return;
         }
 
-        if (!modal.dataset.originalDisplay) {
+        if (
+            !modal.dataset
+                .originalDisplay
+        ) {
+
             const computed =
-                window.getComputedStyle(modal).display;
+                window.getComputedStyle(
+                    modal
+                ).display;
 
             if (
                 computed &&
                 computed !== "none"
             ) {
-                modal.dataset.originalDisplay =
+
+                modal.dataset
+                    .originalDisplay =
                     computed;
+
             }
         }
 
-        modal.classList.add("show");
-        modal.classList.remove("hidden");
+        modal.classList.add(
+            "show"
+        );
+
+        modal.classList.remove(
+            "hidden"
+        );
 
         modal.style.display =
-            modal.dataset.originalDisplay ||
+            modal.dataset
+                .originalDisplay ||
             "flex";
+
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
 
         document.body.classList.add(
             "modal-open"
         );
     }
 
-    function hideModalElement(modal) {
+    function hideModalElement(
+        modal
+    ) {
+
         if (!modal) {
             return;
         }
 
-        modal.classList.remove("show");
-        modal.classList.add("hidden");
+        modal.classList.remove(
+            "show"
+        );
+
+        modal.classList.add(
+            "hidden"
+        );
 
         modal.style.display =
             "none";
+
+        modal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
 
         document.body.classList.remove(
             "modal-open"
@@ -320,6 +379,7 @@
     }
 
     function openModal() {
+
         const form =
             getModelsForm();
 
@@ -328,8 +388,19 @@
             typeof form.openCreateForm ===
                 "function"
         ) {
-            form.openCreateForm();
-            return;
+
+            try {
+
+                return form.openCreateForm();
+
+            } catch (error) {
+
+                console.error(
+                    "[models-ui] openCreateForm:",
+                    error
+                );
+
+            }
         }
 
         showModalElement(
@@ -337,7 +408,10 @@
         );
     }
 
-    function openEditModal(model) {
+    function openEditModal(
+        model
+    ) {
+
         if (!model) {
             return;
         }
@@ -350,8 +424,21 @@
             typeof form.openEditForm ===
                 "function"
         ) {
-            form.openEditForm(model);
-            return;
+
+            try {
+
+                return form.openEditForm(
+                    model
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[models-ui] openEditForm:",
+                    error
+                );
+
+            }
         }
 
         showModalElement(
@@ -360,6 +447,7 @@
     }
 
     function closeModal() {
+
         const form =
             getModelsForm();
 
@@ -368,8 +456,19 @@
             typeof form.closeModal ===
                 "function"
         ) {
-            form.closeModal();
-            return;
+
+            try {
+
+                return form.closeModal();
+
+            } catch (error) {
+
+                console.error(
+                    "[models-ui] closeModal:",
+                    error
+                );
+
+            }
         }
 
         hideModalElement(
@@ -378,12 +477,13 @@
     }
 
     /* =====================================================
-       PROVIDER DATA
+       PROVIDERS
     ===================================================== */
 
     async function loadProviders(
         options = {}
     ) {
+
         const data =
             getModelsData();
 
@@ -392,15 +492,17 @@
             typeof data.loadProviders !==
                 "function"
         ) {
+
             console.warn(
-                "[models-ui] GENZModelsData.loadProviders belum tersedia."
+                "[models-ui] loadProviders belum tersedia."
             );
 
             return [];
         }
 
         try {
-            state.providers =
+
+            const providers =
                 await data.loadProviders({
                     force:
                         options.force === true,
@@ -408,15 +510,35 @@
                         options.activeOnly !== false
                 });
 
+            state.providers =
+                Array.isArray(
+                    providers
+                )
+                    ? providers
+                    : [];
+
             populateProviderSelect(
                 state.providers
             );
 
+            console.info(
+                "[models-ui] Provider loaded:",
+                state.providers.length
+            );
+
             return state.providers;
+
         } catch (error) {
+
             console.error(
                 "[models-ui] Gagal memuat provider:",
                 error
+            );
+
+            state.providers = [];
+
+            populateProviderSelect(
+                []
             );
 
             notify(
@@ -431,6 +553,7 @@
     function populateProviderSelect(
         providers = state.providers
     ) {
+
         const select =
             $("providerId");
 
@@ -438,6 +561,11 @@
             !select ||
             select.tagName !== "SELECT"
         ) {
+
+            console.warn(
+                "[models-ui] #providerId tidak ditemukan."
+            );
+
             return;
         }
 
@@ -450,9 +578,13 @@
             document.createDocumentFragment();
 
         const placeholder =
-            document.createElement("option");
+            document.createElement(
+                "option"
+            );
 
-        placeholder.value = "";
+        placeholder.value =
+            "";
+
         placeholder.textContent =
             "Pilih Provider";
 
@@ -461,14 +593,21 @@
         );
 
         const list =
-            Array.isArray(providers)
+            Array.isArray(
+                providers
+            )
                 ? providers
                 : [];
 
-        for (const provider of list) {
+        for (
+            const provider of list
+        ) {
+
             const providerId =
                 String(
-                    provider.provider_id || ""
+                    provider.provider_id ||
+                    provider.provider ||
+                    ""
                 ).trim();
 
             if (!providerId) {
@@ -476,7 +615,9 @@
             }
 
             const option =
-                document.createElement("option");
+                document.createElement(
+                    "option"
+                );
 
             option.value =
                 providerId;
@@ -491,13 +632,15 @@
             );
         }
 
-        select.innerHTML = "";
+        select.innerHTML =
+            "";
 
         select.appendChild(
             fragment
         );
 
         if (currentValue) {
+
             const exists =
                 Array.from(
                     select.options
@@ -508,15 +651,23 @@
                 );
 
             if (exists) {
+
                 select.value =
                     currentValue;
+
             }
         }
+
+        console.info(
+            "[models-ui] Provider dropdown:",
+            select.options.length - 1
+        );
     }
 
     function findProviderById(
         providerId
     ) {
+
         const normalized =
             String(
                 providerId || ""
@@ -532,7 +683,9 @@
             state.providers.find(
                 provider =>
                     String(
-                        provider.provider_id || ""
+                        provider.provider_id ||
+                        provider.provider ||
+                        ""
                     )
                         .trim()
                         .toLowerCase() ===
@@ -543,6 +696,221 @@
     }
 
     /* =====================================================
+       MODEL DATA
+    ===================================================== */
+
+    async function loadModels(
+        options = {}
+    ) {
+
+        const data =
+            getModelsData();
+
+        if (
+            !data ||
+            typeof data.loadKieModels !==
+                "function"
+        ) {
+
+            console.warn(
+                "[models-ui] loadKieModels belum tersedia."
+            );
+
+            return [];
+        }
+
+        state.loading =
+            true;
+
+        try {
+
+            const models =
+                await data.loadKieModels(
+                    options
+                );
+
+            state.models =
+                Array.isArray(
+                    models
+                )
+                    ? models
+                    : [];
+
+            console.info(
+                "[models-ui] KIE models loaded:",
+                state.models.length
+            );
+
+            updateStatistics(
+                state.models
+            );
+
+            /*
+             * Sangat penting:
+             * Search harus menerima model
+             * SETELAH Supabase selesai.
+             */
+            const search =
+                getModelsSearch();
+
+            if (
+                search &&
+                typeof search.setModels ===
+                    "function"
+            ) {
+
+                search.setModels(
+                    state.models
+                );
+
+                console.info(
+                    "[models-ui] Search catalog synchronized:",
+                    state.models.length
+                );
+            }
+
+            return state.models;
+
+        } catch (error) {
+
+            console.error(
+                "[models-ui] Gagal memuat model:",
+                error
+            );
+
+            state.models = [];
+
+            const search =
+                getModelsSearch();
+
+            if (
+                search &&
+                typeof search.setModels ===
+                    "function"
+            ) {
+
+                /*
+                 * Tetap set [].
+                 * Manual Model ID harus tetap
+                 * dapat digunakan oleh Search.
+                 */
+                search.setModels(
+                    []
+                );
+            }
+
+            notify(
+                "Gagal memuat daftar model dari Supabase.",
+                "error"
+            );
+
+            return [];
+
+        } finally {
+
+            state.loading =
+                false;
+
+        }
+    }
+
+    /* =====================================================
+       PRICING
+    ===================================================== */
+
+    async function loadPricing() {
+
+        const price =
+            getModelsPrice();
+
+        if (
+            !price ||
+            typeof price.loadPricing !==
+                "function"
+        ) {
+
+            return [];
+        }
+
+        try {
+
+            state.pricing =
+                await price.loadPricing({
+                    force: false
+                });
+
+            if (
+                !Array.isArray(
+                    state.pricing
+                )
+            ) {
+
+                state.pricing = [];
+
+            }
+
+            return state.pricing;
+
+        } catch (error) {
+
+            console.error(
+                "[models-ui] Pricing load error:",
+                error
+            );
+
+            state.pricing =
+                [];
+
+            return [];
+
+        }
+    }
+
+    async function initializePrice() {
+
+        const price =
+            getModelsPrice();
+
+        if (
+            !price ||
+            typeof price.initialize !==
+                "function"
+        ) {
+
+            return [];
+
+        }
+
+        try {
+
+            const result =
+                await price.initialize();
+
+            state.pricing =
+                Array.isArray(
+                    result
+                )
+                    ? result
+                    : [];
+
+            return state.pricing;
+
+        } catch (error) {
+
+            console.error(
+                "[models-ui] Price initialization error:",
+                error
+            );
+
+            state.pricing =
+                [];
+
+            return [];
+
+        }
+    }
+
+    /* =====================================================
        STATISTICS
     ===================================================== */
 
@@ -550,17 +918,23 @@
         ids,
         value
     ) {
+
         if (!Array.isArray(ids)) {
             ids = [ids];
         }
 
-        for (const id of ids) {
+        for (
+            const id of ids
+        ) {
+
             const element =
                 $(id);
 
             if (element) {
+
                 element.textContent =
                     value;
+
             }
         }
     }
@@ -568,8 +942,15 @@
     function updateStatistics(
         models = state.models
     ) {
-        if (!Array.isArray(models)) {
+
+        if (
+            !Array.isArray(
+                models
+            )
+        ) {
+
             models = [];
+
         }
 
         const total =
@@ -579,8 +960,10 @@
             models.filter(
                 model =>
                     String(
-                        model.status || ""
-                    ).toLowerCase() ===
+                        model.status ||
+                        ""
+                    )
+                        .toLowerCase() ===
                     "active"
             ).length;
 
@@ -588,8 +971,10 @@
             models.filter(
                 model =>
                     String(
-                        model.status || ""
-                    ).toLowerCase() ===
+                        model.status ||
+                        ""
+                    )
+                        .toLowerCase() ===
                     "inactive"
             ).length;
 
@@ -597,8 +982,10 @@
             models.filter(
                 model =>
                     String(
-                        model.status || ""
-                    ).toLowerCase() ===
+                        model.status ||
+                        ""
+                    )
+                        .toLowerCase() ===
                     "maintenance"
             ).length;
 
@@ -678,104 +1065,11 @@
     }
 
     /* =====================================================
-       PRICE DATA
+       REFRESH
     ===================================================== */
-
-    async function loadPricing() {
-        const price =
-            getModelsPrice();
-
-        if (
-            !price ||
-            typeof price.loadPricing !==
-                "function"
-        ) {
-            return [];
-        }
-
-        try {
-            state.pricing =
-                await price.loadPricing({
-                    force: false
-                });
-
-            return state.pricing;
-        } catch (error) {
-            console.error(
-                "[models-ui] Pricing load error:",
-                error
-            );
-
-            return [];
-        }
-    }
-
-    /* =====================================================
-       MODEL DATA
-    ===================================================== */
-
-    async function loadModels(
-        options = {}
-    ) {
-        const data =
-            getModelsData();
-
-        if (
-            !data ||
-            typeof data.loadKieModels !==
-                "function"
-        ) {
-            console.warn(
-                "[models-ui] GENZModelsData belum tersedia."
-            );
-
-            return [];
-        }
-
-        state.loading = true;
-
-        try {
-            state.models =
-                await data.loadKieModels(
-                    options
-                );
-
-            updateStatistics(
-                state.models
-            );
-
-            const search =
-                getModelsSearch();
-
-            if (
-                search &&
-                typeof search.setModels ===
-                    "function"
-            ) {
-                search.setModels(
-                    state.models
-                );
-            }
-
-            return state.models;
-        } catch (error) {
-            console.error(
-                "[models-ui] Gagal memuat model:",
-                error
-            );
-
-            notify(
-                "Gagal memuat daftar model dari Supabase.",
-                "error"
-            );
-
-            return [];
-        } finally {
-            state.loading = false;
-        }
-    }
 
     async function refreshModels() {
+
         const data =
             getModelsData();
 
@@ -784,10 +1078,13 @@
             typeof data.clearCache ===
                 "function"
         ) {
+
             data.clearCache();
+
         }
 
         try {
+
             const providers =
                 await loadProviders({
                     force: true,
@@ -806,13 +1103,33 @@
                 providers
             );
 
+            /*
+             * Re-sync search setelah refresh.
+             */
+            const search =
+                getModelsSearch();
+
+            if (
+                search &&
+                typeof search.setModels ===
+                    "function"
+            ) {
+
+                search.setModels(
+                    models
+                );
+
+            }
+
             notify(
                 "Data model dan provider berhasil diperbarui.",
                 "success"
             );
 
             return models;
+
         } catch (error) {
+
             console.error(
                 "[models-ui] Refresh error:",
                 error
@@ -824,6 +1141,7 @@
             );
 
             return [];
+
         }
     }
 
@@ -831,7 +1149,10 @@
        MODEL SELECTION
     ===================================================== */
 
-    function selectModel(model) {
+    function selectModel(
+        model
+    ) {
+
         if (!model) {
             return null;
         }
@@ -847,9 +1168,11 @@
             typeof search.selectModel ===
                 "function"
         ) {
+
             search.selectModel(
                 model
             );
+
         }
 
         if (
@@ -857,9 +1180,11 @@
             typeof form.setSelectedModel ===
                 "function"
         ) {
+
             form.setSelectedModel(
                 model
             );
+
         }
 
         const providerId =
@@ -870,28 +1195,31 @@
             ).trim();
 
         if (providerId) {
+
             const provider =
                 findProviderById(
                     providerId
                 );
 
-            if (provider) {
-                const select =
-                    $("providerId");
+            const select =
+                $("providerId");
 
-                if (select) {
-                    select.value =
-                        provider.provider_id;
+            if (
+                provider &&
+                select
+            ) {
 
-                    select.dispatchEvent(
-                        new Event(
-                            "change",
-                            {
-                                bubbles: true
-                            }
-                        )
-                    );
-                }
+                select.value =
+                    provider.provider_id;
+
+                select.dispatchEvent(
+                    new Event(
+                        "change",
+                        {
+                            bubbles: true
+                        }
+                    )
+                );
             }
         }
 
@@ -901,6 +1229,7 @@
     function findModelById(
         modelId
     ) {
+
         const normalized =
             String(
                 modelId || ""
@@ -928,13 +1257,14 @@
     }
 
     /* =====================================================
-       PRICE RENDERING
+       PRICE RENDER
     ===================================================== */
 
     function renderModelPrice(
         model,
         target
     ) {
+
         const price =
             getModelsPrice();
 
@@ -943,7 +1273,9 @@
             typeof price.findPricingForModel !==
                 "function"
         ) {
+
             return;
+
         }
 
         const element =
@@ -965,10 +1297,12 @@
             typeof price.renderPrice ===
                 "function"
         ) {
+
             element.innerHTML =
                 price.renderPrice(
                     pricing
                 );
+
         }
     }
 
@@ -980,7 +1314,9 @@
         handler,
         event
     ) {
+
         try {
+
             const result =
                 handler(event);
 
@@ -989,8 +1325,10 @@
                 typeof result.then ===
                     "function"
             ) {
+
                 result.catch(
                     error => {
+
                         console.error(
                             "[models-ui] Async button error:",
                             error
@@ -1000,10 +1338,13 @@
                             "Terjadi kesalahan saat menjalankan aksi.",
                             "error"
                         );
+
                     }
                 );
             }
+
         } catch (error) {
+
             console.error(
                 "[models-ui] Button error:",
                 error
@@ -1020,11 +1361,15 @@
         ids,
         handler
     ) {
+
         if (!Array.isArray(ids)) {
             ids = [ids];
         }
 
-        for (const id of ids) {
+        for (
+            const id of ids
+        ) {
+
             const button =
                 $(id);
 
@@ -1036,7 +1381,9 @@
                 button.dataset
                     .genzUiBound === "true"
             ) {
+
                 continue;
+
             }
 
             button.dataset
@@ -1045,18 +1392,21 @@
             button.addEventListener(
                 "click",
                 event => {
+
                     event.preventDefault();
 
                     executeHandler(
                         handler,
                         event
                     );
+
                 }
             );
         }
     }
 
     function bindButtons() {
+
         bindButton(
             [
                 "addModelButton",
@@ -1067,7 +1417,9 @@
                 "newModelBtn"
             ],
             () => {
-                openModal();
+
+                return openModal();
+
             }
         );
 
@@ -1079,7 +1431,9 @@
                 "modelModalClose"
             ],
             () => {
-                closeModal();
+
+                return closeModal();
+
             }
         );
 
@@ -1091,7 +1445,9 @@
                 "cancelBtn"
             ],
             () => {
-                closeModal();
+
+                return closeModal();
+
             }
         );
 
@@ -1103,30 +1459,38 @@
                 "refreshModelButton"
             ],
             () => {
+
                 return refreshModels();
+
             }
         );
     }
 
     /* =====================================================
-       ADD MODEL FALLBACK
+       ACTION FALLBACK
     ===================================================== */
 
     function bindActionFallback() {
+
         if (
+            !document.body ||
             document.body.dataset
                 .genzModelActionFallbackBound ===
-            "true"
+                "true"
         ) {
+
             return;
+
         }
 
         document.body.dataset
-            .genzModelActionFallbackBound = "true";
+            .genzModelActionFallbackBound =
+            "true";
 
         document.addEventListener(
             "click",
             event => {
+
                 const target =
                     event.target.closest(
                         "[data-action]"
@@ -1149,6 +1513,7 @@
                     action ===
                     "add-model"
                 ) {
+
                     event.preventDefault();
 
                     openModal();
@@ -1160,6 +1525,7 @@
                     action ===
                     "close-model"
                 ) {
+
                     event.preventDefault();
 
                     closeModal();
@@ -1171,24 +1537,30 @@
     }
 
     /* =====================================================
-       GLOBAL MODAL EVENTS
+       MODAL EVENTS
     ===================================================== */
 
     function bindModalEvents() {
+
         if (
+            !document.body ||
             document.body.dataset
                 .genzModalEventsBound ===
-            "true"
+                "true"
         ) {
+
             return;
+
         }
 
         document.body.dataset
-            .genzModalEventsBound = "true";
+            .genzModalEventsBound =
+            "true";
 
         document.addEventListener(
             "click",
             event => {
+
                 const modal =
                     getModal();
 
@@ -1201,26 +1573,34 @@
                         "show"
                     )
                 ) {
+
                     return;
+
                 }
 
                 if (
                     event.target ===
                     modal
                 ) {
+
                     closeModal();
+
                 }
+
             }
         );
 
         document.addEventListener(
             "keydown",
             event => {
+
                 if (
                     event.key !==
                     "Escape"
                 ) {
+
                     return;
+
                 }
 
                 const modal =
@@ -1232,17 +1612,21 @@
                         "show"
                     )
                 ) {
+
                     closeModal();
+
                 }
+
             }
         );
     }
 
     /* =====================================================
-       FORM EVENTS
+       FORM INITIALIZATION
     ===================================================== */
 
     function bindFormEvents() {
+
         const form =
             getModelsForm();
 
@@ -1251,28 +1635,41 @@
             typeof form.initialize !==
                 "function"
         ) {
+
             console.warn(
                 "[models-ui] GENZModelsForm belum tersedia."
             );
 
-            return;
+            return false;
         }
 
         try {
+
             form.initialize();
+
+            console.info(
+                "[models-ui] Form initialized."
+            );
+
+            return true;
+
         } catch (error) {
+
             console.error(
                 "[models-ui] Form initialization error:",
                 error
             );
+
+            return false;
         }
     }
 
     /* =====================================================
-       SEARCH EVENTS
+       SEARCH INITIALIZATION
     ===================================================== */
 
     function bindSearchEvents() {
+
         const search =
             getModelsSearch();
 
@@ -1281,55 +1678,49 @@
             typeof search.initialize !==
                 "function"
         ) {
+
             console.warn(
                 "[models-ui] GENZModelsSearch belum tersedia."
             );
 
-            return;
+            return false;
         }
 
         try {
+
+            /*
+             * Pastikan catalog terbaru masuk
+             * sebelum initialize.
+             */
+            if (
+                typeof search.setModels ===
+                    "function"
+            ) {
+
+                search.setModels(
+                    state.models
+                );
+
+            }
+
             search.initialize();
+
+            console.info(
+                "[models-ui] Search initialized with",
+                state.models.length,
+                "catalog models."
+            );
+
+            return true;
+
         } catch (error) {
+
             console.error(
                 "[models-ui] Search initialization error:",
                 error
             );
-        }
-    }
 
-    /* =====================================================
-       PRICE EVENTS
-    ===================================================== */
-
-    async function initializePrice() {
-        const price =
-            getModelsPrice();
-
-        if (
-            !price ||
-            typeof price.initialize !==
-                "function"
-        ) {
-            console.warn(
-                "[models-ui] GENZModelsPrice belum tersedia."
-            );
-
-            return [];
-        }
-
-        try {
-            state.pricing =
-                await price.initialize();
-
-            return state.pricing;
-        } catch (error) {
-            console.error(
-                "[models-ui] Price initialization error:",
-                error
-            );
-
-            return [];
+            return false;
         }
     }
 
@@ -1338,6 +1729,7 @@
     ===================================================== */
 
     function bindTableEvents() {
+
         const table =
             $("modelTableBody");
 
@@ -1350,21 +1742,25 @@
                 .genzTableEventsBound ===
             "true"
         ) {
+
             return;
         }
 
         table.dataset
-            .genzTableEventsBound = "true";
+            .genzTableEventsBound =
+            "true";
 
         table.addEventListener(
             "click",
             event => {
+
                 const editButton =
                     event.target.closest(
                         "[data-model-edit]"
                     );
 
                 if (editButton) {
+
                     event.preventDefault();
 
                     const modelId =
@@ -1378,9 +1774,11 @@
                         );
 
                     if (model) {
+
                         openEditModal(
                             model
                         );
+
                     }
 
                     return;
@@ -1392,6 +1790,7 @@
                     );
 
                 if (selectButton) {
+
                     event.preventDefault();
 
                     const modelId =
@@ -1405,9 +1804,11 @@
                         );
 
                     if (model) {
+
                         selectModel(
                             model
                         );
+
                     }
                 }
             }
@@ -1419,66 +1820,207 @@
     ===================================================== */
 
     async function initialize() {
+
+        /*
+         * Jika sedang initialization,
+         * gunakan promise yang sama.
+         */
+        if (initializing) {
+            return initializing;
+        }
+
+        /*
+         * Jangan mengunci initialized
+         * sebelum semua proses berhasil.
+         */
         if (initialized) {
-            return;
+            return true;
         }
 
-        initialized = true;
+        initializing =
+            (async () => {
 
-        try {
-            bindButtons();
-            bindActionFallback();
-            bindModalEvents();
-            bindFormEvents();
-            bindSearchEvents();
-            bindTableEvents();
+                try {
 
-            /*
-             * Provider harus dimuat lebih dahulu
-             * supaya <select id="providerId">
-             * sudah mempunyai option ketika
-             * model dipilih atau modal Edit dibuka.
-             */
-            await loadProviders({
-                force: false,
-                activeOnly: true
-            });
+                    console.info(
+                        "[models-ui] Initialization mulai..."
+                    );
 
-            await loadModels({
-                force: false,
-                activeOnly: false
-            });
+                    /*
+                     * =================================================
+                     * STEP 1
+                     * Binding DOM event dasar
+                     * =================================================
+                     */
 
-            await initializePrice();
+                    bindButtons();
+                    bindActionFallback();
+                    bindModalEvents();
+                    bindTableEvents();
 
-            updateStatistics(
-                state.models
-            );
+                    /*
+                     * =================================================
+                     * STEP 2
+                     * LOAD PROVIDER DARI SUPABASE
+                     * =================================================
+                     *
+                     * Provider HARUS selesai terlebih
+                     * dahulu sebelum form digunakan.
+                     */
 
-            const search =
-                getModelsSearch();
+                    await loadProviders({
+                        force: false,
+                        activeOnly: true
+                    });
 
-            if (
-                search &&
-                typeof search.setModels ===
-                    "function"
-            ) {
-                search.setModels(
-                    state.models
-                );
-            }
+                    console.info(
+                        "[models-ui] Provider siap:",
+                        state.providers.length
+                    );
 
-        } catch (error) {
-            console.error(
-                "[models-ui] Initialization error:",
-                error
-            );
+                    /*
+                     * =================================================
+                     * STEP 3
+                     * LOAD MODEL CATALOG DARI SUPABASE
+                     * =================================================
+                     */
 
-            notify(
-                "Model Management gagal diinisialisasi.",
-                "error"
-            );
-        }
+                    await loadModels({
+                        force: false,
+                        activeOnly: false
+                    });
+
+                    console.info(
+                        "[models-ui] Model catalog siap:",
+                        state.models.length
+                    );
+
+                    /*
+                     * =================================================
+                     * STEP 4
+                     * PRICE
+                     * =================================================
+                     */
+
+                    await initializePrice();
+
+                    /*
+                     * =================================================
+                     * STEP 5
+                     * FORM
+                     * =================================================
+                     *
+                     * Provider dropdown sudah tersedia.
+                     */
+
+                    bindFormEvents();
+
+                    /*
+                     * =================================================
+                     * STEP 6
+                     * SEARCH
+                     * =================================================
+                     *
+                     * Search sekarang menerima
+                     * state.models yang sudah dimuat.
+                     */
+
+                    bindSearchEvents();
+
+                    /*
+                     * =================================================
+                     * STEP 7
+                     * FINAL SYNC
+                     * =================================================
+                     */
+
+                    updateStatistics(
+                        state.models
+                    );
+
+                    const search =
+                        getModelsSearch();
+
+                    if (
+                        search &&
+                        typeof search.setModels ===
+                            "function"
+                    ) {
+
+                        search.setModels(
+                            state.models
+                        );
+
+                    }
+
+                    /*
+                     * Pastikan provider select
+                     * tetap sinkron.
+                     */
+
+                    populateProviderSelect(
+                        state.providers
+                    );
+
+                    initialized =
+                        true;
+
+                    console.info(
+                        "[GEN-Z.AI] Model Management READY"
+                    );
+
+                    window.dispatchEvent(
+                        new CustomEvent(
+                            "genz-models-ready"
+                        )
+                    );
+
+                    return true;
+
+                } catch (error) {
+
+                    console.error(
+                        "[models-ui] Initialization error:",
+                        error
+                    );
+
+                    /*
+                     * PENTING:
+                     * initialized tetap false.
+                     * Dengan begitu initialization
+                     * masih dapat dicoba ulang.
+                     */
+
+                    initialized =
+                        false;
+
+                    notify(
+                        "Model Management gagal diinisialisasi.",
+                        "error"
+                    );
+
+                    window.dispatchEvent(
+                        new CustomEvent(
+                            "genz-models-error",
+                            {
+                                detail:
+                                    error
+                            }
+                        )
+                    );
+
+                    throw error;
+
+                } finally {
+
+                    initializing =
+                        null;
+
+                }
+
+            })();
+
+        return initializing;
     }
 
     /* =====================================================
@@ -1487,7 +2029,9 @@
 
     window.GENZModelsUI =
         Object.freeze({
+
             initialize,
+
             notify,
 
             openModal,
@@ -1506,6 +2050,8 @@
 
             renderModelPrice,
 
+            populateProviderSelect,
+
             getModels: () =>
                 [...state.models],
 
@@ -1516,21 +2062,10 @@
                 [...state.pricing],
 
             isLoading: () =>
-                state.loading
-        });
+                state.loading,
 
-    /*
-     * TIDAK ADA AUTO START DI SINI.
-     *
-     * models-loader.js adalah orchestrator utama.
-     *
-     * Loader akan memanggil:
-     *
-     * GENZModelsInit.initialize()
-     *
-     * dan models-init.js akan memanggil:
-     *
-     * GENZModelsUI.initialize()
-     */
+            isInitialized: () =>
+                initialized
+        });
 
 })();
