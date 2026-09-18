@@ -12,10 +12,7 @@
    - Sinkron Model ID -> Model Name
    - Harga USD
    - Konversi USD -> Rupiah
-   - Credit Normal
-   - Diskon
-   - Credit Final
-   - Preview harga
+   - Menampilkan preview harga
 
    TIDAK menangani:
    - CRUD
@@ -25,13 +22,15 @@
    - Provider lifecycle
    - Search global
    - Table
+   - Perhitungan Credit
 
-   Prinsip:
-   Satu fungsi hanya mempunyai satu pemilik.
+   PERHITUNGAN CREDIT SEPENUHNYA DIMILIKI:
+   GENZModelPriceCalculation
 ========================================================= */
 
 (function () {
     "use strict";
+
 
     /* =====================================================
        STATE
@@ -45,7 +44,7 @@
 
     let boundModelEvent = false;
 
-    let boundPriceEvents = false;
+    let boundUsdPriceEvents = false;
 
     const DEFAULT_USD_TO_IDR = 17700;
 
@@ -107,7 +106,10 @@
 
     function formatUsd(value) {
         const number =
-            toNumber(value, NaN);
+            toNumber(
+                value,
+                NaN
+            );
 
         if (!Number.isFinite(number)) {
             return "-";
@@ -129,7 +131,10 @@
 
     function formatIdr(value) {
         const number =
-            toNumber(value, NaN);
+            toNumber(
+                value,
+                NaN
+            );
 
         if (!Number.isFinite(number)) {
             return "-";
@@ -151,6 +156,7 @@
     ===================================================== */
 
     function getUsdToIdrRate() {
+
         const priceModule =
             window.GENZModelsPrice;
 
@@ -160,6 +166,7 @@
                 "function"
         ) {
             try {
+
                 const rate =
                     Number(
                         priceModule.getUsdToIdrRate()
@@ -171,7 +178,9 @@
                 ) {
                     return rate;
                 }
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-layout] Gagal membaca kurs:",
                     error
@@ -208,8 +217,11 @@
     ===================================================== */
 
     function getCurrentProvider() {
+
         const select =
-            getElement("providerId");
+            getElement(
+                "providerId"
+            );
 
         if (!select) {
             return "";
@@ -228,6 +240,7 @@
     function resolveProvider(
         providerValue
     ) {
+
         const value =
             String(
                 providerValue ?? ""
@@ -249,6 +262,7 @@
                 "function"
         ) {
             try {
+
                 const provider =
                     providerModule.getProviderById(
                         value
@@ -257,7 +271,9 @@
                 if (provider) {
                     return provider;
                 }
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-layout] Provider resolution error:",
                     error
@@ -277,6 +293,7 @@
                 "function"
         ) {
             try {
+
                 const providers =
                     dropdown.getProviders();
 
@@ -284,13 +301,17 @@
                     Array.isArray(
                         providers
                     )
-                ) {
+                {
+
                     const normalized =
-                        normalize(value);
+                        normalize(
+                            value
+                        );
 
                     return (
                         providers.find(
                             function (provider) {
+
                                 return [
                                     provider?.id,
                                     provider?.provider_id,
@@ -298,6 +319,7 @@
                                     provider?.provider_name
                                 ].some(
                                     function (candidate) {
+
                                         return (
                                             normalize(
                                                 candidate
@@ -311,7 +333,9 @@
                         null
                     );
                 }
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-layout] Provider dropdown resolution error:",
                     error
@@ -331,6 +355,7 @@
         model,
         providerValue
     ) {
+
         const value =
             normalize(
                 providerValue
@@ -346,12 +371,19 @@
             );
 
         const candidates = [
+
             model?.provider,
+
             model?.provider_id,
+
             model?.provider_uuid,
+
             model?.provider_code,
+
             model?.provider_name
+
         ];
+
 
         /*
          * Direct match.
@@ -359,10 +391,12 @@
         if (
             candidates.some(
                 function (candidate) {
+
                     return (
                         normalize(
                             candidate
-                        ) === value
+                        ) ===
+                        value
                     );
                 }
             )
@@ -370,24 +404,34 @@
             return true;
         }
 
+
         /*
          * Match berdasarkan seluruh
          * identifier Provider.
          */
         if (selected) {
+
             const providerCandidates = [
+
                 selected.id,
+
                 selected.provider_id,
+
                 selected.provider,
+
                 selected.provider_name
+
             ];
+
 
             return candidates.some(
                 function (candidate) {
+
                     return providerCandidates.some(
                         function (
                             providerCandidate
                         ) {
+
                             return (
                                 normalize(
                                     candidate
@@ -411,6 +455,7 @@
     ===================================================== */
 
     function getModelSelect() {
+
         const existing =
             getElement(
                 "modelCodeSearch"
@@ -432,6 +477,7 @@
     ===================================================== */
 
     function ensureModelSelect() {
+
         const current =
             getElement(
                 "modelCodeSearch"
@@ -447,40 +493,49 @@
             return current;
         }
 
+
         const select =
             document.createElement(
                 "select"
             );
 
+
         select.id =
             "modelCodeSearch";
+
 
         select.name =
             "modelCodeSearch";
 
+
         select.required =
             true;
+
 
         select.autocomplete =
             "off";
 
+
         select.className =
             current.className || "";
+
 
         select.setAttribute(
             "aria-label",
             "Pilih Model ID aktif"
         );
 
+
         /*
          * Pertahankan style inline
-         * jika field lama memilikinya.
+         * apabila ada.
          */
         if (
             current.getAttribute(
                 "style"
             )
         ) {
+
             select.setAttribute(
                 "style",
                 current.getAttribute(
@@ -489,12 +544,14 @@
             );
         }
 
+
         current.replaceWith(
             select
         );
 
+
         /*
-         * Search result lama tidak digunakan
+         * Search result lama tidak dipakai
          * untuk dropdown Model ID aktif.
          */
         const resultBox =
@@ -502,13 +559,16 @@
                 "modelSearchResults"
             );
 
+
         if (resultBox) {
+
             resultBox.innerHTML =
                 "";
 
             resultBox.style.display =
                 "none";
         }
+
 
         return select;
     }
@@ -519,6 +579,7 @@
     ===================================================== */
 
     function getCachedModels() {
+
         return [
             ...modelCache
         ];
@@ -532,10 +593,12 @@
     function isActiveModel(
         model
     ) {
+
         return (
             normalize(
                 model?.status
-            ) === "active"
+            ) ===
+            "active"
         );
     }
 
@@ -545,55 +608,75 @@
     ===================================================== */
 
     async function loadActiveModels() {
+
         const data =
             window.GENZModelsData;
+
 
         if (
             !data ||
             typeof data.loadKieModels !==
                 "function"
         ) {
+
             console.warn(
                 "[model-form-layout] GENZModelsData belum tersedia."
             );
 
-            modelCache = [];
+            modelCache =
+                [];
 
             populateModelSelect();
 
             return [];
         }
 
+
         try {
+
             const models =
                 await data.loadKieModels(
                     {
-                        activeOnly: true,
-                        force: false
+                        activeOnly:
+                            true,
+
+                        force:
+                            false
                     }
                 );
 
+
             modelCache =
-                Array.isArray(models)
+                Array.isArray(
+                    models
+                )
                     ? models.filter(
                         isActiveModel
                     )
                     : [];
 
+
             populateModelSelect();
+
 
             return [
                 ...modelCache
             ];
+
         } catch (error) {
+
             console.error(
                 "[model-form-layout] Gagal memuat Model ID aktif:",
                 error
             );
 
-            modelCache = [];
+
+            modelCache =
+                [];
+
 
             populateModelSelect();
+
 
             return [];
         }
@@ -607,6 +690,7 @@
     function findModel(
         modelId
     ) {
+
         const id =
             normalize(
                 modelId
@@ -619,10 +703,12 @@
         return (
             modelCache.find(
                 function (model) {
+
                     return (
                         normalize(
                             model?.model_id
-                        ) === id
+                        ) ===
+                        id
                     );
                 }
             ) ||
@@ -632,16 +718,18 @@
 
 
     /* =====================================================
-       CREATE OPTION
+       CREATE MODEL OPTION
     ===================================================== */
 
     function createModelOption(
         model
     ) {
+
         const option =
             document.createElement(
                 "option"
             );
+
 
         const modelId =
             String(
@@ -649,14 +737,17 @@
                 ""
             ).trim();
 
+
         const modelName =
             String(
                 model?.model_name ||
                 ""
             ).trim();
 
+
         option.value =
             modelId;
+
 
         option.textContent =
             modelName
@@ -667,11 +758,14 @@
                 )
                 : modelId;
 
+
         option.dataset.modelId =
             modelId;
 
+
         option.dataset.modelName =
             modelName;
+
 
         option.dataset.provider =
             String(
@@ -679,11 +773,13 @@
                 ""
             ).trim();
 
+
         option.dataset.providerId =
             String(
                 model?.provider_id ||
                 ""
             ).trim();
+
 
         option.dataset.providerUuid =
             String(
@@ -691,11 +787,13 @@
                 ""
             ).trim();
 
+
         option.dataset.family =
             String(
                 model?.model_family ||
                 ""
             ).trim();
+
 
         return option;
     }
@@ -708,15 +806,19 @@
     function populateModelSelect(
         selectedModelId = ""
     ) {
+
         const select =
             getModelSelect();
+
 
         if (!select) {
             return false;
         }
 
+
         const providerValue =
             getCurrentProvider();
+
 
         const filtered =
             modelCache
@@ -725,12 +827,14 @@
                 )
                 .filter(
                     function (model) {
+
                         return modelMatchesProvider(
                             model,
                             providerValue
                         );
                     }
                 );
+
 
         const previous =
             String(
@@ -739,36 +843,48 @@
                 ""
             ).trim();
 
+
         select.innerHTML =
             "";
+
 
         const placeholder =
             document.createElement(
                 "option"
             );
 
+
         placeholder.value =
             "";
 
+
         if (!providerValue) {
+
             placeholder.textContent =
                 "Pilih Provider terlebih dahulu";
+
         } else if (
             filtered.length === 0
         ) {
+
             placeholder.textContent =
                 "Tidak ada Model ID aktif";
+
         } else {
+
             placeholder.textContent =
                 "Pilih Model ID aktif";
         }
+
 
         select.appendChild(
             placeholder
         );
 
+
         filtered.forEach(
             function (model) {
+
                 select.appendChild(
                     createModelOption(
                         model
@@ -777,14 +893,16 @@
             }
         );
 
+
         /*
-         * Pertahankan pilihan ketika
+         * Pertahankan pilihan apabila
          * masih tersedia.
          */
         if (
             previous &&
             filtered.some(
                 function (model) {
+
                     return (
                         normalize(
                             model.model_id
@@ -796,32 +914,41 @@
                 }
             )
         ) {
+
             select.value =
                 previous;
+
         } else {
+
             select.value =
                 "";
         }
 
+
         /*
          * Hidden field untuk kompatibilitas
-         * dengan CRUD lama.
+         * CRUD lama.
          */
         const hidden =
             getElement(
                 "modelCode"
             );
 
+
         if (hidden) {
+
             hidden.value =
-                select.value || "";
+                select.value ||
+                "";
         }
+
 
         updateSelectedModelInfo(
             findModel(
                 select.value
             )
         );
+
 
         return true;
     }
@@ -832,29 +959,38 @@
     ===================================================== */
 
     function handleModelSelection() {
+
         const select =
             getModelSelect();
+
 
         if (!select) {
             return;
         }
+
 
         const model =
             findModel(
                 select.value
             );
 
+
         const hidden =
             getElement(
                 "modelCode"
             );
 
+
         if (hidden) {
+
             hidden.value =
-                select.value || "";
+                select.value ||
+                "";
         }
 
+
         if (!model) {
+
             updateSelectedModelInfo(
                 null
             );
@@ -862,45 +998,52 @@
             return;
         }
 
+
         /*
-         * Model Name otomatis dari
-         * catalog Model ID.
+         * Model Name otomatis.
          */
         const name =
             getElement(
                 "modelName"
             );
 
+
         if (name) {
+
             name.value =
                 model.model_name ||
                 "";
         }
 
+
         /*
-         * Family hanya diisi jika field
-         * tersebut memang tersedia.
+         * Family optional.
          */
         const family =
             getElement(
                 "modelFamily"
             );
 
+
         if (
             family &&
             model.model_family
         ) {
+
             family.value =
                 model.model_family;
         }
+
 
         updateSelectedModelInfo(
             model
         );
 
+
         loadModelUsdPrice(
             model
         );
+
 
         document.dispatchEvent(
             new CustomEvent(
@@ -922,26 +1065,33 @@
     function updateSelectedModelInfo(
         model
     ) {
+
         const info =
             getElement(
                 "selectedModelInfo"
             );
 
+
         if (!info) {
             return;
         }
 
+
         if (!model) {
+
             const provider =
                 getCurrentProvider();
+
 
             info.textContent =
                 provider
                     ? "Belum ada Model ID yang dipilih."
                     : "Pilih Provider terlebih dahulu.";
 
+
             return;
         }
+
 
         const modelName =
             String(
@@ -949,11 +1099,13 @@
                 ""
             ).trim();
 
+
         const modelId =
             String(
                 model.model_id ||
                 ""
             ).trim();
+
 
         const family =
             String(
@@ -961,17 +1113,25 @@
                 ""
             ).trim();
 
+
         const parts = [
+
             modelName,
+
             modelId,
+
             family
+
         ].filter(
             Boolean
         );
 
+
         info.textContent =
             parts.length > 0
-                ? parts.join(" · ")
+                ? parts.join(
+                    " · "
+                )
                 : "Model dipilih.";
     }
 
@@ -981,6 +1141,7 @@
     ===================================================== */
 
     function getPriceModule() {
+
         return (
             window.GENZModelsPrice ||
             null
@@ -995,8 +1156,10 @@
     function getModelUsdPrice(
         model
     ) {
+
         const priceModule =
             getPriceModule();
+
 
         if (
             !priceModule ||
@@ -1006,21 +1169,26 @@
             return null;
         }
 
+
         try {
+
             const result =
                 priceModule.getModelPrice(
                     model
                 );
 
+
             if (!result) {
                 return null;
             }
+
 
             const usd =
                 toNumber(
                     result.usd,
                     NaN
                 );
+
 
             if (
                 !Number.isFinite(
@@ -1030,12 +1198,16 @@
                 return null;
             }
 
+
             return usd;
+
         } catch (error) {
+
             console.warn(
                 "[model-form-layout] Gagal mengambil harga model:",
                 error
             );
+
 
             return null;
         }
@@ -1049,37 +1221,45 @@
     function loadModelUsdPrice(
         model
     ) {
+
         const field =
             getElement(
                 "kieUnitPrice"
             );
 
+
         if (!field) {
             return;
         }
+
 
         const usd =
             getModelUsdPrice(
                 model
             );
 
+
         if (
             usd !== null
         ) {
+
             field.value =
                 usd;
 
+
             updateUsdPreview();
+
 
             return;
         }
 
+
         /*
-         * Fallback apabila pricing catalog
-         * belum mempunyai data.
+         * Fallback metadata.
          */
         const metadata =
             model?.metadata;
+
 
         const fallback =
             metadata?.price_usd ??
@@ -1090,168 +1270,19 @@
             model?.unit_price ??
             null;
 
+
         if (
             fallback !== null &&
             fallback !== undefined &&
             fallback !== ""
         ) {
+
             field.value =
                 fallback;
         }
 
+
         updateUsdPreview();
-    }
-
-
-    /* =====================================================
-       CREDIT CALCULATION
-    ===================================================== */
-
-    function calculateCredit() {
-        const normalField =
-            getElement(
-                "creditCost"
-            );
-
-        const discountField =
-            getElement(
-                "discountPercent"
-            );
-
-        const normal =
-            Math.max(
-                0,
-                toNumber(
-                    normalField?.value,
-                    0
-                )
-            );
-
-        const discount =
-            Math.min(
-                100,
-                Math.max(
-                    0,
-                    toNumber(
-                        discountField?.value,
-                        0
-                    )
-                )
-            );
-
-        const discountAmount =
-            normal *
-            discount /
-            100;
-
-        const finalCredit =
-            normal -
-            discountAmount;
-
-        return {
-            normal,
-            discount,
-            discountAmount,
-            finalCredit
-        };
-    }
-
-
-    /* =====================================================
-       UPDATE CREDIT PREVIEW
-    ===================================================== */
-
-    function updateCreditPreview() {
-        const result =
-            calculateCredit();
-
-        const normal =
-            getElement(
-                "previewNormal"
-            );
-
-        const discount =
-            getElement(
-                "previewDiscount"
-            );
-
-        const final =
-            getElement(
-                "previewFinal"
-            );
-
-        if (normal) {
-            normal.textContent =
-                String(
-                    result.normal
-                );
-        }
-
-        if (discount) {
-            discount.textContent =
-                Number(
-                    result.discount.toFixed(
-                        2
-                    )
-                ) +
-                "%";
-        }
-
-        if (final) {
-            final.textContent =
-                String(
-                    Number(
-                        result.finalCredit.toFixed(
-                            2
-                        )
-                    )
-                );
-        }
-
-        /*
-         * Field credit_final yang digunakan
-         * oleh CRUD.
-         */
-        const finalField =
-            getElement(
-                "creditFinal"
-            );
-
-        if (finalField) {
-            finalField.value =
-                String(
-                    Number(
-                        result.finalCredit.toFixed(
-                            2
-                        )
-                    )
-                );
-        }
-
-        /*
-         * Sinkronkan calculation module
-         * jika tersedia.
-         *
-         * Tidak wajib, sehingga kegagalan
-         * module ini tidak merusak form.
-         */
-        const calculation =
-            window.GENZModelPriceCalculation;
-
-        if (
-            calculation &&
-            typeof calculation.syncForm ===
-                "function"
-        ) {
-            try {
-                calculation.syncForm();
-            } catch (error) {
-                console.warn(
-                    "[model-form-layout] Price calculation sync gagal:",
-                    error
-                );
-            }
-        }
     }
 
 
@@ -1260,10 +1291,12 @@
     ===================================================== */
 
     function updateUsdPreview() {
+
         const field =
             getElement(
                 "kieUnitPrice"
             );
+
 
         const usd =
             toNumber(
@@ -1271,25 +1304,31 @@
                 NaN
             );
 
+
         const rate =
             getUsdToIdrRate();
+
 
         const usdElement =
             getElement(
                 "previewKieUsd"
             );
 
+
         const rateElement =
             getElement(
                 "previewKieRate"
             );
+
 
         const idrElement =
             getElement(
                 "previewKieIdr"
             );
 
+
         if (usdElement) {
+
             usdElement.textContent =
                 Number.isFinite(
                     usd
@@ -1300,7 +1339,9 @@
                     : "-";
         }
 
+
         if (rateElement) {
+
             rateElement.textContent =
                 "$1 = " +
                 formatIdr(
@@ -1308,7 +1349,9 @@
                 );
         }
 
+
         if (idrElement) {
+
             idrElement.textContent =
                 Number.isFinite(
                     usd
@@ -1322,72 +1365,57 @@
 
 
     /* =====================================================
-       PRICE EVENTS
+       USD PRICE EVENTS
     ===================================================== */
 
-    function bindPriceEvents() {
+    function bindUsdPriceEvents() {
+
         if (
-            boundPriceEvents
+            boundUsdPriceEvents
         ) {
             return true;
         }
 
-        const fields = [
-            "creditCost",
-            "discountPercent",
-            "kieUnitPrice"
-        ];
 
-        let found =
-            false;
+        const field =
+            getElement(
+                "kieUnitPrice"
+            );
 
-        fields.forEach(
-            function (id) {
-                const field =
-                    getElement(id);
 
-                if (!field) {
-                    return;
-                }
+        if (!field) {
+            return false;
+        }
 
-                found = true;
 
-                field.addEventListener(
-                    "input",
-                    function () {
-                        if (
-                            id ===
-                            "kieUnitPrice"
-                        ) {
-                            updateUsdPreview();
-                        } else {
-                            updateCreditPreview();
-                        }
-                    }
-                );
+        function handler() {
 
-                field.addEventListener(
-                    "change",
-                    function () {
-                        if (
-                            id ===
-                            "kieUnitPrice"
-                        ) {
-                            updateUsdPreview();
-                        } else {
-                            updateCreditPreview();
-                        }
-                    }
-                );
-            }
+            updateUsdPreview();
+        }
+
+
+        field.addEventListener(
+            "input",
+            handler
         );
 
-        boundPriceEvents =
-            found;
 
-        updateCreditPreview();
+        field.addEventListener(
+            "change",
+            handler
+        );
+
+
+        field.__genzUsdPriceHandler =
+            handler;
+
+
+        boundUsdPriceEvents =
+            true;
+
 
         updateUsdPreview();
+
 
         return true;
     }
@@ -1398,68 +1426,83 @@
     ===================================================== */
 
     function bindProviderEvent() {
+
         if (
             boundProviderEvent
         ) {
             return true;
         }
 
+
         const provider =
             getElement(
                 "providerId"
             );
 
+
         if (!provider) {
             return false;
         }
 
+
         provider.addEventListener(
             "change",
             async function () {
+
                 /*
                  * Provider berubah.
-                 *
-                 * Model ID harus mengikuti
-                 * Provider yang baru dipilih.
+                 * Model ID harus mengikuti Provider.
                  */
                 const select =
                     ensureModelSelect();
 
+
                 if (select) {
+
                     select.value =
                         "";
                 }
+
 
                 const hidden =
                     getElement(
                         "modelCode"
                     );
 
+
                 if (hidden) {
+
                     hidden.value =
                         "";
                 }
+
 
                 updateSelectedModelInfo(
                     null
                 );
 
+
                 /*
-                 * Gunakan cache jika tersedia.
-                 * Jika kosong, load terlebih dahulu.
+                 * Gunakan cache apabila ada.
                  */
                 if (
-                    modelCache.length === 0
+                    modelCache.length ===
+                    0
                 ) {
+
                     await loadActiveModels();
+
                 } else {
+
                     populateModelSelect();
                 }
             }
         );
 
+
         boundProviderEvent =
             true;
+
 
         return true;
     }
@@ -1470,12 +1513,15 @@
     ===================================================== */
 
     function bindModelEvent() {
+
         const select =
             ensureModelSelect();
+
 
         if (!select) {
             return false;
         }
+
 
         if (
             boundModelEvent
@@ -1483,13 +1529,16 @@
             return true;
         }
 
+
         select.addEventListener(
             "change",
             handleModelSelection
         );
 
+
         boundModelEvent =
             true;
+
 
         return true;
     }
@@ -1500,12 +1549,15 @@
     ===================================================== */
 
     function disableOldSearchBehavior() {
+
         const resultBox =
             getElement(
                 "modelSearchResults"
             );
 
+
         if (resultBox) {
+
             resultBox.innerHTML =
                 "";
 
@@ -1516,27 +1568,64 @@
 
 
     /* =====================================================
+       CREDIT PREVIEW DELEGATION
+    ===================================================== */
+
+    function syncCreditPreview() {
+
+        const calculation =
+            window.GENZModelPriceCalculation;
+
+
+        if (
+            calculation &&
+            typeof calculation.syncForm ===
+                "function"
+        ) {
+
+            try {
+
+                return calculation.syncForm();
+
+            } catch (error) {
+
+                console.warn(
+                    "[model-form-layout] Credit calculation delegation gagal:",
+                    error
+                );
+            }
+        }
+
+
+        return null;
+    }
+
+
+    /* =====================================================
        INITIALIZE
     ===================================================== */
 
     async function initialize() {
+
         if (
             initialized
         ) {
             return true;
         }
 
+
         /*
-         * Tandai initialized setelah struktur
-         * function berhasil dipasang.
+         * Tandai setelah lifecycle dimulai.
          */
         initialized =
             true;
+
 
         /*
          * Provider.
          */
         bindProviderEvent();
+
 
         /*
          * Model ID.
@@ -1545,35 +1634,47 @@
 
         bindModelEvent();
 
+
         /*
          * Search lama hanya dinonaktifkan
-         * pada visual result, bukan module
-         * Search global.
+         * secara visual.
          */
         disableOldSearchBehavior();
 
+
         /*
-         * Pricing.
+         * USD pricing.
          */
-        bindPriceEvents();
+        bindUsdPriceEvents();
+
+
+        /*
+         * Credit calculation dimiliki
+         * module tersendiri.
+         */
+        syncCreditPreview();
+
 
         /*
          * Model aktif.
          */
         await loadActiveModels();
 
+
         /*
-         * Render ulang berdasarkan Provider
-         * yang sedang aktif.
+         * Render berdasarkan Provider.
          */
         populateModelSelect();
+
 
         /*
          * Preview.
          */
-        updateCreditPreview();
-
         updateUsdPreview();
+
+
+        syncCreditPreview();
+
 
         document.dispatchEvent(
             new CustomEvent(
@@ -1581,9 +1682,11 @@
             )
         );
 
+
         console.info(
             "[GEN-Z.AI] Model Form Layout initialized."
         );
+
 
         return true;
     }
@@ -1594,13 +1697,18 @@
     ===================================================== */
 
     async function refresh() {
+
         await loadActiveModels();
+
 
         populateModelSelect();
 
-        updateCreditPreview();
 
         updateUsdPreview();
+
+
+        syncCreditPreview();
+
 
         return true;
     }
@@ -1611,27 +1719,35 @@
     ===================================================== */
 
     function clearModelSelection() {
+
         const select =
             getModelSelect();
 
+
         if (select) {
+
             select.value =
                 "";
         }
+
 
         const hidden =
             getElement(
                 "modelCode"
             );
 
+
         if (hidden) {
+
             hidden.value =
                 "";
         }
 
+
         updateSelectedModelInfo(
             null
         );
+
 
         return true;
     }
@@ -1644,18 +1760,23 @@
     function setModel(
         model
     ) {
+
         if (!model) {
+
             clearModelSelection();
 
             return false;
         }
 
+
         const select =
             getModelSelect();
+
 
         if (!select) {
             return false;
         }
+
 
         const modelId =
             String(
@@ -1663,24 +1784,27 @@
                 ""
             ).trim();
 
+
         if (!modelId) {
             return false;
         }
 
+
         /*
-         * Jika model belum ada di cache,
-         * tambahkan sementara agar dapat
-         * dipilih saat edit.
+         * Jika belum ada di cache,
+         * tambahkan untuk kebutuhan Edit.
          */
         if (
             !findModel(
                 modelId
             )
         ) {
+
             modelCache.push(
                 model
             );
         }
+
 
         /*
          * Render berdasarkan Provider.
@@ -1689,53 +1813,66 @@
             modelId
         );
 
+
         /*
-         * Jika option tersedia, pilih.
+         * Pilih option.
          */
         select.value =
             modelId;
+
 
         const hidden =
             getElement(
                 "modelCode"
             );
 
+
         if (hidden) {
+
             hidden.value =
                 modelId;
         }
+
 
         const name =
             getElement(
                 "modelName"
             );
 
+
         if (name) {
+
             name.value =
                 model.model_name ||
                 "";
         }
+
 
         const family =
             getElement(
                 "modelFamily"
             );
 
+
         if (
             family &&
             model.model_family
         ) {
+
             family.value =
                 model.model_family;
         }
+
 
         updateSelectedModelInfo(
             model
         );
 
+
         loadModelUsdPrice(
             model
         );
+
 
         return true;
     }
@@ -1747,6 +1884,7 @@
 
     window.GENZModelFormLayout =
         Object.freeze({
+
             initialize,
 
             refresh,
@@ -1763,17 +1901,16 @@
 
             setModel,
 
-            updateCreditPreview,
-
             updateUsdPreview,
 
-            calculateCredit,
+            syncCreditPreview,
 
             getUsdToIdrRate,
 
             formatUsd,
 
             formatIdr
+
         });
 
 
