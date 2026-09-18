@@ -1,7 +1,7 @@
 /* =========================================================
    GEN-Z.AI
    MODEL SEARCH EVENTS
-
+   ---------------------------------------------------------
    File:
    admin-control/models/functions/model-search-events.js
 
@@ -13,12 +13,16 @@
    - Provider changed
    - Click outside
 
-   FIX:
-   - Binding lebih tahan terhadap lifecycle/re-initialize
-   - Tidak gagal permanen jika DOM belum siap
+   FIX UTAMA:
+   - Menggunakan EVENT DELEGATION
+   - Tidak bergantung pada kapan modal/input dibuat
+   - Tetap bekerja jika #modelCodeSearch dibuat ulang
    - Tidak membuat duplicate listener
-   - Mendukung rebind setelah unbind
-   - Search tetap menggunakan GENZModelsSearch
+   - Aman terhadap initialize / reset / re-open modal
+   - Tidak mengubah search logic
+   - Tidak mengubah renderer
+   - Tidak mengubah dropdown
+   - Tidak mengubah CRUD
 ========================================================= */
 
 (function () {
@@ -31,6 +35,17 @@
 
     let bound = false;
     let handlers = null;
+
+
+    /* =====================================================
+       SELECTOR
+    ===================================================== */
+
+    const INPUT_SELECTOR =
+        "#modelCodeSearch, #modelSearch, #modelIdSearch";
+
+    const RESULTS_SELECTOR =
+        "#modelSearchResults, #modelResults, #modelDropdown";
 
 
     /* =====================================================
@@ -74,17 +89,71 @@
 
 
     /* =====================================================
-       CHECK DEPENDENCIES
+       NORMALIZE EVENT TARGET
     ===================================================== */
 
-    function dependenciesReady() {
+    function getInputTarget(event) {
 
-        return !!(
-            window.GENZModelSearchDropdown &&
-            window.GENZModelSearchRender &&
-            window.GENZModelSearchSelect &&
-            window.GENZModelsSearch
-        );
+        const target =
+            event?.target;
+
+        if (!target) {
+            return null;
+        }
+
+
+        if (
+            typeof target.closest !==
+            "function"
+        ) {
+            return null;
+        }
+
+
+        const input =
+            target.closest(
+                INPUT_SELECTOR
+            );
+
+
+        if (!input) {
+            return null;
+        }
+
+
+        return input;
+    }
+
+
+    /* =====================================================
+       GET RESULT TARGET
+    ===================================================== */
+
+    function getResultsTarget(event) {
+
+        const target =
+            event?.target;
+
+        if (!target) {
+            return null;
+        }
+
+
+        if (
+            typeof target.closest !==
+            "function"
+        ) {
+            return null;
+        }
+
+
+        const results =
+            target.closest(
+                RESULTS_SELECTOR
+            );
+
+
+        return results || null;
     }
 
 
@@ -95,29 +164,25 @@
     function bind(api) {
 
         /*
-         * Sudah ter-bind.
+         * Jangan bind dua kali.
          */
         if (bound) {
+
+            console.info(
+                "[GEN-Z.AI] Model Search Events sudah bound."
+            );
+
             return true;
         }
 
 
         /*
-         * DOM harus tersedia.
+         * Body wajib tersedia.
          */
         if (!document.body) {
-            return false;
-        }
-
-
-        const input =
-            getInput();
-
-
-        if (!input) {
 
             console.warn(
-                "[GEN-Z.AI] Model search input belum tersedia."
+                "[GEN-Z.AI] document.body belum tersedia."
             );
 
             return false;
@@ -125,7 +190,7 @@
 
 
         /*
-         * Module search wajib tersedia.
+         * Handler dari GENZModelsSearch.
          */
         if (
             !api ||
@@ -144,21 +209,19 @@
         ) {
 
             console.error(
-                "[GEN-Z.AI] Handler Model Search tidak lengkap."
+                "[GEN-Z.AI] Handler Model Search tidak lengkap.",
+                api
             );
 
             return false;
         }
 
 
-        const resultsBox =
-            getResultsBox();
-
-
         /*
-         * Simpan reference handler.
+         * Simpan callback.
          */
         handlers = {
+
             onInput:
                 api.onInput,
 
@@ -179,64 +242,236 @@
         };
 
 
-        /* -------------------------------------------------
-           INPUT
-        ------------------------------------------------- */
+        /* =================================================
+           INPUT DELEGATION
+           =================================================
 
-        input.addEventListener(
-            "input",
-            handlers.onInput
-        );
+           Jangan lagi:
 
+               input.addEventListener(...)
 
-        input.addEventListener(
-            "focus",
-            handlers.onFocus
-        );
+           Karena input dapat dibuat ulang oleh modal.
 
+           Sekarang listener berada di document.
+        */
 
-        input.addEventListener(
-            "keydown",
-            handlers.onKeydown
-        );
+        function delegatedInput(event) {
+
+            const input =
+                getInputTarget(event);
 
 
-        /* -------------------------------------------------
-           RESULT CLICK
-        ------------------------------------------------- */
+            if (!input) {
+                return;
+            }
 
-        if (resultsBox) {
 
-            resultsBox.addEventListener(
-                "click",
-                handlers.onResultsClick
+            /*
+             * Pastikan event berasal dari
+             * Model ID search.
+             */
+
+            handlers.onInput(
+                event
             );
         }
 
 
-        /* -------------------------------------------------
-           PROVIDER CHANGED
-        ------------------------------------------------- */
+        /* =================================================
+           FOCUS DELEGATION
+           =================================================
 
+           focus tidak bubble secara normal.
+           Gunakan focusin.
+        */
+
+        function delegatedFocus(event) {
+
+            const input =
+                getInputTarget(event);
+
+
+            if (!input) {
+                return;
+            }
+
+
+            handlers.onFocus(
+                event
+            );
+        }
+
+
+        /* =================================================
+           KEYBOARD DELEGATION
+           ================================================= */
+
+        function delegatedKeydown(event) {
+
+            const input =
+                getInputTarget(event);
+
+
+            if (!input) {
+                return;
+            }
+
+
+            handlers.onKeydown(
+                event
+            );
+        }
+
+
+        /* =================================================
+           RESULT CLICK DELEGATION
+           ================================================= */
+
+        function delegatedResultsClick(event) {
+
+            const results =
+                getResultsTarget(event);
+
+
+            if (!results) {
+                return;
+            }
+
+
+            handlers.onResultsClick(
+                event
+            );
+        }
+
+
+        /* =================================================
+           DOCUMENT CLICK
+           ================================================= */
+
+        function delegatedDocumentClick(event) {
+
+            /*
+             * onDocumentClick memang menerima
+             * seluruh document click.
+             */
+
+            handlers.onDocumentClick(
+                event
+            );
+        }
+
+
+        /* =================================================
+           PROVIDER CHANGE
+           ================================================= */
+
+        function delegatedProviderChanged(event) {
+
+            handlers.onProviderChanged(
+                event
+            );
+        }
+
+
+        /*
+         * Simpan wrapper handler.
+         * Ini penting agar unbind() bisa melepas
+         * listener yang sama.
+         */
+
+        handlers.delegatedInput =
+            delegatedInput;
+
+        handlers.delegatedFocus =
+            delegatedFocus;
+
+        handlers.delegatedKeydown =
+            delegatedKeydown;
+
+        handlers.delegatedResultsClick =
+            delegatedResultsClick;
+
+        handlers.delegatedDocumentClick =
+            delegatedDocumentClick;
+
+        handlers.delegatedProviderChanged =
+            delegatedProviderChanged;
+
+
+        /* =================================================
+           REGISTER EVENTS
+           ================================================= */
+
+        /*
+         * input:
+         * event input memang bubble.
+         */
         document.addEventListener(
-            "genz-models-provider-changed",
-            handlers.onProviderChanged
+            "input",
+            delegatedInput,
+            false
         );
 
 
-        /* -------------------------------------------------
-           OUTSIDE CLICK
-        ------------------------------------------------- */
+        /*
+         * focus:
+         * gunakan focusin karena focus tidak bubble.
+         */
+        document.addEventListener(
+            "focusin",
+            delegatedFocus,
+            false
+        );
 
+
+        /*
+         * keyboard.
+         */
+        document.addEventListener(
+            "keydown",
+            delegatedKeydown,
+            false
+        );
+
+
+        /*
+         * Click hasil dropdown.
+         */
         document.addEventListener(
             "click",
-            handlers.onDocumentClick
+            delegatedResultsClick,
+            false
         );
 
 
-        /* -------------------------------------------------
+        /*
+         * Provider changed.
+         */
+        document.addEventListener(
+            "genz-models-provider-changed",
+            delegatedProviderChanged,
+            false
+        );
+
+
+        /*
+         * Click outside.
+         *
+         * Listener ini juga berada di document.
+         * delegatedResultsClick tidak menghentikan
+         * propagation sehingga handler lama tetap
+         * dapat bekerja.
+         */
+        document.addEventListener(
+            "click",
+            delegatedDocumentClick,
+            false
+        );
+
+
+        /* =================================================
            DROPDOWN POSITION
-        ------------------------------------------------- */
+           ================================================= */
 
         if (
             window.GENZModelSearchDropdown &&
@@ -246,17 +481,53 @@
                 "function"
         ) {
 
-            window.GENZModelSearchDropdown
-                .bindPositionEvents();
+            try {
+
+                window.GENZModelSearchDropdown
+                    .bindPositionEvents();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Dropdown position binding gagal:",
+                    error
+                );
+            }
         }
 
 
-        bound = true;
+        bound =
+            true;
 
 
         console.info(
-            "[GEN-Z.AI] Model Search Events bound."
+            "[GEN-Z.AI] Model Search Events bound menggunakan event delegation."
         );
+
+
+        /*
+         * Debug ringan.
+         *
+         * Pastikan input memang ditemukan.
+         * Ini tidak mengubah behavior.
+         */
+        const input =
+            getInput();
+
+
+        if (input) {
+
+            console.info(
+                "[GEN-Z.AI] Model ID search input terdeteksi:",
+                input.id
+            );
+
+        } else {
+
+            console.warn(
+                "[GEN-Z.AI] Model ID search input belum ada saat bind. Event delegation tetap aktif."
+            );
+        }
 
 
         return true;
@@ -273,82 +544,98 @@
             !bound ||
             !handlers
         ) {
+
             return true;
         }
 
 
-        const input =
-            getInput();
+        /* =================================================
+           REMOVE EVENTS
+           ================================================= */
 
+        if (
+            handlers.delegatedInput
+        ) {
 
-        const resultsBox =
-            getResultsBox();
-
-
-        /* -------------------------------------------------
-           INPUT
-        ------------------------------------------------- */
-
-        if (input) {
-
-            input.removeEventListener(
+            document.removeEventListener(
                 "input",
-                handlers.onInput
+                handlers.delegatedInput,
+                false
             );
+        }
 
-            input.removeEventListener(
-                "focus",
-                handlers.onFocus
+
+        if (
+            handlers.delegatedFocus
+        ) {
+
+            document.removeEventListener(
+                "focusin",
+                handlers.delegatedFocus,
+                false
             );
+        }
 
-            input.removeEventListener(
+
+        if (
+            handlers.delegatedKeydown
+        ) {
+
+            document.removeEventListener(
                 "keydown",
-                handlers.onKeydown
+                handlers.delegatedKeydown,
+                false
             );
         }
 
 
-        /* -------------------------------------------------
-           RESULT CLICK
-        ------------------------------------------------- */
+        if (
+            handlers.delegatedResultsClick
+        ) {
 
-        if (resultsBox) {
-
-            resultsBox.removeEventListener(
+            document.removeEventListener(
                 "click",
-                handlers.onResultsClick
+                handlers.delegatedResultsClick,
+                false
             );
         }
 
 
-        /* -------------------------------------------------
-           PROVIDER
-        ------------------------------------------------- */
+        if (
+            handlers.delegatedProviderChanged
+        ) {
 
-        document.removeEventListener(
-            "genz-models-provider-changed",
-            handlers.onProviderChanged
-        );
-
-
-        /* -------------------------------------------------
-           DOCUMENT CLICK
-        ------------------------------------------------- */
-
-        document.removeEventListener(
-            "click",
-            handlers.onDocumentClick
-        );
+            document.removeEventListener(
+                "genz-models-provider-changed",
+                handlers.delegatedProviderChanged,
+                false
+            );
+        }
 
 
-        handlers = null;
+        if (
+            handlers.delegatedDocumentClick
+        ) {
 
-        bound = false;
+            document.removeEventListener(
+                "click",
+                handlers.delegatedDocumentClick,
+                false
+            );
+        }
 
 
-        /*
-         * Tutup dropdown ketika event di-reset.
-         */
+        handlers =
+            null;
+
+        bound =
+            false;
+
+
+        /* =================================================
+           HIDE DROPDOWN
+           ================================================= */
+
         if (
             window.GENZModelSearchDropdown &&
             typeof
@@ -356,7 +643,18 @@
                 "function"
         ) {
 
-            window.GENZModelSearchDropdown.hide();
+            try {
+
+                window.GENZModelSearchDropdown
+                    .hide();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal menutup Model Search Dropdown:",
+                    error
+                );
+            }
         }
 
 
@@ -380,6 +678,27 @@
 
 
     /* =====================================================
+       FORCE REBIND
+       ===================================================== */
+
+    function rebind(api) {
+
+        /*
+         * Lepas listener lama.
+         */
+        unbind();
+
+
+        /*
+         * Pasang listener baru.
+         */
+        return bind(
+            api
+        );
+    }
+
+
+    /* =====================================================
        PUBLIC API
     ===================================================== */
 
@@ -387,13 +706,17 @@
         Object.freeze({
 
             bind,
+
             unbind,
+
+            rebind,
+
             isBound
         });
 
 
     console.info(
-        "[GEN-Z.AI] Model Search Events loaded."
+        "[GEN-Z.AI] GENZModelSearchEvents loaded."
     );
 
 })();
