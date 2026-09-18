@@ -6,14 +6,25 @@
    File:
    admin-control/models/models-ui.js
 
+   ARCHITECTURE:
+   - Provider ditangani GENZModelsProvider
+   - Model catalog ditangani GENZModelsData
+   - Search ditangani GENZModelsSearch
+   - Form ditangani GENZModelsForm
+   - Pricing ditangani GENZModelsPrice
+   - UI hanya mengorkestrasi modul
+
    FIX:
-   - Provider dimuat SEBELUM form/search
-   - Model catalog dimuat SEBELUM search initialize
+   - Provider tidak query Supabase langsung dari UI
+   - Provider module diprioritaskan
+   - Provider tetap tersimpan di state UI
+   - Model catalog dimuat sebelum search initialize
    - Search selalu menerima state.models
    - Manual Model ID tetap dapat digunakan
    - Tidak bergantung pada kie_models untuk mengetik Model ID
    - Initialization tidak dikunci sebelum benar-benar selesai
    - Aman terhadap module yang terlambat dimuat
+   - Refresh tetap sinkron antara Provider, Model, Search dan Pricing
 ========================================================= */
 
 (function () {
@@ -39,6 +50,10 @@
 
     function getModelsData() {
         return window.GENZModelsData || null;
+    }
+
+    function getModelsProvider() {
+        return window.GENZModelsProvider || null;
     }
 
     function getModelsSearch() {
@@ -100,10 +115,6 @@
                 return;
             }
 
-            /*
-             * Jika Form module sudah tersedia,
-             * biarkan form membuka modal.
-             */
             if (
                 form &&
                 typeof form.openCreateForm ===
@@ -127,9 +138,6 @@
                 return;
             }
 
-            /*
-             * Fallback jika Form belum siap.
-             */
             showModalElement(
                 modal
             );
@@ -478,12 +486,106 @@
 
     /* =====================================================
        PROVIDERS
+       Provider sekarang ditangani oleh:
+       GENZModelsProvider
     ===================================================== */
 
     async function loadProviders(
         options = {}
     ) {
 
+        const providerModule =
+            getModelsProvider();
+
+        /*
+         * PRIORITAS UTAMA:
+         * Gunakan Provider module jika tersedia.
+         */
+        if (
+            providerModule &&
+            typeof providerModule.loadProviders ===
+                "function"
+        ) {
+
+            try {
+
+                const providers =
+                    await providerModule.loadProviders(
+                        {
+                            force:
+                                options.force === true,
+
+                            activeOnly:
+                                options.activeOnly !== false
+                        }
+                    );
+
+                state.providers =
+                    Array.isArray(
+                        providers
+                    )
+                        ? providers
+                        : [];
+
+                /*
+                 * Pastikan dropdown tetap sinkron.
+                 * Jika Provider module sudah mengisinya,
+                 * fungsi ini hanya melakukan sinkronisasi ulang.
+                 */
+                if (
+                    typeof providerModule.populateSelect ===
+                        "function"
+                ) {
+
+                    providerModule.populateSelect(
+                        state.providers
+                    );
+
+                } else {
+
+                    populateProviderSelect(
+                        state.providers
+                    );
+
+                }
+
+                console.info(
+                    "[models-ui] Provider loaded via GENZModelsProvider:",
+                    state.providers.length
+                );
+
+                return state.providers;
+
+            } catch (error) {
+
+                console.error(
+                    "[models-ui] Gagal memuat provider melalui GENZModelsProvider:",
+                    error
+                );
+
+                state.providers = [];
+
+                populateProviderSelect(
+                    []
+                );
+
+                notify(
+                    "Gagal memuat daftar provider.",
+                    "error"
+                );
+
+                return [];
+            }
+        }
+
+        /*
+         * FALLBACK:
+         * Hanya digunakan jika Provider module
+         * belum tersedia.
+         *
+         * Ini menjaga kompatibilitas sementara
+         * dengan struktur lama.
+         */
         const data =
             getModelsData();
 
@@ -494,7 +596,7 @@
         ) {
 
             console.warn(
-                "[models-ui] loadProviders belum tersedia."
+                "[models-ui] GENZModelsProvider dan loadProviders belum tersedia."
             );
 
             return [];
@@ -506,6 +608,7 @@
                 await data.loadProviders({
                     force:
                         options.force === true,
+
                     activeOnly:
                         options.activeOnly !== false
                 });
@@ -522,7 +625,7 @@
             );
 
             console.info(
-                "[models-ui] Provider loaded:",
+                "[models-ui] Provider loaded via legacy fallback:",
                 state.providers.length
             );
 
@@ -531,7 +634,7 @@
         } catch (error) {
 
             console.error(
-                "[models-ui] Gagal memuat provider:",
+                "[models-ui] Legacy provider load error:",
                 error
             );
 
@@ -554,6 +657,48 @@
         providers = state.providers
     ) {
 
+        /*
+         * Jika Provider module tersedia,
+         * serahkan rendering dropdown kepadanya.
+         */
+        const providerModule =
+            getModelsProvider();
+
+        if (
+            providerModule &&
+            typeof providerModule.populateSelect ===
+                "function"
+        ) {
+
+            try {
+
+                const result =
+                    providerModule.populateSelect(
+                        providers
+                    );
+
+                state.providers =
+                    Array.isArray(
+                        providers
+                    )
+                        ? providers
+                        : state.providers;
+
+                return result;
+
+            } catch (error) {
+
+                console.error(
+                    "[models-ui] Provider populateSelect error:",
+                    error
+                );
+
+            }
+        }
+
+        /*
+         * FALLBACK RENDERING.
+         */
         const select =
             $("providerId");
 
@@ -679,7 +824,10 @@
             return null;
         }
 
-        return (
+        /*
+         * Cari dari state UI terlebih dahulu.
+         */
+        const localProvider =
             state.providers.find(
                 provider =>
                     String(
@@ -690,9 +838,45 @@
                         .trim()
                         .toLowerCase() ===
                     normalized
-            ) ||
-            null
-        );
+            );
+
+        if (localProvider) {
+            return localProvider;
+        }
+
+        /*
+         * Jika Provider module memiliki API,
+         * gunakan sebagai fallback.
+         */
+        const providerModule =
+            getModelsProvider();
+
+        if (
+            providerModule &&
+            typeof providerModule.getProviderById ===
+                "function"
+        ) {
+
+            try {
+
+                return (
+                    providerModule.getProviderById(
+                        providerId
+                    ) ||
+                    null
+                );
+
+            } catch (error) {
+
+                console.warn(
+                    "[models-ui] Provider lookup error:",
+                    error
+                );
+
+            }
+        }
+
+        return null;
     }
 
     /* =====================================================
@@ -746,8 +930,7 @@
             );
 
             /*
-             * Sangat penting:
-             * Search harus menerima model
+             * Search menerima catalog
              * SETELAH Supabase selesai.
              */
             const search =
@@ -791,8 +974,8 @@
 
                 /*
                  * Tetap set [].
-                 * Manual Model ID harus tetap
-                 * dapat digunakan oleh Search.
+                 * Search masih mengizinkan
+                 * input Model ID manual.
                  */
                 search.setModels(
                     []
@@ -1085,26 +1268,38 @@
 
         try {
 
+            /*
+             * Provider refresh.
+             */
             const providers =
                 await loadProviders({
                     force: true,
                     activeOnly: true
                 });
 
+            /*
+             * Model refresh.
+             */
             const models =
                 await loadModels({
                     force: true,
                     activeOnly: false
                 });
 
+            /*
+             * Pricing refresh.
+             */
             await loadPricing();
 
+            /*
+             * Provider dropdown final sync.
+             */
             populateProviderSelect(
                 providers
             );
 
             /*
-             * Re-sync search setelah refresh.
+             * Search final sync.
              */
             const search =
                 getModelsSearch();
@@ -1120,6 +1315,10 @@
                 );
 
             }
+
+            updateStatistics(
+                models
+            );
 
             notify(
                 "Data model dan provider berhasil diperbarui.",
@@ -1141,7 +1340,6 @@
             );
 
             return [];
-
         }
     }
 
@@ -1172,7 +1370,6 @@
             search.selectModel(
                 model
             );
-
         }
 
         if (
@@ -1184,7 +1381,6 @@
             form.setSelectedModel(
                 model
             );
-
         }
 
         const providerId =
@@ -1209,17 +1405,27 @@
                 select
             ) {
 
-                select.value =
-                    provider.provider_id;
+                const value =
+                    String(
+                        provider.provider_id ||
+                        provider.provider ||
+                        ""
+                    ).trim();
 
-                select.dispatchEvent(
-                    new Event(
-                        "change",
-                        {
-                            bubbles: true
-                        }
-                    )
-                );
+                if (value) {
+
+                    select.value =
+                        value;
+
+                    select.dispatchEvent(
+                        new Event(
+                            "change",
+                            {
+                                bubbles: true
+                            }
+                        )
+                    );
+                }
             }
         }
 
@@ -1645,7 +1851,41 @@
 
         try {
 
-            form.initialize();
+            const result =
+                form.initialize();
+
+            /*
+             * Support initialize()
+             * yang synchronous maupun async.
+             */
+            if (
+                result &&
+                typeof result.then ===
+                    "function"
+            ) {
+
+                return result
+                    .then(() => {
+
+                        console.info(
+                            "[models-ui] Form initialized."
+                        );
+
+                        return true;
+
+                    })
+                    .catch(error => {
+
+                        console.error(
+                            "[models-ui] Form initialization error:",
+                            error
+                        );
+
+                        return false;
+
+                    });
+
+            }
 
             console.info(
                 "[models-ui] Form initialized."
@@ -1703,7 +1943,39 @@
 
             }
 
-            search.initialize();
+            const result =
+                search.initialize();
+
+            if (
+                result &&
+                typeof result.then ===
+                    "function"
+            ) {
+
+                return result
+                    .then(() => {
+
+                        console.info(
+                            "[models-ui] Search initialized with",
+                            state.models.length,
+                            "catalog models."
+                        );
+
+                        return true;
+
+                    })
+                    .catch(error => {
+
+                        console.error(
+                            "[models-ui] Search initialization error:",
+                            error
+                        );
+
+                        return false;
+
+                    });
+
+            }
 
             console.info(
                 "[models-ui] Search initialized with",
@@ -1740,7 +2012,7 @@
         if (
             table.dataset
                 .genzTableEventsBound ===
-            "true"
+                "true"
         ) {
 
             return;
@@ -1816,23 +2088,66 @@
     }
 
     /* =====================================================
+       PROVIDER STATE SYNC
+    ===================================================== */
+
+    function syncProviderState() {
+
+        const providerModule =
+            getModelsProvider();
+
+        if (
+            !providerModule
+        ) {
+
+            return state.providers;
+
+        }
+
+        try {
+
+            if (
+                typeof providerModule.getProviders ===
+                    "function"
+            ) {
+
+                const providers =
+                    providerModule.getProviders();
+
+                if (
+                    Array.isArray(
+                        providers
+                    )
+                ) {
+
+                    state.providers =
+                        providers;
+
+                }
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "[models-ui] Provider state sync error:",
+                error
+            );
+
+        }
+
+        return state.providers;
+    }
+
+    /* =====================================================
        FULL INITIALIZATION
     ===================================================== */
 
     async function initialize() {
 
-        /*
-         * Jika sedang initialization,
-         * gunakan promise yang sama.
-         */
         if (initializing) {
             return initializing;
         }
 
-        /*
-         * Jangan mengunci initialized
-         * sebelum semua proses berhasil.
-         */
         if (initialized) {
             return true;
         }
@@ -1846,44 +2161,55 @@
                         "[models-ui] Initialization mulai..."
                     );
 
-                    /*
-                     * =================================================
-                     * STEP 1
-                     * Binding DOM event dasar
-                     * =================================================
-                     */
+                    /* =============================================
+                       STEP 1
+                       DOM EVENTS
+                    ============================================= */
 
                     bindButtons();
                     bindActionFallback();
                     bindModalEvents();
                     bindTableEvents();
 
-                    /*
-                     * =================================================
-                     * STEP 2
-                     * LOAD PROVIDER DARI SUPABASE
-                     * =================================================
-                     *
-                     * Provider HARUS selesai terlebih
-                     * dahulu sebelum form digunakan.
-                     */
+                    /* =============================================
+                       STEP 2
+                       PROVIDER
+                    ============================================= */
 
-                    await loadProviders({
-                        force: false,
-                        activeOnly: true
-                    });
+                    /*
+                     * Jika Provider module sudah diinisialisasi
+                     * oleh models-init.js, cukup sinkronkan state.
+                     *
+                     * Jika belum, loadProviders() akan menjalankannya.
+                     */
+                    syncProviderState();
+
+                    if (
+                        state.providers.length === 0
+                    ) {
+
+                        await loadProviders({
+                            force: false,
+                            activeOnly: true
+                        });
+
+                    } else {
+
+                        populateProviderSelect(
+                            state.providers
+                        );
+
+                    }
 
                     console.info(
                         "[models-ui] Provider siap:",
                         state.providers.length
                     );
 
-                    /*
-                     * =================================================
-                     * STEP 3
-                     * LOAD MODEL CATALOG DARI SUPABASE
-                     * =================================================
-                     */
+                    /* =============================================
+                       STEP 3
+                       MODEL CATALOG
+                    ============================================= */
 
                     await loadModels({
                         force: false,
@@ -1895,44 +2221,31 @@
                         state.models.length
                     );
 
-                    /*
-                     * =================================================
-                     * STEP 4
-                     * PRICE
-                     * =================================================
-                     */
+                    /* =============================================
+                       STEP 4
+                       PRICE
+                    ============================================= */
 
                     await initializePrice();
 
-                    /*
-                     * =================================================
-                     * STEP 5
-                     * FORM
-                     * =================================================
-                     *
-                     * Provider dropdown sudah tersedia.
-                     */
+                    /* =============================================
+                       STEP 5
+                       FORM
+                    ============================================= */
 
-                    bindFormEvents();
+                    await bindFormEvents();
 
-                    /*
-                     * =================================================
-                     * STEP 6
-                     * SEARCH
-                     * =================================================
-                     *
-                     * Search sekarang menerima
-                     * state.models yang sudah dimuat.
-                     */
+                    /* =============================================
+                       STEP 6
+                       SEARCH
+                    ============================================= */
 
-                    bindSearchEvents();
+                    await bindSearchEvents();
 
-                    /*
-                     * =================================================
-                     * STEP 7
-                     * FINAL SYNC
-                     * =================================================
-                     */
+                    /* =============================================
+                       STEP 7
+                       FINAL SYNC
+                    ============================================= */
 
                     updateStatistics(
                         state.models
@@ -1953,10 +2266,7 @@
 
                     }
 
-                    /*
-                     * Pastikan provider select
-                     * tetap sinkron.
-                     */
+                    syncProviderState();
 
                     populateProviderSelect(
                         state.providers
@@ -1985,12 +2295,9 @@
                     );
 
                     /*
-                     * PENTING:
-                     * initialized tetap false.
-                     * Dengan begitu initialization
-                     * masih dapat dicoba ulang.
+                     * Jangan pernah mengunci initialized
+                     * jika proses belum benar-benar selesai.
                      */
-
                     initialized =
                         false;
 
@@ -2051,6 +2358,8 @@
             renderModelPrice,
 
             populateProviderSelect,
+
+            syncProviderState,
 
             getModels: () =>
                 [...state.models],
