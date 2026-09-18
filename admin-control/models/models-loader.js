@@ -396,6 +396,18 @@
                     window.GENZModelsInit
                 );
 
+              case "functions/model-search-dropdown.js":
+    return !!window.GENZModelSearchDropdown;
+
+case "functions/model-search-render.js":
+    return !!window.GENZModelSearchRender;
+
+case "functions/model-search-select.js":
+    return !!window.GENZModelSearchSelect;
+
+case "functions/model-search-events.js":
+    return !!window.GENZModelSearchEvents;
+
             default:
                 return false;
         }
