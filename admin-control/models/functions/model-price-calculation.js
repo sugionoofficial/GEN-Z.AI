@@ -2,24 +2,41 @@
    GEN-Z.AI
    MODEL PRICE CALCULATION
    ---------------------------------------------------------
-   Tanggung jawab:
-   - Hitung discount
+   File:
+   admin-control/models/functions/model-price-calculation.js
+
+   TUGAS:
+   - Hitung credit normal
+   - Hitung nilai diskon
    - Hitung credit final
-   - Hitung harga setelah diskon
-   - Sinkronisasi field harga
-   ---------------------------------------------------------
-   Tidak mengurus:
+   - Sinkronisasi field form
+   - Sinkronisasi preview credit
+   - Mendukung harga USD tanpa mengambil alih pricing module
+
+   TIDAK MENGURUS:
+   - Provider
+   - Model ID
+   - Search
    - Create
    - Edit
    - Delete
-   - Search
-   - Provider
-   ========================================================= */
+   - API Supabase
+   - Lifecycle halaman
+========================================================= */
 
 (function () {
     "use strict";
 
-    function number(value, fallback) {
+
+    /* =====================================================
+       NUMBER
+    ===================================================== */
+
+    function number(
+        value,
+        fallback
+    ) {
+
         const parsed =
             Number(
                 String(
@@ -38,24 +55,44 @@
             );
     }
 
-    function clampDiscount(value) {
+
+    /* =====================================================
+       CLAMP DISCOUNT
+    ===================================================== */
+
+    function clampDiscount(
+        value
+    ) {
+
         return Math.min(
             100,
             Math.max(
                 0,
-                number(value, 0)
+                number(
+                    value,
+                    0
+                )
             )
         );
     }
+
+
+    /* =====================================================
+       CALCULATE FINAL CREDIT
+    ===================================================== */
 
     function calculateFinalCredit(
         baseCredit,
         discountPercent
     ) {
+
         const base =
             Math.max(
                 0,
-                number(baseCredit, 0)
+                number(
+                    baseCredit,
+                    0
+                )
             );
 
         const discount =
@@ -65,18 +102,30 @@
 
         return (
             base *
-            (1 - discount / 100)
+            (
+                1 -
+                discount / 100
+            )
         );
     }
+
+
+    /* =====================================================
+       CALCULATE DISCOUNT AMOUNT
+    ===================================================== */
 
     function calculateDiscountAmount(
         baseCredit,
         discountPercent
     ) {
+
         const base =
             Math.max(
                 0,
-                number(baseCredit, 0)
+                number(
+                    baseCredit,
+                    0
+                )
             );
 
         const discount =
@@ -91,23 +140,39 @@
         );
     }
 
+
+    /* =====================================================
+       CALCULATE DISCOUNT PERCENT
+       DARI BASE + FINAL
+    ===================================================== */
+
     function calculateDiscount(
         baseCredit,
         finalCredit
     ) {
+
         const base =
             Math.max(
                 0,
-                number(baseCredit, 0)
+                number(
+                    baseCredit,
+                    0
+                )
             );
 
         const final =
             Math.max(
                 0,
-                number(finalCredit, 0)
+                number(
+                    finalCredit,
+                    0
+                )
             );
 
-        if (base <= 0) {
+        if (
+            base <= 0
+        ) {
+
             return 0;
         }
 
@@ -116,7 +181,10 @@
             Math.max(
                 0,
                 (
-                    (base - final) /
+                    (
+                        base -
+                        final
+                    ) /
                     base
                 ) *
                 100
@@ -124,16 +192,87 @@
         );
     }
 
-    function roundCredit(value) {
+
+    /* =====================================================
+       ROUND CREDIT
+    ===================================================== */
+
+    function roundCredit(
+        value
+    ) {
+
         return Math.round(
-            number(value, 0)
+            number(
+                value,
+                0
+            )
         );
     }
 
-    function calculate(data) {
+
+    /* =====================================================
+       FORMAT CREDIT
+    ===================================================== */
+
+    function formatCredit(
+        value
+    ) {
+
+        const numeric =
+            number(
+                value,
+                0
+            );
+
+        return new Intl.NumberFormat(
+            "id-ID",
+            {
+                maximumFractionDigits: 2
+            }
+        ).format(
+            numeric
+        );
+    }
+
+
+    /* =====================================================
+       FORMAT PERCENT
+    ===================================================== */
+
+    function formatPercent(
+        value
+    ) {
+
+        const numeric =
+            clampDiscount(
+                value
+            );
+
+        return (
+            new Intl.NumberFormat(
+                "id-ID",
+                {
+                    maximumFractionDigits: 2
+                }
+            ).format(
+                numeric
+            ) +
+            "%"
+        );
+    }
+
+
+    /* =====================================================
+       CALCULATE
+    ===================================================== */
+
+    function calculate(
+        data
+    ) {
 
         const source =
             data || {};
+
 
         const baseCredit =
             number(
@@ -143,6 +282,7 @@
                 0
             );
 
+
         const discountPercent =
             clampDiscount(
                 source.discount_percent ??
@@ -150,11 +290,13 @@
                 0
             );
 
+
         const discountAmount =
             calculateDiscountAmount(
                 baseCredit,
                 discountPercent
             );
+
 
         const finalCredit =
             calculateFinalCredit(
@@ -162,7 +304,9 @@
                 discountPercent
             );
 
+
         return {
+
             credit_cost:
                 baseCredit,
 
@@ -182,13 +326,29 @@
         };
     }
 
-    function getField(id) {
-        return document.getElementById(id);
+
+    /* =====================================================
+       DOM HELPERS
+    ===================================================== */
+
+    function getField(
+        id
+    ) {
+
+        return document.getElementById(
+            id
+        );
     }
 
-    function getFieldValue(id) {
+
+    function getFieldValue(
+        id
+    ) {
+
         const field =
-            getField(id);
+            getField(
+                id
+            );
 
         if (!field) {
             return "";
@@ -199,12 +359,16 @@
         ).trim();
     }
 
+
     function setFieldValue(
         id,
         value
     ) {
+
         const field =
-            getField(id);
+            getField(
+                id
+            );
 
         if (!field) {
             return false;
@@ -216,40 +380,149 @@
         return true;
     }
 
-    function calculateFromForm() {
 
-        const baseCredit =
+    /* =====================================================
+       FORM VALUE
+    ===================================================== */
+
+    function getBaseCreditFromForm() {
+
+        return (
             getFieldValue(
                 "creditCost"
             ) ||
             getFieldValue(
                 "credit_cost"
-            );
+            )
+        );
+    }
 
-        const discount =
+
+    function getDiscountFromForm() {
+
+        return (
             getFieldValue(
                 "discountPercent"
             ) ||
             getFieldValue(
                 "discount_percent"
-            );
-
-        const result =
-            calculate({
-                credit_cost:
-                    baseCredit,
-
-                discount_percent:
-                    discount
-            });
-
-        return result;
+            )
+        );
     }
 
-    function syncForm() {
+
+    /* =====================================================
+       CALCULATE FROM FORM
+    ===================================================== */
+
+    function calculateFromForm() {
+
+        const baseCredit =
+            getBaseCreditFromForm();
+
+
+        const discount =
+            getDiscountFromForm();
+
+
+        return calculate({
+
+            credit_cost:
+                baseCredit,
+
+            discount_percent:
+                discount
+        });
+    }
+
+
+    /* =====================================================
+       UPDATE CREDIT PREVIEW
+    ===================================================== */
+
+    function updatePreview(
+        result
+    ) {
+
+        const previewNormal =
+            getField(
+                "previewNormal"
+            );
+
+
+        const previewDiscount =
+            getField(
+                "previewDiscount"
+            );
+
+
+        const previewFinal =
+            getField(
+                "previewFinal"
+            );
+
+
+        /*
+         * Credit Normal
+         */
+
+        if (
+            previewNormal
+        ) {
+
+            previewNormal.textContent =
+                formatCredit(
+                    result.credit_cost
+                );
+        }
+
+
+        /*
+         * Diskon
+         */
+
+        if (
+            previewDiscount
+        ) {
+
+            previewDiscount.textContent =
+                formatPercent(
+                    result.discount_percent
+                );
+        }
+
+
+        /*
+         * Credit Final
+         */
+
+        if (
+            previewFinal
+        ) {
+
+            previewFinal.textContent =
+                formatCredit(
+                    result.credit_final
+                );
+        }
+    }
+
+
+    /* =====================================================
+       SYNC FORM
+    ===================================================== */
+
+    function syncForm(
+        options = {}
+    ) {
 
         const result =
             calculateFromForm();
+
+
+        /*
+         * Hidden / actual Credit Final.
+         */
 
         const finalField =
             getField(
@@ -259,10 +532,25 @@
                 "credit_final"
             );
 
-        if (finalField) {
+
+        if (
+            finalField
+        ) {
+
+            /*
+             * Simpan nilai numerik asli.
+             * Jangan masukkan format "1.000"
+             * ke input number.
+             */
+
             finalField.value =
                 result.credit_final;
         }
+
+
+        /*
+         * Optional Discount Amount.
+         */
 
         const discountAmountField =
             getField(
@@ -272,90 +560,332 @@
                 "discount_amount"
             );
 
-        if (discountAmountField) {
+
+        if (
+            discountAmountField
+        ) {
+
             discountAmountField.value =
                 result.discount_amount;
         }
 
-        document.dispatchEvent(
-            new CustomEvent(
-                "genz-model-price-calculated",
-                {
-                    detail: result
-                }
-            )
-        );
+
+        /*
+         * Preview.
+         */
+
+        if (
+            options.updatePreview !==
+            false
+        ) {
+
+            updatePreview(
+                result
+            );
+        }
+
+
+        /*
+         * Event global.
+         *
+         * Module lain dapat mendengarkan
+         * tanpa mengambil alih perhitungan.
+         */
+
+        try {
+
+            document.dispatchEvent(
+                new CustomEvent(
+                    "genz-model-price-calculated",
+                    {
+                        detail:
+                            result
+                    }
+                )
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Dispatch price calculation event gagal:",
+                error
+            );
+        }
+
 
         return result;
     }
 
-    function bind() {
+
+    /* =====================================================
+       SYNC MANUAL DATA
+    ===================================================== */
+
+    function syncData(
+        data
+    ) {
+
+        const result =
+            calculate(
+                data
+            );
+
+
+        updatePreview(
+            result
+        );
+
+
+        return result;
+    }
+
+
+    /* =====================================================
+       EVENT BINDING
+    ===================================================== */
+
+    let bound =
+        false;
+
+
+    const boundFields = [];
+
+
+    function bindField(
+        id
+    ) {
+
+        const field =
+            getField(
+                id
+            );
 
         if (
-            window.__GENZModelPriceBound
+            !field
         ) {
+
+            return false;
+        }
+
+
+        /*
+         * Jangan bind field yang sama dua kali.
+         */
+
+        if (
+            field.dataset
+                .genzPriceCalculationBound ===
+            "true"
+        ) {
+
             return true;
         }
 
-        window.__GENZModelPriceBound =
-            true;
 
-        const fields = [
-            "creditCost",
-            "credit_cost",
-            "discountPercent",
-            "discount_percent"
-        ];
+        const handler =
+            function () {
 
-        fields.forEach(
-            function (id) {
+                syncForm();
+            };
 
-                const field =
-                    getField(id);
 
-                if (!field) {
-                    return;
-                }
-
-                field.addEventListener(
-                    "input",
-                    syncForm
-                );
-
-                field.addEventListener(
-                    "change",
-                    syncForm
-                );
-            }
+        field.addEventListener(
+            "input",
+            handler
         );
+
+
+        field.addEventListener(
+            "change",
+            handler
+        );
+
+
+        field.dataset
+            .genzPriceCalculationBound =
+            "true";
+
+
+        field.__genzPriceCalculationHandler =
+            handler;
+
+
+        boundFields.push(
+            field
+        );
+
 
         return true;
     }
 
-    function unbind() {
+
+    /* =====================================================
+       BIND
+    ===================================================== */
+
+    function bind() {
+
+        if (
+            bound
+        ) {
+
+            /*
+             * Tetap sinkronkan preview
+             * jika module dipanggil kembali.
+             */
+
+            syncForm();
+
+            return true;
+        }
+
+
+        bindField(
+            "creditCost"
+        );
+
+
+        bindField(
+            "credit_cost"
+        );
+
+
+        bindField(
+            "discountPercent"
+        );
+
+
+        bindField(
+            "discount_percent"
+        );
+
+
+        bound =
+            true;
+
+
         /*
-         * Event listener sengaja dikelola
-         * oleh lifecycle utama.
-         *
-         * Fungsi ini hanya mereset marker.
+         * Initial calculation.
          */
-        window.__GENZModelPriceBound =
-            false;
+
+        syncForm();
+
+
+        console.info(
+            "[GEN-Z.AI] Model Price Calculation initialized."
+        );
+
+
+        return true;
     }
+
+
+    /* =====================================================
+       UNBIND
+    ===================================================== */
+
+    function unbind() {
+
+        while (
+            boundFields.length
+        ) {
+
+            const field =
+                boundFields.pop();
+
+
+            const handler =
+                field.__genzPriceCalculationHandler;
+
+
+            if (
+                handler
+            ) {
+
+                field.removeEventListener(
+                    "input",
+                    handler
+                );
+
+
+                field.removeEventListener(
+                    "change",
+                    handler
+                );
+
+
+                delete field
+                    .__genzPriceCalculationHandler;
+            }
+
+
+            delete field.dataset
+                .genzPriceCalculationBound;
+        }
+
+
+        bound =
+            false;
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    function isBound() {
+
+        return bound;
+    }
+
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
 
     window.GENZModelPriceCalculation =
         Object.freeze({
+
             number,
+
             clampDiscount,
+
             calculateFinalCredit,
+
             calculateDiscountAmount,
+
             calculateDiscount,
+
             roundCredit,
+
+            formatCredit,
+
+            formatPercent,
+
             calculate,
+
             calculateFromForm,
+
+            updatePreview,
+
             syncForm,
+
+            syncData,
+
             bind,
-            unbind
+
+            unbind,
+
+            isBound
+
         });
+
+
+    console.log(
+        "[GEN-Z.AI] GENZModelPriceCalculation loaded."
+    );
 
 })();
