@@ -727,20 +727,13 @@
         .modal-overlay {
             position: fixed;
             inset: 0;
-
             display: none;
-
             align-items: center;
             justify-content: center;
-
             padding: 20px;
-
             background: rgba(0, 0, 0, .72);
-
             z-index: 30000;
-
             pointer-events: none;
-
             isolation: isolate;
         }
 
@@ -757,40 +750,27 @@
 
         .modal {
             position: relative;
-
             width: 100%;
             max-width: 850px;
-
             max-height: 92vh;
-
             overflow-y: auto;
             overflow-x: hidden;
-
             background: var(--panel);
-
             border: 1px solid var(--border);
             border-radius: 18px;
-
             box-shadow:
                 0 30px 80px rgba(0, 0, 0, .65);
-
             z-index: 30001;
-
             pointer-events: auto;
         }
 
         .modal-header {
             position: sticky;
             top: 0;
-
             z-index: 20;
-
             padding: 20px;
-
             background: var(--panel);
-
             border-bottom: 1px solid var(--border);
-
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -805,18 +785,13 @@
         .close {
             position: relative;
             z-index: 21;
-
             width: 36px;
             height: 36px;
-
             border: 1px solid var(--border);
             border-radius: 9px;
-
             background: var(--panel2);
             color: white;
-
             font-size: 20px;
-
             pointer-events: auto;
         }
 
@@ -832,15 +807,10 @@
         .modal-footer {
             position: sticky;
             bottom: 0;
-
             z-index: 20;
-
             padding: 15px 20px;
-
             background: var(--panel);
-
             border-top: 1px solid var(--border);
-
             display: flex;
             justify-content: flex-end;
             gap: 10px;
@@ -866,26 +836,17 @@
 
         .model-search-results {
             position: absolute;
-
             top: calc(100% + 6px);
             left: 0;
             right: 0;
-
             z-index: 1000;
-
             max-height: 360px;
-
             overflow-y: auto;
-
             background: #0d1424;
-
             border: 1px solid var(--border);
-
             border-radius: 10px;
-
             box-shadow:
                 0 18px 45px rgba(0, 0, 0, .60);
-
             pointer-events: auto;
         }
 
@@ -2183,6 +2144,154 @@
     "use strict";
 
     /*
+     * =====================================================
+     * PROVIDER ACTIVE STATISTIC
+     * =====================================================
+     *
+     * Kartu "Provider" pada halaman Models harus menunjukkan
+     * jumlah Provider yang status-nya ACTIVE.
+     *
+     * Sumber data:
+     *
+     *     GENZModelsProvider.getProviders()
+     *
+     * Tidak melakukan query Supabase kedua.
+     *
+     * Contoh:
+     *
+     *     kie        -> active
+     *     bytedance  -> inactive
+     *
+     * hasil:
+     *
+     *     Provider = 1
+     *
+     * =====================================================
+     */
+
+    function updateActiveProviderStatistic() {
+
+        const statisticElement =
+            document.getElementById(
+                "statProviders"
+            );
+
+        if (!statisticElement) {
+            return;
+        }
+
+        const providerModule =
+            window.GENZModelsProvider;
+
+        /*
+         * Provider module belum tersedia.
+         * Jangan mengubah angka secara sembarangan.
+         */
+        if (
+            !providerModule ||
+            typeof providerModule.getProviders !==
+                "function"
+        ) {
+            return;
+        }
+
+        try {
+
+            const providers =
+                providerModule.getProviders();
+
+            if (!Array.isArray(providers)) {
+                return;
+            }
+
+            const activeProviders =
+                providers.filter(
+                    function (provider) {
+
+                        const status =
+                            String(
+                                provider?.status || ""
+                            )
+                                .trim()
+                                .toLowerCase();
+
+                        return (
+                            status === "active"
+                        );
+                    }
+                ).length;
+
+            statisticElement.textContent =
+                String(
+                    activeProviders
+                );
+
+        } catch (error) {
+
+            console.warn(
+                "[models.html] Gagal menghitung Provider aktif:",
+                error
+            );
+
+        }
+    }
+
+    /*
+     * Tunggu sampai module Models selesai dimuat.
+     */
+    function waitForProviderModule() {
+
+        updateActiveProviderStatistic();
+
+        if (
+            window.GENZModelsProvider
+        ) {
+            return;
+        }
+
+        window.setTimeout(
+            waitForProviderModule,
+            250
+        );
+    }
+
+    /*
+     * Setelah lifecycle Models selesai,
+     * hitung ulang Provider aktif.
+     */
+    function bindProviderStatisticEvents() {
+
+        document.addEventListener(
+            "genz-models-ready",
+            updateActiveProviderStatistic
+        );
+
+        document.addEventListener(
+            "genz-provider-loaded",
+            updateActiveProviderStatistic
+        );
+
+        document.addEventListener(
+            "genz-providers-loaded",
+            updateActiveProviderStatistic
+        );
+
+        document.addEventListener(
+            "genz-model-refresh",
+            updateActiveProviderStatistic
+        );
+
+        document.addEventListener(
+            "genz-models-refreshed",
+            updateActiveProviderStatistic
+        );
+    }
+
+    /*
+     * =====================================================
+     * SIDEBAR FALLBACK
+     * =====================================================
+     *
      * Model modal, form, delete, search dan table
      * sepenuhnya dikelola oleh module di models/.
      *
@@ -2207,19 +2316,29 @@
     function bindSidebarFallback() {
 
         const sidebar =
-            document.getElementById("sidebar");
+            document.getElementById(
+                "sidebar"
+            );
 
         const sidebarToggle =
-            document.getElementById("sidebarToggle");
+            document.getElementById(
+                "sidebarToggle"
+            );
 
         const mobileMenuButton =
-            document.getElementById("mobileMenuButton");
+            document.getElementById(
+                "mobileMenuButton"
+            );
 
         const sidebarOverlay =
-            document.getElementById("sidebarOverlay");
+            document.getElementById(
+                "sidebarOverlay"
+            );
 
         const mainContent =
-            document.getElementById("mainContent");
+            document.getElementById(
+                "mainContent"
+            );
 
         /*
          * Desktop sidebar collapse
@@ -2227,7 +2346,8 @@
         if (
             sidebar &&
             sidebarToggle &&
-            sidebarToggle.dataset.fallbackBound !== "true"
+            sidebarToggle.dataset.fallbackBound !==
+                "true"
         ) {
 
             sidebarToggle.dataset.fallbackBound =
@@ -2268,7 +2388,8 @@
         if (
             sidebar &&
             mobileMenuButton &&
-            mobileMenuButton.dataset.fallbackBound !== "true"
+            mobileMenuButton.dataset.fallbackBound !==
+                "true"
         ) {
 
             mobileMenuButton.dataset.fallbackBound =
@@ -2313,6 +2434,7 @@
                 );
 
             }
+
         }
 
         /*
@@ -2320,7 +2442,8 @@
          */
         if (
             sidebarOverlay &&
-            sidebarOverlay.dataset.fallbackBound !== "true"
+            sidebarOverlay.dataset.fallbackBound !==
+                "true"
         ) {
 
             sidebarOverlay.dataset.fallbackBound =
@@ -2337,7 +2460,8 @@
          */
         if (
             sidebar &&
-            sidebar.dataset.mobileLinksBound !== "true"
+            sidebar.dataset.mobileLinksBound !==
+                "true"
         ) {
 
             sidebar.dataset.mobileLinksBound =
@@ -2361,9 +2485,22 @@
         }
     }
 
-    function initializeSidebarFallback() {
+    function initializePageFallbacks() {
 
         bindSidebarFallback();
+
+        bindProviderStatisticEvents();
+
+        /*
+         * Coba langsung.
+         */
+        updateActiveProviderStatistic();
+
+        /*
+         * Jika module belum tersedia,
+         * tunggu sampai loader selesai.
+         */
+        waitForProviderModule();
 
     }
 
@@ -2371,12 +2508,13 @@
      * Jalankan setelah DOM tersedia.
      */
     if (
-        document.readyState === "loading"
+        document.readyState ===
+        "loading"
     ) {
 
         document.addEventListener(
             "DOMContentLoaded",
-            initializeSidebarFallback,
+            initializePageFallbacks,
             {
                 once: true
             }
@@ -2384,28 +2522,27 @@
 
     } else {
 
-        initializeSidebarFallback();
+        initializePageFallbacks();
 
     }
 
     /*
      * Safety retry.
      *
-     * Ini hanya untuk sidebar.
      * Tidak menyentuh modal atau form.
      */
     window.setTimeout(
-        initializeSidebarFallback,
+        initializePageFallbacks,
         500
     );
 
     window.setTimeout(
-        initializeSidebarFallback,
+        initializePageFallbacks,
         1500
     );
 
     window.setTimeout(
-        initializeSidebarFallback,
+        initializePageFallbacks,
         3000
     );
 
