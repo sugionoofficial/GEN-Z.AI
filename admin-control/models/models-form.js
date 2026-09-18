@@ -791,12 +791,16 @@
         }
 
         /*
-         * Provider harus tersedia sebelum
-         * populateForm memilih Provider.
+         * PERBAIKAN:
+         * Saat Edit Model, Provider harus dimuat ulang
+         * dan tidak dibatasi hanya Provider aktif.
+         *
+         * Ini memastikan Provider yang tersimpan pada
+         * model tetap dapat ditemukan dan dipilih.
          */
         await loadProviders({
-            force: false,
-            activeOnly: true
+            force: true,
+            activeOnly: false
         });
 
         editingModel = {
@@ -1198,9 +1202,7 @@
                 Number(data.discount_percent) > 100
             )
         ) {
-            return (
-                "Discount Percent harus antara 0 sampai 100."
-            );
+            return "Discount Percent harus antara 0 sampai 100.";
         }
 
         if (
@@ -1236,9 +1238,7 @@
             Number(data.min_duration) >
             Number(data.max_duration)
         ) {
-            return (
-                "Minimum Duration tidak boleh lebih besar dari Maximum Duration."
-            );
+            return "Minimum Duration tidak boleh lebih besar dari Maximum Duration.";
         }
 
         if (
