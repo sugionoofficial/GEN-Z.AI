@@ -17,14 +17,22 @@
         "./models/";
 
     const MODULES = [
-        "models-data.js",
-        "models-provider.js",
-        "models-search.js",
-        "models-form.js",
-        "models-price.js",
-        "models-ui.js",
-        "models-init.js"
-    ];
+    "models-data.js",
+
+    "models-provider.js",
+
+    "functions/model-search-dropdown.js",
+    "functions/model-search-render.js",
+    "functions/model-search-select.js",
+    "functions/model-search-events.js",
+
+    "models-search.js",
+
+    "models-form.js",
+    "models-price.js",
+    "models-ui.js",
+    "models-init.js"
+];
 
     const loadedModules =
         new Set();
