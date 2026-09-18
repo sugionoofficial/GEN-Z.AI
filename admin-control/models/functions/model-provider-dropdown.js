@@ -5,20 +5,31 @@
    File:
    admin-control/models/functions/model-provider-dropdown.js
 
-   Tanggung jawab:
-   - Render dropdown Provider
+   TANGGUNG JAWAB:
+   - Mengontrol dropdown #providerId
+   - Render daftar Provider yang diberikan
    - Set Provider
    - Clear Provider
-   - Refresh dropdown
-   - Menjaga kompatibilitas provider.id / provider_id
+   - Membaca Provider terpilih
+   - Menjaga kompatibilitas UUID / provider_id / name
 
-   FIX:
-   - Value dropdown menggunakan provider_id
-   - Edit Model dapat memilih provider yang tersimpan
-   - Mendukung input UUID provider.id maupun provider_id
-   - Tidak mengubah CRUD Model
-   - Tidak mengubah Provider Management
-   - Hanya memperbaiki sinkronisasi Provider -> Model
+   ARSITEKTUR:
+   ---------------------------------------------------------
+   models-data.js
+       ↓
+   models-provider.js
+       ↓
+   model-provider-dropdown.js
+       ↓
+   models-form.js / models-search.js
+
+   ATURAN:
+   - Module ini TIDAK query Supabase
+   - Module ini TIDAK memanggil GENZModelsData.loadProviders()
+   - Data Provider hanya berasal dari GENZModelsProvider
+   - Render dropdown hanya dilakukan oleh module ini
+   - Tidak membuat event listener global
+   - Tidak mengelola CRUD Model
 ========================================================= */
 
 (function () {
@@ -48,7 +59,9 @@
        NORMALIZE PROVIDER
     ===================================================== */
 
-    function normalizeProvider(provider) {
+    function normalizeProvider(
+        provider
+    ) {
 
         if (
             !provider ||
@@ -58,9 +71,6 @@
         }
 
 
-        /*
-         * UUID record provider.
-         */
         const recordId =
             String(
                 provider.id ??
@@ -68,16 +78,6 @@
             ).trim();
 
 
-        /*
-         * Provider identifier yang digunakan
-         * oleh kie_models.provider.
-         *
-         * Contoh:
-         *
-         * bytedance
-         * kie
-         * openai
-         */
         const providerId =
             String(
                 provider.provider_id ??
@@ -103,47 +103,17 @@
         const status =
             String(
                 provider.status ??
-                "active"
+                ""
             ).trim();
 
 
         return {
-
-            /*
-             * UUID database.
-             */
-            id:
-                recordId,
-
-
-            /*
-             * Identifier provider.
-             *
-             * INI yang menjadi value dropdown.
-             */
-            provider_id:
-                providerId,
-
-
-            provider_name:
-                providerName,
-
-
-            status:
-                status,
-
-
-            /*
-             * Pertahankan field lain jika ada.
-             */
             ...provider,
 
-            /*
-             * Pastikan field hasil normalisasi
-             * tetap menjadi nilai final.
-             */
             id:
-                recordId,
+                recordId ||
+                provider.id ||
+                null,
 
             provider_id:
                 providerId,
@@ -161,7 +131,9 @@
        NORMALIZE PROVIDERS
     ===================================================== */
 
-    function normalizeProviders(list) {
+    function normalizeProviders(
+        list
+    ) {
 
         if (!Array.isArray(list)) {
             return [];
@@ -186,22 +158,51 @@
                 }
 
 
-                /*
-                 * Provider dianggap unik berdasarkan
-                 * provider_id, bukan UUID record.
-                 */
-                const key =
-                    provider.provider_id
-                        .trim()
-                        .toLowerCase();
+                const keys = [
+                    provider.id,
+                    provider.provider_id,
+                    provider.provider,
+                    provider.provider_name
+                ]
+                    .map(
+                        function (value) {
+
+                            return String(
+                                value ??
+                                ""
+                            )
+                                .trim()
+                                .toLowerCase();
+                        }
+                    )
+                    .filter(Boolean);
 
 
-                if (seen.has(key)) {
+                const duplicate =
+                    keys.some(
+                        function (key) {
+
+                            return seen.has(
+                                key
+                            );
+                        }
+                    );
+
+
+                if (duplicate) {
                     return;
                 }
 
 
-                seen.add(key);
+                keys.forEach(
+                    function (key) {
+
+                        seen.add(
+                            key
+                        );
+                    }
+                );
+
 
                 result.push(
                     provider
@@ -218,7 +219,9 @@
        ACTIVE STATUS
     ===================================================== */
 
-    function isActive(provider) {
+    function isActive(
+        provider
+    ) {
 
         const status =
             String(
@@ -230,8 +233,8 @@
 
 
         /*
-         * Status kosong dianggap aktif untuk
-         * kompatibilitas data lama.
+         * Status kosong tetap dianggap aktif
+         * untuk kompatibilitas data lama.
          */
 
         return (
@@ -244,10 +247,12 @@
 
     /* =====================================================
        FIND PROVIDER
+       -----------------------------------------------------
        Mendukung:
        - provider_id
+       - provider
        - UUID id
-       - provider name
+       - provider_name
     ===================================================== */
 
     function findProvider(
@@ -272,37 +277,27 @@
             providers.find(
                 function (provider) {
 
-                    const providerId =
-                        String(
-                            provider.provider_id ??
-                            ""
-                        )
-                            .trim()
-                            .toLowerCase();
+                    const candidates = [
+                        provider.id,
+                        provider.provider_id,
+                        provider.provider,
+                        provider.provider_name
+                    ];
 
 
-                    const recordId =
-                        String(
-                            provider.id ??
-                            ""
-                        )
-                            .trim()
-                            .toLowerCase();
+                    return candidates.some(
+                        function (candidate) {
 
-
-                    const providerName =
-                        String(
-                            provider.provider_name ??
-                            ""
-                        )
-                            .trim()
-                            .toLowerCase();
-
-
-                    return (
-                        providerId === value ||
-                        recordId === value ||
-                        providerName === value
+                            return (
+                                String(
+                                    candidate ??
+                                    ""
+                                )
+                                    .trim()
+                                    .toLowerCase() ===
+                                value
+                            );
+                        }
                     );
                 }
             ) ||
@@ -313,9 +308,14 @@
 
     /* =====================================================
        RENDER
+       -----------------------------------------------------
+       SATU-SATUNYA fungsi yang mengubah option dropdown.
     ===================================================== */
 
-    function render(list) {
+    function render(
+        list,
+        options = {}
+    ) {
 
         const select =
             getSelect();
@@ -332,8 +332,9 @@
 
 
         /*
-         * Normalisasi provider.
+         * Normalisasi Provider.
          */
+
         providers =
             normalizeProviders(
                 list
@@ -341,30 +342,71 @@
 
 
         /*
-         * Simpan value yang sedang dipilih
-         * sebelum option diganti.
+         * Filter aktif.
+         *
+         * Default:
+         * activeOnly = true
          */
-        const currentValue =
+
+        const activeOnly =
+            options.activeOnly !== false;
+
+
+        let source =
+            [...providers];
+
+
+        if (activeOnly) {
+
+            source =
+                source.filter(
+                    isActive
+                );
+        }
+
+
+        /*
+         * Simpan value sebelum render ulang.
+         */
+
+        const requestedValue =
             String(
+                options.value ??
                 select.value ??
                 ""
             ).trim();
 
 
         /*
-         * Jika sebelumnya kosong tetapi
-         * ada data dari attribute/value,
-         * coba ambil.
+         * Cari Provider yang sebelumnya terpilih.
+         *
+         * Penting:
+         * requestedValue dapat berupa UUID.
          */
-        const previousValue =
-            currentValue;
+
+        const selectedProvider =
+            requestedValue
+                ? findProvider(
+                    requestedValue
+                )
+                : null;
+
+
+        const selectedProviderId =
+            selectedProvider
+                ? String(
+                    selectedProvider.provider_id ??
+                    ""
+                ).trim()
+                : "";
 
 
         /* -------------------------------------------------
-           CLEAR
+           BUILD FRAGMENT
         ------------------------------------------------- */
 
-        select.innerHTML = "";
+        const fragment =
+            document.createDocumentFragment();
 
 
         /* -------------------------------------------------
@@ -385,7 +427,7 @@
             "Pilih Provider";
 
 
-        select.appendChild(
+        fragment.appendChild(
             placeholder
         );
 
@@ -394,104 +436,179 @@
            PROVIDER OPTIONS
         ------------------------------------------------- */
 
-        providers
-            .filter(isActive)
-            .forEach(
-                function (provider) {
+        source.forEach(
+            function (provider) {
 
-                    const option =
-                        document.createElement(
-                            "option"
-                        );
-
-
-                    /*
-                     * PENTING:
-                     *
-                     * Value menggunakan provider_id,
-                     * BUKAN UUID provider.id.
-                     *
-                     * Karena kie_models.provider
-                     * menyimpan provider_id.
-                     */
-                    option.value =
-                        provider.provider_id;
+                const providerValue =
+                    String(
+                        provider.provider_id ??
+                        provider.id ??
+                        ""
+                    ).trim();
 
 
-                    /*
-                     * Tampilkan nama provider.
-                     *
-                     * Contoh:
-                     * ByteDance (bytedance)
-                     */
-                    const name =
-                        provider.provider_name ||
-                        provider.provider_id;
-
-
-                    if (
-                        name &&
-                        name !==
-                            provider.provider_id
-                    ) {
-
-                        option.textContent =
-                            name +
-                            " (" +
-                            provider.provider_id +
-                            ")";
-
-                    } else {
-
-                        option.textContent =
-                            provider.provider_id;
-                    }
-
-
-                    /*
-                     * Simpan metadata tambahan.
-                     */
-                    option.dataset.providerId =
-                        provider.provider_id;
-
-
-                    if (provider.id) {
-
-                        option.dataset.recordId =
-                            provider.id;
-                    }
-
-
-                    option.dataset.providerName =
-                        provider.provider_name ||
-                        provider.provider_id;
-
-
-                    select.appendChild(
-                        option
-                    );
+                if (!providerValue) {
+                    return;
                 }
-            );
+
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+
+                /*
+                 * Value resmi dropdown.
+                 *
+                 * Selalu provider_id jika tersedia.
+                 */
+
+                option.value =
+                    providerValue;
+
+
+                const providerName =
+                    String(
+                        provider.provider_name ??
+                        providerValue
+                    ).trim();
+
+
+                option.textContent =
+                    providerName &&
+                    providerName !==
+                        providerValue
+                        ? (
+                            providerName +
+                            " (" +
+                            providerValue +
+                            ")"
+                        )
+                        : providerValue;
+
+
+                /*
+                 * Metadata.
+                 */
+
+                if (provider.id) {
+
+                    option.dataset.providerUuid =
+                        String(
+                            provider.id
+                        );
+                }
+
+
+                option.dataset.providerId =
+                    providerValue;
+
+
+                option.dataset.providerName =
+                    providerName;
+
+
+                /*
+                 * Tandai default Provider.
+                 */
+
+                if (
+                    provider.is_default === true
+                ) {
+
+                    option.dataset.default =
+                        "true";
+                }
+
+
+                fragment.appendChild(
+                    option
+                );
+            }
+        );
 
 
         /* -------------------------------------------------
-           RESTORE CURRENT VALUE
+           REPLACE
         ------------------------------------------------- */
 
-        if (previousValue) {
+        select.replaceChildren(
+            fragment
+        );
 
-            const selectedProvider =
-                findProvider(
-                    previousValue
+
+        /* -------------------------------------------------
+           RESTORE VALUE
+        ------------------------------------------------- */
+
+        if (selectedProviderId) {
+
+            const exists =
+                Array.from(
+                    select.options
+                ).some(
+                    function (option) {
+
+                        return (
+                            String(
+                                option.value ??
+                                ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            selectedProviderId
+                                .toLowerCase()
+                        );
+                    }
                 );
 
 
-            if (selectedProvider) {
+            if (exists) {
 
                 select.value =
-                    selectedProvider.provider_id;
+                    selectedProviderId;
+            }
+
+        } else if (requestedValue) {
+
+            /*
+             * Fallback jika value belum ada
+             * di state Provider.
+             */
+
+            const directOption =
+                Array.from(
+                    select.options
+                ).find(
+                    function (option) {
+
+                        return (
+                            String(
+                                option.value ??
+                                ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            requestedValue
+                                .toLowerCase()
+                        );
+                    }
+                );
+
+
+            if (directOption) {
+
+                select.value =
+                    directOption.value;
             }
         }
+
+
+        console.info(
+            "[GEN-Z.AI] Provider dropdown rendered:",
+            source.length
+        );
 
 
         return true;
@@ -500,11 +617,19 @@
 
     /* =====================================================
        SET PROVIDERS
+       -----------------------------------------------------
+       Pintu resmi dari models-provider.js / models-init.js.
     ===================================================== */
 
-    function setProviders(list) {
+    function setProviders(
+        list,
+        options = {}
+    ) {
 
-        return render(list);
+        return render(
+            list,
+            options
+        );
     }
 
 
@@ -553,7 +678,8 @@
        -----------------------------------------------------
        Mendukung:
        - provider_id
-       - provider.id UUID
+       - UUID
+       - provider
        - provider_name
     ===================================================== */
 
@@ -604,7 +730,7 @@
 
 
         /* -------------------------------------------------
-           FIND PROVIDER
+           FIND
         ------------------------------------------------- */
 
         const provider =
@@ -613,45 +739,27 @@
             );
 
 
-        if (!provider) {
+        if (provider) {
 
-            /*
-             * Fallback langsung ke option value.
-             *
-             * Ini menjaga kompatibilitas jika
-             * provider belum masuk state tetapi
-             * option sudah tersedia.
-             */
-            const directExists =
-                Array.from(
-                    select.options
-                ).some(
-                    function (option) {
-
-                        return (
-                            String(
-                                option.value
-                            ).trim()
-                            .toLowerCase() ===
-                            value.toLowerCase()
-                        );
-                    }
-                );
-
-
-            if (!directExists) {
-
-                console.warn(
-                    "[GEN-Z.AI] Provider tidak ditemukan di dropdown:",
-                    providerValue
-                );
-
-                return false;
-            }
+            const providerId =
+                String(
+                    provider.provider_id ??
+                    provider.id ??
+                    ""
+                ).trim();
 
 
             select.value =
-                value;
+                providerId;
+
+
+            if (
+                select.value !==
+                providerId
+            ) {
+
+                return false;
+            }
 
 
             document.dispatchEvent(
@@ -659,8 +767,17 @@
                     "genz-models-provider-changed",
                     {
                         detail: {
+
                             providerId:
-                                value
+                                providerId,
+
+                            providerName:
+                                provider.provider_name ||
+                                "",
+
+                            recordId:
+                                provider.id ||
+                                ""
                         }
                     }
                 )
@@ -672,43 +789,51 @@
 
 
         /* -------------------------------------------------
-           SET NORMALIZED PROVIDER_ID
+           DIRECT OPTION FALLBACK
         ------------------------------------------------- */
 
-        select.value =
-            provider.provider_id;
+        const directOption =
+            Array.from(
+                select.options
+            ).find(
+                function (option) {
+
+                    return (
+                        String(
+                            option.value ??
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase() ===
+                        value
+                            .toLowerCase()
+                    );
+                }
+            );
 
 
-        /*
-         * Pastikan benar-benar terpilih.
-         */
-        if (
-            select.value !==
-            provider.provider_id
-        ) {
+        if (!directOption) {
+
+            console.warn(
+                "[GEN-Z.AI] Provider tidak ditemukan:",
+                providerValue
+            );
 
             return false;
         }
 
 
-        /* -------------------------------------------------
-           EVENT
-        ------------------------------------------------- */
+        select.value =
+            directOption.value;
+
 
         document.dispatchEvent(
             new CustomEvent(
                 "genz-models-provider-changed",
                 {
                     detail: {
-
                         providerId:
-                            provider.provider_id,
-
-                        providerName:
-                            provider.provider_name,
-
-                        recordId:
-                            provider.id || ""
+                            select.value
                     }
                 }
             )
@@ -755,138 +880,237 @@
 
 
     /* =====================================================
-       REFRESH
+       INITIALIZE
+       -----------------------------------------------------
+       TIDAK query models-data.js.
+
+       Provider lifecycle adalah milik
+       GENZModelsProvider.
     ===================================================== */
 
-    function refresh() {
+    function initialize(
+        options = {}
+    ) {
 
-        const data =
-            window.GENZModelsData;
+        const providerModule =
+            window.GENZModelsProvider;
 
 
         if (
-            !data ||
-            typeof data.loadProviders !==
+            !providerModule ||
+            typeof providerModule.getProviders !==
                 "function"
         ) {
 
             console.warn(
-                "[GEN-Z.AI] GENZModelsData.loadProviders() tidak tersedia."
+                "[GEN-Z.AI] GENZModelsProvider belum siap."
             );
 
             return false;
         }
 
 
-        return data
-            .loadProviders(
+        try {
+
+            const providerList =
+                providerModule.getProviders();
+
+
+            const list =
+                Array.isArray(
+                    providerList
+                )
+                    ? providerList
+                    : [];
+
+
+            render(
+                list,
                 {
-                    force: true,
-                    activeOnly: false
-                }
-            )
-            .then(
-                function (result) {
+                    activeOnly:
+                        options.activeOnly !== false,
 
-                    const list =
-                        Array.isArray(
-                            result
-                        )
-                            ? result
-                            : [];
-
-
-                    render(
-                        list
-                    );
-
-
-                    return list;
+                    value:
+                        options.value
                 }
             );
+
+
+            console.info(
+                "[GEN-Z.AI] Provider dropdown initialized from GENZModelsProvider."
+            );
+
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] Provider dropdown initialize error:",
+                error
+            );
+
+
+            return false;
+        }
     }
 
 
     /* =====================================================
-       INITIALIZE
+       REFRESH
+       -----------------------------------------------------
+       Refresh dilakukan oleh Provider owner.
+
+       Module dropdown hanya menerima hasilnya.
     ===================================================== */
 
-    function initialize() {
+    async function refresh(
+        options = {}
+    ) {
 
-        const data =
-            window.GENZModelsData;
+        const providerModule =
+            window.GENZModelsProvider;
 
-
-        /* -------------------------------------------------
-           CACHE
-        ------------------------------------------------- */
 
         if (
-            data &&
-            typeof data.getCachedProviders ===
-                "function"
+            !providerModule
         ) {
 
-            const cached =
-                data.getCachedProviders();
+            console.warn(
+                "[GEN-Z.AI] GENZModelsProvider belum tersedia."
+            );
 
+            return [];
+        }
+
+
+        try {
+
+            let providerList;
+
+
+            /*
+             * PRIORITAS:
+             * Provider.refresh()
+             */
 
             if (
-                Array.isArray(cached) &&
-                cached.length
+                typeof providerModule.refresh ===
+                "function"
             ) {
 
-                render(
-                    cached
-                );
+                providerList =
+                    await providerModule.refresh(
+                        {
+                            activeOnly:
+                                options.activeOnly !== false,
 
+                            value:
+                                options.value
+                        }
+                    );
 
-                return true;
-            }
-        }
-
-
-        /* -------------------------------------------------
-           LOAD
-        ------------------------------------------------- */
-
-        if (
-            data &&
-            typeof data.loadProviders ===
+            } else if (
+                typeof providerModule.loadProviders ===
                 "function"
-        ) {
+            ) {
 
-            return data
-                .loadProviders(
-                    {
-                        force: false,
-                        activeOnly: false
-                    }
+                /*
+                 * Fallback untuk Provider module
+                 * versi lama.
+                 */
+
+                providerList =
+                    await providerModule.loadProviders(
+                        {
+                            force: true,
+
+                            activeOnly:
+                                options.activeOnly !== false,
+
+                            value:
+                                options.value
+                        }
+                    );
+
+            } else {
+
+                providerList =
+                    providerModule.getProviders
+                        ? providerModule.getProviders()
+                        : [];
+            }
+
+
+            const list =
+                Array.isArray(
+                    providerList
                 )
-                .then(
-                    function (result) {
-
-                        render(
-                            Array.isArray(
-                                result
-                            )
-                                ? result
-                                : []
-                        );
+                    ? providerList
+                    : [];
 
 
-                        return true;
+            /*
+             * Provider module pada versi sekarang
+             * sudah melakukan render sendiri.
+             *
+             * Namun jika dropdown module dipanggil
+             * langsung, sinkronkan state lokal.
+             */
+
+            providers =
+                normalizeProviders(
+                    list
+                );
+
+
+            /*
+             * Jangan render kedua kali jika Provider
+             * module sudah menjadi owner rendering.
+             *
+             * Render hanya jika dropdown belum memiliki
+             * option yang sesuai.
+             */
+
+            const select =
+                getSelect();
+
+
+            const hasOptions =
+                select &&
+                select.options &&
+                select.options.length > 1;
+
+
+            if (!hasOptions) {
+
+                render(
+                    providers,
+                    {
+                        activeOnly:
+                            options.activeOnly !== false,
+
+                        value:
+                            options.value
                     }
                 );
+            }
+
+
+            return [
+                ...providers
+            ];
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] Provider dropdown refresh error:",
+                error
+            );
+
+
+            return [];
         }
-
-
-        console.warn(
-            "[GEN-Z.AI] Provider data module belum tersedia."
-        );
-
-
-        return false;
     }
 
 
@@ -897,6 +1121,33 @@
     function destroy() {
 
         providers = [];
+
+
+        const select =
+            getSelect();
+
+
+        if (select) {
+
+            select.replaceChildren(
+                (() => {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        "";
+
+                    option.textContent =
+                        "Pilih Provider";
+
+                    return option;
+
+                })()
+            );
+        }
     }
 
 
