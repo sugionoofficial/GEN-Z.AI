@@ -1,99 +1,180 @@
 /* =========================================================
    GEN-Z.AI
    MODEL TABLE EVENTS MODULE
-
+   ---------------------------------------------------------
    File:
    admin-control/models/functions/model-table-events.js
 
-   TUGAS:
-   - Menangani event tombol pada tabel Models
-   - Edit Model
-   - Delete Model
-   - Select Model
-   - Tidak melakukan query Supabase
-   - Tidak merender tabel
-   - Tidak mengelola Provider
-   - Tidak mengelola Search
+   Tanggung jawab:
+   - Event tombol Edit
+   - Event tombol Delete
+   - Delegasi ke Form / Coordinator / Delete module
+   - Sinkronisasi hasil operasi dengan Table
 
-   DEPENDENCY:
-   - GENZModelTable
-   - GENZModelsForm
-   - GENZModelFormDelete
-========================================================= */
+   Tidak bertanggung jawab:
+   - Render tabel
+   - Query Supabase
+   - CRUD API langsung
+   - Provider
+   - Search
+   - Price calculation
+   - Form layout
+   ========================================================= */
 
 (function () {
+
     "use strict";
+
+
+    /* =====================================================
+       STATE
+    ===================================================== */
 
     let bound = false;
 
+    let boundBody = null;
+
+
     /* =====================================================
-       HELPERS
+       DOM
     ===================================================== */
 
     function getTableBody() {
+
         return (
+
             document.getElementById(
-                "modelTableBody"
+                "modelsTableBody"
             ) ||
+
+            document.querySelector(
+                "#modelsTable tbody"
+            ) ||
+
             document.querySelector(
                 "[data-model-table-body]"
             )
+
         );
+
     }
 
+
+    /* =====================================================
+       MODULE ACCESS
+    ===================================================== */
+
     function getTableModule() {
+
         return (
             window.GENZModelTable ||
             null
         );
+
     }
 
+
     function getFormModule() {
+
         return (
             window.GENZModelsForm ||
             null
         );
+
     }
 
+
+    function getCoordinator() {
+
+        return (
+            window.GENZModelFormCoordinator ||
+            null
+        );
+
+    }
+
+
     function getDeleteModule() {
+
         return (
             window.GENZModelFormDelete ||
             null
         );
+
     }
 
+
     function getUI() {
+
         return (
             window.GENZModelsUI ||
             null
         );
+
     }
+
+
+    /* =====================================================
+       NOTIFICATION
+    ===================================================== */
 
     function notify(
         message,
-        type = "info"
+        type
     ) {
+
         const ui =
             getUI();
+
 
         if (
             ui &&
             typeof ui.notify ===
                 "function"
         ) {
-            ui.notify(
-                message,
-                type
+
+            try {
+
+                ui.notify(
+                    message,
+                    type || "info"
+                );
+
+                return;
+
+            } catch (error) {
+
+                console.warn(
+                    "[model-table-events] notify error:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        if (
+            type === "error"
+        ) {
+
+            console.error(
+                "[GEN-Z.AI]",
+                message
             );
 
             return;
+
         }
 
+
         console.log(
-            "[model-table-events]",
+            "[GEN-Z.AI]",
             message
         );
+
     }
+
 
     /* =====================================================
        FIND MODEL
@@ -102,145 +183,276 @@
     function findModel(
         modelId
     ) {
+
         const normalized =
             String(
-                modelId || ""
+                modelId ??
+                ""
             ).trim();
 
-        if (!normalized) {
+
+        if (
+            !normalized
+        ) {
+
             return null;
+
         }
+
 
         const table =
             getTableModule();
+
 
         if (
             table &&
             typeof table.findById ===
                 "function"
         ) {
+
             try {
-                const result =
+
+                const model =
                     table.findById(
                         normalized
                     );
 
-                if (result) {
-                    return result;
+
+                if (
+                    model
+                ) {
+
+                    return model;
+
                 }
+
             } catch (error) {
+
                 console.warn(
                     "[model-table-events] table.findById error:",
                     error
                 );
+
             }
+
         }
+
 
         const ui =
             getUI();
+
 
         if (
             ui &&
             typeof ui.findModelById ===
                 "function"
         ) {
+
             try {
-                return (
+
+                const model =
                     ui.findModelById(
                         normalized
-                    ) ||
-                    null
-                );
+                    );
+
+
+                if (
+                    model
+                ) {
+
+                    return model;
+
+                }
+
             } catch (error) {
+
                 console.warn(
                     "[model-table-events] ui.findModelById error:",
                     error
                 );
+
             }
+
         }
 
+
         return null;
+
     }
 
+
     /* =====================================================
-       EDIT
+       GET MODEL ID FROM TARGET
     ===================================================== */
 
-    function editModel(
+    function getModelIdFromTarget(
+        target
+    ) {
+
+        if (
+            !target
+        ) {
+
+            return "";
+
+        }
+
+
+        const value =
+            target.getAttribute(
+                "data-model-id"
+            );
+
+
+        return String(
+            value ??
+            ""
+        ).trim();
+
+    }
+
+
+    /* =====================================================
+       OPEN EDIT
+    ===================================================== */
+
+    async function editModel(
         modelId
     ) {
+
         const model =
             findModel(
                 modelId
             );
 
-        if (!model) {
+
+        if (
+            !model
+        ) {
+
             notify(
                 "Model tidak ditemukan.",
                 "error"
             );
 
             return false;
+
         }
+
+
+        /*
+         * Prioritas:
+         *
+         * 1. Coordinator
+         * 2. Form
+         *
+         * Coordinator hanya mengoordinasikan
+         * operasi form. Ia bukan pemilik UI.
+         */
+
+        const coordinator =
+            getCoordinator();
+
+
+        if (
+            coordinator &&
+            typeof coordinator.populateEdit ===
+                "function"
+        ) {
+
+            try {
+
+                const result =
+                    await coordinator.populateEdit(
+                        model
+                    );
+
+
+                return (
+                    result !== false
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[model-table-events] coordinator edit error:",
+                    error
+                );
+
+                notify(
+                    error?.message ||
+                    "Gagal membuka form edit model.",
+                    "error"
+                );
+
+                return false;
+
+            }
+
+        }
+
 
         const form =
             getFormModule();
+
 
         if (
             form &&
             typeof form.openEditForm ===
                 "function"
         ) {
+
             try {
+
                 const result =
                     form.openEditForm(
                         model
                     );
+
 
                 if (
                     result &&
                     typeof result.then ===
                         "function"
                 ) {
-                    result.catch(
-                        error => {
-                            console.error(
-                                "[model-table-events] openEditForm error:",
-                                error
-                            );
 
-                            notify(
-                                "Gagal membuka form edit model.",
-                                "error"
-                            );
-                        }
-                    );
+                    await result;
+
                 }
+
 
                 return true;
 
             } catch (error) {
+
                 console.error(
-                    "[model-table-events] edit error:",
+                    "[model-table-events] form edit error:",
                     error
                 );
 
                 notify(
+                    error?.message ||
                     "Gagal membuka form edit model.",
                     "error"
                 );
 
                 return false;
+
             }
+
         }
 
+
         notify(
-            "Module form belum tersedia.",
+            "Module form edit belum tersedia.",
             "error"
         );
 
+
         return false;
+
     }
+
 
     /* =====================================================
        DELETE
@@ -249,19 +461,26 @@
     async function deleteModel(
         modelId
     ) {
+
         const model =
             findModel(
                 modelId
             );
 
-        if (!model) {
+
+        if (
+            !model
+        ) {
+
             notify(
                 "Model tidak ditemukan.",
                 "error"
             );
 
             return false;
+
         }
+
 
         const modelName =
             model.model_name ||
@@ -269,343 +488,501 @@
             model.id ||
             "Model ini";
 
+
         const confirmed =
             window.confirm(
-                `Hapus ${modelName}?\n\nData model akan dihapus dari database.`
+
+                "Hapus " +
+                modelName +
+                "?\n\n" +
+                "Data model akan dihapus dari database."
+
             );
 
-        if (!confirmed) {
+
+        if (
+            !confirmed
+        ) {
+
             return false;
+
         }
+
 
         const deleteModule =
             getDeleteModule();
 
+
         if (
-            deleteModule &&
-            typeof deleteModule.deleteModel ===
-                "function"
+            !deleteModule
         ) {
-            try {
-                const result =
-                    await deleteModule.deleteModel(
+
+            notify(
+                "Module delete model belum tersedia.",
+                "error"
+            );
+
+            return false;
+
+        }
+
+
+        let result;
+
+
+        try {
+
+            /*
+             * Delete module adalah satu-satunya
+             * pemilik DELETE API.
+             */
+
+            if (
+                typeof deleteModule.remove ===
+                    "function"
+            ) {
+
+                result =
+                    await deleteModule.remove(
                         model
                     );
 
-                if (
-                    result === false
-                ) {
-                    return false;
-                }
+            } else if (
+                typeof deleteModule.removeById ===
+                    "function"
+            ) {
 
-                removeFromTable(
-                    modelId
+                result =
+                    await deleteModule.removeById(
+                        model.id
+                    );
+
+            } else {
+
+                throw new Error(
+                    "Fungsi delete model tidak tersedia."
                 );
 
-                notify(
-                    "Model berhasil dihapus.",
-                    "success"
-                );
+            }
 
-                return true;
 
-            } catch (error) {
-                console.error(
-                    "[model-table-events] delete error:",
-                    error
-                );
-
-                notify(
-                    error?.message ||
-                    "Gagal menghapus model.",
-                    "error"
-                );
+            if (
+                result === false
+            ) {
 
                 return false;
+
             }
-        }
 
-        /* =================================================
-           FALLBACK KE FORM LAMA
-        ================================================= */
 
-        const form =
-            getFormModule();
+            /*
+             * Hanya sinkronisasi state table.
+             * Tidak melakukan DELETE API lagi.
+             */
 
-        if (
-            form &&
-            typeof form.deleteModel ===
-                "function"
-        ) {
+            removeFromTable(
+                model.id
+            );
+
+
+            /*
+             * Beri kesempatan module lain
+             * melakukan sinkronisasi state.
+             */
+
             try {
-                await form.deleteModel(
-                    model
+
+                document.dispatchEvent(
+                    new CustomEvent(
+                        "genz-model-deleted",
+                        {
+                            detail: {
+                                model: model,
+                                result: result
+                            }
+                        }
+                    )
                 );
 
-                removeFromTable(
-                    modelId
+            } catch (eventError) {
+
+                console.warn(
+                    "[model-table-events] delete event error:",
+                    eventError
                 );
 
-                notify(
-                    "Model berhasil dihapus.",
-                    "success"
-                );
-
-                return true;
-
-            } catch (error) {
-                console.error(
-                    "[model-table-events] legacy delete error:",
-                    error
-                );
-
-                notify(
-                    error?.message ||
-                    "Gagal menghapus model.",
-                    "error"
-                );
-
-                return false;
             }
+
+
+            notify(
+                "Model berhasil dihapus.",
+                "success"
+            );
+
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "[model-table-events] delete error:",
+                error
+            );
+
+
+            notify(
+                error?.message ||
+                "Gagal menghapus model.",
+                "error"
+            );
+
+
+            return false;
+
         }
 
-        notify(
-            "Module delete model belum tersedia.",
-            "error"
-        );
-
-        return false;
     }
+
 
     /* =====================================================
        REMOVE FROM TABLE
-    ===================================================== */
+       -----------------------------------------------------
+       Hanya mengubah state/render Table.
+       BUKAN DELETE API.
+       ===================================================== */
 
     function removeFromTable(
         modelId
     ) {
+
         const table =
             getTableModule();
+
 
         if (
             table &&
             typeof table.removeById ===
                 "function"
         ) {
+
             try {
-                table.removeById(
+
+                return table.removeById(
                     modelId
                 );
 
-                return true;
             } catch (error) {
+
                 console.warn(
-                    "[model-table-events] removeById error:",
+                    "[model-table-events] table.removeById error:",
                     error
                 );
+
             }
+
         }
 
-        const row =
-            document.querySelector(
-                `[data-model-id="${CSS.escape(
-                    String(modelId)
-                )}"]`
-            );
-
-        if (row) {
-            row.remove();
-            return true;
-        }
 
         return false;
+
     }
 
-    /* =====================================================
-       SELECT
-    ===================================================== */
-
-    function selectModel(
-        modelId
-    ) {
-        const model =
-            findModel(
-                modelId
-            );
-
-        if (!model) {
-            return false;
-        }
-
-        const ui =
-            getUI();
-
-        if (
-            ui &&
-            typeof ui.selectModel ===
-                "function"
-        ) {
-            try {
-                ui.selectModel(
-                    model
-                );
-
-                return true;
-            } catch (error) {
-                console.warn(
-                    "[model-table-events] ui.selectModel error:",
-                    error
-                );
-            }
-        }
-
-        const form =
-            getFormModule();
-
-        if (
-            form &&
-            typeof form.setSelectedModel ===
-                "function"
-        ) {
-            try {
-                form.setSelectedModel(
-                    model
-                );
-
-                return true;
-            } catch (error) {
-                console.warn(
-                    "[model-table-events] form.setSelectedModel error:",
-                    error
-                );
-            }
-        }
-
-        return false;
-    }
 
     /* =====================================================
-       EVENT HANDLER
-    ===================================================== */
+       CLICK HANDLER
+       ===================================================== */
 
     function handleClick(
         event
     ) {
-        const target =
+
+        if (
+            !event ||
+            !event.target
+        ) {
+
+            return;
+
+        }
+
+
+        const button =
             event.target.closest(
-                "[data-model-edit], [data-model-delete], [data-model-select]"
+                "button[data-action]"
             );
 
-        if (!target) {
+
+        if (
+            !button
+        ) {
+
             return;
+
         }
 
-        const editId =
-            target.getAttribute(
-                "data-model-edit"
+
+        if (
+            !boundBody ||
+            !boundBody.contains(
+                button
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        const action =
+            String(
+                button.getAttribute(
+                    "data-action"
+                ) ??
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+
+        /*
+         * Table renderer menggunakan:
+         *
+         * data-action="edit"
+         * data-action="delete"
+         *
+         * dan:
+         *
+         * data-model-id="..."
+         */
+
+        if (
+            action !== "edit" &&
+            action !== "delete"
+        ) {
+
+            return;
+
+        }
+
+
+        const modelId =
+            getModelIdFromTarget(
+                button
             );
 
-        const deleteId =
-            target.getAttribute(
-                "data-model-delete"
+
+        if (
+            !modelId
+        ) {
+
+            notify(
+                "ID Model tidak ditemukan.",
+                "error"
             );
 
-        const selectId =
-            target.getAttribute(
-                "data-model-select"
-            );
+            return;
 
-        if (editId) {
-            event.preventDefault();
+        }
+
+
+        event.preventDefault();
+
+        event.stopPropagation();
+
+
+        if (
+            action === "edit"
+        ) {
+
             editModel(
-                editId
+                modelId
             );
 
+
             return;
+
         }
 
-        if (deleteId) {
-            event.preventDefault();
+
+        if (
+            action === "delete"
+        ) {
 
             deleteModel(
-                deleteId
+                modelId
             );
 
-            return;
         }
 
-        if (selectId) {
-            event.preventDefault();
-
-            selectModel(
-                selectId
-            );
-        }
     }
+
 
     /* =====================================================
        BIND
     ===================================================== */
 
     function bind() {
-        if (bound) {
-            return true;
-        }
 
-        const table =
+        const body =
             getTableBody();
 
-        if (!table) {
+
+        if (
+            !body
+        ) {
+
             console.warn(
-                "[model-table-events] #modelTableBody belum tersedia."
+                "[model-table-events] Table body belum tersedia."
             );
 
             return false;
+
         }
 
-        table.addEventListener(
+
+        /*
+         * Jika sudah terikat pada body yang sama,
+         * jangan menambahkan listener kedua.
+         */
+
+        if (
+            bound &&
+            boundBody === body
+        ) {
+
+            return true;
+
+        }
+
+
+        /*
+         * Jika sebelumnya terikat ke body lain,
+         * lepaskan dahulu.
+         */
+
+        if (
+            bound &&
+            boundBody &&
+            boundBody !== body
+        ) {
+
+            try {
+
+                boundBody.removeEventListener(
+                    "click",
+                    handleClick
+                );
+
+            } catch (error) {
+
+                console.warn(
+                    "[model-table-events] old listener cleanup error:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        body.addEventListener(
             "click",
             handleClick
         );
 
-        table.dataset
+
+        boundBody =
+            body;
+
+
+        bound =
+            true;
+
+
+        body.dataset
             .genzTableEventsBound =
             "true";
 
-        bound = true;
 
         console.info(
             "[GEN-Z.AI] Model table events initialized."
         );
 
+
         return true;
+
     }
+
 
     /* =====================================================
        UNBIND
     ===================================================== */
 
     function unbind() {
-        const table =
-            getTableBody();
 
         if (
-            table &&
-            bound
+            boundBody
         ) {
-            table.removeEventListener(
-                "click",
-                handleClick
-            );
 
-            delete table.dataset
-                .genzTableEventsBound;
+            try {
+
+                boundBody.removeEventListener(
+                    "click",
+                    handleClick
+                );
+
+                delete boundBody
+                    .dataset
+                    .genzTableEventsBound;
+
+            } catch (error) {
+
+                console.warn(
+                    "[model-table-events] unbind error:",
+                    error
+                );
+
+            }
+
         }
 
-        bound = false;
+
+        boundBody =
+            null;
+
+
+        bound =
+            false;
+
 
         return true;
+
     }
+
+
+    /* =====================================================
+       REBIND
+    ===================================================== */
+
+    function rebind() {
+
+        unbind();
+
+        return bind();
+
+    }
+
+
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
+
+    function initialize() {
+
+        return bind();
+
+    }
+
 
     /* =====================================================
        PUBLIC API
@@ -613,15 +990,33 @@
 
     window.GENZModelTableEvents =
         Object.freeze({
+
+            initialize,
+
             bind,
+
             unbind,
+
+            rebind,
+
             editModel,
+
             deleteModel,
-            selectModel,
+
             findModel,
+
             removeFromTable,
-            isBound: () =>
-                bound
+
+            getModelIdFromTarget,
+
+            isBound:
+                function () {
+
+                    return bound;
+
+                }
+
         });
+
 
 })();
