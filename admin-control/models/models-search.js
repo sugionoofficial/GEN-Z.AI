@@ -8,8 +8,9 @@
    - Pencarian model dari catalog kie_models
    - Filter berdasarkan Provider yang dipilih
    - Mendukung input Model ID manual
-   - Sinkronisasi model -> provider
+   - Sinkronisasi model -> provider melalui Provider module
    - Tidak melakukan query Supabase langsung
+   - Tidak mengelola dropdown Provider
    - Tidak melakukan auto-initialize
    - Lifecycle dikendalikan oleh models-init.js
    ========================================================= */
@@ -157,9 +158,6 @@
                     .trim()
                     .toLowerCase();
 
-            /*
-             * Model ID harus unik di autocomplete.
-             */
             if (seen.has(key)) {
                 return;
             }
@@ -211,8 +209,20 @@
     }
 
     /* =====================================================
-       PROVIDER STATE
+       PROVIDER READ ONLY
        ===================================================== */
+
+    /*
+     * Search hanya membaca Provider.
+     *
+     * Search TIDAK:
+     * - membuat Provider
+     * - mengisi dropdown Provider
+     * - menghapus Provider
+     * - mengganti option Provider
+     *
+     * Semua itu milik models-provider.js.
+     */
 
     function getSelectedProviderData() {
         const select =
@@ -242,14 +252,6 @@
                 option?.textContent ||
                 ""
             ).trim();
-
-        /*
-         * Value provider dropdown normalnya:
-         * provider_id
-         *
-         * Text normalnya:
-         * Provider Name (provider_id)
-         */
 
         let name = text;
 
@@ -315,10 +317,6 @@
             !selected.name &&
             !selected.text
         ) {
-            /*
-             * Tidak ada provider dipilih.
-             * Semua provider boleh dicari.
-             */
             return true;
         }
 
@@ -348,7 +346,7 @@
             .filter(Boolean);
 
         /*
-         * Cocokkan ID provider terlebih dahulu.
+         * Exact match terlebih dahulu.
          */
         for (
             const modelProvider
@@ -368,16 +366,12 @@
         }
 
         /*
-         * Beberapa data lama mungkin menyimpan
-         * nama provider, sedangkan dropdown memakai ID.
+         * Fallback untuk data lama.
          *
          * Contoh:
          * model.provider = "ChinaApi"
          * dropdown value = "bytedance"
          * dropdown text = "ChinaApi (bytedance)"
-         *
-         * Maka pencocokan parsial digunakan sebagai
-         * fallback yang aman.
          */
         for (
             const modelProvider
@@ -446,6 +440,7 @@
         let results =
             models.filter(
                 function (model) {
+
                     /*
                      * Hanya model aktif.
                      */
@@ -456,9 +451,8 @@
                     }
 
                     /*
-                     * Jika provider dipilih,
-                     * autocomplete hanya menampilkan
-                     * model milik provider tersebut.
+                     * Jika Provider dipilih,
+                     * hanya model Provider tersebut.
                      */
                     if (
                         hasProvider &&
@@ -468,8 +462,9 @@
                     }
 
                     /*
-                     * Jika keyword kosong,
-                     * tampilkan semua model provider tersebut.
+                     * Keyword kosong:
+                     * tampilkan seluruh model
+                     * dari Provider yang dipilih.
                      */
                     if (!term) {
                         return true;
@@ -527,11 +522,11 @@
             );
 
         /*
-         * Urutan hasil:
+         * Sorting:
          *
          * 1. Exact Model ID
          * 2. Provider match
-         * 3. Model ID diawali keyword
+         * 3. Model ID starts with keyword
          * 4. Alphabetical
          */
         results.sort(
@@ -623,13 +618,10 @@
         );
 
         /*
-         * Manual Model ID
+         * Manual Model ID.
          *
-         * Jika user mengetik Model ID yang belum
-         * ada di catalog, tetap berikan opsi tersebut.
-         *
-         * Ini penting karena tidak semua model API
-         * harus sudah terdaftar di kie_models.
+         * Jika Model ID belum ada di catalog,
+         * user tetap bisa menggunakannya.
          */
         if (term) {
             const exactExists =
@@ -747,9 +739,7 @@
         );
     }
 
-    function renderResults(
-        results
-    ) {
+    function renderResults(results) {
         const box =
             getResultsBox();
 
@@ -801,7 +791,7 @@
                                 ""
                             ).trim();
 
-                        const manual =
+                        const isManual =
                             model.__manual ===
                             true;
 
@@ -809,9 +799,9 @@
                             '<div ' +
                             'class="model-search-item' +
                             (
-                                manual
-                                    ? " manual"
-                                    : ""
+                                isManual
+                                    ? ' manual'
+                                    : ''
                             ) +
                             '" ' +
                             'data-model-id="' +
@@ -820,9 +810,7 @@
                             ) +
                             '">' +
 
-                            '<div class="model-search-item-main">' +
-
-                            '<div class="model-search-item-id">' +
+                            '<div class="model-search-item-title">' +
                             escapeHtml(
                                 modelId
                             ) +
@@ -840,32 +828,12 @@
                                     : ""
                             ) +
 
-                            '</div>' +
-
                             (
-                                family ||
-                                provider
+                                family
                                     ? (
-                                        '<div class="model-search-item-meta">' +
-                                        (
+                                        '<div class="model-search-item-family">' +
+                                        escapeHtml(
                                             family
-                                                ? escapeHtml(
-                                                    family
-                                                )
-                                                : ""
-                                        ) +
-                                        (
-                                            family &&
-                                            provider
-                                                ? " • "
-                                                : ""
-                                        ) +
-                                        (
-                                            provider
-                                                ? escapeHtml(
-                                                    provider
-                                                )
-                                                : ""
                                         ) +
                                         '</div>'
                                     )
@@ -873,7 +841,20 @@
                             ) +
 
                             (
-                                manual
+                                provider
+                                    ? (
+                                        '<div class="model-search-item-provider">' +
+                                        'Provider: ' +
+                                        escapeHtml(
+                                            provider
+                                        ) +
+                                        '</div>'
+                                    )
+                                    : ""
+                            ) +
+
+                            (
+                                isManual
                                     ? (
                                         '<div class="model-search-item-manual">' +
                                         'Gunakan Model ID ini' +
@@ -898,9 +879,7 @@
        SELECTED MODEL INFO
        ===================================================== */
 
-    function updateSelectedModelInfo(
-        model
-    ) {
+    function updateSelectedModelInfo(model) {
         const info =
             getSelectedInfo();
 
@@ -980,9 +959,7 @@
        PROVIDER SYNC
        ===================================================== */
 
-    function syncProvider(
-        model
-    ) {
+    function syncProvider(model) {
         if (
             !model ||
             model.__manual === true
@@ -1002,8 +979,10 @@
         }
 
         /*
-         * Gunakan module Provider jika tersedia.
-         * Jangan mengambil alih provider dropdown.
+         * Provider module adalah pemilik dropdown.
+         *
+         * Search hanya meminta Provider module
+         * mengubah value.
          */
         if (
             window.GENZModelsProvider &&
@@ -1022,7 +1001,10 @@
         }
 
         /*
-         * Fallback langsung ke select.
+         * Fallback sangat terbatas.
+         *
+         * Tidak membuat option.
+         * Tidak mengganti isi dropdown.
          */
         const select =
             getProviderSelect();
@@ -1031,17 +1013,14 @@
             return;
         }
 
-        const options =
+        const option =
             Array.from(
                 select.options
-            );
-
-        const exact =
-            options.find(
-                function (option) {
+            ).find(
+                function (item) {
                     return (
                         String(
-                            option.value ||
+                            item.value ||
                             ""
                         )
                             .trim()
@@ -1052,9 +1031,9 @@
                 }
             );
 
-        if (exact) {
+        if (option) {
             select.value =
-                exact.value;
+                option.value;
         }
     }
 
@@ -1062,9 +1041,7 @@
        SELECT MODEL
        ===================================================== */
 
-    function selectModel(
-        model
-    ) {
+    function selectModel(model) {
         if (!model) {
             return;
         }
@@ -1094,10 +1071,6 @@
             hiddenInput.value =
                 modelId;
 
-            /*
-             * Trigger input/change agar module Form
-             * lain dapat mengetahui perubahan.
-             */
             try {
                 hiddenInput.dispatchEvent(
                     new Event(
@@ -1116,9 +1089,7 @@
                         }
                     )
                 );
-            } catch (
-                error
-            ) {
+            } catch (error) {
                 console.warn(
                     "[GEN-Z.AI] Model hidden input event error:",
                     error
@@ -1127,8 +1098,8 @@
         }
 
         /*
-         * Sinkronkan provider hanya untuk
-         * model yang berasal dari catalog.
+         * Hanya catalog model yang melakukan
+         * sinkronisasi Provider.
          */
         syncProvider(
             model
@@ -1140,10 +1111,6 @@
 
         hideDropdown();
 
-        /*
-         * Beri kesempatan module lain
-         * menangani model yang dipilih.
-         */
         document.dispatchEvent(
             new CustomEvent(
                 "genz-model-selected",
@@ -1160,12 +1127,10 @@
     }
 
     /* =====================================================
-       EVENT HANDLERS
+       EVENT: INPUT
        ===================================================== */
 
-    function handleInput(
-        event
-    ) {
+    function handleInput(event) {
         const input =
             event.currentTarget;
 
@@ -1179,14 +1144,14 @@
                 ""
             ).trim();
 
-        /*
-         * Jika user mengubah text setelah memilih
-         * model, hidden Model ID harus ikut direset
-         * sampai user memilih hasil baru.
-         */
         const hiddenInput =
             getHiddenModelInput();
 
+        /*
+         * Jika user mengetik ulang,
+         * hidden Model ID dikosongkan sampai
+         * user memilih hasil.
+         */
         if (hiddenInput) {
             if (
                 String(
@@ -1212,15 +1177,7 @@
             results
         );
 
-        if (
-            keyword
-        ) {
-            showDropdown();
-        } else {
-            /*
-             * Saat kosong, tampilkan daftar model
-             * provider yang dipilih.
-             */
+        if (!keyword) {
             if (
                 results.length
             ) {
@@ -1231,9 +1188,11 @@
         }
     }
 
-    function handleFocus(
-        event
-    ) {
+    /* =====================================================
+       EVENT: FOCUS
+       ===================================================== */
+
+    function handleFocus(event) {
         const input =
             event.currentTarget;
 
@@ -1261,9 +1220,11 @@
         }
     }
 
-    function handleKeydown(
-        event
-    ) {
+    /* =====================================================
+       EVENT: KEYBOARD
+       ===================================================== */
+
+    function handleKeydown(event) {
         const box =
             getResultsBox();
 
@@ -1380,9 +1341,6 @@
                         model
                     );
                 } else {
-                    /*
-                     * Manual Model ID.
-                     */
                     selectModel({
                         __manual:
                             true,
@@ -1397,6 +1355,10 @@
                         provider:
                             getSelectedProviderData()
                                 .value,
+
+                        provider_name:
+                            getSelectedProviderData()
+                                .name,
 
                         status:
                             "active"
@@ -1415,9 +1377,11 @@
         }
     }
 
-    function handleResultsClick(
-        event
-    ) {
+    /* =====================================================
+       EVENT: RESULT CLICK
+       ===================================================== */
+
+    function handleResultsClick(event) {
         const item =
             event.target.closest(
                 ".model-search-item"
@@ -1450,9 +1414,6 @@
             return;
         }
 
-        /*
-         * Manual model.
-         */
         selectModel({
             __manual:
                 true,
@@ -1477,7 +1438,26 @@
         });
     }
 
-    function handleProviderChange() {
+    /* =====================================================
+       EVENT: PROVIDER CHANGED
+       ===================================================== */
+
+    /*
+     * Penting:
+     *
+     * models-search.js TIDAK lagi memasang
+     * listener langsung ke #providerId.
+     *
+     * models-provider.js adalah pemilik dropdown.
+     *
+     * Provider module cukup mengirim event:
+     *
+     * genz-models-provider-changed
+     *
+     * Search kemudian memperbarui autocomplete.
+     */
+
+    function handleProviderChanged(event) {
         const input =
             getSearchInput();
 
@@ -1485,31 +1465,21 @@
             return;
         }
 
-        /*
-         * Provider berubah:
-         * hasil autocomplete harus berubah
-         * mengikuti provider baru.
-         */
-        const keyword =
-            String(
-                input.value ??
-                ""
-            ).trim();
-
         const hidden =
             getHiddenModelInput();
 
-        /*
-         * Model sebelumnya bisa berasal dari provider
-         * berbeda. Reset hidden value agar tidak
-         * tersimpan model yang salah.
-         */
         if (hidden) {
             hidden.value =
                 "";
         }
 
         clearSelectedModelInfo();
+
+        const keyword =
+            String(
+                input.value ??
+                ""
+            ).trim();
 
         const results =
             search(
@@ -1525,11 +1495,20 @@
         } else {
             hideDropdown();
         }
+
+        /*
+         * event sengaja tidak digunakan langsung.
+         * Search membaca Provider dari DOM setelah
+         * Provider module selesai mengubah value.
+         */
+        void event;
     }
 
-    function handleDocumentClick(
-        event
-    ) {
+    /* =====================================================
+       EVENT: DOCUMENT CLICK
+       ===================================================== */
+
+    function handleDocumentClick(event) {
         const searchInput =
             getSearchInput();
 
@@ -1563,9 +1542,7 @@
        MODEL LOOKUP
        ===================================================== */
 
-    function findModelById(
-        modelId
-    ) {
+    function findModelById(modelId) {
         const id =
             String(
                 modelId ??
@@ -1611,9 +1588,6 @@
         const resultsBox =
             getResultsBox();
 
-        const providerSelect =
-            getProviderSelect();
-
         if (!searchInput) {
             console.warn(
                 "[GEN-Z.AI] #modelCodeSearch tidak ditemukan."
@@ -1623,7 +1597,7 @@
         }
 
         /*
-         * Input search.
+         * Search input.
          */
         searchInput.addEventListener(
             "input",
@@ -1641,7 +1615,7 @@
         );
 
         /*
-         * Dropdown results.
+         * Result dropdown.
          */
         if (resultsBox) {
             resultsBox.addEventListener(
@@ -1651,23 +1625,18 @@
         }
 
         /*
-         * Provider.
+         * Provider change melalui event
+         * antar-module.
          *
-         * Penting:
-         * listener hanya dipasang oleh Search module
-         * untuk memperbarui hasil pencarian.
-         *
-         * Tidak mengubah isi dropdown provider.
+         * Tidak menyentuh #providerId secara langsung.
          */
-        if (providerSelect) {
-            providerSelect.addEventListener(
-                "change",
-                handleProviderChange
-            );
-        }
+        document.addEventListener(
+            "genz-models-provider-changed",
+            handleProviderChanged
+        );
 
         /*
-         * Klik di luar dropdown.
+         * Klik luar dropdown.
          */
         document.addEventListener(
             "click",
@@ -1689,18 +1658,11 @@
        ===================================================== */
 
     function destroy() {
-        /*
-         * Karena event listener menggunakan function
-         * reference yang sama, lepaskan semuanya.
-         */
         const searchInput =
             getSearchInput();
 
         const resultsBox =
             getResultsBox();
-
-        const providerSelect =
-            getProviderSelect();
 
         if (searchInput) {
             searchInput.removeEventListener(
@@ -1726,12 +1688,10 @@
             );
         }
 
-        if (providerSelect) {
-            providerSelect.removeEventListener(
-                "change",
-                handleProviderChange
-            );
-        }
+        document.removeEventListener(
+            "genz-models-provider-changed",
+            handleProviderChanged
+        );
 
         document.removeEventListener(
             "click",
