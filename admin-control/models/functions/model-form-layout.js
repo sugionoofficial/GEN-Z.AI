@@ -16,19 +16,18 @@
    - Diskon
    - Credit Final
    - Preview harga
-   - Tidak mengurus:
-       * CRUD
-       * API save
-       * Delete
-       * Search global
-       * Table
-       * Provider lifecycle
+
+   TIDAK menangani:
+   - CRUD
+   - Save
+   - Update
+   - Delete
+   - Provider lifecycle
+   - Search global
+   - Table
 
    Prinsip:
-   - Satu fungsi satu pemilik
-   - Tidak membuat query Provider sendiri
-   - Tidak membuat query pricing sendiri
-   - Menggunakan module pusat yang sudah tersedia
+   Satu fungsi hanya mempunyai satu pemilik.
 ========================================================= */
 
 (function () {
@@ -44,39 +43,32 @@
 
     let boundProviderEvent = false;
 
+    let boundModelEvent = false;
+
     let boundPriceEvents = false;
 
-    /*
-     * Default kurs.
-     *
-     * Jika models-price.js memiliki kurs sendiri,
-     * kurs tersebut akan digunakan.
-     */
     const DEFAULT_USD_TO_IDR = 17700;
+
 
     /* =====================================================
        ELEMENT
     ===================================================== */
 
     function getElement(id) {
-
         return document.getElementById(id);
-
     }
+
 
     /* =====================================================
        NORMALIZE
     ===================================================== */
 
     function normalize(value) {
-
-        return String(
-            value ?? ""
-        )
+        return String(value ?? "")
             .trim()
             .toLowerCase();
-
     }
+
 
     /* =====================================================
        NUMBER
@@ -86,7 +78,6 @@
         value,
         fallback = 0
     ) {
-
         if (
             value === null ||
             value === undefined ||
@@ -102,118 +93,45 @@
                 .replace(/,/g, "");
 
         const number =
-            Number(
-                normalized
-            );
+            Number(normalized);
 
         return Number.isFinite(number)
             ? number
             : fallback;
     }
 
+
     /* =====================================================
        FORMAT USD
     ===================================================== */
 
-    function formatUsd(
-        value
-    ) {
-
+    function formatUsd(value) {
         const number =
-            toNumber(
-                value,
-                NaN
-            );
+            toNumber(value, NaN);
 
-        if (
-            !Number.isFinite(
-                number
-            )
-        ) {
+        if (!Number.isFinite(number)) {
             return "-";
         }
 
         return (
             "$" +
-            number.toFixed(6)
-                .replace(
-                    /0+$/,
-                    ""
-                )
-                .replace(
-                    /\.$/,
-                    ""
-                )
+            number
+                .toFixed(6)
+                .replace(/0+$/, "")
+                .replace(/\.$/, "")
         );
-
     }
 
-    /* =====================================================
-       GET EXCHANGE RATE
-    ===================================================== */
-
-    function getUsdToIdrRate() {
-
-        const priceModule =
-            window.GENZModelsPrice;
-
-        if (
-            priceModule &&
-            typeof priceModule.getUsdToIdrRate ===
-                "function"
-        ) {
-
-            try {
-
-                const rate =
-                    Number(
-                        priceModule
-                            .getUsdToIdrRate()
-                    );
-
-                if (
-                    Number.isFinite(rate) &&
-                    rate > 0
-                ) {
-
-                    return rate;
-
-                }
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-layout] Gagal membaca kurs dari models-price:",
-                    error
-                );
-
-            }
-
-        }
-
-        return DEFAULT_USD_TO_IDR;
-
-    }
 
     /* =====================================================
        FORMAT IDR
     ===================================================== */
 
-    function formatIdr(
-        value
-    ) {
-
+    function formatIdr(value) {
         const number =
-            toNumber(
-                value,
-                NaN
-            );
+            toNumber(value, NaN);
 
-        if (
-            !Number.isFinite(
-                number
-            )
-        ) {
+        if (!Number.isFinite(number)) {
             return "-";
         }
 
@@ -224,126 +142,127 @@
                 currency: "IDR",
                 maximumFractionDigits: 0
             }
-        ).format(
-            number
-        );
-
+        ).format(number);
     }
+
 
     /* =====================================================
-       ACTIVE MODEL
+       USD -> IDR RATE
     ===================================================== */
 
-    function isActiveModel(
-        model
-    ) {
+    function getUsdToIdrRate() {
+        const priceModule =
+            window.GENZModelsPrice;
 
-        return (
-            normalize(
-                model?.status
-            ) === "active"
-        );
+        if (
+            priceModule &&
+            typeof priceModule.getUsdToIdrRate ===
+                "function"
+        ) {
+            try {
+                const rate =
+                    Number(
+                        priceModule.getUsdToIdrRate()
+                    );
 
+                if (
+                    Number.isFinite(rate) &&
+                    rate > 0
+                ) {
+                    return rate;
+                }
+            } catch (error) {
+                console.warn(
+                    "[model-form-layout] Gagal membaca kurs:",
+                    error
+                );
+            }
+        }
+
+        return DEFAULT_USD_TO_IDR;
     }
+
 
     /* =====================================================
        PROVIDER MODULE
     ===================================================== */
 
     function getProviderModule() {
-
         return (
             window.GENZModelsProvider ||
             null
         );
-
     }
 
-    function getProviderDropdown() {
 
+    function getProviderDropdown() {
         return (
             window.GENZModelProviderDropdown ||
             null
         );
-
     }
+
 
     /* =====================================================
        CURRENT PROVIDER
     ===================================================== */
 
     function getCurrentProvider() {
-
         const select =
-            getElement(
-                "providerId"
-            );
+            getElement("providerId");
 
         if (!select) {
-
             return "";
-
         }
 
         return String(
             select.value ?? ""
         ).trim();
-
     }
 
+
     /* =====================================================
-       PROVIDER RESOLUTION
+       RESOLVE PROVIDER
     ===================================================== */
 
     function resolveProvider(
         providerValue
     ) {
-
         const value =
             String(
                 providerValue ?? ""
             ).trim();
 
         if (!value) {
-
             return null;
-
         }
 
         const providerModule =
             getProviderModule();
 
         /*
-         * Gunakan Provider module terlebih dahulu.
+         * Provider module adalah sumber utama.
          */
         if (
             providerModule &&
             typeof providerModule.getProviderById ===
                 "function"
         ) {
-
             try {
-
                 const provider =
                     providerModule.getProviderById(
                         value
                     );
 
                 if (provider) {
-
                     return provider;
-
                 }
-
             } catch (error) {
-
                 console.warn(
                     "[model-form-layout] Provider resolution error:",
                     error
                 );
-
             }
-
         }
 
         /*
@@ -357,9 +276,7 @@
             typeof dropdown.getProviders ===
                 "function"
         ) {
-
             try {
-
                 const providers =
                     dropdown.getProviders();
 
@@ -367,60 +284,44 @@
                     Array.isArray(
                         providers
                     )
-                {
-
+                ) {
                     const normalized =
-                        normalize(
-                            value
-                        );
+                        normalize(value);
 
                     return (
                         providers.find(
-                            function (
-                                provider
-                            ) {
-
+                            function (provider) {
                                 return [
                                     provider?.id,
                                     provider?.provider_id,
                                     provider?.provider,
                                     provider?.provider_name
                                 ].some(
-                                    function (
-                                        candidate
-                                    ) {
-
+                                    function (candidate) {
                                         return (
                                             normalize(
                                                 candidate
                                             ) ===
                                             normalized
                                         );
-
                                     }
                                 );
-
                             }
                         ) ||
                         null
                     );
-
                 }
-
             } catch (error) {
-
                 console.warn(
                     "[model-form-layout] Provider dropdown resolution error:",
                     error
                 );
-
             }
-
         }
 
         return null;
-
     }
+
 
     /* =====================================================
        MODEL PROVIDER MATCH
@@ -430,86 +331,63 @@
         model,
         providerValue
     ) {
-
-        const selected =
-            resolveProvider(
-                providerValue
-            );
-
         const value =
             normalize(
                 providerValue
             );
 
         if (!value) {
-
             return true;
-
         }
 
+        const selected =
+            resolveProvider(
+                providerValue
+            );
+
         const candidates = [
-
             model?.provider,
-
             model?.provider_id,
-
+            model?.provider_uuid,
             model?.provider_code,
-
             model?.provider_name
-
         ];
 
         /*
-         * Cocokkan langsung.
+         * Direct match.
          */
         if (
             candidates.some(
-                function (
-                    candidate
-                ) {
-
+                function (candidate) {
                     return (
                         normalize(
                             candidate
                         ) === value
                     );
-
                 }
             )
         ) {
-
             return true;
-
         }
 
         /*
-         * Jika Provider ditemukan,
-         * cocokkan seluruh identifier.
+         * Match berdasarkan seluruh
+         * identifier Provider.
          */
         if (selected) {
-
             const providerCandidates = [
-
                 selected.id,
-
                 selected.provider_id,
-
                 selected.provider,
-
                 selected.provider_name
-
             ];
 
             return candidates.some(
-                function (
-                    candidate
-                ) {
-
+                function (candidate) {
                     return providerCandidates.some(
                         function (
                             providerCandidate
                         ) {
-
                             return (
                                 normalize(
                                     candidate
@@ -518,25 +396,21 @@
                                     providerCandidate
                                 )
                             );
-
                         }
                     );
-
                 }
             );
-
         }
 
         return false;
-
     }
+
 
     /* =====================================================
        MODEL SELECT
     ===================================================== */
 
     function getModelSelect() {
-
         const existing =
             getElement(
                 "modelCodeSearch"
@@ -544,42 +418,33 @@
 
         if (
             existing &&
-            existing.tagName ===
-                "SELECT"
+            existing.tagName === "SELECT"
         ) {
-
             return existing;
-
         }
 
         return null;
-
     }
 
+
     /* =====================================================
-       CREATE MODEL SELECT
+       ENSURE MODEL SELECT
     ===================================================== */
 
     function ensureModelSelect() {
-
         const current =
             getElement(
                 "modelCodeSearch"
             );
 
         if (!current) {
-
             return null;
-
         }
 
         if (
-            current.tagName ===
-                "SELECT"
+            current.tagName === "SELECT"
         ) {
-
             return current;
-
         }
 
         const select =
@@ -599,10 +464,30 @@
         select.autocomplete =
             "off";
 
+        select.className =
+            current.className || "";
+
         select.setAttribute(
             "aria-label",
             "Pilih Model ID aktif"
         );
+
+        /*
+         * Pertahankan style inline
+         * jika field lama memilikinya.
+         */
+        if (
+            current.getAttribute(
+                "style"
+            )
+        ) {
+            select.setAttribute(
+                "style",
+                current.getAttribute(
+                    "style"
+                )
+            );
+        }
 
         current.replaceWith(
             select
@@ -610,7 +495,7 @@
 
         /*
          * Search result lama tidak digunakan
-         * untuk selector aktif.
+         * untuk dropdown Model ID aktif.
          */
         const resultBox =
             getElement(
@@ -618,37 +503,48 @@
             );
 
         if (resultBox) {
-
             resultBox.innerHTML =
                 "";
 
             resultBox.style.display =
                 "none";
-
         }
 
         return select;
-
     }
 
+
     /* =====================================================
-       MODEL CACHE
+       CACHE
     ===================================================== */
 
     function getCachedModels() {
-
         return [
             ...modelCache
         ];
-
     }
+
+
+    /* =====================================================
+       ACTIVE MODEL
+    ===================================================== */
+
+    function isActiveModel(
+        model
+    ) {
+        return (
+            normalize(
+                model?.status
+            ) === "active"
+        );
+    }
+
 
     /* =====================================================
        LOAD ACTIVE MODELS
     ===================================================== */
 
     async function loadActiveModels() {
-
         const data =
             window.GENZModelsData;
 
@@ -657,22 +553,18 @@
             typeof data.loadKieModels !==
                 "function"
         ) {
-
             console.warn(
                 "[model-form-layout] GENZModelsData belum tersedia."
             );
 
-            modelCache =
-                [];
+            modelCache = [];
 
             populateModelSelect();
 
             return [];
-
         }
 
         try {
-
             const models =
                 await data.loadKieModels(
                     {
@@ -682,9 +574,7 @@
                 );
 
             modelCache =
-                Array.isArray(
-                    models
-                )
+                Array.isArray(models)
                     ? models.filter(
                         isActiveModel
                     )
@@ -695,24 +585,20 @@
             return [
                 ...modelCache
             ];
-
         } catch (error) {
-
             console.error(
                 "[model-form-layout] Gagal memuat Model ID aktif:",
                 error
             );
 
-            modelCache =
-                [];
+            modelCache = [];
 
             populateModelSelect();
 
             return [];
-
         }
-
     }
+
 
     /* =====================================================
        FIND MODEL
@@ -721,45 +607,37 @@
     function findModel(
         modelId
     ) {
-
         const id =
             normalize(
                 modelId
             );
 
         if (!id) {
-
             return null;
-
         }
 
         return (
             modelCache.find(
-                function (
-                    model
-                ) {
-
+                function (model) {
                     return (
                         normalize(
                             model?.model_id
                         ) === id
                     );
-
                 }
             ) ||
             null
         );
-
     }
 
+
     /* =====================================================
-       MODEL SELECT OPTION
+       CREATE OPTION
     ===================================================== */
 
     function createModelOption(
         model
     ) {
-
         const option =
             document.createElement(
                 "option"
@@ -801,6 +679,18 @@
                 ""
             ).trim();
 
+        option.dataset.providerId =
+            String(
+                model?.provider_id ||
+                ""
+            ).trim();
+
+        option.dataset.providerUuid =
+            String(
+                model?.provider_uuid ||
+                ""
+            ).trim();
+
         option.dataset.family =
             String(
                 model?.model_family ||
@@ -808,8 +698,8 @@
             ).trim();
 
         return option;
-
     }
+
 
     /* =====================================================
        POPULATE MODEL SELECT
@@ -818,14 +708,11 @@
     function populateModelSelect(
         selectedModelId = ""
     ) {
-
         const select =
             getModelSelect();
 
         if (!select) {
-
             return false;
-
         }
 
         const providerValue =
@@ -837,15 +724,11 @@
                     isActiveModel
                 )
                 .filter(
-                    function (
-                        model
-                    ) {
-
+                    function (model) {
                         return modelMatchesProvider(
                             model,
                             providerValue
                         );
-
                     }
                 );
 
@@ -856,9 +739,6 @@
                 ""
             ).trim();
 
-        /*
-         * Reset option.
-         */
         select.innerHTML =
             "";
 
@@ -870,18 +750,17 @@
         placeholder.value =
             "";
 
-        if (providerValue) {
-
-            placeholder.textContent =
-                filtered.length > 0
-                    ? "Pilih Model ID aktif"
-                    : "Tidak ada Model ID aktif";
-
-        } else {
-
+        if (!providerValue) {
             placeholder.textContent =
                 "Pilih Provider terlebih dahulu";
-
+        } else if (
+            filtered.length === 0
+        ) {
+            placeholder.textContent =
+                "Tidak ada Model ID aktif";
+        } else {
+            placeholder.textContent =
+                "Pilih Model ID aktif";
         }
 
         select.appendChild(
@@ -889,29 +768,23 @@
         );
 
         filtered.forEach(
-            function (
-                model
-            ) {
-
+            function (model) {
                 select.appendChild(
                     createModelOption(
                         model
                     )
                 );
-
             }
         );
 
         /*
-         * Pertahankan pilihan jika masih valid.
+         * Pertahankan pilihan ketika
+         * masih tersedia.
          */
         if (
             previous &&
             filtered.some(
-                function (
-                    model
-                ) {
-
+                function (model) {
                     return (
                         normalize(
                             model.model_id
@@ -920,24 +793,19 @@
                             previous
                         )
                     );
-
                 }
             )
         ) {
-
             select.value =
                 previous;
-
         } else {
-
             select.value =
                 "";
-
         }
 
         /*
-         * Hidden field tetap dipertahankan
-         * untuk kompatibilitas CRUD lama.
+         * Hidden field untuk kompatibilitas
+         * dengan CRUD lama.
          */
         const hidden =
             getElement(
@@ -945,10 +813,8 @@
             );
 
         if (hidden) {
-
             hidden.value =
                 select.value || "";
-
         }
 
         updateSelectedModelInfo(
@@ -958,22 +824,19 @@
         );
 
         return true;
-
     }
+
 
     /* =====================================================
        MODEL SELECTION
     ===================================================== */
 
     function handleModelSelection() {
-
         const select =
             getModelSelect();
 
         if (!select) {
-
             return;
-
         }
 
         const model =
@@ -987,25 +850,21 @@
             );
 
         if (hidden) {
-
             hidden.value =
                 select.value || "";
-
         }
 
         if (!model) {
-
             updateSelectedModelInfo(
                 null
             );
 
             return;
-
         }
 
         /*
-         * Model Name hanya otomatis diisi
-         * jika tersedia dari catalog.
+         * Model Name otomatis dari
+         * catalog Model ID.
          */
         const name =
             getElement(
@@ -1013,15 +872,14 @@
             );
 
         if (name) {
-
             name.value =
                 model.model_name ||
                 "";
-
         }
 
         /*
-         * Isi family jika field tersedia.
+         * Family hanya diisi jika field
+         * tersebut memang tersedia.
          */
         const family =
             getElement(
@@ -1030,24 +888,16 @@
 
         if (
             family &&
-            !String(
-                family.value || ""
-            ).trim()
+            model.model_family
         ) {
-
             family.value =
-                model.model_family ||
-                "";
-
+                model.model_family;
         }
 
         updateSelectedModelInfo(
             model
         );
 
-        /*
-         * Ambil harga dari pricing module.
-         */
         loadModelUsdPrice(
             model
         );
@@ -1062,8 +912,8 @@
                 }
             )
         );
-
     }
+
 
     /* =====================================================
        SELECTED MODEL INFO
@@ -1072,20 +922,16 @@
     function updateSelectedModelInfo(
         model
     ) {
-
         const info =
             getElement(
                 "selectedModelInfo"
             );
 
         if (!info) {
-
             return;
-
         }
 
         if (!model) {
-
             const provider =
                 getCurrentProvider();
 
@@ -1095,7 +941,6 @@
                     : "Pilih Provider terlebih dahulu.";
 
             return;
-
         }
 
         const modelName =
@@ -1126,34 +971,30 @@
 
         info.textContent =
             parts.length > 0
-                ? parts.join(
-                    " · "
-                )
+                ? parts.join(" · ")
                 : "Model dipilih.";
-
     }
+
 
     /* =====================================================
        PRICE MODULE
     ===================================================== */
 
     function getPriceModule() {
-
         return (
             window.GENZModelsPrice ||
             null
         );
-
     }
 
+
     /* =====================================================
-       FIND MODEL USD PRICE
+       GET MODEL USD PRICE
     ===================================================== */
 
     function getModelUsdPrice(
         model
     ) {
-
         const priceModule =
             getPriceModule();
 
@@ -1162,22 +1003,17 @@
             typeof priceModule.getModelPrice !==
                 "function"
         ) {
-
             return null;
-
         }
 
         try {
-
             const result =
                 priceModule.getModelPrice(
                     model
                 );
 
             if (!result) {
-
                 return null;
-
             }
 
             const usd =
@@ -1191,25 +1027,20 @@
                     usd
                 )
             ) {
-
                 return null;
-
             }
 
             return usd;
-
         } catch (error) {
-
             console.warn(
                 "[model-form-layout] Gagal mengambil harga model:",
                 error
             );
 
             return null;
-
         }
-
     }
+
 
     /* =====================================================
        LOAD MODEL USD PRICE
@@ -1218,16 +1049,13 @@
     function loadModelUsdPrice(
         model
     ) {
-
         const field =
             getElement(
                 "kieUnitPrice"
             );
 
         if (!field) {
-
             return;
-
         }
 
         const usd =
@@ -1238,18 +1066,17 @@
         if (
             usd !== null
         ) {
-
             field.value =
                 usd;
 
             updateUsdPreview();
 
             return;
-
         }
 
         /*
-         * Fallback metadata.
+         * Fallback apabila pricing catalog
+         * belum mempunyai data.
          */
         const metadata =
             model?.metadata;
@@ -1268,22 +1095,19 @@
             fallback !== undefined &&
             fallback !== ""
         ) {
-
             field.value =
                 fallback;
-
         }
 
         updateUsdPreview();
-
     }
+
 
     /* =====================================================
        CREDIT CALCULATION
     ===================================================== */
 
     function calculateCredit() {
-
         const normalField =
             getElement(
                 "creditCost"
@@ -1330,15 +1154,14 @@
             discountAmount,
             finalCredit
         };
-
     }
+
 
     /* =====================================================
        UPDATE CREDIT PREVIEW
     ===================================================== */
 
     function updateCreditPreview() {
-
         const result =
             calculateCredit();
 
@@ -1358,30 +1181,23 @@
             );
 
         if (normal) {
-
             normal.textContent =
                 String(
                     result.normal
                 );
-
         }
 
         if (discount) {
-
             discount.textContent =
-                (
-                    Number(
-                        result.discount.toFixed(
-                            2
-                        )
+                Number(
+                    result.discount.toFixed(
+                        2
                     )
                 ) +
                 "%";
-
         }
 
         if (final) {
-
             final.textContent =
                 String(
                     Number(
@@ -1390,11 +1206,11 @@
                         )
                     )
                 );
-
         }
 
         /*
-         * Hidden/final field kompatibilitas.
+         * Field credit_final yang digunakan
+         * oleh CRUD.
          */
         const finalField =
             getElement(
@@ -1402,7 +1218,6 @@
             );
 
         if (finalField) {
-
             finalField.value =
                 String(
                     Number(
@@ -1411,12 +1226,14 @@
                         )
                     )
                 );
-
         }
 
         /*
-         * Jika module kalkulasi pusat tersedia,
-         * biarkan module tersebut menerima sinkronisasi.
+         * Sinkronkan calculation module
+         * jika tersedia.
+         *
+         * Tidak wajib, sehingga kegagalan
+         * module ini tidak merusak form.
          */
         const calculation =
             window.GENZModelPriceCalculation;
@@ -1426,30 +1243,23 @@
             typeof calculation.syncForm ===
                 "function"
         ) {
-
             try {
-
                 calculation.syncForm();
-
             } catch (error) {
-
                 console.warn(
                     "[model-form-layout] Price calculation sync gagal:",
                     error
                 );
-
             }
-
         }
-
     }
+
 
     /* =====================================================
        UPDATE USD PREVIEW
     ===================================================== */
 
     function updateUsdPreview() {
-
         const field =
             getElement(
                 "kieUnitPrice"
@@ -1480,7 +1290,6 @@
             );
 
         if (usdElement) {
-
             usdElement.textContent =
                 Number.isFinite(
                     usd
@@ -1489,121 +1298,87 @@
                         usd
                     )
                     : "-";
-
         }
 
         if (rateElement) {
-
             rateElement.textContent =
                 "$1 = " +
                 formatIdr(
                     rate
                 );
-
         }
 
         if (idrElement) {
-
             idrElement.textContent =
                 Number.isFinite(
                     usd
                 )
                     ? formatIdr(
-                        usd *
-                        rate
+                        usd * rate
                     )
                     : "-";
-
         }
-
     }
 
+
     /* =====================================================
-       PRICE EVENT
+       PRICE EVENTS
     ===================================================== */
 
     function bindPriceEvents() {
-
         if (
             boundPriceEvents
         ) {
-
             return true;
-
         }
 
         const fields = [
-
             "creditCost",
-
             "discountPercent",
-
             "kieUnitPrice"
-
         ];
 
         let found =
             false;
 
         fields.forEach(
-            function (
-                id
-            ) {
-
+            function (id) {
                 const field =
-                    getElement(
-                        id
-                    );
+                    getElement(id);
 
                 if (!field) {
-
                     return;
-
                 }
 
-                found =
-                    true;
+                found = true;
 
                 field.addEventListener(
                     "input",
                     function () {
-
                         if (
                             id ===
                             "kieUnitPrice"
                         ) {
-
                             updateUsdPreview();
-
                         } else {
-
                             updateCreditPreview();
-
                         }
-
                     }
                 );
 
                 field.addEventListener(
                     "change",
                     function () {
-
                         if (
                             id ===
                             "kieUnitPrice"
                         ) {
-
                             updateUsdPreview();
-
                         } else {
-
                             updateCreditPreview();
-
                         }
-
                     }
                 );
-
             }
         );
 
@@ -1615,21 +1390,18 @@
         updateUsdPreview();
 
         return true;
-
     }
+
 
     /* =====================================================
        PROVIDER EVENT
     ===================================================== */
 
     function bindProviderEvent() {
-
         if (
             boundProviderEvent
         ) {
-
             return true;
-
         }
 
         const provider =
@@ -1638,28 +1410,24 @@
             );
 
         if (!provider) {
-
             return false;
-
         }
 
         provider.addEventListener(
             "change",
-            function () {
-
+            async function () {
                 /*
-                 * Provider berubah:
-                 * Model ID harus di-reset karena
-                 * daftar model harus mengikuti provider.
+                 * Provider berubah.
+                 *
+                 * Model ID harus mengikuti
+                 * Provider yang baru dipilih.
                  */
                 const select =
                     ensureModelSelect();
 
                 if (select) {
-
                     select.value =
                         "";
-
                 }
 
                 const hidden =
@@ -1668,18 +1436,25 @@
                     );
 
                 if (hidden) {
-
                     hidden.value =
                         "";
-
                 }
 
                 updateSelectedModelInfo(
                     null
                 );
 
-                populateModelSelect();
-
+                /*
+                 * Gunakan cache jika tersedia.
+                 * Jika kosong, load terlebih dahulu.
+                 */
+                if (
+                    modelCache.length === 0
+                ) {
+                    await loadActiveModels();
+                } else {
+                    populateModelSelect();
+                }
             }
         );
 
@@ -1687,120 +1462,118 @@
             true;
 
         return true;
-
     }
+
 
     /* =====================================================
        MODEL EVENT
     ===================================================== */
 
     function bindModelEvent() {
-
         const select =
             ensureModelSelect();
 
         if (!select) {
-
             return false;
-
         }
 
         if (
-            select.dataset
-                .genzModelFormLayoutBound ===
-            "true"
+            boundModelEvent
         ) {
-
             return true;
-
         }
-
-        select.dataset
-            .genzModelFormLayoutBound =
-            "true";
 
         select.addEventListener(
             "change",
             handleModelSelection
         );
 
-        return true;
+        boundModelEvent =
+            true;
 
+        return true;
     }
 
+
     /* =====================================================
-       COMPATIBILITY WITH OLD SEARCH
+       OLD SEARCH COMPATIBILITY
     ===================================================== */
 
     function disableOldSearchBehavior() {
-
         const resultBox =
             getElement(
                 "modelSearchResults"
             );
 
         if (resultBox) {
-
             resultBox.innerHTML =
                 "";
 
             resultBox.style.display =
                 "none";
-
         }
-
     }
+
 
     /* =====================================================
        INITIALIZE
     ===================================================== */
 
     async function initialize() {
-
         if (
             initialized
         ) {
-
             return true;
-
         }
 
+        /*
+         * Tandai initialized setelah struktur
+         * function berhasil dipasang.
+         */
         initialized =
             true;
 
         /*
-         * Pastikan Provider sudah tersedia.
+         * Provider.
          */
         bindProviderEvent();
 
         /*
-         * Ubah field Model ID lama menjadi
-         * dropdown Model ID aktif.
+         * Model ID.
          */
         ensureModelSelect();
 
         bindModelEvent();
 
         /*
-         * Matikan visual search lama.
+         * Search lama hanya dinonaktifkan
+         * pada visual result, bukan module
+         * Search global.
          */
         disableOldSearchBehavior();
 
         /*
-         * Harga dan credit.
+         * Pricing.
          */
         bindPriceEvents();
 
         /*
-         * Load Model ID aktif.
+         * Model aktif.
          */
         await loadActiveModels();
 
         /*
-         * Sinkron ulang Provider setelah
-         * Provider module selesai.
+         * Render ulang berdasarkan Provider
+         * yang sedang aktif.
          */
         populateModelSelect();
+
+        /*
+         * Preview.
+         */
+        updateCreditPreview();
+
+        updateUsdPreview();
 
         document.dispatchEvent(
             new CustomEvent(
@@ -1813,15 +1586,14 @@
         );
 
         return true;
-
     }
+
 
     /* =====================================================
        REFRESH
     ===================================================== */
 
     async function refresh() {
-
         await loadActiveModels();
 
         populateModelSelect();
@@ -1831,23 +1603,20 @@
         updateUsdPreview();
 
         return true;
-
     }
 
+
     /* =====================================================
-       RESET MODEL SELECTION
+       CLEAR MODEL
     ===================================================== */
 
     function clearModelSelection() {
-
         const select =
             getModelSelect();
 
         if (select) {
-
             select.value =
                 "";
-
         }
 
         const hidden =
@@ -1856,10 +1625,8 @@
             );
 
         if (hidden) {
-
             hidden.value =
                 "";
-
         }
 
         updateSelectedModelInfo(
@@ -1867,8 +1634,8 @@
         );
 
         return true;
-
     }
+
 
     /* =====================================================
        SET MODEL
@@ -1877,22 +1644,17 @@
     function setModel(
         model
     ) {
-
         if (!model) {
-
             clearModelSelection();
 
             return false;
-
         }
 
         const select =
             getModelSelect();
 
         if (!select) {
-
             return false;
-
         }
 
         const modelId =
@@ -1902,11 +1664,34 @@
             ).trim();
 
         if (!modelId) {
-
             return false;
-
         }
 
+        /*
+         * Jika model belum ada di cache,
+         * tambahkan sementara agar dapat
+         * dipilih saat edit.
+         */
+        if (
+            !findModel(
+                modelId
+            )
+        ) {
+            modelCache.push(
+                model
+            );
+        }
+
+        /*
+         * Render berdasarkan Provider.
+         */
+        populateModelSelect(
+            modelId
+        );
+
+        /*
+         * Jika option tersedia, pilih.
+         */
         select.value =
             modelId;
 
@@ -1916,10 +1701,8 @@
             );
 
         if (hidden) {
-
             hidden.value =
                 modelId;
-
         }
 
         const name =
@@ -1928,11 +1711,9 @@
             );
 
         if (name) {
-
             name.value =
                 model.model_name ||
                 "";
-
         }
 
         const family =
@@ -1944,10 +1725,8 @@
             family &&
             model.model_family
         ) {
-
             family.value =
                 model.model_family;
-
         }
 
         updateSelectedModelInfo(
@@ -1959,8 +1738,8 @@
         );
 
         return true;
-
     }
+
 
     /* =====================================================
        PUBLIC API
@@ -1968,7 +1747,6 @@
 
     window.GENZModelFormLayout =
         Object.freeze({
-
             initialize,
 
             refresh,
@@ -1996,8 +1774,8 @@
             formatUsd,
 
             formatIdr
-
         });
+
 
     console.info(
         "[GEN-Z.AI] GENZModelFormLayout module loaded."
