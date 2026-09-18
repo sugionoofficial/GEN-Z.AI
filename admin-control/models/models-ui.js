@@ -11,6 +11,9 @@
    - Model catalog ditangani GENZModelsData
    - Search ditangani GENZModelsSearch
    - Form ditangani GENZModelsForm
+   - Form Events ditangani GENZModelFormEvents
+   - Table ditangani GENZModelTable
+   - Table Events ditangani GENZModelTableEvents
    - Pricing ditangani GENZModelsPrice
    - UI hanya mengorkestrasi modul
 
@@ -25,6 +28,9 @@
    - Initialization tidak dikunci sebelum benar-benar selesai
    - Aman terhadap module yang terlambat dimuat
    - Refresh tetap sinkron antara Provider, Model, Search dan Pricing
+   - Form Events tidak lagi diduplikasi oleh UI
+   - Table Events tidak lagi diduplikasi oleh UI
+   - Provider dropdown tidak ditimpa oleh event module lain
 ========================================================= */
 
 (function () {
@@ -68,6 +74,14 @@
         return window.GENZModelsPrice || null;
     }
 
+    function getFormEvents() {
+        return window.GENZModelFormEvents || null;
+    }
+
+    function getTableEvents() {
+        return window.GENZModelTableEvents || null;
+    }
+
     /* =====================================================
        EMERGENCY ADD MODEL HANDLER
     ===================================================== */
@@ -96,9 +110,13 @@
                 return;
             }
 
-            event.preventDefault();
-            event.stopPropagation();
-
+            /*
+             * Jika tombol sudah memiliki handler normal,
+             * jangan mengambil alih.
+             *
+             * Emergency handler hanya digunakan
+             * ketika tombol utama belum berhasil bekerja.
+             */
             const form =
                 getModelsForm();
 
@@ -114,6 +132,17 @@
 
                 return;
             }
+
+            /*
+             * Jangan menjalankan emergency handler
+             * jika event sudah dicegah oleh handler utama.
+             */
+            if (event.defaultPrevented) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
 
             if (
                 form &&
@@ -260,7 +289,9 @@
                     "0 14px 40px rgba(0,0,0,.35)",
                 fontSize: "14px",
                 lineHeight: "1.45",
-                pointerEvents: "none"
+                pointerEvents: "none",
+                transition:
+                    "opacity .2s ease, transform .2s ease"
             }
         );
 
@@ -275,9 +306,6 @@
 
             toast.style.transform =
                 "translateY(8px)";
-
-            toast.style.transition =
-                "opacity .2s ease, transform .2s ease";
 
             window.setTimeout(() => {
 
@@ -486,7 +514,7 @@
 
     /* =====================================================
        PROVIDERS
-       Provider sekarang ditangani oleh:
+       Provider lifecycle dimiliki
        GENZModelsProvider
     ===================================================== */
 
@@ -528,9 +556,7 @@
                         : [];
 
                 /*
-                 * Pastikan dropdown tetap sinkron.
-                 * Jika Provider module sudah mengisinya,
-                 * fungsi ini hanya melakukan sinkronisasi ulang.
+                 * Sinkronisasi dropdown.
                  */
                 if (
                     typeof providerModule.populateSelect ===
@@ -579,12 +605,7 @@
         }
 
         /*
-         * FALLBACK:
-         * Hanya digunakan jika Provider module
-         * belum tersedia.
-         *
-         * Ini menjaga kompatibilitas sementara
-         * dengan struktur lama.
+         * FALLBACK LEGACY
          */
         const data =
             getModelsData();
@@ -657,13 +678,13 @@
         providers = state.providers
     ) {
 
-        /*
-         * Jika Provider module tersedia,
-         * serahkan rendering dropdown kepadanya.
-         */
         const providerModule =
             getModelsProvider();
 
+        /*
+         * Provider module adalah pemilik utama
+         * dropdown Provider.
+         */
         if (
             providerModule &&
             typeof providerModule.populateSelect ===
@@ -697,7 +718,7 @@
         }
 
         /*
-         * FALLBACK RENDERING.
+         * FALLBACK RENDERING
          */
         const select =
             $("providerId");
@@ -805,7 +826,10 @@
 
         console.info(
             "[models-ui] Provider dropdown:",
-            select.options.length - 1
+            Math.max(
+                0,
+                select.options.length - 1
+            )
         );
     }
 
@@ -824,9 +848,6 @@
             return null;
         }
 
-        /*
-         * Cari dari state UI terlebih dahulu.
-         */
         const localProvider =
             state.providers.find(
                 provider =>
@@ -844,10 +865,6 @@
             return localProvider;
         }
 
-        /*
-         * Jika Provider module memiliki API,
-         * gunakan sebagai fallback.
-         */
         const providerModule =
             getModelsProvider();
 
@@ -930,8 +947,8 @@
             );
 
             /*
-             * Search menerima catalog
-             * SETELAH Supabase selesai.
+             * Search selalu menerima
+             * catalog terbaru.
              */
             const search =
                 getModelsSearch();
@@ -950,6 +967,35 @@
                     "[models-ui] Search catalog synchronized:",
                     state.models.length
                 );
+            }
+
+            /*
+             * Table module juga menerima
+             * catalog terbaru jika tersedia.
+             */
+            const table =
+                window.GENZModelTable;
+
+            if (
+                table &&
+                typeof table.setModels ===
+                    "function"
+            ) {
+
+                try {
+
+                    table.setModels(
+                        state.models
+                    );
+
+                } catch (error) {
+
+                    console.warn(
+                        "[models-ui] Table synchronization warning:",
+                        error
+                    );
+
+                }
             }
 
             return state.models;
@@ -972,14 +1018,34 @@
                     "function"
             ) {
 
-                /*
-                 * Tetap set [].
-                 * Search masih mengizinkan
-                 * input Model ID manual.
-                 */
                 search.setModels(
                     []
                 );
+            }
+
+            const table =
+                window.GENZModelTable;
+
+            if (
+                table &&
+                typeof table.setModels ===
+                    "function"
+            ) {
+
+                try {
+
+                    table.setModels(
+                        []
+                    );
+
+                } catch (tableError) {
+
+                    console.warn(
+                        "[models-ui] Table empty-state warning:",
+                        tableError
+                    );
+
+                }
             }
 
             notify(
@@ -1045,7 +1111,6 @@
                 [];
 
             return [];
-
         }
     }
 
@@ -1061,7 +1126,6 @@
         ) {
 
             return [];
-
         }
 
         try {
@@ -1089,7 +1153,6 @@
                 [];
 
             return [];
-
         }
     }
 
@@ -1313,7 +1376,34 @@
                 search.setModels(
                     models
                 );
+            }
 
+            /*
+             * Table final sync.
+             */
+            const table =
+                window.GENZModelTable;
+
+            if (
+                table &&
+                typeof table.setModels ===
+                    "function"
+            ) {
+
+                try {
+
+                    table.setModels(
+                        models
+                    );
+
+                } catch (error) {
+
+                    console.warn(
+                        "[models-ui] Table refresh sync warning:",
+                        error
+                    );
+
+                }
             }
 
             updateStatistics(
@@ -1481,7 +1571,6 @@
         ) {
 
             return;
-
         }
 
         const element =
@@ -1508,12 +1597,14 @@
                 price.renderPrice(
                     pricing
                 );
-
         }
     }
 
     /* =====================================================
        BUTTON EVENTS
+       Hanya Add + Refresh.
+       Close/Cancel sekarang milik
+       GENZModelFormEvents.
     ===================================================== */
 
     function executeHandler(
@@ -1544,7 +1635,6 @@
                             "Terjadi kesalahan saat menjalankan aksi.",
                             "error"
                         );
-
                     }
                 );
             }
@@ -1583,13 +1673,16 @@
                 continue;
             }
 
+            /*
+             * Jangan menimpa listener yang
+             * sudah dipasang module lain.
+             */
             if (
                 button.dataset
                     .genzUiBound === "true"
             ) {
 
                 continue;
-
             }
 
             button.dataset
@@ -1599,13 +1692,15 @@
                 "click",
                 event => {
 
+                    /*
+                     * Hanya handler UI sendiri.
+                     */
                     event.preventDefault();
 
                     executeHandler(
                         handler,
                         event
                     );
-
                 }
             );
         }
@@ -1613,6 +1708,9 @@
 
     function bindButtons() {
 
+        /*
+         * ADD MODEL
+         */
         bindButton(
             [
                 "addModelButton",
@@ -1629,34 +1727,9 @@
             }
         );
 
-        bindButton(
-            [
-                "closeModalBtn",
-                "closeModelModal",
-                "closeModalButton",
-                "modelModalClose"
-            ],
-            () => {
-
-                return closeModal();
-
-            }
-        );
-
-        bindButton(
-            [
-                "cancelModalBtn",
-                "cancelModelButton",
-                "cancelModelBtn",
-                "cancelBtn"
-            ],
-            () => {
-
-                return closeModal();
-
-            }
-        );
-
+        /*
+         * REFRESH
+         */
         bindButton(
             [
                 "refreshBtn",
@@ -1686,7 +1759,6 @@
         ) {
 
             return;
-
         }
 
         document.body.dataset
@@ -1703,6 +1775,14 @@
                     );
 
                 if (!target) {
+                    return;
+                }
+
+                /*
+                 * Jangan mengambil alih event
+                 * yang sudah ditangani module utama.
+                 */
+                if (event.defaultPrevented) {
                     return;
                 }
 
@@ -1727,10 +1807,29 @@
                     return;
                 }
 
+                /*
+                 * Close-model sekarang dikelola
+                 * GENZModelFormEvents.
+                 *
+                 * Fallback tetap ada hanya jika
+                 * module event belum tersedia.
+                 */
                 if (
                     action ===
                     "close-model"
                 ) {
+
+                    const events =
+                        getFormEvents();
+
+                    if (
+                        events &&
+                        typeof events.bind ===
+                            "function"
+                    ) {
+
+                        return;
+                    }
 
                     event.preventDefault();
 
@@ -1744,87 +1843,43 @@
 
     /* =====================================================
        MODAL EVENTS
+       Event utama sekarang ditangani
+       GENZModelFormEvents.
     ===================================================== */
 
     function bindModalEvents() {
 
+        const events =
+            getFormEvents();
+
         if (
-            !document.body ||
-            document.body.dataset
-                .genzModalEventsBound ===
-                "true"
+            events &&
+            typeof events.bind ===
+                "function"
         ) {
 
-            return;
+            try {
 
+                return events.bind();
+
+            } catch (error) {
+
+                console.warn(
+                    "[models-ui] GENZModelFormEvents bind error:",
+                    error
+                );
+
+            }
         }
 
-        document.body.dataset
-            .genzModalEventsBound =
-            "true";
+        /*
+         * Jangan membuat listener baru di sini.
+         *
+         * models-init.js akan menginisialisasi
+         * GENZModelFormEvents.
+         */
 
-        document.addEventListener(
-            "click",
-            event => {
-
-                const modal =
-                    getModal();
-
-                if (!modal) {
-                    return;
-                }
-
-                if (
-                    !modal.classList.contains(
-                        "show"
-                    )
-                ) {
-
-                    return;
-
-                }
-
-                if (
-                    event.target ===
-                    modal
-                ) {
-
-                    closeModal();
-
-                }
-
-            }
-        );
-
-        document.addEventListener(
-            "keydown",
-            event => {
-
-                if (
-                    event.key !==
-                    "Escape"
-                ) {
-
-                    return;
-
-                }
-
-                const modal =
-                    getModal();
-
-                if (
-                    modal &&
-                    modal.classList.contains(
-                        "show"
-                    )
-                ) {
-
-                    closeModal();
-
-                }
-
-            }
-        );
+        return false;
     }
 
     /* =====================================================
@@ -1856,7 +1911,7 @@
 
             /*
              * Support initialize()
-             * yang synchronous maupun async.
+             * synchronous maupun async.
              */
             if (
                 result &&
@@ -1866,6 +1921,23 @@
 
                 return result
                     .then(() => {
+
+                        /*
+                         * Pastikan event module
+                         * juga sudah aktif.
+                         */
+                        const events =
+                            getFormEvents();
+
+                        if (
+                            events &&
+                            typeof events.bind ===
+                                "function"
+                        ) {
+
+                            events.bind();
+
+                        }
 
                         console.info(
                             "[models-ui] Form initialized."
@@ -1884,6 +1956,23 @@
                         return false;
 
                     });
+            }
+
+            /*
+             * Form sudah initialize.
+             * Event handler tetap diserahkan
+             * kepada GENZModelFormEvents.
+             */
+            const events =
+                getFormEvents();
+
+            if (
+                events &&
+                typeof events.bind ===
+                    "function"
+            ) {
+
+                events.bind();
 
             }
 
@@ -1940,7 +2029,6 @@
                 search.setModels(
                     state.models
                 );
-
             }
 
             const result =
@@ -1974,7 +2062,6 @@
                         return false;
 
                     });
-
             }
 
             console.info(
@@ -1998,93 +2085,45 @@
 
     /* =====================================================
        TABLE EVENTS
+       Event utama sekarang ditangani
+       GENZModelTableEvents.
     ===================================================== */
 
     function bindTableEvents() {
 
-        const table =
-            $("modelTableBody");
-
-        if (!table) {
-            return;
-        }
+        const events =
+            getTableEvents();
 
         if (
-            table.dataset
-                .genzTableEventsBound ===
-                "true"
+            events &&
+            typeof events.bind ===
+                "function"
         ) {
 
-            return;
+            try {
+
+                return events.bind();
+
+            } catch (error) {
+
+                console.warn(
+                    "[models-ui] GENZModelTableEvents bind error:",
+                    error
+                );
+
+                return false;
+            }
         }
 
-        table.dataset
-            .genzTableEventsBound =
-            "true";
+        /*
+         * Jangan membuat event listener tabel
+         * langsung dari UI.
+         *
+         * models-init.js akan mengaktifkan
+         * GENZModelTableEvents.
+         */
 
-        table.addEventListener(
-            "click",
-            event => {
-
-                const editButton =
-                    event.target.closest(
-                        "[data-model-edit]"
-                    );
-
-                if (editButton) {
-
-                    event.preventDefault();
-
-                    const modelId =
-                        editButton.getAttribute(
-                            "data-model-edit"
-                        );
-
-                    const model =
-                        findModelById(
-                            modelId
-                        );
-
-                    if (model) {
-
-                        openEditModal(
-                            model
-                        );
-
-                    }
-
-                    return;
-                }
-
-                const selectButton =
-                    event.target.closest(
-                        "[data-model-select]"
-                    );
-
-                if (selectButton) {
-
-                    event.preventDefault();
-
-                    const modelId =
-                        selectButton.getAttribute(
-                            "data-model-select"
-                        );
-
-                    const model =
-                        findModelById(
-                            modelId
-                        );
-
-                    if (model) {
-
-                        selectModel(
-                            model
-                        );
-
-                    }
-                }
-            }
-        );
+        return false;
     }
 
     /* =====================================================
@@ -2101,7 +2140,6 @@
         ) {
 
             return state.providers;
-
         }
 
         try {
@@ -2122,7 +2160,6 @@
 
                     state.providers =
                         providers;
-
                 }
             }
 
@@ -2132,7 +2169,6 @@
                 "[models-ui] Provider state sync error:",
                 error
             );
-
         }
 
         return state.providers;
@@ -2163,44 +2199,42 @@
 
                     /* =============================================
                        STEP 1
-                       DOM EVENTS
+                       UI BASIC EVENTS
+
+                       Hanya:
+                       - Add
+                       - Refresh
+
+                       Form dan Table event ditangani
+                       module masing-masing.
                     ============================================= */
 
                     bindButtons();
+
+                    /*
+                     * Action fallback tetap dipertahankan
+                     * untuk tombol data-action.
+                     */
                     bindActionFallback();
-                    bindModalEvents();
-                    bindTableEvents();
 
                     /* =============================================
-   STEP 2
-   PROVIDER
-============================================= */
+                       STEP 2
+                       PROVIDER STATE
 
-/*
- * Provider lifecycle sekarang sepenuhnya
- * dimiliki oleh GENZModelsInit.
- *
- * models-ui hanya mengambil state Provider
- * yang sudah dimuat oleh GENZModelsProvider.
- *
- * JANGAN memanggil loadProviders() di sini.
- * Ini mencegah:
- *
- * 1. Query Provider dua kali
- * 2. Dropdown Provider ditimpa
- * 3. Provider hilang setelah Search initialize
- * 4. Konflik antara models-init.js dan models-ui.js
- */
-syncProviderState();
+                       Provider lifecycle sudah dilakukan
+                       oleh GENZModelsInit.
+                    ============================================= */
 
-populateProviderSelect(
-    state.providers
-);
+                    syncProviderState();
 
-console.info(
-    "[models-ui] Provider siap:",
-    state.providers.length
-);
+                    populateProviderSelect(
+                        state.providers
+                    );
+
+                    console.info(
+                        "[models-ui] Provider siap:",
+                        state.providers.length
+                    );
 
                     /* =============================================
                        STEP 3
@@ -2227,6 +2261,12 @@ console.info(
                     /* =============================================
                        STEP 5
                        FORM
+
+                       Form logic tetap dimiliki
+                       GENZModelsForm.
+
+                       Event logic dimiliki
+                       GENZModelFormEvents.
                     ============================================= */
 
                     await bindFormEvents();
@@ -2240,6 +2280,16 @@ console.info(
 
                     /* =============================================
                        STEP 7
+                       TABLE EVENTS
+
+                       Edit/Delete/Select dimiliki
+                       GENZModelTableEvents.
+                    ============================================= */
+
+                    bindTableEvents();
+
+                    /* =============================================
+                       STEP 8
                        FINAL SYNC
                     ============================================= */
 
@@ -2259,7 +2309,30 @@ console.info(
                         search.setModels(
                             state.models
                         );
+                    }
 
+                    const table =
+                        window.GENZModelTable;
+
+                    if (
+                        table &&
+                        typeof table.setModels ===
+                            "function"
+                    ) {
+
+                        try {
+
+                            table.setModels(
+                                state.models
+                            );
+
+                        } catch (error) {
+
+                            console.warn(
+                                "[models-ui] Final table sync warning:",
+                                error
+                            );
+                        }
                     }
 
                     syncProviderState();
@@ -2268,6 +2341,10 @@ console.info(
                         state.providers
                     );
 
+                    /*
+                     * Jangan menganggap initialized
+                     * sebelum seluruh proses di atas selesai.
+                     */
                     initialized =
                         true;
 
@@ -2291,8 +2368,8 @@ console.info(
                     );
 
                     /*
-                     * Jangan pernah mengunci initialized
-                     * jika proses belum benar-benar selesai.
+                     * Jika ada kegagalan,
+                     * initialization boleh dicoba kembali.
                      */
                     initialized =
                         false;
@@ -2318,7 +2395,6 @@ console.info(
 
                     initializing =
                         null;
-
                 }
 
             })();
