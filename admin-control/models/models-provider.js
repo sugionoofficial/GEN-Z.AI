@@ -7,9 +7,17 @@
    - Memuat daftar provider untuk halaman Models
    - Mengisi dropdown #providerId
    - Menyediakan provider ke module lain
+   - Mendukung provider.id (UUID)
+   - Mendukung provider.provider_id (kode provider)
    - Tidak mengambil alih fungsi Models UI
    - Tidak melakukan auto-initialize
    - Tidak memasang event listener global
+
+   ARSITEKTUR:
+   - models-data.js        = sumber data
+   - models-provider.js    = lifecycle + lookup Provider
+   - model-provider-dropdown.js = kontrol dropdown
+   - models-form.js        = penggunaan Provider pada Form
    ========================================================= */
 
 (function () {
@@ -40,7 +48,8 @@
         try {
             if (
                 window.GENZModelsUI &&
-                typeof window.GENZModelsUI.showAlert === "function"
+                typeof window.GENZModelsUI.showAlert ===
+                    "function"
             ) {
                 window.GENZModelsUI.showAlert(
                     type,
@@ -70,7 +79,6 @@
                 " show";
 
         } catch (error) {
-
             console.error(
                 "[GEN-Z.AI] Provider notify error:",
                 error
@@ -81,6 +89,27 @@
 
     /* =====================================================
        NORMALIZE PROVIDER
+       
+       PENTING:
+       Jangan kehilangan provider.id.
+
+       Struktur Provider bisa berupa:
+
+       {
+           id: UUID,
+           provider_id: "bytedance",
+           provider_name: "ByteDance"
+       }
+
+       atau legacy:
+
+       {
+           provider_id: "bytedance"
+       }
+
+       Form Edit bisa menerima UUID dari models.provider_id,
+       sedangkan dropdown tetap memakai provider_id sebagai
+       value.
     ===================================================== */
 
     function normalizeProvider(provider) {
@@ -92,15 +121,32 @@
             return null;
         }
 
-        const providerId =
+        const databaseId =
             String(
-                provider.provider_id ??
-                provider.provider ??
                 provider.id ??
                 ""
             ).trim();
 
-        if (!providerId) {
+        const providerCode =
+            String(
+                provider.provider_id ??
+                provider.provider ??
+                ""
+            ).trim();
+
+        /*
+         * ID utama untuk kebutuhan internal.
+         *
+         * Jika provider_id tersedia, gunakan itu sebagai
+         * value dropdown.
+         *
+         * Jika tidak tersedia, fallback ke id.
+         */
+        const normalizedProviderId =
+            providerCode ||
+            databaseId;
+
+        if (!normalizedProviderId) {
             return null;
         }
 
@@ -108,14 +154,26 @@
             String(
                 provider.provider_name ??
                 provider.name ??
-                providerId
+                normalizedProviderId
             ).trim();
 
         return {
             ...provider,
 
+            /*
+             * Pertahankan UUID database.
+             */
+            id:
+                databaseId ||
+                provider.id ||
+                null,
+
+            /*
+             * provider_id adalah kode provider jika
+             * tersedia. Jika tidak, fallback ke id.
+             */
             provider_id:
-                providerId,
+                normalizedProviderId,
 
             provider_name:
                 providerName
@@ -145,16 +203,39 @@
                 return;
             }
 
-            const key =
-                provider.provider_id
-                    .trim()
-                    .toLowerCase();
+            /*
+             * Deduplicate berdasarkan seluruh identifier
+             * yang dikenal.
+             *
+             * Ini mencegah satu Provider muncul dua kali
+             * apabila data memiliki variasi identifier.
+             */
+            const keys = [
+                provider.id,
+                provider.provider_id,
+                provider.provider
+            ]
+                .map(function (value) {
+                    return String(
+                        value ?? ""
+                    )
+                        .trim()
+                        .toLowerCase();
+                })
+                .filter(Boolean);
 
-            if (seen.has(key)) {
+            const alreadyExists =
+                keys.some(function (key) {
+                    return seen.has(key);
+                });
+
+            if (alreadyExists) {
                 return;
             }
 
-            seen.add(key);
+            keys.forEach(function (key) {
+                seen.add(key);
+            });
 
             result.push(provider);
         });
@@ -241,8 +322,69 @@
 
 
     /* =====================================================
+       FIND PROVIDER MATCH
+       
+       Satu fungsi pusat untuk seluruh pencarian Provider.
+
+       Dapat menerima:
+       - providers.id
+       - providers.provider_id
+       - provider.provider
+       ===================================================== */
+
+    function matchesProvider(
+        provider,
+        identifier
+    ) {
+
+        if (!provider) {
+            return false;
+        }
+
+        const normalized =
+            String(
+                identifier ??
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        if (!normalized) {
+            return false;
+        }
+
+        const candidates = [
+            provider.id,
+            provider.provider_id,
+            provider.provider
+        ];
+
+        return candidates.some(
+            function (candidate) {
+
+                return (
+                    String(
+                        candidate ??
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    normalized
+                );
+            }
+        );
+    }
+
+
+    /* =====================================================
        POPULATE PROVIDER SELECT
        #providerId
+
+       Owner:
+       GENZModelsProvider
+
+       Dropdown menerima provider_id sebagai value,
+       tetapi lookup tetap mendukung UUID provider.id.
     ===================================================== */
 
     function populateSelect(
@@ -266,10 +408,7 @@
 
         /*
          * Simpan value yang sedang dipilih.
-         * Ini penting supaya refresh tidak mereset
-         * provider yang sedang dipakai.
          */
-
         const currentValue =
             String(
                 options.value ??
@@ -281,7 +420,6 @@
             normalizeProviders(list);
 
         if (activeOnly) {
-
             source =
                 source.filter(
                     isActive
@@ -304,7 +442,8 @@
                 "option"
             );
 
-        placeholder.value = "";
+        placeholder.value =
+            "";
 
         placeholder.textContent =
             "Pilih Provider";
@@ -321,38 +460,57 @@
         source.forEach(
             function (provider) {
 
+                /*
+                 * Dropdown menggunakan provider_id.
+                 *
+                 * Ini penting agar data Model baru tetap
+                 * konsisten dengan API yang memakai
+                 * provider_id sebagai kode provider.
+                 */
+                const providerValue =
+                    String(
+                        provider.provider_id ??
+                        provider.id ??
+                        ""
+                    ).trim();
+
+                if (!providerValue) {
+                    return;
+                }
+
                 const option =
                     document.createElement(
                         "option"
                     );
 
                 option.value =
-                    provider.provider_id;
+                    providerValue;
 
                 const name =
                     provider.provider_name ||
-                    provider.provider_id;
-
-                /*
-                 * Tampilan:
-                 *
-                 * ByteDance (bytedance)
-                 * KIE AI (kie)
-                 *
-                 * Tetapi value tetap:
-                 *
-                 * bytedance
-                 * kie
-                 */
+                    providerValue;
 
                 option.textContent =
-                    name ===
-                    provider.provider_id
-                        ? provider.provider_id
+                    name === providerValue
+                        ? providerValue
                         : name +
                           " (" +
-                          provider.provider_id +
+                          providerValue +
                           ")";
+
+                /*
+                 * Simpan UUID sebagai metadata option.
+                 * Tidak mengubah value dropdown.
+                 *
+                 * Ini berguna apabila module lain perlu
+                 * mengetahui providers.id.
+                 */
+                if (provider.id) {
+                    option.dataset.providerUuid =
+                        String(
+                            provider.id
+                        );
+                }
 
                 fragment.appendChild(
                     option
@@ -372,27 +530,56 @@
 
         /* -------------------------------------------------
            RESTORE VALUE
+           
+           Pertama coba cocokkan langsung.
+
+           Jika currentValue adalah UUID, cari Provider
+           berdasarkan UUID lalu gunakan provider_id
+           sebagai value dropdown.
         ------------------------------------------------- */
 
         if (currentValue) {
 
-            const exists =
+            const directOption =
                 Array.from(
                     select.options
-                ).some(
+                ).find(
                     function (option) {
 
                         return (
-                            option.value ===
-                            currentValue
+                            String(
+                                option.value ??
+                                ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            currentValue.toLowerCase()
                         );
                     }
                 );
 
-            if (exists) {
+            if (directOption) {
 
                 select.value =
-                    currentValue;
+                    directOption.value;
+
+            } else {
+
+                const matchedProvider =
+                    source.find(
+                        function (provider) {
+                            return matchesProvider(
+                                provider,
+                                currentValue
+                            );
+                        }
+                    );
+
+                if (matchedProvider) {
+
+                    select.value =
+                        matchedProvider.provider_id;
+                }
             }
         }
 
@@ -402,7 +589,15 @@
 
     /* =====================================================
        LOAD PROVIDERS
-       Menggunakan GENZModelsData
+       
+       Sumber data:
+       GENZModelsData
+
+       Module ini bertanggung jawab atas:
+       - mengambil Provider
+       - normalize
+       - menyimpan state
+       - populate dropdown
     ===================================================== */
 
     async function loadProviders(
@@ -417,7 +612,6 @@
             typeof data.loadProviders !==
                 "function"
         ) {
-
             throw new Error(
                 "GENZModelsData belum tersedia."
             );
@@ -453,19 +647,16 @@
 
         /* -------------------------------------------------
            POPULATE SELECT
+           
+           Data module sudah melakukan filter activeOnly.
+
+           Jadi Provider module tidak melakukan filter
+           kedua kali.
         ------------------------------------------------- */
 
         populateSelect(
             providers,
             {
-                /*
-                 * Data module sudah melakukan
-                 * filtering activeOnly.
-                 *
-                 * Karena itu jangan filter kedua kali
-                 * di sini.
-                 */
-
                 activeOnly: false,
 
                 value:
@@ -580,6 +771,13 @@
 
     /* =====================================================
        GET PROVIDER BY ID
+       
+       Menerima:
+       - providers.id
+       - providers.provider_id
+       - providers.provider
+
+       Ini adalah bagian penting untuk Edit Model.
     ===================================================== */
 
     function getProviderById(
@@ -602,12 +800,8 @@
             providers.find(
                 function (provider) {
 
-                    return (
-                        String(
-                            provider.provider_id
-                        )
-                            .trim()
-                            .toLowerCase() ===
+                    return matchesProvider(
+                        provider,
                         id
                     );
                 }
@@ -618,7 +812,47 @@
 
 
     /* =====================================================
+       GET PROVIDER VALUE
+       
+       Mengubah identifier apa pun menjadi provider_id
+       yang digunakan oleh dropdown/API Model.
+    ===================================================== */
+
+    function getProviderValue(
+        providerId
+    ) {
+
+        const provider =
+            getProviderById(
+                providerId
+            );
+
+        if (!provider) {
+            return "";
+        }
+
+        return String(
+            provider.provider_id ??
+            provider.provider ??
+            provider.id ??
+            ""
+        ).trim();
+    }
+
+
+    /* =====================================================
        SET SELECT VALUE
+       
+       Mendukung UUID maupun provider_id.
+       
+       Contoh:
+       
+       setValue("bytedance")
+       setValue("UUID-PROVIDER-123")
+       
+       Keduanya akan memilih:
+       
+       ByteDance (bytedance)
     ===================================================== */
 
     function setValue(
@@ -646,25 +880,89 @@
             return true;
         }
 
-        const exists =
+        /*
+         * 1. Coba langsung berdasarkan option.value.
+         */
+        const directOption =
             Array.from(
                 select.options
-            ).some(
+            ).find(
                 function (option) {
 
                     return (
-                        option.value ===
-                        value
+                        String(
+                            option.value ??
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase() ===
+                        value.toLowerCase()
                     );
                 }
             );
 
-        if (!exists) {
+        if (directOption) {
+
+            select.value =
+                directOption.value;
+
+            return true;
+        }
+
+        /*
+         * 2. Cari Provider berdasarkan:
+         *    - id
+         *    - provider_id
+         *    - provider
+         */
+        const provider =
+            getProviderById(
+                value
+            );
+
+        if (!provider) {
+            return false;
+        }
+
+        /*
+         * 3. Gunakan provider_id sebagai value dropdown.
+         */
+        const providerValue =
+            String(
+                provider.provider_id ??
+                provider.provider ??
+                provider.id ??
+                ""
+            ).trim();
+
+        if (!providerValue) {
+            return false;
+        }
+
+        const option =
+            Array.from(
+                select.options
+            ).find(
+                function (item) {
+
+                    return (
+                        String(
+                            item.value ??
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase() ===
+                        providerValue.toLowerCase()
+                    );
+                }
+            );
+
+        if (!option) {
             return false;
         }
 
         select.value =
-            value;
+            option.value;
 
         return true;
     }
@@ -719,6 +1017,8 @@
             getProviders,
 
             getProviderById,
+
+            getProviderValue,
 
             setValue,
 
