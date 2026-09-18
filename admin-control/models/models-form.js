@@ -1815,212 +1815,139 @@
     }
 
     /* =====================================================
-       FORM SUBMIT
-    ===================================================== */
+   LEGACY EVENT BINDING COMPATIBILITY
+===================================================== */
 
-    function bindFormSubmit() {
-        const form =
-            getElement(
-                "modelForm"
-            );
+/*
+ * Event sekarang dimiliki oleh:
+ *
+ * admin-control/models/functions/model-form-events.js
+ *
+ * models-form.js tetap menyediakan fungsi lama
+ * supaya module lain yang masih memanggil fungsi ini
+ * tidak rusak.
+ */
 
-        if (!form) {
-            console.warn(
-                "[models-form] #modelForm tidak ditemukan."
-            );
+/* =====================================================
+   FORM SUBMIT
+===================================================== */
 
-            return;
-        }
+function bindFormSubmit() {
 
-        if (
-            form.dataset
-                .genzSaveBound ===
-            "true"
-        ) {
-            return;
-        }
+    const events =
+        window.GENZModelFormEvents;
 
-        form.dataset
-            .genzSaveBound =
-            "true";
-
-        form.addEventListener(
-            "submit",
-            saveModel
-        );
+    if (
+        events &&
+        typeof events.bind ===
+            "function"
+    ) {
+        return events.bind();
     }
 
-    /* =====================================================
-       CLOSE BUTTON
-    ===================================================== */
+    console.warn(
+        "[models-form] GENZModelFormEvents belum tersedia."
+    );
 
-    function bindCloseButtons() {
-        const closeButton =
-            firstElement([
-                "closeModalBtn",
-                "closeModelModal",
-                "closeModalButton",
-                "modelModalClose"
-            ]);
+    return false;
+}
 
-        const cancelButton =
-            firstElement([
-                "cancelModalBtn",
-                "cancelModelButton",
-                "cancelModelBtn",
-                "cancelBtn"
-            ]);
 
-        if (closeButton) {
-            if (
-                closeButton.dataset
-                    .genzFormBound !==
-                "true"
-            ) {
-                closeButton.dataset
-                    .genzFormBound =
-                    "true";
+/* =====================================================
+   CLOSE BUTTON
+===================================================== */
 
-                closeButton.addEventListener(
-                    "click",
-                    function (event) {
-                        event.preventDefault();
-                        event.stopPropagation();
+function bindCloseButtons() {
 
-                        closeModal();
-                    }
-                );
-            }
-        }
+    const events =
+        window.GENZModelFormEvents;
 
-        if (cancelButton) {
-            if (
-                cancelButton.dataset
-                    .genzFormBound !==
-                "true"
-            ) {
-                cancelButton.dataset
-                    .genzFormBound =
-                    "true";
-
-                cancelButton.addEventListener(
-                    "click",
-                    function (event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        closeModal();
-                    }
-                );
-            }
-        }
+    if (
+        events &&
+        typeof events.bind ===
+            "function"
+    ) {
+        return events.bind();
     }
 
-    /* =====================================================
-       MODAL BACKDROP
-    ===================================================== */
+    return false;
+}
 
-    function bindModalBackdrop() {
-        const modal =
-            getElement(
-                "modelModal"
-            );
 
-        if (!modal) {
-            return;
-        }
+/* =====================================================
+   MODAL BACKDROP
+===================================================== */
 
-        if (
-            modal.dataset
-                .genzBackdropBound ===
-            "true"
-        ) {
-            return;
-        }
+function bindModalBackdrop() {
 
-        modal.dataset
-            .genzBackdropBound =
-            "true";
+    const events =
+        window.GENZModelFormEvents;
 
-        modal.addEventListener(
-            "click",
-            function (event) {
-                if (
-                    event.target ===
-                    modal
-                ) {
-                    closeModal();
-                }
-            }
-        );
+    if (
+        events &&
+        typeof events.bind ===
+            "function"
+    ) {
+        return events.bind();
     }
 
-    /* =====================================================
-       ESCAPE
-    ===================================================== */
+    return false;
+}
 
-    function bindEscape() {
-        if (
-            document.body.dataset
-                .genzModelEscapeBound ===
-            "true"
-        ) {
-            return;
-        }
 
-        document.body.dataset
-            .genzModelEscapeBound =
-            "true";
+/* =====================================================
+   ESCAPE
+===================================================== */
 
-        document.addEventListener(
-            "keydown",
-            function (event) {
-                if (
-                    event.key !==
-                    "Escape"
-                ) {
-                    return;
-                }
+function bindEscape() {
 
-                const modal =
-                    getElement(
-                        "modelModal"
-                    );
+    const events =
+        window.GENZModelFormEvents;
 
-                if (!modal) {
-                    return;
-                }
-
-                if (
-                    modal.classList.contains(
-                        "show"
-                    ) ||
-                    modal.classList.contains(
-                        "open"
-                    )
-                ) {
-                    closeModal();
-                }
-            }
-        );
+    if (
+        events &&
+        typeof events.bind ===
+            "function"
+    ) {
+        return events.bind();
     }
 
-    /* =====================================================
-       INITIALIZE
-    ===================================================== */
+    return false;
+}
 
-    function initialize() {
-        if (initialized) {
-            return;
-        }
 
-        initialized = true;
+/* =====================================================
+   INITIALIZE
+===================================================== */
 
-        bindFormSubmit();
-        bindCloseButtons();
-        bindModalBackdrop();
-        bindEscape();
+function initialize() {
+
+    if (initialized) {
+        return true;
     }
+
+    initialized = true;
+
+    /*
+     * PENTING:
+     *
+     * Jangan lagi memasang event listener langsung
+     * dari models-form.js.
+     *
+     * Seluruh event Form sekarang dimiliki:
+     *
+     * GENZModelFormEvents
+     *
+     * Lifecycle owner:
+     * models-init.js
+     */
+
+    console.log(
+        "[GEN-Z.AI] GENZModelsForm initialized."
+    );
+
+    return true;
+}
 
     /* =====================================================
        PUBLIC API
