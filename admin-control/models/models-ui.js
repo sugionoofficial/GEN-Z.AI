@@ -926,10 +926,6 @@
             );
 
 
-            /*
-             * Search hanya menerima catalog.
-             */
-
             const search =
                 getModelsSearch();
 
@@ -946,10 +942,6 @@
 
             }
 
-
-            /*
-             * Table hanya menerima catalog.
-             */
 
             const table =
                 window.GENZModelTable;
@@ -981,11 +973,6 @@
             state.models =
                 [];
 
-
-            /*
-             * Sinkronkan empty state
-             * ke Search dan Table.
-             */
 
             const search =
                 getModelsSearch();
@@ -1131,9 +1118,6 @@
 
     /* =====================================================
        REFRESH
-       -----------------------------------------------------
-       Refresh hanya meminta owner masing-masing
-       memuat ulang datanya.
     ===================================================== */
 
     async function refreshModels() {
@@ -1171,50 +1155,27 @@
             );
 
 
-            /*
-             * Provider
-             */
-
             await loadProviders(
                 {
+                    force:
+                        true,
 
-                    force: true,
-
-                    activeOnly: false
-
+                    activeOnly:
+                        false
                 }
             );
 
-
-            /*
-             * Catalog
-             */
 
             await loadModels(
                 {
+                    force:
+                        true,
 
-                    force: true,
-
-                    activeOnly: false
-
+                    activeOnly:
+                        false
                 }
             );
 
-
-            /*
-             * Pricing
-             */
-
-            await initializePrice(
-                {
-                    force: true
-                }
-            );
-
-
-            /*
-             * Final synchronization.
-             */
 
             syncProviderState();
 
@@ -1225,6 +1186,13 @@
             updateStatistics(
                 state.models
             );
+
+
+            /*
+             * Jika lifecycle pernah berjalan sebelum
+             * tombol tersedia, coba binding lagi.
+             */
+            bindButtons();
 
 
             console.info(
@@ -1359,14 +1327,6 @@
 
         }
 
-
-        /*
-         * Generic:
-         *
-         * data-model-stat="total"
-         * data-model-stat="active"
-         * data-model-stat="inactive"
-         */
 
         document
             .querySelectorAll(
@@ -1541,10 +1501,6 @@
 
     /* =====================================================
        PRICE
-       -----------------------------------------------------
-       models-ui hanya menyimpan pricing state.
-       Credit calculation tetap milik
-       GENZModelPriceCalculation.
     ===================================================== */
 
     async function initializePrice(
@@ -1691,14 +1647,6 @@
         }
 
 
-        /*
-         * models-price.js pada versi sekarang
-         * menggunakan getModelPrice().
-         *
-         * Tetap dukung findPricingForModel()
-         * apabila module lama masih memilikinya.
-         */
-
         if (
             typeof price.getModelPrice ===
                 "function"
@@ -1801,7 +1749,7 @@
        models-init -> lifecycle.
        models-ui hanya memiliki tombol UI umum:
        Add dan Refresh.
-       
+
        Row Edit/Delete bukan milik UI.
     ===================================================== */
 
@@ -1885,6 +1833,10 @@
         }
 
 
+        let bound =
+            false;
+
+
         for (
             const id of ids
         ) {
@@ -1902,11 +1854,18 @@
             }
 
 
+            /*
+             * Jika tombol sudah dibind, jangan
+             * memasang listener kedua.
+             */
             if (
                 button.dataset
                     .genzUiBound ===
                 "true"
             ) {
+
+                bound =
+                    true;
 
                 continue;
 
@@ -1918,6 +1877,11 @@
                 "true";
 
 
+            button.dataset
+                .genzUiButtonBound =
+                "true";
+
+
             button.addEventListener(
                 "click",
                 function (
@@ -1925,6 +1889,8 @@
                 ) {
 
                     event.preventDefault();
+
+                    event.stopPropagation();
 
 
                     executeHandler(
@@ -1935,79 +1901,144 @@
                 }
             );
 
+
+            bound =
+                true;
+
         }
+
+
+        return bound;
 
     }
 
 
     function bindButtons() {
 
+        /*
+         * Jangan mengunci buttonsBound hanya karena
+         * bindButtons() sudah pernah dipanggil.
+         *
+         * models-init dapat menjalankan lifecycle ketika
+         * elemen tombol belum tersedia.
+         */
+
         if (
             buttonsBound
         ) {
 
-            return true;
+            /*
+             * Verifikasi bahwa tombol yang sebelumnya
+             * berhasil dibind masih benar-benar ada.
+             */
+            const existingBoundButton =
+                document.querySelector(
+                    "[data-genz-ui-button-bound='true']"
+                );
+
+
+            if (
+                existingBoundButton
+            ) {
+
+                return true;
+
+            }
+
+
+            buttonsBound =
+                false;
 
         }
+
+
+        let anyBound =
+            false;
 
 
         /*
          * ADD MODEL
          */
 
-        bindButton(
-            [
+        const addBound =
+            bindButton(
+                [
 
-                "addModelButton",
+                    "addModelButton",
 
-                "addModelBtn",
+                    "addModelBtn",
 
-                "createModelButton",
+                    "createModelButton",
 
-                "addModel",
+                    "addModel",
 
-                "btnAddModel",
+                    "btnAddModel",
 
-                "newModelBtn"
+                    "newModelBtn"
 
-            ],
-            function () {
+                ],
+                function () {
 
-                return openModal();
+                    return openModal();
 
-            }
-        );
+                }
+            );
+
+
+        if (
+            addBound
+        ) {
+
+            anyBound =
+                true;
+
+        }
 
 
         /*
          * REFRESH
          */
 
-        bindButton(
-            [
+        const refreshBound =
+            bindButton(
+                [
 
-                "refreshBtn",
+                    "refreshBtn",
 
-                "refreshModels",
+                    "refreshModels",
 
-                "refreshModelsButton",
+                    "refreshModelsButton",
 
-                "refreshModelButton"
+                    "refreshModelButton"
 
-            ],
-            function () {
+                ],
+                function () {
 
-                return refreshModels();
+                    return refreshModels();
 
-            }
-        );
+                }
+            );
 
 
+        if (
+            refreshBound
+        ) {
+
+            anyBound =
+                true;
+
+        }
+
+
+        /*
+         * Hanya true apabila minimal satu
+         * tombol benar-benar ditemukan.
+         */
         buttonsBound =
-            true;
+            anyBound;
 
 
-        return true;
+        return buttonsBound;
 
     }
 
@@ -2021,7 +2052,7 @@
        - bind Search events
        - bind Table events
        - Provider dropdown rendering
-       ===================================================== */
+    ===================================================== */
 
     async function initialize() {
 
@@ -2037,6 +2068,15 @@
         if (
             initialized
         ) {
+
+            /*
+             * Tetap coba binding tombol.
+             *
+             * Ini aman karena bindButton() mencegah
+             * duplicate listener.
+             */
+            bindButtons();
+
 
             return true;
 
@@ -2108,8 +2148,21 @@
                     );
 
 
+                    /*
+                     * Lifecycle selesai.
+                     */
                     initialized =
                         true;
+
+
+                    /*
+                     * Coba sekali lagi setelah seluruh
+                     * initialization selesai.
+                     *
+                     * Ini mengatasi kasus DOM tombol baru
+                     * tersedia setelah module UI mulai.
+                     */
+                    bindButtons();
 
 
                     console.info(
@@ -2225,9 +2278,16 @@
 
 
         /*
-         * Tombol tidak perlu dibind ulang
-         * selama DOM element yang sama masih digunakan.
+         * Izinkan bind ulang pada lifecycle berikutnya.
+         *
+         * Dataset pada tombol tidak dihapus karena
+         * listener yang sudah terpasang masih valid.
+         * bindButton() akan mendeteksi listener tersebut
+         * dan tidak membuat duplicate listener.
          */
+        buttonsBound =
+            false;
+
 
         return true;
 
