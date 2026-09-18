@@ -59,7 +59,15 @@
         "functions/model-provider-dropdown.js",
 
         /* =================================================
-           6. FORM FUNCTIONS
+           6. FORM LAYOUT
+           -------------------------------------------------
+           Modul ini harus dimuat sebelum CRUD Form.
+           ================================================= */
+
+        "functions/model-form-layout.js",
+
+        /* =================================================
+           7. FORM FUNCTIONS
         ================================================= */
 
         "functions/model-form-create.js",
@@ -69,47 +77,51 @@
         "functions/model-form-events.js",
 
         /* =================================================
-           7. PRICE
+           8. PRICE
         ================================================= */
 
         "functions/model-price-calculation.js",
         "models-price.js",
 
         /* =================================================
-           8. TABLE
+           9. TABLE
         ================================================= */
 
         "functions/model-table.js",
         "functions/model-table-events.js",
 
         /* =================================================
-           9. FORM COORDINATOR
+           10. FORM COORDINATOR
         ================================================= */
 
         "models-form.js",
 
         /* =================================================
-           10. UI
+           11. UI
         ================================================= */
 
         "models-ui.js",
 
         /* =================================================
-           11. INITIALIZATION
+           12. INITIALIZATION
         ================================================= */
 
         "models-init.js"
+
     ];
 
     /* =====================================================
        STATE
     ===================================================== */
 
-    const loadedModules = new Map();
+    const loadedModules =
+        new Map();
 
-    let loadingPromise = null;
+    let loadingPromise =
+        null;
 
-    let started = false;
+    let started =
+        false;
 
     /* =====================================================
        LOGGING
@@ -118,32 +130,37 @@
     function log() {
 
         console.log(
-            "[GEN-Z Models]",
+            "[GENZ Models]",
             ...arguments
         );
+
     }
 
     function warn() {
 
         console.warn(
-            "[GEN-Z Models]",
+            "[GENZ Models]",
             ...arguments
         );
+
     }
 
     function error() {
 
         console.error(
-            "[GEN-Z Models]",
+            "[GENZ Models]",
             ...arguments
         );
+
     }
 
     /* =====================================================
        SCRIPT LOOKUP
     ===================================================== */
 
-    function getScript(src) {
+    function getScript(
+        src
+    ) {
 
         const scripts =
             Array.from(
@@ -152,7 +169,9 @@
 
         return (
             scripts.find(
-                function (script) {
+                function (
+                    script
+                ) {
 
                     const current =
                         script.getAttribute(
@@ -160,25 +179,37 @@
                         );
 
                     if (!current) {
+
                         return false;
+
                     }
 
                     return (
-                        current === src ||
-                        current.endsWith(src)
+                        current ===
+                            src ||
+                        current.endsWith(
+                            src
+                        )
                     );
+
                 }
-            ) || null
+            ) ||
+            null
         );
+
     }
 
     /* =====================================================
        GLOBAL MODULE CHECK
     ===================================================== */
 
-    function moduleGlobalReady(module) {
+    function moduleGlobalReady(
+        module
+    ) {
 
-        switch (module) {
+        switch (
+            module
+        ) {
 
             /* =============================================
                DATA
@@ -238,6 +269,16 @@
 
                 return !!(
                     window.GENZModelsSearch
+                );
+
+            /* =============================================
+               FORM LAYOUT
+            ============================================= */
+
+            case "functions/model-form-layout.js":
+
+                return !!(
+                    window.GENZModelFormLayout
                 );
 
             /* =============================================
@@ -335,7 +376,9 @@
             default:
 
                 return false;
+
         }
+
     }
 
     /* =====================================================
@@ -369,6 +412,7 @@
                         );
 
                         return;
+
                     }
 
                     if (
@@ -385,21 +429,25 @@
                         );
 
                         return;
+
                     }
 
                     window.setTimeout(
                         check,
                         25
                     );
+
                 }
 
                 check();
+
             }
         );
+
     }
 
     /* =====================================================
-       LOAD EXISTING SCRIPT
+       EXISTING SCRIPT
     ===================================================== */
 
     function waitExistingScript(
@@ -418,24 +466,35 @@
 
                 function finish() {
 
-                    if (finished) {
+                    if (
+                        finished
+                    ) {
+
                         return;
+
                     }
 
-                    finished = true;
+                    finished =
+                        true;
 
                     resolve(
                         module
                     );
+
                 }
 
                 function fail() {
 
-                    if (finished) {
+                    if (
+                        finished
+                    ) {
+
                         return;
+
                     }
 
-                    finished = true;
+                    finished =
+                        true;
 
                     reject(
                         new Error(
@@ -443,12 +502,8 @@
                             module
                         )
                     );
-                }
 
-                /*
-                 * Jika global sudah tersedia,
-                 * script sebenarnya sudah selesai.
-                 */
+                }
 
                 if (
                     moduleGlobalReady(
@@ -459,6 +514,7 @@
                     finish();
 
                     return;
+
                 }
 
                 script.addEventListener(
@@ -474,6 +530,7 @@
                             .catch(
                                 reject
                             );
+
                     },
                     {
                         once: true
@@ -488,12 +545,6 @@
                     }
                 );
 
-                /*
-                 * Fallback untuk script yang
-                 * sudah selesai sebelum listener
-                 * dipasang.
-                 */
-
                 window.setTimeout(
                     function () {
 
@@ -504,24 +555,25 @@
                         ) {
 
                             finish();
+
                         }
 
                     },
                     100
                 );
+
             }
         );
+
     }
 
     /* =====================================================
        LOAD ONE SCRIPT
     ===================================================== */
 
-    function loadScript(module) {
-
-        /*
-         * Sudah dimuat oleh loader.
-         */
+    function loadScript(
+        module
+    ) {
 
         if (
             loadedModules.has(
@@ -532,21 +584,21 @@
             return loadedModules.get(
                 module
             );
+
         }
 
         const src =
             BASE_PATH +
             module;
 
-        /*
-         * Cek apakah script sudah ada
-         * di HTML.
-         */
-
         const existing =
-            getScript(src);
+            getScript(
+                src
+            );
 
-        if (existing) {
+        if (
+            existing
+        ) {
 
             const promise =
                 waitExistingScript(
@@ -560,11 +612,8 @@
             );
 
             return promise;
-        }
 
-        /*
-         * Buat script baru.
-         */
+        }
 
         const promise =
             new Promise(
@@ -581,16 +630,11 @@
                     script.src =
                         src;
 
-                    /*
-                     * Loader sendiri mengatur
-                     * urutan sehingga tidak perlu
-                     * async.
-                     */
-
                     script.async =
                         false;
 
-                    script.dataset.genzModule =
+                    script.dataset
+                        .genzModule =
                         module;
 
                     script.onload =
@@ -605,11 +649,13 @@
                                         resolve(
                                             module
                                         );
+
                                     }
                                 )
                                 .catch(
                                     reject
                                 );
+
                         };
 
                     script.onerror =
@@ -621,11 +667,13 @@
                                     module
                                 )
                             );
+
                         };
 
                     document.head.appendChild(
                         script
                     );
+
                 }
             );
 
@@ -635,17 +683,21 @@
         );
 
         return promise;
+
     }
 
     /* =====================================================
-       LOAD ALL MODULES
+       LOAD ALL
     ===================================================== */
 
     async function loadAll() {
 
-        if (loadingPromise) {
+        if (
+            loadingPromise
+        ) {
 
             return loadingPromise;
+
         }
 
         loadingPromise =
@@ -670,7 +722,8 @@
 
                 for (
                     let index = 0;
-                    index < MODULES.length;
+                    index <
+                    MODULES.length;
                     index++
                 ) {
 
@@ -679,7 +732,10 @@
 
                     log(
                         "[" +
-                        (index + 1) +
+                        (
+                            index +
+                            1
+                        ) +
                         "/" +
                         MODULES.length +
                         "] Loading:",
@@ -689,10 +745,6 @@
                     await loadScript(
                         module
                     );
-
-                    /*
-                     * Validasi akhir.
-                     */
 
                     if (
                         !moduleGlobalReady(
@@ -704,16 +756,21 @@
                             "Module loaded tetapi global tidak tersedia: " +
                             module
                         );
+
                     }
 
                     log(
                         "[" +
-                        (index + 1) +
+                        (
+                            index +
+                            1
+                        ) +
                         "/" +
                         MODULES.length +
                         "] Loaded:",
                         module
                     );
+
                 }
 
                 log(
@@ -745,119 +802,16 @@
                             loadError
                         );
 
-                        /*
-                         * Izinkan retry.
-                         */
-
                         loadingPromise =
                             null;
 
                         throw loadError;
+
                     }
                 );
 
         return loadingPromise;
-    }
 
-    /* =====================================================
-       START
-    ===================================================== */
-
-    async function start() {
-
-        /*
-         * Jangan start dua kali.
-         */
-
-        if (started) {
-
-            warn(
-                "Models loader sudah dijalankan."
-            );
-
-            return true;
-        }
-
-        started = true;
-
-        try {
-
-            /* =============================================
-               STEP 1
-               Load semua module.
-            ============================================= */
-
-            await loadAll();
-
-            /* =============================================
-               STEP 2
-               Pastikan Init tersedia.
-            ============================================= */
-
-            const init =
-                window.GENZModelsInit;
-
-            if (!init) {
-
-                throw new Error(
-                    "GENZModelsInit belum tersedia."
-                );
-            }
-
-            if (
-                typeof init.initialize !==
-                "function"
-            ) {
-
-                throw new Error(
-                    "GENZModelsInit.initialize() belum tersedia."
-                );
-            }
-
-            /* =============================================
-               STEP 3
-               Jalankan lifecycle Models.
-            ============================================= */
-
-            const result =
-                await init.initialize();
-
-            if (result === false) {
-
-                throw new Error(
-                    "GENZModelsInit.initialize() gagal."
-                );
-            }
-
-            log(
-                "========================================"
-            );
-
-            log(
-                "GEN-Z.AI Models berhasil dijalankan."
-            );
-
-            log(
-                "========================================"
-            );
-
-            return true;
-
-        } catch (startError) {
-
-            error(
-                "Models gagal dijalankan:",
-                startError
-            );
-
-            showLoaderError(
-                startError
-            );
-
-            started = false;
-
-            return false;
-        }
     }
 
     /* =====================================================
@@ -877,7 +831,9 @@
                 "alertBox"
             );
 
-        if (alertBox) {
+        if (
+            alertBox
+        ) {
 
             alertBox.textContent =
                 message;
@@ -889,11 +845,109 @@
                 "block";
 
             return;
+
         }
 
         error(
             message
         );
+
+    }
+
+    /* =====================================================
+       START
+    ===================================================== */
+
+    async function start() {
+
+        if (
+            started
+        ) {
+
+            warn(
+                "Models loader sudah dijalankan."
+            );
+
+            return true;
+
+        }
+
+        started =
+            true;
+
+        try {
+
+            await loadAll();
+
+            const init =
+                window.GENZModelsInit;
+
+            if (!init) {
+
+                throw new Error(
+                    "GENZModelsInit belum tersedia."
+                );
+
+            }
+
+            if (
+                typeof init.initialize !==
+                "function"
+            ) {
+
+                throw new Error(
+                    "GENZModelsInit.initialize() belum tersedia."
+                );
+
+            }
+
+            const result =
+                await init.initialize();
+
+            if (
+                result === false
+            ) {
+
+                throw new Error(
+                    "GENZModelsInit.initialize() gagal."
+                );
+
+            }
+
+            log(
+                "========================================"
+            );
+
+            log(
+                "GEN-Z.AI Models berhasil dijalankan."
+            );
+
+            log(
+                "========================================"
+            );
+
+            return true;
+
+        } catch (
+            startError
+        ) {
+
+            error(
+                "Models gagal dijalankan:",
+                startError
+            );
+
+            showLoaderError(
+                startError
+            );
+
+            started =
+                false;
+
+            return false;
+
+        }
+
     }
 
     /* =====================================================
@@ -902,16 +956,17 @@
 
     function reset() {
 
-        started = false;
+        started =
+            false;
 
-        loadingPromise = null;
+        loadingPromise =
+            null;
 
         loadedModules.clear();
 
         if (
             window.GENZModelsInit &&
-            typeof
-                window.GENZModelsInit.reset ===
+            typeof window.GENZModelsInit.reset ===
                 "function"
         ) {
 
@@ -919,18 +974,23 @@
 
                 window.GENZModelsInit.reset();
 
-            } catch (resetError) {
+            } catch (
+                resetError
+            ) {
 
                 warn(
                     "Models Init reset gagal:",
                     resetError
                 );
+
             }
+
         }
 
         log(
             "Models loader reset."
         );
+
     }
 
     /* =====================================================
@@ -952,6 +1012,7 @@
                     return Array.from(
                         loadedModules.keys()
                     );
+
                 },
 
             isModuleLoaded:
@@ -967,6 +1028,7 @@
                             module
                         )
                     );
+
                 },
 
             getModules:
@@ -975,21 +1037,23 @@
                     return [
                         ...MODULES
                     ];
+
                 },
 
             isStarted:
                 function () {
 
                     return started;
+
                 },
 
             isLoading:
                 function () {
 
-                    return (
-                        !!loadingPromise
-                    );
+                    return !!loadingPromise;
+
                 }
+
         });
 
     /* =====================================================
@@ -999,6 +1063,7 @@
     function boot() {
 
         start();
+
     }
 
     if (
@@ -1017,6 +1082,7 @@
     } else {
 
         boot();
+
     }
 
 })();
