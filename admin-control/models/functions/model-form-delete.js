@@ -1,36 +1,71 @@
 /* =========================================================
    GEN-Z.AI
+   ADMIN MODEL MANAGEMENT
    MODEL FORM DELETE
    ---------------------------------------------------------
+   File:
+   admin-control/models/functions/model-form-delete.js
+
    Tanggung jawab:
-   - Menghapus Model
-   - Mengirim request DELETE
    - Validasi ID Model
-   ---------------------------------------------------------
-   Tidak mengurus:
+   - Membangun payload DELETE
+   - Mengirim request DELETE ke API
+   - Mengembalikan hasil API
+
+   Tidak bertanggung jawab:
    - Create
    - Edit
-   - Search
    - Provider
-   - Price
+   - Model Search
+   - Model Dropdown
+   - Price / Credit
+   - Modal
+   - Event Listener
+   - Refresh Table
+   - Notification
+
+   Prinsip:
+   Satu fungsi = satu owner.
+   Module Delete hanya menangani operasi DELETE.
    ========================================================= */
 
 (function () {
+
     "use strict";
 
-    const API_URL = "/api/admin-models";
+
+    /* =====================================================
+       CONFIG
+    ===================================================== */
+
+    const API_URL =
+        "/api/admin-models";
+
+
+    /* =====================================================
+       SUPABASE ACCESS
+    ===================================================== */
 
     function getSupabase() {
+
         return (
             window.GENZ_SUPABASE ||
             window.supabaseClient ||
             window.supabase ||
             null
         );
+
     }
 
-    function getSessionToken() {
-        const supabase = getSupabase();
+
+    /* =====================================================
+       SESSION TOKEN
+    ===================================================== */
+
+    async function getSessionToken() {
+
+        const supabase =
+            getSupabase();
 
         if (
             !supabase ||
@@ -38,133 +73,357 @@
             typeof supabase.auth.getSession !==
                 "function"
         ) {
-            return Promise.resolve("");
+
+            return "";
+
         }
 
-        return supabase.auth
-            .getSession()
-            .then(function (result) {
+        try {
 
-                const session =
-                    result?.data?.session;
+            const result =
+                await supabase.auth.getSession();
 
-                return String(
-                    session?.access_token ?? ""
-                ).trim();
-            })
-            .catch(function () {
-                return "";
-            });
+            return String(
+                result?.data?.session?.access_token ??
+                ""
+            ).trim();
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Gagal mengambil session token:",
+                error
+            );
+
+            return "";
+
+        }
+
     }
 
-    function getModelId(model) {
 
-        if (typeof model === "string") {
+    /* =====================================================
+       MODEL ID
+    ===================================================== */
+
+    function getModelId(
+        model
+    ) {
+
+        /*
+         * Jika langsung diberikan string,
+         * gunakan sebagai ID.
+         */
+        if (
+            typeof model ===
+            "string"
+        ) {
+
             return model.trim();
+
         }
 
-        if (model) {
+
+        /*
+         * Jika object model,
+         * gunakan primary record ID.
+         *
+         * Jangan menggunakan model.model_id
+         * karena itu adalah ID provider/catalog,
+         * bukan UUID/ID record database.
+         */
+        if (
+            model &&
+            typeof model ===
+                "object"
+        ) {
+
             return String(
                 model.id ??
                 model.model_id_record ??
                 ""
             ).trim();
+
         }
 
         return "";
+
     }
 
-    function validate(model) {
+
+    /* =====================================================
+       VALIDATION
+    ===================================================== */
+
+    function validate(
+        model
+    ) {
 
         const id =
-            getModelId(model);
+            getModelId(
+                model
+            );
 
         if (!id) {
+
             throw new Error(
                 "ID Model tidak ditemukan."
             );
+
         }
 
         return id;
+
     }
 
-    function buildPayload(model) {
 
-        return {
-            action: "delete",
-            id: validate(model)
-        };
-    }
+    /* =====================================================
+       PAYLOAD
+    ===================================================== */
 
-    function remove(model) {
+    function buildPayload(
+        model
+    ) {
 
         const id =
-            validate(model);
+            validate(
+                model
+            );
 
-        return getSessionToken()
-            .then(function (token) {
+        return {
 
-                const headers = {
-                    "Content-Type":
-                        "application/json"
-                };
+            action:
+                "delete",
 
-                if (token) {
-                    headers.Authorization =
-                        "Bearer " + token;
-                }
+            id
 
-                return fetch(
+        };
+
+    }
+
+
+    /* =====================================================
+       REQUEST HEADERS
+    ===================================================== */
+
+    async function buildHeaders() {
+
+        const token =
+            await getSessionToken();
+
+        const headers = {
+
+            "Content-Type":
+                "application/json",
+
+            "Accept":
+                "application/json"
+
+        };
+
+        if (token) {
+
+            headers.Authorization =
+                "Bearer " +
+                token;
+
+        }
+
+        return headers;
+
+    }
+
+
+    /* =====================================================
+       DELETE MODEL
+    ===================================================== */
+
+    async function remove(
+        model
+    ) {
+
+        const payload =
+            buildPayload(
+                model
+            );
+
+        const headers =
+            await buildHeaders();
+
+
+        let response;
+
+        try {
+
+            response =
+                await fetch(
                     API_URL,
                     {
-                        method: "DELETE",
+
+                        method:
+                            "DELETE",
+
                         headers,
+
                         body:
-                            JSON.stringify({
-                                action: "delete",
-                                id: id
-                            })
+                            JSON.stringify(
+                                payload
+                            )
+
                     }
                 );
-            })
-            .then(async function (response) {
 
-                let result = null;
+        } catch (error) {
 
-                try {
-                    result =
-                        await response.json();
-                } catch (error) {
-                    result = null;
-                }
+            console.error(
+                "[GEN-Z.AI] Delete Model network error:",
+                error
+            );
 
-                if (!response.ok) {
+            throw new Error(
+                "Tidak dapat terhubung ke server."
+            );
 
-                    const message =
-                        result?.error ||
-                        result?.message ||
-                        "Gagal menghapus model.";
+        }
 
-                    throw new Error(
-                        message
-                    );
-                }
 
-                return result;
-            });
+        /* =================================================
+           RESPONSE
+        ================================================= */
+
+        let result =
+            null;
+
+        const contentType =
+            response.headers
+                ?.get(
+                    "content-type"
+                ) ||
+            "";
+
+
+        if (
+            contentType.includes(
+                "application/json"
+            )
+        ) {
+
+            try {
+
+                result =
+                    await response.json();
+
+            } catch (error) {
+
+                result =
+                    null;
+
+            }
+
+        } else {
+
+            try {
+
+                const text =
+                    await response.text();
+
+                result =
+                    text
+                        ? {
+                            message:
+                                text
+                        }
+                        : null;
+
+            } catch (error) {
+
+                result =
+                    null;
+
+            }
+
+        }
+
+
+        /* =================================================
+           API ERROR
+        ================================================= */
+
+        if (
+            !response.ok
+        ) {
+
+            const message =
+                result?.error ||
+                result?.message ||
+                `Gagal menghapus model. HTTP ${response.status}.`;
+
+            throw new Error(
+                String(
+                    message
+                )
+            );
+
+        }
+
+
+        /* =================================================
+           SUCCESS
+        ================================================= */
+
+        return {
+
+            success:
+                true,
+
+            ...(
+                result &&
+                typeof result ===
+                    "object"
+                    ? result
+                    : {}
+            )
+
+        };
+
     }
 
-    function removeById(modelId) {
-        return remove(modelId);
+
+    /* =====================================================
+       DELETE BY ID
+    ===================================================== */
+
+    function removeById(
+        modelId
+    ) {
+
+        return remove(
+            modelId
+        );
+
     }
+
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
 
     window.GENZModelFormDelete =
         Object.freeze({
+
             getModelId,
+
             validate,
+
             buildPayload,
+
+            getSessionToken,
+
             remove,
+
             removeById
+
         });
+
 
 })();
