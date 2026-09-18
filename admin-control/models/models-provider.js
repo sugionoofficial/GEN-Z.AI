@@ -1,72 +1,86 @@
 /* =========================================================
-   GEN-Z.AI
-   ADMIN MODEL MANAGEMENT
-   PROVIDER MODULE
-
+   GEN-Z.AI - MODELS PROVIDER MODULE
    File:
    admin-control/models/models-provider.js
 
-   Tanggung jawab:
-   - Mengambil provider melalui GENZModelsData
-   - Mengisi <select id="providerId">
-   - Menjaga provider_id sebagai value
-   - Menampilkan provider_name + provider_id
-   - Mendukung refresh
-   - Tidak auto-initialize
-   - Tidak menginisialisasi module lain
-
-   Prinsip:
-   Satu file = satu tanggung jawab.
-========================================================= */
+   Tugas:
+   - Memuat daftar provider untuk halaman Models
+   - Mengisi dropdown #providerId
+   - Menyediakan provider ke module lain
+   - Tidak mengambil alih fungsi Models UI
+   - Tidak melakukan auto-initialize
+   - Tidak memasang event listener global
+   ========================================================= */
 
 (function () {
     "use strict";
 
+    /* =====================================================
+       STATE
+    ===================================================== */
+
     let providers = [];
     let initialized = false;
-    let initializing = null;
+
 
     /* =====================================================
-       DOM
+       ELEMENT
     ===================================================== */
 
     function getProviderSelect() {
         return document.getElementById("providerId");
     }
 
+
     /* =====================================================
-       NOTIFY
+       NOTIFICATION
     ===================================================== */
 
-    function notify(message, type = "info") {
+    function notify(type, message) {
+        try {
+            if (
+                window.GENZModelsUI &&
+                typeof window.GENZModelsUI.showAlert === "function"
+            ) {
+                window.GENZModelsUI.showAlert(
+                    type,
+                    message
+                );
 
-        /*
-         * Gunakan GENZModelsUI jika tersedia.
-         * Tidak wajib karena module Provider
-         * harus tetap bisa berdiri sendiri.
-         */
+                return;
+            }
 
-        if (
-            window.GENZModelsUI &&
-            typeof window.GENZModelsUI.notify ===
-                "function"
-        ) {
-            window.GENZModelsUI.notify(
-                message,
-                type
+            const alertBox =
+                document.getElementById("alertBox");
+
+            if (!alertBox) {
+                return;
+            }
+
+            alertBox.textContent =
+                message || "";
+
+            alertBox.className =
+                "alert " +
+                (
+                    type === "error"
+                        ? "alert-error"
+                        : "alert-success"
+                ) +
+                " show";
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] Provider notify error:",
+                error
             );
-
-            return;
         }
-
-        console[type === "error" ? "error" : "log"](
-            "[GEN-Z Models Provider]",
-            message
-        );
     }
 
+
     /* =====================================================
-       NORMALIZE
+       NORMALIZE PROVIDER
     ===================================================== */
 
     function normalizeProvider(provider) {
@@ -80,8 +94,9 @@
 
         const providerId =
             String(
-                provider.provider_id ||
-                provider.provider ||
+                provider.provider_id ??
+                provider.provider ??
+                provider.id ??
                 ""
             ).trim();
 
@@ -89,11 +104,28 @@
             return null;
         }
 
+        const providerName =
+            String(
+                provider.provider_name ??
+                provider.name ??
+                providerId
+            ).trim();
+
         return {
             ...provider,
-            provider_id: providerId
+
+            provider_id:
+                providerId,
+
+            provider_name:
+                providerName
         };
     }
+
+
+    /* =====================================================
+       NORMALIZE PROVIDERS
+    ===================================================== */
 
     function normalizeProviders(list) {
 
@@ -101,68 +133,120 @@
             return [];
         }
 
-        return list
-            .map(normalizeProvider)
-            .filter(Boolean);
+        const result = [];
+        const seen = new Set();
+
+        list.forEach(function (item) {
+
+            const provider =
+                normalizeProvider(item);
+
+            if (!provider) {
+                return;
+            }
+
+            const key =
+                provider.provider_id
+                    .trim()
+                    .toLowerCase();
+
+            if (seen.has(key)) {
+                return;
+            }
+
+            seen.add(key);
+
+            result.push(provider);
+        });
+
+        return result;
     }
 
+
     /* =====================================================
-       ACTIVE CHECK
+       ACTIVE STATUS
     ===================================================== */
 
     function isActive(provider) {
 
-        return (
+        const status =
             String(
-                provider?.status || ""
+                provider?.status ??
+                "active"
             )
                 .trim()
-                .toLowerCase() ===
-            "active"
-        );
+                .toLowerCase();
+
+        return status === "active";
     }
 
+
     /* =====================================================
-       SORT
+       SORT PROVIDERS
     ===================================================== */
 
     function sortProviders(list) {
 
         return [...list].sort(
-            (a, b) => {
+            function (a, b) {
 
-                const nameA =
+                /*
+                 * Default provider selalu di atas.
+                 */
+
+                const aDefault =
+                    a.is_default === true
+                        ? 0
+                        : 1;
+
+                const bDefault =
+                    b.is_default === true
+                        ? 0
+                        : 1;
+
+                if (
+                    aDefault !== bDefault
+                ) {
+                    return (
+                        aDefault -
+                        bDefault
+                    );
+                }
+
+                const aName =
                     String(
                         a.provider_name ||
                         a.provider_id ||
                         ""
-                    )
-                        .trim()
-                        .toLowerCase();
+                    );
 
-                const nameB =
+                const bName =
                     String(
                         b.provider_name ||
                         b.provider_id ||
                         ""
-                    )
-                        .trim()
-                        .toLowerCase();
+                    );
 
-                return nameA.localeCompare(
-                    nameB,
-                    "id"
+                return aName.localeCompare(
+                    bName,
+                    "id",
+                    {
+                        sensitivity:
+                            "base"
+                    }
                 );
             }
         );
     }
 
+
     /* =====================================================
-       POPULATE SELECT
+       POPULATE PROVIDER SELECT
+       #providerId
     ===================================================== */
 
     function populateSelect(
-        list = providers,
+        list,
         options = {}
     ) {
 
@@ -170,64 +254,50 @@
             getProviderSelect();
 
         if (!select) {
-
             console.warn(
-                "[GEN-Z Models Provider] #providerId tidak ditemukan."
+                "[GEN-Z.AI] #providerId tidak ditemukan."
             );
 
             return false;
         }
 
-        const {
-            activeOnly = true,
-            preserveValue = true
-        } = options;
+        const activeOnly =
+            options.activeOnly !== false;
 
         /*
-         * Simpan value saat ini.
-         *
-         * Penting ketika:
-         * - edit model
-         * - refresh provider
-         * - provider di-load ulang
+         * Simpan value yang sedang dipilih.
+         * Ini penting supaya refresh tidak mereset
+         * provider yang sedang dipakai.
          */
 
-        const previousValue =
-            preserveValue
-                ? String(
-                    select.value || ""
-                )
-                : "";
+        const currentValue =
+            String(
+                options.value ??
+                select.value ??
+                ""
+            ).trim();
 
-        let normalized =
+        let source =
             normalizeProviders(list);
 
         if (activeOnly) {
-            normalized =
-                normalized.filter(
+
+            source =
+                source.filter(
                     isActive
                 );
         }
 
-        normalized =
-            sortProviders(normalized);
+        source =
+            sortProviders(source);
 
-        /*
-         * Simpan data internal.
-         */
+        const fragment =
+            document.createDocumentFragment();
 
-        providers =
-            normalized;
 
-        /*
-         * Kosongkan select.
-         */
-
-        select.innerHTML = "";
-
-        /*
-         * Placeholder.
-         */
+        /* -------------------------------------------------
+           PLACEHOLDER
+        ------------------------------------------------- */
 
         const placeholder =
             document.createElement(
@@ -235,117 +305,180 @@
             );
 
         placeholder.value = "";
+
         placeholder.textContent =
             "Pilih Provider";
 
-        select.appendChild(
+        fragment.appendChild(
             placeholder
         );
 
-        /*
-         * Provider options.
-         */
 
-        normalized.forEach(
-            provider => {
+        /* -------------------------------------------------
+           PROVIDER OPTIONS
+        ------------------------------------------------- */
+
+        source.forEach(
+            function (provider) {
 
                 const option =
                     document.createElement(
                         "option"
                     );
 
-                const providerId =
-                    String(
-                        provider.provider_id ||
-                        ""
-                    ).trim();
-
-                const providerName =
-                    String(
-                        provider.provider_name ||
-                        providerId
-                    ).trim();
-
                 option.value =
-                    providerId;
+                    provider.provider_id;
+
+                const name =
+                    provider.provider_name ||
+                    provider.provider_id;
 
                 /*
                  * Tampilan:
                  *
                  * ByteDance (bytedance)
+                 * KIE AI (kie)
                  *
-                 * atau jika nama kosong:
+                 * Tetapi value tetap:
                  *
                  * bytedance
+                 * kie
                  */
 
                 option.textContent =
-                    providerName &&
-                    providerName
-                        .toLowerCase() !==
-                    providerId
-                        .toLowerCase()
-                        ? `${providerName} (${providerId})`
-                        : providerId;
+                    name ===
+                    provider.provider_id
+                        ? provider.provider_id
+                        : name +
+                          " (" +
+                          provider.provider_id +
+                          ")";
 
-                /*
-                 * Simpan metadata.
-                 */
-
-                option.dataset.providerId =
-                    providerId;
-
-                option.dataset.providerName =
-                    providerName;
-
-                select.appendChild(
+                fragment.appendChild(
                     option
                 );
             }
         );
 
-        /*
-         * Kembalikan value sebelumnya
-         * jika provider masih tersedia.
-         */
 
-        if (
-            previousValue &&
-            normalized.some(
-                provider =>
-                    String(
-                        provider.provider_id ||
-                        ""
-                    ).trim() ===
-                    previousValue
-            )
-        ) {
+        /* -------------------------------------------------
+           REPLACE OPTIONS
+        ------------------------------------------------- */
 
-            select.value =
-                previousValue;
+        select.replaceChildren(
+            fragment
+        );
 
-        } else if (
-            !previousValue
-        ) {
 
-            select.value = "";
+        /* -------------------------------------------------
+           RESTORE VALUE
+        ------------------------------------------------- */
 
-        } else {
+        if (currentValue) {
 
-            /*
-             * Provider lama sudah tidak aktif /
-             * tidak ditemukan.
-             */
+            const exists =
+                Array.from(
+                    select.options
+                ).some(
+                    function (option) {
 
-            select.value = "";
+                        return (
+                            option.value ===
+                            currentValue
+                        );
+                    }
+                );
+
+            if (exists) {
+
+                select.value =
+                    currentValue;
+            }
         }
 
-        /*
-         * Beri tahu module lain bahwa
-         * provider sudah tersedia.
-         */
+        return true;
+    }
 
-        window.dispatchEvent(
+
+    /* =====================================================
+       LOAD PROVIDERS
+       Menggunakan GENZModelsData
+    ===================================================== */
+
+    async function loadProviders(
+        options = {}
+    ) {
+
+        const data =
+            window.GENZModelsData;
+
+        if (
+            !data ||
+            typeof data.loadProviders !==
+                "function"
+        ) {
+
+            throw new Error(
+                "GENZModelsData belum tersedia."
+            );
+        }
+
+        const force =
+            options.force === true;
+
+        const activeOnly =
+            options.activeOnly !== false;
+
+
+        /* -------------------------------------------------
+           LOAD FROM DATA MODULE
+        ------------------------------------------------- */
+
+        const loaded =
+            await data.loadProviders({
+                force,
+                activeOnly
+            });
+
+
+        /* -------------------------------------------------
+           NORMALIZE
+        ------------------------------------------------- */
+
+        providers =
+            normalizeProviders(
+                loaded
+            );
+
+
+        /* -------------------------------------------------
+           POPULATE SELECT
+        ------------------------------------------------- */
+
+        populateSelect(
+            providers,
+            {
+                /*
+                 * Data module sudah melakukan
+                 * filtering activeOnly.
+                 *
+                 * Karena itu jangan filter kedua kali
+                 * di sini.
+                 */
+
+                activeOnly: false,
+
+                value:
+                    options.value
+            }
+        );
+
+
+        /* -------------------------------------------------
+           EVENT
+        ------------------------------------------------- */
+
+        document.dispatchEvent(
             new CustomEvent(
                 "genz-models-providers-loaded",
                 {
@@ -357,130 +490,11 @@
             )
         );
 
-        return true;
+        return [
+            ...providers
+        ];
     }
 
-    /* =====================================================
-       LOAD PROVIDERS
-    ===================================================== */
-
-    async function loadProviders(
-        options = {}
-    ) {
-
-        const {
-            force = false,
-            activeOnly = true,
-            preserveValue = true
-        } = options;
-
-        /*
-         * Pastikan data module tersedia.
-         */
-
-        if (
-            !window.GENZModelsData ||
-            typeof
-                window.GENZModelsData
-                    .loadProviders !==
-                "function"
-        ) {
-
-            const error =
-                new Error(
-                    "GENZModelsData.loadProviders() tidak tersedia."
-                );
-
-            console.error(
-                "[GEN-Z Models Provider]",
-                error
-            );
-
-            notify(
-                "Module data provider belum tersedia.",
-                "error"
-            );
-
-            throw error;
-        }
-
-        try {
-
-            const result =
-                await window
-                    .GENZModelsData
-                    .loadProviders({
-                        force,
-                        activeOnly
-                    });
-
-            const normalized =
-                normalizeProviders(
-                    result
-                );
-
-            providers =
-                normalized;
-
-            populateSelect(
-                normalized,
-                {
-                    activeOnly: false,
-                    preserveValue
-                }
-            );
-
-            /*
-             * populateSelect dengan activeOnly=false
-             * karena data dari GENZModelsData sudah
-             * difilter berdasarkan parameter activeOnly.
-             */
-
-            console.info(
-                "[GEN-Z Models Provider] Provider loaded:",
-                providers.length
-            );
-
-            return [
-                ...providers
-            ];
-
-        } catch (error) {
-
-            console.error(
-                "[GEN-Z Models Provider] Gagal memuat provider:",
-                error
-            );
-
-            /*
-             * Jangan menghancurkan dropdown secara
-             * diam-diam ketika request gagal.
-             *
-             * Jika provider sebelumnya masih tersedia,
-             * pertahankan.
-             */
-
-            if (
-                providers.length === 0
-            ) {
-
-                populateSelect(
-                    [],
-                    {
-                        activeOnly: false,
-                        preserveValue
-                    }
-                );
-            }
-
-            notify(
-                "Gagal memuat daftar provider.",
-                "error"
-            );
-
-            throw error;
-        }
-    }
 
     /* =====================================================
        INITIALIZE
@@ -490,68 +504,51 @@
         options = {}
     ) {
 
-        if (initialized) {
+        /*
+         * Jangan load ulang jika sudah initialized,
+         * kecuali force=true.
+         */
+
+        if (
+            initialized &&
+            options.force !== true
+        ) {
+
+            if (
+                options.value !==
+                undefined
+            ) {
+
+                populateSelect(
+                    providers,
+                    {
+                        activeOnly:
+                            options.activeOnly !==
+                            false,
+
+                        value:
+                            options.value
+                    }
+                );
+            }
+
             return [
                 ...providers
             ];
         }
 
-        if (initializing) {
-            return initializing;
-        }
 
-        initializing =
-            (async () => {
+        const loaded =
+            await loadProviders(
+                options
+            );
 
-                try {
+        initialized =
+            true;
 
-                    /*
-                     * Pastikan element HTML sudah ada.
-                     */
-
-                    const select =
-                        getProviderSelect();
-
-                    if (!select) {
-
-                        throw new Error(
-                            "Element #providerId tidak ditemukan."
-                        );
-                    }
-
-                    await loadProviders(
-                        options
-                    );
-
-                    initialized =
-                        true;
-
-                    console.info(
-                        "[GEN-Z Models Provider] Initialized successfully."
-                    );
-
-                    return [
-                        ...providers
-                    ];
-
-                } catch (error) {
-
-                    console.error(
-                        "[GEN-Z Models Provider] Initialization gagal:",
-                        error
-                    );
-
-                    throw error;
-
-                } finally {
-
-                    initializing =
-                        null;
-                }
-            })();
-
-        return initializing;
+        return loaded;
     }
+
 
     /* =====================================================
        REFRESH
@@ -561,14 +558,13 @@
         options = {}
     ) {
 
-        return loadProviders({
-            force: true,
-            activeOnly:
-                options.activeOnly !== false,
-            preserveValue:
-                options.preserveValue !== false
+        return initialize({
+            ...options,
+
+            force: true
         });
     }
+
 
     /* =====================================================
        GET PROVIDERS
@@ -581,8 +577,9 @@
         ];
     }
 
+
     /* =====================================================
-       GET PROVIDER
+       GET PROVIDER BY ID
     ===================================================== */
 
     function getProviderById(
@@ -591,7 +588,8 @@
 
         const id =
             String(
-                providerId || ""
+                providerId ??
+                ""
             )
                 .trim()
                 .toLowerCase();
@@ -602,21 +600,25 @@
 
         return (
             providers.find(
-                provider =>
-                    String(
-                        provider.provider_id ||
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase() ===
-                    id
+                function (provider) {
+
+                    return (
+                        String(
+                            provider.provider_id
+                        )
+                            .trim()
+                            .toLowerCase() ===
+                        id
+                    );
+                }
             ) ||
             null
         );
     }
 
+
     /* =====================================================
-       SET VALUE
+       SET SELECT VALUE
     ===================================================== */
 
     function setValue(
@@ -630,57 +632,46 @@
             return false;
         }
 
-        const id =
+        const value =
             String(
-                providerId || ""
+                providerId ??
+                ""
             ).trim();
 
-        if (!id) {
-            select.value = "";
+        if (!value) {
+
+            select.value =
+                "";
+
             return true;
         }
 
         const exists =
-            providers.some(
-                provider =>
-                    String(
-                        provider.provider_id ||
-                        ""
-                    ).trim() === id
+            Array.from(
+                select.options
+            ).some(
+                function (option) {
+
+                    return (
+                        option.value ===
+                        value
+                    );
+                }
             );
 
         if (!exists) {
-
-            console.warn(
-                "[GEN-Z Models Provider] Provider tidak ditemukan:",
-                id
-            );
-
             return false;
         }
 
-        select.value = id;
-
-        /*
-         * Trigger change agar module Form/Search
-         * yang memang mendengarkan provider dapat
-         * melakukan sinkronisasi.
-         */
-
-        select.dispatchEvent(
-            new Event(
-                "change",
-                {
-                    bubbles: true
-                }
-            )
-        );
+        select.value =
+            value;
 
         return true;
     }
 
+
     /* =====================================================
-       CLEAR
+       CLEAR SELECT
     ===================================================== */
 
     function clear() {
@@ -689,9 +680,12 @@
             getProviderSelect();
 
         if (select) {
-            select.value = "";
+
+            select.value =
+                "";
         }
     }
+
 
     /* =====================================================
        DESTROY
@@ -699,23 +693,13 @@
 
     function destroy() {
 
+        providers =
+            [];
+
         initialized =
             false;
-
-        initializing =
-            null;
-
-        /*
-         * Jangan hapus isi dropdown.
-         *
-         * Module Provider tidak memiliki
-         * event listener permanen.
-         */
-
-        console.info(
-            "[GEN-Z Models Provider] Destroyed."
-        );
     }
+
 
     /* =====================================================
        PUBLIC API
@@ -725,34 +709,27 @@
         Object.freeze({
 
             initialize,
-            loadProviders,
+
             refresh,
+
+            loadProviders,
 
             populateSelect,
 
             getProviders,
+
             getProviderById,
 
             setValue,
+
             clear,
 
-            destroy,
-
-            isInitialized:
-                () => initialized
+            destroy
         });
 
-    /*
-     * PENTING:
-     *
-     * Tidak ada:
-     *
-     * DOMContentLoaded
-     * setTimeout
-     * auto initialize
-     *
-     * models.html / models-init yang menentukan
-     * kapan module ini dijalankan.
-     */
+
+    console.log(
+        "[GEN-Z.AI] GENZModelsProvider loaded."
+    );
 
 })();
