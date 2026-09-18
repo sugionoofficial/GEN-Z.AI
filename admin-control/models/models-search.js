@@ -562,11 +562,26 @@
                         providerModule.getProviders();
 
 
+                    /*
+                     * PERBAIKAN:
+                     * Sebelumnya kurang tanda ")".
+                     *
+                     * Salah:
+                     *
+                     * if (
+                     *     Array.isArray(
+                     *         providerList
+                     *     )
+                     * {
+                     *
+                     * Benar:
+                     */
+
                     if (
                         Array.isArray(
                             providerList
                         )
-                    {
+                    ) {
 
                         const found =
                             providerList.find(
@@ -1604,7 +1619,7 @@
                 .scrollIntoView({
                     block:
                         "nearest"
-                );
+                });
 
 
             return;
