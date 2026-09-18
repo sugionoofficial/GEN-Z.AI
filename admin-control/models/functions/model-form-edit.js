@@ -1,460 +1,667 @@
 /* =========================================================
    GEN-Z.AI
-   MODEL FORM EDIT MODULE
-   ---------------------------------------------------------
+   ADMIN MODEL MANAGEMENT
+   MODEL FORM EDIT
+
    File:
    admin-control/models/functions/model-form-edit.js
 
-   TUGAS:
-   - Mengelola proses EDIT / UPDATE Model
-   - Mengambil record ID
-   - Mengambil data Form
-   - Validasi data Edit
-   - Membentuk payload PATCH
-   - Mengirim PATCH ke /api/admin-models
-   - Populate field Form saat Edit
+   Fungsi:
+   - Mode Edit Model
+   - Populate data model ke form
+   - Validasi data edit
+   - Build payload update
+   - Update model melalui coordinator/API owner
+   - Sinkronisasi Model ID dengan Model Form Layout
+   - Tidak mengambil alih Provider
+   - Tidak mengambil alih Pricing
+   - Tidak melakukan query Supabase langsung
 
-   TIDAK MENGURUS:
-   - Create
-   - Delete
-   - Search
-   - Provider lifecycle
-   - Provider dropdown rendering
-   - Price calculation
-   - Table
-   - UI orchestration
-
-   OWNERSHIP:
-   - Provider      -> GENZModelsProvider
-   - Search        -> GENZModelsSearch
-   - Pricing       -> GENZModelsPrice
-   - Edit          -> GENZModelFormEdit
-   ========================================================= */
+   ARSITEKTUR:
+   - Provider  -> GENZModelsProvider / GENZModelProviderDropdown
+   - Model ID  -> GENZModelFormLayout
+   - Pricing   -> GENZModelPriceCalculation
+   - CRUD      -> GENZModelFormCoordinator / API form owner
+========================================================= */
 
 (function () {
     "use strict";
 
+    let editingModel = null;
+    let initialized = false;
+    let saving = false;
 
     /* =====================================================
-       CONFIG
+       ELEMENT HELPERS
     ===================================================== */
 
-    const API_URL =
-        "/api/admin-models";
-
-
-    /* =====================================================
-       SUPABASE
-    ===================================================== */
-
-    function getSupabase() {
-
-        return (
-            window.GENZ_SUPABASE ||
-            window.supabaseClient ||
-            window.supabase ||
-            null
-        );
-    }
-
-
-    /* =====================================================
-       FIELD HELPERS
-    ===================================================== */
-
-    function getField(id) {
-
+    function getElement(id) {
         return document.getElementById(id);
     }
 
+    function firstElement(ids) {
+        for (const id of ids) {
+            const element = getElement(id);
 
-    function getValue(id) {
-
-        const field =
-            getField(id);
-
-        if (!field) {
-            return "";
-        }
-
-        return String(
-            field.value ?? ""
-        ).trim();
-    }
-
-
-    /* =====================================================
-       ARRAY NORMALIZATION
-       
-       Form bisa mengirim:
-       - array
-       - JSON array
-       - comma separated
-       - newline separated
-    ===================================================== */
-
-    function normalizeArray(value) {
-
-        if (Array.isArray(value)) {
-
-            return value
-                .map(function (item) {
-                    return String(
-                        item ?? ""
-                    ).trim();
-                })
-                .filter(Boolean);
-        }
-
-
-        const text =
-            String(
-                value ?? ""
-            ).trim();
-
-
-        if (!text) {
-            return [];
-        }
-
-
-        /*
-         * JSON array.
-         */
-        if (
-            text.startsWith("[") &&
-            text.endsWith("]")
-        ) {
-
-            try {
-
-                const parsed =
-                    JSON.parse(text);
-
-                if (
-                    Array.isArray(parsed)
-                ) {
-
-                    return parsed
-                        .map(function (item) {
-                            return String(
-                                item ?? ""
-                            ).trim();
-                        })
-                        .filter(Boolean);
-                }
-
-            } catch (error) {
-
-                /*
-                 * Bukan JSON valid.
-                 * Lanjut ke parser biasa.
-                 */
+            if (element) {
+                return element;
             }
         }
 
+        return null;
+    }
 
-        return text
-            .split(
-                /[\n,]+/
-            )
-            .map(function (item) {
-                return String(
-                    item ?? ""
-                ).trim();
-            })
+    function getValue(id) {
+        const element = getElement(id);
+
+        if (!element) {
+            return "";
+        }
+
+        return element.value ?? "";
+    }
+
+    function setValue(id, value) {
+        const element = getElement(id);
+
+        if (!element) {
+            return;
+        }
+
+        if (Array.isArray(value)) {
+            element.value = value.join(", ");
+            return;
+        }
+
+        element.value = value ?? "";
+    }
+
+    /* =====================================================
+       NORMALIZE ARRAY
+    ===================================================== */
+
+    function normalizeArray(input) {
+        if (Array.isArray(input)) {
+            return input
+                .map(item => String(item).trim())
+                .filter(Boolean);
+        }
+
+        if (
+            input === null ||
+            input === undefined ||
+            input === ""
+        ) {
+            return [];
+        }
+
+        return String(input)
+            .split(",")
+            .map(item => item.trim())
             .filter(Boolean);
     }
 
-
     /* =====================================================
-       NUMBER NORMALIZATION
+       NUMBER
     ===================================================== */
 
-    function normalizeNumber(
-        value,
-        fallback = 0
-    ) {
-
+    function toNumber(value) {
         if (
             value === null ||
             value === undefined ||
             value === ""
         ) {
-
-            return fallback;
+            return null;
         }
 
-
-        const number =
-            Number(
-                String(value)
-                    .replace(",", ".")
-                    .trim()
-            );
-
+        const number = Number(value);
 
         return Number.isFinite(number)
             ? number
-            : fallback;
+            : null;
     }
 
-
     /* =====================================================
-       SESSION TOKEN
+       NOTIFICATION
     ===================================================== */
 
-    function getSessionToken() {
+    function notify(message, type = "info") {
+        const existing =
+            getElement("modelNotification") ||
+            getElement("notification") ||
+            getElement("toast");
 
-        const supabase =
-            getSupabase();
+        if (existing) {
+            existing.textContent = message;
 
-
-        if (
-            !supabase ||
-            !supabase.auth ||
-            typeof supabase.auth.getSession !==
-                "function"
-        ) {
-
-            return Promise.resolve("");
-        }
-
-
-        return supabase.auth
-            .getSession()
-            .then(
-                function (result) {
-
-                    const session =
-                        result?.data?.session;
-
-
-                    return String(
-                        session?.access_token ??
-                        ""
-                    ).trim();
-                }
-            )
-            .catch(
-                function () {
-
-                    return "";
-                }
+            existing.classList.remove(
+                "success",
+                "error",
+                "warning",
+                "info",
+                "show"
             );
-    }
 
+            existing.classList.add(type);
 
-    /* =====================================================
-       RECORD ID
-    ===================================================== */
+            requestAnimationFrame(() => {
+                existing.classList.add("show");
+            });
 
-    function getRecordId(
-        model
-    ) {
+            window.clearTimeout(
+                existing.__genzTimer
+            );
 
-        if (model) {
+            existing.__genzTimer =
+                window.setTimeout(() => {
+                    existing.classList.remove("show");
+                }, 3500);
 
-            return String(
-                model.id ??
-                model.model_id_record ??
-                ""
-            ).trim();
+            return;
         }
 
+        const toast =
+            document.createElement("div");
 
-        return getValue(
-            "modelRecordId"
+        toast.id = "modelNotification";
+
+        toast.className =
+            `genz-model-notification ${type}`;
+
+        toast.textContent = message;
+
+        Object.assign(
+            toast.style,
+            {
+                position: "fixed",
+                right: "24px",
+                bottom: "24px",
+                zIndex: "99999",
+                maxWidth: "420px",
+                padding: "14px 18px",
+                borderRadius: "12px",
+                background: "rgba(17,24,39,.96)",
+                border: "1px solid rgba(255,255,255,.12)",
+                color: "#fff",
+                boxShadow:
+                    "0 14px 40px rgba(0,0,0,.35)",
+                fontSize: "14px",
+                lineHeight: "1.45",
+                pointerEvents: "none"
+            }
+        );
+
+        document.body.appendChild(toast);
+
+        window.setTimeout(() => {
+            toast.style.opacity = "0";
+            toast.style.transform =
+                "translateY(8px)";
+            toast.style.transition =
+                "opacity .2s ease, transform .2s ease";
+
+            window.setTimeout(() => {
+                toast.remove();
+            }, 250);
+        }, 3500);
+    }
+
+    /* =====================================================
+       FORM LAYOUT
+    ===================================================== */
+
+    function getFormLayout() {
+        return (
+            window.GENZModelFormLayout ||
+            null
         );
     }
 
-
     /* =====================================================
-       PROVIDER VALUE
-       
-       Provider dropdown adalah owner Provider.
-       Module Edit hanya mengambil value yang sudah
-       dipilih oleh dropdown.
+       PRICE CALCULATION
     ===================================================== */
 
-    function getProviderValue() {
+    function getPriceCalculation() {
+        return (
+            window.GENZModelPriceCalculation ||
+            null
+        );
+    }
+
+    /* =====================================================
+       PROVIDER MODULE
+    ===================================================== */
+
+    function getProviderModule() {
+        return (
+            window.GENZModelsProvider ||
+            null
+        );
+    }
+
+    function getProviderDropdown() {
+        return (
+            window.GENZModelProviderDropdown ||
+            null
+        );
+    }
+
+    /* =====================================================
+       SET PROVIDER
+    ===================================================== */
+
+    async function setProvider(
+        providerIdentifier
+    ) {
+        const value =
+            String(
+                providerIdentifier || ""
+            ).trim();
+
+        if (!value) {
+            return null;
+        }
 
         const dropdown =
-            window.GENZModelProviderDropdown;
-
+            getProviderDropdown();
 
         if (
             dropdown &&
-            typeof dropdown.getSelected ===
+            typeof dropdown.setValue ===
                 "function"
         ) {
-
             try {
+                const result =
+                    await dropdown.setValue(
+                        value
+                    );
 
-                const selected =
-                    dropdown.getSelected();
-
-                if (selected) {
-
-                    return String(
-                        selected.provider_id ??
-                        selected.provider ??
-                        selected.id ??
-                        ""
-                    ).trim();
-                }
-
+                return result || value;
             } catch (error) {
-
                 console.warn(
-                    "[GEN-Z.AI] Gagal membaca Provider Dropdown:",
+                    "[model-form-edit] Provider dropdown error:",
                     error
                 );
             }
         }
 
+        const providerModule =
+            getProviderModule();
 
-        return getValue(
-            "providerId"
-        );
+        if (
+            providerModule &&
+            typeof providerModule.getProviderById ===
+                "function"
+        ) {
+            try {
+                const provider =
+                    providerModule.getProviderById(
+                        value
+                    );
+
+                if (provider) {
+                    const providerValue =
+                        provider.provider_id ||
+                        provider.provider ||
+                        provider.id ||
+                        value;
+
+                    setValue(
+                        "providerId",
+                        providerValue
+                    );
+
+                    return provider;
+                }
+            } catch (error) {
+                console.warn(
+                    "[model-form-edit] Provider lookup error:",
+                    error
+                );
+            }
+        }
+
+        const select =
+            getElement("providerId");
+
+        if (select) {
+            const option =
+                Array.from(
+                    select.options || []
+                ).find(option => {
+                    const optionValue =
+                        String(
+                            option.value || ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    return (
+                        optionValue ===
+                        value.toLowerCase()
+                    );
+                });
+
+            if (option) {
+                select.value =
+                    option.value;
+
+                return option.value;
+            }
+        }
+
+        return null;
     }
 
-
     /* =====================================================
-       COLLECT FORM DATA
-       
-       Field diselaraskan dengan MODEL_FIELDS pada API:
+       MODEL ID
+       =====================================================
 
-       id
-       provider_id
-       model_id
-       model_name
-       description
-       credit_cost
-       discount_percent
-       credit_final
-       min_duration
-       max_duration
-       supported_ratios
-       supported_resolutions
-       status
+       PENTING:
+
+       modelCodeSearch sekarang dikelola oleh
+       GENZModelFormLayout.
+
+       Jangan lagi:
+           search.value = modelId
+
+       karena elemen tersebut sekarang adalah SELECT.
+
+       Layout menjadi satu-satunya owner Model ID.
     ===================================================== */
 
-    function collectData(
-        model
-    ) {
+    async function setModel(model) {
+        if (!model) {
+            return null;
+        }
 
-        const recordId =
-            getRecordId(
-                model
-            );
+        const layout =
+            getFormLayout();
 
+        if (
+            layout &&
+            typeof layout.setModel ===
+                "function"
+        ) {
+            try {
+                const result =
+                    await layout.setModel(
+                        model
+                    );
 
-        const providerId =
-            getProviderValue();
+                /*
+                 * Hidden Model Code tetap
+                 * dipastikan sinkron.
+                 */
+                const modelId =
+                    String(
+                        model.model_id ||
+                        model.modelId ||
+                        ""
+                    ).trim();
 
+                if (modelId) {
+                    setValue(
+                        "modelCode",
+                        modelId
+                    );
+                }
 
+                return (
+                    result ||
+                    model
+                );
+            } catch (error) {
+                console.warn(
+                    "[model-form-edit] Layout setModel error:",
+                    error
+                );
+            }
+        }
+
+        /*
+         * Fallback kompatibilitas.
+
+         * Hanya digunakan apabila
+         * Model Form Layout belum tersedia.
+         */
         const modelId =
-            getValue(
-                "modelCode"
-            ) ||
-            getValue(
+            String(
+                model.model_id ||
+                model.modelId ||
+                ""
+            ).trim();
+
+        if (!modelId) {
+            return null;
+        }
+
+        setValue(
+            "modelCode",
+            modelId
+        );
+
+        const search =
+            getElement(
                 "modelCodeSearch"
             );
 
+        if (search) {
+            /*
+             * Untuk SELECT, pilih option.
+             */
+            if (
+                search.tagName ===
+                "SELECT"
+            ) {
+                const option =
+                    Array.from(
+                        search.options || []
+                    ).find(option =>
+                        String(
+                            option.value || ""
+                        ).trim() ===
+                        modelId
+                    );
 
-        const modelName =
-            getValue(
-                "modelName"
+                if (option) {
+                    search.value =
+                        option.value;
+                }
+            } else {
+                /*
+                 * Legacy INPUT.
+                 */
+                search.value =
+                    modelId;
+            }
+        }
+
+        return model;
+    }
+
+    /* =====================================================
+       WAIT MODEL SELECT
+    =====================================================
+
+       Provider change dapat menyebabkan
+       Model ID dropdown di-refresh secara
+       asynchronous.
+
+       Fungsi ini memberi waktu satu tick
+       sebelum melakukan setModel.
+    ===================================================== */
+
+    async function waitForModelLayout() {
+        const layout =
+            getFormLayout();
+
+        if (!layout) {
+            return;
+        }
+
+        await new Promise(resolve => {
+            window.setTimeout(
+                resolve,
+                0
+            );
+        });
+
+        /*
+         * Jika layout memiliki refresh(),
+         * biarkan layout menyelesaikan
+         * sinkronisasi internalnya.
+         */
+        if (
+            typeof layout.refresh ===
+            "function"
+        ) {
+            try {
+                await layout.refresh();
+            } catch (error) {
+                console.warn(
+                    "[model-form-edit] Layout refresh warning:",
+                    error
+                );
+            }
+        }
+    }
+
+    /* =====================================================
+       SELECTED MODEL INFO
+    ===================================================== */
+
+    function updateSelectedModelInfo(
+        model
+    ) {
+        const info =
+            getElement(
+                "selectedModelInfo"
             );
 
+        if (!info) {
+            return;
+        }
 
-        const description =
-            getValue(
-                "description"
+        if (!model) {
+            info.textContent =
+                "Belum ada model dipilih.";
+
+            return;
+        }
+
+        const name =
+            model.model_name ||
+            model.model_id ||
+            "-";
+
+        const id =
+            model.model_id ||
+            "-";
+
+        info.innerHTML = `
+            <strong>Model dipilih:</strong>
+            ${escapeHtml(name)}
+            <br>
+            <span>
+                ${escapeHtml(id)}
+            </span>
+        `;
+    }
+
+    /* =====================================================
+       ESCAPE HTML
+    ===================================================== */
+
+    function escapeHtml(value) {
+        return String(
+            value ?? ""
+        )
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
             );
+    }
 
+    /* =====================================================
+       COLLECT DATA
+    ===================================================== */
+
+    function collectData() {
+        let modelId =
+            String(
+                getValue(
+                    "modelCode"
+                )
+            ).trim();
+
+        /*
+         * Fallback jika hidden Model Code
+         * belum tersinkron.
+         */
+        if (!modelId) {
+            modelId =
+                String(
+                    getValue(
+                        "modelCodeSearch"
+                    )
+                ).trim();
+        }
 
         const creditCost =
             getValue(
                 "creditCost"
-            );
-
+            ).trim();
 
         const discountPercent =
             getValue(
                 "discountPercent"
-            );
-
+            ).trim();
 
         const creditFinal =
             getValue(
                 "creditFinal"
-            );
-
-
-        const minDuration =
-            getValue(
-                "minDuration"
-            );
-
-
-        const maxDuration =
-            getValue(
-                "maxDuration"
-            );
-
-
-        const supportedRatios =
-            normalizeArray(
-                getValue(
-                    "supportedRatios"
-                )
-            );
-
-
-        const supportedResolutions =
-            normalizeArray(
-                getValue(
-                    "supportedResolutions"
-                )
-            );
-
-
-        const statusField =
-            getField(
-                "modelStatus"
-            ) ||
-            getField(
-                "status"
-            );
-
-
-        const status =
-            statusField
-                ? String(
-                    statusField.value ??
-                    ""
-                  ).trim()
-                : "active";
-
+            ).trim();
 
         return {
-
             id:
-                recordId,
+                getValue(
+                    "modelRecordId"
+                ).trim(),
 
             provider_id:
-                providerId,
+                getValue(
+                    "providerId"
+                ).trim(),
 
             model_id:
                 modelId,
 
             model_name:
-                modelName,
+                getValue(
+                    "modelName"
+                ).trim(),
 
             description:
-                description,
+                getValue(
+                    "description"
+                ).trim(),
 
             credit_cost:
                 creditCost,
@@ -466,142 +673,184 @@
                 creditFinal,
 
             min_duration:
-                minDuration,
+                getValue(
+                    "minDuration"
+                ).trim(),
 
             max_duration:
-                maxDuration,
+                getValue(
+                    "maxDuration"
+                ).trim(),
 
             supported_ratios:
-                supportedRatios,
+                normalizeArray(
+                    getValue(
+                        "supportedRatios"
+                    )
+                ),
 
             supported_resolutions:
-                supportedResolutions,
+                normalizeArray(
+                    getValue(
+                        "supportedResolutions"
+                    )
+                ),
 
             status:
-                status || "active"
+                getValue(
+                    "modelStatus"
+                )
+                    .trim()
+                    .toLowerCase()
         };
     }
-
 
     /* =====================================================
        VALIDATE
     ===================================================== */
 
-    function validate(
-        data
-    ) {
-
+    function validate(data) {
         if (!data) {
-
-            throw new Error(
-                "Data Model tidak tersedia."
-            );
+            return "Data model tidak tersedia.";
         }
-
-
-        if (!data.id) {
-
-            throw new Error(
-                "ID Model tidak ditemukan."
-            );
-        }
-
 
         if (!data.provider_id) {
-
-            throw new Error(
-                "Provider wajib dipilih."
-            );
+            return "Provider wajib dipilih.";
         }
-
 
         if (!data.model_id) {
-
-            throw new Error(
-                "Model ID wajib diisi."
-            );
+            return "Model ID wajib dipilih.";
         }
-
 
         if (!data.model_name) {
-
-            throw new Error(
-                "Nama Model wajib diisi."
-            );
+            return "Model Name wajib diisi.";
         }
-
-
-        const creditCost =
-            normalizeNumber(
-                data.credit_cost,
-                NaN
-            );
-
 
         if (
-            !Number.isFinite(
-                creditCost
-            ) ||
-            creditCost < 0
+            data.credit_cost !==
+                "" &&
+            toNumber(
+                data.credit_cost
+            ) === null
         ) {
-
-            throw new Error(
-                "Credit Cost harus berupa angka 0 atau lebih."
+            return (
+                "Credit Cost harus berupa angka."
             );
         }
 
+        if (
+            data.discount_percent !==
+                "" &&
+            toNumber(
+                data.discount_percent
+            ) === null
+        ) {
+            return (
+                "Discount Percent harus berupa angka."
+            );
+        }
 
         const discount =
-            normalizeNumber(
-                data.discount_percent,
-                0
+            toNumber(
+                data.discount_percent
             );
 
-
         if (
-            !Number.isFinite(
-                discount
-            ) ||
-            discount < 0 ||
-            discount > 100
+            discount !== null &&
+            (
+                discount < 0 ||
+                discount > 100
+            )
         ) {
-
-            throw new Error(
-                "Diskon harus berada antara 0 sampai 100 persen."
+            return (
+                "Discount Percent harus antara 0 sampai 100."
             );
         }
 
+        if (
+            data.credit_final !==
+                "" &&
+            toNumber(
+                data.credit_final
+            ) === null
+        ) {
+            return (
+                "Credit Final harus berupa angka."
+            );
+        }
 
-        return true;
+        if (
+            data.min_duration !==
+                "" &&
+            toNumber(
+                data.min_duration
+            ) === null
+        ) {
+            return (
+                "Minimum Duration harus berupa angka."
+            );
+        }
+
+        if (
+            data.max_duration !==
+                "" &&
+            toNumber(
+                data.max_duration
+            ) === null
+        ) {
+            return (
+                "Maximum Duration harus berupa angka."
+            );
+        }
+
+        const min =
+            toNumber(
+                data.min_duration
+            );
+
+        const max =
+            toNumber(
+                data.max_duration
+            );
+
+        if (
+            min !== null &&
+            max !== null &&
+            min > max
+        ) {
+            return (
+                "Minimum Duration tidak boleh lebih besar dari Maximum Duration."
+            );
+        }
+
+        if (
+            data.status &&
+            ![
+                "active",
+                "inactive",
+                "maintenance"
+            ].includes(
+                data.status
+            )
+        ) {
+            return (
+                "Status model tidak valid."
+            );
+        }
+
+        return null;
     }
-
 
     /* =====================================================
        BUILD PAYLOAD
-       
-       Hanya field yang memang digunakan oleh
-       endpoint /api/admin-models.
-       
-       Tidak mengirim:
-       - model_family
-       - documentation_url
-
-       karena kedua field tersebut bukan bagian
-       dari MODEL_FIELDS API saat ini.
     ===================================================== */
 
-    function buildPayload(
-        data
-    ) {
+    function buildPayload(data) {
+        if (!data) {
+            return null;
+        }
 
-        return {
-
-            action:
-                "update",
-
-            id:
-                data.id,
-
+        const payload = {
             provider_id:
                 data.provider_id,
 
@@ -638,531 +887,507 @@
             status:
                 data.status
         };
-    }
 
+        if (editingModel?.id) {
+            payload.id =
+                editingModel.id;
+        } else if (data.id) {
+            payload.id =
+                data.id;
+        }
+
+        return payload;
+    }
 
     /* =====================================================
        UPDATE
-       
-       PATCH /api/admin-models
     ===================================================== */
 
-    function update(
-        data
+    async function update(
+        model = null
     ) {
+        const target =
+            model ||
+            editingModel;
 
-        validate(
-            data
-        );
+        if (!target) {
+            throw new Error(
+                "Model yang akan diedit tidak tersedia."
+            );
+        }
 
+        const data =
+            collectData();
+
+        const validationError =
+            validate(
+                data
+            );
+
+        if (validationError) {
+            notify(
+                validationError,
+                "error"
+            );
+
+            throw new Error(
+                validationError
+            );
+        }
 
         const payload =
             buildPayload(
                 data
             );
 
+        const coordinator =
+            window.GENZModelFormCoordinator;
 
-        return getSessionToken()
-            .then(
-                function (token) {
-
-                    const headers = {
-
-                        "Content-Type":
-                            "application/json"
-                    };
-
-
-                    if (token) {
-
-                        headers.Authorization =
-                            "Bearer " +
-                            token;
-                    }
-
-
-                    return fetch(
-                        API_URL,
-                        {
-
-                            method:
-                                "PATCH",
-
-                            headers:
-                                headers,
-
-                            body:
-                                JSON.stringify(
-                                    payload
-                                )
-                        }
-                    );
-                }
-            )
-            .then(
-                async function (
-                    response
-                ) {
-
-                    let result =
-                        null;
-
-
-                    try {
-
-                        result =
-                            await response.json();
-
-                    } catch (error) {
-
-                        result =
-                            null;
-                    }
-
-
-                    if (
-                        !response.ok
-                    ) {
-
-                        const message =
-                            result?.error ||
-                            result?.message ||
-                            "Gagal memperbarui model.";
-
-
-                        throw new Error(
-                            message
-                        );
-                    }
-
-
-                    return result;
-                }
+        if (
+            coordinator &&
+            typeof coordinator.update ===
+                "function"
+        ) {
+            return coordinator.update(
+                payload
             );
-    }
+        }
 
+        const form =
+            window.GENZModelsForm;
+
+        if (
+            form &&
+            typeof form.saveToApi ===
+                "function"
+        ) {
+            return form.saveToApi(
+                payload
+            );
+        }
+
+        throw new Error(
+            "Module update model belum tersedia."
+        );
+    }
 
     /* =====================================================
        UPDATE FROM FORM
     ===================================================== */
 
-    function updateFromForm(
-        model
+    async function updateFromForm(
+        event = null
     ) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
 
-        const data =
-            collectData(
-                model
+        if (saving) {
+            return;
+        }
+
+        saving = true;
+
+        try {
+            const result =
+                await update();
+
+            notify(
+                "Model berhasil diperbarui.",
+                "success"
             );
 
+            return result;
+        } catch (error) {
+            console.error(
+                "[model-form-edit] Update error:",
+                error
+            );
 
-        return update(
-            data
-        );
+            notify(
+                error?.message ||
+                "Gagal memperbarui model.",
+                "error"
+            );
+
+            throw error;
+        } finally {
+            saving = false;
+        }
     }
-
 
     /* =====================================================
        POPULATE
-       
-       Hanya mengisi field Form.
-       
-       Provider tetap diserahkan ke:
-       GENZModelProviderDropdown
     ===================================================== */
 
-    function populate(
+    async function populate(
         model
     ) {
-
         if (!model) {
-
             return false;
         }
 
+        /*
+         * Simpan referensi model yang sedang diedit.
+         */
+        editingModel = {
+            ...model
+        };
 
-        /* -------------------------------------------------
-           RECORD ID
-        ------------------------------------------------- */
+        /*
+         * Record ID
+         */
+        setValue(
+            "modelRecordId",
+            model.id || ""
+        );
 
-        const recordId =
-            String(
-                model.id ??
-                ""
-            ).trim();
-
-
-        const recordField =
-            getField(
-                "modelRecordId"
-            );
-
-
-        if (recordField) {
-
-            recordField.value =
-                recordId;
-        }
-
-
-        /* -------------------------------------------------
-           PROVIDER
-        ------------------------------------------------- */
-
+        /*
+         * Provider
+         *
+         * Provider harus dipilih terlebih dahulu
+         * karena Model ID dropdown mengikuti Provider.
+         */
         const providerIdentifier =
-            String(
-                model.provider_id ??
-                model.provider ??
-                model.provider_code ??
-                model.id ??
-                ""
-            ).trim();
+            model.provider_id ||
+            model.provider ||
+            model.provider_code ||
+            model.provider_uuid ||
+            "";
 
-
-        const providerDropdown =
-            window.GENZModelProviderDropdown;
-
-
-        if (
-            providerDropdown &&
-            typeof providerDropdown.setValue ===
-                "function"
-        ) {
-
-            /*
-             * setValue() sekarang mendukung:
-             * - provider_id
-             * - provider.id
-             * - provider_name
-             */
-            providerDropdown.setValue(
+        if (providerIdentifier) {
+            await setProvider(
                 providerIdentifier
             );
         }
 
-
-        /* -------------------------------------------------
-           MODEL ID
-        ------------------------------------------------- */
-
-        const modelId =
-            String(
-                model.model_id ??
-                ""
-            ).trim();
-
-
-        const searchField =
-            getField(
-                "modelCodeSearch"
-            );
-
-
-        if (searchField) {
-
-            searchField.value =
-                modelId;
-        }
-
-
-        const hiddenField =
-            getField(
-                "modelCode"
-            );
-
-
-        if (hiddenField) {
-
-            hiddenField.value =
-                modelId;
-        }
-
-
-        /* -------------------------------------------------
-           MODEL NAME
-        ------------------------------------------------- */
-
-        const nameField =
-            getField(
-                "modelName"
-            );
-
-
-        if (nameField) {
-
-            nameField.value =
-                String(
-                    model.model_name ??
-                    ""
-                ).trim();
-        }
-
-
-        /* -------------------------------------------------
-           DESCRIPTION
-        ------------------------------------------------- */
-
-        const descriptionField =
-            getField(
-                "description"
-            );
-
-
-        if (descriptionField) {
-
-            descriptionField.value =
-                String(
-                    model.description ??
-                    ""
-                ).trim();
-        }
-
-
-        /* -------------------------------------------------
-           CREDIT COST
-        ------------------------------------------------- */
-
-        const creditCostField =
-            getField(
-                "creditCost"
-            );
-
-
-        if (creditCostField) {
-
-            creditCostField.value =
-                model.credit_cost ??
-                "";
-        }
-
-
-        /* -------------------------------------------------
-           DISCOUNT
-        ------------------------------------------------- */
-
-        const discountField =
-            getField(
-                "discountPercent"
-            );
-
-
-        if (discountField) {
-
-            discountField.value =
-                model.discount_percent ??
-                0;
-        }
-
-
-        /* -------------------------------------------------
-           CREDIT FINAL
-        ------------------------------------------------- */
-
-        const creditFinalField =
-            getField(
-                "creditFinal"
-            );
-
-
-        if (creditFinalField) {
-
-            creditFinalField.value =
-                model.credit_final ??
-                "";
-        }
-
-
-        /* -------------------------------------------------
-           MIN DURATION
-        ------------------------------------------------- */
-
-        const minDurationField =
-            getField(
-                "minDuration"
-            );
-
-
-        if (minDurationField) {
-
-            minDurationField.value =
-                model.min_duration ??
-                "";
-        }
-
-
-        /* -------------------------------------------------
-           MAX DURATION
-        ------------------------------------------------- */
-
-        const maxDurationField =
-            getField(
-                "maxDuration"
-            );
-
-
-        if (maxDurationField) {
-
-            maxDurationField.value =
-                model.max_duration ??
-                "";
-        }
-
-
-        /* -------------------------------------------------
-           SUPPORTED RATIOS
-        ------------------------------------------------- */
-
-        const ratiosField =
-            getField(
-                "supportedRatios"
-            );
-
-
-        if (ratiosField) {
-
-            const ratios =
-                normalizeArray(
-                    model.supported_ratios
-                );
-
-
-            /*
-             * Ikuti format existing field.
-             * Untuk textarea/input text, gunakan comma.
-             */
-            ratiosField.value =
-                ratios.join(
-                    ", "
-                );
-        }
-
-
-        /* -------------------------------------------------
-           SUPPORTED RESOLUTIONS
-        ------------------------------------------------- */
-
-        const resolutionsField =
-            getField(
-                "supportedResolutions"
-            );
-
-
-        if (resolutionsField) {
-
-            const resolutions =
-                normalizeArray(
-                    model.supported_resolutions
-                );
-
-
-            resolutionsField.value =
-                resolutions.join(
-                    ", "
-                );
-        }
-
-
-        /* -------------------------------------------------
-           STATUS
-        ------------------------------------------------- */
-
-        const statusField =
-            getField(
-                "modelStatus"
-            ) ||
-            getField(
-                "status"
-            );
-
-
-        if (statusField) {
-
-            statusField.value =
-                String(
-                    model.status ??
-                    "active"
-                ).trim() ||
-                "active";
-        }
-
-
-        /* -------------------------------------------------
-           SELECTED MODEL INFO
-        ------------------------------------------------- */
-
-        const info =
-            getField(
-                "selectedModelInfo"
-            );
-
-
-        if (info) {
-
-            const providerName =
-                String(
-                    model.provider_name ??
-                    model.provider_code ??
-                    model.provider_id ??
-                    model.provider ??
-                    ""
-                ).trim();
-
-
-            const modelName =
-                String(
-                    model.model_name ??
-                    model.model_id ??
-                    ""
-                ).trim();
-
-
-            const description =
-                String(
-                    model.description ??
-                    ""
-                ).trim();
-
-
-            const parts = [
-
-                modelName,
-
-                providerName,
-
-                description
-            ]
-                .filter(Boolean);
-
-
-            info.textContent =
-                parts.join(
-                    " · "
-                );
-        }
-
+        /*
+         * Beri kesempatan Provider event
+         * menyelesaikan refresh Model ID.
+         */
+        await waitForModelLayout();
 
         /*
-         * Beri tahu module lain bahwa Form Edit
-         * sudah diisi.
+         * Model ID
          *
-         * Tidak menjalankan logic CRUD.
+         * Mulai sekarang WAJIB melalui
+         * GENZModelFormLayout.
          */
+        await setModel(
+            model
+        );
+
+        /*
+         * Model Name dari database
+         * harus dipertahankan.
+         *
+         * Layout boleh mengisi nama otomatis
+         * dari catalog, tetapi Edit harus
+         * mempertahankan nilai tersimpan.
+         */
+        setValue(
+            "modelName",
+            model.model_name || ""
+        );
+
+        /*
+         * Description
+         */
+        setValue(
+            "description",
+            model.description || ""
+        );
+
+        /*
+         * Credit
+         */
+        setValue(
+            "creditCost",
+            model.credit_cost ?? ""
+        );
+
+        setValue(
+            "discountPercent",
+            model.discount_percent ?? 0
+        );
+
+        /*
+         * Credit Final sengaja menggunakan
+         * nilai database saat pertama kali Edit.
+         *
+         * Tidak dihitung ulang diam-diam.
+         */
+        setValue(
+            "creditFinal",
+            model.credit_final ?? ""
+        );
+
+        /*
+         * Duration
+         */
+        setValue(
+            "minDuration",
+            model.min_duration ?? ""
+        );
+
+        setValue(
+            "maxDuration",
+            model.max_duration ?? ""
+        );
+
+        /*
+         * Ratio
+         */
+        setValue(
+            "supportedRatios",
+            normalizeArray(
+                model.supported_ratios
+            )
+        );
+
+        /*
+         * Resolution
+         */
+        setValue(
+            "supportedResolutions",
+            normalizeArray(
+                model.supported_resolutions
+            )
+        );
+
+        /*
+         * Status
+         */
+        setValue(
+            "modelStatus",
+            model.status ||
+            "active"
+        );
+
+        /*
+         * Selected Model Info
+         */
+        updateSelectedModelInfo(
+            model
+        );
+
+        /*
+         * Sinkronisasi preview Credit.
+         *
+         * Hanya jika module tersedia.
+         *
+         * Tidak mengambil alih nilai credit_final
+         * yang tersimpan.
+         */
+        const priceCalculation =
+            getPriceCalculation();
+
+        if (
+            priceCalculation &&
+            typeof priceCalculation.updatePreview ===
+                "function"
+        ) {
+            try {
+                priceCalculation.updatePreview();
+            } catch (error) {
+                console.warn(
+                    "[model-form-edit] Credit preview warning:",
+                    error
+                );
+            }
+        }
+
+        /*
+         * Preview USD/IDR dimiliki Layout.
+         */
+        const layout =
+            getFormLayout();
+
+        if (
+            layout &&
+            typeof layout.updateUsdPreview ===
+                "function"
+        ) {
+            try {
+                await layout.updateUsdPreview();
+            } catch (error) {
+                console.warn(
+                    "[model-form-edit] USD preview warning:",
+                    error
+                );
+            }
+        }
+
         document.dispatchEvent(
             new CustomEvent(
                 "genz-model-edit-populated",
                 {
                     detail: {
-                        model:
-                            model
+                        model: {
+                            ...model
+                        }
                     }
                 }
             )
         );
 
+        return true;
+    }
+
+    /* =====================================================
+       OPEN
+    ===================================================== */
+
+    async function open(
+        model
+    ) {
+        if (!model) {
+            console.warn(
+                "[model-form-edit] Model tidak tersedia."
+            );
+
+            return false;
+        }
+
+        editingModel = {
+            ...model
+        };
+
+        /*
+         * Gunakan coordinator/form owner jika
+         * tersedia agar lifecycle modal tetap
+         * terpusat.
+         */
+        const form =
+            window.GENZModelsForm;
+
+        if (
+            form &&
+            typeof form.openEditForm ===
+                "function"
+        ) {
+            /*
+             * Hindari recursive call jika
+             * openEditForm sedang memanggil
+             * module ini.
+             *
+             * Populate langsung dilakukan
+             * apabila form owner tidak punya
+             * mekanisme yang aman.
+             */
+            try {
+                await populate(
+                    model
+                );
+
+                if (
+                    typeof form.openModal ===
+                    "function"
+                ) {
+                    form.openModal();
+                }
+
+                return true;
+            } catch (error) {
+                console.error(
+                    "[model-form-edit] Open error:",
+                    error
+                );
+            }
+        }
+
+        /*
+         * Fallback modal.
+         */
+        const modal =
+            getElement(
+                "modelModal"
+            );
+
+        if (modal) {
+            modal.classList.add(
+                "open"
+            );
+
+            modal.classList.add(
+                "show"
+            );
+
+            modal.classList.remove(
+                "hidden"
+            );
+
+            modal.removeAttribute(
+                "aria-hidden"
+            );
+
+            if (
+                window.getComputedStyle(
+                    modal
+                ).display ===
+                "none"
+            ) {
+                modal.style.display =
+                    "flex";
+            }
+
+            document.body.classList.add(
+                "modal-open"
+            );
+        }
+
+        await populate(
+            model
+        );
 
         return true;
     }
 
+    /* =====================================================
+       CLEAR STATE
+    ===================================================== */
+
+    function clear() {
+        editingModel = null;
+        saving = false;
+    }
+
+    /* =====================================================
+       STATE
+    ===================================================== */
+
+    function getEditingModel() {
+        return editingModel;
+    }
+
+    function isEditing() {
+        return Boolean(
+            editingModel
+        );
+    }
+
+    function isSaving() {
+        return saving;
+    }
+
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
+
+    function initialize() {
+        if (initialized) {
+            return true;
+        }
+
+        initialized = true;
+
+        console.log(
+            "[GEN-Z.AI] GENZModelFormEdit initialized."
+        );
+
+        return true;
+    }
 
     /* =====================================================
        PUBLIC API
@@ -1170,6 +1395,13 @@
 
     window.GENZModelFormEdit =
         Object.freeze({
+            initialize,
+
+            open,
+
+            populate,
+
+            clear,
 
             collectData,
 
@@ -1181,13 +1413,17 @@
 
             updateFromForm,
 
-            populate
+            setProvider,
 
+            setModel,
+
+            updateSelectedModelInfo,
+
+            getEditingModel,
+
+            isEditing,
+
+            isSaving
         });
-
-
-    console.info(
-        "[GEN-Z.AI] GENZModelFormEdit loaded."
-    );
 
 })();
