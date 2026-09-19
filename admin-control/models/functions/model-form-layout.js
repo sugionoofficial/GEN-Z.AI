@@ -344,14 +344,6 @@
         }
 
 
-        /*
-         * Jangan membuat kurs sendiri.
-         *
-         * Jika module kurs belum tersedia,
-         * return null agar UI tidak menampilkan
-         * data palsu.
-         */
-
         return null;
 
     }
@@ -1376,11 +1368,6 @@
 
     /* =====================================================
        KIE CONFIG
-       -----------------------------------------------------
-       Sumber:
-           /api/kie-config?model_id=<MODEL_ID>
-
-       Tidak ada fallback capability buatan.
     ===================================================== */
 
     async function loadKieConfig(
@@ -1428,11 +1415,6 @@
         let token =
             "";
 
-
-        /*
-         * Gunakan Supabase session yang sama
-         * dengan models-data.js.
-         */
 
         try {
 
@@ -1558,14 +1540,6 @@
                 }
 
 
-                /*
-                 * Validasi dasar.
-                 *
-                 * Jangan menerima response yang tidak
-                 * memiliki models[] sebagai konfigurasi
-                 * valid.
-                 */
-
                 if (
                     !Array.isArray(
                         dataResponse.models
@@ -1578,11 +1552,6 @@
 
                 }
 
-
-                /*
-                 * Pastikan Model ID yang dikembalikan
-                 * memang model yang diminta.
-                 */
 
                 const returnedModel =
                     dataResponse.models.find(
@@ -1737,11 +1706,7 @@
 
 
     /* =====================================================
-       PARAMETER NAME CLASSIFICATION
-       -----------------------------------------------------
-       Tidak membuat nilai capability.
-       Hanya mengidentifikasi parameter yang dikirim
-       oleh Supabase.
+       PARAMETER CLASSIFICATION
     ===================================================== */
 
     function classifyParameter(
@@ -1830,9 +1795,6 @@
 
     /* =====================================================
        ENUM VALUE NORMALIZATION
-       -----------------------------------------------------
-       Hanya mengubah bentuk JSON menjadi array nilai.
-       Nilai tetap berasal dari Supabase.
     ===================================================== */
 
     function parseEnumValues(
@@ -1988,11 +1950,6 @@
 
                 } catch {
 
-                    /*
-                     * Beberapa data lama mungkin
-                     * berupa CSV.
-                     */
-
                     const values =
                         text
                             .split(",")
@@ -2019,10 +1976,6 @@
 
         }
 
-
-        /*
-         * Jangan membuat nilai sendiri.
-         */
 
         return [];
 
@@ -2209,9 +2162,6 @@
 
     /* =====================================================
        CAPABILITY CONTAINER
-       -----------------------------------------------------
-       Gunakan field lama sebagai anchor.
-       Tidak perlu mengubah models.html.
     ===================================================== */
 
     function getCapabilityContainer(
@@ -2294,7 +2244,7 @@
 
 
     /* =====================================================
-       CHECKBOX VALUE
+       CHECKBOX
     ===================================================== */
 
     function createCapabilityCheckbox(
@@ -2372,6 +2322,12 @@
             );
 
 
+        checkbox.value =
+            String(
+                value
+            );
+
+
         checkbox.checked =
             Boolean(
                 checked
@@ -2379,11 +2335,14 @@
 
 
         /*
-         * Ratio dan Resolution adalah readonly.
+         * IMPORTANT:
          *
-         * HTML checkbox tidak memiliki readonly,
-         * sehingga disabled digunakan sebagai mekanisme
-         * read-only UI.
+         * Ratio dan Resolution TIDAK lagi disabled.
+         *
+         * Nilainya tetap readonly dari sisi SOURCE
+         * karena option hanya dibuat dari KIE/Supabase.
+         *
+         * Checkbox boleh dipilih user saat edit.
          */
 
         if (
@@ -2546,6 +2505,7 @@
                     const value =
                         String(
                             checkbox.dataset.kieValue ??
+                            checkbox.value ??
                             ""
                         ).trim();
 
@@ -2570,10 +2530,7 @@
 
 
     /* =====================================================
-       DURATION NUMERIC SORT
-       -----------------------------------------------------
-       Hanya untuk menentukan min/max dari nilai yang
-       memang berasal dari Supabase.
+       DURATION SORT
     ===================================================== */
 
     function sortDurationValues(
@@ -2630,8 +2587,10 @@
        -----------------------------------------------------
        Checkbox Duration:
            [5] [8] [10]
-       checked:
-           5 + 10
+
+       Jika:
+           [5] [10]
+
        maka:
            minDuration = 5
            maxDuration = 10
@@ -2721,12 +2680,6 @@
 
     /* =====================================================
        SYNC LEGACY CAPABILITY FIELDS
-       -----------------------------------------------------
-       Field lama tetap dipertahankan untuk CRUD:
-           supportedRatios
-           supportedResolutions
-
-       Tetapi user tidak lagi mengetik nilainya.
     ===================================================== */
 
     function syncLegacyCapabilityFields() {
@@ -2882,6 +2835,13 @@
 
     /* =====================================================
        RENDER CAPABILITIES
+       -----------------------------------------------------
+       SEMUA OPTION WAJIB BERASAL DARI:
+           /api/kie-config
+               |
+               +-- kie_parameters
+               |
+               +-- enum_values
     ===================================================== */
 
     function renderCapabilities(
@@ -2903,9 +2863,9 @@
             };
 
 
-        /*
-         * Ratio
-         */
+        /* =================================================
+           RATIO
+           ================================================= */
 
         const ratioContainer =
             getCapabilityContainer(
@@ -2919,18 +2879,39 @@
             capabilities.ratios.forEach(
                 function (value) {
 
+                    /*
+                     * IMPORTANT:
+                     * ratio tidak disabled.
+                     *
+                     * Semua option yang tampil tetap
+                     * berasal dari Supabase/KIE.
+                     */
+
                     const item =
                         createCapabilityCheckbox(
                             "ratio",
                             value,
                             {
                                 readonly:
-                                    true,
+                                    false,
 
                                 checked:
-                                    true
+                                    false
                             }
                         );
+
+
+                    bindCapabilityEvent(
+                        item.checkbox,
+                        "change",
+                        function () {
+
+                            syncLegacyCapabilityFields();
+
+                            syncCreditPreview();
+
+                        }
+                    );
 
 
                     ratioContainer.appendChild(
@@ -2943,9 +2924,9 @@
         }
 
 
-        /*
-         * Duration
-         */
+        /* =================================================
+           DURATION
+           ================================================= */
 
         const durationContainer =
             getCapabilityContainer(
@@ -3002,8 +2983,18 @@
 
 
                     let checked =
-                        true;
+                        false;
 
+
+                    /*
+                     * Jika field duration sudah memiliki
+                     * nilai dari record Supabase, gunakan
+                     * range tersebut untuk menentukan
+                     * checkbox awal.
+                     *
+                     * Jika kosong, JANGAN mencentang
+                     * semua option secara otomatis.
+                     */
 
                     if (
                         existingMin &&
@@ -3048,6 +3039,8 @@
 
                             syncDurationFields();
 
+                            syncCreditPreview();
+
                         }
                     );
 
@@ -3062,9 +3055,9 @@
         }
 
 
-        /*
-         * Resolution
-         */
+        /* =================================================
+           RESOLUTION
+           ================================================= */
 
         const resolutionContainer =
             getCapabilityContainer(
@@ -3078,18 +3071,39 @@
             capabilities.resolutions.forEach(
                 function (value) {
 
+                    /*
+                     * Resolution sekarang editable
+                     * melalui checkbox.
+                     *
+                     * Option tetap 100% berasal dari
+                     * konfigurasi Supabase/KIE.
+                     */
+
                     const item =
                         createCapabilityCheckbox(
                             "resolution",
                             value,
                             {
                                 readonly:
-                                    true,
+                                    false,
 
                                 checked:
-                                    true
+                                    false
                             }
                         );
+
+
+                    bindCapabilityEvent(
+                        item.checkbox,
+                        "change",
+                        function () {
+
+                            syncLegacyCapabilityFields();
+
+                            syncCreditPreview();
+
+                        }
+                    );
 
 
                     resolutionContainer.appendChild(
@@ -3103,18 +3117,41 @@
 
 
         /*
-         * Sinkron field lama.
+         * Sinkronisasi field lama.
+         *
+         * Pada mode create, tidak ada selection
+         * buatan sehingga field tetap kosong.
          */
 
         syncLegacyCapabilityFields();
 
-        syncDurationFields();
-
 
         /*
-         * Jika tidak ada capability dari
-         * Supabase, jangan membuat pilihan.
+         * HANYA sinkron duration jika checkbox
+         * memang sudah memiliki selection.
+         *
+         * Ini mencegah render kosong menghapus
+         * min/max yang baru saja diisi dari Supabase.
          */
+
+        const durationChecked =
+            getCheckedCapabilityValues(
+                "duration"
+            );
+
+
+        if (
+            durationChecked.length
+        ) {
+
+            syncDurationFields();
+
+        }
+
+
+        /* =================================================
+           EMPTY STATE
+           ================================================= */
 
         if (
             !capabilities.ratios.length &&
@@ -3218,14 +3255,6 @@
         }
 
 
-        /*
-         * Jika beberapa pricing memiliki harga berbeda,
-         * jangan mengarang satu angka.
-         *
-         * Hanya gunakan harga jika semua record valid
-         * yang tersedia memiliki unit_price yang sama.
-         */
-
         const prices =
             uniqueValues(
                 valid.map(
@@ -3325,10 +3354,6 @@
 
         }
 
-
-        /*
-         * Field harga selalu readonly.
-         */
 
         field.readOnly =
             true;
@@ -3551,11 +3576,6 @@
 
         function handler() {
 
-            /*
-             * User tidak boleh mengedit harga KIE.
-             * Event hanya dipertahankan untuk kompatibilitas.
-             */
-
             updateUsdPreview();
 
         }
@@ -3646,10 +3666,6 @@
         }
 
 
-        /*
-         * Model harus berasal dari cache KIE.
-         */
-
         const existing =
             findModel(
                 modelId
@@ -3665,9 +3681,9 @@
         }
 
 
-        /*
-         * SELECT
-         */
+        /* =================================================
+           SELECT
+           ================================================= */
 
         const select =
             getModelSelect();
@@ -3723,9 +3739,9 @@
         }
 
 
-        /*
-         * Hidden Model ID
-         */
+        /* =================================================
+           HIDDEN MODEL ID
+           ================================================= */
 
         const hidden =
             getElement(
@@ -3741,9 +3757,9 @@
         }
 
 
-        /*
-         * Model Name
-         */
+        /* =================================================
+           MODEL NAME
+           ================================================= */
 
         const name =
             getElement(
@@ -3766,9 +3782,9 @@
         }
 
 
-        /*
-         * Model Family
-         */
+        /* =================================================
+           MODEL FAMILY
+           ================================================= */
 
         const family =
             getElement(
@@ -3791,10 +3807,9 @@
         }
 
 
-        /*
-         * Harga dan capability harus dibaca
-         * dari konfigurasi KIE.
-         */
+        /* =================================================
+           KIE CONFIG
+           ================================================= */
 
         const config =
             await loadKieConfig(
@@ -3813,10 +3828,6 @@
             );
 
         } else {
-
-            /*
-             * Tidak boleh memakai data palsu.
-             */
 
             clearKieConfigState();
 
@@ -4248,8 +4259,6 @@
 
     /* =====================================================
        SYNC MODEL SEARCH VALUE
-       -----------------------------------------------------
-       API lama dipertahankan.
     ===================================================== */
 
     function syncModelSearchValue(
@@ -4378,6 +4387,19 @@
 
     /* =====================================================
        REFRESH
+       -----------------------------------------------------
+       Satu jalur loading:
+           models
+             ->
+           select
+             ->
+           model
+             ->
+           KIE config
+             ->
+           capability
+             ->
+           pricing
     ===================================================== */
 
     async function refresh(
@@ -4452,6 +4474,10 @@
                 await setModel(
                     model
                 );
+
+            } else {
+
+                clearKieConfigState();
 
             }
 
@@ -4552,11 +4578,6 @@
             true;
 
 
-        /*
-         * Model Name / Family / harga /
-         * capability dikunci setelah model dipilih.
-         */
-
         const modelName =
             getElement(
                 "modelName"
@@ -4648,12 +4669,6 @@
 
             } else {
 
-                /*
-                 * Jangan membuat model dari
-                 * data edit yang tidak ada di
-                 * catalog KIE.
-                 */
-
                 clearKieConfigState();
 
             }
@@ -4696,7 +4711,7 @@
 
 
     /* =====================================================
-       LOAD MODEL CACHE
+       PROVIDER ID
     ===================================================== */
 
     function getCurrentProviderId() {
@@ -4719,8 +4734,6 @@
 
     /* =====================================================
        RESET / UNBIND
-       -----------------------------------------------------
-       Diperlukan models-init.js saat reset().
     ===================================================== */
 
     function unbind() {
