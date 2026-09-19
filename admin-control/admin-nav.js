@@ -52,7 +52,7 @@
         },
         {
             label: "ADMIN PANEL",
-            href: "../admin/admin-panel.html",
+            href: "/admin-control/admin-panel.html",
             icon: "♻️"
         }
     ];
