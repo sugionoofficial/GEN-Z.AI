@@ -44,6 +44,10 @@
         return (
 
             document.getElementById(
+                "modelTableBody"
+            ) ||
+
+            document.getElementById(
                 "modelsTableBody"
             ) ||
 
@@ -52,7 +56,15 @@
             ) ||
 
             document.querySelector(
+                "#modelTable tbody"
+            ) ||
+
+            document.querySelector(
                 "[data-model-table-body]"
+            ) ||
+
+            document.querySelector(
+                "table tbody"
             )
 
         );
@@ -340,16 +352,6 @@
         }
 
 
-        /*
-         * Prioritas:
-         *
-         * 1. Coordinator
-         * 2. Form
-         *
-         * Coordinator hanya mengoordinasikan
-         * operasi form. Ia bukan pemilik UI.
-         */
-
         const coordinator =
             getCoordinator();
 
@@ -532,11 +534,6 @@
 
         try {
 
-            /*
-             * Delete module adalah satu-satunya
-             * pemilik DELETE API.
-             */
-
             if (
                 typeof deleteModule.remove ===
                     "function"
@@ -575,20 +572,10 @@
             }
 
 
-            /*
-             * Hanya sinkronisasi state table.
-             * Tidak melakukan DELETE API lagi.
-             */
-
             removeFromTable(
                 model.id
             );
 
-
-            /*
-             * Beri kesempatan module lain
-             * melakukan sinkronisasi state.
-             */
 
             try {
 
@@ -646,9 +633,6 @@
 
     /* =====================================================
        REMOVE FROM TABLE
-       -----------------------------------------------------
-       Hanya mengubah state/render Table.
-       BUKAN DELETE API.
        ===================================================== */
 
     function removeFromTable(
@@ -744,17 +728,6 @@
                 .toLowerCase();
 
 
-        /*
-         * Table renderer menggunakan:
-         *
-         * data-action="edit"
-         * data-action="delete"
-         *
-         * dan:
-         *
-         * data-model-id="..."
-         */
-
         if (
             action !== "edit" &&
             action !== "delete"
@@ -819,7 +792,7 @@
 
     /* =====================================================
        BIND
-    ===================================================== */
+       ===================================================== */
 
     function bind() {
 
@@ -840,11 +813,6 @@
         }
 
 
-        /*
-         * Jika sudah terikat pada body yang sama,
-         * jangan menambahkan listener kedua.
-         */
-
         if (
             bound &&
             boundBody === body
@@ -854,11 +822,6 @@
 
         }
 
-
-        /*
-         * Jika sebelumnya terikat ke body lain,
-         * lepaskan dahulu.
-         */
 
         if (
             bound &&
@@ -900,8 +863,7 @@
 
 
         body.dataset
-            .genzTableEventsBound =
-            "true";
+            .genzTableEventsBound = "true";
 
 
         console.info(
@@ -916,7 +878,7 @@
 
     /* =====================================================
        UNBIND
-    ===================================================== */
+       ===================================================== */
 
     function unbind() {
 
@@ -962,7 +924,7 @@
 
     /* =====================================================
        REBIND
-    ===================================================== */
+       ===================================================== */
 
     function rebind() {
 
@@ -975,7 +937,7 @@
 
     /* =====================================================
        INITIALIZE
-    ===================================================== */
+       ===================================================== */
 
     function initialize() {
 
@@ -986,7 +948,7 @@
 
     /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
 
     window.GENZModelTableEvents =
         Object.freeze({
