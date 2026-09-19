@@ -2148,122 +2148,138 @@
      * PROVIDER ACTIVE STATISTIC
      * =====================================================
      *
-     * Kartu "Provider" pada halaman Models harus menunjukkan
-     * jumlah Provider yang status-nya ACTIVE.
+     * Kartu Provider pada halaman Models menunjukkan
+     * jumlah Provider yang benar-benar digunakan oleh
+     * Model yang ACTIVE.
      *
-     * Sumber data:
+     * Jadi:
      *
-     *     GENZModelsProvider.getProviders()
+     * - Provider aktif tetapi tidak memiliki model aktif
+     *   tidak dihitung.
      *
-     * Tidak melakukan query Supabase kedua.
+     * - Provider yang digunakan oleh model aktif dihitung
+     *   satu kali.
      *
      * Contoh:
      *
-     *     kie        -> active
-     *     bytedance  -> inactive
+     *   kie  -> 22 model ACTIVE
+     *   tes  -> 0 model ACTIVE
      *
      * hasil:
      *
-     *     Provider = 1
+     *   Provider = 1
      *
      * =====================================================
      */
 
     function updateActiveProviderStatistic() {
 
-    const statisticElement =
-        document.getElementById(
-            "statProviders"
-        );
+        const statisticElement =
+            document.getElementById(
+                "statProviders"
+            );
 
-    if (!statisticElement) {
-        return;
-    }
-
-    /*
-     * Kartu Provider pada halaman Models
-     * menunjukkan jumlah Provider yang benar-benar
-     * digunakan oleh Model yang ACTIVE.
-     *
-     * Sumber utama:
-     *     GENZModelsData.getCachedModels()
-     *
-     * Contoh:
-     *     22 Model ACTIVE
-     *     semuanya menggunakan provider "kie"
-     *
-     * hasil:
-     *     Provider = 1
-     */
-
-    const dataModule =
-        window.GENZModelsData;
-
-    if (
-        !dataModule ||
-        typeof dataModule.getCachedModels !==
-            "function"
-    ) {
-        return;
-    }
-
-    try {
-
-        const models =
-            dataModule.getCachedModels();
-
-        if (!Array.isArray(models)) {
+        if (!statisticElement) {
             return;
         }
 
-        const activeProviderIds =
-            new Set();
+        /*
+         * Sumber data adalah cache model.
+         *
+         * GENZModelsData mengambil data langsung
+         * dari public.kie_models.
+         */
+        const dataModule =
+            window.GENZModelsData;
 
-        models.forEach(
-            function (model) {
+        if (
+            !dataModule ||
+            typeof dataModule.getCachedModels !==
+                "function"
+        ) {
+            return;
+        }
 
-                const status =
-                    String(
-                        model?.status || ""
-                    )
-                        .trim()
-                        .toLowerCase();
+        try {
 
-                if (status !== "active") {
-                    return;
-                }
+            const models =
+                dataModule.getCachedModels();
 
-                const providerId =
-                    String(
-                        model?.provider ||
-                        model?.provider_id ||
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase();
-
-                if (providerId) {
-                    activeProviderIds.add(
-                        providerId
-                    );
-                }
+            if (!Array.isArray(models)) {
+                return;
             }
-        );
 
-        statisticElement.textContent =
-            String(
-                activeProviderIds.size
+            /*
+             * Gunakan Set supaya satu provider
+             * yang memiliki banyak model tetap
+             * hanya dihitung satu kali.
+             */
+            const activeProviderIds =
+                new Set();
+
+            models.forEach(
+                function (model) {
+
+                    const status =
+                        String(
+                            model?.status || ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    /*
+                     * Hanya Model ACTIVE.
+                     */
+                    if (
+                        status !== "active"
+                    ) {
+                        return;
+                    }
+
+                    /*
+                     * kie_models menggunakan kolom
+                     * "provider".
+                     *
+                     * provider_id hanya fallback
+                     * untuk kompatibilitas.
+                     */
+                    const providerId =
+                        String(
+                            model?.provider ||
+                            model?.provider_id ||
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    if (
+                        providerId
+                    ) {
+                        activeProviderIds.add(
+                            providerId
+                        );
+                    }
+                }
             );
 
-    } catch (error) {
+            /*
+             * Jumlah unique provider yang benar-benar
+             * digunakan oleh model aktif.
+             */
+            statisticElement.textContent =
+                String(
+                    activeProviderIds.size
+                );
 
-        console.warn(
-            "[models.html] Gagal menghitung Provider dari Model aktif:",
-            error
-        );
+        } catch (error) {
 
+            console.warn(
+                "[models.html] Gagal menghitung Provider dari Model aktif:",
+                error
+            );
+
+        }
     }
-}
 
     /*
      * Tunggu sampai module Models selesai dimuat.
@@ -2272,8 +2288,16 @@
 
         updateActiveProviderStatistic();
 
+        /*
+         * GENZModelsProvider tidak wajib menjadi
+         * sumber angka statistik.
+         *
+         * Namun jika module belum tersedia,
+         * kita tetap menunggu supaya lifecycle
+         * halaman selesai.
+         */
         if (
-            window.GENZModelsProvider
+            window.GENZModelsData
         ) {
             return;
         }
@@ -2306,12 +2330,22 @@
         );
 
         document.addEventListener(
+            "genz-models-providers-loaded",
+            updateActiveProviderStatistic
+        );
+
+        document.addEventListener(
             "genz-model-refresh",
             updateActiveProviderStatistic
         );
 
         document.addEventListener(
             "genz-models-refreshed",
+            updateActiveProviderStatistic
+        );
+
+        document.addEventListener(
+            "genz-models-initialized",
             updateActiveProviderStatistic
         );
     }
@@ -2324,22 +2358,9 @@
      * Model modal, form, delete, search dan table
      * sepenuhnya dikelola oleh module di models/.
      *
-     * Jangan membuat handler kedua untuk:
+     * Fallback halaman ini hanya menangani sidebar.
      *
-     * - Add Model
-     * - Close Modal
-     * - Cancel Modal
-     * - Delete Modal
-     * - Backdrop Modal
-     * - Escape Modal
-     *
-     * Handler tersebut dikelola oleh:
-     *
-     * - GENZModelsForm
-     * - GENZModelFormEvents
-     * - GENZModelTableEvents
-     *
-     * Fallback di halaman hanya menangani sidebar.
+     * =====================================================
      */
 
     function bindSidebarFallback() {
@@ -2370,7 +2391,7 @@
             );
 
         /*
-         * Desktop sidebar collapse
+         * Desktop sidebar collapse.
          */
         if (
             sidebar &&
@@ -2393,7 +2414,9 @@
                         "collapsed"
                     );
 
-                    if (mainContent) {
+                    if (
+                        mainContent
+                    ) {
 
                         mainContent.classList.toggle(
                             "collapsed"
@@ -2412,7 +2435,7 @@
         }
 
         /*
-         * Mobile sidebar
+         * Mobile sidebar.
          */
         if (
             sidebar &&
@@ -2435,7 +2458,9 @@
                         "mobile-open"
                     );
 
-                    if (sidebarOverlay) {
+                    if (
+                        sidebarOverlay
+                    ) {
 
                         sidebarOverlay.classList.add(
                             "show"
@@ -2446,9 +2471,14 @@
             );
         }
 
+        /*
+         * Tutup mobile sidebar.
+         */
         function closeMobileSidebar() {
 
-            if (sidebar) {
+            if (
+                sidebar
+            ) {
 
                 sidebar.classList.remove(
                     "mobile-open"
@@ -2456,18 +2486,19 @@
 
             }
 
-            if (sidebarOverlay) {
+            if (
+                sidebarOverlay
+            ) {
 
                 sidebarOverlay.classList.remove(
                     "show"
                 );
 
             }
-
         }
 
         /*
-         * Mobile overlay
+         * Mobile overlay.
          */
         if (
             sidebarOverlay &&
@@ -2485,7 +2516,7 @@
         }
 
         /*
-         * Tutup sidebar setelah memilih menu
+         * Tutup sidebar setelah memilih menu.
          */
         if (
             sidebar &&
@@ -2521,16 +2552,14 @@
         bindProviderStatisticEvents();
 
         /*
-         * Coba langsung.
+         * Hitung langsung jika cache sudah tersedia.
          */
         updateActiveProviderStatistic();
 
         /*
-         * Jika module belum tersedia,
-         * tunggu sampai loader selesai.
+         * Tunggu module data.
          */
         waitForProviderModule();
-
     }
 
     /*
@@ -2558,7 +2587,8 @@
     /*
      * Safety retry.
      *
-     * Tidak menyentuh modal atau form.
+     * Tidak membuat listener kedua karena
+     * setiap binding memakai data marker.
      */
     window.setTimeout(
         initializePageFallbacks,
