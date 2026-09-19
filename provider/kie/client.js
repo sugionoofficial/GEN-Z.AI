@@ -1,29 +1,54 @@
 /**
+ * =========================================================
  * GEN-Z.AI
  * KIE.AI GENERIC CLIENT
- *
+ * ---------------------------------------------------------
  * File:
  * provider/kie/client.js
  *
- * Fungsi:
+ * Tanggung jawab:
+ * - HTTP request ke KIE.AI
  * - createTask()
  * - getTask()
- * - request()
+ * - waitForTask()
  *
- * Client ini TIDAK mengetahui model,
- * workflow, variant, parameter, pricing,
- * atau constraint tertentu.
+ * Tidak bertanggung jawab:
+ * - konfigurasi model
+ * - parameter model
+ * - workflow
+ * - variant
+ * - pricing
+ * - constraint
+ * - dependency
  *
- * Semua konfigurasi model tetap berasal
- * dari Supabase.
+ * API:
+ * POST /api/v1/jobs/createTask
+ * GET  /api/v1/jobs/recordInfo?taskId=...
+ * =========================================================
  */
 
-const DEFAULT_BASE_URL = "https://api.kie.ai";
 
-const CREATE_TASK_PATH = "/api/v1/jobs/createTask";
+/**
+ * =========================================================
+ * DEFAULT CONFIGURATION
+ * =========================================================
+ */
 
-const TASK_INFO_PATH = "/api/v1/jobs/recordInfo";
+const DEFAULT_BASE_URL =
+    "https://api.kie.ai";
 
+const CREATE_TASK_PATH =
+    "/api/v1/jobs/createTask";
+
+const TASK_INFO_PATH =
+    "/api/v1/jobs/recordInfo";
+
+
+/**
+ * =========================================================
+ * NORMALIZE BASE URL
+ * =========================================================
+ */
 
 function normalizeBaseUrl(value) {
 
@@ -33,9 +58,29 @@ function normalizeBaseUrl(value) {
             DEFAULT_BASE_URL
         ).trim();
 
-    return url.replace(/\/+$/, "");
+    return url.replace(
+        /\/+$/,
+        ""
+    );
+
 }
 
+
+/**
+ * =========================================================
+ * API KEY
+ * =========================================================
+ *
+ * Prioritas:
+ *
+ * 1. apiKey yang dikirim oleh caller
+ * 2. KIE_API_KEY
+ *
+ * Client tidak mengetahui dari mana API key berasal.
+ * Ini penting supaya provider_credentials tetap bisa
+ * dikelola oleh layer di atasnya.
+ * =========================================================
+ */
 
 function getApiKey() {
 
@@ -50,30 +95,71 @@ function getApiKey() {
 
     }
 
-    return apiKey.trim();
+    const normalized =
+        String(apiKey).trim();
+
+    if (!normalized) {
+
+        throw new Error(
+            "KIE_API_KEY kosong."
+        );
+
+    }
+
+    return normalized;
+
 }
 
+
+/**
+ * =========================================================
+ * BASE URL
+ * =========================================================
+ */
 
 function getBaseUrl() {
 
     return normalizeBaseUrl(
+
         process.env.KIE_API_ENDPOINT ||
+
         process.env.KIE_API_BASE_URL ||
+
         DEFAULT_BASE_URL
+
     );
 
 }
 
+
+/**
+ * =========================================================
+ * BUILD URL
+ * =========================================================
+ */
 
 function buildUrl(path) {
 
+    const normalizedPath =
+        String(
+            path || ""
+        ).startsWith("/")
+            ? String(path)
+            : `/${String(path)}`;
+
     return (
         getBaseUrl() +
-        path
+        normalizedPath
     );
 
 }
 
+
+/**
+ * =========================================================
+ * RESPONSE PARSER
+ * =========================================================
+ */
 
 async function parseResponse(response) {
 
@@ -116,7 +202,16 @@ async function parseResponse(response) {
 }
 
 
-function extractMessage(data, fallback) {
+/**
+ * =========================================================
+ * ERROR MESSAGE
+ * =========================================================
+ */
+
+function extractMessage(
+    data,
+    fallback
+) {
 
     if (!data) {
 
@@ -125,16 +220,42 @@ function extractMessage(data, fallback) {
     }
 
     return (
+
         data.msg ||
+
         data.message ||
+
         data.error ||
+
+        data.error_message ||
+
+        data.error_description ||
+
         data?.data?.msg ||
+
         data?.data?.message ||
+
+        data?.data?.error ||
+
+        data?.data?.error_message ||
+
         fallback
+
     );
 
 }
 
+
+/**
+ * =========================================================
+ * SUCCESS CHECK
+ * =========================================================
+ *
+ * HTTP 2xx dianggap berhasil kecuali API response
+ * secara eksplisit memberikan code >= 400 atau
+ * success === false.
+ * =========================================================
+ */
 
 function isSuccessfulResponse(
     response,
@@ -177,16 +298,37 @@ function isSuccessfulResponse(
 
 
 /**
- * Generic KIE HTTP request.
+ * =========================================================
+ * GENERIC REQUEST
+ * =========================================================
  */
+
 async function request(
     path,
     options = {}
 ) {
 
+    const method =
+        String(
+            options.method ||
+            "GET"
+        ).toUpperCase();
+
     const apiKey =
-        options.apiKey ||
-        getApiKey();
+        options.apiKey
+            ? String(
+                options.apiKey
+            ).trim()
+            : getApiKey();
+
+    if (!apiKey) {
+
+        throw new Error(
+            "API key KIE.AI tidak tersedia."
+        );
+
+    }
+
 
     const headers = {
 
@@ -200,12 +342,11 @@ async function request(
 
     };
 
-    // lanjutkan kode request yang sudah ada...
-}
 
     if (
         options.body !== undefined &&
-        !headers["Content-Type"]
+        !headers["Content-Type"] &&
+        !headers["content-type"]
     ) {
 
         headers["Content-Type"] =
@@ -213,27 +354,66 @@ async function request(
 
     }
 
-    const response =
-        await fetch(
-            buildUrl(path),
-            {
-                method,
-                headers,
-                body:
-                    options.body === undefined
-                        ? undefined
-                        : typeof options.body === "string"
-                            ? options.body
-                            : JSON.stringify(
-                                options.body
-                            )
-            }
-        );
+
+    const requestOptions = {
+
+        method,
+
+        headers
+
+    };
+
+
+    if (
+        options.body !== undefined
+    ) {
+
+        requestOptions.body =
+
+            typeof options.body === "string"
+
+                ? options.body
+
+                : JSON.stringify(
+                    options.body
+                );
+
+    }
+
+
+    let response;
+
+    try {
+
+        response =
+            await fetch(
+                buildUrl(path),
+                requestOptions
+            );
+
+    } catch (error) {
+
+        const networkError =
+            new Error(
+                `Gagal terhubung ke KIE.AI: ${error.message}`
+            );
+
+        networkError.code =
+            "KIE_NETWORK_ERROR";
+
+        networkError.cause =
+            error;
+
+        throw networkError;
+
+    }
+
 
     const data =
         await parseResponse(
             response
         );
+
 
     if (
         !isSuccessfulResponse(
@@ -254,6 +434,10 @@ async function request(
         error.status =
             response.status;
 
+        error.code =
+            data?.code ||
+            `HTTP_${response.status}`;
+
         error.response =
             data;
 
@@ -261,74 +445,148 @@ async function request(
 
     }
 
+
     return data;
 
 }
 
 
 /**
- * Create KIE task.
+ * =========================================================
+ * CREATE TASK
+ * =========================================================
  *
- * payload:
+ * Payload:
+ *
  * {
  *   model: "...",
- *   input: {...},
- *   callBackUrl?: "..."
+ *   input: {...}
  * }
+ *
+ * Optional:
+ *
+ * {
+ *   callBackUrl: "..."
+ * }
+ * =========================================================
  */
+
 async function createTask(
     payload,
     apiKey = null
 ) {
 
+    if (
+        !payload ||
+        typeof payload !== "object" ||
+        Array.isArray(payload)
+    ) {
+
+        const error =
+            new Error(
+                "Payload KIE.AI harus berupa object."
+            );
+
+        error.code =
+            "INVALID_KIE_PAYLOAD";
+
+        throw error;
+
+    }
+
+
+    if (
+        !payload.model ||
+        typeof payload.model !== "string"
+    ) {
+
+        const error =
+            new Error(
+                "Model KIE.AI wajib diisi."
+            );
+
+        error.code =
+            "KIE_MODEL_REQUIRED";
+
+        throw error;
+
+    }
+
+
+    if (
+        !payload.input ||
+        typeof payload.input !== "object" ||
+        Array.isArray(payload.input)
+    ) {
+
+        const error =
+            new Error(
+                "Input KIE.AI harus berupa object."
+            );
+
+        error.code =
+            "KIE_INPUT_REQUIRED";
+
+        throw error;
+
+    }
+
+
     const data =
         await request(
             CREATE_TASK_PATH,
             {
-                method: "POST",
 
-                body: payload,
+                method:
+                    "POST",
+
+                body:
+                    payload,
 
                 apiKey
+
             }
         );
 
-    return data;
-}
-
-    const data =
-    await request(
-        CREATE_TASK_PATH,
-        {
-            method: "POST",
-            body: payload,
-            apiKey
-        }
-    );
 
     const taskId =
+
         data?.data?.taskId ||
+
         data?.data?.task_id ||
+
         data?.taskId ||
+
         data?.task_id ||
+
         null;
 
+
     return {
+
         ...data,
+
         taskId
+
     };
 
 }
 
 
 /**
- * Get task information.
+ * =========================================================
+ * GET TASK
+ * =========================================================
  *
- * KIE endpoint:
- * GET /api/v1/jobs/recordInfo?taskId=...
+ * GET:
+ *
+ * /api/v1/jobs/recordInfo?taskId=...
+ * =========================================================
  */
+
 async function getTask(
-    taskId
+    taskId,
+    apiKey = null
 ) {
 
     const normalizedTaskId =
@@ -336,13 +594,21 @@ async function getTask(
             taskId || ""
         ).trim();
 
+
     if (!normalizedTaskId) {
 
-        throw new Error(
-            "taskId KIE.AI wajib diisi."
-        );
+        const error =
+            new Error(
+                "taskId KIE.AI wajib diisi."
+            );
+
+        error.code =
+            "KIE_TASK_ID_REQUIRED";
+
+        throw error;
 
     }
+
 
     const query =
         new URLSearchParams();
@@ -352,29 +618,165 @@ async function getTask(
         normalizedTaskId
     );
 
+
     const data =
         await request(
+
             `${TASK_INFO_PATH}?${query.toString()}`,
+
             {
-                method: "GET"
+
+                method:
+                    "GET",
+
+                apiKey
+
             }
+
         );
+
 
     const task =
         data?.data ||
         data;
 
+
     return {
+
         ...data,
+
         task
+
     };
 
 }
 
 
 /**
- * Convenience helper.
+ * =========================================================
+ * EXTRACT RESULT URLS
+ * =========================================================
+ *
+ * KIE:
+ *
+ * resultJson:
+ * {
+ *   "resultUrls": [...]
+ * }
+ *
+ * resultJson kadang dikirim sebagai string JSON.
+ * =========================================================
  */
+
+function extractResultUrls(
+    task
+) {
+
+    if (
+        !task ||
+        typeof task !== "object"
+    ) {
+
+        return [];
+
+    }
+
+
+    let result =
+        task.resultJson;
+
+
+    if (
+        typeof result === "string"
+    ) {
+
+        try {
+
+            result =
+                JSON.parse(
+                    result
+                );
+
+        } catch {
+
+            return [];
+
+        }
+
+    }
+
+
+    if (
+        Array.isArray(
+            result?.resultUrls
+        )
+    ) {
+
+        return result.resultUrls;
+
+    }
+
+
+    if (
+        Array.isArray(
+            result?.result_urls
+        )
+    ) {
+
+        return result.result_urls;
+
+    }
+
+
+    return [];
+
+}
+
+
+/**
+ * =========================================================
+ * NORMALIZE TASK STATE
+ * =========================================================
+ */
+
+function normalizeTaskState(
+    task
+) {
+
+    return String(
+
+        task?.state ||
+
+        task?.status ||
+
+        ""
+
+    )
+        .trim()
+        .toLowerCase();
+
+}
+
+
+/**
+ * =========================================================
+ * WAIT FOR TASK
+ * =========================================================
+ *
+ * Dipakai bila server memang perlu menunggu sampai
+ * task selesai.
+ *
+ * Default:
+ * - polling setiap 3 detik
+ * - timeout 15 menit
+ *
+ * Catatan:
+ * API generate utama nantinya bisa memilih apakah
+ * menggunakan polling atau menyimpan taskId untuk
+ * diproses asynchronous.
+ * =========================================================
+ */
+
 async function waitForTask(
     taskId,
     options = {}
@@ -392,36 +794,51 @@ async function waitForTask(
             15 * 60 * 1000
         );
 
+    const apiKey =
+        options.apiKey ||
+        null;
+
     const startedAt =
         Date.now();
 
+
     const terminalStates =
         new Set([
+
             "success",
+
             "fail",
+
             "failed",
+
             "error",
+
             "cancelled",
+
             "canceled"
+
         ]);
+
 
     while (true) {
 
         const result =
             await getTask(
-                taskId
+                taskId,
+                apiKey
             );
+
 
         const task =
             result?.task ||
             {};
 
+
         const state =
-            String(
-                task.state ||
-                task.status ||
-                ""
-            ).toLowerCase();
+            normalizeTaskState(
+                task
+            );
+
 
         if (
             terminalStates.has(
@@ -429,9 +846,23 @@ async function waitForTask(
             )
         ) {
 
-            return result;
+            return {
+
+                ...result,
+
+                task,
+
+                state,
+
+                resultUrls:
+                    extractResultUrls(
+                        task
+                    )
+
+            };
 
         }
+
 
         if (
             Date.now() -
@@ -444,6 +875,9 @@ async function waitForTask(
                     "Timeout menunggu task KIE.AI."
                 );
 
+            error.code =
+                "KIE_TASK_TIMEOUT";
+
             error.taskId =
                 taskId;
 
@@ -453,6 +887,7 @@ async function waitForTask(
             throw error;
 
         }
+
 
         await new Promise(
             resolve =>
@@ -467,6 +902,12 @@ async function waitForTask(
 }
 
 
+/**
+ * =========================================================
+ * CLIENT EXPORT
+ * =========================================================
+ */
+
 const client = {
 
     request,
@@ -477,7 +918,15 @@ const client = {
 
     waitForTask,
 
-    getBaseUrl
+    extractResultUrls,
+
+    normalizeTaskState,
+
+    getApiKey,
+
+    getBaseUrl,
+
+    buildUrl
 
 };
 
@@ -504,7 +953,11 @@ export {
 
     getTask,
 
-    waitForTask
+    waitForTask,
+
+    extractResultUrls,
+
+    normalizeTaskState
 
 };
 
