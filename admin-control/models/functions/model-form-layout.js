@@ -1337,273 +1337,268 @@
     ===================================================== */
 
     function getModelsForProvider(
-        providerValue
-    ) {
+    providerValue
+) {
 
-        const value =
-            String(
-                providerValue ?? ""
-            ).trim();
-
-
-        /*
-         * Tidak ada Provider.
-         */
-
-        if (!value) {
-
-            return [];
-
-        }
+    const value =
+        String(
+            providerValue ?? ""
+        ).trim();
 
 
-        /*
-         * Hanya model aktif yang boleh masuk dropdown.
-         */
+    if (!value) {
 
-        const activeModels =
-            modelCache.filter(
-                function (model) {
+        return [];
 
-                    return isActiveModel(
-                        model
-                    );
-
-                }
-            );
+    }
 
 
-        if (!activeModels.length) {
+    /*
+     * SEMUA MODEL YANG BERHASIL DIMUAT
+     * dari GENZModelsData dipertahankan.
+     *
+     * Jangan memfilter berdasarkan status di sini.
+     */
 
-            return [];
+    const allModels =
+        modelCache.filter(
+            function (model) {
 
-        }
-
-
-        /*
-         * Resolve Provider dari module Provider / dropdown.
-         */
-
-        const selectedProvider =
-            resolveProvider(
-                value
-            );
-
-
-        /*
-         * =================================================
-           KUMPULKAN SEMUA IDENTIFIER PROVIDER
-           =================================================
-        */
-
-        const providerCandidates =
-            new Set();
-
-
-        function addProviderCandidate(
-            candidate
-        ) {
-
-            const normalized =
-                normalize(
-                    candidate
-                );
-
-
-            if (normalized) {
-
-                providerCandidates.add(
-                    normalized
+                return (
+                    model &&
+                    String(
+                        model.model_id ??
+                        ""
+                    ).trim() !== ""
                 );
 
             }
+        );
 
-        }
+
+    if (!allModels.length) {
+
+        return [];
+
+    }
 
 
-        /*
-         * Identifier langsung dari select.
-         */
+    /*
+     * Cari Provider yang sedang dipilih.
+     */
 
-        addProviderCandidate(
+    const selectedProvider =
+        resolveProvider(
             value
         );
 
 
-        /*
-         * Identifier dari object Provider.
-         */
+    /*
+     * Kumpulkan seluruh identifier Provider.
+     */
 
-        if (
+    const providerCandidates =
+        new Set();
+
+
+    function addCandidate(
+        candidate
+    ) {
+
+        const normalized =
+            normalize(
+                candidate
+            );
+
+
+        if (normalized) {
+
+            providerCandidates.add(
+                normalized
+            );
+
+        }
+
+    }
+
+
+    addCandidate(
+        value
+    );
+
+
+    if (
+        selectedProvider
+    ) {
+
+        addCandidate(
+            selectedProvider.id
+        );
+
+        addCandidate(
+            selectedProvider.provider_id
+        );
+
+        addCandidate(
+            selectedProvider.provider
+        );
+
+        addCandidate(
+            selectedProvider.provider_uuid
+        );
+
+        addCandidate(
+            selectedProvider.provider_code
+        );
+
+        addCandidate(
+            selectedProvider.provider_name
+        );
+
+        addCandidate(
+            selectedProvider.name
+        );
+
+        addCandidate(
+            selectedProvider.providerId
+        );
+
+        addCandidate(
+            selectedProvider.providerName
+        );
+
+    }
+
+
+    /*
+     * MATCH PROVIDER NORMAL
+     */
+
+    const matched =
+        allModels.filter(
+            function (model) {
+
+                const candidates = [
+
+                    model?.provider,
+
+                    model?.provider_id,
+
+                    model?.provider_uuid,
+
+                    model?.provider_code,
+
+                    model?.provider_name,
+
+                    model?.providerId,
+
+                    model?.providerName
+
+                ];
+
+
+                return candidates.some(
+                    function (candidate) {
+
+                        return providerCandidates.has(
+                            normalize(
+                                candidate
+                            )
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+
+    if (
+        matched.length
+    ) {
+
+        return matched;
+
+    }
+
+
+    /*
+     * =================================================
+     * KIE.AI FALLBACK
+     * =================================================
+     *
+     * models-data.js memang menormalisasi seluruh
+     * katalog /api/kie-config menjadi:
+     *
+     * provider_id   = kie_ai
+     * provider_name = KIE.AI
+     *
+     * Jadi jika Provider Supabase yang dipilih
+     * merepresentasikan KIE.AI melalui UUID,
+     * model KIE tetap harus muncul.
+     */
+
+    const providerIsKie =
+        providerLooksLikeKie(
             selectedProvider
-        ) {
-
-            addProviderCandidate(
-                selectedProvider.id
-            );
-
-            addProviderCandidate(
-                selectedProvider.provider_id
-            );
-
-            addProviderCandidate(
-                selectedProvider.provider
-            );
-
-            addProviderCandidate(
-                selectedProvider.provider_uuid
-            );
-
-            addProviderCandidate(
-                selectedProvider.provider_code
-            );
-
-            addProviderCandidate(
-                selectedProvider.provider_name
-            );
-
-            addProviderCandidate(
-                selectedProvider.name
-            );
-
-            addProviderCandidate(
-                selectedProvider.providerId
-            );
-
-            addProviderCandidate(
-                selectedProvider.providerName
-            );
-
-        }
+        ) ||
+        isKieProviderValue(
+            value
+        );
 
 
-        /*
-         * =================================================
-           MATCH NORMAL
-           =================================================
-        */
+    if (
+        providerIsKie
+    ) {
 
-        const matched =
-            activeModels.filter(
-                function (model) {
+        return allModels.filter(
+            function (model) {
 
-                    const modelCandidates = [
+                return modelLooksLikeKie(
+                    model
+                );
 
-                        model?.provider,
+            }
+        );
 
-                        model?.provider_id,
-
-                        model?.provider_uuid,
-
-                        model?.provider_code,
-
-                        model?.provider_name,
-
-                        model?.providerId,
-
-                        model?.providerName
-
-                    ];
+    }
 
 
-                    return modelCandidates.some(
-                        function (candidate) {
+    /*
+     * Jika hanya ada satu katalog Provider
+     * dan seluruh model berasal dari KIE,
+     * gunakan katalog tersebut.
+     */
 
-                            const normalized =
-                                normalize(
-                                    candidate
-                                );
+    const kieModels =
+        allModels.filter(
+            function (model) {
 
+                return modelLooksLikeKie(
+                    model
+                );
 
-                            if (!normalized) {
-
-                                return false;
-
-                            }
-
-
-                            return providerCandidates.has(
-                                normalized
-                            );
-
-                        }
-                    );
-
-                }
-            );
+            }
+        );
 
 
-        /*
-         * Jika identifier cocok secara normal,
-         * gunakan hasil normal.
-         */
+    if (
+        kieModels.length ===
+        allModels.length
+    ) {
 
-        if (
-            matched.length
-        ) {
+        return kieModels;
 
-            return matched;
-
-        }
+    }
 
 
-        /*
-         * =================================================
-           FALLBACK KIE.AI
-           =================================================
-        */
+    /*
+     * Tidak ada mapping Provider.
+     */
 
-        const selectedProviderIsKie =
-            providerLooksLikeKie(
-                selectedProvider
-            );
+    return [];
 
-
-        const selectedValueIsKie =
-            isKieProviderValue(
-                value
-            );
-
-
-        const kieModels =
-            activeModels.filter(
-                function (model) {
-
-                    return modelLooksLikeKie(
-                        model
-                    );
-
-                }
-            );
-
-
-        /*
-         * Provider jelas KIE.AI.
-         */
-
-        if (
-            (
-                selectedProviderIsKie ||
-                selectedValueIsKie
-            ) &&
-            kieModels.length
-        ) {
-
-            console.info(
-                "[GEN-Z.AI] Provider KIE.AI terdeteksi. Menggunakan katalog model KIE:",
-                {
-                    provider:
-                        value,
-
-                    models:
-                        kieModels.length
-                }
-            );
-
-
-            return kieModels;
-
-        }
+}
 
 
         /*
