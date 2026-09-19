@@ -1,0 +1,2441 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Edit Model - GEN-Z.AI</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            color: #171717;
+            background:
+                radial-gradient(
+                    circle at top left,
+                    rgba(255, 255, 255, 0.95),
+                    transparent 35%
+                ),
+                linear-gradient(
+                    135deg,
+                    #8d8d8d 0%,
+                    #d7d7d7 42%,
+                    #ffffff 100%
+                );
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        /* =====================================================
+           LAYOUT
+        ===================================================== */
+
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: 245px;
+            padding: 22px 16px;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(20, 20, 20, 0.98),
+                    rgba(40, 40, 40, 0.98)
+                );
+            border-right: 1px solid rgba(255, 255, 255, 0.12);
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 4px 10px 25px;
+            color: #fff;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            border-radius: 11px;
+            background: #ff1744;
+            color: #fff;
+            font-size: 17px;
+            font-weight: 900;
+            box-shadow:
+                0 0 12px rgba(255, 23, 68, 0.75),
+                0 0 30px rgba(255, 23, 68, 0.35);
+        }
+
+        .brand-text {
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-sub {
+            margin-top: 2px;
+            font-size: 10px;
+            color: #aaa;
+            letter-spacing: 1.4px;
+        }
+
+        .nav-title {
+            padding: 0 11px 9px;
+            color: #777;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 44px;
+            padding: 0 13px;
+            color: #bdbdbd;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: 0.2s ease;
+        }
+
+        .nav a:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .nav a.active {
+            color: #fff;
+            background: linear-gradient(
+                90deg,
+                rgba(255, 23, 68, 0.22),
+                rgba(255, 23, 68, 0.07)
+            );
+            box-shadow:
+                inset 3px 0 0 #ff1744,
+                0 0 15px rgba(255, 23, 68, 0.08);
+        }
+
+        .nav-icon {
+            width: 22px;
+            text-align: center;
+            font-size: 17px;
+        }
+
+        .nav-label {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .sidebar-bottom {
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 20px;
+        }
+
+        .logout {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: #ccc;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .logout:hover {
+            color: #fff;
+            border-color: rgba(255, 23, 68, 0.5);
+            background: rgba(255, 23, 68, 0.12);
+        }
+
+        .main {
+            width: 100%;
+            margin-left: 245px;
+            padding: 28px;
+        }
+
+        .content {
+            width: min(1100px, 100%);
+            margin: 0 auto;
+        }
+
+        /* =====================================================
+           HEADER
+        ===================================================== */
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            margin-bottom: 6px;
+            color: #d50032;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(25px, 4vw, 36px);
+            line-height: 1.1;
+            letter-spacing: -1px;
+        }
+
+        .page-description {
+            max-width: 680px;
+            margin: 9px 0 0;
+            color: #555;
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .back-button {
+            flex-shrink: 0;
+            min-height: 42px;
+            padding: 0 17px;
+            border: 1px solid rgba(0, 0, 0, 0.18);
+            border-radius: 10px;
+            color: #222;
+            background: rgba(255, 255, 255, 0.72);
+            font-weight: 800;
+            box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        .back-button:hover {
+            color: #fff;
+            background: #222;
+        }
+
+        /* =====================================================
+           MODEL HERO
+        ===================================================== */
+
+        .model-hero {
+            position: relative;
+            margin-bottom: 18px;
+            padding: 22px;
+            border: 1px solid #ff1744;
+            border-radius: 18px;
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255, 255, 255, 0.94),
+                    rgba(237, 237, 237, 0.88)
+                );
+            box-shadow:
+                0 0 7px rgba(255, 23, 68, 0.8),
+                0 0 25px rgba(255, 23, 68, 0.28),
+                0 14px 40px rgba(0, 0, 0, 0.10);
+        }
+
+        .model-hero::before {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            pointer-events: none;
+            box-shadow:
+                0 0 35px rgba(255, 23, 68, 0.16);
+        }
+
+        .model-hero-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .model-title {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 900;
+        }
+
+        .model-id {
+            margin-top: 8px;
+            color: #666;
+            font-size: 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            word-break: break-all;
+        }
+
+        .premium-badge {
+            flex-shrink: 0;
+            padding: 7px 12px;
+            border: 1px solid #ff1744;
+            border-radius: 999px;
+            color: #d50032;
+            background: rgba(255, 23, 68, 0.06);
+            box-shadow: 0 0 13px rgba(255, 23, 68, 0.25);
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        /* =====================================================
+           FORM
+        ===================================================== */
+
+        .form-card {
+            position: relative;
+            margin-bottom: 18px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.84);
+            box-shadow:
+                0 12px 35px rgba(0, 0, 0, 0.10),
+                inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+            backdrop-filter: blur(8px);
+        }
+
+        .section-title {
+            margin: 0 0 5px;
+            font-size: 17px;
+            font-weight: 900;
+        }
+
+        .section-description {
+            margin: 0 0 20px;
+            color: #666;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .field {
+            min-width: 0;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 7px;
+            color: #333;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .field-help {
+            margin-top: 6px;
+            color: #777;
+            font-size: 10px;
+            line-height: 1.45;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            border: 1px solid #cfcfcf;
+            border-radius: 10px;
+            outline: none;
+            color: #171717;
+            background: #fff;
+            transition:
+                border-color 0.18s ease,
+                box-shadow 0.18s ease;
+        }
+
+        input,
+        select {
+            min-height: 44px;
+            padding: 0 13px;
+        }
+
+        textarea {
+            min-height: 100px;
+            padding: 12px 13px;
+            resize: vertical;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: #ff1744;
+            box-shadow:
+                0 0 0 3px rgba(255, 23, 68, 0.10),
+                0 0 13px rgba(255, 23, 68, 0.10);
+        }
+
+        input[readonly],
+        textarea[readonly] {
+            color: #555;
+            background: #eeeeee;
+            cursor: not-allowed;
+        }
+
+        .readonly-value {
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            padding: 0 13px;
+            border: 1px solid #d1d1d1;
+            border-radius: 10px;
+            color: #555;
+            background: #eeeeee;
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .mono {
+            font-family:
+                ui-monospace,
+                SFMono-Regular,
+                Menlo,
+                Monaco,
+                Consolas,
+                monospace;
+        }
+
+        /* =====================================================
+           STATUS
+        ===================================================== */
+
+        .status-box {
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 8px 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .status-info strong {
+            display: block;
+            font-size: 13px;
+        }
+
+        .status-info span {
+            display: block;
+            margin-top: 2px;
+            color: #777;
+            font-size: 10px;
+        }
+
+        .switch {
+            position: relative;
+            width: 52px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            border-radius: 999px;
+            background: #aaa;
+            transition: 0.2s ease;
+            cursor: pointer;
+        }
+
+        .slider::before {
+            content: "";
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            left: 3px;
+            top: 3px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+            transition: 0.2s ease;
+        }
+
+        .switch input:checked + .slider {
+            background: #ff1744;
+            box-shadow:
+                0 0 12px rgba(255, 23, 68, 0.55);
+        }
+
+        .switch input:checked + .slider::before {
+            transform: translateX(24px);
+        }
+
+        /* =====================================================
+           PRICING
+        ===================================================== */
+
+        .price-input-wrap {
+            position: relative;
+        }
+
+        .price-prefix {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #555;
+            font-size: 12px;
+            font-weight: 800;
+            pointer-events: none;
+        }
+
+        .price-input-wrap input {
+            padding-left: 42px;
+        }
+
+        .price-preview {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .price-box {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background: linear-gradient(
+                145deg,
+                #fff,
+                #eeeeee
+            );
+        }
+
+        .price-label {
+            color: #777;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .price-value {
+            margin-top: 7px;
+            font-size: 18px;
+            font-weight: 950;
+        }
+
+        .price-box.final {
+            border-color: rgba(255, 23, 68, 0.45);
+            box-shadow:
+                0 0 14px rgba(255, 23, 68, 0.13);
+        }
+
+        .price-box.final .price-value {
+            color: #d50032;
+        }
+
+        /* =====================================================
+           READONLY PARAMETERS
+        ===================================================== */
+
+        .parameter-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 5px;
+        }
+
+        .parameter-card {
+            min-width: 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background: #f4f4f4;
+        }
+
+        .parameter-card .parameter-label {
+            margin-bottom: 8px;
+            color: #777;
+            font-size: 10px;
+            font-weight: 850;
+            text-transform: uppercase;
+        }
+
+        .parameter-card .parameter-value {
+            color: #222;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.55;
+            overflow-wrap: anywhere;
+        }
+
+        /* =====================================================
+           ACTIONS
+        ===================================================== */
+
+        .actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 23px;
+        }
+
+        .btn {
+            min-height: 44px;
+            padding: 0 18px;
+            border-radius: 10px;
+            font-weight: 850;
+            border: 1px solid transparent;
+        }
+
+        .btn-secondary {
+            color: #333;
+            background: #e9e9e9;
+            border-color: #d0d0d0;
+        }
+
+        .btn-secondary:hover {
+            background: #ddd;
+        }
+
+        .btn-primary {
+            color: #fff;
+            background: #ff1744;
+            border-color: #ff1744;
+            box-shadow:
+                0 0 12px rgba(255, 23, 68, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: #e60032;
+            box-shadow:
+                0 0 20px rgba(255, 23, 68, 0.55);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* =====================================================
+           ALERT / LOADING
+        ===================================================== */
+
+        .alert {
+            display: none;
+            margin-bottom: 18px;
+            padding: 13px 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert.error {
+            color: #8c001d;
+            border: 1px solid rgba(255, 23, 68, 0.35);
+            background: rgba(255, 23, 68, 0.08);
+        }
+
+        .alert.success {
+            color: #14532d;
+            border: 1px solid rgba(22, 163, 74, 0.3);
+            background: rgba(22, 163, 74, 0.08);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 350px;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 3px solid #ddd;
+            border-top-color: #ff1744;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
+        @media (max-width: 900px) {
+            .sidebar {
+                width: 210px;
+            }
+
+            .main {
+                margin-left: 210px;
+                padding: 20px;
+            }
+
+            .price-preview {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .sidebar {
+                position: static;
+                width: 100%;
+                height: auto;
+            }
+
+            .app {
+                display: block;
+            }
+
+            .sidebar-bottom {
+                position: static;
+                margin-top: 20px;
+            }
+
+            .main {
+                margin-left: 0;
+                padding: 15px;
+            }
+
+            .page-header {
+                flex-direction: column;
+            }
+
+            .back-button {
+                width: 100%;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .field.full {
+                grid-column: auto;
+            }
+
+            .parameter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .model-hero-top {
+                flex-direction: column;
+            }
+
+            .actions {
+                flex-direction: column-reverse;
+            }
+
+            .actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-logo">G</div>
+
+            <div>
+                <div class="brand-text">GEN-Z.AI</div>
+                <div class="brand-sub">ADMIN CONTROL</div>
+            </div>
+        </div>
+
+        <div class="nav-title">
+            Management
+        </div>
+
+        <nav class="nav">
+
+            <a href="./index.html">
+                <span class="nav-icon">⌂</span>
+                <span class="nav-label">Dashboard</span>
+            </a>
+
+            <a href="./users.html">
+                <span class="nav-icon">♙</span>
+                <span class="nav-label">Users</span>
+            </a>
+
+            <a href="./providers.html">
+                <span class="nav-icon">◈</span>
+                <span class="nav-label">Providers</span>
+            </a>
+
+            <a href="./models.html" class="active">
+                <span class="nav-icon">◆</span>
+                <span class="nav-label">Models</span>
+            </a>
+
+            <a href="./credit.html">
+                <span class="nav-icon">₿</span>
+                <span class="nav-label">Credit</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <button
+                type="button"
+                class="logout"
+                id="logoutButton"
+            >
+                Logout
+            </button>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
+    <main class="main">
+
+        <div class="content">
+
+            <!-- HEADER -->
+
+            <header class="page-header">
+
+                <div>
+
+                    <div class="eyebrow">
+                        Model Management
+                    </div>
+
+                    <h1>
+                        Edit Model
+                    </h1>
+
+                    <p class="page-description">
+                        Konfigurasi model yang berasal dari folder model di repository.
+                        Model ID dikunci karena digunakan sebagai referensi utama pada
+                        halaman Generate.
+                    </p>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="back-button"
+                    id="backButton"
+                >
+                    ← Kembali
+                </button>
+
+            </header>
+
+
+            <!-- ALERT -->
+
+            <div
+                id="alertBox"
+                class="alert"
+            ></div>
+
+
+            <!-- LOADING -->
+
+            <div
+                id="loadingBox"
+                class="form-card loading"
+            >
+                <span class="spinner"></span>
+                Memuat konfigurasi model...
+            </div>
+
+
+            <!-- =================================================
+                 EDIT CONTENT
+            ================================================== -->
+
+            <div
+                id="editContent"
+                class="hidden"
+            >
+
+                <!-- MODEL HERO -->
+
+                <section class="model-hero">
+
+                    <div class="model-hero-top">
+
+                        <div>
+
+                            <h2
+                                class="model-title"
+                                id="heroModelName"
+                            >
+                                -
+                            </h2>
+
+                            <div
+                                class="model-id"
+                                id="heroModelId"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+                        <div class="premium-badge">
+                            PREMIUM MODEL
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- BASIC CONFIG -->
+
+                <section class="form-card">
+
+                    <h2 class="section-title">
+                        Informasi Model
+                    </h2>
+
+                    <p class="section-description">
+                        Identitas teknis model berasal dari folder model.
+                        Hanya informasi administrasi yang dapat diubah.
+                    </p>
+
+                    <div class="form-grid">
+
+                        <!-- MODEL NAME -->
+
+                        <div class="field">
+
+                            <label for="modelName">
+                                Nama Model
+                            </label>
+
+                            <input
+                                type="text"
+                                id="modelName"
+                                maxlength="150"
+                                autocomplete="off"
+                            >
+
+                            <div class="field-help">
+                                Nama yang ditampilkan pada halaman admin dan Generate.
+                            </div>
+
+                        </div>
+
+
+                        <!-- MODEL ID -->
+
+                        <div class="field">
+
+                            <label>
+                                Model ID
+                            </label>
+
+                            <div
+                                class="readonly-value mono"
+                                id="modelId"
+                            >
+                                -
+                            </div>
+
+                            <div class="field-help">
+                                Tidak dapat diubah. Digunakan sebagai referensi sistem.
+                            </div>
+
+                        </div>
+
+
+                        <!-- PROVIDER -->
+
+                        <div class="field">
+
+                            <label>
+                                Provider
+                            </label>
+
+                            <div
+                                class="readonly-value"
+                                id="providerName"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <!-- TYPE -->
+
+                        <div class="field">
+
+                            <label>
+                                Model Type
+                            </label>
+
+                            <div
+                                class="readonly-value"
+                                id="modelType"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <!-- STATUS -->
+
+                        <div class="field full">
+
+                            <label>
+                                Status Model
+                            </label>
+
+                            <div class="status-box">
+
+                                <div class="status-info">
+
+                                    <strong id="statusText">
+                                        Nonaktif
+                                    </strong>
+
+                                    <span>
+                                        Model aktif dapat digunakan pada sistem Generate.
+                                    </span>
+
+                                </div>
+
+                                <label class="switch">
+
+                                    <input
+                                        type="checkbox"
+                                        id="statusToggle"
+                                    >
+
+                                    <span class="slider"></span>
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- DESCRIPTION -->
+
+                        <div class="field full">
+
+                            <label for="description">
+                                Deskripsi
+                            </label>
+
+                            <textarea
+                                id="description"
+                                maxlength="1000"
+                                placeholder="Deskripsi model..."
+                            ></textarea>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- PRICING -->
+
+                <section class="form-card">
+
+                    <h2 class="section-title">
+                        Pricing
+                    </h2>
+
+                    <p class="section-description">
+                        Harga dasar menggunakan USD. Nilai Rupiah dihitung otomatis
+                        berdasarkan kurs yang dimasukkan.
+                    </p>
+
+                    <div class="form-grid">
+
+                        <!-- USD -->
+
+                        <div class="field">
+
+                            <label for="priceUsd">
+                                Harga Dasar USD
+                            </label>
+
+                            <div class="price-input-wrap">
+
+                                <span class="price-prefix">
+                                    $
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="priceUsd"
+                                    min="0"
+                                    step="0.000001"
+                                    inputmode="decimal"
+                                >
+
+                            </div>
+
+                            <div class="field-help">
+                                Harga sebelum diskon.
+                            </div>
+
+                        </div>
+
+
+                        <!-- EXCHANGE RATE -->
+
+                        <div class="field">
+
+                            <label for="exchangeRate">
+                                Kurs USD → IDR
+                            </label>
+
+                            <input
+                                type="number"
+                                id="exchangeRate"
+                                min="0"
+                                step="1"
+                                inputmode="numeric"
+                                value="16000"
+                            >
+
+                            <div class="field-help">
+                                Contoh: 16000 berarti 1 USD = Rp16.000.
+                            </div>
+
+                        </div>
+
+
+                        <!-- DISCOUNT -->
+
+                        <div class="field">
+
+                            <label for="discount">
+                                Diskon
+                            </label>
+
+                            <div class="price-input-wrap">
+
+                                <input
+                                    type="number"
+                                    id="discount"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                >
+
+                                <span
+                                    class="price-prefix"
+                                    style="
+                                        left:auto;
+                                        right:13px;
+                                    "
+                                >
+                                    %
+                                </span>
+
+                            </div>
+
+                            <div class="field-help">
+                                Nilai 0 berarti tanpa diskon.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- PRICE PREVIEW -->
+
+                    <div class="price-preview">
+
+                        <div class="price-box">
+
+                            <div class="price-label">
+                                Harga USD
+                            </div>
+
+                            <div
+                                class="price-value"
+                                id="previewUsd"
+                            >
+                                $0.00
+                            </div>
+
+                        </div>
+
+
+                        <div class="price-box">
+
+                            <div class="price-label">
+                                Harga IDR
+                            </div>
+
+                            <div
+                                class="price-value"
+                                id="previewIdr"
+                            >
+                                Rp0
+                            </div>
+
+                        </div>
+
+
+                        <div class="price-box final">
+
+                            <div class="price-label">
+                                Setelah Diskon
+                            </div>
+
+                            <div
+                                class="price-value"
+                                id="previewFinal"
+                            >
+                                Rp0
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- MODEL PARAMETERS -->
+
+                <section class="form-card">
+
+                    <h2 class="section-title">
+                        Parameter Model
+                    </h2>
+
+                    <p class="section-description">
+                        Data berikut dibaca langsung dari
+                        <span class="mono">parameters.js</span>
+                        pada folder model dan tidak dapat diedit dari halaman admin.
+                    </p>
+
+                    <div class="parameter-grid">
+
+                        <!-- DURATION -->
+
+                        <div class="parameter-card">
+
+                            <div class="parameter-label">
+                                Duration
+                            </div>
+
+                            <div
+                                class="parameter-value"
+                                id="durationValue"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <!-- RATIO -->
+
+                        <div class="parameter-card">
+
+                            <div class="parameter-label">
+                                Aspect Ratio
+                            </div>
+
+                            <div
+                                class="parameter-value"
+                                id="ratioValue"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <!-- RESOLUTION -->
+
+                        <div class="parameter-card">
+
+                            <div class="parameter-label">
+                                Resolution
+                            </div>
+
+                            <div
+                                class="parameter-value"
+                                id="resolutionValue"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ACTIONS -->
+
+                <section class="form-card">
+
+                    <div class="actions">
+
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            id="cancelButton"
+                        >
+                            Batal
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            id="saveButton"
+                        >
+                            Simpan Perubahan
+                        </button>
+
+                    </div>
+
+                </section>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<!-- =========================================================
+     SUPABASE
+========================================================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+<!-- =========================================================
+     MODEL EDIT SCRIPT
+========================================================= -->
+
+<script type="module">
+
+    import {
+        loadModels
+    } from "./models/models-data.js";
+
+
+    /* =====================================================
+       CONFIG
+    ===================================================== */
+
+    const SUPABASE_URL =
+        window.GENZ_SUPABASE_URL ||
+        window.SUPABASE_URL ||
+        "";
+
+    const SUPABASE_ANON_KEY =
+        window.GENZ_SUPABASE_ANON_KEY ||
+        window.SUPABASE_ANON_KEY ||
+        "";
+
+
+    let supabase = null;
+
+    if (
+        SUPABASE_URL &&
+        SUPABASE_ANON_KEY &&
+        window.supabase
+    ) {
+        supabase =
+            window.supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_ANON_KEY
+            );
+    }
+
+
+    /* =====================================================
+       DOM
+    ===================================================== */
+
+    const loadingBox =
+        document.getElementById("loadingBox");
+
+    const editContent =
+        document.getElementById("editContent");
+
+    const alertBox =
+        document.getElementById("alertBox");
+
+    const backButton =
+        document.getElementById("backButton");
+
+    const cancelButton =
+        document.getElementById("cancelButton");
+
+    const saveButton =
+        document.getElementById("saveButton");
+
+    const logoutButton =
+        document.getElementById("logoutButton");
+
+
+    const heroModelName =
+        document.getElementById("heroModelName");
+
+    const heroModelId =
+        document.getElementById("heroModelId");
+
+    const modelName =
+        document.getElementById("modelName");
+
+    const modelId =
+        document.getElementById("modelId");
+
+    const providerName =
+        document.getElementById("providerName");
+
+    const modelType =
+        document.getElementById("modelType");
+
+    const description =
+        document.getElementById("description");
+
+    const statusToggle =
+        document.getElementById("statusToggle");
+
+    const statusText =
+        document.getElementById("statusText");
+
+    const priceUsd =
+        document.getElementById("priceUsd");
+
+    const exchangeRate =
+        document.getElementById("exchangeRate");
+
+    const discount =
+        document.getElementById("discount");
+
+    const previewUsd =
+        document.getElementById("previewUsd");
+
+    const previewIdr =
+        document.getElementById("previewIdr");
+
+    const previewFinal =
+        document.getElementById("previewFinal");
+
+    const durationValue =
+        document.getElementById("durationValue");
+
+    const ratioValue =
+        document.getElementById("ratioValue");
+
+    const resolutionValue =
+        document.getElementById("resolutionValue");
+
+
+    /* =====================================================
+       STATE
+    ===================================================== */
+
+    let currentModel = null;
+
+    let currentModelId = null;
+
+    let saving = false;
+
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+
+    function showAlert(message, type = "error") {
+
+        alertBox.textContent = message;
+
+        alertBox.className =
+            "alert show " + type;
+
+    }
+
+
+    function hideAlert() {
+
+        alertBox.textContent = "";
+
+        alertBox.className =
+            "alert";
+
+    }
+
+
+    function setLoading(value) {
+
+        if (value) {
+
+            loadingBox.classList.remove("hidden");
+
+            editContent.classList.add("hidden");
+
+        } else {
+
+            loadingBox.classList.add("hidden");
+
+            editContent.classList.remove("hidden");
+
+        }
+
+    }
+
+
+    function escapeText(value) {
+
+        if (
+            value === null ||
+            value === undefined
+        ) {
+            return "";
+        }
+
+        return String(value);
+
+    }
+
+
+    function numberValue(value, fallback = 0) {
+
+        const n =
+            Number(value);
+
+        return Number.isFinite(n)
+            ? n
+            : fallback;
+
+    }
+
+
+    function formatUsd(value) {
+
+        const n =
+            numberValue(value);
+
+        return "$" +
+            n.toLocaleString(
+                "en-US",
+                {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 6
+                }
+            );
+
+    }
+
+
+    function formatIdr(value) {
+
+        const n =
+            numberValue(value);
+
+        return "Rp" +
+            Math.round(n).toLocaleString(
+                "id-ID"
+            );
+
+    }
+
+
+    function normalizeArray(value) {
+
+        if (Array.isArray(value)) {
+            return value;
+        }
+
+        if (
+            typeof value === "string"
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(value);
+
+                if (
+                    Array.isArray(parsed)
+                ) {
+                    return parsed;
+                }
+
+            } catch (_) {
+                // Ignore invalid JSON.
+            }
+
+            return value
+                .split(",")
+                .map(item => item.trim())
+                .filter(Boolean);
+
+        }
+
+        return [];
+
+    }
+
+
+    function getQueryModelId() {
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        return (
+            params.get("model_id") ||
+            params.get("id") ||
+            ""
+        ).trim();
+
+    }
+
+
+    function goBack() {
+
+        if (
+            document.referrer &&
+            document.referrer.includes(
+                window.location.host
+            )
+        ) {
+
+            window.history.back();
+
+            return;
+
+        }
+
+        window.location.href =
+            "./models.html";
+
+    }
+
+
+    /* =====================================================
+       PRICING
+    ===================================================== */
+
+    function updatePricePreview() {
+
+        const usd =
+            Math.max(
+                0,
+                numberValue(
+                    priceUsd.value
+                )
+            );
+
+        const rate =
+            Math.max(
+                0,
+                numberValue(
+                    exchangeRate.value
+                )
+            );
+
+        const discountPercent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    numberValue(
+                        discount.value
+                    )
+                )
+            );
+
+        const idr =
+            usd * rate;
+
+        const finalIdr =
+            idr *
+            (
+                1 -
+                discountPercent / 100
+            );
+
+        const finalUsd =
+            usd *
+            (
+                1 -
+                discountPercent / 100
+            );
+
+        previewUsd.textContent =
+            formatUsd(usd);
+
+        previewIdr.textContent =
+            formatIdr(idr);
+
+        previewFinal.textContent =
+            formatIdr(finalIdr);
+
+        return {
+            usd,
+            rate,
+            idr,
+            discountPercent,
+            finalIdr,
+            finalUsd
+        };
+
+    }
+
+
+    /* =====================================================
+       PARAMETERS
+    ===================================================== */
+
+    function renderParameters(model) {
+
+        const duration =
+            model?.duration ||
+            model?.parameters?.duration ||
+            null;
+
+        const minDuration =
+            model?.min_duration ??
+            duration?.min ??
+            null;
+
+        const maxDuration =
+            model?.max_duration ??
+            duration?.max ??
+            null;
+
+        if (
+            minDuration !== null &&
+            maxDuration !== null
+        ) {
+
+            durationValue.textContent =
+                `${minDuration} - ${maxDuration} detik`;
+
+        } else if (
+            minDuration !== null
+        ) {
+
+            durationValue.textContent =
+                `${minDuration} detik`;
+
+        } else if (
+            maxDuration !== null
+        ) {
+
+            durationValue.textContent =
+                `${maxDuration} detik`;
+
+        } else {
+
+            durationValue.textContent =
+                "Mengikuti parameters.js";
+
+        }
+
+
+        const ratios =
+            normalizeArray(
+                model?.supported_ratios ||
+                model?.aspect_ratios ||
+                model?.parameters?.aspect_ratio
+            );
+
+        ratioValue.textContent =
+            ratios.length
+                ? ratios.join(" • ")
+                : "Mengikuti parameters.js";
+
+
+        const resolutions =
+            normalizeArray(
+                model?.supported_resolutions ||
+                model?.resolutions ||
+                model?.parameters?.resolution
+            );
+
+        resolutionValue.textContent =
+            resolutions.length
+                ? resolutions.join(" • ")
+                : "Mengikuti parameters.js";
+
+    }
+
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    function updateStatusText() {
+
+        if (statusToggle.checked) {
+
+            statusText.textContent =
+                "Aktif";
+
+        } else {
+
+            statusText.textContent =
+                "Nonaktif";
+
+        }
+
+    }
+
+
+    /* =====================================================
+       RENDER MODEL
+    ===================================================== */
+
+    function renderModel(model) {
+
+        currentModel =
+            model;
+
+        currentModelId =
+            model.model_id ||
+            model.id;
+
+        const name =
+            model.model_name ||
+            model.name ||
+            currentModelId;
+
+        const provider =
+            model.provider_name ||
+            model.providerName ||
+            model.provider_id ||
+            model.providerId ||
+            "-";
+
+        const type =
+            model.type ||
+            model.model_type ||
+            "-";
+
+        heroModelName.textContent =
+            escapeText(name);
+
+        heroModelId.textContent =
+            escapeText(currentModelId);
+
+        modelName.value =
+            escapeText(name);
+
+        modelId.textContent =
+            escapeText(currentModelId);
+
+        providerName.textContent =
+            escapeText(provider);
+
+        modelType.textContent =
+            escapeText(type);
+
+        description.value =
+            escapeText(
+                model.description || ""
+            );
+
+        statusToggle.checked =
+            String(
+                model.status || ""
+            ).toLowerCase() ===
+            "active";
+
+        updateStatusText();
+
+
+        /*
+         * IMPORTANT:
+         * Model folder adalah source of truth
+         * untuk parameter teknis.
+         */
+
+        renderParameters(model);
+
+
+        /*
+         * Pricing.
+         *
+         * Untuk kompatibilitas dengan schema
+         * models saat ini, kita menggunakan
+         * credit_cost sebagai nilai numerik
+         * yang sudah tersedia.
+         *
+         * Jangan mengubah model_id.
+         */
+
+        const existingPrice =
+            model.price_usd ??
+            model.priceUSD ??
+            model.credit_cost ??
+            0;
+
+        priceUsd.value =
+            numberValue(
+                existingPrice
+            );
+
+
+        const existingDiscount =
+            model.discount_percent ??
+            0;
+
+        discount.value =
+            numberValue(
+                existingDiscount
+            );
+
+
+        /*
+         * Kurs default hanya untuk kalkulasi
+         * UI dan tidak disimpan ke kolom yang
+         * belum tentu tersedia di database.
+         */
+
+        if (
+            !exchangeRate.value ||
+            numberValue(
+                exchangeRate.value
+            ) <= 0
+        ) {
+
+            exchangeRate.value =
+                "16000";
+
+        }
+
+        updatePricePreview();
+
+    }
+
+
+    /* =====================================================
+       LOAD MODEL
+    ===================================================== */
+
+    async function loadModel() {
+
+        hideAlert();
+
+        setLoading(true);
+
+        const requestedId =
+            getQueryModelId();
+
+        if (!requestedId) {
+
+            setLoading(false);
+
+            showAlert(
+                "Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            const result =
+                await loadModels({
+                    force: true,
+                    activeOnly: false
+                });
+
+
+            const models =
+                Array.isArray(result)
+                    ? result
+                    : (
+                        result?.models ||
+                        []
+                    );
+
+
+            const found =
+                models.find(
+                    item =>
+                        String(
+                            item.model_id ||
+                            item.id ||
+                            ""
+                        ) ===
+                        String(requestedId)
+                );
+
+
+            if (!found) {
+
+                setLoading(false);
+
+                showAlert(
+                    `Model "${requestedId}" tidak ditemukan dari registry model.`,
+                    "error"
+                );
+
+                return;
+
+            }
+
+
+            renderModel(found);
+
+            setLoading(false);
+
+        } catch (error) {
+
+            console.error(
+                "GEN-Z.AI model-edit load error:",
+                error
+            );
+
+            setLoading(false);
+
+            showAlert(
+                error?.message ||
+                "Gagal memuat data model.",
+                "error"
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       SAVE MODEL
+    ===================================================== */
+
+    async function saveModel() {
+
+        if (saving) {
+            return;
+        }
+
+        hideAlert();
+
+        if (!currentModel) {
+
+            showAlert(
+                "Data model belum tersedia.",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        const name =
+            modelName.value.trim();
+
+        if (!name) {
+
+            showAlert(
+                "Nama model wajib diisi.",
+                "error"
+            );
+
+            modelName.focus();
+
+            return;
+
+        }
+
+
+        if (!supabase) {
+
+            showAlert(
+                "Supabase belum terhubung. Periksa konfigurasi Supabase pada project.",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        const pricing =
+            updatePricePreview();
+
+
+        const dbModelId =
+            currentModel.id || null;
+
+        const modelIdValue =
+            currentModel.model_id ||
+            currentModelId;
+
+
+        /*
+         * Model ID TIDAK PERNAH diubah.
+         *
+         * Update hanya menggunakan model_id
+         * atau UUID id sebagai filter.
+         */
+
+        const payload = {
+
+            model_name: name,
+
+            description:
+                description.value.trim(),
+
+            discount_percent:
+                pricing.discountPercent,
+
+            updated_at:
+                new Date().toISOString()
+
+        };
+
+
+        /*
+         * Jangan menyimpan kurs ke database
+         * karena kolom exchange_rate belum
+         * dipastikan tersedia.
+         *
+         * Jangan mengubah credit_cost menjadi
+         * USD secara otomatis tanpa migrasi schema.
+         */
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                currentModel,
+                "credit_cost"
+            )
+        ) {
+
+            payload.credit_cost =
+                pricing.usd;
+
+        }
+
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                currentModel,
+                "credit_final"
+            )
+        ) {
+
+            payload.credit_final =
+                pricing.finalUsd;
+
+        }
+
+
+        payload.status =
+            statusToggle.checked
+                ? "active"
+                : "inactive";
+
+
+        saving = true;
+
+        saveButton.disabled =
+            true;
+
+        saveButton.textContent =
+            "Menyimpan...";
+
+
+        try {
+
+            let query =
+                supabase
+                    .from("models")
+                    .update(payload);
+
+
+            if (dbModelId) {
+
+                query =
+                    query.eq(
+                        "id",
+                        dbModelId
+                    );
+
+            } else {
+
+                query =
+                    query.eq(
+                        "model_id",
+                        modelIdValue
+                    );
+
+            }
+
+
+            const { error } =
+                await query;
+
+
+            if (error) {
+
+                throw error;
+
+            }
+
+
+            showAlert(
+                "Perubahan model berhasil disimpan.",
+                "success"
+            );
+
+
+            /*
+             * Update state lokal tanpa
+             * melakukan reload recursive.
+             */
+
+            currentModel = {
+                ...currentModel,
+                ...payload,
+                model_name: name,
+                status: payload.status
+            };
+
+
+            heroModelName.textContent =
+                name;
+
+
+            setTimeout(
+                () => {
+                    window.location.href =
+                        "./models.html";
+                },
+                900
+            );
+
+        } catch (error) {
+
+            console.error(
+                "GEN-Z.AI model-edit save error:",
+                error
+            );
+
+            showAlert(
+                error?.message ||
+                "Gagal menyimpan perubahan model.",
+                "error"
+            );
+
+        } finally {
+
+            saving = false;
+
+            saveButton.disabled =
+                false;
+
+            saveButton.textContent =
+                "Simpan Perubahan";
+
+        }
+
+    }
+
+
+    /* =====================================================
+       LOGOUT
+    ===================================================== */
+
+    async function logout() {
+
+        try {
+
+            if (supabase) {
+
+                await supabase.auth.signOut();
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Logout error:",
+                error
+            );
+
+        }
+
+        window.location.href =
+            "../login.html";
+
+    }
+
+
+    /* =====================================================
+       EVENTS
+    ===================================================== */
+
+    backButton.addEventListener(
+        "click",
+        goBack
+    );
+
+
+    cancelButton.addEventListener(
+        "click",
+        goBack
+    );
+
+
+    saveButton.addEventListener(
+        "click",
+        saveModel
+    );
+
+
+    logoutButton.addEventListener(
+        "click",
+        logout
+    );
+
+
+    statusToggle.addEventListener(
+        "change",
+        updateStatusText
+    );
+
+
+    priceUsd.addEventListener(
+        "input",
+        updatePricePreview
+    );
+
+
+    exchangeRate.addEventListener(
+        "input",
+        updatePricePreview
+    );
+
+
+    discount.addEventListener(
+        "input",
+        updatePricePreview
+    );
+
+
+    /*
+     * Enter pada input pricing tidak
+     * boleh submit form karena halaman
+     * ini memang tidak menggunakan form
+     * HTML native.
+     */
+
+
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
+
+    loadModel();
+
+</script>
+
+</body>
+</html>
