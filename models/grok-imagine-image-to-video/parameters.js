@@ -1,25 +1,9 @@
-```javascript
-// =========================================================
-// GEN-Z.AI
-// GROK IMAGINE IMAGE TO VIDEO
-// MODEL PARAMETERS
-// =========================================================
-
 const parameters = {
-
-    // -----------------------------------------------------
-    // IMAGE INPUT
-    // -----------------------------------------------------
-
     image_urls: {
         type: "array",
         required: false,
         maxItems: 1
     },
-
-    // -----------------------------------------------------
-    // GROK GENERATED IMAGE INPUT
-    // -----------------------------------------------------
 
     task_id: {
         type: "string",
@@ -34,19 +18,11 @@ const parameters = {
         default: 0
     },
 
-    // -----------------------------------------------------
-    // PROMPT
-    // -----------------------------------------------------
-
     prompt: {
         type: "string",
         required: true,
         maxLength: 5000
     },
-
-    // -----------------------------------------------------
-    // MODE
-    // -----------------------------------------------------
 
     mode: {
         type: "string",
@@ -58,10 +34,6 @@ const parameters = {
         ],
         default: "normal"
     },
-
-    // -----------------------------------------------------
-    // ASPECT RATIO
-    // -----------------------------------------------------
 
     aspect_ratio: {
         type: "string",
@@ -76,10 +48,6 @@ const parameters = {
         default: "2:3"
     },
 
-    // -----------------------------------------------------
-    // DURATION
-    // -----------------------------------------------------
-
     duration: {
         type: "number",
         required: false,
@@ -87,10 +55,6 @@ const parameters = {
         max: 30,
         default: 6
     },
-
-    // -----------------------------------------------------
-    // RESOLUTION
-    // -----------------------------------------------------
 
     resolution: {
         type: "string",
@@ -103,22 +67,17 @@ const parameters = {
         default: "480p"
     },
 
-    // -----------------------------------------------------
-    // NSFW CHECKER
-    // -----------------------------------------------------
-
     nsfw_checker: {
         type: "boolean",
         required: false,
         default: true
     }
-
 };
 
 
-// =========================================================
-// VALIDATION
-// =========================================================
+/* =========================================================
+   VALIDATION
+   ========================================================= */
 
 function validate(input = {}) {
 
@@ -131,16 +90,18 @@ function validate(input = {}) {
         input.task_id;
 
 
-    // -----------------------------------------------------
-    // IMAGE URLS
-    // -----------------------------------------------------
+    /*
+     * image_urls
+     */
 
     if (
         imageUrls !== undefined
     ) {
 
         if (
-            !Array.isArray(imageUrls)
+            !Array.isArray(
+                imageUrls
+            )
         ) {
 
             errors.push(
@@ -160,8 +121,7 @@ function validate(input = {}) {
             }
 
             for (
-                const url
-                of imageUrls
+                const url of imageUrls
             ) {
 
                 if (
@@ -182,30 +142,37 @@ function validate(input = {}) {
     }
 
 
-    // -----------------------------------------------------
-    // TASK ID
-    // -----------------------------------------------------
+    /*
+     * task_id
+     */
 
     if (
-        taskId !== undefined &&
-        typeof taskId !== "string"
+        taskId !== undefined
     ) {
 
-        errors.push(
-            "task_id harus berupa string."
-        );
+        if (
+            typeof taskId !== "string"
+        ) {
+
+            errors.push(
+                "task_id harus berupa string."
+            );
+
+        }
 
     }
 
 
-    // -----------------------------------------------------
-    // IMAGE URL DAN TASK ID TIDAK BOLEH BERSAMAAN
-    // -----------------------------------------------------
+    /*
+     * image_urls dan task_id
+     * tidak boleh bersamaan.
+     */
 
     if (
         Array.isArray(imageUrls) &&
         imageUrls.length > 0 &&
-        taskId
+        typeof taskId === "string" &&
+        taskId.trim()
     ) {
 
         errors.push(
@@ -215,16 +182,18 @@ function validate(input = {}) {
     }
 
 
-    // -----------------------------------------------------
-    // INDEX
-    // -----------------------------------------------------
+    /*
+     * index
+     */
 
     if (
         input.index !== undefined
     ) {
 
         const value =
-            Number(input.index);
+            Number(
+                input.index
+            );
 
         if (
             !Number.isInteger(value) ||
@@ -241,9 +210,9 @@ function validate(input = {}) {
     }
 
 
-    // -----------------------------------------------------
-    // PROMPT
-    // -----------------------------------------------------
+    /*
+     * prompt
+     */
 
     if (
         input.prompt !== undefined
@@ -270,52 +239,64 @@ function validate(input = {}) {
     }
 
 
-    // -----------------------------------------------------
-    // MODE
-    // -----------------------------------------------------
+    /*
+     * mode
+     */
 
     if (
-        input.mode !== undefined &&
-        !parameters.mode.enum.includes(
-            input.mode
-        )
+        input.mode !== undefined
     ) {
 
-        errors.push(
-            "mode tidak didukung."
-        );
+        if (
+            !parameters.mode.enum.includes(
+                input.mode
+            )
+        ) {
+
+            errors.push(
+                "mode tidak didukung."
+            );
+
+        }
 
     }
 
 
-    // -----------------------------------------------------
-    // ASPECT RATIO
-    // -----------------------------------------------------
+    /*
+     * aspect ratio
+     */
 
     if (
-        input.aspect_ratio !== undefined &&
-        !parameters.aspect_ratio.enum.includes(
-            input.aspect_ratio
-        )
+        input.aspect_ratio !== undefined
     ) {
 
-        errors.push(
-            "aspect_ratio tidak didukung."
-        );
+        if (
+            !parameters.aspect_ratio.enum.includes(
+                input.aspect_ratio
+            )
+        ) {
+
+            errors.push(
+                "aspect_ratio tidak didukung."
+            );
+
+        }
 
     }
 
 
-    // -----------------------------------------------------
-    // DURATION
-    // -----------------------------------------------------
+    /*
+     * duration
+     */
 
     if (
         input.duration !== undefined
     ) {
 
         const value =
-            Number(input.duration);
+            Number(
+                input.duration
+            );
 
         if (
             !Number.isFinite(value) ||
@@ -332,67 +313,64 @@ function validate(input = {}) {
     }
 
 
-    // -----------------------------------------------------
-    // RESOLUTION
-    // -----------------------------------------------------
+    /*
+     * resolution
+     */
 
     if (
-        input.resolution !== undefined &&
-        !parameters.resolution.enum.includes(
-            input.resolution
-        )
+        input.resolution !== undefined
     ) {
 
-        errors.push(
-            "resolution tidak didukung."
-        );
+        if (
+            !parameters.resolution.enum.includes(
+                input.resolution
+            )
+        ) {
+
+            errors.push(
+                "resolution tidak didukung."
+            );
+
+        }
 
     }
 
 
-    // -----------------------------------------------------
-    // NSFW CHECKER
-    // -----------------------------------------------------
+    /*
+     * nsfw_checker
+     */
 
     if (
-        input.nsfw_checker !== undefined &&
-        typeof input.nsfw_checker !== "boolean"
+        input.nsfw_checker !== undefined
     ) {
 
-        errors.push(
-            "nsfw_checker harus boolean."
-        );
+        if (
+            typeof input.nsfw_checker !== "boolean"
+        ) {
+
+            errors.push(
+                "nsfw_checker harus boolean."
+            );
+
+        }
 
     }
 
-
-    // -----------------------------------------------------
-    // RESULT
-    // -----------------------------------------------------
 
     return {
-
         valid:
             errors.length === 0,
 
         errors
-
     };
 
 }
 
 
-// =========================================================
-// EXPORT
-// =========================================================
-
 export {
-
     parameters,
-
     validate
-
 };
 
+
 export default parameters;
-```
