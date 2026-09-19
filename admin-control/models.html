@@ -2,29 +2,40 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
 
     <title>GEN-Z.AI - Model Management</title>
 
-    <!-- SUPABASE -->
+    <!-- =====================================================
+         SUPABASE
+    ====================================================== -->
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
     <script src="./supabase.js"></script>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
 
+
         :root {
+
             --bg: #0b1020;
             --panel: #111827;
             --panel2: #172033;
             --border: #263247;
+
             --text: #f3f4f6;
             --muted: #9ca3af;
+
             --primary: #6366f1;
             --primary2: #818cf8;
+
             --green: #22c55e;
             --yellow: #f59e0b;
             --red: #ef4444;
@@ -32,18 +43,26 @@
 
             --sidebar-width: 250px;
             --sidebar-collapsed: 70px;
+
         }
+
 
         html,
         body {
+
             min-height: 100%;
+
         }
 
+
         body {
+
             margin: 0;
             padding: 0;
+
             background: var(--bg);
             color: var(--text);
+
             font-family:
                 Inter,
                 system-ui,
@@ -51,1164 +70,2227 @@
                 BlinkMacSystemFont,
                 "Segoe UI",
                 sans-serif;
+
         }
 
+
         body.modal-open {
+
             overflow: hidden;
+
         }
+
 
         button,
         input,
         select,
         textarea {
+
             font: inherit;
+
         }
+
 
         button {
+
             cursor: pointer;
+
         }
 
+
         button:disabled {
+
             opacity: .55;
             cursor: not-allowed;
             transform: none !important;
+
         }
+
 
         /* =====================================================
            SIDEBAR
         ===================================================== */
 
         .sidebar {
+
             position: fixed;
+
             top: 0;
             left: 0;
             bottom: 0;
+
             width: var(--sidebar-width);
+
             z-index: 5000;
+
             display: flex;
             flex-direction: column;
+
             background:
                 linear-gradient(
                     180deg,
                     #111827 0%,
                     #0f172a 100%
                 );
-            border-right: 1px solid var(--border);
+
+            border-right:
+                1px solid var(--border);
+
             box-shadow:
-                10px 0 35px rgba(0, 0, 0, .20);
+                10px 0 35px
+                rgba(0, 0, 0, .20);
+
             transition:
                 width .25s ease,
                 transform .25s ease;
+
         }
+
 
         .sidebar.collapsed {
-            width: var(--sidebar-collapsed);
+
+            width:
+                var(--sidebar-collapsed);
+
         }
 
+
         .sidebar-header {
+
             height: 72px;
-            padding: 0 14px;
+
+            padding:
+                0 14px;
+
             display: flex;
             align-items: center;
             justify-content: space-between;
+
             gap: 10px;
-            border-bottom: 1px solid var(--border);
+
+            border-bottom:
+                1px solid var(--border);
+
         }
+
 
         .brand {
+
             min-width: 0;
+
             display: flex;
             align-items: center;
+
             gap: 10px;
-            text-decoration: none;
+
             color: white;
+
+            text-decoration: none;
+
         }
 
+
         .brand-icon {
+
             flex: 0 0 auto;
+
             width: 40px;
             height: 40px;
+
             display: flex;
             align-items: center;
             justify-content: center;
+
             border-radius: 11px;
+
             background:
                 linear-gradient(
                     135deg,
                     var(--primary),
                     #8b5cf6
                 );
+
             color: white;
+
             font-size: 19px;
             font-weight: 900;
+
             box-shadow:
-                0 8px 25px rgba(99, 102, 241, .25);
+                0 8px 25px
+                rgba(99, 102, 241, .25);
+
         }
 
+
         .brand-text {
+
             min-width: 0;
+
             display: flex;
             flex-direction: column;
+
             gap: 1px;
+
             white-space: nowrap;
+
             overflow: hidden;
+
             transition:
                 opacity .2s ease,
                 width .25s ease;
+
         }
+
 
         .brand-name {
+
             font-size: 15px;
             font-weight: 900;
+
             letter-spacing: .03em;
+
         }
+
 
         .brand-subtitle {
+
             color: var(--muted);
+
             font-size: 10px;
             font-weight: 600;
+
         }
+
 
         .sidebar.collapsed .brand-text {
+
             width: 0;
             opacity: 0;
+
         }
 
+
         .sidebar-toggle {
+
             flex: 0 0 auto;
+
             width: 38px;
             height: 38px;
-            border: 1px solid var(--border);
+
+            border:
+                1px solid var(--border);
+
             border-radius: 9px;
-            background: var(--panel2);
-            color: #dbe4ff;
+
+            background:
+                var(--panel2);
+
+            color:
+                #dbe4ff;
+
             display: flex;
             align-items: center;
             justify-content: center;
+
             font-size: 17px;
+
             transition:
                 background .2s,
                 border-color .2s,
                 transform .2s;
+
         }
+
 
         .sidebar-toggle:hover {
-            background: rgba(99, 102, 241, .16);
-            border-color: rgba(99, 102, 241, .4);
-            transform: translateY(-1px);
+
+            background:
+                rgba(99, 102, 241, .16);
+
+            border-color:
+                rgba(99, 102, 241, .4);
+
+            transform:
+                translateY(-1px);
+
         }
+
 
         .sidebar-nav {
+
             flex: 1;
-            padding: 15px 10px;
+
+            padding:
+                15px 10px;
+
             overflow-y: auto;
             overflow-x: hidden;
+
         }
+
 
         .nav-section-title {
-            padding: 8px 11px 7px;
-            color: #64748b;
+
+            padding:
+                8px 11px 7px;
+
+            color:
+                #64748b;
+
             font-size: 10px;
             font-weight: 800;
+
             text-transform: uppercase;
+
             letter-spacing: .08em;
+
             white-space: nowrap;
-            transition: opacity .2s ease;
+
+            transition:
+                opacity .2s ease;
+
         }
 
-        .sidebar.collapsed .nav-section-title {
+
+        .sidebar.collapsed
+        .nav-section-title {
+
             opacity: 0;
+
         }
+
 
         .sidebar-link {
+
             width: 100%;
             min-height: 44px;
+
             margin-bottom: 5px;
-            padding: 9px 11px;
+
+            padding:
+                9px 11px;
+
             display: flex;
             align-items: center;
+
             gap: 12px;
-            color: #cbd5e1;
+
+            color:
+                #cbd5e1;
+
             text-decoration: none;
-            border: 1px solid transparent;
+
+            border:
+                1px solid transparent;
+
             border-radius: 10px;
+
             font-size: 12px;
             font-weight: 700;
+
             white-space: nowrap;
+
             transition:
                 background .2s,
                 border-color .2s,
                 color .2s,
                 transform .2s;
+
         }
+
 
         .sidebar-link:hover {
-            background: var(--panel2);
-            border-color: var(--border);
+
+            background:
+                var(--panel2);
+
+            border-color:
+                var(--border);
+
             color: white;
-            transform: translateX(2px);
+
+            transform:
+                translateX(2px);
+
         }
+
 
         .sidebar-link.active {
-            background: rgba(99, 102, 241, .15);
-            border-color: rgba(99, 102, 241, .32);
-            color: #c7d2fe;
+
+            background:
+                rgba(99, 102, 241, .15);
+
+            border-color:
+                rgba(99, 102, 241, .32);
+
+            color:
+                #c7d2fe;
+
         }
 
+
         .sidebar-link-icon {
+
             flex: 0 0 auto;
+
             width: 25px;
             height: 25px;
+
             display: flex;
             align-items: center;
             justify-content: center;
+
             font-size: 16px;
+
         }
 
+
         .sidebar-link-text {
+
             min-width: 0;
+
             overflow: hidden;
+
             transition:
                 opacity .2s ease,
                 width .25s ease;
+
         }
 
-        .sidebar.collapsed .sidebar-link {
-            justify-content: center;
+
+        .sidebar.collapsed
+        .sidebar-link {
+
+            justify-content:
+                center;
+
             padding-left: 8px;
             padding-right: 8px;
+
         }
 
-        .sidebar.collapsed .sidebar-link-text {
+
+        .sidebar.collapsed
+        .sidebar-link-text {
+
             width: 0;
             opacity: 0;
+
         }
+
 
         .sidebar-footer {
+
             padding: 10px;
-            border-top: 1px solid var(--border);
+
+            border-top:
+                1px solid var(--border);
+
         }
+
 
         .sidebar-back {
-            color: #7dd3fc;
-            background: rgba(56, 189, 248, .07);
-            border-color: rgba(56, 189, 248, .18);
+
+            color:
+                #7dd3fc;
+
+            background:
+                rgba(56, 189, 248, .07);
+
+            border-color:
+                rgba(56, 189, 248, .18);
+
         }
+
 
         .sidebar-back:hover {
-            background: rgba(56, 189, 248, .14);
-            border-color: rgba(56, 189, 248, .35);
+
+            background:
+                rgba(56, 189, 248, .14);
+
+            border-color:
+                rgba(56, 189, 248, .35);
+
         }
+
 
         .sidebar-logout {
-            color: #fca5a5;
+
+            color:
+                #fca5a5;
+
         }
+
 
         .sidebar-logout:hover {
-            background: rgba(239, 68, 68, .10);
-            border-color: rgba(239, 68, 68, .25);
-            color: #fecaca;
+
+            background:
+                rgba(239, 68, 68, .10);
+
+            border-color:
+                rgba(239, 68, 68, .25);
+
+            color:
+                #fecaca;
+
         }
 
+
         /* =====================================================
-           MOBILE SIDEBAR
+           MOBILE
         ===================================================== */
 
         .mobile-menu-button {
+
             display: none;
+
             position: fixed;
+
             top: 14px;
             left: 14px;
+
             width: 42px;
             height: 42px;
+
             z-index: 4900;
-            border: 1px solid var(--border);
+
+            border:
+                1px solid var(--border);
+
             border-radius: 10px;
-            background: rgba(17, 24, 39, .96);
+
+            background:
+                rgba(17, 24, 39, .96);
+
             color: white;
+
             box-shadow:
-                0 10px 25px rgba(0, 0, 0, .25);
+                0 10px 25px
+                rgba(0, 0, 0, .25);
+
             font-size: 18px;
+
         }
+
 
         .sidebar-overlay {
+
             position: fixed;
+
             inset: 0;
+
             z-index: 4800;
-            background: rgba(0, 0, 0, .60);
+
+            background:
+                rgba(0, 0, 0, .60);
+
             display: none;
+
             pointer-events: none;
+
         }
+
 
         .sidebar-overlay.show {
+
             display: block;
+
             pointer-events: auto;
+
         }
 
+
         /* =====================================================
-           MAIN CONTENT
+           MAIN
         ===================================================== */
 
         .main-content {
+
             min-height: 100vh;
-            margin-left: var(--sidebar-width);
-            transition: margin-left .25s ease;
+
+            margin-left:
+                var(--sidebar-width);
+
+            transition:
+                margin-left .25s ease;
+
         }
+
 
         .main-content.collapsed {
-            margin-left: var(--sidebar-collapsed);
+
+            margin-left:
+                var(--sidebar-collapsed);
+
         }
+
 
         .container {
+
             width: 100%;
+
             max-width: 1500px;
+
             margin: auto;
+
             padding: 28px;
+
         }
+
 
         .header {
+
             display: flex;
-            justify-content: space-between;
+
+            justify-content:
+                space-between;
+
             align-items: center;
+
             gap: 16px;
+
             margin-bottom: 24px;
+
             flex-wrap: wrap;
+
         }
+
 
         .title-wrap h1 {
+
             margin: 0;
+
             font-size: 28px;
+
         }
+
 
         .title-wrap p {
-            margin: 6px 0 0;
-            color: var(--muted);
+
+            margin:
+                6px 0 0;
+
+            color:
+                var(--muted);
+
             font-size: 14px;
+
         }
+
 
         .btn {
+
             border: 0;
+
             border-radius: 10px;
-            padding: 11px 16px;
+
+            padding:
+                11px 16px;
+
             font-weight: 700;
-            transition: .2s;
+
+            transition:
+                .2s;
+
         }
+
 
         .btn:hover {
-            transform: translateY(-1px);
+
+            transform:
+                translateY(-1px);
+
         }
+
 
         .btn-primary {
-            background: var(--primary);
+
+            background:
+                var(--primary);
+
             color: white;
+
         }
+
 
         .btn-primary:hover {
-            background: var(--primary2);
+
+            background:
+                var(--primary2);
+
         }
+
 
         .btn-secondary {
-            background: var(--panel2);
+
+            background:
+                var(--panel2);
+
             color: white;
-            border: 1px solid var(--border);
+
+            border:
+                1px solid var(--border);
+
         }
+
 
         .btn-danger {
-            background: rgba(239, 68, 68, .15);
-            color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, .35);
+
+            background:
+                rgba(239, 68, 68, .15);
+
+            color:
+                #fca5a5;
+
+            border:
+                1px solid
+                rgba(239, 68, 68, .35);
+
         }
+
 
         .btn-small {
-            padding: 7px 10px;
+
+            padding:
+                7px 10px;
+
             font-size: 12px;
+
             border-radius: 8px;
+
         }
+
+
+        /* =====================================================
+           STATS
+        ===================================================== */
 
         .stats {
+
             display: grid;
+
             grid-template-columns:
-                repeat(4, minmax(0, 1fr));
+                repeat(
+                    4,
+                    minmax(0, 1fr)
+                );
+
             gap: 14px;
+
             margin-bottom: 20px;
+
         }
+
 
         .stat {
-            background: var(--panel);
-            border: 1px solid var(--border);
+
+            background:
+                var(--panel);
+
+            border:
+                1px solid var(--border);
+
             border-radius: 14px;
+
             padding: 18px;
+
         }
+
 
         .stat-label {
-            color: var(--muted);
+
+            color:
+                var(--muted);
+
             font-size: 13px;
+
         }
+
 
         .stat-value {
+
             font-size: 25px;
+
             font-weight: 800;
+
             margin-top: 6px;
+
         }
+
+
+        /* =====================================================
+           TOOLBAR
+        ===================================================== */
 
         .toolbar {
-            background: var(--panel);
-            border: 1px solid var(--border);
+
+            background:
+                var(--panel);
+
+            border:
+                1px solid var(--border);
+
             border-radius: 14px;
+
             padding: 15px;
+
             margin-bottom: 18px;
+
             display: flex;
+
             gap: 10px;
+
             flex-wrap: wrap;
+
         }
 
+
         .search {
+
             flex: 1;
+
             min-width: 220px;
+
         }
+
 
         input,
         select,
         textarea {
+
             width: 100%;
-            border: 1px solid var(--border);
-            background: #0d1424;
-            color: var(--text);
+
+            border:
+                1px solid var(--border);
+
+            background:
+                #0d1424;
+
+            color:
+                var(--text);
+
             border-radius: 9px;
-            padding: 11px 12px;
+
+            padding:
+                11px 12px;
+
             outline: none;
+
         }
+
 
         input:focus,
         select:focus,
         textarea:focus {
-            border-color: var(--primary);
+
+            border-color:
+                var(--primary);
+
         }
+
+
+        input[readonly] {
+
+            opacity: .85;
+
+            cursor:
+                default;
+
+        }
+
 
         textarea {
+
             resize: vertical;
-            min-height: 90px;
+
+            min-height:
+                90px;
+
         }
+
 
         .toolbar select {
+
             width: auto;
+
             min-width: 150px;
+
         }
+
+
+        /* =====================================================
+           TABLE
+        ===================================================== */
 
         .table-wrap {
-            background: var(--panel);
-            border: 1px solid var(--border);
+
+            background:
+                var(--panel);
+
+            border:
+                1px solid var(--border);
+
             border-radius: 14px;
+
             overflow: hidden;
+
         }
+
 
         .table-scroll {
+
             overflow-x: auto;
+
         }
 
+
         table {
+
             width: 100%;
-            border-collapse: collapse;
-            min-width: 1250px;
+
+            border-collapse:
+                collapse;
+
+            min-width:
+                1350px;
+
         }
+
 
         th,
         td {
-            padding: 13px 14px;
-            border-bottom: 1px solid var(--border);
-            text-align: left;
-            vertical-align: middle;
+
+            padding:
+                13px 14px;
+
+            border-bottom:
+                1px solid var(--border);
+
+            text-align:
+                left;
+
+            vertical-align:
+                middle;
+
         }
+
 
         th {
-            color: var(--muted);
+
+            color:
+                var(--muted);
+
             font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .04em;
-            background: rgba(255,255,255,.02);
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                .04em;
+
+            background:
+                rgba(255,255,255,.02);
+
         }
+
 
         td {
+
             font-size: 13px;
+
         }
+
 
         tr:last-child td {
-            border-bottom: 0;
+
+            border-bottom:
+                0;
+
         }
+
 
         .model-name {
-            font-weight: 700;
+
+            font-weight:
+                700;
+
         }
+
 
         .model-id {
-            color: var(--muted);
-            font-size: 11px;
-            margin-top: 4px;
-            word-break: break-all;
+
+            color:
+                var(--muted);
+
+            font-size:
+                11px;
+
+            margin-top:
+                4px;
+
+            word-break:
+                break-all;
+
         }
+
 
         .provider {
-            display: inline-flex;
-            align-items: center;
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
             gap: 7px;
-            padding: 6px 9px;
-            border-radius: 8px;
-            background: rgba(99, 102, 241, .12);
-            color: #c7d2fe;
-            font-size: 12px;
+
+            padding:
+                6px 9px;
+
+            border-radius:
+                8px;
+
+            background:
+                rgba(99, 102, 241, .12);
+
+            color:
+                #c7d2fe;
+
+            font-size:
+                12px;
+
         }
 
-        /* =====================================================
-           KIE PRICE
-        ===================================================== */
-
-        .kie-price {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 130px;
-        }
-
-        .kie-price-usd {
-            color: #f8fafc;
-            font-size: 13px;
-            font-weight: 800;
-            white-space: nowrap;
-        }
-
-        .kie-price-idr {
-            color: #86efac;
-            font-size: 12px;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .kie-price-unit {
-            color: var(--muted);
-            font-size: 10px;
-            line-height: 1.3;
-        }
-
-        .kie-price-count {
-            color: #fcd34d;
-            font-size: 10px;
-            margin-top: 2px;
-        }
-
-        .kie-price-empty {
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .kie-price-preview {
-            margin-top: 6px;
-            padding: 12px;
-            border-radius: 10px;
-            background: rgba(56, 189, 248, .06);
-            border: 1px solid rgba(56, 189, 248, .18);
-        }
-
-        .kie-price-preview-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 6px;
-            font-size: 12px;
-        }
-
-        .kie-price-preview-row:last-child {
-            margin-bottom: 0;
-            padding-top: 7px;
-            border-top: 1px solid rgba(255,255,255,.08);
-            font-size: 14px;
-            font-weight: 800;
-        }
-
-        .kie-price-preview-label {
-            color: var(--muted);
-        }
-
-        .kie-price-preview-idr {
-            color: #86efac;
-        }
-
-        .kie-price-no-edit {
-            color: var(--muted);
-            font-size: 11px;
-            line-height: 1.4;
-            margin-top: 5px;
-        }
-
-        .status {
-            display: inline-block;
-            padding: 5px 8px;
-            border-radius: 7px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .status-active {
-            background: rgba(34,197,94,.13);
-            color: #86efac;
-        }
-
-        .status-inactive {
-            background: rgba(156,163,175,.13);
-            color: #d1d5db;
-        }
-
-        .status-maintenance {
-            background: rgba(245,158,11,.13);
-            color: #fcd34d;
-        }
 
         .credit-normal {
-            font-weight: 700;
+
+            font-weight:
+                700;
+
         }
+
 
         .discount {
-            color: #fbbf24;
-            font-weight: 700;
+
+            color:
+                #fbbf24;
+
+            font-weight:
+                700;
+
         }
+
 
         .credit-final {
-            color: #86efac;
-            font-weight: 800;
+
+            color:
+                #86efac;
+
+            font-weight:
+                800;
+
         }
+
 
         .actions {
-            display: flex;
+
+            display:
+                flex;
+
             gap: 7px;
+
+            white-space:
+                nowrap;
+
         }
+
 
         .empty {
-            text-align: center;
-            padding: 45px 20px;
-            color: var(--muted);
+
+            text-align:
+                center;
+
+            padding:
+                45px 20px;
+
+            color:
+                var(--muted);
+
         }
+
 
         .loading {
-            text-align: center;
-            padding: 35px;
-            color: var(--muted);
+
+            text-align:
+                center;
+
+            padding:
+                35px;
+
+            color:
+                var(--muted);
+
         }
+
+
+        /* =====================================================
+           STATUS
+        ===================================================== */
+
+        .status {
+
+            display:
+                inline-block;
+
+            padding:
+                5px 8px;
+
+            border-radius:
+                7px;
+
+            font-size:
+                11px;
+
+            font-weight:
+                700;
+
+            text-transform:
+                uppercase;
+
+        }
+
+
+        .status-active {
+
+            background:
+                rgba(34,197,94,.13);
+
+            color:
+                #86efac;
+
+        }
+
+
+        .status-inactive {
+
+            background:
+                rgba(156,163,175,.13);
+
+            color:
+                #d1d5db;
+
+        }
+
+
+        .status-maintenance {
+
+            background:
+                rgba(245,158,11,.13);
+
+            color:
+                #fcd34d;
+
+        }
+
+
+        /* =====================================================
+           ALERT
+        ===================================================== */
 
         .alert {
-            display: none;
-            margin-bottom: 16px;
-            padding: 12px 15px;
-            border-radius: 10px;
-            font-size: 13px;
-            word-break: break-word;
+
+            display:
+                none;
+
+            margin-bottom:
+                16px;
+
+            padding:
+                12px 15px;
+
+            border-radius:
+                10px;
+
+            font-size:
+                13px;
+
+            word-break:
+                break-word;
+
         }
+
 
         .alert.show {
-            display: block;
+
+            display:
+                block;
+
         }
+
 
         .alert-error {
-            background: rgba(239,68,68,.12);
-            border: 1px solid rgba(239,68,68,.3);
-            color: #fca5a5;
+
+            background:
+                rgba(239,68,68,.12);
+
+            border:
+                1px solid
+                rgba(239,68,68,.3);
+
+            color:
+                #fca5a5;
+
         }
 
+
         .alert-success {
-            background: rgba(34,197,94,.12);
-            border: 1px solid rgba(34,197,94,.3);
-            color: #86efac;
+
+            background:
+                rgba(34,197,94,.12);
+
+            border:
+                1px solid
+                rgba(34,197,94,.3);
+
+            color:
+                #86efac;
+
         }
+
 
         /* =====================================================
            MODAL
         ===================================================== */
 
         .modal-overlay {
+
             position: fixed;
+
             inset: 0;
+
             display: none;
+
             align-items: center;
+
             justify-content: center;
+
             padding: 20px;
-            background: rgba(0, 0, 0, .72);
+
+            background:
+                rgba(0, 0, 0, .72);
+
             z-index: 30000;
+
             pointer-events: none;
+
             isolation: isolate;
+
         }
+
 
         .modal-overlay.show,
         .modal-overlay.open {
-            display: flex;
-            pointer-events: auto;
+
+            display:
+                flex;
+
+            pointer-events:
+                auto;
+
         }
+
 
         .modal-overlay.hidden {
-            display: none !important;
-            pointer-events: none !important;
+
+            display:
+                none !important;
+
+            pointer-events:
+                none !important;
+
         }
+
 
         .modal {
-            position: relative;
+
+            position:
+                relative;
+
             width: 100%;
-            max-width: 850px;
-            max-height: 92vh;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background: var(--panel);
-            border: 1px solid var(--border);
-            border-radius: 18px;
+
+            max-width:
+                850px;
+
+            max-height:
+                92vh;
+
+            overflow-y:
+                auto;
+
+            overflow-x:
+                hidden;
+
+            background:
+                var(--panel);
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                18px;
+
             box-shadow:
-                0 30px 80px rgba(0, 0, 0, .65);
-            z-index: 30001;
-            pointer-events: auto;
+                0 30px 80px
+                rgba(0, 0, 0, .65);
+
+            z-index:
+                30001;
+
+            pointer-events:
+                auto;
+
         }
+
 
         .modal-header {
-            position: sticky;
+
+            position:
+                sticky;
+
             top: 0;
+
             z-index: 20;
-            padding: 20px;
-            background: var(--panel);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+
+            padding:
+                20px;
+
+            background:
+                var(--panel);
+
+            border-bottom:
+                1px solid var(--border);
+
+            display:
+                flex;
+
+            justify-content:
+                space-between;
+
+            align-items:
+                center;
+
             gap: 10px;
+
         }
+
 
         .modal-header h2 {
+
             margin: 0;
-            font-size: 20px;
+
+            font-size:
+                20px;
+
         }
+
 
         .close {
-            position: relative;
+
+            position:
+                relative;
+
             z-index: 21;
-            width: 36px;
-            height: 36px;
-            border: 1px solid var(--border);
-            border-radius: 9px;
-            background: var(--panel2);
-            color: white;
-            font-size: 20px;
-            pointer-events: auto;
+
+            width:
+                36px;
+
+            height:
+                36px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                9px;
+
+            background:
+                var(--panel2);
+
+            color:
+                white;
+
+            font-size:
+                20px;
+
+            pointer-events:
+                auto;
+
         }
+
 
         .close:hover {
-            background: rgba(99, 102, 241, .18);
-            border-color: rgba(99, 102, 241, .4);
+
+            background:
+                rgba(99, 102, 241, .18);
+
+            border-color:
+                rgba(99, 102, 241, .4);
+
         }
+
 
         .modal-body {
-            padding: 20px;
+
+            padding:
+                20px;
+
         }
+
 
         .modal-footer {
-            position: sticky;
+
+            position:
+                sticky;
+
             bottom: 0;
+
             z-index: 20;
-            padding: 15px 20px;
-            background: var(--panel);
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
+
+            padding:
+                15px 20px;
+
+            background:
+                var(--panel);
+
+            border-top:
+                1px solid var(--border);
+
+            display:
+                flex;
+
+            justify-content:
+                flex-end;
+
             gap: 10px;
+
         }
+
 
         .delete-confirm {
-            max-width: 450px;
+
+            max-width:
+                450px;
+
         }
+
 
         .delete-confirm .modal-body {
-            line-height: 1.6;
-            color: #d1d5db;
+
+            line-height:
+                1.6;
+
+            color:
+                #d1d5db;
+
         }
 
-        /* =====================================================
-           MODEL SEARCH
-        ===================================================== */
-
-        .model-search-box {
-            position: relative;
-            z-index: 100;
-        }
-
-        .model-search-results {
-            position: absolute;
-            top: calc(100% + 6px);
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            max-height: 360px;
-            overflow-y: auto;
-            background: #0d1424;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            box-shadow:
-                0 18px 45px rgba(0, 0, 0, .60);
-            pointer-events: auto;
-        }
-
-        .model-search-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 11px 12px;
-            border-bottom: 1px solid rgba(255,255,255,.07);
-            transition: background .18s ease;
-        }
-
-        .model-search-item:last-child {
-            border-bottom: 0;
-        }
-
-        .model-search-item:hover {
-            background: rgba(99,102,241,.10);
-        }
-
-        .model-search-info {
-            min-width: 0;
-            flex: 1;
-        }
-
-        .model-search-id {
-            color: #f8fafc;
-            font-size: 12px;
-            font-weight: 800;
-            line-height: 1.4;
-            word-break: break-all;
-        }
-
-        .model-search-name {
-            margin-top: 3px;
-            color: #cbd5e1;
-            font-size: 11px;
-            line-height: 1.4;
-        }
-
-        .model-search-provider {
-            margin-top: 3px;
-            color: var(--muted);
-            font-size: 10px;
-            line-height: 1.4;
-        }
-
-        .model-select-check {
-            flex: 0 0 auto;
-            width: 32px;
-            height: 32px;
-            border: 1px solid rgba(34,197,94,.35);
-            border-radius: 8px;
-            background: rgba(34,197,94,.08);
-            color: #86efac;
-            font-size: 17px;
-            font-weight: 900;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition:
-                background .18s ease,
-                border-color .18s ease,
-                transform .18s ease;
-        }
-
-        .model-select-check:hover {
-            background: rgba(34,197,94,.18);
-            border-color: rgba(34,197,94,.60);
-            transform: scale(1.04);
-        }
-
-        .model-select-check.selected {
-            background: rgba(34,197,94,.22);
-            border-color: rgba(34,197,94,.70);
-            color: #bbf7d0;
-        }
-
-        .model-search-empty {
-            padding: 15px;
-            color: var(--muted);
-            font-size: 12px;
-            text-align: center;
-        }
-
-        #selectedModelInfo {
-            margin-top: 6px;
-        }
-
-        #selectedModelInfo strong {
-            color: #e2e8f0;
-        }
-
-        #selectedModelInfo span {
-            color: var(--muted);
-        }
-
-        /* =====================================================
-           ADD MODEL BUTTON
-        ===================================================== */
-
-        #addModelBtn {
-            position: relative;
-            z-index: auto !important;
-            pointer-events: auto !important;
-        }
 
         /* =====================================================
            FORM
         ===================================================== */
 
         .form-grid {
-            display: grid;
+
+            display:
+                grid;
+
             grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-            gap: 16px;
+                repeat(
+                    2,
+                    minmax(0, 1fr)
+                );
+
+            gap:
+                16px;
+
         }
+
 
         .field {
-            min-width: 0;
+
+            min-width:
+                0;
+
         }
+
 
         .field.full {
-            grid-column: 1 / -1;
+
+            grid-column:
+                1 / -1;
+
         }
+
 
         .field label {
-            display: block;
-            margin-bottom: 7px;
-            color: #dbe4ff;
-            font-size: 12px;
-            font-weight: 700;
+
+            display:
+                block;
+
+            margin-bottom:
+                7px;
+
+            color:
+                #dbe4ff;
+
+            font-size:
+                12px;
+
+            font-weight:
+                700;
+
         }
+
 
         .hint {
-            margin-top: 6px;
-            color: var(--muted);
-            font-size: 10px;
-            line-height: 1.45;
+
+            margin-top:
+                6px;
+
+            color:
+                var(--muted);
+
+            font-size:
+                10px;
+
+            line-height:
+                1.45;
+
         }
+
 
         .credit-preview {
-            background: rgba(34,197,94,.08);
-            border: 1px solid rgba(34,197,94,.25);
-            border-radius: 12px;
-            padding: 15px;
+
+            background:
+                rgba(34,197,94,.08);
+
+            border:
+                1px solid
+                rgba(34,197,94,.25);
+
+            border-radius:
+                12px;
+
+            padding:
+                15px;
+
         }
+
 
         .credit-preview-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 15px;
-            margin-bottom: 7px;
-            font-size: 13px;
+
+            display:
+                flex;
+
+            justify-content:
+                space-between;
+
+            gap:
+                15px;
+
+            margin-bottom:
+                7px;
+
+            font-size:
+                13px;
+
         }
+
 
         .credit-preview-row:last-child {
-            margin-bottom: 0;
-            padding-top: 8px;
+
+            margin-bottom:
+                0;
+
+            padding-top:
+                8px;
+
             border-top:
-                1px solid rgba(255,255,255,.08);
-            font-size: 16px;
-            font-weight: 800;
+                1px solid
+                rgba(255,255,255,.08);
+
+            font-size:
+                16px;
+
+            font-weight:
+                800;
+
         }
+
 
         /* =====================================================
-           KIE PRICE FORM
+           MODEL SEARCH
         ===================================================== */
 
-        .kie-price-preview {
-            margin-top: 0;
-            padding: 12px;
-            border-radius: 10px;
-            background: rgba(56, 189, 248, .06);
-            border: 1px solid rgba(56, 189, 248, .18);
+        .model-search-box {
+
+            position:
+                relative;
+
+            z-index:
+                100;
+
         }
 
-        .kie-price-preview-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 6px;
-            font-size: 12px;
+
+        .model-search-results {
+
+            position:
+                absolute;
+
+            top:
+                calc(100% + 6px);
+
+            left: 0;
+            right: 0;
+
+            z-index:
+                1000;
+
+            max-height:
+                360px;
+
+            overflow-y:
+                auto;
+
+            background:
+                #0d1424;
+
+            border:
+                1px solid
+                var(--border);
+
+            border-radius:
+                10px;
+
+            box-shadow:
+                0 18px 45px
+                rgba(0, 0, 0, .60);
+
+            pointer-events:
+                auto;
+
         }
 
-        .kie-price-preview-row:last-child {
-            margin-bottom: 0;
-            padding-top: 7px;
-            border-top: 1px solid rgba(255,255,255,.08);
-            font-size: 14px;
-            font-weight: 800;
+
+        .model-search-item {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                12px;
+
+            padding:
+                11px 12px;
+
+            border-bottom:
+                1px solid
+                rgba(255,255,255,.07);
+
+            transition:
+                background .18s ease;
+
         }
 
-        .kie-price-preview-label {
-            color: var(--muted);
+
+        .model-search-item:last-child {
+
+            border-bottom:
+                0;
+
         }
 
-        .kie-price-preview-idr {
-            color: #86efac;
+
+        .model-search-item:hover {
+
+            background:
+                rgba(99,102,241,.10);
+
         }
+
+
+        .model-search-info {
+
+            min-width:
+                0;
+
+            flex:
+                1;
+
+        }
+
+
+        .model-search-id {
+
+            color:
+                #f8fafc;
+
+            font-size:
+                12px;
+
+            font-weight:
+                800;
+
+            line-height:
+                1.4;
+
+            word-break:
+                break-all;
+
+        }
+
+
+        .model-search-name {
+
+            margin-top:
+                3px;
+
+            color:
+                #cbd5e1;
+
+            font-size:
+                11px;
+
+            line-height:
+                1.4;
+
+        }
+
+
+        .model-search-provider {
+
+            margin-top:
+                3px;
+
+            color:
+                var(--muted);
+
+            font-size:
+                10px;
+
+            line-height:
+                1.4;
+
+        }
+
+
+        .model-select-check {
+
+            flex:
+                0 0 auto;
+
+            width:
+                32px;
+
+            height:
+                32px;
+
+            border:
+                1px solid
+                rgba(34,197,94,.35);
+
+            border-radius:
+                8px;
+
+            background:
+                rgba(34,197,94,.08);
+
+            color:
+                #86efac;
+
+            font-size:
+                17px;
+
+            font-weight:
+                900;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+        }
+
+
+        .model-search-empty {
+
+            padding:
+                15px;
+
+            color:
+                var(--muted);
+
+            font-size:
+                12px;
+
+            text-align:
+                center;
+
+        }
+
+
+        #selectedModelInfo {
+
+            margin-top:
+                6px;
+
+        }
+
+
+        #selectedModelInfo strong {
+
+            color:
+                #e2e8f0;
+
+        }
+
+
+        #selectedModelInfo span {
+
+            color:
+                var(--muted);
+
+        }
+
+
+        /* =====================================================
+           PARAMETER CHECKBOXES
+        ===================================================== */
+
+        .parameter-group {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(120px, 1fr)
+                );
+
+            gap:
+                9px;
+
+            padding:
+                2px;
+
+        }
+
+
+        .parameter-option {
+
+            position:
+                relative;
+
+        }
+
+
+        .parameter-option input {
+
+            position:
+                absolute;
+
+            opacity:
+                0;
+
+            pointer-events:
+                none;
+
+        }
+
+
+        .parameter-option label {
+
+            margin:
+                0;
+
+            width:
+                100%;
+
+            min-height:
+                42px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                9px 12px;
+
+            border:
+                1px solid
+                var(--border);
+
+            border-radius:
+                9px;
+
+            background:
+                #0d1424;
+
+            color:
+                #cbd5e1;
+
+            font-size:
+                12px;
+
+            font-weight:
+                700;
+
+            cursor:
+                pointer;
+
+            transition:
+                background .18s ease,
+                border-color .18s ease,
+                color .18s ease;
+
+        }
+
+
+        .parameter-option input:checked + label {
+
+            background:
+                rgba(99,102,241,.16);
+
+            border-color:
+                rgba(99,102,241,.60);
+
+            color:
+                #c7d2fe;
+
+        }
+
+
+        .parameter-option input:focus-visible + label {
+
+            outline:
+                2px solid
+                var(--primary);
+
+            outline-offset:
+                2px;
+
+        }
+
+
+        .readonly-parameter {
+
+            padding:
+                12px;
+
+            border:
+                1px solid
+                var(--border);
+
+            border-radius:
+                10px;
+
+            background:
+                rgba(255,255,255,.02);
+
+            color:
+                #cbd5e1;
+
+            font-size:
+                12px;
+
+            line-height:
+                1.6;
+
+        }
+
+
+        .readonly-parameter strong {
+
+            color:
+                #f8fafc;
+
+        }
+
 
         /* =====================================================
            RESPONSIVE
         ===================================================== */
 
         @media (max-width: 900px) {
+
             .stats {
+
                 grid-template-columns:
-                    repeat(2, minmax(0, 1fr));
+                    repeat(
+                        2,
+                        minmax(0, 1fr)
+                    );
+
             }
+
 
             .form-grid {
-                grid-template-columns: 1fr;
+
+                grid-template-columns:
+                    1fr;
+
             }
+
 
             .field.full {
-                grid-column: auto;
+
+                grid-column:
+                    auto;
+
             }
+
         }
 
+
         @media (max-width: 700px) {
+
             .sidebar {
-                width: 250px;
-                transform: translateX(-100%);
+
+                width:
+                    250px;
+
+                transform:
+                    translateX(-100%);
+
             }
+
 
             .sidebar.mobile-open {
-                transform: translateX(0);
+
+                transform:
+                    translateX(0);
+
             }
+
 
             .sidebar.collapsed {
-                width: 250px;
+
+                width:
+                    250px;
+
             }
 
-            .sidebar.collapsed .brand-text {
-                width: auto;
-                opacity: 1;
+
+            .sidebar.collapsed
+            .brand-text {
+
+                width:
+                    auto;
+
+                opacity:
+                    1;
+
             }
 
-            .sidebar.collapsed .sidebar-link {
-                justify-content: flex-start;
-                padding-left: 11px;
-                padding-right: 11px;
+
+            .sidebar.collapsed
+            .sidebar-link {
+
+                justify-content:
+                    flex-start;
+
+                padding-left:
+                    11px;
+
+                padding-right:
+                    11px;
+
             }
 
-            .sidebar.collapsed .sidebar-link-text {
-                width: auto;
-                opacity: 1;
+
+            .sidebar.collapsed
+            .sidebar-link-text {
+
+                width:
+                    auto;
+
+                opacity:
+                    1;
+
             }
 
-            .sidebar.collapsed .nav-section-title {
-                opacity: 1;
+
+            .sidebar.collapsed
+            .nav-section-title {
+
+                opacity:
+                    1;
+
             }
 
-            .sidebar-toggle {
-                display: flex;
-            }
 
             .mobile-menu-button {
-                display: flex;
-                align-items: center;
-                justify-content: center;
+
+                display:
+                    flex;
+
+                align-items:
+                    center;
+
+                justify-content:
+                    center;
+
             }
 
-            .sidebar-overlay.show {
-                display: block;
-                pointer-events: auto;
-            }
 
             .main-content,
             .main-content.collapsed {
-                margin-left: 0;
+
+                margin-left:
+                    0;
+
             }
+
 
             .container {
-                padding: 72px 14px 20px;
+
+                padding:
+                    72px 14px 20px;
+
             }
 
-            .header {
-                margin-bottom: 18px;
-            }
 
             .title-wrap h1 {
-                font-size: 24px;
+
+                font-size:
+                    24px;
+
             }
 
-            .title-wrap p {
-                font-size: 13px;
-            }
         }
+
 
         @media (max-width: 600px) {
+
             .stats {
+
                 grid-template-columns:
                     1fr 1fr;
+
             }
+
 
             .stat {
-                padding: 13px;
+
+                padding:
+                    13px;
+
             }
+
 
             .stat-value {
-                font-size: 20px;
+
+                font-size:
+                    20px;
+
             }
+
 
             .toolbar {
-                padding: 12px;
+
+                padding:
+                    12px;
+
             }
+
 
             .toolbar select {
-                flex: 1;
-                min-width: 130px;
+
+                flex:
+                    1;
+
+                min-width:
+                    130px;
+
             }
+
 
             .search {
-                min-width: 100%;
+
+                min-width:
+                    100%;
+
             }
 
-            .model-search-results {
-                max-height: 300px;
-            }
-
-            .model-search-item {
-                padding: 10px;
-            }
-
-            .model-search-id {
-                font-size: 11px;
-            }
-
-            .model-select-check {
-                width: 30px;
-                height: 30px;
-            }
 
             .modal-overlay {
-                padding: 10px;
+
+                padding:
+                    10px;
+
             }
+
 
             .modal {
-                max-height: 94vh;
-                border-radius: 14px;
+
+                max-height:
+                    94vh;
+
+                border-radius:
+                    14px;
+
             }
+
 
             .modal-body {
-                padding: 15px;
+
+                padding:
+                    15px;
+
             }
+
 
             .modal-header {
-                padding: 15px;
+
+                padding:
+                    15px;
+
             }
+
 
             .modal-footer {
-                padding: 12px 15px;
+
+                padding:
+                    12px 15px;
+
             }
+
         }
+
     </style>
+
 </head>
 
+
 <body>
+
 
 <!-- =====================================================
      SIDEBAR
@@ -1219,7 +2301,9 @@
     id="sidebar"
     aria-label="Navigasi GEN-Z.AI">
 
+
     <div class="sidebar-header">
+
 
         <a
             href="/admin/dashboard.html"
@@ -1244,6 +2328,7 @@
 
         </a>
 
+
         <button
             type="button"
             class="sidebar-toggle"
@@ -1255,13 +2340,17 @@
 
         </button>
 
+
     </div>
 
+
     <nav class="sidebar-nav">
+
 
         <div class="nav-section-title">
             MAIN MENU
         </div>
+
 
         <a
             class="sidebar-link"
@@ -1278,6 +2367,7 @@
 
         </a>
 
+
         <a
             class="sidebar-link"
             href="/generate/index.html"
@@ -1292,6 +2382,7 @@
             </span>
 
         </a>
+
 
         <a
             class="sidebar-link"
@@ -1308,12 +2399,14 @@
 
         </a>
 
+
         <div class="nav-section-title">
             ADMINISTRATION
         </div>
 
+
         <a
-            class="sidebar-link active"
+            class="sidebar-link"
             href="/admin-control/admin-panel.html"
             title="Admin Panel">
 
@@ -1326,6 +2419,7 @@
             </span>
 
         </a>
+
 
         <a
             class="sidebar-link"
@@ -1342,8 +2436,9 @@
 
         </a>
 
+
         <a
-            class="sidebar-link"
+            class="sidebar-link active"
             href="/admin-control/models.html"
             title="Model Management">
 
@@ -1357,9 +2452,12 @@
 
         </a>
 
+
     </nav>
 
+
     <div class="sidebar-footer">
+
 
         <a
             class="sidebar-link sidebar-back"
@@ -1375,6 +2473,7 @@
             </span>
 
         </a>
+
 
         <a
             class="sidebar-link sidebar-logout"
@@ -1392,9 +2491,12 @@
 
         </a>
 
+
     </div>
 
+
 </aside>
+
 
 <!-- =====================================================
      MOBILE MENU
@@ -1411,10 +2513,12 @@
 
 </button>
 
+
 <div
     class="sidebar-overlay"
     id="sidebarOverlay">
 </div>
+
 
 <!-- =====================================================
      MAIN CONTENT
@@ -1424,9 +2528,12 @@
     class="main-content"
     id="mainContent">
 
+
     <div class="container">
 
+
         <div class="header">
+
 
             <div class="title-wrap">
 
@@ -1435,11 +2542,12 @@
                 </h1>
 
                 <p>
-                    Kelola model AI, provider, credit, diskon,
-                    duration, ratio dan resolution.
+                    Kelola model AI, provider, credit,
+                    diskon, duration, ratio dan resolution.
                 </p>
 
             </div>
+
 
             <button
                 type="button"
@@ -1451,14 +2559,22 @@
 
             </button>
 
+
         </div>
+
 
         <div
             id="alertBox"
             class="alert">
         </div>
 
+
+        <!-- =================================================
+             STATISTICS
+        ================================================== -->
+
         <div class="stats">
+
 
             <div class="stat">
 
@@ -1469,10 +2585,13 @@
                 <div
                     class="stat-value"
                     id="statTotal">
+
                     0
+
                 </div>
 
             </div>
+
 
             <div class="stat">
 
@@ -1483,10 +2602,13 @@
                 <div
                     class="stat-value"
                     id="statActive">
+
                     0
+
                 </div>
 
             </div>
+
 
             <div class="stat">
 
@@ -1497,10 +2619,13 @@
                 <div
                     class="stat-value"
                     id="statDiscount">
+
                     0
+
                 </div>
 
             </div>
+
 
             <div class="stat">
 
@@ -1511,20 +2636,31 @@
                 <div
                     class="stat-value"
                     id="statProviders">
+
                     0
+
                 </div>
 
             </div>
 
+
         </div>
 
+
+        <!-- =================================================
+             TOOLBAR
+        ================================================== -->
+
         <div class="toolbar">
+
 
             <input
                 id="searchInput"
                 class="search"
                 type="search"
+                autocomplete="off"
                 placeholder="Cari model, Model ID, provider...">
+
 
             <select id="statusFilter">
 
@@ -1546,6 +2682,7 @@
 
             </select>
 
+
             <select id="providerFilter">
 
                 <option value="">
@@ -1553,6 +2690,7 @@
                 </option>
 
             </select>
+
 
             <button
                 type="button"
@@ -1563,63 +2701,85 @@
 
             </button>
 
+
         </div>
+
+
+        <!-- =================================================
+             MODEL TABLE
+        ================================================== -->
 
         <div class="table-wrap">
 
+
             <div class="table-scroll">
 
-                <table>
+
+                <table id="modelsTable">
+
 
                     <thead>
 
                         <tr>
 
+
                             <th>
                                 Model
                             </th>
+
 
                             <th>
                                 Provider
                             </th>
 
-                            <th>
-                                Harga KIE
-                            </th>
 
                             <th>
                                 Credit
                             </th>
 
+
                             <th>
                                 Diskon
                             </th>
+
 
                             <th>
                                 Credit Final
                             </th>
 
+
                             <th>
                                 Duration
                             </th>
+
 
                             <th>
                                 Ratio
                             </th>
 
+
+                            <th>
+                                Resolution
+                            </th>
+
+
                             <th>
                                 Status
                             </th>
+
 
                             <th>
                                 Aksi
                             </th>
 
+
                         </tr>
 
                     </thead>
 
+
                     <tbody id="modelTableBody">
+
 
                         <tr>
 
@@ -1633,17 +2793,24 @@
 
                         </tr>
 
+
                     </tbody>
+
 
                 </table>
 
+
             </div>
+
 
         </div>
 
+
     </div>
 
+
 </main>
+
 
 <!-- =====================================================
      MODEL MODAL
@@ -1654,13 +2821,17 @@
     id="modelModal"
     aria-hidden="true">
 
+
     <div class="modal">
 
+
         <div class="modal-header">
+
 
             <h2 id="modalTitle">
                 Tambah Model
             </h2>
+
 
             <button
                 type="button"
@@ -1672,26 +2843,39 @@
 
             </button>
 
+
         </div>
+
 
         <form id="modelForm">
 
+
             <div class="modal-body">
+
 
                 <input
                     type="hidden"
                     id="modelId">
 
+
                 <div class="form-grid">
 
+
+                    <!-- =================================================
+                         PROVIDER
+                    ================================================== -->
+
                     <div class="field">
+
 
                         <label for="providerId">
                             Provider *
                         </label>
 
+
                         <select
                             id="providerId"
+                            name="provider_id"
                             required>
 
                             <option value="">
@@ -1700,16 +2884,30 @@
 
                         </select>
 
+
+                        <div class="hint">
+                            Provider berasal dari tabel providers.
+                        </div>
+
+
                     </div>
 
+
+                    <!-- =================================================
+                         STATUS
+                    ================================================== -->
+
                     <div class="field">
+
 
                         <label for="modelStatus">
                             Status *
                         </label>
 
+
                         <select
                             id="modelStatus"
+                            name="status"
                             required>
 
                             <option value="active">
@@ -1726,33 +2924,48 @@
 
                         </select>
 
+
                     </div>
 
-                    <div class="field">
 
-                        <label for="modelCode">
+                    <!-- =================================================
+                         MODEL ID
+                    ================================================== -->
+
+                    <div class="field full">
+
+
+                        <label for="modelCodeSearch">
                             Model ID *
                         </label>
 
+
                         <div class="model-search-box">
+
 
                             <input
                                 id="modelCodeSearch"
+                                name="model_id_search"
                                 type="search"
                                 autocomplete="off"
-                                placeholder="Cari Model ID, contoh: kling-3.0...">
+                                placeholder="Cari atau pilih Model ID...">
+
 
                             <input
                                 id="modelCode"
+                                name="model_id"
                                 type="hidden"
                                 required>
+
 
                             <div
                                 id="modelSearchResults"
                                 class="model-search-results">
                             </div>
 
+
                         </div>
+
 
                         <div
                             id="selectedModelInfo"
@@ -1762,78 +2975,124 @@
 
                         </div>
 
+
                     </div>
 
+
+                    <!-- =================================================
+                         MODEL NAME
+                    ================================================== -->
+
                     <div class="field">
+
 
                         <label for="modelName">
                             Model Name *
                         </label>
 
+
                         <input
                             id="modelName"
+                            name="model_name"
                             type="text"
-                            required
                             autocomplete="off"
-                            placeholder="contoh: Kling V2">
+                            required
+                            placeholder="Nama model">
+
 
                     </div>
 
+
+                    <!-- =================================================
+                         DESCRIPTION
+                    ================================================== -->
+
                     <div class="field full">
+
 
                         <label for="description">
                             Description
                         </label>
 
+
                         <textarea
                             id="description"
+                            name="description"
                             placeholder="Deskripsi model..."></textarea>
+
 
                     </div>
 
+
+                    <!-- =================================================
+                         CREDIT NORMAL
+                    ================================================== -->
+
                     <div class="field">
+
 
                         <label for="creditCost">
                             Credit Normal *
                         </label>
 
+
                         <input
                             id="creditCost"
+                            name="credit_cost"
                             type="number"
                             min="0"
                             step="1"
                             value="0"
                             required>
 
+
                         <div class="hint">
-                            Harga credit sebelum diskon.
+                            Credit sebelum diskon.
                         </div>
+
 
                     </div>
 
+
+                    <!-- =================================================
+                         DISCOUNT
+                    ================================================== -->
+
                     <div class="field">
+
 
                         <label for="discountPercent">
                             Diskon (%)
                         </label>
 
+
                         <input
                             id="discountPercent"
+                            name="discount_percent"
                             type="number"
                             min="0"
                             max="100"
                             step="0.01"
                             value="0">
 
+
                         <div class="hint">
-                            Masukkan 0 sampai 100%.
+                            Nilai 0 sampai 100 persen.
                         </div>
+
 
                     </div>
 
+
+                    <!-- =================================================
+                         CREDIT PREVIEW
+                    ================================================== -->
+
                     <div class="field full">
 
+
                         <div class="credit-preview">
+
 
                             <div class="credit-preview-row">
 
@@ -1847,6 +3106,7 @@
 
                             </div>
 
+
                             <div class="credit-preview-row">
 
                                 <span>
@@ -1858,6 +3118,7 @@
                                 </strong>
 
                             </div>
+
 
                             <div class="credit-preview-row">
 
@@ -1871,171 +3132,137 @@
 
                             </div>
 
+
                         </div>
+
 
                     </div>
 
+
                     <!-- =================================================
-                         KIE PRICE
+                         DURATION
                     ================================================== -->
 
                     <div class="field">
 
-                        <label for="kieUnitPrice">
-                            Harga KIE
-                        </label>
-
-                        <input
-                            id="kieUnitPrice"
-                            type="number"
-                            min="0"
-                            step="0.000001"
-                            placeholder="Contoh: 0.07">
-
-                        <div
-                            class="hint"
-                            id="kiePriceHint">
-
-                            Harga per unit dari pricing KIE di Supabase.
-
-                        </div>
-
-                    </div>
-
-                    <div class="field">
-
-                        <label>
-                            Konversi Harga
-                        </label>
-
-                        <div class="kie-price-preview">
-
-                            <div class="kie-price-preview-row">
-
-                                <span class="kie-price-preview-label">
-                                    Harga USD
-                                </span>
-
-                                <strong id="previewKieUsd">
-                                    -
-                                </strong>
-
-                            </div>
-
-                            <div class="kie-price-preview-row">
-
-                                <span class="kie-price-preview-label">
-                                    Kurs
-                                </span>
-
-                                <strong id="previewKieRate">
-                                    $1 = Rp17.700
-                                </strong>
-
-                            </div>
-
-                            <div class="kie-price-preview-row">
-
-                                <span class="kie-price-preview-label">
-                                    Harga Rupiah
-                                </span>
-
-                                <strong
-                                    class="kie-price-preview-idr"
-                                    id="previewKieIdr">
-
-                                    -
-
-                                </strong>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <div class="field full">
-
-                        <div
-                            class="hint"
-                            id="kiePricingStatusHint">
-
-                            Harga KIE hanya dapat diedit jika model memiliki
-                            data pricing di Supabase.
-
-                        </div>
-
-                    </div>
-
-                    <div class="field">
 
                         <label for="minDuration">
                             Min Duration
                         </label>
 
+
                         <input
                             id="minDuration"
+                            name="min_duration"
                             type="number"
                             min="0"
                             step="1"
-                            placeholder="Contoh: 5">
+                            readonly>
+
+
+                        <div class="hint">
+                            Nilai dibaca dari konfigurasi Model.
+                        </div>
+
 
                     </div>
 
+
                     <div class="field">
+
 
                         <label for="maxDuration">
                             Max Duration
                         </label>
 
+
                         <input
                             id="maxDuration"
+                            name="max_duration"
                             type="number"
                             min="0"
                             step="1"
-                            placeholder="Contoh: 10">
+                            readonly>
+
+
+                        <div class="hint">
+                            Nilai dibaca dari konfigurasi Model.
+                        </div>
+
 
                     </div>
 
+
+                    <!-- =================================================
+                         SUPPORTED RATIOS
+                    ================================================== -->
+
                     <div class="field">
 
-                        <label for="supportedRatios">
+
+                        <label>
                             Supported Ratios
                         </label>
 
-                        <input
-                            id="supportedRatios"
-                            type="text"
-                            placeholder="9:16, 16:9, 1:1">
 
-                        <div class="hint">
-                            Pisahkan dengan koma.
+                        <div
+                            id="supportedRatios"
+                            class="parameter-group">
+
+                            <div class="readonly-parameter">
+                                Pilih Model terlebih dahulu.
+                            </div>
+
                         </div>
 
+
+                        <div class="hint">
+                            Pilihan berasal dari data Model.
+                        </div>
+
+
                     </div>
+
+
+                    <!-- =================================================
+                         SUPPORTED RESOLUTIONS
+                    ================================================== -->
 
                     <div class="field">
 
-                        <label for="supportedResolutions">
+
+                        <label>
                             Supported Resolutions
                         </label>
 
-                        <input
+
+                        <div
                             id="supportedResolutions"
-                            type="text"
-                            placeholder="720p, 1080p, 4K">
+                            class="parameter-group">
+
+                            <div class="readonly-parameter">
+                                Pilih Model terlebih dahulu.
+                            </div>
+
+                        </div>
+
 
                         <div class="hint">
-                            Pisahkan dengan koma.
+                            Pilihan berasal dari data Model.
                         </div>
+
 
                     </div>
 
+
                 </div>
+
 
             </div>
 
+
             <div class="modal-footer">
+
 
                 <button
                     type="button"
@@ -2046,6 +3273,7 @@
 
                 </button>
 
+
                 <button
                     type="submit"
                     class="btn btn-primary"
@@ -2055,13 +3283,18 @@
 
                 </button>
 
+
             </div>
+
 
         </form>
 
+
     </div>
 
+
 </div>
+
 
 <!-- =====================================================
      DELETE MODAL
@@ -2072,13 +3305,17 @@
     id="deleteModal"
     aria-hidden="true">
 
+
     <div class="modal delete-confirm">
 
+
         <div class="modal-header">
+
 
             <h2>
                 Hapus Model
             </h2>
+
 
             <button
                 type="button"
@@ -2090,26 +3327,34 @@
 
             </button>
 
+
         </div>
 
+
         <div class="modal-body">
+
 
             <p>
                 Anda akan menghapus model:
             </p>
 
+
             <strong id="deleteModelName">
                 -
             </strong>
+
 
             <p>
                 Data yang dihapus tidak dapat
                 dikembalikan melalui halaman ini.
             </p>
 
+
         </div>
 
+
         <div class="modal-footer">
+
 
             <button
                 type="button"
@@ -2120,6 +3365,7 @@
 
             </button>
 
+
             <button
                 type="button"
                 class="btn btn-danger"
@@ -2129,95 +3375,252 @@
 
             </button>
 
+
         </div>
+
 
     </div>
 
+
 </div>
 
+
 <!-- =====================================================
-     SIDEBAR NAVIGATION FALLBACK
+     PAGE FALLBACKS
 ===================================================== -->
 
 <script>
+
 (function () {
+
     "use strict";
 
-    /*
-     * =====================================================
-     * PROVIDER ACTIVE STATISTIC
-     * =====================================================
-     *
-     * Kartu "Provider" pada halaman Models harus menunjukkan
-     * jumlah Provider yang status-nya ACTIVE.
-     *
-     * Sumber data:
-     *
-     *     GENZModelsProvider.getProviders()
-     *
-     * Tidak melakukan query Supabase kedua.
-     *
-     * Contoh:
-     *
-     *     kie        -> active
-     *     bytedance  -> inactive
-     *
-     * hasil:
-     *
-     *     Provider = 1
-     *
-     * =====================================================
-     */
 
-    function updateActiveProviderStatistic() {
+    /* =====================================================
+       ROLE GUARD
+       -----------------------------------------------------
+       Backend tetap menjadi security boundary utama.
+       UI guard hanya mencegah halaman admin tampil untuk
+       user biasa.
+    ===================================================== */
 
-        const statisticElement =
+    async function verifyAdminRole() {
+
+        const supabase =
+            window.GENZ_SUPABASE;
+
+
+        if (
+            !supabase ||
+            !supabase.auth
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] Supabase client tidak tersedia."
+            );
+
+            return false;
+
+        }
+
+
+        try {
+
+            const sessionResult =
+                await supabase.auth.getSession();
+
+
+            const session =
+                sessionResult?.data?.session;
+
+
+            if (
+                !session ||
+                !session.user
+            ) {
+
+                window.location.href =
+                    "/login.html";
+
+                return false;
+
+            }
+
+
+            const userId =
+                session.user.id;
+
+
+            const result =
+                await supabase
+
+                    .from("profiles")
+
+                    .select(
+                        "id,role,status"
+                    )
+
+                    .eq(
+                        "id",
+                        userId
+                    )
+
+                    .limit(1)
+
+                    .maybeSingle();
+
+
+            if (
+                result.error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI] Gagal memeriksa role:",
+                    result.error
+                );
+
+                return false;
+
+            }
+
+
+            const profile =
+                result.data;
+
+
+            const role =
+                String(
+                    profile?.role || ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+
+            const status =
+                String(
+                    profile?.status || ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            /*
+             * Role yang memiliki akses Models:
+             *
+             * OWNER
+             * ADMIN
+             *
+             * USER tidak diberikan akses.
+             */
+
+            if (
+                ![
+                    "ADMIN",
+                    "OWNER"
+                ].includes(
+                    role
+                )
+            ) {
+
+                window.location.href =
+                    "/user/dashboard.html";
+
+                return false;
+
+            }
+
+
+            /*
+             * Jika profile memiliki status,
+             * akun harus aktif.
+             */
+
+            if (
+                status &&
+                ![
+                    "active",
+                    "aktif"
+                ].includes(
+                    status
+                )
+            ) {
+
+                window.location.href =
+                    "/login.html";
+
+                return false;
+
+            }
+
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] Role verification error:",
+                error
+            );
+
+            return false;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       ACTIVE PROVIDER STATISTIC
+    ===================================================== */
+
+    function updateProviderStatistic() {
+
+        const element =
             document.getElementById(
                 "statProviders"
             );
 
-        if (!statisticElement) {
+
+        if (!element) {
             return;
         }
 
-        /*
-         * Kartu Provider pada halaman Models
-         * menunjukkan jumlah Provider yang benar-benar
-         * digunakan oleh Model yang ACTIVE.
-         *
-         * Sumber utama:
-         *     GENZModelsData.getCachedModels()
-         *
-         * Contoh:
-         *     22 Model ACTIVE
-         *     semuanya menggunakan provider "kie"
-         *
-         * hasil:
-         *     Provider = 1
-         */
 
-        const dataModule =
+        const data =
             window.GENZModelsData;
 
+
         if (
-            !dataModule ||
-            typeof dataModule.getCachedModels !==
+            !data ||
+            typeof data.getCachedModels !==
                 "function"
         ) {
+
             return;
+
         }
+
 
         try {
 
             const models =
-                dataModule.getCachedModels();
+                data.getCachedModels();
 
-            if (!Array.isArray(models)) {
+
+            if (
+                !Array.isArray(
+                    models
+                )
+            ) {
+
                 return;
+
             }
 
-            const activeProviderIds =
+
+            const providerIds =
                 new Set();
+
 
             models.forEach(
                 function (model) {
@@ -2229,224 +3632,177 @@
                             .trim()
                             .toLowerCase();
 
-                    if (status !== "active") {
+
+                    if (
+                        status !== "active"
+                    ) {
+
                         return;
+
                     }
 
-                    const providerId =
+
+                    const provider =
+                        model?.provider;
+
+
+                    if (
+                        provider &&
+                        typeof provider ===
+                            "object"
+                    ) {
+
+                        const value =
+                            provider.id ||
+                            provider.provider_id ||
+                            provider.provider_name ||
+                            "";
+
+                        if (
+                            String(
+                                value
+                            ).trim()
+                        ) {
+
+                            providerIds.add(
+                                String(
+                                    value
+                                ).trim()
+                            );
+
+                        }
+
+                        return;
+
+                    }
+
+
+                    const value =
+                        model?.provider_id ||
+                        model?.provider ||
+                        "";
+
+
+                    if (
                         String(
-                            model?.provider ||
-                            model?.provider_id ||
-                            ""
-                        )
-                            .trim()
-                            .toLowerCase();
+                            value
+                        ).trim()
+                    ) {
 
-                    if (providerId) {
-                        activeProviderIds.add(
-                            providerId
+                        providerIds.add(
+                            String(
+                                value
+                            ).trim()
                         );
+
                     }
+
                 }
             );
 
-            statisticElement.textContent =
+
+            element.textContent =
                 String(
-                    activeProviderIds.size
+                    providerIds.size
                 );
 
         } catch (error) {
 
             console.warn(
-                "[models.html] Gagal menghitung Provider dari Model aktif:",
+                "[models.html] Provider statistic error:",
                 error
             );
 
         }
+
     }
 
-    /*
-     * Tunggu sampai module Models selesai dimuat.
-     */
-    function waitForProviderModule() {
 
-        updateActiveProviderStatistic();
+    /* =====================================================
+       SIDEBAR
+    ===================================================== */
 
-        if (
-            window.GENZModelsProvider
-        ) {
-            return;
-        }
-
-        window.setTimeout(
-            waitForProviderModule,
-            250
-        );
-    }
-
-    /*
-     * Setelah lifecycle Models selesai,
-     * hitung ulang Provider aktif.
-     */
-    function bindProviderStatisticEvents() {
-
-        document.addEventListener(
-            "genz-models-ready",
-            updateActiveProviderStatistic
-        );
-
-        document.addEventListener(
-            "genz-provider-loaded",
-            updateActiveProviderStatistic
-        );
-
-        document.addEventListener(
-            "genz-providers-loaded",
-            updateActiveProviderStatistic
-        );
-
-        document.addEventListener(
-            "genz-model-refresh",
-            updateActiveProviderStatistic
-        );
-
-        document.addEventListener(
-            "genz-models-refreshed",
-            updateActiveProviderStatistic
-        );
-    }
-
-    /*
-     * =====================================================
-     * SIDEBAR FALLBACK
-     * =====================================================
-     *
-     * Model modal, form, delete, search dan table
-     * sepenuhnya dikelola oleh module di models/.
-     *
-     * Jangan membuat handler kedua untuk:
-     *
-     * - Add Model
-     * - Close Modal
-     * - Cancel Modal
-     * - Delete Modal
-     * - Backdrop Modal
-     * - Escape Modal
-     *
-     * Handler tersebut dikelola oleh:
-     *
-     * - GENZModelsForm
-     * - GENZModelFormEvents
-     * - GENZModelTableEvents
-     *
-     * Fallback di halaman hanya menangani sidebar.
-     */
-
-    function bindSidebarFallback() {
+    function bindSidebar() {
 
         const sidebar =
             document.getElementById(
                 "sidebar"
             );
 
-        const sidebarToggle =
+
+        const toggle =
             document.getElementById(
                 "sidebarToggle"
             );
 
-        const mobileMenuButton =
+
+        const mobileButton =
             document.getElementById(
                 "mobileMenuButton"
             );
 
-        const sidebarOverlay =
+
+        const overlay =
             document.getElementById(
                 "sidebarOverlay"
             );
 
-        const mainContent =
+
+        const main =
             document.getElementById(
                 "mainContent"
             );
 
-        /*
-         * Desktop sidebar collapse
-         */
+
         if (
-            sidebar &&
-            sidebarToggle &&
-            sidebarToggle.dataset.fallbackBound !==
-                "true"
+            toggle &&
+            !toggle.dataset.bound
         ) {
 
-            sidebarToggle.dataset.fallbackBound =
+            toggle.dataset.bound =
                 "true";
 
-            sidebarToggle.addEventListener(
+
+            toggle.addEventListener(
                 "click",
                 function (event) {
 
                     event.preventDefault();
-                    event.stopPropagation();
+
+
+                    if (!sidebar) {
+                        return;
+                    }
+
 
                     sidebar.classList.toggle(
                         "collapsed"
                     );
 
-                    if (mainContent) {
 
-                        mainContent.classList.toggle(
+                    if (main) {
+
+                        main.classList.toggle(
                             "collapsed"
                         );
 
                     }
 
-                    sidebarToggle.textContent =
+
+                    toggle.textContent =
                         sidebar.classList.contains(
                             "collapsed"
                         )
                             ? "›"
                             : "‹";
+
                 }
             );
+
         }
 
-        /*
-         * Mobile sidebar
-         */
-        if (
-            sidebar &&
-            mobileMenuButton &&
-            mobileMenuButton.dataset.fallbackBound !==
-                "true"
-        ) {
 
-            mobileMenuButton.dataset.fallbackBound =
-                "true";
-
-            mobileMenuButton.addEventListener(
-                "click",
-                function (event) {
-
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    sidebar.classList.add(
-                        "mobile-open"
-                    );
-
-                    if (sidebarOverlay) {
-
-                        sidebarOverlay.classList.add(
-                            "show"
-                        );
-
-                    }
-                }
-            );
-        }
-
-        function closeMobileSidebar() {
+        function closeMobile() {
 
             if (sidebar) {
 
@@ -2456,9 +3812,10 @@
 
             }
 
-            if (sidebarOverlay) {
 
-                sidebarOverlay.classList.remove(
+            if (overlay) {
+
+                overlay.classList.remove(
                     "show"
                 );
 
@@ -2466,76 +3823,167 @@
 
         }
 
-        /*
-         * Mobile overlay
-         */
+
         if (
-            sidebarOverlay &&
-            sidebarOverlay.dataset.fallbackBound !==
-                "true"
+            mobileButton &&
+            !mobileButton.dataset.bound
         ) {
 
-            sidebarOverlay.dataset.fallbackBound =
+            mobileButton.dataset.bound =
                 "true";
 
-            sidebarOverlay.addEventListener(
+
+            mobileButton.addEventListener(
                 "click",
-                closeMobileSidebar
-            );
-        }
+                function () {
 
-        /*
-         * Tutup sidebar setelah memilih menu
-         */
-        if (
-            sidebar &&
-            sidebar.dataset.mobileLinksBound !==
-                "true"
-        ) {
+                    if (sidebar) {
 
-            sidebar.dataset.mobileLinksBound =
-                "true";
+                        sidebar.classList.add(
+                            "mobile-open"
+                        );
 
-            const links =
-                sidebar.querySelectorAll(
-                    ".sidebar-link"
-                );
+                    }
 
-            links.forEach(
-                function (link) {
 
-                    link.addEventListener(
-                        "click",
-                        closeMobileSidebar
-                    );
+                    if (overlay) {
+
+                        overlay.classList.add(
+                            "show"
+                        );
+
+                    }
 
                 }
             );
+
         }
+
+
+        if (
+            overlay &&
+            !overlay.dataset.bound
+        ) {
+
+            overlay.dataset.bound =
+                "true";
+
+
+            overlay.addEventListener(
+                "click",
+                closeMobile
+            );
+
+        }
+
+
+        if (
+            sidebar &&
+            !sidebar.dataset.linksBound
+        ) {
+
+            sidebar.dataset.linksBound =
+                "true";
+
+
+            sidebar
+                .querySelectorAll(
+                    ".sidebar-link"
+                )
+                .forEach(
+                    function (link) {
+
+                        link.addEventListener(
+                            "click",
+                            closeMobile
+                        );
+
+                    }
+                );
+
+        }
+
     }
 
-    function initializePageFallbacks() {
 
-        bindSidebarFallback();
+    /* =====================================================
+       EVENTS FROM MODELS MODULES
+    ===================================================== */
 
-        bindProviderStatisticEvents();
+    function bindModelEvents() {
 
-        /*
-         * Coba langsung.
-         */
-        updateActiveProviderStatistic();
+        const events = [
 
-        /*
-         * Jika module belum tersedia,
-         * tunggu sampai loader selesai.
-         */
-        waitForProviderModule();
+            "genz-models-ready",
+
+            "genz-model-refresh",
+
+            "genz-models-refreshed",
+
+            "genz-providers-loaded",
+
+            "genz-provider-loaded"
+
+        ];
+
+
+        events.forEach(
+            function (eventName) {
+
+                document.addEventListener(
+                    eventName,
+                    updateProviderStatistic
+                );
+
+            }
+        );
 
     }
 
-    /*
-     * Jalankan setelah DOM tersedia.
-     */
+
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
+
+    async function initialize() {
+
+        bindSidebar();
+
+        bindModelEvents();
+
+        updateProviderStatistic();
+
+
+        /*
+         * Pastikan hanya ADMIN / OWNER yang dapat
+         * menggunakan halaman ini.
+         */
+
+        const allowed =
+            await verifyAdminRole();
+
+
+        if (!allowed) {
+
+            return;
+
+        }
+
+
+        /*
+         * Loader Model akan mengurus:
+         *
+         * - Data
+         * - Provider
+         * - Search
+         * - Form
+         * - Table
+         * - CRUD
+         */
+
+    }
+
+
     if (
         document.readyState ===
         "loading"
@@ -2543,7 +3991,7 @@
 
         document.addEventListener(
             "DOMContentLoaded",
-            initializePageFallbacks,
+            initialize,
             {
                 once: true
             }
@@ -2551,38 +3999,24 @@
 
     } else {
 
-        initializePageFallbacks();
+        initialize();
 
     }
 
-    /*
-     * Safety retry.
-     *
-     * Tidak menyentuh modal atau form.
-     */
-    window.setTimeout(
-        initializePageFallbacks,
-        500
-    );
-
-    window.setTimeout(
-        initializePageFallbacks,
-        1500
-    );
-
-    window.setTimeout(
-        initializePageFallbacks,
-        3000
-    );
 
 })();
+
 </script>
+
 
 <!-- =====================================================
      MODEL MODULE LOADER
 ===================================================== -->
 
-<script src="./models/models-loader.js"></script>
+<script
+    src="./models/models-loader.js">
+</script>
+
 
 </body>
 </html>
