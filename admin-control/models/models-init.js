@@ -26,6 +26,14 @@
    CATATAN ARSITEKTUR:
    GENZModelsForm legacy TIDAK lagi menjadi dependency
    wajib lifecycle.
+
+   SEARCH:
+   - GENZModelsSearch
+       = pencarian Model ID di Form Tambah/Edit
+
+   - GENZModelPageSearch
+       = pencarian utama pada halaman Models
+         (#searchInput + #statusFilter)
    ========================================================= */
 
 (function () {
@@ -62,12 +70,26 @@
                 window.GENZModelProviderDropdown ||
                 null,
 
+            /*
+             * Search Model ID pada Form.
+             */
             search:
                 window.GENZModelsSearch ||
                 null,
 
             searchEvents:
                 window.GENZModelSearchEvents ||
+                null,
+
+            /*
+             * Search utama halaman Models.
+             *
+             * Target:
+             * #searchInput
+             * #statusFilter
+             */
+            pageSearch:
+                window.GENZModelPageSearch ||
                 null,
 
             /*
@@ -155,9 +177,17 @@
 
             !!modules.providerDropdown &&
 
+            /*
+             * Search Model ID Form
+             */
             !!modules.search &&
 
             !!modules.searchEvents &&
+
+            /*
+             * Search utama halaman Models
+             */
+            !!modules.pageSearch &&
 
             !!modules.formEvents &&
 
@@ -215,6 +245,9 @@
                 "GENZModelProviderDropdown"
             ],
 
+            /*
+             * Search Model ID pada Form.
+             */
             [
                 "search",
                 "GENZModelsSearch"
@@ -223,6 +256,14 @@
             [
                 "searchEvents",
                 "GENZModelSearchEvents"
+            ],
+
+            /*
+             * Search utama halaman Models.
+             */
+            [
+                "pageSearch",
+                "GENZModelPageSearch"
             ],
 
             [
@@ -581,7 +622,9 @@
 
     /* =====================================================
        SEARCH
-    ===================================================== */
+       -----------------------------------------------------
+       Search Model ID pada Form Tambah/Edit.
+       ===================================================== */
 
     function syncSearchWithModels() {
 
@@ -693,7 +736,7 @@
 
 
         console.info(
-            "[GEN-Z.AI] Model search initialized."
+            "[GEN-Z.AI] Model ID form search initialized."
         );
 
 
@@ -706,7 +749,7 @@
 
     /* =====================================================
        SEARCH EVENTS
-    ===================================================== */
+       ===================================================== */
 
     function initializeSearchEvents() {
 
@@ -742,7 +785,67 @@
 
 
         console.info(
-            "[GEN-Z.AI] Model search events initialized."
+            "[GEN-Z.AI] Model ID form search events initialized."
+        );
+
+
+        return (
+            result !== false
+        );
+
+    }
+
+
+    /* =====================================================
+       PAGE SEARCH
+       -----------------------------------------------------
+       Search utama halaman Models.
+
+       Target:
+           #searchInput
+
+       Filter:
+           #statusFilter
+
+       TIDAK menyentuh:
+           #modelCodeSearch
+       ===================================================== */
+
+    function initializePageSearch() {
+
+        const pageSearch =
+            window.GENZModelPageSearch;
+
+
+        if (
+            !pageSearch
+        ) {
+
+            throw new Error(
+                "GENZModelPageSearch belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof pageSearch.initialize !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelPageSearch.initialize() tidak tersedia."
+            );
+
+        }
+
+
+        const result =
+            pageSearch.initialize();
+
+
+        console.info(
+            "[GEN-Z.AI] Model page search initialized."
         );
 
 
@@ -1057,13 +1160,15 @@
 
                     /* =========================================
                        5. SEARCH CATALOG SYNC
+                       -----------------------------------------
+                       Untuk Search Model ID pada Form.
                     ========================================= */
 
                     syncSearchWithModels();
 
 
                     /* =========================================
-                       6. SEARCH
+                       6. SEARCH MODEL ID FORM
                     ========================================= */
 
                     initializeSearch();
@@ -1098,7 +1203,22 @@
 
 
                     /* =========================================
-                       11. PROVIDER STATE
+                       11. PAGE SEARCH
+                       -----------------------------------------
+                       Search utama halaman Models.
+
+                       Target:
+                           #searchInput
+
+                       BUKAN:
+                           #modelCodeSearch
+                    ========================================= */
+
+                    initializePageSearch();
+
+
+                    /* =========================================
+                       12. PROVIDER STATE
                        -----------------------------------------
                        Hanya membaca state.
                        Tidak render dropdown ulang.
@@ -1115,7 +1235,7 @@
 
 
                     /* =========================================
-                       12. READY
+                       13. READY
                     ========================================= */
 
                     initialized =
@@ -1310,6 +1430,8 @@
 
         /* ================================================
            SEARCH EVENTS
+           -----------------------------------------------
+           Search Model ID pada Form.
         ================================================ */
 
         const searchEvents =
@@ -1330,6 +1452,38 @@
 
                 console.warn(
                     "[GEN-Z.AI] Search events reset gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        /* ================================================
+           PAGE SEARCH
+           -----------------------------------------------
+           Search utama halaman Models.
+        ================================================ */
+
+        const pageSearch =
+            window.GENZModelPageSearch;
+
+
+        if (
+            pageSearch &&
+            typeof pageSearch.unbind ===
+            "function"
+        ) {
+
+            try {
+
+                pageSearch.unbind();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Page search reset gagal:",
                     error
                 );
 
@@ -1397,6 +1551,8 @@
             initializeSearch,
 
             initializeSearchEvents,
+
+            initializePageSearch,
 
             initializeFormEvents,
 
