@@ -13,45 +13,75 @@
         }
 
         :root {
-            --bg: #07090d;
-            --bg-soft: #0d1118;
-            --card: rgba(18, 23, 32, 0.82);
-            --border: rgba(255,255,255,0.08);
-            --text: #f5f7fa;
-            --muted: #8d96a5;
+            --bg: #f4f4f4;
+            --bg-soft: #e9e9e9;
+
+            --card: rgba(255,255,255,0.96);
+            --card-soft: rgba(250,250,250,0.94);
+
+            --border: rgba(255,23,68,0.35);
+
+            --text: #171717;
+            --text-strong: #0b0b0b;
+            --muted: #666b73;
+            --muted-light: #858990;
 
             --accent: #ff1744;
             --accent-2: #ff4567;
+            --accent-dark: #d9002f;
 
-            --success: #27d17f;
-            --warning: #ffb547;
-            --danger: #ff5c72;
+            --success: #0b9f5b;
+            --warning: #d88600;
+            --danger: #e11d48;
+
+            --red-glow:
+                0 0 8px rgba(255,23,68,.45),
+                0 0 18px rgba(255,23,68,.22);
+
+            --red-glow-strong:
+                0 0 8px rgba(255,23,68,.60),
+                0 0 22px rgba(255,23,68,.35),
+                0 0 45px rgba(255,23,68,.14);
         }
 
         html {
             min-height: 100%;
-            background: var(--bg);
+            background:
+                linear-gradient(
+                    135deg,
+                    #ffffff 0%,
+                    #f3f3f3 38%,
+                    #e5e5e5 72%,
+                    #f8f8f8 100%
+                );
         }
 
         body {
             font-family: Inter, Arial, Helvetica, sans-serif;
+
             background:
                 radial-gradient(
-                    circle at 10% 10%,
-                    rgba(255,23,68,.10),
-                    transparent 28%
-                ),
-                radial-gradient(
-                    circle at 90% 20%,
-                    rgba(255,69,103,.055),
+                    circle at 8% 8%,
+                    rgba(255,23,68,.08),
                     transparent 25%
                 ),
                 radial-gradient(
-                    circle at 50% 100%,
-                    rgba(255,23,68,.045),
-                    transparent 35%
+                    circle at 92% 18%,
+                    rgba(255,23,68,.055),
+                    transparent 24%
                 ),
-                var(--bg);
+                radial-gradient(
+                    circle at 50% 100%,
+                    rgba(0,0,0,.045),
+                    transparent 38%
+                ),
+                linear-gradient(
+                    135deg,
+                    #ffffff 0%,
+                    #f1f1f1 45%,
+                    #dedede 100%
+                );
+
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
@@ -81,13 +111,19 @@
             letter-spacing: 2px;
             font-size: 11px;
             font-weight: 800;
-            margin-bottom: 9px;
+
+            text-shadow:
+                0 0 7px rgba(255,23,68,.35);
         }
 
         h1 {
+            color: var(--text-strong);
             font-size: clamp(28px, 4vw, 46px);
             letter-spacing: -1.5px;
             line-height: 1;
+
+            text-shadow:
+                0 1px 0 rgba(255,255,255,.8);
         }
 
         .subtitle {
@@ -97,13 +133,22 @@
         }
 
         .role-badge {
-            border: 1px solid rgba(255,23,68,.30);
-            background: rgba(255,23,68,.09);
-            color: #ff9aae;
+            border: 1px solid var(--accent);
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,23,68,.10),
+                    rgba(255,255,255,.9)
+                );
+            color: var(--accent-dark);
             padding: 9px 14px;
             border-radius: 100px;
             font-size: 12px;
             font-weight: 800;
+
+            box-shadow:
+                0 0 7px rgba(255,23,68,.30),
+                0 0 18px rgba(255,23,68,.12);
         }
 
         /* =========================================================
@@ -113,20 +158,47 @@
         .hero {
             position: relative;
             overflow: hidden;
+
             background:
                 linear-gradient(
                     135deg,
-                    rgba(255,23,68,.11),
-                    rgba(255,69,103,.025)
-                ),
-                var(--card);
-            border: 1px solid var(--border);
+                    rgba(255,255,255,.98),
+                    rgba(239,239,239,.96)
+                );
+
+            border: 1px solid var(--accent);
             border-radius: 24px;
             padding: 27px;
             margin-bottom: 25px;
+
             box-shadow:
-                0 25px 70px rgba(0,0,0,.20),
-                inset 0 1px 0 rgba(255,255,255,.025);
+                0 14px 35px rgba(0,0,0,.10),
+                0 0 8px rgba(255,23,68,.45),
+                0 0 22px rgba(255,23,68,.18),
+                inset 0 1px 0 rgba(255,255,255,1);
+        }
+
+        .hero::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 2px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--accent),
+                    var(--accent-2),
+                    var(--accent),
+                    transparent
+                );
+
+            box-shadow:
+                0 0 10px rgba(255,23,68,.75),
+                0 0 25px rgba(255,23,68,.35);
         }
 
         .hero::after {
@@ -135,7 +207,10 @@
             width: 280px;
             height: 280px;
             border-radius: 50%;
-            background: rgba(255,23,68,.075);
+
+            background:
+                rgba(255,23,68,.075);
+
             filter: blur(70px);
             right: -100px;
             top: -130px;
@@ -156,15 +231,20 @@
             align-items: center;
             gap: 10px;
             font-size: 13px;
-            color: #dbe2eb;
+            color: #242424;
+            font-weight: 650;
         }
 
         .status-dot {
             width: 9px;
             height: 9px;
             border-radius: 50%;
+
             background: var(--success);
-            box-shadow: 0 0 15px rgba(39,209,127,.8);
+
+            box-shadow:
+                0 0 8px rgba(11,159,91,.75),
+                0 0 18px rgba(11,159,91,.35);
         }
 
         .version {
@@ -180,9 +260,12 @@
             font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 1.4px;
-            color: var(--muted);
+            color: var(--accent-dark);
             margin: 30px 0 14px;
             font-weight: 800;
+
+            text-shadow:
+                0 0 6px rgba(255,23,68,.20);
         }
 
         /* =========================================================
@@ -196,34 +279,73 @@
         }
 
         .stat-card {
-            background: var(--card);
-            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.98),
+                    rgba(239,239,239,.96)
+                );
+
+            border: 1px solid var(--accent);
             border-radius: 19px;
             padding: 21px;
             min-height: 125px;
+
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,.02),
-                0 12px 35px rgba(0,0,0,.12);
+                0 12px 30px rgba(0,0,0,.09),
+                0 0 7px rgba(255,23,68,.42),
+                0 0 18px rgba(255,23,68,.16),
+                inset 0 1px 0 rgba(255,255,255,1);
+
             transition:
                 transform .25s ease,
                 border-color .25s ease,
                 box-shadow .25s ease;
         }
 
-        .stat-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(255,23,68,.18);
+        .stat-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 2px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--accent),
+                    transparent
+                );
+
             box-shadow:
-                0 18px 45px rgba(0,0,0,.18),
-                0 0 25px rgba(255,23,68,.035);
+                0 0 10px rgba(255,23,68,.55);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+
+            border-color: var(--accent);
+
+            box-shadow:
+                0 18px 40px rgba(0,0,0,.13),
+                0 0 10px rgba(255,23,68,.60),
+                0 0 28px rgba(255,23,68,.25),
+                inset 0 1px 0 rgba(255,255,255,1);
         }
 
         .stat-label {
             color: var(--muted);
             font-size: 12px;
+            font-weight: 600;
         }
 
         .stat-value {
+            color: var(--text-strong);
             font-size: 28px;
             font-weight: 800;
             margin-top: 13px;
@@ -231,7 +353,7 @@
         }
 
         .stat-note {
-            color: #7f8998;
+            color: var(--muted-light);
             font-size: 11px;
             margin-top: 7px;
         }
@@ -247,13 +369,60 @@
         }
 
         .module {
-            background: var(--card);
-            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.98),
+                    rgba(238,238,238,.95)
+                );
+
+            border: 1px solid var(--accent);
             border-radius: 19px;
             padding: 20px;
+
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,.02),
-                0 12px 35px rgba(0,0,0,.10);
+                0 12px 30px rgba(0,0,0,.08),
+                0 0 7px rgba(255,23,68,.40),
+                0 0 18px rgba(255,23,68,.14),
+                inset 0 1px 0 rgba(255,255,255,1);
+
+            transition:
+                transform .25s ease,
+                box-shadow .25s ease;
+        }
+
+        .module::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 2px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--accent),
+                    var(--accent-2),
+                    transparent
+                );
+
+            box-shadow:
+                0 0 10px rgba(255,23,68,.50);
+        }
+
+        .module:hover {
+            transform: translateY(-2px);
+
+            box-shadow:
+                0 17px 38px rgba(0,0,0,.12),
+                0 0 9px rgba(255,23,68,.58),
+                0 0 25px rgba(255,23,68,.22),
+                inset 0 1px 0 rgba(255,255,255,1);
         }
 
         .module-head {
@@ -264,6 +433,7 @@
         }
 
         .module-name {
+            color: var(--text-strong);
             font-size: 14px;
             font-weight: 700;
         }
@@ -277,23 +447,37 @@
         }
 
         .ready {
-            color: #72e8ab;
-            background: rgba(39,209,127,.08);
+            color: #087b47;
+            background: rgba(11,159,91,.10);
+            border: 1px solid rgba(11,159,91,.22);
         }
 
         .active-status {
-            color: #ff8fa4;
+            color: var(--accent-dark);
             background: rgba(255,23,68,.08);
+            border: 1px solid rgba(255,23,68,.22);
+
+            box-shadow:
+                0 0 8px rgba(255,23,68,.12);
         }
 
         .pending {
-            color: #ffd18a;
-            background: rgba(255,181,71,.08);
+            color: #9a6200;
+            background: rgba(216,134,0,.10);
+            border: 1px solid rgba(216,134,0,.20);
         }
 
         .bar {
             height: 7px;
-            background: rgba(255,255,255,.06);
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #d8d8d8,
+                    #eeeeee
+                );
+
+            border: 1px solid rgba(255,23,68,.16);
             border-radius: 20px;
             overflow: hidden;
             margin-top: 18px;
@@ -303,12 +487,18 @@
             display: block;
             height: 100%;
             border-radius: inherit;
-            background: linear-gradient(
-                90deg,
-                var(--accent),
-                var(--accent-2)
-            );
-            box-shadow: 0 0 12px rgba(255,23,68,.35);
+
+            background:
+                linear-gradient(
+                    90deg,
+                    var(--accent-dark),
+                    var(--accent),
+                    var(--accent-2)
+                );
+
+            box-shadow:
+                0 0 8px rgba(255,23,68,.65),
+                0 0 18px rgba(255,23,68,.35);
         }
 
         .module-footer {
@@ -330,16 +520,51 @@
         }
 
         .panel {
-            background: var(--card);
-            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.98),
+                    rgba(237,237,237,.96)
+                );
+
+            border: 1px solid var(--accent);
             border-radius: 20px;
             padding: 22px;
+
             box-shadow:
-                inset 0 1px 0 rgba(255,255,255,.02),
-                0 12px 35px rgba(0,0,0,.10);
+                0 12px 30px rgba(0,0,0,.09),
+                0 0 8px rgba(255,23,68,.42),
+                0 0 20px rgba(255,23,68,.15),
+                inset 0 1px 0 rgba(255,255,255,1);
+        }
+
+        .panel::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 2px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--accent),
+                    var(--accent-2),
+                    var(--accent),
+                    transparent
+                );
+
+            box-shadow:
+                0 0 10px rgba(255,23,68,.55);
         }
 
         .panel-title {
+            color: var(--text-strong);
             font-size: 15px;
             font-weight: 750;
             margin-bottom: 20px;
@@ -349,8 +574,12 @@
             display: flex;
             justify-content: space-between;
             gap: 20px;
+
             padding: 13px 0;
-            border-bottom: 1px solid rgba(255,255,255,.05);
+
+            border-bottom:
+                1px solid rgba(255,23,68,.14);
+
             font-size: 13px;
         }
 
@@ -363,13 +592,15 @@
         }
 
         .info-value {
-            color: #e7ebf1;
+            color: #262626;
             font-weight: 650;
             text-align: right;
         }
 
         .online {
             color: var(--success);
+            text-shadow:
+                0 0 6px rgba(11,159,91,.18);
         }
 
         /* =========================================================
@@ -378,7 +609,7 @@
 
         .footer {
             text-align: center;
-            color: #5e6672;
+            color: #777b82;
             font-size: 11px;
             padding-top: 35px;
         }
@@ -388,6 +619,7 @@
         ========================================================= */
 
         @media (max-width: 1050px) {
+
             .stats {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -402,6 +634,7 @@
         }
 
         @media (max-width: 650px) {
+
             main {
                 padding: 85px 15px 35px;
             }
@@ -424,9 +657,18 @@
                 align-items: flex-start;
                 flex-direction: column;
             }
+
+            .role-badge {
+                align-self: flex-start;
+            }
+
+            .info-row {
+                gap: 10px;
+            }
         }
 
         @media (prefers-reduced-motion: reduce) {
+
             *,
             *::before,
             *::after {
@@ -442,7 +684,7 @@
 
     <!-- =========================================================
          SHARED ADMIN NAVIGATION
-         Seluruh CSS + JS navigation berada di admin-nav.js
+         Navigation berada di admin-control/admin-nav.js
     ========================================================== -->
 
     <div id="adminNavigation"></div>
@@ -454,9 +696,11 @@
     <main>
 
         <!-- HEADER -->
+
         <section class="header">
 
             <div>
+
                 <div class="eyebrow">
                     Control Center
                 </div>
@@ -468,6 +712,7 @@
                 <div class="subtitle">
                     Monitoring seluruh progres aplikasi GEN-Z.AI
                 </div>
+
             </div>
 
             <div
@@ -479,16 +724,22 @@
 
         </section>
 
-        <!-- SYSTEM STATUS -->
+        <!-- =====================================================
+             SYSTEM STATUS
+        ====================================================== -->
+
         <section class="hero">
 
             <div class="hero-top">
 
                 <div class="system-status">
+
                     <span class="status-dot"></span>
+
                     <span>
                         All core systems operational
                     </span>
+
                 </div>
 
                 <div class="version">
@@ -499,7 +750,10 @@
 
         </section>
 
-        <!-- GLOBAL STATISTICS -->
+        <!-- =====================================================
+             GLOBAL STATISTICS
+        ====================================================== -->
+
         <div class="section-title">
             Application Overview
         </div>
@@ -507,6 +761,7 @@
         <section class="stats">
 
             <div class="stat-card">
+
                 <div class="stat-label">
                     Total Users
                 </div>
@@ -521,9 +776,11 @@
                 <div class="stat-note">
                     Registered accounts
                 </div>
+
             </div>
 
             <div class="stat-card">
+
                 <div class="stat-label">
                     Active Users
                 </div>
@@ -538,9 +795,11 @@
                 <div class="stat-note">
                     Currently active
                 </div>
+
             </div>
 
             <div class="stat-card">
+
                 <div class="stat-label">
                     Video Generations
                 </div>
@@ -555,9 +814,11 @@
                 <div class="stat-note">
                     Total generation history
                 </div>
+
             </div>
 
             <div class="stat-card">
+
                 <div class="stat-label">
                     Credits Issued
                 </div>
@@ -572,11 +833,15 @@
                 <div class="stat-note">
                     System credit balance
                 </div>
+
             </div>
 
         </section>
 
-        <!-- FEATURE PROGRESS -->
+        <!-- =====================================================
+             FEATURE PROGRESS
+        ====================================================== -->
+
         <div class="section-title">
             Feature Progress
         </div>
@@ -584,7 +849,9 @@
         <section class="progress-grid">
 
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Authentication
                     </div>
@@ -592,6 +859,7 @@
                     <div class="module-status ready">
                         Ready
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -602,10 +870,14 @@
                     <span>Login / Register</span>
                     <span>100%</span>
                 </div>
+
             </div>
 
+
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Generate Video
                     </div>
@@ -613,6 +885,7 @@
                     <div class="module-status active-status">
                         Active
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -623,10 +896,14 @@
                     <span>Generator Interface</span>
                     <span>90%</span>
                 </div>
+
             </div>
 
+
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Generation History
                     </div>
@@ -634,6 +911,7 @@
                     <div class="module-status ready">
                         Ready
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -644,10 +922,14 @@
                     <span>History / Status</span>
                     <span>95%</span>
                 </div>
+
             </div>
 
+
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Provider System
                     </div>
@@ -655,6 +937,7 @@
                     <div class="module-status ready">
                         Ready
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -665,10 +948,14 @@
                     <span>Provider Registry</span>
                     <span>90%</span>
                 </div>
+
             </div>
 
+
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Model System
                     </div>
@@ -676,6 +963,7 @@
                     <div class="module-status active-status">
                         Active
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -686,10 +974,14 @@
                     <span>Model Registry</span>
                     <span>85%</span>
                 </div>
+
             </div>
 
+
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Credit System
                     </div>
@@ -697,6 +989,7 @@
                     <div class="module-status ready">
                         Ready
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -707,10 +1000,14 @@
                     <span>Balance / Transactions</span>
                     <span>95%</span>
                 </div>
+
             </div>
 
+
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Top Up System
                     </div>
@@ -718,6 +1015,7 @@
                     <div class="module-status active-status">
                         Active
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -728,10 +1026,14 @@
                     <span>Top Up Workflow</span>
                     <span>80%</span>
                 </div>
+
             </div>
 
+
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Admin Control
                     </div>
@@ -739,6 +1041,7 @@
                     <div class="module-status active-status">
                         Active
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -749,10 +1052,14 @@
                     <span>Management Center</span>
                     <span>85%</span>
                 </div>
+
             </div>
 
+
             <div class="module">
+
                 <div class="module-head">
+
                     <div class="module-name">
                         Database
                     </div>
@@ -760,6 +1067,7 @@
                     <div class="module-status ready">
                         Ready
                     </div>
+
                 </div>
 
                 <div class="bar">
@@ -770,11 +1078,15 @@
                     <span>Supabase</span>
                     <span>95%</span>
                 </div>
+
             </div>
 
         </section>
 
-        <!-- SYSTEM INFORMATION -->
+        <!-- =====================================================
+             SYSTEM INFORMATION
+        ====================================================== -->
+
         <div class="section-title">
             System Information
         </div>
@@ -788,6 +1100,7 @@
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Authentication
                     </span>
@@ -795,9 +1108,11 @@
                     <span class="info-value online">
                         Operational
                     </span>
+
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Supabase Database
                     </span>
@@ -805,9 +1120,11 @@
                     <span class="info-value online">
                         Connected
                     </span>
+
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Provider Registry
                     </span>
@@ -815,9 +1132,11 @@
                     <span class="info-value online">
                         Available
                     </span>
+
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Model Registry
                     </span>
@@ -825,9 +1144,11 @@
                     <span class="info-value online">
                         Available
                     </span>
+
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Credit System
                     </span>
@@ -835,9 +1156,11 @@
                     <span class="info-value online">
                         Operational
                     </span>
+
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         History System
                     </span>
@@ -845,9 +1168,11 @@
                     <span class="info-value online">
                         Operational
                     </span>
+
                 </div>
 
             </div>
+
 
             <div class="panel">
 
@@ -856,6 +1181,7 @@
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Name
                     </span>
@@ -866,9 +1192,11 @@
                     >
                         —
                     </span>
+
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Email
                     </span>
@@ -879,9 +1207,11 @@
                     >
                         —
                     </span>
+
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Role
                     </span>
@@ -892,9 +1222,11 @@
                     >
                         —
                     </span>
+
                 </div>
 
                 <div class="info-row">
+
                     <span class="info-label">
                         Status
                     </span>
@@ -905,6 +1237,7 @@
                     >
                         Active
                     </span>
+
                 </div>
 
             </div>
@@ -931,13 +1264,19 @@
 
     <!-- =========================================================
          SHARED ADMIN NAVIGATION
+         
+         PENTING:
+         dashboard.html berada di /admin/
+         admin-nav.js berada di /admin-control/
+         
+         Jadi path HARUS:
+         ../admin-control/admin-nav.js
     ========================================================== -->
 
-    <script src="./admin-nav.js"></script>
+    <script src="../admin-control/admin-nav.js"></script>
 
     <!-- =========================================================
          DASHBOARD LOGIC
-         Tidak berisi CSS / HTML navigation.
     ========================================================== -->
 
     <script>
@@ -964,9 +1303,11 @@
                 );
 
             if (!supabaseClient) {
+
                 console.error(
                     "GEN-Z.AI: Supabase client tidak tersedia."
                 );
+
                 return;
             }
 
@@ -986,7 +1327,10 @@
                     } = await supabaseClient.auth.getSession();
 
                     if (sessionError || !session) {
-                        window.location.href = "../login.html";
+
+                        window.location.href =
+                            "../login.html";
+
                         return;
                     }
 
@@ -1008,10 +1352,12 @@
                         .single();
 
                     if (profileError || !profile) {
+
                         console.error(
                             "Profile tidak dapat dimuat:",
                             profileError
                         );
+
                         return;
                     }
 
@@ -1030,8 +1376,10 @@
                         role !== "ADMIN" &&
                         role !== "OWNER"
                     ) {
+
                         window.location.href =
                             "../user/dashboard.html";
+
                         return;
                     }
 
@@ -1042,30 +1390,42 @@
                      */
 
                     const roleBadge =
-                        document.getElementById("roleBadge");
+                        document.getElementById(
+                            "roleBadge"
+                        );
 
                     const accountName =
-                        document.getElementById("accountName");
+                        document.getElementById(
+                            "accountName"
+                        );
 
                     const accountEmail =
-                        document.getElementById("accountEmail");
+                        document.getElementById(
+                            "accountEmail"
+                        );
 
                     const accountRole =
-                        document.getElementById("accountRole");
+                        document.getElementById(
+                            "accountRole"
+                        );
 
                     const accountStatus =
-                        document.getElementById("accountStatus");
+                        document.getElementById(
+                            "accountStatus"
+                        );
 
                     if (roleBadge) {
                         roleBadge.textContent = role;
                     }
 
                     if (accountName) {
+
                         accountName.textContent =
                             profile.name || "—";
                     }
 
                     if (accountEmail) {
+
                         accountEmail.textContent =
                             profile.email ||
                             user.email ||
@@ -1073,12 +1433,16 @@
                     }
 
                     if (accountRole) {
-                        accountRole.textContent = role;
+
+                        accountRole.textContent =
+                            role;
                     }
 
                     if (accountStatus) {
+
                         accountStatus.textContent =
-                            profile.status || "active";
+                            profile.status ||
+                            "active";
                     }
 
                     /*
@@ -1103,12 +1467,14 @@
                             !error &&
                             typeof count === "number"
                         ) {
+
                             const element =
                                 document.getElementById(
                                     "totalUsers"
                                 );
 
                             if (element) {
+
                                 element.textContent =
                                     count.toLocaleString(
                                         "id-ID"
@@ -1122,7 +1488,6 @@
                             "Total users tidak tersedia.",
                             error
                         );
-
                     }
 
                     /*
@@ -1148,12 +1513,14 @@
                             !error &&
                             typeof count === "number"
                         ) {
+
                             const element =
                                 document.getElementById(
                                     "activeUsers"
                                 );
 
                             if (element) {
+
                                 element.textContent =
                                     count.toLocaleString(
                                         "id-ID"
@@ -1167,7 +1534,6 @@
                             "Active users tidak tersedia.",
                             error
                         );
-
                     }
 
                     /*
@@ -1192,12 +1558,14 @@
                             !error &&
                             typeof count === "number"
                         ) {
+
                             const element =
                                 document.getElementById(
                                     "totalGenerations"
                                 );
 
                             if (element) {
+
                                 element.textContent =
                                     count.toLocaleString(
                                         "id-ID"
@@ -1211,7 +1579,6 @@
                             "Generation statistics tidak tersedia.",
                             error
                         );
-
                     }
 
                     /*
@@ -1252,6 +1619,7 @@
                                 );
 
                             if (element) {
+
                                 element.textContent =
                                     totalCredits.toLocaleString(
                                         "id-ID"
@@ -1265,7 +1633,6 @@
                             "Credit statistics tidak tersedia.",
                             error
                         );
-
                     }
 
                 } catch (error) {
@@ -1274,7 +1641,6 @@
                         "Dashboard error:",
                         error
                     );
-
                 }
             }
 
