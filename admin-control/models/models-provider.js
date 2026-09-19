@@ -15,23 +15,17 @@
    - Form CRUD                -> GENZModelForm*
    - UI orchestration         -> GENZModelsUI
 
-   COMPATIBILITY:
-   - provider.id              -> UUID database
-   - provider.provider_id     -> kode provider
-   - provider.provider        -> legacy provider code
-   - provider.provider_name   -> nama provider
+   DATABASE RELATION:
+   models.provider_id
+        ↓
+   providers.id
 
-   ACTIVE STATE:
-   - is_active
-   - active
-   - enabled
-   - status
+   PROVIDER CODE:
+   providers.provider_id
 
-   PRIORITY ACTIVE STATE:
-   1. is_active
-   2. active
-   3. enabled
-   4. status
+   Artinya:
+   - Dropdown Provider VALUE = providers.id
+   - API/provider code        = providers.provider_id
 
    Tidak membuat data provider baru.
    Semua data berasal dari GENZModelsData.
@@ -99,7 +93,9 @@
                 );
 
 
-            if (!alertBox) {
+            if (
+                !alertBox
+            ) {
 
                 return;
 
@@ -120,7 +116,9 @@
                 " show";
 
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
                 "[GEN-Z.AI] Provider notify error:",
@@ -134,15 +132,7 @@
 
     /* =====================================================
        NORMALIZE BOOLEAN
-       -----------------------------------------------------
-       Mendukung nilai dari Supabase:
-       true / false
-       "true" / "false"
-       1 / 0
-       "1" / "0"
-       "yes" / "no"
-       "on" / "off"
-       ===================================================== */
+    ===================================================== */
 
     function normalizeBoolean(
         value
@@ -236,7 +226,8 @@
 
         if (
             !provider ||
-            typeof provider !== "object"
+            typeof provider !==
+                "object"
         ) {
 
             return null;
@@ -258,6 +249,11 @@
             ).trim();
 
 
+        /*
+         * Provider tanpa UUID masih dapat dipakai
+         * untuk compatibility, tetapi record database
+         * normal seharusnya mempunyai providers.id.
+         */
         const normalizedProviderId =
             providerCode ||
             databaseId;
@@ -298,9 +294,6 @@
 
         /*
          * Jangan mengarang active state.
-         *
-         * Hanya normalisasi field yang memang
-         * sudah dikirim oleh sumber data.
          */
 
         if (
@@ -385,13 +378,7 @@
 
     /* =====================================================
        NORMALIZE PROVIDERS
-       -----------------------------------------------------
-       Deduplikasi hanya berdasarkan identifier.
-       
-       JANGAN menggunakan provider_name sebagai
-       unique key karena dua record provider dapat
-       mempunyai nama yang sama.
-       ===================================================== */
+    ===================================================== */
 
     function normalizeProviders(
         list
@@ -416,7 +403,9 @@
 
 
         list.forEach(
-            function (item) {
+            function (
+                item
+            ) {
 
                 const provider =
                     normalizeProvider(
@@ -424,7 +413,9 @@
                     );
 
 
-                if (!provider) {
+                if (
+                    !provider
+                ) {
 
                     return;
 
@@ -449,11 +440,6 @@
                         .toLowerCase();
 
 
-                /*
-                 * Jika UUID sudah pernah ditemukan,
-                 * jangan masukkan dua kali.
-                 */
-
                 if (
                     databaseId &&
                     seenIds.has(
@@ -465,11 +451,6 @@
 
                 }
 
-
-                /*
-                 * Jika provider code sudah pernah
-                 * ditemukan, jangan masukkan duplikat.
-                 */
 
                 if (
                     providerCode &&
@@ -520,18 +501,7 @@
 
     /* =====================================================
        ACTIVE STATUS
-       -----------------------------------------------------
-       PRIORITAS:
-       1. is_active
-       2. active
-       3. enabled
-       4. status
-       
-       Jika field boolean tersedia, field tersebut
-       menjadi sumber utama.
-
-       Jika tidak tersedia, fallback ke status.
-       ===================================================== */
+    ===================================================== */
 
     function isActive(
         provider
@@ -539,17 +509,14 @@
 
         if (
             !provider ||
-            typeof provider !== "object"
+            typeof provider !==
+                "object"
         ) {
 
             return false;
 
         }
 
-
-        /*
-         * 1. is_active
-         */
 
         if (
             Object.prototype.hasOwnProperty.call(
@@ -575,10 +542,6 @@
         }
 
 
-        /*
-         * 2. active
-         */
-
         if (
             Object.prototype.hasOwnProperty.call(
                 provider,
@@ -602,10 +565,6 @@
 
         }
 
-
-        /*
-         * 3. enabled
-         */
 
         if (
             Object.prototype.hasOwnProperty.call(
@@ -631,10 +590,6 @@
         }
 
 
-        /*
-         * 4. status
-         */
-
         const status =
             String(
                 provider.status ??
@@ -646,11 +601,12 @@
 
         /*
          * Jika status tidak tersedia,
-         * pertahankan kompatibilitas lama:
-         * provider dianggap aktif.
+         * jangan menganggap provider inactive
+         * hanya karena field tidak ada.
          */
-
-        if (!status) {
+        if (
+            !status
+        ) {
 
             return true;
 
@@ -817,14 +773,12 @@
     /* =====================================================
        POPULATE PROVIDER SELECT
        
-       #providerId
+       IMPORTANT:
+       option.value = providers.id
 
-       Value:
-           provider_id
-
-       Metadata:
-           data-provider-uuid
-    ===================================================== */
+       Karena:
+       models.provider_id -> providers.id
+       ===================================================== */
 
     function populateSelect(
         list,
@@ -861,10 +815,6 @@
                 list
             );
 
-
-        /*
-         * Filter active hanya jika diminta.
-         */
 
         if (
             activeOnly
@@ -920,17 +870,35 @@
                 provider
             ) {
 
-                const providerValue =
+                /*
+                 * DATABASE VALUE:
+                 * providers.id
+                 */
+                const databaseId =
                     String(
-                        provider.provider_id ??
-                        provider.provider ??
                         provider.id ??
                         ""
                     ).trim();
 
 
+                /*
+                 * Provider code hanya untuk
+                 * display / metadata.
+                 */
+                const providerCode =
+                    String(
+                        provider.provider_id ??
+                        provider.provider ??
+                        ""
+                    ).trim();
+
+
+                /*
+                 * Provider harus mempunyai ID database
+                 * agar dapat digunakan sebagai FK models.
+                 */
                 if (
-                    !providerValue
+                    !databaseId
                 ) {
 
                     return;
@@ -945,41 +913,51 @@
 
 
                 option.value =
-                    providerValue;
+                    databaseId;
 
 
                 const name =
                     String(
                         provider.provider_name ||
-                        providerValue
+                        providerCode ||
+                        databaseId
                     ).trim();
 
 
+                /*
+                 * Contoh:
+                 *
+                 * KIE.AI (kie_ai)
+                 */
                 option.textContent =
-                    name === providerValue
-                        ? providerValue
-                        : name +
+                    providerCode &&
+                    providerCode !== name
+                        ? name +
                           " (" +
-                          providerValue +
-                          ")";
+                          providerCode +
+                          ")"
+                        : name;
 
 
+                /*
+                 * Metadata provider code.
+                 */
                 if (
-                    provider.id
+                    providerCode
                 ) {
 
-                    option.dataset.providerUuid =
-                        String(
-                            provider.id
-                        );
+                    option.dataset.providerId =
+                        providerCode;
 
                 }
 
 
                 /*
-                 * Metadata active state.
-                 * Tidak mengubah nilai sumber.
+                 * Metadata UUID.
                  */
+                option.dataset.providerUuid =
+                    databaseId;
+
 
                 if (
                     Object.prototype.hasOwnProperty.call(
@@ -1021,6 +999,9 @@
             currentValue
         ) {
 
+            /*
+             * 1. Exact UUID match.
+             */
             const directOption =
                 Array.from(
                     select.options
@@ -1031,8 +1012,7 @@
 
                         return (
                             String(
-                                option.value ??
-                                ""
+                                option.value ?? ""
                             )
                                 .trim()
                                 .toLowerCase() ===
@@ -1052,6 +1032,11 @@
 
             } else {
 
+                /*
+                 * 2. Compatibility:
+                 * caller mungkin masih memberikan
+                 * provider_id / provider code.
+                 */
                 const matchedProvider =
                     source.find(
                         function (
@@ -1068,11 +1053,14 @@
 
 
                 if (
-                    matchedProvider
+                    matchedProvider &&
+                    matchedProvider.id
                 ) {
 
                     select.value =
-                        matchedProvider.provider_id;
+                        String(
+                            matchedProvider.id
+                        ).trim();
 
                 }
 
@@ -1105,10 +1093,6 @@
         };
 
 
-        /* -------------------------------------------------
-           EVENT UTAMA
-        ------------------------------------------------- */
-
         try {
 
             document.dispatchEvent(
@@ -1132,10 +1116,6 @@
         }
 
 
-        /* -------------------------------------------------
-           COMPATIBILITY EVENT
-        ------------------------------------------------- */
-
         try {
 
             document.dispatchEvent(
@@ -1158,10 +1138,6 @@
 
         }
 
-
-        /* -------------------------------------------------
-           LEGACY EVENT
-        ------------------------------------------------- */
 
         try {
 
@@ -1194,14 +1170,18 @@
        DATA OWNER:
            GENZModelsData
 
-       Provider module:
-           - request data
-           - normalize
-           - store state
-           - populate dropdown
-           - dispatch event
+       Data layer:
+           loadProviders({
+               force,
+               includeInactive
+           })
 
-       Tidak melakukan query Supabase sendiri.
+       Provider module:
+           - normalize
+           - filter
+           - store
+           - populate
+           - event
     ===================================================== */
 
     async function loadProviders(
@@ -1234,6 +1214,17 @@
 
 
         /*
+         * GENZModelsData menggunakan:
+         *
+         * includeInactive
+         *
+         * Bukan activeOnly.
+         */
+        const includeInactive =
+            activeOnly === false;
+
+
+        /*
          * Cegah request ganda.
          */
 
@@ -1254,14 +1245,11 @@
                     await data.loadProviders(
                         {
                             force,
-                            activeOnly
+
+                            includeInactive
                         }
                     );
 
-
-                /*
-                 * Normalisasi.
-                 */
 
                 providers =
                     normalizeProviders(
@@ -1269,31 +1257,16 @@
                     );
 
 
-                /*
-                 * Penting:
-                 *
-                 * Jika GENZModelsData mengembalikan
-                 * provider yang sudah difilter activeOnly,
-                 * jangan filter ulang dengan aturan lain.
-                 *
-                 * Data tetap difilter di sini hanya bila
-                 * caller memang meminta activeOnly.
-                 */
-
                 populateSelect(
                     providers,
                     {
-                        activeOnly:
-                            activeOnly,
+                        activeOnly,
+
                         value:
                             options.value
                     }
                 );
 
-
-                /*
-                 * Event.
-                 */
 
                 dispatchProviderEvents();
 
@@ -1344,20 +1317,10 @@
         options = {}
     ) {
 
-        /*
-         * Jika sudah initialized,
-         * jangan melakukan request ulang.
-         */
-
         if (
             initialized &&
             options.force !== true
         ) {
-
-            /*
-             * Jika caller memberikan value,
-             * sinkronkan dropdown saja.
-             */
 
             if (
                 options.value !==
@@ -1496,12 +1459,67 @@
 
 
     /* =====================================================
+       GET PROVIDER BY CODE
+    ===================================================== */
+
+    function getProviderByCode(
+        providerCode
+    ) {
+
+        const code =
+            String(
+                providerCode ?? ""
+            )
+                .trim()
+                .toLowerCase();
+
+
+        if (
+            !code
+        ) {
+
+            return null;
+
+        }
+
+
+        return (
+            providers.find(
+                function (
+                    provider
+                ) {
+
+                    return (
+                        String(
+                            provider.provider_id ??
+                            provider.provider ??
+                            ""
+                        )
+                            .trim()
+                            .toLowerCase() ===
+                        code
+                    );
+
+                }
+            ) ||
+            null
+        );
+
+    }
+
+
+    /* =====================================================
        GET PROVIDER VALUE
        
-       UUID / provider code / provider name
-       ->
-       provider_id
-    ===================================================== */
+       Input:
+           UUID / provider code / provider name
+
+       Output:
+           providers.id
+
+       Ini yang dipakai oleh:
+           models.provider_id
+       ===================================================== */
 
     function getProviderValue(
         providerId
@@ -1523,8 +1541,6 @@
 
 
         return String(
-            provider.provider_id ??
-            provider.provider ??
             provider.id ??
             ""
         ).trim();
@@ -1533,8 +1549,48 @@
 
 
     /* =====================================================
+       GET PROVIDER CODE
+       
+       Input:
+           UUID / provider code / provider name
+
+       Output:
+           providers.provider_id
+       ===================================================== */
+
+    function getProviderCode(
+        providerId
+    ) {
+
+        const provider =
+            getProviderById(
+                providerId
+            );
+
+
+        if (
+            !provider
+        ) {
+
+            return "";
+
+        }
+
+
+        return String(
+            provider.provider_id ??
+            provider.provider ??
+            ""
+        ).trim();
+
+    }
+
+
+    /* =====================================================
        SET SELECT VALUE
-    ===================================================== */
+       
+       VALUE SELECT = providers.id
+       ===================================================== */
 
     function setValue(
         providerId
@@ -1566,14 +1622,13 @@
             select.value =
                 "";
 
-
             return true;
 
         }
 
 
         /* -------------------------------------------------
-           1. DIRECT MATCH
+           1. DIRECT DATABASE UUID
         ------------------------------------------------- */
 
         const directOption =
@@ -1611,7 +1666,7 @@
 
 
         /* -------------------------------------------------
-           2. PROVIDER LOOKUP
+           2. LOOKUP PROVIDER
         ------------------------------------------------- */
 
         const provider =
@@ -1630,20 +1685,18 @@
 
 
         /* -------------------------------------------------
-           3. NORMALIZED VALUE
+           3. DATABASE UUID
         ------------------------------------------------- */
 
-        const providerValue =
+        const databaseId =
             String(
-                provider.provider_id ??
-                provider.provider ??
                 provider.id ??
                 ""
             ).trim();
 
 
         if (
-            !providerValue
+            !databaseId
         ) {
 
             return false;
@@ -1669,7 +1722,7 @@
                         )
                             .trim()
                             .toLowerCase() ===
-                        providerValue.toLowerCase()
+                        databaseId.toLowerCase()
                     );
 
                 }
@@ -1696,9 +1749,6 @@
 
     /* =====================================================
        SYNC SELECT
-       
-       Berguna ketika Provider state sudah tersedia
-       tetapi dropdown baru dibuat oleh HTML/modal.
     ===================================================== */
 
     function syncSelect(
@@ -1772,8 +1822,6 @@
 
     /* =====================================================
        PUBLIC API
-       -----------------------------------------------------
-       API lama dipertahankan.
     ===================================================== */
 
     window.GENZModelsProvider =
@@ -1795,7 +1843,11 @@
 
             getProviderById,
 
+            getProviderByCode,
+
             getProviderValue,
+
+            getProviderCode,
 
             setValue,
 
