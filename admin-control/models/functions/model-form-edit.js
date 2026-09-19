@@ -518,6 +518,7 @@
 
         let modelId = "";
 
+
         if (
             typeof layout.getCurrentModelId ===
             "function"
@@ -532,7 +533,9 @@
                     ).trim();
 
             } catch {
+
                 modelId = "";
+
             }
 
         }
@@ -749,10 +752,19 @@
 
     /* =====================================================
        SET PROVIDER
+       -----------------------------------------------------
+       silent = true digunakan ketika membuka EDIT.
+
+       Tujuannya:
+       - menetapkan provider tanpa dispatch event
+       - mencegah provider-changed
+       - mencegah refresh berulang
+       - mencegah recursive event chain
     ===================================================== */
 
     async function setProvider(
-        providerIdentifier
+        providerIdentifier,
+        silent = false
     ) {
 
         const value =
@@ -767,6 +779,95 @@
 
         }
 
+
+        /*
+         * =================================================
+         * SILENT MODE
+         * =================================================
+         *
+         * Jangan menggunakan dropdown.setValue()
+         * karena method tersebut dapat dispatch:
+         *
+         * genz-models-provider-changed
+         *
+         * ketika form Edit baru dibuka.
+         */
+
+        if (silent) {
+
+            const select =
+                firstElement(
+                    [
+                        "providerId",
+                        "modelProvider"
+                    ]
+                );
+
+
+            if (select) {
+
+                const option =
+                    Array.from(
+                        select.options || []
+                    ).find(
+                        option => {
+
+                            return (
+                                String(
+                                    option.value || ""
+                                )
+                                    .trim()
+                                    .toLowerCase() ===
+                                value.toLowerCase()
+                            );
+
+                        }
+                    );
+
+
+                if (option) {
+
+                    select.value =
+                        option.value;
+
+                    return option.value;
+
+                }
+
+            }
+
+
+            /*
+             * Jika provider dropdown belum memiliki
+             * option, tetap isi value apabila select
+             * tersedia. Layout.refresh() menerima
+             * providerIdentifier secara eksplisit.
+             */
+
+            if (select) {
+
+                select.value =
+                    value;
+
+                return value;
+
+            }
+
+
+            return value;
+
+        }
+
+
+        /*
+         * =================================================
+         * NORMAL MODE
+         * =================================================
+         *
+         * Saat user benar-benar mengganti provider,
+         * gunakan dropdown normal agar lifecycle event
+         * tetap bekerja.
+         */
 
         const dropdown =
             getProviderDropdown();
@@ -896,6 +997,12 @@
        -----------------------------------------------------
        Selalu melalui Layout.
        Tidak memanipulasi KIE state secara manual.
+
+       Catatan:
+       Fungsi ini tetap tersedia untuk pemanggilan eksternal.
+       Saat populate(), fungsi ini TIDAK dipanggil lagi
+       setelah layout.refresh(), karena refresh() sudah
+       melakukan setModel() sendiri.
     ===================================================== */
 
     async function setModel(
@@ -960,8 +1067,6 @@
 
         /*
          * Hanya satu panggilan setModel().
-         *
-         * Jangan memicu change event manual.
          */
 
         await layout.setModel(
@@ -1075,6 +1180,11 @@
 
     /* =====================================================
        WAIT FOR LAYOUT
+       -----------------------------------------------------
+       Tidak menggunakan setTimeout(0).
+
+       Layout sudah menjadi module dependency.
+       Jika belum tersedia, langsung return false.
     ===================================================== */
 
     async function waitForModelLayout() {
@@ -1088,21 +1198,6 @@
             return false;
 
         }
-
-
-        /*
-         * Beri kesempatan event Provider
-         * selesai tanpa membuat recursive
-         * change event.
-         */
-
-        await new Promise(
-            resolve =>
-                window.setTimeout(
-                    resolve,
-                    0
-                )
-        );
 
 
         return true;
@@ -1341,7 +1436,7 @@
 
     /* =====================================================
        BUILD KIE-SAFE DATA
-       ----------------------------------------------------- */
+    ===================================================== */
 
     function buildKieData(
         data
@@ -1803,7 +1898,7 @@
 
     /* =====================================================
        BUILD PAYLOAD
-       ===================================================== */
+    ===================================================== */
 
     function buildPayload(
         data
@@ -1917,7 +2012,7 @@
 
     /* =====================================================
        UPDATE
-       ===================================================== */
+    ===================================================== */
 
     async function update(
         model = null
@@ -2019,7 +2114,7 @@
 
     /* =====================================================
        UPDATE FROM FORM
-       ===================================================== */
+    ===================================================== */
 
     async function updateFromForm(
         event = null
@@ -2182,15 +2277,32 @@
     /* =====================================================
        POPULATE
        -----------------------------------------------------
-       Urutan sangat penting:
+       OPTIMIZED EDIT FLOW:
 
-       1. Record ID
-       2. Provider
-       3. Refresh katalog KIE
-       4. Model ID
-       5. Layout mengambil KIE config
-       6. Identity/capability dari KIE
-       7. Editable fields dari database
+       1. Simpan record yang sedang diedit
+       2. Record ID
+       3. Provider silent
+       4. Validasi Layout
+       5. SATU KALI refresh KIE
+       6. Layout memilih model + load config
+       7. Identity KIE
+       8. Editable DB fields
+       9. Sync capability
+       10. Credit preview
+       11. Event notification
+
+       IMPORTANT:
+       -----------------------------------------------------
+       Tidak melakukan:
+           refresh()
+           setModel()
+           updateUsdPreview()
+           refresh()
+
+       berulang-ulang.
+
+       layout.refresh() sudah bertanggung jawab untuk
+       memilih model dan memuat KIE configuration.
     ===================================================== */
 
     async function populate(
@@ -2211,192 +2323,26 @@
 
 
         /*
-         * Record ID.
+         * =================================================
+         * RECORD ID
+         * =================================================
          */
 
         setValue(
             "modelRecordId",
             model.id || ""
         );
-
-
-        /*
-         * Provider.
-         */
-
-        const providerIdentifier =
-            model.provider_id ||
-            model.provider ||
-            model.provider_code ||
-            model.provider_uuid ||
-            "";
-
-
-        if (providerIdentifier) {
-
-            await setProvider(
-                providerIdentifier
-            );
-
-        }
-
-
-        await waitForModelLayout();
-
-
-        /*
-         * Refresh KIE model catalog untuk
-         * provider yang dipilih.
-         *
-         * selectedModelId hanya digunakan untuk
-         * memilih model yang SUDAH ADA.
-         */
-
-        const layout =
-            getFormLayout();
-
-
-        if (!layout) {
-
-            throw new Error(
-                "GENZModelFormLayout belum tersedia."
-            );
-
-        }
-
-
-        const existingModelId =
-            String(
-                model.model_id ||
-                ""
-            ).trim();
-
-
-        if (!existingModelId) {
-
-            throw new Error(
-                "Record model tidak memiliki Model ID."
-            );
-
-        }
-
-
-        if (
-            typeof layout.refresh ===
-            "function"
-        ) {
-
-            await layout.refresh(
-                {
-                    providerId:
-                        providerIdentifier,
-
-                    selectedModelId:
-                        existingModelId
-                }
-            );
-
-        }
-
-
-        /*
-         * Cari model dari katalog KIE.
-         */
-
-        const kieModel =
-            layout.findModel(
-                existingModelId
-            );
-
-
-        if (!kieModel) {
-
-            /*
-             * Jangan mengisi identity lama
-             * sebagai pengganti KIE.
-             */
-
-            throw new Error(
-                `Model "${existingModelId}" tidak ditemukan dalam katalog KIE.`
-            );
-
-        }
-
-
-        /*
-         * SET MODEL SEKALI.
-         *
-         * Layout akan:
-         * - mengambil kie_config
-         * - mengambil pricing
-         * - mengambil parameters
-         * - render capabilities
-         * - mengisi Model Name
-         * - mengisi Model Family
-         */
-
-        await setModel(
-            kieModel
-        );
-
-
-        /*
-         * Pastikan field identity readonly.
-         */
-
-        const modelName =
-            getElement(
-                "modelName"
-            );
-
-
-        if (modelName) {
-
-            modelName.readOnly =
-                true;
-
-        }
-
-
-        const modelFamily =
-            getElement(
-                "modelFamily"
-            );
-
-
-        if (modelFamily) {
-
-            modelFamily.readOnly =
-                true;
-
-        }
-
-
-        const kieUnitPrice =
-            getElement(
-                "kieUnitPrice"
-            );
-
-
-        if (kieUnitPrice) {
-
-            kieUnitPrice.readOnly =
-                true;
-
-        }
 
 
         /*
          * =================================================
          * EDITABLE DATABASE FIELDS
          * =================================================
+         *
+         * Diisi langsung dari record database.
+         *
+         * Identity KIE tidak diambil dari sini.
          */
-
-        setValue(
-            "modelRecordId",
-            model.id || ""
-        );
-
 
         setValue(
             "description",
@@ -2431,23 +2377,294 @@
 
         /*
          * =================================================
-         * CAPABILITY
+         * PROVIDER
          * =================================================
          *
-         * JANGAN mengambil ratio/resolution/duration
-         * dari database lama sebagai source of truth.
+         * Silent agar tidak men-trigger:
          *
-         * Layout sudah merender data KIE.
+         * genz-models-provider-changed
          *
-         * Sync hanya untuk menjaga field legacy
-         * tetap sesuai KIE.
+         * Event tersebut tidak diperlukan ketika Edit
+         * karena kita sendiri akan melakukan refresh dengan
+         * providerId yang eksplisit.
+         */
+
+        const providerIdentifier =
+            String(
+                model.provider_id ||
+                model.provider ||
+                model.provider_code ||
+                model.provider_uuid ||
+                ""
+            ).trim();
+
+
+        if (providerIdentifier) {
+
+            await setProvider(
+                providerIdentifier,
+                true
+            );
+
+        }
+
+
+        /*
+         * =================================================
+         * WAIT FOR LAYOUT
+         * =================================================
+         */
+
+        const layoutReady =
+            await waitForModelLayout();
+
+
+        if (!layoutReady) {
+
+            throw new Error(
+                "GENZModelFormLayout belum tersedia."
+            );
+
+        }
+
+
+        const layout =
+            getFormLayout();
+
+
+        if (!layout) {
+
+            throw new Error(
+                "GENZModelFormLayout belum tersedia."
+            );
+
+        }
+
+
+        /*
+         * =================================================
+         * MODEL ID
+         * =================================================
+         *
+         * Model ID harus berasal dari record yang sudah
+         * tersimpan dan diverifikasi terhadap katalog KIE.
+         */
+
+        const existingModelId =
+            String(
+                model.model_id ||
+                ""
+            ).trim();
+
+
+        if (!existingModelId) {
+
+            throw new Error(
+                "Record model tidak memiliki Model ID."
+            );
+
+        }
+
+
+        /*
+         * =================================================
+         * SATU KALI REFRESH KIE
+         * =================================================
+         *
+         * Ini adalah titik utama optimasi.
+         *
+         * layout.refresh() sudah:
+         *
+         * - loadActiveModels()
+         * - populateModelSelect()
+         * - findModel()
+         * - setModel()
+         * - loadKieConfig()
+         * - renderCapabilities()
+         * - loadModelUsdPrice()
+         * - syncCreditPreview()
+         *
+         * Jangan mengulang proses tersebut di sini.
+         */
+
+        if (
+            typeof layout.refresh !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelFormLayout.refresh() belum tersedia."
+            );
+
+        }
+
+
+        await layout.refresh(
+            {
+                providerId:
+                    providerIdentifier,
+
+                selectedModelId:
+                    existingModelId
+            }
+        );
+
+
+        /*
+         * =================================================
+         * CARI MODEL HASIL REFRESH
+         * =================================================
+         *
+         * Hanya validasi/reference.
+         *
+         * TIDAK memanggil setModel() lagi.
+         */
+
+        if (
+            typeof layout.findModel !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelFormLayout.findModel() belum tersedia."
+            );
+
+        }
+
+
+        const kieModel =
+            layout.findModel(
+                existingModelId
+            );
+
+
+        if (!kieModel) {
+
+            /*
+             * Jangan menggunakan identity lama dari database
+             * sebagai pengganti data KIE.
+             */
+
+            throw new Error(
+                `Model "${existingModelId}" tidak ditemukan dalam katalog KIE.`
+            );
+
+        }
+
+
+        /*
+         * =================================================
+         * KIE IDENTITY
+         * =================================================
+         *
+         * layout.refresh() seharusnya sudah mengisi field
+         * identity melalui setModel().
+         *
+         * Di sini hanya memastikan nilai readonly tetap
+         * berasal dari KIE.
+         */
+
+        setValue(
+            "modelCode",
+            String(
+                kieModel.model_id ||
+                ""
+            ).trim()
+        );
+
+
+        setValue(
+            "modelName",
+            String(
+                kieModel.model_name ||
+                ""
+            ).trim()
+        );
+
+
+        setValue(
+            "modelFamily",
+            String(
+                kieModel.model_family ||
+                ""
+            ).trim()
+        );
+
+
+        /*
+         * Identity readonly.
+         */
+
+        const modelName =
+            getElement(
+                "modelName"
+            );
+
+
+        if (modelName) {
+
+            modelName.readOnly =
+                true;
+
+        }
+
+
+        const modelFamily =
+            getElement(
+                "modelFamily"
+            );
+
+
+        if (modelFamily) {
+
+            modelFamily.readOnly =
+                true;
+
+        }
+
+
+        /*
+         * KIE Unit Price readonly.
+         */
+
+        const kieUnitPrice =
+            getElement(
+                "kieUnitPrice"
+            );
+
+
+        if (kieUnitPrice) {
+
+            kieUnitPrice.readOnly =
+                true;
+
+        }
+
+
+        /*
+         * =================================================
+         * CAPABILITY KIE
+         * =================================================
+         *
+         * Ratio / Duration / Resolution tidak mengambil
+         * source dari database lama.
+         *
+         * Layout tetap menjadi source of truth.
          */
 
         syncKieCapabilities();
 
 
         /*
-         * Pricing preview.
+         * =================================================
+         * CREDIT PREVIEW
+         * =================================================
+         *
+         * Hanya satu update preview dari sisi Edit.
+         *
+         * USD preview tidak dipanggil ulang karena
+         * layout.refresh() sudah melakukan update pricing
+         * saat setModel().
          */
 
         const priceCalculation =
@@ -2462,7 +2679,7 @@
 
             try {
 
-                priceCalculation.updatePreview();
+                await priceCalculation.updatePreview();
 
             } catch (error) {
 
@@ -2477,29 +2694,10 @@
 
 
         /*
-         * USD preview.
+         * =================================================
+         * SELECTED MODEL INFO
+         * =================================================
          */
-
-        if (
-            typeof layout.updateUsdPreview ===
-            "function"
-        ) {
-
-            try {
-
-                await layout.updateUsdPreview();
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] USD preview warning:",
-                    error
-                );
-
-            }
-
-        }
-
 
         updateSelectedModelInfo(
             kieModel
@@ -2507,10 +2705,13 @@
 
 
         /*
-         * Event hanya sebagai notifikasi.
+         * =================================================
+         * EDIT POPULATED EVENT
+         * =================================================
          *
-         * Tidak ada listener di sini yang
-         * memanggil populate() kembali.
+         * Event hanya sebagai notification.
+         *
+         * Tidak memanggil populate() kembali.
          */
 
         try {
@@ -2557,7 +2758,18 @@
 
     /* =====================================================
        OPEN
-       ===================================================== */
+       -----------------------------------------------------
+       OPTIMIZED:
+
+       Modal ditampilkan SEBELUM populate().
+
+       Dengan begitu user langsung melihat form Edit,
+       sementara data KIE dimuat oleh Layout.
+
+       Ini menghilangkan kesan tombol Edit "stuck"
+       karena sebelumnya browser menunggu seluruh proses
+       async selesai sebelum modal terlihat.
+    ===================================================== */
 
     async function open(
         model
@@ -2574,93 +2786,142 @@
         }
 
 
-        try {
+        /*
+         * =================================================
+         * OPEN MODAL IMMEDIATELY
+         * =================================================
+         */
 
-            /*
-             * Populate SEBELUM modal dibuka.
-             */
-
-            await populate(
-                model
+        const modal =
+            getElement(
+                "modelModal"
             );
 
 
-            /*
-             * Form Events hanya mengatur
-             * lifecycle modal.
-             */
+        if (modal) {
 
-            const formEvents =
-                getFormEvents();
+            try {
 
+                /*
+                 * Support native dialog.
+                 */
 
-            if (
-                formEvents &&
-                typeof formEvents.openModal ===
-                "function"
-            ) {
+                if (
+                    modal.tagName ===
+                    "DIALOG" &&
+                    typeof modal.showModal ===
+                    "function"
+                ) {
 
-                const result =
-                    await formEvents.openModal(
-                        "edit",
-                        model
+                    if (!modal.open) {
+
+                        modal.showModal();
+
+                    }
+
+                } else {
+
+                    /*
+                     * Existing GEN-Z.AI modal system.
+                     */
+
+                    modal.classList.add(
+                        "open",
+                        "show"
                     );
 
 
-                return result !== false;
+                    modal.classList.remove(
+                        "hidden"
+                    );
 
-            }
+
+                    modal.setAttribute(
+                        "aria-hidden",
+                        "false"
+                    );
 
 
-            /*
-             * Fallback DOM.
-             */
+                    if (
+                        window.getComputedStyle(
+                            modal
+                        ).display ===
+                        "none"
+                    ) {
 
-            const modal =
-                getElement(
-                    "modelModal"
+                        modal.style.display =
+                            "flex";
+
+                    }
+
+
+                    document.body.classList.add(
+                        "modal-open"
+                    );
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[model-form-edit] Immediate modal open warning:",
+                    error
                 );
 
 
-            if (!modal) {
+                /*
+                 * Fallback.
+                 */
 
-                return true;
+                modal.classList.add(
+                    "open",
+                    "show"
+                );
+
+
+                modal.classList.remove(
+                    "hidden"
+                );
+
+
+                modal.setAttribute(
+                    "aria-hidden",
+                    "false"
+                );
+
+
+                if (
+                    window.getComputedStyle(
+                        modal
+                    ).display ===
+                    "none"
+                ) {
+
+                    modal.style.display =
+                        "flex";
+
+                }
+
+
+                document.body.classList.add(
+                    "modal-open"
+                );
 
             }
 
-
-            modal.classList.add(
-                "open",
-                "show"
-            );
+        }
 
 
-            modal.classList.remove(
-                "hidden"
-            );
+        /*
+         * =================================================
+         * POPULATE AFTER MODAL IS VISIBLE
+         * =================================================
+         */
 
+        try {
 
-            modal.setAttribute(
-                "aria-hidden",
-                "false"
-            );
-
-
-            if (
-                window.getComputedStyle(
-                    modal
-                ).display ===
-                "none"
-            ) {
-
-                modal.style.display =
-                    "flex";
-
-            }
-
-
-            document.body.classList.add(
-                "modal-open"
+            await populate(
+                model
             );
 
 
@@ -2690,7 +2951,7 @@
 
     /* =====================================================
        CLEAR
-       ===================================================== */
+    ===================================================== */
 
     function clear() {
 
@@ -2707,7 +2968,7 @@
 
     /* =====================================================
        STATE
-       ===================================================== */
+    ===================================================== */
 
     function getEditingModel() {
 
@@ -2736,7 +2997,7 @@
 
     /* =====================================================
        INITIALIZE
-       ===================================================== */
+    ===================================================== */
 
     function initialize() {
 
