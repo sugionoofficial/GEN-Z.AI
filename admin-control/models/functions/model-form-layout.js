@@ -9,19 +9,19 @@
    - Render form Tambah Model
    - Render form Edit Model
    - Provider dari tabel providers
-   - Model ID berdasarkan data models Supabase
-   - Model Name berdasarkan data models Supabase
-   - Rasio berdasarkan data models Supabase
-   - Durasi berdasarkan data models Supabase
-   - Resolusi berdasarkan data models Supabase
+   - Model ID dari data models Supabase
+   - Model Name dari data models Supabase
+   - Ratio dari data models Supabase
+   - Resolution dari data models Supabase
+   - Duration dari data models Supabase
    - Credit calculation
    - Normalisasi data form
 
    Tidak bertanggung jawab:
    - Query Supabase langsung
-   - Create/update/delete database
-   - Event table
-   - Submit database
+   - Create / Update / Delete database
+   - Table events
+   - Database submit
    - Data KIE lama
    ========================================================= */
 
@@ -40,6 +40,7 @@ import {
    ========================================================= */
 
 const FIELD_NAMES = {
+    id: "id",
     provider: "provider_id",
     modelId: "model_id",
     modelName: "model_name",
@@ -53,6 +54,7 @@ const FIELD_NAMES = {
     supportedResolutions: "supported_resolutions",
     status: "status"
 };
+
 
 const STATUS_OPTIONS = [
     {
@@ -75,6 +77,7 @@ const STATUS_OPTIONS = [
    ========================================================= */
 
 function escapeHtml(value) {
+
     if (
         value === null ||
         value === undefined
@@ -91,8 +94,13 @@ function escapeHtml(value) {
 }
 
 
-function toNumber(value, fallback = 0) {
-    const number = Number(value);
+function toNumber(
+    value,
+    fallback = 0
+) {
+
+    const number =
+        Number(value);
 
     return Number.isFinite(number)
         ? number
@@ -101,6 +109,7 @@ function toNumber(value, fallback = 0) {
 
 
 function unique(values) {
+
     return [
         ...new Set(
             (
@@ -108,8 +117,11 @@ function unique(values) {
                     ? values
                     : []
             )
-                .map(value =>
-                    String(value).trim()
+                .map(
+                    value =>
+                        String(
+                            value ?? ""
+                        ).trim()
                 )
                 .filter(Boolean)
         )
@@ -118,11 +130,13 @@ function unique(values) {
 
 
 function normalizeStatus(value) {
-    const status = String(
-        value || ""
-    )
-        .toLowerCase()
-        .trim();
+
+    const status =
+        String(
+            value ?? ""
+        )
+            .trim()
+            .toLowerCase();
 
     return STATUS_OPTIONS.some(
         option =>
@@ -133,25 +147,33 @@ function normalizeStatus(value) {
 }
 
 
-function getElement(root, selector) {
+function getElement(
+    root,
+    selector
+) {
+
     if (!root) {
         return null;
     }
 
     if (
-        typeof root.querySelector ===
+        typeof root.querySelector !==
         "function"
     ) {
-        return root.querySelector(
-            selector
-        );
+        return null;
     }
 
-    return null;
+    return root.querySelector(
+        selector
+    );
 }
 
 
-function getElements(root, selector) {
+function getElements(
+    root,
+    selector
+) {
+
     if (
         !root ||
         typeof root.querySelectorAll !==
@@ -172,8 +194,12 @@ function getElements(root, selector) {
    NORMALIZE MODEL
    ========================================================= */
 
-function normalizeFormModel(model) {
+function normalizeFormModel(
+    model
+) {
+
     if (!model) {
+
         return {
             id: "",
             provider_id: "",
@@ -189,13 +215,18 @@ function normalizeFormModel(model) {
             supported_resolutions: [],
             status: "active"
         };
+
     }
+
 
     const normalized =
         normalizeModel(model);
 
+
     return {
-        id: normalized.id || "",
+
+        id:
+            normalized.id || "",
 
         provider_id:
             normalized.provider_id || "",
@@ -261,7 +292,9 @@ function normalizeFormModel(model) {
             normalizeStatus(
                 normalized.status
             )
+
     };
+
 }
 
 
@@ -269,7 +302,10 @@ function normalizeFormModel(model) {
    PROVIDER HELPERS
    ========================================================= */
 
-function providerLabel(provider) {
+function providerLabel(
+    provider
+) {
+
     if (!provider) {
         return "Unknown Provider";
     }
@@ -281,10 +317,14 @@ function providerLabel(provider) {
         provider.id ||
         "Unknown Provider"
     );
+
 }
 
 
-function providerCode(provider) {
+function providerCode(
+    provider
+) {
+
     if (!provider) {
         return "";
     }
@@ -294,10 +334,14 @@ function providerCode(provider) {
         provider.code ||
         ""
     ).trim();
+
 }
 
 
-function providerDatabaseId(provider) {
+function providerDatabaseId(
+    provider
+) {
+
     if (!provider) {
         return "";
     }
@@ -305,56 +349,96 @@ function providerDatabaseId(provider) {
     return String(
         provider.id || ""
     ).trim();
+
 }
 
 
-function isProviderActive(provider) {
+function isProviderActive(
+    provider
+) {
+
     if (!provider) {
         return false;
     }
 
-    return (
+
+    const status =
         String(
-            provider.status || ""
+            provider.status ?? ""
         )
-            .toLowerCase()
-            .trim() === "active"
-    );
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        [
+            "active",
+            "aktif",
+            "enabled"
+        ].includes(status)
+    ) {
+        return true;
+    }
+
+
+    if (
+        provider.is_active === true ||
+        provider.active === true ||
+        provider.enabled === true
+    ) {
+        return true;
+    }
+
+
+    return false;
+
 }
 
 
-function sortProviders(providers) {
+function sortProviders(
+    providers
+) {
+
     return [
         ...(providers || [])
-    ].sort((a, b) => {
-        const activeA =
-            isProviderActive(a)
-                ? 0
-                : 1;
+    ].sort(
+        (a, b) => {
 
-        const activeB =
-            isProviderActive(b)
-                ? 0
-                : 1;
+            const activeA =
+                isProviderActive(a)
+                    ? 0
+                    : 1;
 
-        if (
-            activeA !== activeB
-        ) {
-            return (
-                activeA - activeB
-            );
+            const activeB =
+                isProviderActive(b)
+                    ? 0
+                    : 1;
+
+
+            if (
+                activeA !==
+                activeB
+            ) {
+                return (
+                    activeA -
+                    activeB
+                );
+            }
+
+
+            return providerLabel(a)
+                .localeCompare(
+                    providerLabel(b),
+                    "id",
+                    {
+                        sensitivity:
+                            "base"
+                    }
+                );
+
         }
+    );
 
-        return providerLabel(a)
-            .localeCompare(
-                providerLabel(b),
-                "id",
-                {
-                    sensitivity:
-                        "base"
-                }
-            );
-    });
 }
 
 
@@ -367,20 +451,24 @@ function renderProviderOptions(
     selectedProviderId = "",
     selectedProviderCode = ""
 ) {
-    const normalizedSelectedId =
+
+    const normalizedId =
         String(
-            selectedProviderId || ""
+            selectedProviderId ?? ""
         ).trim();
 
-    const normalizedSelectedCode =
+
+    const normalizedCode =
         String(
-            selectedProviderCode || ""
+            selectedProviderCode ?? ""
         ).trim();
+
 
     const sorted =
         sortProviders(
-            providers || []
+            providers
         );
+
 
     let html = `
         <option value="">
@@ -388,49 +476,53 @@ function renderProviderOptions(
         </option>
     `;
 
-    for (const provider of sorted) {
+
+    for (
+        const provider of sorted
+    ) {
+
         const id =
             providerDatabaseId(
                 provider
             );
 
-        const code =
-            providerCode(provider);
 
         if (!id) {
             continue;
         }
 
-        const selected =
-            id ===
-                normalizedSelectedId ||
-            (
-                !normalizedSelectedId &&
-                code ===
-                    normalizedSelectedCode
+
+        const code =
+            providerCode(
+                provider
             );
 
-        const activeText =
+
+        const selected =
+            id ===
+                normalizedId ||
+            (
+                !normalizedId &&
+                code ===
+                    normalizedCode
+            );
+
+
+        const active =
             isProviderActive(
                 provider
-            )
-                ? "active"
-                : String(
-                      provider.status ||
-                          "inactive"
-                  )
-                      .toLowerCase()
-                      .trim();
+            );
+
 
         html += `
             <option
                 value="${escapeHtml(id)}"
-                data-provider-code="${escapeHtml(
-                    code
-                )}"
-                data-status="${escapeHtml(
-                    activeText
-                )}"
+                data-provider-code="${escapeHtml(code)}"
+                data-status="${
+                    active
+                        ? "active"
+                        : "inactive"
+                }"
                 ${
                     selected
                         ? "selected"
@@ -444,16 +536,17 @@ function renderProviderOptions(
                 )}
                 ${
                     code
-                        ? ` (${escapeHtml(
-                              code
-                          )})`
+                        ? ` (${escapeHtml(code)})`
                         : ""
                 }
             </option>
         `;
+
     }
 
+
     return html;
+
 }
 
 
@@ -464,10 +557,12 @@ function renderProviderOptions(
 function renderStatusOptions(
     selectedStatus = "active"
 ) {
+
     const status =
         normalizeStatus(
             selectedStatus
         );
+
 
     return STATUS_OPTIONS
         .map(
@@ -490,50 +585,46 @@ function renderStatusOptions(
             `
         )
         .join("");
+
 }
 
 
 /* =========================================================
-   MODEL DATA HELPERS
+   MODEL DATA
    ========================================================= */
-
-/*
- * Semua pilihan di bawah diambil dari
- * record models Supabase.
- *
- * Tidak ada daftar model manual.
- */
 
 function getModelsForProvider(
     models,
     providerId
 ) {
-    const normalizedProviderId =
+
+    const id =
         String(
-            providerId || ""
+            providerId ?? ""
         ).trim();
 
-    if (
-        !normalizedProviderId
-    ) {
+
+    if (!id) {
         return [];
     }
 
-    return (models || [])
-        .filter(model => {
-            if (!model) {
-                return false;
-            }
 
-            return (
+    return (
+        Array.isArray(models)
+            ? models
+            : []
+    )
+        .filter(
+            model =>
                 String(
-                    model.provider_id ||
+                    model?.provider_id ??
                         ""
-                ).trim() ===
-                normalizedProviderId
-            );
-        })
-        .map(normalizeModel);
+                ).trim() === id
+        )
+        .map(
+            normalizeModel
+        );
+
 }
 
 
@@ -541,6 +632,7 @@ function getModelIds(
     models,
     providerId = ""
 ) {
+
     return unique(
         getModelsForProvider(
             models,
@@ -550,8 +642,8 @@ function getModelIds(
                 model =>
                     model.model_id
             )
-            .filter(Boolean)
     );
+
 }
 
 
@@ -560,36 +652,40 @@ function getModelByModelId(
     providerId,
     modelId
 ) {
-    const normalizedProviderId =
+
+    const provider =
         String(
-            providerId || ""
+            providerId ?? ""
         ).trim();
 
-    const normalizedModelId =
+
+    const id =
         String(
-            modelId || ""
+            modelId ?? ""
         ).trim();
+
 
     if (
-        !normalizedProviderId ||
-        !normalizedModelId
+        !provider ||
+        !id
     ) {
         return null;
     }
 
+
     return (
         getModelsForProvider(
             models,
-            normalizedProviderId
+            provider
         ).find(
             model =>
                 String(
-                    model.model_id ||
+                    model?.model_id ??
                         ""
-                ).trim() ===
-                normalizedModelId
+                ).trim() === id
         ) || null
     );
+
 }
 
 
@@ -602,16 +698,19 @@ function renderModelIdOptions(
     selectedProviderId = "",
     selectedModelId = ""
 ) {
+
     const ids =
         getModelIds(
             models,
             selectedProviderId
         );
 
+
     const selected =
         String(
-            selectedModelId || ""
+            selectedModelId ?? ""
         ).trim();
+
 
     return ids
         .map(
@@ -634,11 +733,12 @@ function renderModelIdOptions(
             `
         )
         .join("");
+
 }
 
 
 /* =========================================================
-   SUPABASE VALUE OPTIONS
+   RATIO DATA
    ========================================================= */
 
 function getRatioValues(
@@ -647,6 +747,7 @@ function getRatioValues(
     modelId,
     fallbackModel = null
 ) {
+
     const model =
         getModelByModelId(
             models,
@@ -655,17 +756,24 @@ function getRatioValues(
         ) ||
         fallbackModel;
 
+
     if (!model) {
         return [];
     }
+
 
     return unique(
         normalizeArrayValue(
             model.supported_ratios
         )
     );
+
 }
 
+
+/* =========================================================
+   RESOLUTION DATA
+   ========================================================= */
 
 function getResolutionValues(
     models,
@@ -673,6 +781,7 @@ function getResolutionValues(
     modelId,
     fallbackModel = null
 ) {
+
     const model =
         getModelByModelId(
             models,
@@ -681,15 +790,18 @@ function getResolutionValues(
         ) ||
         fallbackModel;
 
+
     if (!model) {
         return [];
     }
+
 
     return unique(
         normalizeArrayValue(
             model.supported_resolutions
         )
     );
+
 }
 
 
@@ -701,24 +813,30 @@ function renderRatioCheckboxes(
     availableRatios = [],
     selectedRatios = []
 ) {
+
     const available =
         unique(
             availableRatios
         );
+
 
     const selected =
         unique(
             selectedRatios
         );
 
+
     if (!available.length) {
+
         return `
             <div class="model-form-help">
-                Tidak ada data rasio dari
-                Supabase untuk model ini.
+                Tidak ada data ratio pada
+                model ini di Supabase.
             </div>
         `;
+
     }
+
 
     return available
         .map(
@@ -726,6 +844,7 @@ function renderRatioCheckboxes(
                 <label
                     class="model-option-checkbox"
                 >
+
                     <input
                         type="checkbox"
                         name="${FIELD_NAMES.supportedRatios}"
@@ -740,15 +859,18 @@ function renderRatioCheckboxes(
                                 : ""
                         }
                     >
+
                     <span>
                         ${escapeHtml(
                             ratio
                         )}
                     </span>
+
                 </label>
             `
         )
         .join("");
+
 }
 
 
@@ -760,24 +882,30 @@ function renderResolutionCheckboxes(
     availableResolutions = [],
     selectedResolutions = []
 ) {
+
     const available =
         unique(
             availableResolutions
         );
+
 
     const selected =
         unique(
             selectedResolutions
         );
 
+
     if (!available.length) {
+
         return `
             <div class="model-form-help">
-                Tidak ada data resolusi dari
-                Supabase untuk model ini.
+                Tidak ada data resolution
+                pada model ini di Supabase.
             </div>
         `;
+
     }
+
 
     return available
         .map(
@@ -785,6 +913,7 @@ function renderResolutionCheckboxes(
                 <label
                     class="model-option-checkbox"
                 >
+
                     <input
                         type="checkbox"
                         name="${FIELD_NAMES.supportedResolutions}"
@@ -799,15 +928,18 @@ function renderResolutionCheckboxes(
                                 : ""
                         }
                     >
+
                     <span>
                         ${escapeHtml(
                             resolution
                         )}
                     </span>
+
                 </label>
             `
         )
         .join("");
+
 }
 
 
@@ -816,12 +948,14 @@ function renderResolutionCheckboxes(
    ========================================================= */
 
 function injectFormStyles() {
+
     if (
         typeof document ===
-            "undefined"
+        "undefined"
     ) {
         return;
     }
+
 
     if (
         document.getElementById(
@@ -831,15 +965,19 @@ function injectFormStyles() {
         return;
     }
 
+
     const style =
         document.createElement(
             "style"
         );
 
+
     style.id =
         "genz-model-form-layout-style";
 
+
     style.textContent = `
+
         .model-form-section {
             display: grid;
             gap: 18px;
@@ -875,8 +1013,8 @@ function injectFormStyles() {
         .model-form-field select,
         .model-form-field textarea {
             width: 100%;
-            box-sizing: border-box;
             min-height: 42px;
+            box-sizing: border-box;
             border: 1px solid
                 rgba(128,128,128,.28);
             border-radius: 8px;
@@ -896,6 +1034,11 @@ function injectFormStyles() {
         .model-form-field textarea:focus {
             border-color:
                 rgba(99,102,241,.7);
+        }
+
+        .model-form-field input[readonly] {
+            cursor: not-allowed;
+            opacity: .72;
         }
 
         .model-form-help {
@@ -938,16 +1081,14 @@ function injectFormStyles() {
         }
 
         .model-form-readonly {
-            opacity: .72;
+            opacity: .78;
         }
 
-        .model-form-readonly input,
-        .model-form-readonly select {
+        .model-form-readonly input {
             cursor: not-allowed;
         }
 
         .model-provider-status {
-            margin-top: 2px;
             font-size: 11px;
             opacity: .7;
         }
@@ -968,16 +1109,25 @@ function injectFormStyles() {
             font-size: 15px;
         }
 
+        .model-form-mode-edit {
+            opacity: .85;
+        }
+
         @media (max-width: 700px) {
+
             .model-form-grid {
                 grid-template-columns: 1fr;
             }
+
         }
+
     `;
+
 
     document.head.appendChild(
         style
     );
+
 }
 
 
@@ -989,12 +1139,15 @@ export function renderModelForm(
     model = null,
     options = {}
 ) {
+
     injectFormStyles();
+
 
     const data =
         normalizeFormModel(
             model
         );
+
 
     const providers =
         Array.isArray(
@@ -1003,6 +1156,7 @@ export function renderModelForm(
             ? options.providers
             : [];
 
+
     const models =
         Array.isArray(
             options.models
@@ -1010,8 +1164,12 @@ export function renderModelForm(
             ? options.models
             : [];
 
+
     const isEdit =
-        Boolean(data.id);
+        Boolean(
+            data.id
+        );
+
 
     const provider =
         getProviderById(
@@ -1019,14 +1177,16 @@ export function renderModelForm(
             data.provider_id
         );
 
+
     const selectedProviderCode =
-        providerCode(provider);
+        providerCode(
+            provider
+        );
+
 
     /*
-     * Saat edit, gunakan record model
-     * yang sedang diedit sebagai fallback.
-     * Ini penting karena model bisa saja
-     * belum ditemukan dari cache sementara.
+     * Record model dari Supabase menjadi
+     * sumber utama saat Edit.
      */
 
     const currentModel =
@@ -1034,7 +1194,9 @@ export function renderModelForm(
             models,
             data.provider_id,
             data.model_id
-        ) || data;
+        ) ||
+        data;
+
 
     const ratioValues =
         getRatioValues(
@@ -1044,6 +1206,7 @@ export function renderModelForm(
             currentModel
         );
 
+
     const resolutionValues =
         getResolutionValues(
             models,
@@ -1052,6 +1215,7 @@ export function renderModelForm(
             currentModel
         );
 
+
     const modelIdOptions =
         renderModelIdOptions(
             models,
@@ -1059,9 +1223,46 @@ export function renderModelForm(
             data.model_id
         );
 
+
+    /*
+     * Model ID:
+     *
+     * CREATE:
+     *   boleh diketik untuk membuat
+     *   record pertama.
+     *
+     * EDIT:
+     *   readonly.
+     *
+     * Model ID adalah identifier model,
+     * bukan field yang boleh berubah
+     * sembarangan saat edit.
+     */
+
+    const modelIdReadonly =
+        isEdit
+            ? "readonly"
+            : "";
+
+
+    const modelIdPlaceholder =
+        isEdit
+            ? "Model ID tidak dapat diubah"
+            : (
+                modelIdOptions
+                    ? "Pilih atau ketik Model ID"
+                    : "Ketik Model ID pertama"
+            );
+
+
     return `
+
         <div
-            class="model-form-section"
+            class="model-form-section ${
+                isEdit
+                    ? "model-form-mode-edit"
+                    : ""
+            }"
             data-model-form="true"
             data-mode="${
                 isEdit
@@ -1070,12 +1271,13 @@ export function renderModelForm(
             }"
         >
 
+
             ${
                 isEdit
                     ? `
                         <input
                             type="hidden"
-                            name="id"
+                            name="${FIELD_NAMES.id}"
                             value="${escapeHtml(
                                 data.id
                             )}"
@@ -1094,29 +1296,40 @@ export function renderModelForm(
                 <div
                     class="model-form-field"
                 >
+
                     <label
                         for="model-provider"
                     >
-                        Provider
+                        Provider *
                     </label>
+
 
                     <select
                         id="model-provider"
                         name="${FIELD_NAMES.provider}"
                         data-model-field="provider_id"
                         required
+                        ${
+                            isEdit
+                                ? "data-edit-provider=\"true\""
+                                : ""
+                        }
                     >
+
                         ${renderProviderOptions(
                             providers,
                             data.provider_id,
                             selectedProviderCode
                         )}
+
                     </select>
+
 
                     <div
                         class="model-provider-status"
                         data-provider-status
                     ></div>
+
                 </div>
 
 
@@ -1125,11 +1338,13 @@ export function renderModelForm(
                 <div
                     class="model-form-field"
                 >
+
                     <label
                         for="model-id"
                     >
-                        Model ID
+                        Model ID *
                     </label>
+
 
                     <input
                         id="model-id"
@@ -1139,10 +1354,14 @@ export function renderModelForm(
                         value="${escapeHtml(
                             data.model_id
                         )}"
-                        placeholder="Ketik atau pilih Model ID"
+                        placeholder="${escapeHtml(
+                            modelIdPlaceholder
+                        )}"
                         autocomplete="off"
                         required
+                        ${modelIdReadonly}
                     >
+
 
                     <datalist
                         id="model-id-list"
@@ -1150,13 +1369,21 @@ export function renderModelForm(
                         ${modelIdOptions}
                     </datalist>
 
+
                     <div
                         class="model-form-help"
                     >
-                        Model ID berasal dari
-                        data model provider
-                        yang tersedia di Supabase.
+                        ${
+                            isEdit
+                                ? "Model ID berasal dari data Supabase dan tidak dapat diubah."
+                                : (
+                                    modelIdOptions
+                                        ? "Model ID yang sudah tersedia berasal dari data models Supabase."
+                                        : "Belum ada Model ID di tabel models. Model ID pertama dapat dimasukkan secara manual."
+                                )
+                        }
                     </div>
+
                 </div>
 
             </div>
@@ -1171,11 +1398,13 @@ export function renderModelForm(
                 <div
                     class="model-form-field"
                 >
+
                     <label
                         for="model-name"
                     >
-                        Model Name
+                        Model Name *
                     </label>
+
 
                     <input
                         id="model-name"
@@ -1187,17 +1416,20 @@ export function renderModelForm(
                         placeholder="Nama model"
                         required
                     >
+
                 </div>
 
 
                 <div
                     class="model-form-field"
                 >
+
                     <label
                         for="model-status"
                     >
-                        Status
+                        Status *
                     </label>
+
 
                     <select
                         id="model-status"
@@ -1205,10 +1437,13 @@ export function renderModelForm(
                         data-model-field="status"
                         required
                     >
+
                         ${renderStatusOptions(
                             data.status
                         )}
+
                     </select>
+
                 </div>
 
             </div>
@@ -1223,11 +1458,13 @@ export function renderModelForm(
                 <div
                     class="model-form-field"
                 >
+
                     <label
                         for="model-description"
                     >
                         Description
                     </label>
+
 
                     <textarea
                         id="model-description"
@@ -1237,6 +1474,7 @@ export function renderModelForm(
                     >${escapeHtml(
                         data.description
                     )}</textarea>
+
                 </div>
 
             </div>
@@ -1251,11 +1489,13 @@ export function renderModelForm(
                 <div
                     class="model-form-field"
                 >
+
                     <label
                         for="model-credit-cost"
                     >
-                        Credit Cost
+                        Credit Normal *
                     </label>
+
 
                     <input
                         id="model-credit-cost"
@@ -1267,18 +1507,22 @@ export function renderModelForm(
                         value="${escapeHtml(
                             data.credit_cost
                         )}"
+                        required
                     >
+
                 </div>
 
 
                 <div
                     class="model-form-field"
                 >
+
                     <label
                         for="model-discount"
                     >
-                        Discount Percent
+                        Diskon (%)
                     </label>
+
 
                     <input
                         id="model-discount"
@@ -1292,17 +1536,22 @@ export function renderModelForm(
                             data.discount_percent
                         )}"
                     >
+
                 </div>
 
             </div>
 
 
+            <!-- CREDIT FINAL -->
+
             <div
                 class="model-credit-preview"
             >
+
                 <span>
                     Credit Final
                 </span>
+
 
                 <strong
                     data-credit-final-preview
@@ -1314,6 +1563,7 @@ export function renderModelForm(
                         )
                     )}
                 </strong>
+
             </div>
 
 
@@ -1326,11 +1576,13 @@ export function renderModelForm(
                 <div
                     class="model-form-field model-form-readonly"
                 >
+
                     <label
                         for="model-min-duration"
                     >
                         Minimum Duration
                     </label>
+
 
                     <input
                         id="model-min-duration"
@@ -1345,23 +1597,27 @@ export function renderModelForm(
                         readonly
                     >
 
+
                     <div
                         class="model-form-help"
                     >
-                        Nilai mengikuti data
-                        Supabase.
+                        Mengikuti data model
+                        dari Supabase.
                     </div>
+
                 </div>
 
 
                 <div
                     class="model-form-field model-form-readonly"
                 >
+
                     <label
                         for="model-max-duration"
                     >
                         Maximum Duration
                     </label>
+
 
                     <input
                         id="model-max-duration"
@@ -1376,88 +1632,107 @@ export function renderModelForm(
                         readonly
                     >
 
+
                     <div
                         class="model-form-help"
                     >
-                        Nilai mengikuti data
-                        Supabase.
+                        Mengikuti data model
+                        dari Supabase.
                     </div>
+
                 </div>
 
             </div>
 
 
-            <!-- RATIOS -->
+            <!-- RATIO -->
 
             <div
                 class="model-form-grid full"
             >
 
                 <div
-                    class="model-form-field model-form-readonly"
+                    class="model-form-field"
                 >
+
                     <label>
                         Supported Ratios
                     </label>
+
 
                     <div
                         class="model-checkbox-group"
                         data-ratio-group
                     >
+
                         ${renderRatioCheckboxes(
                             ratioValues,
                             data.supported_ratios
                         )}
+
                     </div>
+
 
                     <div
                         class="model-form-help"
                     >
                         Opsi hanya berasal dari
-                        supported_ratios model
-                        di Supabase.
+                        supported_ratios pada
+                        record model di Supabase.
                     </div>
+
                 </div>
 
             </div>
 
 
-            <!-- RESOLUTIONS -->
+            <!-- RESOLUTION -->
 
             <div
                 class="model-form-grid full"
             >
 
                 <div
-                    class="model-form-field model-form-readonly"
+                    class="model-form-field"
                 >
+
                     <label>
                         Supported Resolutions
                     </label>
+
 
                     <div
                         class="model-checkbox-group"
                         data-resolution-group
                     >
+
                         ${renderResolutionCheckboxes(
                             resolutionValues,
                             data.supported_resolutions
                         )}
+
                     </div>
+
 
                     <div
                         class="model-form-help"
                     >
                         Opsi hanya berasal dari
-                        supported_resolutions
-                        model di Supabase.
+                        supported_resolutions pada
+                        record model di Supabase.
+                        Pilihan dapat disesuaikan
+                        menggunakan checkbox.
                     </div>
+
                 </div>
 
             </div>
 
+
         </div>
+
     `;
+
 }
 
 
@@ -1468,140 +1743,121 @@ export function renderModelForm(
 export function collectModelFormData(
     root
 ) {
+
     if (!root) {
+
         throw new Error(
             "MODEL_FORM_ROOT_MISSING"
         );
+
     }
 
-    const getValue = name => {
-        const element =
-            getElement(
-                root,
-                `[name="${name}"]`
-            );
 
-        return element
-            ? String(
-                  element.value || ""
-              ).trim()
-            : "";
-    };
+    const getValue =
+        name => {
+
+            const element =
+                getElement(
+                    root,
+                    `[name="${name}"]`
+                );
 
 
-    const getNumber = name => {
-        const value =
-            getValue(name);
+            return element
+                ? String(
+                      element.value ??
+                          ""
+                  ).trim()
+                : "";
 
-        if (value === "") {
-            return null;
-        }
+        };
 
-        const number =
-            Number(value);
 
-        return Number.isFinite(
-            number
-        )
-            ? number
-            : null;
-    };
+    const getNumber =
+        name => {
+
+            const value =
+                getValue(name);
+
+
+            if (
+                value === ""
+            ) {
+                return null;
+            }
+
+
+            const number =
+                Number(value);
+
+
+            return Number.isFinite(
+                number
+            )
+                ? number
+                : null;
+
+        };
 
 
     const getCheckedValues =
         name => {
+
             return getElements(
                 root,
                 `input[name="${name}"]:checked`
             )
-                .map(element =>
-                    String(
-                        element.value ||
-                            ""
-                    ).trim()
+                .map(
+                    element =>
+                        String(
+                            element.value ??
+                                ""
+                        ).trim()
                 )
                 .filter(Boolean);
+
         };
 
-
-    const providerId =
-        getValue(
-            FIELD_NAMES.provider
-        );
-
-    const modelId =
-        getValue(
-            FIELD_NAMES.modelId
-        );
-
-    const modelName =
-        getValue(
-            FIELD_NAMES.modelName
-        );
-
-    const description =
-        getValue(
-            FIELD_NAMES.description
-        );
 
     const creditCost =
         getNumber(
             FIELD_NAMES.creditCost
         );
 
+
     const discountPercent =
         getNumber(
             FIELD_NAMES.discountPercent
         );
 
-    const minDuration =
-        getNumber(
-            FIELD_NAMES.minDuration
-        );
-
-    const maxDuration =
-        getNumber(
-            FIELD_NAMES.maxDuration
-        );
-
-    const supportedRatios =
-        getCheckedValues(
-            FIELD_NAMES.supportedRatios
-        );
-
-    const supportedResolutions =
-        getCheckedValues(
-            FIELD_NAMES.supportedResolutions
-        );
-
-    const status =
-        normalizeStatus(
-            getValue(
-                FIELD_NAMES.status
-            )
-        );
-
-    const creditFinal =
-        calculateCreditFinal(
-            creditCost,
-            discountPercent
-        );
 
     return {
+
         id:
-            getValue("id") ||
+            getValue(
+                FIELD_NAMES.id
+            ) ||
             null,
 
         provider_id:
-            providerId,
+            getValue(
+                FIELD_NAMES.provider
+            ),
 
         model_id:
-            modelId,
+            getValue(
+                FIELD_NAMES.modelId
+            ),
 
         model_name:
-            modelName,
+            getValue(
+                FIELD_NAMES.modelName
+            ),
 
-        description,
+        description:
+            getValue(
+                FIELD_NAMES.description
+            ),
 
         credit_cost:
             creditCost,
@@ -1612,22 +1868,40 @@ export function collectModelFormData(
                 : discountPercent,
 
         credit_final:
-            creditFinal,
+            calculateCreditFinal(
+                creditCost,
+                discountPercent
+            ),
 
         min_duration:
-            minDuration,
+            getNumber(
+                FIELD_NAMES.minDuration
+            ),
 
         max_duration:
-            maxDuration,
+            getNumber(
+                FIELD_NAMES.maxDuration
+            ),
 
         supported_ratios:
-            supportedRatios,
+            getCheckedValues(
+                FIELD_NAMES.supportedRatios
+            ),
 
         supported_resolutions:
-            supportedResolutions,
+            getCheckedValues(
+                FIELD_NAMES.supportedResolutions
+            ),
 
-        status
+        status:
+            normalizeStatus(
+                getValue(
+                    FIELD_NAMES.status
+                )
+            )
+
     };
+
 }
 
 
@@ -1639,53 +1913,78 @@ export function validateModelFormData(
     data,
     options = {}
 ) {
+
     const errors = [];
 
+
     if (!data) {
+
         return [
             "Data model tidak ditemukan."
         ];
-    }
 
-
-    if (!data.provider_id) {
-        errors.push(
-            "Provider wajib dipilih."
-        );
-    }
-
-
-    if (!data.model_id) {
-        errors.push(
-            "Model ID wajib diisi."
-        );
-    }
-
-
-    if (!data.model_name) {
-        errors.push(
-            "Model Name wajib diisi."
-        );
     }
 
 
     if (
-        data.credit_cost ===
-            null ||
-        data.credit_cost ===
-            undefined ||
-        !Number.isFinite(
-            Number(
-                data.credit_cost
-            )
-        ) ||
+        !String(
+            data.provider_id ??
+                ""
+        ).trim()
+    ) {
+
+        errors.push(
+            "Provider wajib dipilih."
+        );
+
+    }
+
+
+    if (
+        !String(
+            data.model_id ??
+                ""
+        ).trim()
+    ) {
+
+        errors.push(
+            "Model ID wajib diisi."
+        );
+
+    }
+
+
+    if (
+        !String(
+            data.model_name ??
+                ""
+        ).trim()
+    ) {
+
+        errors.push(
+            "Model Name wajib diisi."
+        );
+
+    }
+
+
+    const creditCost =
         Number(
             data.credit_cost
-        ) < 0
+        );
+
+
+    if (
+        !Number.isFinite(
+            creditCost
+        ) ||
+        creditCost < 0
     ) {
+
         errors.push(
             "Credit Cost harus berupa angka 0 atau lebih."
         );
+
     }
 
 
@@ -1694,6 +1993,7 @@ export function validateModelFormData(
             data.discount_percent
         );
 
+
     if (
         !Number.isFinite(
             discount
@@ -1701,79 +2001,98 @@ export function validateModelFormData(
         discount < 0 ||
         discount > 100
     ) {
+
         errors.push(
             "Discount Percent harus berada antara 0 sampai 100."
         );
+
     }
 
 
+    const minDuration =
+        data.min_duration;
+
+
+    const maxDuration =
+        data.max_duration;
+
+
     if (
-        data.min_duration !==
-            null &&
-        data.min_duration !==
-            undefined &&
-        data.min_duration !== ""
+        minDuration !== null &&
+        minDuration !== undefined &&
+        minDuration !== ""
     ) {
+
         if (
             !Number.isFinite(
                 Number(
-                    data.min_duration
+                    minDuration
                 )
             ) ||
             Number(
-                data.min_duration
+                minDuration
             ) < 0
         ) {
+
             errors.push(
                 "Minimum Duration tidak valid."
             );
+
         }
+
     }
 
 
     if (
-        data.max_duration !==
-            null &&
-        data.max_duration !==
-            undefined &&
-        data.max_duration !== ""
+        maxDuration !== null &&
+        maxDuration !== undefined &&
+        maxDuration !== ""
     ) {
+
         if (
             !Number.isFinite(
                 Number(
-                    data.max_duration
+                    maxDuration
                 )
             ) ||
             Number(
-                data.max_duration
+                maxDuration
             ) < 0
         ) {
+
             errors.push(
                 "Maximum Duration tidak valid."
             );
+
         }
+
     }
 
 
     if (
-        data.min_duration !==
-            null &&
-        data.max_duration !==
-            null &&
-        data.min_duration !==
-            "" &&
-        data.max_duration !==
-            "" &&
-        Number(
-            data.min_duration
-        ) >
-            Number(
-                data.max_duration
-            )
+        minDuration !== null &&
+        minDuration !== undefined &&
+        minDuration !== "" &&
+        maxDuration !== null &&
+        maxDuration !== undefined &&
+        maxDuration !== ""
     ) {
-        errors.push(
-            "Minimum Duration tidak boleh lebih besar dari Maximum Duration."
-        );
+
+        if (
+            Number(
+                minDuration
+            ) >
+            Number(
+                maxDuration
+            )
+        ) {
+
+            errors.push(
+                "Minimum Duration tidak boleh lebih besar dari Maximum Duration."
+            );
+
+        }
+
     }
 
 
@@ -1782,9 +2101,11 @@ export function validateModelFormData(
             data.supported_ratios
         )
     ) {
+
         errors.push(
             "Supported Ratios harus berupa array."
         );
+
     }
 
 
@@ -1793,9 +2114,11 @@ export function validateModelFormData(
             data.supported_resolutions
         )
     ) {
+
         errors.push(
             "Supported Resolutions harus berupa array."
         );
+
     }
 
 
@@ -1811,20 +2134,27 @@ export function validateModelFormData(
         providers.length &&
         data.provider_id
     ) {
+
         const provider =
             getProviderById(
                 providers,
                 data.provider_id
             );
 
+
         if (!provider) {
+
             errors.push(
                 "Provider yang dipilih tidak ditemukan."
             );
+
         }
+
     }
 
+
     return errors;
+
 }
 
 
@@ -1836,26 +2166,35 @@ export function calculateCreditFinal(
     creditCost,
     discountPercent
 ) {
+
     const cost =
-        Number(creditCost);
+        Number(
+            creditCost
+        );
+
 
     const discount =
         Number(
             discountPercent
         );
 
+
     if (
         !Number.isFinite(cost) ||
         !Number.isFinite(discount)
     ) {
+
         return 0;
+
     }
+
 
     const safeCost =
         Math.max(
             0,
             cost
         );
+
 
     const safeDiscount =
         Math.min(
@@ -1865,6 +2204,7 @@ export function calculateCreditFinal(
                 discount
             )
         );
+
 
     return Number(
         (
@@ -1876,6 +2216,7 @@ export function calculateCreditFinal(
             )
         ).toFixed(4)
     );
+
 }
 
 
@@ -1886,9 +2227,11 @@ export function calculateCreditFinal(
 export function updateCreditFinalPreview(
     root
 ) {
+
     if (!root) {
         return;
     }
+
 
     const creditCost =
         getElement(
@@ -1896,11 +2239,13 @@ export function updateCreditFinalPreview(
             `[name="${FIELD_NAMES.creditCost}"]`
         );
 
+
     const discount =
         getElement(
             root,
             `[name="${FIELD_NAMES.discountPercent}"]`
         );
+
 
     const preview =
         getElement(
@@ -1908,22 +2253,26 @@ export function updateCreditFinalPreview(
             "[data-credit-final-preview]"
         );
 
+
     if (
         !creditCost ||
         !discount ||
         !preview
     ) {
+
         return;
+
     }
 
-    const final =
-        calculateCreditFinal(
-            creditCost.value,
-            discount.value
-        );
 
     preview.textContent =
-        String(final);
+        String(
+            calculateCreditFinal(
+                creditCost.value,
+                discount.value
+            )
+        );
+
 }
 
 
@@ -1935,9 +2284,11 @@ export function updateProviderStatus(
     root,
     providers = null
 ) {
+
     if (!root) {
         return;
     }
+
 
     const providerSelect =
         getElement(
@@ -1945,31 +2296,40 @@ export function updateProviderStatus(
             `[name="${FIELD_NAMES.provider}"]`
         );
 
+
     const statusElement =
         getElement(
             root,
             "[data-provider-status]"
         );
 
+
     if (
         !providerSelect ||
         !statusElement
     ) {
+
         return;
+
     }
+
 
     const providerId =
         String(
-            providerSelect.value ||
+            providerSelect.value ??
                 ""
         ).trim();
 
+
     if (!providerId) {
+
         statusElement.textContent =
             "Belum ada provider dipilih.";
 
         return;
+
     }
+
 
     const provider =
         getProviderById(
@@ -1977,34 +2337,42 @@ export function updateProviderStatus(
             providerId
         );
 
+
     if (!provider) {
+
         statusElement.textContent =
             "Provider tidak ditemukan.";
 
         return;
+
     }
 
-    const status =
-        String(
-            provider.status ||
-                "inactive"
-        )
-            .toLowerCase()
-            .trim();
+
+    const active =
+        isProviderActive(
+            provider
+        );
+
 
     statusElement.textContent =
-        `Status provider: ${status}`;
+        `Status provider: ${
+            active
+                ? "active"
+                : "inactive"
+        }`;
+
 }
 
 
 /* =========================================================
-   APPLY MODEL DATA TO FORM
+   APPLY MODEL DATA
    ========================================================= */
 
 export function applyModelDataToForm(
     root,
     model
 ) {
+
     if (
         !root ||
         !model
@@ -2012,32 +2380,52 @@ export function applyModelDataToForm(
         return;
     }
 
+
     const normalized =
         normalizeFormModel(
             model
         );
 
 
-    const setValue = (
-        name,
-        value
-    ) => {
-        const element =
-            getElement(
-                root,
-                `[name="${name}"]`
-            );
+    const setValue =
+        (
+            name,
+            value
+        ) => {
 
-        if (element) {
-            element.value =
-                value === null ||
-                value === undefined
-                    ? ""
-                    : String(
-                          value
-                      );
-        }
-    };
+            const element =
+                getElement(
+                    root,
+                    `[name="${name}"]`
+                );
+
+
+            if (element) {
+
+                element.value =
+                    value === null ||
+                    value === undefined
+                        ? ""
+                        : String(
+                              value
+                          );
+
+            }
+
+        };
+
+
+    /*
+     * Model ID hanya diisi dari record
+     * Supabase.
+     *
+     * Saat Edit field readonly.
+     */
+
+    setValue(
+        FIELD_NAMES.modelId,
+        normalized.model_id
+    );
 
 
     setValue(
@@ -2045,35 +2433,42 @@ export function applyModelDataToForm(
         normalized.model_name
     );
 
+
     setValue(
         FIELD_NAMES.description,
         normalized.description
     );
+
 
     setValue(
         FIELD_NAMES.creditCost,
         normalized.credit_cost
     );
 
+
     setValue(
         FIELD_NAMES.discountPercent,
         normalized.discount_percent
     );
+
 
     setValue(
         FIELD_NAMES.creditFinal,
         normalized.credit_final
     );
 
+
     setValue(
         FIELD_NAMES.minDuration,
         normalized.min_duration
     );
 
+
     setValue(
         FIELD_NAMES.maxDuration,
         normalized.max_duration
     );
+
 
     setValue(
         FIELD_NAMES.status,
@@ -2086,17 +2481,21 @@ export function applyModelDataToForm(
             normalized.supported_ratios
         );
 
+
     getElements(
         root,
         `input[name="${FIELD_NAMES.supportedRatios}"]`
     ).forEach(
         element => {
+
             element.checked =
                 ratios.includes(
                     String(
-                        element.value
+                        element.value ??
+                            ""
                     ).trim()
                 );
+
         }
     );
 
@@ -2106,17 +2505,21 @@ export function applyModelDataToForm(
             normalized.supported_resolutions
         );
 
+
     getElements(
         root,
         `input[name="${FIELD_NAMES.supportedResolutions}"]`
     ).forEach(
         element => {
+
             element.checked =
                 resolutions.includes(
                     String(
-                        element.value
+                        element.value ??
+                            ""
                     ).trim()
                 );
+
         }
     );
 
@@ -2124,20 +2527,23 @@ export function applyModelDataToForm(
     updateCreditFinalPreview(
         root
     );
+
 }
 
 
 /* =========================================================
-   MODEL ID DATASOURCE UPDATE
+   MODEL ID DATASOURCE
    ========================================================= */
 
 export function updateModelIdOptions(
     root,
     models = []
 ) {
+
     if (!root) {
         return;
     }
+
 
     const providerSelect =
         getElement(
@@ -2145,11 +2551,13 @@ export function updateModelIdOptions(
             `[name="${FIELD_NAMES.provider}"]`
         );
 
+
     const modelIdInput =
         getElement(
             root,
             `[name="${FIELD_NAMES.modelId}"]`
         );
+
 
     const datalist =
         getElement(
@@ -2157,31 +2565,31 @@ export function updateModelIdOptions(
             "#model-id-list"
         );
 
+
     if (
         !providerSelect ||
         !modelIdInput ||
         !datalist
     ) {
+
         return;
+
     }
+
 
     const providerId =
         String(
-            providerSelect.value ||
+            providerSelect.value ??
                 ""
         ).trim();
 
-    const currentModelId =
-        String(
-            modelIdInput.value ||
-                ""
-        ).trim();
 
     const modelIds =
         getModelIds(
             models,
             providerId
         );
+
 
     datalist.innerHTML =
         modelIds
@@ -2196,24 +2604,22 @@ export function updateModelIdOptions(
             )
             .join("");
 
-    if (currentModelId) {
-        modelIdInput.value =
-            currentModelId;
-    }
 }
 
 
 /* =========================================================
-   APPLY SELECTED MODEL
+   UPDATE SELECTED MODEL
    ========================================================= */
 
 export function updateSelectedModelFields(
     root,
     models = []
 ) {
+
     if (!root) {
         return;
     }
+
 
     const providerSelect =
         getElement(
@@ -2221,37 +2627,47 @@ export function updateSelectedModelFields(
             `[name="${FIELD_NAMES.provider}"]`
         );
 
+
     const modelIdInput =
         getElement(
             root,
             `[name="${FIELD_NAMES.modelId}"]`
         );
 
+
     if (
         !providerSelect ||
         !modelIdInput
     ) {
+
         return;
+
     }
+
 
     const providerId =
         String(
-            providerSelect.value ||
+            providerSelect.value ??
                 ""
         ).trim();
 
+
     const modelId =
         String(
-            modelIdInput.value ||
+            modelIdInput.value ??
                 ""
         ).trim();
+
 
     if (
         !providerId ||
         !modelId
     ) {
+
         return;
+
     }
+
 
     const model =
         getModelByModelId(
@@ -2260,14 +2676,19 @@ export function updateSelectedModelFields(
             modelId
         );
 
+
     if (!model) {
+
         return;
+
     }
+
 
     applyModelDataToForm(
         root,
         model
     );
+
 }
 
 
@@ -2280,9 +2701,11 @@ export function handleProviderChange(
     models = [],
     providers = []
 ) {
+
     if (!root) {
         return;
     }
+
 
     const providerSelect =
         getElement(
@@ -2290,30 +2713,35 @@ export function handleProviderChange(
             `[name="${FIELD_NAMES.provider}"]`
         );
 
+
     const modelIdInput =
         getElement(
             root,
             `[name="${FIELD_NAMES.modelId}"]`
         );
 
+
     if (
         !providerSelect ||
         !modelIdInput
     ) {
+
         return;
+
     }
+
 
     const providerId =
         String(
-            providerSelect.value ||
+            providerSelect.value ??
                 ""
         ).trim();
 
+
     /*
-     * Provider berubah.
-     * Model ID lama tidak boleh dibawa
-     * jika model tersebut milik provider
-     * lain.
+     * Saat provider berubah, cari apakah
+     * Model ID saat ini memang dimiliki
+     * provider baru.
      */
 
     const currentModel =
@@ -2323,32 +2751,63 @@ export function handleProviderChange(
             modelIdInput.value
         );
 
+
     updateModelIdOptions(
         root,
         models
     );
+
 
     updateProviderStatus(
         root,
         providers
     );
 
+
     if (currentModel) {
+
         applyModelDataToForm(
             root,
             currentModel
         );
+
+        return;
+
+    }
+
+
+    /*
+     * Model ID yang lama bukan milik
+     * provider baru.
+     *
+     * Bersihkan semua field turunan
+     * agar data provider lama tidak
+     * terbawa.
+     */
+
+    /*
+     * Pada Edit, Provider seharusnya
+     * tidak boleh menyebabkan Model ID
+     * berubah diam-diam.
+     *
+     * Namun event ini tetap menangani
+     * mode Create secara aman.
+     */
+
+    const formMode =
+        root.dataset?.mode ||
+        "create";
+
+
+    if (
+        formMode === "edit"
+    ) {
         return;
     }
 
-    /*
-     * Tidak ada model yang cocok.
-     * Bersihkan field yang bergantung
-     * pada model agar tidak menyimpan
-     * data provider sebelumnya.
-     */
 
     modelIdInput.value = "";
+
 
     setDependentField(
         root,
@@ -2356,11 +2815,13 @@ export function handleProviderChange(
         ""
     );
 
+
     setDependentField(
         root,
         FIELD_NAMES.description,
         ""
     );
+
 
     setDependentField(
         root,
@@ -2368,11 +2829,13 @@ export function handleProviderChange(
         ""
     );
 
+
     setDependentField(
         root,
         FIELD_NAMES.maxDuration,
         ""
     );
+
 
     replaceCheckboxValues(
         root,
@@ -2380,16 +2843,18 @@ export function handleProviderChange(
         []
     );
 
+
     replaceCheckboxValues(
         root,
         FIELD_NAMES.supportedResolutions,
         []
     );
+
 }
 
 
 /* =========================================================
-   DEPENDENT FIELD HELPER
+   DEPENDENT FIELD
    ========================================================= */
 
 function setDependentField(
@@ -2397,19 +2862,24 @@ function setDependentField(
     name,
     value
 ) {
+
     const element =
         getElement(
             root,
             `[name="${name}"]`
         );
 
+
     if (element) {
+
         element.value =
             value === null ||
             value === undefined
                 ? ""
                 : String(value);
+
     }
+
 }
 
 
@@ -2418,22 +2888,30 @@ function replaceCheckboxValues(
     name,
     values
 ) {
+
     const selected =
-        unique(values);
+        unique(
+            values
+        );
+
 
     getElements(
         root,
         `input[name="${name}"]`
     ).forEach(
         element => {
+
             element.checked =
                 selected.includes(
                     String(
-                        element.value
+                        element.value ??
+                            ""
                     ).trim()
                 );
+
         }
     );
+
 }
 
 
@@ -2445,9 +2923,11 @@ export function attachModelFormEvents(
     root,
     options = {}
 ) {
+
     if (!root) {
         return;
     }
+
 
     const models =
         Array.isArray(
@@ -2455,6 +2935,7 @@ export function attachModelFormEvents(
         )
             ? options.models
             : [];
+
 
     const providers =
         Array.isArray(
@@ -2464,32 +2945,42 @@ export function attachModelFormEvents(
             : [];
 
 
+    /*
+     * Hindari pemasangan event dua kali.
+     */
+
     if (
         root.dataset &&
         root.dataset
             .modelFormEventsAttached ===
             "true"
     ) {
+
         updateModelIdOptions(
             root,
             models
         );
+
 
         updateProviderStatus(
             root,
             providers
         );
 
+
         updateSelectedModelFields(
             root,
             models
         );
 
+
         updateCreditFinalPreview(
             root
         );
 
+
         return;
+
     }
 
 
@@ -2499,17 +2990,20 @@ export function attachModelFormEvents(
             `[name="${FIELD_NAMES.provider}"]`
         );
 
+
     const modelIdInput =
         getElement(
             root,
             `[name="${FIELD_NAMES.modelId}"]`
         );
 
+
     const creditCost =
         getElement(
             root,
             `[name="${FIELD_NAMES.creditCost}"]`
         );
+
 
     const discountPercent =
         getElement(
@@ -2519,75 +3013,108 @@ export function attachModelFormEvents(
 
 
     if (providerSelect) {
+
         providerSelect.addEventListener(
             "change",
             () => {
+
                 handleProviderChange(
                     root,
                     models,
                     providers
                 );
+
             }
         );
+
     }
 
 
-    if (modelIdInput) {
+    /*
+     * Jangan attach input/change handler
+     * yang mencoba mengubah Model ID
+     * ketika field readonly.
+     */
+
+    if (
+        modelIdInput &&
+        !modelIdInput.readOnly
+    ) {
+
         modelIdInput.addEventListener(
             "change",
             () => {
+
                 updateSelectedModelFields(
                     root,
                     models
                 );
+
             }
         );
+
 
         modelIdInput.addEventListener(
             "input",
             () => {
+
                 /*
-                 * Hanya update ketika nilai
-                 * benar-benar cocok dengan
-                 * model Supabase.
+                 * Hanya populate field apabila
+                 * Model ID cocok persis dengan
+                 * record Supabase.
+                 *
+                 * Tidak menghapus input manual.
                  */
+
                 updateSelectedModelFields(
                     root,
                     models
                 );
+
             }
         );
+
     }
 
 
     if (creditCost) {
+
         creditCost.addEventListener(
             "input",
             () => {
+
                 updateCreditFinalPreview(
                     root
                 );
+
             }
         );
+
     }
 
 
     if (discountPercent) {
+
         discountPercent.addEventListener(
             "input",
             () => {
+
                 updateCreditFinalPreview(
                     root
                 );
+
             }
         );
+
     }
 
 
     if (root.dataset) {
+
         root.dataset
             .modelFormEventsAttached =
             "true";
+
     }
 
 
@@ -2596,19 +3123,23 @@ export function attachModelFormEvents(
         models
     );
 
+
     updateProviderStatus(
         root,
         providers
     );
+
 
     updateSelectedModelFields(
         root,
         models
     );
 
+
     updateCreditFinalPreview(
         root
     );
+
 }
 
 
@@ -2619,26 +3150,33 @@ export function attachModelFormEvents(
 export async function loadModelFormData(
     options = {}
 ) {
+
     const [
         models,
         providers
     ] = await Promise.all([
+
         options.models ||
             loadModels({
-                force: Boolean(
-                    options.force
-                )
+                force:
+                    Boolean(
+                        options.force
+                    )
             }),
 
         options.providers ||
             loadProviders({
-                force: Boolean(
-                    options.force
-                )
+                force:
+                    Boolean(
+                        options.force
+                    )
             })
+
     ]);
 
+
     return {
+
         models:
             Array.isArray(models)
                 ? models.map(
@@ -2652,7 +3190,9 @@ export async function loadModelFormData(
             )
                 ? providers
                 : []
+
     };
+
 }
 
 
@@ -2664,10 +3204,12 @@ export async function prepareModelForm(
     model = null,
     options = {}
 ) {
+
     const data =
         await loadModelFormData(
             options
         );
+
 
     const html =
         renderModelForm(
@@ -2675,7 +3217,9 @@ export async function prepareModelForm(
             data
         );
 
+
     return {
+
         html,
 
         model:
@@ -2688,7 +3232,9 @@ export async function prepareModelForm(
 
         providers:
             data.providers
+
     };
+
 }
 
 
@@ -2700,14 +3246,17 @@ export function resolveProvider(
     providers,
     providerValue
 ) {
+
     const value =
         String(
-            providerValue || ""
+            providerValue ?? ""
         ).trim();
+
 
     if (!value) {
         return null;
     }
+
 
     return (
         getProviderById(
@@ -2720,6 +3269,7 @@ export function resolveProvider(
         ) ||
         null
     );
+
 }
 
 
@@ -2731,8 +3281,9 @@ export function normalizeModelSubmission(
     formData,
     providers = []
 ) {
+
     const data = {
-        ...formData
+        ...(formData || {})
     };
 
 
@@ -2744,8 +3295,8 @@ export function normalizeModelSubmission(
 
 
     /*
-     * models.provider_id selalu
-     * menggunakan providers.id.
+     * FK models.provider_id
+     * selalu menunjuk ke providers.id.
      *
      * Bukan providers.provider_id.
      */
@@ -2754,28 +3305,30 @@ export function normalizeModelSubmission(
         provider &&
         provider.id
     ) {
+
         data.provider_id =
             String(
                 provider.id
             );
+
     }
 
 
     data.model_id =
         String(
-            data.model_id || ""
+            data.model_id ?? ""
         ).trim();
 
 
     data.model_name =
         String(
-            data.model_name || ""
+            data.model_name ?? ""
         ).trim();
 
 
     data.description =
         String(
-            data.description || ""
+            data.description ?? ""
         ).trim();
 
 
@@ -2808,10 +3361,12 @@ export function normalizeModelSubmission(
             undefined &&
         data.credit_cost !== ""
     ) {
+
         data.credit_cost =
             Number(
                 data.credit_cost
             );
+
     }
 
 
@@ -2822,10 +3377,12 @@ export function normalizeModelSubmission(
             undefined &&
         data.discount_percent !== ""
     ) {
+
         data.discount_percent =
             Number(
                 data.discount_percent
             );
+
     }
 
 
@@ -2836,10 +3393,12 @@ export function normalizeModelSubmission(
             undefined &&
         data.min_duration !== ""
     ) {
+
         data.min_duration =
             Number(
                 data.min_duration
             );
+
     }
 
 
@@ -2850,10 +3409,12 @@ export function normalizeModelSubmission(
             undefined &&
         data.max_duration !== ""
     ) {
+
         data.max_duration =
             Number(
                 data.max_duration
             );
+
     }
 
 
@@ -2865,6 +3426,7 @@ export function normalizeModelSubmission(
 
 
     return data;
+
 }
 
 
@@ -2873,6 +3435,7 @@ export function normalizeModelSubmission(
    ========================================================= */
 
 export default {
+
     renderModelForm,
 
     collectModelFormData,
@@ -2924,4 +3487,5 @@ export default {
     FIELD_NAMES,
 
     STATUS_OPTIONS
+
 };
