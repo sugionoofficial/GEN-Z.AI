@@ -5,16 +5,11 @@
    File:
    admin-control/models/models-search.js
 
-   Tanggung jawab:
-   - Memuat katalog Model dari models-data
-   - Filter berdasarkan Provider
-   - Search Model ID / nama / family / provider
-   - Menyediakan Model untuk dropdown
-   - Memvalidasi selection berdasarkan catalog
-
-   SOURCE OF TRUTH:
-   - models
-   - providers
+   Arsitektur:
+   - Model catalog berasal dari model folder
+   - models-data.js menjadi gateway catalog
+   - Provider berasal dari Supabase
+   - Tidak menggunakan tabel KIE lama
 
    TIDAK MENGGUNAKAN:
    - kie_models
@@ -54,9 +49,11 @@
             document.getElementById(
                 "modelCodeSearch"
             ) ||
+
             document.getElementById(
                 "modelSearch"
             ) ||
+
             document.getElementById(
                 "modelIdSearch"
             )
@@ -70,6 +67,7 @@
             document.getElementById(
                 "modelCode"
             ) ||
+
             document.getElementById(
                 "modelId"
             )
@@ -83,9 +81,11 @@
             document.getElementById(
                 "modelSearchResults"
             ) ||
+
             document.getElementById(
                 "modelResults"
             ) ||
+
             document.getElementById(
                 "modelDropdown"
             )
@@ -97,9 +97,7 @@
        STRING HELPERS
        ===================================================== */
 
-    function normalizeString(
-        value
-    ) {
+    function normalizeString(value) {
 
         return String(
             value ?? ""
@@ -109,9 +107,7 @@
     }
 
 
-    function cleanString(
-        value
-    ) {
+    function cleanString(value) {
 
         return String(
             value ?? ""
@@ -119,9 +115,7 @@
     }
 
 
-    function uniqueValues(
-        values
-    ) {
+    function uniqueValues(values) {
 
         return [
             ...new Set(
@@ -136,56 +130,45 @@
 
 
     /* =====================================================
-       MODEL NORMALIZER
+       MODEL NORMALIZATION
        ===================================================== */
 
-    function normalizeModel(
-        model
-    ) {
+    function normalizeModel(model) {
 
         if (
             !model ||
-            typeof model !==
-                "object"
+            typeof model !== "object"
         ) {
-
             return null;
         }
+
+
+        const provider =
+            model.provider &&
+            typeof model.provider === "object"
+                ? model.provider
+                : null;
 
 
         const modelId =
             cleanString(
                 model.model_id ??
                 model.modelId ??
+                model.id ??
                 ""
             );
 
 
-        /*
-         * Model tanpa Model ID tidak
-         * dapat digunakan untuk search.
-         */
-        if (
-            !modelId
-        ) {
-
+        if (!modelId) {
             return null;
         }
 
 
-        const providerObject =
-            model.provider &&
-            typeof model.provider ===
-                "object"
-                ? model.provider
-                : null;
-
-
-        const providerId =
+        const providerCode =
             cleanString(
-                model.provider_id ??
+                model.provider_code ??
                 model.providerId ??
-                providerObject?.provider_id ??
+                provider?.provider_id ??
                 ""
             );
 
@@ -193,8 +176,7 @@
         const providerUuid =
             cleanString(
                 model.provider_uuid ??
-                model.providerUuid ??
-                providerObject?.id ??
+                provider?.id ??
                 ""
             );
 
@@ -202,9 +184,8 @@
         const providerName =
             cleanString(
                 model.provider_name ??
-                model.providerName ??
-                providerObject?.provider_name ??
-                providerObject?.name ??
+                provider?.provider_name ??
+                provider?.name ??
                 ""
             );
 
@@ -218,15 +199,6 @@
             );
 
 
-        const modelFamily =
-            cleanString(
-                model.model_family ??
-                model.modelFamily ??
-                model.family ??
-                ""
-            );
-
-
         return {
 
             ...model,
@@ -234,8 +206,14 @@
             model_id:
                 modelId,
 
+            model_name:
+                modelName,
+
             provider_id:
-                providerId,
+                providerCode,
+
+            provider_code:
+                providerCode,
 
             provider_uuid:
                 providerUuid,
@@ -243,23 +221,17 @@
             provider_name:
                 providerName,
 
-            model_name:
-                modelName,
-
-            model_family:
-                modelFamily
+            provider:
+                provider || null
         };
     }
 
 
-    function normalizeModels(
-        list
-    ) {
+    function normalizeModels(list) {
 
         if (
             !Array.isArray(list)
         ) {
-
             return [];
         }
 
@@ -279,10 +251,7 @@
                     );
 
 
-                if (
-                    !model
-                ) {
-
+                if (!model) {
                     return;
                 }
 
@@ -297,7 +266,6 @@
                     !key ||
                     seen.has(key)
                 ) {
-
                     return;
                 }
 
@@ -316,12 +284,10 @@
 
 
     /* =====================================================
-       MODEL STATUS
+       STATUS
        ===================================================== */
 
-    function isActive(
-        model
-    ) {
+    function isActive(model) {
 
         const status =
             normalizeString(
@@ -330,17 +296,13 @@
 
 
         /*
-         * models-data sudah dapat melakukan
-         * filtering status.
+         * Model folder default:
+         * active
          *
-         * Jika status kosong, record tetap
-         * boleh tampil karena source data
-         * sudah dianggap valid.
+         * Jika status belum ada,
+         * jangan menghilangkan model.
          */
-        if (
-            !status
-        ) {
-
+        if (!status) {
             return true;
         }
 
@@ -354,7 +316,7 @@
 
 
     /* =====================================================
-       PROVIDER MODULE
+       PROVIDER
        ===================================================== */
 
     function getProviderModule() {
@@ -365,10 +327,6 @@
         );
     }
 
-
-    /* =====================================================
-       SELECTED PROVIDER
-       ===================================================== */
 
     function emptyProvider() {
 
@@ -395,10 +353,7 @@
             );
 
 
-        if (
-            !select
-        ) {
-
+        if (!select) {
             return emptyProvider();
         }
 
@@ -409,10 +364,7 @@
             );
 
 
-        if (
-            !selectedValue
-        ) {
-
+        if (!selectedValue) {
             return emptyProvider();
         }
 
@@ -423,8 +375,10 @@
             ];
 
 
-        let providerId =
-            selectedValue;
+        let providerCode =
+            cleanString(
+                option?.dataset?.providerId
+            );
 
 
         let providerUuid =
@@ -439,14 +393,14 @@
             );
 
 
+        /*
+         * Provider module tetap menjadi
+         * sumber data provider.
+         */
         const providerModule =
             getProviderModule();
 
 
-        /*
-         * Provider module adalah sumber
-         * data provider yang sudah dimuat.
-         */
         if (
             providerModule &&
             typeof providerModule.getProviderById ===
@@ -461,22 +415,20 @@
                     );
 
 
-                if (
-                    provider
-                ) {
-
-                    providerId =
-                        cleanString(
-                            provider.provider_id ??
-                            provider.provider ??
-                            selectedValue
-                        );
-
+                if (provider) {
 
                     providerUuid =
                         cleanString(
                             provider.id ??
                             providerUuid
+                        );
+
+
+                    providerCode =
+                        cleanString(
+                            provider.provider_id ??
+                            provider.provider ??
+                            providerCode
                         );
 
 
@@ -488,9 +440,7 @@
                         );
                 }
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
                     "[GEN-Z.AI] Provider lookup gagal:",
@@ -500,21 +450,27 @@
         }
 
 
+        /*
+         * Bila value select adalah UUID,
+         * gunakan UUID sebagai id.
+         */
         return {
 
             id:
                 selectedValue,
 
             uuid:
-                providerUuid,
+                providerUuid ||
+                selectedValue,
 
             providerId:
-                providerId,
+                providerCode,
 
             name:
                 providerName,
 
             text:
+                providerName ||
                 cleanString(
                     option?.textContent
                 )
@@ -526,26 +482,22 @@
        MODEL PROVIDER IDENTIFIERS
        ===================================================== */
 
-    function getModelProviderIds(
-        model
-    ) {
+    function getModelProviderCodes(model) {
 
         return uniqueValues([
+
+            model?.provider_code,
 
             model?.provider_id,
 
             model?.providerId,
-
-            model?.provider,
 
             model?.provider?.provider_id
         ]);
     }
 
 
-    function getModelProviderUuids(
-        model
-    ) {
+    function getModelProviderUuids(model) {
 
         return uniqueValues([
 
@@ -572,20 +524,16 @@
             getSelectedProvider();
 
 
-        /*
-         * Tidak ada Provider dipilih.
-         */
         if (
             !selected.providerId &&
             !selected.uuid &&
             !selected.id
         ) {
-
             return true;
         }
 
 
-        const selectedProviderId =
+        const selectedCode =
             normalizeString(
                 selected.providerId
             );
@@ -604,112 +552,97 @@
 
 
         /*
-         * UUID exact.
-         */
-        if (
-            selectedUuid
-        ) {
-
-            const modelUuids =
-                getModelProviderUuids(
-                    model
-                );
-
-
-            if (
-                modelUuids.length > 0
-            ) {
-
-                return modelUuids.includes(
-                    selectedUuid
-                );
-            }
-        }
-
-
-        /*
-         * Provider code exact.
+         * Prioritas 1:
+         * provider code.
          *
          * Contoh:
-         *
-         * providers.provider_id
-         * =
-         * model.provider_id
-         *
-         * Tidak menggunakan includes().
+         * kie_ai
          */
-        if (
-            selectedProviderId
-        ) {
+        if (selectedCode) {
 
-            const modelProviderIds =
-                getModelProviderIds(
+            const codes =
+                getModelProviderCodes(
                     model
                 );
 
 
             if (
-                modelProviderIds.length > 0
+                codes.length > 0 &&
+                codes.includes(
+                    selectedCode
+                )
             ) {
-
-                return modelProviderIds.includes(
-                    selectedProviderId
-                );
+                return true;
             }
         }
 
 
         /*
-         * Fallback apabila value select
-         * adalah UUID database provider.
+         * Prioritas 2:
+         * UUID provider.
          */
-        if (
-            selectedId
-        ) {
+        if (selectedUuid) {
 
-            const modelProviderUuids =
+            const uuids =
                 getModelProviderUuids(
                     model
                 );
 
 
             if (
-                modelProviderUuids.includes(
-                    selectedId
+                uuids.length > 0 &&
+                uuids.includes(
+                    selectedUuid
                 )
             ) {
-
-                return true;
-            }
-
-
-            const modelProviderIds =
-                getModelProviderIds(
-                    model
-                );
-
-
-            if (
-                modelProviderIds.includes(
-                    selectedId
-                )
-            ) {
-
                 return true;
             }
         }
 
 
         /*
-         * Provider name sengaja tidak digunakan
-         * untuk menentukan kecocokan.
+         * Prioritas 3:
+         * selected id.
          */
+        if (selectedId) {
+
+            const uuids =
+                getModelProviderUuids(
+                    model
+                );
+
+
+            if (
+                uuids.includes(
+                    selectedId
+                )
+            ) {
+                return true;
+            }
+
+
+            const codes =
+                getModelProviderCodes(
+                    model
+                );
+
+
+            if (
+                codes.includes(
+                    selectedId
+                )
+            ) {
+                return true;
+            }
+        }
+
+
         return false;
     }
 
 
     /* =====================================================
-       CATALOG LOADING
+       CATALOG
        ===================================================== */
 
     async function ensureCatalog(
@@ -720,7 +653,6 @@
             catalogLoaded &&
             options.force !== true
         ) {
-
             return [
                 ...models
             ];
@@ -731,7 +663,6 @@
             loadingPromise &&
             options.force !== true
         ) {
-
             return loadingPromise;
         }
 
@@ -750,7 +681,6 @@
                 "[GEN-Z.AI] GENZModelsData.loadModels() belum tersedia."
             );
 
-
             return [
                 ...models
             ];
@@ -763,37 +693,26 @@
                 try {
 
                     /*
-                     * INI PERUBAHAN UTAMA:
-                     *
-                     * Sebelumnya:
-                     * loadKieModels()
-                     *
-                     * Sekarang:
-                     * loadModels()
-                     *
-                     * Karena source of truth sudah
-                     * dipindahkan ke tabel models.
+                     * models-data sekarang membaca
+                     * MODEL_REGISTRY dari folder model.
                      */
                     const loaded =
                         await data.loadModels({
 
                             force:
-                                options.force === true,
+                                options.force ===
+                                true,
 
                             includeInactive:
                                 options.activeOnly ===
-                                    false,
+                                false,
 
                             activeProviderOnly:
                                 options.activeProviderOnly ===
-                                    true
+                                true
                         });
 
 
-                    /*
-                     * Hanya data dari models-data
-                     * yang boleh masuk catalog.
-                     */
                     setModels(
                         loaded
                     );
@@ -803,9 +722,7 @@
                         ...models
                     ];
 
-                } catch (
-                    error
-                ) {
+                } catch (error) {
 
                     console.error(
                         "[GEN-Z.AI] Gagal memuat katalog Model:",
@@ -848,9 +765,7 @@
        SET MODELS
        ===================================================== */
 
-    function setModels(
-        list
-    ) {
+    function setModels(list) {
 
         models =
             normalizeModels(
@@ -868,11 +783,6 @@
         );
 
 
-        /*
-         * Jika input sedang aktif,
-         * render ulang setelah catalog
-         * berhasil dimuat.
-         */
         const input =
             getSearchInput();
 
@@ -896,15 +806,41 @@
     }
 
 
-    /* =====================================================
-       GET MODELS
-       ===================================================== */
-
     function getModels() {
 
         return [
             ...models
         ];
+    }
+
+
+    /* =====================================================
+       FIND MODEL
+       ===================================================== */
+
+    function findModelById(
+        modelId
+    ) {
+
+        const id =
+            normalizeString(
+                modelId
+            );
+
+
+        if (!id) {
+            return null;
+        }
+
+
+        return (
+            models.find(
+                model =>
+                    normalizeString(
+                        model.model_id
+                    ) === id
+            ) || null
+        );
     }
 
 
@@ -936,7 +872,7 @@
 
 
         /*
-         * Provider exact.
+         * Provider.
          */
         results =
             results.filter(
@@ -951,22 +887,18 @@
 
 
         /*
-         * Tanpa keyword:
-         * tampilkan seluruh Model dari
-         * Provider yang dipilih.
+         * Tidak ada keyword.
          */
-        if (
-            !term
-        ) {
+        if (!term) {
 
             return results.sort(
                 function (a, b) {
 
                     return String(
-                        a.model_id || ""
+                        a.model_id
                     ).localeCompare(
                         String(
-                            b.model_id || ""
+                            b.model_id
                         ),
                         "id",
                         {
@@ -980,271 +912,91 @@
 
 
         /*
-         * Search Model ID.
+         * Search berdasarkan:
+         *
+         * Model ID
+         * Model name
+         * Description
+         * Provider
+         * Type
          */
-        results =
-            results.filter(
+        return results
+            .filter(
                 function (model) {
 
-                    const modelId =
-                        normalizeString(
-                            model.model_id
-                        );
+                    const haystack =
+                        [
+                            model.model_id,
+
+                            model.model_name,
+
+                            model.description,
+
+                            model.provider_code,
+
+                            model.provider_id,
+
+                            model.provider_name,
+
+                            model.provider?.provider_id,
+
+                            model.provider?.provider_name,
+
+                            model.type
+                        ]
+                            .filter(Boolean)
+                            .join(" ")
+                            .toLowerCase();
 
 
-                    const modelName =
-                        normalizeString(
-                            model.model_name
-                        );
-
-
-                    const family =
-                        normalizeString(
-                            model.model_family
-                        );
-
-
-                    const provider =
-                        normalizeString(
-                            model.provider_name ||
-                            model.provider_id ||
-                            model.provider?.provider_name ||
-                            model.provider?.provider_id ||
-                            ""
-                        );
-
-
-                    return (
-                        modelId.includes(
-                            term
-                        ) ||
-                        modelName.includes(
-                            term
-                        ) ||
-                        family.includes(
-                            term
-                        ) ||
-                        provider.includes(
-                            term
-                        )
+                    return haystack.includes(
+                        term
                     );
                 }
-            );
+            )
+            .sort(
+                function (a, b) {
+
+                    const aId =
+                        normalizeString(
+                            a.model_id
+                        );
+
+                    const bId =
+                        normalizeString(
+                            b.model_id
+                        );
 
 
-        /*
-         * Ranking.
-         */
-        results.sort(
-            function (a, b) {
-
-                const aId =
-                    normalizeString(
-                        a.model_id
-                    );
-
-
-                const bId =
-                    normalizeString(
-                        b.model_id
-                    );
-
-
-                const aName =
-                    normalizeString(
-                        a.model_name
-                    );
-
-
-                const bName =
-                    normalizeString(
-                        b.model_name
-                    );
-
-
-                const aFamily =
-                    normalizeString(
-                        a.model_family
-                    );
-
-
-                const bFamily =
-                    normalizeString(
-                        b.model_family
-                    );
-
-
-                const aProvider =
-                    normalizeString(
-                        a.provider_name ||
-                        a.provider_id ||
-                        a.provider?.provider_name ||
-                        a.provider?.provider_id ||
-                        ""
-                    );
-
-
-                const bProvider =
-                    normalizeString(
-                        b.provider_name ||
-                        b.provider_id ||
-                        b.provider?.provider_name ||
-                        b.provider?.provider_id ||
-                        ""
-                    );
-
-
-                function score(
-                    id,
-                    name,
-                    family,
-                    provider
-                ) {
-
+                    /*
+                     * Exact match lebih dulu.
+                     */
                     if (
-                        id === term
+                        aId === term &&
+                        bId !== term
                     ) {
-
-                        return 100000;
+                        return -1;
                     }
 
 
                     if (
-                        id.startsWith(
-                            term
-                        )
+                        bId === term &&
+                        aId !== term
                     ) {
-
-                        return 10000;
+                        return 1;
                     }
 
 
-                    if (
-                        id.includes(
-                            term
-                        )
-                    ) {
-
-                        return 1000;
-                    }
-
-
-                    if (
-                        name.includes(
-                            term
-                        )
-                    ) {
-
-                        return 100;
-                    }
-
-
-                    if (
-                        family.includes(
-                            term
-                        )
-                    ) {
-
-                        return 50;
-                    }
-
-
-                    if (
-                        provider.includes(
-                            term
-                        )
-                    ) {
-
-                        return 25;
-                    }
-
-
-                    return 0;
-                }
-
-
-                const aScore =
-                    score(
-                        aId,
-                        aName,
-                        aFamily,
-                        aProvider
-                    );
-
-
-                const bScore =
-                    score(
+                    return aId.localeCompare(
                         bId,
-                        bName,
-                        bFamily,
-                        bProvider
-                    );
-
-
-                if (
-                    aScore !==
-                    bScore
-                ) {
-
-                    return (
-                        bScore -
-                        aScore
+                        "id",
+                        {
+                            sensitivity:
+                                "base"
+                        }
                     );
                 }
-
-
-                return aId.localeCompare(
-                    bId,
-                    "id",
-                    {
-                        sensitivity:
-                            "base"
-                    }
-                );
-            }
-        );
-
-
-        return results;
-    }
-
-
-    /* =====================================================
-       FIND MODEL
-       ===================================================== */
-
-    function findModelById(
-        modelId
-    ) {
-
-        const id =
-            normalizeString(
-                modelId
             );
-
-
-        if (
-            !id
-        ) {
-
-            return null;
-        }
-
-
-        return (
-            models.find(
-                function (model) {
-
-                    return (
-                        normalizeString(
-                            model.model_id
-                        ) ===
-                        id
-                    );
-                }
-            ) ||
-            null
-        );
     }
 
 
@@ -1289,9 +1041,7 @@
 
             return true;
 
-        } catch (
-            error
-        ) {
+        } catch (error) {
 
             console.error(
                 "[GEN-Z.AI] Render Model Search gagal:",
@@ -1319,10 +1069,7 @@
             getSearchInput();
 
 
-        if (
-            !input
-        ) {
-
+        if (!input) {
             return false;
         }
 
@@ -1333,17 +1080,12 @@
             );
 
 
-        /*
-         * Jangan render hasil lama apabila
-         * user sudah mengetik keyword baru.
-         */
         if (
             currentKeyword !==
             String(
                 keyword ?? ""
             )
         ) {
-
             return false;
         }
 
@@ -1355,12 +1097,10 @@
 
 
     /* =====================================================
-       INPUT
+       INPUT EVENT
        ===================================================== */
 
-    function handleInput(
-        event
-    ) {
+    function handleInput(event) {
 
         const keyword =
             event?.target?.value ??
@@ -1368,25 +1108,21 @@
 
 
         /*
-         * Search input tidak menjadi
-         * source of truth Model ID.
+         * Saat user mengetik ulang,
+         * selection sebelumnya harus dibersihkan.
          */
         const hidden =
             getHiddenModelInput();
 
 
-        if (
-            hidden
-        ) {
+        if (hidden) {
 
             hidden.value =
                 "";
         }
 
 
-        if (
-            catalogLoaded
-        ) {
+        if (catalogLoaded) {
 
             return render(
                 keyword
@@ -1404,21 +1140,19 @@
 
 
     /* =====================================================
-       FOCUS
+       FOCUS EVENT
        ===================================================== */
 
-    function handleFocus(
-        event
-    ) {
+    function handleFocus(event) {
 
         const keyword =
             event?.target?.value ??
             "";
 
 
-        if (
-            catalogLoaded
-        ) {
+        if (catalogLoaded) {
+
+            showDropdown();
 
             return render(
                 keyword
@@ -1428,7 +1162,13 @@
 
         renderAfterCatalog(
             keyword
-        );
+        )
+            .then(
+                function () {
+
+                    showDropdown();
+                }
+            );
 
 
         return true;
@@ -1439,18 +1179,13 @@
        KEYBOARD
        ===================================================== */
 
-    function handleKeydown(
-        event
-    ) {
+    function handleKeydown(event) {
 
         const box =
             getResultsBox();
 
 
-        if (
-            !box
-        ) {
-
+        if (!box) {
             return;
         }
 
@@ -1466,7 +1201,6 @@
         if (
             items.length === 0
         ) {
-
             return;
         }
 
@@ -1533,13 +1267,10 @@
                             "nearest"
                     });
 
-                } catch (
-                    error
-                ) {
-                    // ignore
+                } catch (_) {
+                    /* ignore */
                 }
             }
-
 
             return;
         }
@@ -1596,13 +1327,10 @@
                             "nearest"
                     });
 
-                } catch (
-                    error
-                ) {
-                    // ignore
+                } catch (_) {
+                    /* ignore */
                 }
             }
-
 
             return;
         }
@@ -1624,9 +1352,7 @@
                 );
 
 
-            if (
-                active
-            ) {
+            if (active) {
 
                 event.preventDefault();
 
@@ -1635,7 +1361,6 @@
                     active.dataset.modelId
                 );
             }
-
 
             return;
         }
@@ -1665,26 +1390,18 @@
             );
 
 
-        if (
-            !id
-        ) {
-
+        if (!id) {
             return false;
         }
 
 
-        /*
-         * Model harus berasal dari catalog.
-         */
         const model =
             findModelById(
                 id
             );
 
 
-        if (
-            !model
-        ) {
+        if (!model) {
 
             console.warn(
                 "[GEN-Z.AI] Model ID tidak terdapat di katalog:",
@@ -1695,9 +1412,6 @@
         }
 
 
-        /*
-         * Provider harus cocok.
-         */
         if (
             !providerMatches(
                 model
@@ -1713,9 +1427,6 @@
         }
 
 
-        /*
-         * Model harus aktif.
-         */
         if (
             !isActive(
                 model
@@ -1757,11 +1468,19 @@
                 );
 
 
-            return selected !== false;
+            if (
+                selected === false
+            ) {
+                return false;
+            }
 
-        } catch (
-            error
-        ) {
+
+            hideDropdown();
+
+
+            return true;
+
+        } catch (error) {
 
             console.error(
                 "[GEN-Z.AI] Pemilihan Model gagal:",
@@ -1785,10 +1504,7 @@
             event?.target;
 
 
-        if (
-            !target
-        ) {
-
+        if (!target) {
             return;
         }
 
@@ -1799,10 +1515,7 @@
             );
 
 
-        if (
-            !item
-        ) {
-
+        if (!item) {
             return;
         }
 
@@ -1813,10 +1526,7 @@
             );
 
 
-        if (
-            !modelId
-        ) {
-
+        if (!modelId) {
             return;
         }
 
@@ -1834,8 +1544,9 @@
     function handleProviderChanged() {
 
         /*
-         * Model sebelumnya tidak lagi valid
-         * ketika Provider berubah.
+         * Provider berubah:
+         * Model sebelumnya tidak boleh
+         * dianggap tetap valid.
          */
         clearSelectedModelInfo();
 
@@ -1844,17 +1555,12 @@
             getSearchInput();
 
 
-        if (
-            !input
-        ) {
-
+        if (!input) {
             return;
         }
 
 
-        if (
-            catalogLoaded
-        ) {
+        if (catalogLoaded) {
 
             render(
                 input.value
@@ -1871,7 +1577,7 @@
 
 
     /* =====================================================
-       SELECTED MODEL INFO
+       SELECTED MODEL
        ===================================================== */
 
     function clearSelectedModelInfo() {
@@ -1890,9 +1596,7 @@
 
                 selector.clearSelected();
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
                     "[GEN-Z.AI] Clear Model selection gagal:",
@@ -1907,9 +1611,7 @@
         model
     ) {
 
-        if (
-            !model
-        ) {
+        if (!model) {
 
             clearSelectedModelInfo();
 
@@ -1923,12 +1625,11 @@
             );
 
 
-        if (
-            !catalogModel
-        ) {
+        if (!catalogModel) {
 
             console.warn(
-                "[GEN-Z.AI] Update Model ditolak karena Model tidak ada di catalog."
+                "[GEN-Z.AI] Model tidak ada di catalog:",
+                model.model_id
             );
 
             return;
@@ -1951,9 +1652,7 @@
                     catalogModel
                 );
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
                     "[GEN-Z.AI] Update Model selection gagal:",
@@ -1980,37 +1679,25 @@
             getResultsBox();
 
 
-        if (
-            !input
-        ) {
-
+        if (!input) {
             return;
         }
 
 
-        /*
-         * Klik input tidak menutup dropdown.
-         */
         if (
             event.target ===
             input
         ) {
-
             return;
         }
 
 
-        /*
-         * Klik item/dropdown tidak menutup
-         * sebelum selection selesai.
-         */
         if (
             box &&
             box.contains(
                 event.target
             )
         ) {
-
             return;
         }
 
@@ -2037,12 +1724,12 @@
 
             try {
 
-                return dropdown.show() !==
-                    false;
+                return (
+                    dropdown.show() !==
+                    false
+                );
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
                     "[GEN-Z.AI] Show dropdown gagal:",
@@ -2070,12 +1757,12 @@
 
             try {
 
-                return dropdown.hide() !==
-                    false;
+                return (
+                    dropdown.hide() !==
+                    false
+                );
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
                     "[GEN-Z.AI] Hide dropdown gagal:",
@@ -2146,10 +1833,7 @@
 
     function initialize() {
 
-        if (
-            initialized
-        ) {
-
+        if (initialized) {
             return true;
         }
 
@@ -2157,7 +1841,6 @@
         if (
             !initializeEvents()
         ) {
-
             return false;
         }
 
@@ -2180,9 +1863,7 @@
 
                 dropdown.bindPositionEvents();
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
                     "[GEN-Z.AI] Dropdown position binding gagal:",
@@ -2193,7 +1874,7 @@
 
 
         /*
-         * Load model catalog dari tabel models.
+         * Load catalog dari model folder.
          */
         ensureCatalog()
             .then(
@@ -2261,9 +1942,7 @@
 
                 events.unbind();
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
                     "[GEN-Z.AI] Model Search Events destroy gagal:",
@@ -2320,10 +1999,15 @@
 
             hideDropdown,
 
+            showDropdown,
+
             updateSelectedModelInfo,
 
-            clearSelectedModelInfo
+            clearSelectedModelInfo,
 
+            providerMatches,
+
+            getSelectedProvider
         });
 
 
