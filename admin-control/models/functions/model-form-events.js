@@ -2,49 +2,49 @@
    GEN-Z.AI
    ADMIN MODEL MANAGEMENT
    MODEL FORM EVENTS
-
+   ---------------------------------------------------------
    File:
    admin-control/models/functions/model-form-events.js
-
-   OWNER:
-   Seluruh event Form Model.
 
    Tanggung jawab:
    - Submit form
    - Provider change
    - Model ID change
-   - Tombol close
-   - Backdrop modal
-   - Escape keyboard
-   - Tombol cancel
+   - Close modal
+   - Cancel
+   - Backdrop
+   - Escape
+   - Sinkronisasi event antar module
 
-   TIDAK BOLEH:
+   Tidak bertanggung jawab:
    - Query Supabase
-   - CRUD langsung
-   - Menghitung credit sendiri
-   - Mengelola Provider sendiri
-   - Mengelola Model catalog sendiri
-   - Mengelola Pricing sendiri
-   - Membuat capability KIE sendiri
+   - CRUD database
+   - Provider CRUD
+   - Pricing calculation
+   - Model catalog query
+   - KIE workflow
+   - KIE parameters
+   - KIE variants
 
-   OWNER:
+   Owner:
    Provider:
        GENZModelsProvider
        GENZModelProviderDropdown
 
-   Model catalog + KIE config:
+   Form:
        GENZModelFormLayout
-
-   Pricing:
-       GENZModelPriceCalculation
-
-   CRUD:
        GENZModelFormCreate
        GENZModelFormEdit
        GENZModelFormDelete
        GENZModelFormCoordinator
 
-   ========================================================= */
+   Search:
+       GENZModelsSearch
+       GENZModelSearchEvents
+
+   Pricing:
+       GENZModelPriceCalculation
+========================================================= */
 
 (function () {
 
@@ -61,10 +61,14 @@
 
 
     /* =====================================================
-       ELEMENT
+       ELEMENT HELPERS
     ===================================================== */
 
     function getElement(id) {
+
+        if (!id) {
+            return null;
+        }
 
         return document.getElementById(id);
 
@@ -73,15 +77,17 @@
 
     function firstElement(ids) {
 
+        if (!Array.isArray(ids)) {
+            return null;
+        }
+
         for (const id of ids) {
 
             const element =
                 getElement(id);
 
             if (element) {
-
                 return element;
-
             }
 
         }
@@ -129,6 +135,16 @@
     }
 
 
+    function getDeleteModule() {
+
+        return (
+            window.GENZModelFormDelete ||
+            null
+        );
+
+    }
+
+
     function getCoordinator() {
 
         return (
@@ -149,6 +165,16 @@
     }
 
 
+    function getSearch() {
+
+        return (
+            window.GENZModelsSearch ||
+            null
+        );
+
+    }
+
+
     /* =====================================================
        EVENT REGISTRY
     ===================================================== */
@@ -160,7 +186,11 @@
         options
     ) {
 
-        if (!element) {
+        if (
+            !element ||
+            typeof element.addEventListener !==
+                "function"
+        ) {
 
             return false;
 
@@ -177,11 +207,8 @@
         handlers.push({
 
             element,
-
             event,
-
             handler,
-
             options
 
         });
@@ -193,7 +220,7 @@
 
 
     /* =====================================================
-       REMOVE ALL
+       UNBIND
     ===================================================== */
 
     function unbind() {
@@ -217,7 +244,7 @@
             } catch (error) {
 
                 console.warn(
-                    "[model-form-events] Gagal remove listener:",
+                    "[GEN-Z.AI] Model form event remove gagal:",
                     error
                 );
 
@@ -239,29 +266,37 @@
        MODAL
     ===================================================== */
 
+    function getModal() {
+
+        return getElement(
+            "modelModal"
+        );
+
+    }
+
+
     function closeModal() {
 
         const modal =
-            getElement(
-                "modelModal"
-            );
+            getModal();
 
 
         if (!modal) {
-
-            console.warn(
-                "[model-form-events] #modelModal tidak ditemukan."
-            );
-
 
             return false;
 
         }
 
 
+        /*
+         * Support seluruh class modal yang pernah
+         * digunakan halaman Models.
+         */
+
         modal.classList.remove(
             "open",
-            "show"
+            "show",
+            "active"
         );
 
 
@@ -294,12 +329,12 @@
         );
 
 
-        /* ================================================
-           MODEL SEARCH DROPDOWN
-        ================================================ */
+        /*
+         * Tutup dropdown pencarian Model ID.
+         */
 
         const search =
-            window.GENZModelsSearch;
+            getSearch();
 
 
         if (
@@ -315,7 +350,7 @@
             } catch (error) {
 
                 console.warn(
-                    "[model-form-events] Gagal hide model search:",
+                    "[GEN-Z.AI] Gagal menutup Model ID dropdown:",
                     error
                 );
 
@@ -341,7 +376,7 @@
             } catch (error) {
 
                 console.warn(
-                    "[model-form-events] Gagal hide search dropdown:",
+                    "[GEN-Z.AI] Gagal menutup search dropdown:",
                     error
                 );
 
@@ -350,34 +385,16 @@
         }
 
 
-        try {
+        /*
+         * Beri tahu module lain bahwa modal ditutup.
+         */
 
-            document.dispatchEvent(
-                new CustomEvent(
-                    "genz-model-modal-closed",
-                    {
-                        detail: {
-
-                            source:
-                                "model-form-events"
-
-                        }
-                    }
-                )
-            );
-
-        } catch (error) {
-
-            console.warn(
-                "[model-form-events] Close event gagal:",
-                error
-            );
-
-        }
-
-
-        console.info(
-            "[GEN-Z.AI] Model modal closed."
+        dispatchEvent(
+            "genz-model-modal-closed",
+            {
+                source:
+                    "model-form-events"
+            }
         );
 
 
@@ -386,22 +403,61 @@
     }
 
 
-    /* =====================================================
-       MODAL STATUS
-    ===================================================== */
-
-    function isModalOpen() {
+    function openModal() {
 
         const modal =
-            getElement(
-                "modelModal"
-            );
+            getModal();
 
 
         if (!modal) {
 
             return false;
 
+        }
+
+
+        modal.classList.remove(
+            "hidden"
+        );
+
+
+        modal.classList.add(
+            "open"
+        );
+
+
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+
+        modal.style.display =
+            "";
+
+
+        modal.style.visibility =
+            "";
+
+
+        document.body.classList.add(
+            "modal-open"
+        );
+
+
+        return true;
+
+    }
+
+
+    function isModalOpen() {
+
+        const modal =
+            getModal();
+
+
+        if (!modal) {
+            return false;
         }
 
 
@@ -415,11 +471,55 @@
                 "show"
             ) ||
 
+            modal.classList.contains(
+                "active"
+            ) ||
+
             modal.getAttribute(
                 "aria-hidden"
             ) !== "true"
 
         );
+
+    }
+
+
+    /* =====================================================
+       CUSTOM EVENT
+    ===================================================== */
+
+    function dispatchEvent(
+        name,
+        detail
+    ) {
+
+        try {
+
+            document.dispatchEvent(
+                new CustomEvent(
+                    name,
+                    {
+                        detail:
+                            detail || {}
+                    }
+                )
+            );
+
+
+            return true;
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Custom event gagal:",
+                name,
+                error
+            );
+
+
+            return false;
+
+        }
 
     }
 
@@ -435,7 +535,6 @@
         if (event) {
 
             event.preventDefault();
-
             event.stopPropagation();
 
         }
@@ -445,16 +544,16 @@
             getCoordinator();
 
 
+        /*
+         * Coordinator adalah owner utama CRUD.
+         */
+
         if (
-
             coordinator &&
-
             typeof coordinator.updateFromForm ===
                 "function" &&
-
             typeof coordinator.createFromForm ===
                 "function"
-
         ) {
 
             try {
@@ -492,7 +591,7 @@
             } catch (error) {
 
                 console.error(
-                    "[model-form-events] Coordinator submit error:",
+                    "[GEN-Z.AI] Model form submit gagal:",
                     error
                 );
 
@@ -504,26 +603,21 @@
         }
 
 
-        /* =================================================
-           FALLBACK EDIT
-        ================================================= */
+        /*
+         * Compatibility fallback.
+         */
 
         const edit =
             getEditModule();
 
 
         if (
-
             edit &&
-
             typeof edit.isEditing ===
                 "function" &&
-
             edit.isEditing() &&
-
             typeof edit.updateFromForm ===
                 "function"
-
         ) {
 
             return await edit.updateFromForm(
@@ -533,21 +627,14 @@
         }
 
 
-        /* =================================================
-           FALLBACK CREATE
-        ================================================= */
-
         const create =
             getCreateModule();
 
 
         if (
-
             create &&
-
             typeof create.createFromForm ===
                 "function"
-
         ) {
 
             return await create.createFromForm(
@@ -558,7 +645,7 @@
 
 
         console.error(
-            "[model-form-events] Tidak ada handler submit yang tersedia."
+            "[GEN-Z.AI] Tidak ada handler CRUD Model yang tersedia."
         );
 
 
@@ -570,27 +657,23 @@
     /* =====================================================
        PROVIDER CHANGE
        -----------------------------------------------------
-       HANYA event coordinator.
+       Provider change hanya meneruskan perubahan ke layout.
 
-       Layout adalah owner:
-           - load models
-           - filter provider
-           - reset model
-           - load KIE config
+       Tidak melakukan query Supabase di sini.
     ===================================================== */
 
     async function handleProviderChange(
         event
     ) {
 
-        const select =
+        const providerElement =
             event?.currentTarget ||
             getElement(
                 "providerId"
             );
 
 
-        if (!select) {
+        if (!providerElement) {
 
             return false;
 
@@ -599,7 +682,8 @@
 
         const providerId =
             String(
-                select.value || ""
+                providerElement.value ||
+                ""
             ).trim();
 
 
@@ -608,30 +692,25 @@
 
 
         /*
-         * Provider kosong:
-         * biarkan layout membersihkan seluruh
-         * state Model + KIE.
+         * Provider kosong.
          */
 
         if (!providerId) {
 
             if (
-
                 layout &&
-
                 typeof layout.clearModelSelection ===
                     "function"
-
             ) {
 
                 try {
 
-                    layout.clearModelSelection();
+                    await layout.clearModelSelection();
 
                 } catch (error) {
 
                     console.warn(
-                        "[model-form-events] Gagal clear Model ID:",
+                        "[GEN-Z.AI] Model selection clear gagal:",
                         error
                     );
 
@@ -640,253 +719,54 @@
             }
 
 
+            dispatchEvent(
+                "genz-model-provider-changed",
+                {
+                    providerId: "",
+                    source:
+                        "model-form-events"
+                }
+            );
+
+
             return true;
 
         }
 
 
         /*
-         * PENTING:
-         *
-         * Jangan memanggil:
-         *
-         *   handleProviderChange()
-         *   layout.handleProviderChange()
-         *   layout.refresh()
-         *
-         * sekaligus.
-         *
-         * Layout sekarang mempunyai owner event provider
-         * sendiri ketika digunakan secara standalone.
-         *
-         * Di sini kita hanya meminta refresh dengan
-         * provider eksplisit.
+         * Layout menjadi owner pemuatan/filter
+         * Model berdasarkan Provider.
          */
 
         if (
-
             layout &&
-
             typeof layout.refresh ===
                 "function"
-
         ) {
 
             try {
 
-                await layout.refresh(
-                    {
+                const result =
+                    await layout.refresh({
+
                         providerId,
 
                         selectedModelId:
                             ""
 
-                    }
-                );
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-events] Gagal refresh Model Layout:",
-                    error
-                );
-
-            }
-
-        }
+                    });
 
 
-        try {
-
-            document.dispatchEvent(
-                new CustomEvent(
+                dispatchEvent(
                     "genz-model-provider-changed",
                     {
-                        detail: {
-
-                            providerId,
-
-                            source:
-                                "model-form-events"
-
-                        }
-                    }
-                )
-            );
-
-        } catch (error) {
-
-            console.warn(
-                "[model-form-events] Provider changed event gagal:",
-                error
-            );
-
-        }
-
-
-        return true;
-
-    }
-
-
-    /* =====================================================
-       MODEL ID CHANGE
-       -----------------------------------------------------
-       Layout menjadi SINGLE OWNER untuk:
-           - mencari model
-           - Model Name
-           - Model Family
-           - kie_parameters
-           - kie_pricing
-           - ratio
-           - duration
-           - resolution
-
-       Events hanya meneruskan perubahan.
-    ===================================================== */
-
-    async function handleModelChange(
-        event
-    ) {
-
-        const select =
-            event?.currentTarget ||
-            getElement(
-                "modelCodeSearch"
-            );
-
-
-        if (!select) {
-
-            return false;
-
-        }
-
-
-        const modelId =
-            String(
-                select.value || ""
-            ).trim();
-
-
-        const layout =
-            getLayout();
-
-
-        if (!modelId) {
-
-            if (
-
-                layout &&
-
-                typeof layout.clearModelSelection ===
-                    "function"
-
-            ) {
-
-                layout.clearModelSelection(
-                    {
-                        keepPending:
-                            false
+                        providerId,
+                        result,
+                        source:
+                            "model-form-events"
                     }
                 );
-
-            }
-
-
-            return true;
-
-        }
-
-
-        /*
-         * Jangan mengisi modelName / family sendiri.
-         *
-         * Jangan membaca pricing sendiri.
-         *
-         * Jangan membaca capability sendiri.
-         *
-         * Semua dilakukan GENZModelFormLayout.setModel().
-         */
-
-        if (
-
-            layout &&
-
-            typeof layout.findModel ===
-                "function" &&
-
-            typeof layout.setModel ===
-                "function"
-
-        ) {
-
-            try {
-
-                const model =
-                    layout.findModel(
-                        modelId
-                    );
-
-
-                if (!model) {
-
-                    console.warn(
-                        "[model-form-events] Model ID tidak ditemukan dalam catalog:",
-                        modelId
-                    );
-
-
-                    return false;
-
-                }
-
-
-                const result =
-                    await layout.setModel(
-                        model
-                    );
-
-
-                /*
-                 * Event hanya dikirim setelah layout
-                 * selesai memuat KIE config.
-                 */
-
-                try {
-
-                    document.dispatchEvent(
-                        new CustomEvent(
-                            "genz-model-selected",
-                            {
-                                detail: {
-
-                                    model,
-
-                                    modelId,
-
-                                    kieConfig:
-                                        typeof layout.getCurrentKieConfig ===
-                                            "function"
-                                            ? layout.getCurrentKieConfig()
-                                            : null,
-
-                                    source:
-                                        "model-form-events"
-
-                                }
-                            }
-                        )
-                    );
-
-                } catch (eventError) {
-
-                    console.warn(
-                        "[model-form-events] Model selected event gagal:",
-                        eventError
-                    );
-
-                }
 
 
                 return result !== false;
@@ -894,8 +774,19 @@
             } catch (error) {
 
                 console.error(
-                    "[model-form-events] Gagal memproses Model ID:",
+                    "[GEN-Z.AI] Provider change gagal:",
                     error
+                );
+
+
+                dispatchEvent(
+                    "genz-model-provider-error",
+                    {
+                        providerId,
+                        error,
+                        source:
+                            "model-form-events"
+                    }
                 );
 
 
@@ -906,8 +797,224 @@
         }
 
 
-        console.error(
-            "[model-form-events] GENZModelFormLayout tidak tersedia."
+        /*
+         * Jika layout belum mempunyai refresh(),
+         * jangan membuat logika provider baru di sini.
+         *
+         * Event tetap dikirim agar module lain dapat
+         * merespons bila diperlukan.
+         */
+
+        dispatchEvent(
+            "genz-model-provider-changed",
+            {
+                providerId,
+                source:
+                    "model-form-events"
+            }
+        );
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       MODEL ID CHANGE
+       -----------------------------------------------------
+       Layout adalah owner model catalog.
+
+       Form events hanya meneruskan Model ID.
+    ===================================================== */
+
+    async function handleModelChange(
+        event
+    ) {
+
+        const modelElement =
+            event?.currentTarget ||
+            firstElement([
+                "modelCodeSearch",
+                "modelId"
+            ]);
+
+
+        if (!modelElement) {
+
+            return false;
+
+        }
+
+
+        const modelId =
+            String(
+                modelElement.value ||
+                ""
+            ).trim();
+
+
+        const layout =
+            getLayout();
+
+
+        /*
+         * Model ID kosong.
+         */
+
+        if (!modelId) {
+
+            if (
+                layout &&
+                typeof layout.clearModelSelection ===
+                    "function"
+            ) {
+
+                try {
+
+                    await layout.clearModelSelection();
+
+                } catch (error) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Model selection clear gagal:",
+                        error
+                    );
+
+                }
+
+            }
+
+
+            dispatchEvent(
+                "genz-model-selection-cleared",
+                {
+                    source:
+                        "model-form-events"
+                }
+            );
+
+
+            return true;
+
+        }
+
+
+        /*
+         * Prioritaskan API findModel() milik Layout.
+         */
+
+        if (
+            layout &&
+            typeof layout.findModel ===
+                "function"
+        ) {
+
+            try {
+
+                const model =
+                    await layout.findModel(
+                        modelId
+                    );
+
+
+                if (!model) {
+
+                    dispatchEvent(
+                        "genz-model-not-found",
+                        {
+                            modelId,
+                            source:
+                                "model-form-events"
+                        }
+                    );
+
+
+                    return false;
+
+                }
+
+
+                /*
+                 * Jika layout mempunyai setModel(),
+                 * biarkan layout mengisi seluruh field.
+                 */
+
+                if (
+                    typeof layout.setModel ===
+                        "function"
+                ) {
+
+                    const result =
+                        await layout.setModel(
+                            model
+                        );
+
+
+                    dispatchEvent(
+                        "genz-model-selected",
+                        {
+                            model,
+                            modelId,
+                            result,
+                            source:
+                                "model-form-events"
+                        }
+                    );
+
+
+                    return result !== false;
+
+                }
+
+
+                dispatchEvent(
+                    "genz-model-selected",
+                    {
+                        model,
+                        modelId,
+                        source:
+                            "model-form-events"
+                    }
+                );
+
+
+                return true;
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Model selection gagal:",
+                    error
+                );
+
+
+                dispatchEvent(
+                    "genz-model-selection-error",
+                    {
+                        modelId,
+                        error,
+                        source:
+                            "model-form-events"
+                    }
+                );
+
+
+                return false;
+
+            }
+
+        }
+
+
+        /*
+         * Tidak ada API layout.
+         *
+         * Jangan membuat query Supabase di event module.
+         */
+
+        console.warn(
+            "[GEN-Z.AI] GENZModelFormLayout.findModel() tidak tersedia."
         );
 
 
@@ -927,7 +1034,27 @@
         if (event) {
 
             event.preventDefault();
+            event.stopPropagation();
 
+        }
+
+
+        return closeModal();
+
+    }
+
+
+    /* =====================================================
+       CANCEL
+    ===================================================== */
+
+    function handleCancel(
+        event
+    ) {
+
+        if (event) {
+
+            event.preventDefault();
             event.stopPropagation();
 
         }
@@ -947,9 +1074,7 @@
     ) {
 
         const modal =
-            getElement(
-                "modelModal"
-            );
+            getModal();
 
 
         if (!modal) {
@@ -960,7 +1085,7 @@
 
 
         /*
-         * Hanya klik tepat pada backdrop.
+         * Hanya klik langsung pada backdrop.
          */
 
         if (
@@ -987,8 +1112,9 @@
     ) {
 
         if (
+            !event ||
             event.key !==
-            "Escape"
+                "Escape"
         ) {
 
             return false;
@@ -1006,7 +1132,6 @@
 
 
         event.preventDefault();
-
         event.stopPropagation();
 
 
@@ -1016,29 +1141,7 @@
 
 
     /* =====================================================
-       CANCEL
-    ===================================================== */
-
-    function handleCancel(
-        event
-    ) {
-
-        if (event) {
-
-            event.preventDefault();
-
-            event.stopPropagation();
-
-        }
-
-
-        return closeModal();
-
-    }
-
-
-    /* =====================================================
-       BIND SUBMIT
+       SUBMIT BINDING
     ===================================================== */
 
     function bindSubmit() {
@@ -1064,7 +1167,7 @@
 
 
     /* =====================================================
-       BIND PROVIDER
+       PROVIDER BINDING
     ===================================================== */
 
     function bindProvider() {
@@ -1092,15 +1195,21 @@
 
 
     /* =====================================================
-       BIND MODEL
+       MODEL ID BINDING
+       -----------------------------------------------------
+       Mendukung:
+       - select
+       - input
+       - datalist-backed input
     ===================================================== */
 
     function bindModel() {
 
         const model =
-            getElement(
-                "modelCodeSearch"
-            );
+            firstElement([
+                "modelCodeSearch",
+                "modelId"
+            ]);
 
 
         if (!model) {
@@ -1110,11 +1219,111 @@
         }
 
 
-        return addListener(
-            model,
-            "change",
-            handleModelChange
-        );
+        let bound =
+            false;
+
+
+        bound =
+            addListener(
+                model,
+                "change",
+                handleModelChange
+            ) || bound;
+
+
+        /*
+         * Input teks juga perlu merespons pilihan
+         * dari dropdown/datalist.
+         */
+
+        bound =
+            addListener(
+                model,
+                "input",
+                function (event) {
+
+                    const target =
+                        event.currentTarget;
+
+
+                    /*
+                     * Jangan melakukan query setiap karakter.
+                     *
+                     * Hanya proses jika input cocok dengan
+                     * option datalist yang tersedia.
+                     */
+
+                    const value =
+                        String(
+                            target.value ||
+                            ""
+                        ).trim();
+
+
+                    if (!value) {
+                        return;
+                    }
+
+
+                    const listId =
+                        target.getAttribute(
+                            "list"
+                        );
+
+
+                    if (!listId) {
+                        return;
+                    }
+
+
+                    const datalist =
+                        getElement(
+                            listId
+                        );
+
+
+                    if (!datalist) {
+                        return;
+                    }
+
+
+                    const options =
+                        Array.from(
+                            datalist.options ||
+                            []
+                        );
+
+
+                    const match =
+                        options.some(
+                            function (option) {
+
+                                return (
+                                    String(
+                                        option.value ||
+                                        ""
+                                    ).trim() ===
+                                    value
+                                );
+
+                            }
+                        );
+
+
+                    if (!match) {
+                        return;
+                    }
+
+
+                    handleModelChange(
+                        event
+                    );
+
+                }
+            ) || bound;
+
+
+        return bound;
 
     }
 
@@ -1125,87 +1334,125 @@
 
     function bindCloseButtons() {
 
-        const selectors = [
+        const ids = [
 
             "closeModalBtn",
-
-            "cancelModalBtn",
-
             "closeModelModal",
-
             "closeModelBtn",
-
             "closeModelButton",
-
-            "cancelModelBtn",
-
-            "cancelModelButton",
-
             "modelModalClose"
 
         ];
 
 
-        let count = 0;
+        let count =
+            0;
 
 
-        for (const id of selectors) {
+        ids.forEach(
+            function (id) {
 
-            const element =
-                getElement(id);
+                const element =
+                    getElement(id);
 
 
-            if (!element) {
+                if (!element) {
+                    return;
+                }
 
-                continue;
+
+                /*
+                 * Tombol close tidak boleh submit.
+                 */
+
+                if (
+                    element.tagName ===
+                    "BUTTON"
+                ) {
+
+                    element.type =
+                        "button";
+
+                }
+
+
+                if (
+                    addListener(
+                        element,
+                        "click",
+                        handleCloseClick
+                    )
+                ) {
+
+                    count += 1;
+
+                }
 
             }
+        );
 
 
-            /*
-             * Close / Cancel tidak boleh submit form.
-             */
+        return count > 0;
 
-            if (
-                element.tagName ===
-                "BUTTON"
-            ) {
+    }
 
-                element.type =
-                    "button";
+
+    /* =====================================================
+       CANCEL BUTTONS
+    ===================================================== */
+
+    function bindCancelButtons() {
+
+        const ids = [
+
+            "cancelModalBtn",
+            "cancelModelBtn",
+            "cancelModelButton"
+
+        ];
+
+
+        let count =
+            0;
+
+
+        ids.forEach(
+            function (id) {
+
+                const element =
+                    getElement(id);
+
+
+                if (!element) {
+                    return;
+                }
+
+
+                if (
+                    element.tagName ===
+                    "BUTTON"
+                ) {
+
+                    element.type =
+                        "button";
+
+                }
+
+
+                if (
+                    addListener(
+                        element,
+                        "click",
+                        handleCancel
+                    )
+                ) {
+
+                    count += 1;
+
+                }
 
             }
-
-
-            const isCancel =
-                id ===
-                    "cancelModalBtn" ||
-
-                id ===
-                    "cancelModelBtn" ||
-
-                id ===
-                    "cancelModelButton";
-
-
-            addListener(
-                element,
-                "click",
-                isCancel
-                    ? handleCancel
-                    : handleCloseClick
-            );
-
-
-            count += 1;
-
-
-            console.info(
-                "[GEN-Z.AI] Model modal button bound:",
-                id
-            );
-
-        }
+        );
 
 
         return count > 0;
@@ -1217,36 +1464,33 @@
        DATA ATTRIBUTE CANCEL
     ===================================================== */
 
-    function bindCancel() {
+    function bindDataCancel() {
 
-        const buttons =
+        const elements =
             document.querySelectorAll(
                 "[data-model-cancel]"
             );
 
 
-        let count = 0;
+        let count =
+            0;
 
 
-        buttons.forEach(
-            button => {
+        elements.forEach(
+            function (element) {
 
                 /*
-                 * Jangan bind dua kali terhadap
+                 * Hindari duplicate binding pada
                  * tombol yang sudah memiliki ID.
                  */
 
                 if (
-
-                    button.id ===
+                    element.id ===
                         "cancelModalBtn" ||
-
-                    button.id ===
+                    element.id ===
                         "cancelModelBtn" ||
-
-                    button.id ===
+                    element.id ===
                         "cancelModelButton"
-
                 ) {
 
                     return;
@@ -1255,24 +1499,27 @@
 
 
                 if (
-                    button.tagName ===
+                    element.tagName ===
                     "BUTTON"
                 ) {
 
-                    button.type =
+                    element.type =
                         "button";
 
                 }
 
 
-                addListener(
-                    button,
-                    "click",
-                    handleCancel
-                );
+                if (
+                    addListener(
+                        element,
+                        "click",
+                        handleCancel
+                    )
+                ) {
 
+                    count += 1;
 
-                count += 1;
+                }
 
             }
         );
@@ -1290,9 +1537,7 @@
     function bindBackdrop() {
 
         const modal =
-            getElement(
-                "modelModal"
-            );
+            getModal();
 
 
         if (!modal) {
@@ -1333,19 +1578,13 @@
     function bind() {
 
         /*
-         * Jika bind dipanggil ulang,
-         * hapus seluruh listener lama.
-         *
-         * Ini penting agar:
-         *
-         *     initialize()
-         *     bind()
-         *     rebind()
-         *
-         * tidak menghasilkan listener berlapis.
+         * Jika sebelumnya sudah bound,
+         * bersihkan listener lama.
          */
 
-        if (initialized) {
+        if (
+            initialized
+        ) {
 
             unbind();
 
@@ -1360,7 +1599,9 @@
 
         bindCloseButtons();
 
-        bindCancel();
+        bindCancelButtons();
+
+        bindDataCancel();
 
         bindBackdrop();
 
@@ -1372,7 +1613,7 @@
 
 
         console.info(
-            "[GEN-Z.AI] GENZModelFormEvents bound."
+            "[GEN-Z.AI] Model form events initialized."
         );
 
 
@@ -1440,7 +1681,11 @@
 
             isBound,
 
+            openModal,
+
             closeModal,
+
+            isModalOpen,
 
             handleSubmit,
 
@@ -1450,11 +1695,11 @@
 
             handleCloseClick,
 
+            handleCancel,
+
             handleBackdropClick,
 
-            handleEscape,
-
-            handleCancel
+            handleEscape
 
         });
 
