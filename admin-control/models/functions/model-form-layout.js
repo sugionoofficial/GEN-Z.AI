@@ -2,36 +2,42 @@
    GEN-Z.AI
    MODEL FORM LAYOUT
    ---------------------------------------------------------
-   File:
-   admin-control/models/functions/model-form-layout.js
+   VERSI:
+   MODEL SELECT / DROPDOWN
 
    TANGGUNG JAWAB:
-   - Sinkron Provider -> Model Search
-   - Sinkron Model terpilih -> Model Name
-   - Sinkron Model terpilih -> Model Family
+   - Provider -> Model Select
+   - Load Model dari GENZModelsData
+   - Filter Model berdasarkan Provider
+   - Filter Model aktif
+   - Populate Model ID <select>
+   - Pilih Model
+   - Sinkron hidden #modelCode
+   - Isi Model Name
+   - Isi Model Family
    - Harga USD
-   - Konversi USD -> Rupiah
-   - Preview harga
-   - Delegasi Credit Calculation
+   - Konversi USD -> IDR
+   - Credit Preview
 
-   PENTING:
+   CATATAN:
    ---------------------------------------------------------
-   MODEL ID SEARCH SEPENUHNYA DIMILIKI OLEH:
+   SISTEM PENCARIAN MODEL SUDAH TIDAK DIGUNAKAN.
 
-   - GENZModelsSearch
-   - GENZModelSearchEvents
-   - GENZModelSearchDropdown
-   - GENZModelSearchRender
-   - GENZModelSearchSelect
+   #modelCodeSearch:
+       sekarang menjadi SELECT.
 
-   FILE INI TIDAK BOLEH:
-   - Mengubah #modelCodeSearch menjadi SELECT
-   - Menghapus #modelSearchResults
-   - Membuat option Model ID
-   - Mengambil alih event input Model ID
-   - Membuat event change Model ID
+   #modelCode:
+       tetap hidden untuk kompatibilitas CRUD.
 
-   #modelCodeSearch HARUS TETAP <input>.
+   Tidak menggunakan:
+       GENZModelsSearch
+       GENZModelSearchEvents
+       GENZModelSearchDropdown
+       GENZModelSearchRender
+       GENZModelSearchSelect
+
+   Provider tetap dikelola oleh:
+       GENZModelsProvider
 ========================================================= */
 
 (function () {
@@ -49,11 +55,15 @@
 
     let boundProviderEvent = false;
 
+    let boundModelEvent = false;
+
     let boundUsdPriceEvents = false;
 
     let pendingModelId = "";
 
     let pendingProviderId = "";
+
+    let loadingPromise = null;
 
     const DEFAULT_USD_TO_IDR = 17700;
 
@@ -234,7 +244,7 @@
 
 
     /* =====================================================
-       PROVIDER MODULE
+       PROVIDER
     ===================================================== */
 
     function getProviderModule() {
@@ -247,10 +257,6 @@
     }
 
 
-    /* =====================================================
-       PROVIDER DROPDOWN MODULE
-    ===================================================== */
-
     function getProviderDropdown() {
 
         return (
@@ -260,10 +266,6 @@
 
     }
 
-
-    /* =====================================================
-       CURRENT PROVIDER
-    ===================================================== */
 
     function getCurrentProvider() {
 
@@ -286,92 +288,6 @@
 
     }
 
-
-    /* =====================================================
-       CURRENT MODEL ID
-       -----------------------------------------------------
-       Prioritas:
-       1. hidden #modelCode
-       2. input #modelCodeSearch
-    ===================================================== */
-
-    function getCurrentModelId() {
-
-        const hidden =
-            getElement(
-                "modelCode"
-            );
-
-
-        if (
-            hidden &&
-            String(
-                hidden.value ?? ""
-            ).trim()
-        ) {
-
-            return String(
-                hidden.value
-            ).trim();
-
-        }
-
-
-        const input =
-            getElement(
-                "modelCodeSearch"
-            );
-
-
-        if (input) {
-
-            return String(
-                input.value ?? ""
-            ).trim();
-
-        }
-
-
-        return "";
-
-    }
-
-
-    /* =====================================================
-       SET PENDING MODEL
-    ===================================================== */
-
-    function setPendingModelId(modelId) {
-
-        pendingModelId =
-            String(
-                modelId ?? ""
-            ).trim();
-
-
-        return pendingModelId;
-
-    }
-
-
-    /* =====================================================
-       CLEAR PENDING MODEL
-    ===================================================== */
-
-    function clearPendingModelId() {
-
-        pendingModelId =
-            "";
-
-
-        return true;
-
-    }
-
-
-    /* =====================================================
-       RESOLVE PROVIDER
-    ===================================================== */
 
     function resolveProvider(
         providerValue
@@ -501,7 +417,7 @@
 
 
     /* =====================================================
-       MODEL PROVIDER MATCH
+       MODEL -> PROVIDER MATCH
     ===================================================== */
 
     function modelMatchesProvider(
@@ -515,10 +431,6 @@
             );
 
 
-        /*
-         * Jika Provider belum dipilih,
-         * jangan menghilangkan model dari cache.
-         */
         if (!value) {
 
             return true;
@@ -571,7 +483,7 @@
 
 
         /*
-         * Match berdasarkan identifier Provider.
+         * Match terhadap seluruh identifier Provider.
          */
         if (selected) {
 
@@ -583,7 +495,9 @@
 
                 selected.provider,
 
-                selected.provider_name
+                selected.provider_name,
+
+                selected.name
 
             ];
 
@@ -592,9 +506,7 @@
                 function (candidate) {
 
                     return providerCandidates.some(
-                        function (
-                            providerCandidate
-                        ) {
+                        function (providerCandidate) {
 
                             return (
                                 normalize(
@@ -620,25 +532,66 @@
 
 
     /* =====================================================
-       IMPORTANT MODEL SEARCH INPUT
-       -----------------------------------------------------
-       Fungsi ini HANYA memastikan input masih ada.
-
-       TIDAK:
-       - membuat SELECT
-       - mengganti element
-       - menghapus dropdown
+       MODEL STATUS
     ===================================================== */
 
-    function getModelSearchInput() {
+    function isActiveModel(
+        model
+    ) {
 
-        const input =
+        const status =
+            normalize(
+                model?.status
+            );
+
+
+        /*
+         * Jika status kosong, jangan membuang data.
+         */
+        if (!status) {
+
+            return true;
+
+        }
+
+
+        return (
+            status === "active" ||
+            status === "enabled" ||
+            status === "published"
+        );
+
+    }
+
+
+    /* =====================================================
+       MODEL SELECT
+       -----------------------------------------------------
+       SATU-SATUNYA PEMILIK SELECT MODEL.
+    ===================================================== */
+
+    function getModelSelect() {
+
+        let element =
             getElement(
                 "modelCodeSearch"
             );
 
 
-        if (!input) {
+        if (!element) {
+
+            /*
+             * Fallback jika HTML menggunakan modelCode.
+             */
+            element =
+                getElement(
+                    "modelCode"
+                );
+
+        }
+
+
+        if (!element) {
 
             return null;
 
@@ -646,52 +599,151 @@
 
 
         /*
-         * Jika ada kode lama/HTML lain yang mengubah
-         * menjadi SELECT, jangan kita ubah lagi di sini.
+         * Jika masih INPUT, ubah menjadi SELECT.
          *
-         * Search module adalah pemilik element tersebut.
+         * Ini dilakukan sekali dan permanen untuk
+         * lifecycle halaman.
          */
-        return input;
+        if (
+            String(
+                element.tagName
+            ).toLowerCase() !==
+            "select"
+        ) {
+
+            const select =
+                document.createElement(
+                    "select"
+                );
+
+
+            /*
+             * Salin atribut penting.
+             */
+            Array.from(
+                element.attributes
+            ).forEach(
+                function (attribute) {
+
+                    /*
+                     * Jangan mempertahankan:
+                     * type=search
+                     */
+                    if (
+                        attribute.name ===
+                        "type"
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    /*
+                     * Placeholder input tidak relevan
+                     * pada SELECT.
+                     */
+                    if (
+                        attribute.name ===
+                        "placeholder"
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    try {
+
+                        select.setAttribute(
+                            attribute.name,
+                            attribute.value
+                        );
+
+                    } catch (error) {
+
+                        /* ignore */
+
+                    }
+
+                }
+            );
+
+
+            select.id =
+                "modelCodeSearch";
+
+
+            select.removeAttribute(
+                "type"
+            );
+
+
+            /*
+             * SELECT wajib mempunyai nama yang sama
+             * hanya jika sebelumnya ada.
+             */
+            if (
+                element.name
+            ) {
+
+                select.name =
+                    element.name;
+
+            }
+
+
+            /*
+             * Pertahankan class.
+             */
+            if (
+                element.className
+            ) {
+
+                select.className =
+                    element.className;
+
+            }
+
+
+            /*
+             * Ganti input lama.
+             */
+            element.replaceWith(
+                select
+            );
+
+
+            element =
+                select;
+
+        }
+
+
+        /*
+         * Pastikan ID benar.
+         */
+        element.id =
+            "modelCodeSearch";
+
+
+        /*
+         * SELECT wajib aktif.
+         */
+        element.disabled =
+            false;
+
+
+        return element;
 
     }
 
 
     /* =====================================================
-       MODEL SEARCH SYNC
-       -----------------------------------------------------
-       Sinkron hidden field dengan input Search.
+       MODEL ID CURRENT VALUE
     ===================================================== */
 
-    function syncModelSearchValue(
-        modelId
-    ) {
-
-        const value =
-            String(
-                modelId ?? ""
-            ).trim();
-
-
-        const input =
-            getModelSearchInput();
-
-
-        if (input) {
-
-            /*
-             * Hanya isi jika memang ada nilai.
-             * Jangan menghapus input user ketika search
-             * sedang berjalan.
-             */
-            if (value) {
-
-                input.value =
-                    value;
-
-            }
-
-        }
-
+    function getCurrentModelId() {
 
         const hidden =
             getElement(
@@ -699,15 +751,80 @@
             );
 
 
-        if (hidden) {
+        if (
+            hidden &&
+            String(
+                hidden.value ?? ""
+            ).trim()
+        ) {
 
-            hidden.value =
-                value;
+            return String(
+                hidden.value
+            ).trim();
 
         }
 
 
+        const select =
+            getModelSelect();
+
+
+        if (
+            select
+        ) {
+
+            return String(
+                select.value ?? ""
+            ).trim();
+
+        }
+
+
+        return "";
+
+    }
+
+
+    /* =====================================================
+       PENDING MODEL
+    ===================================================== */
+
+    function setPendingModelId(
+        modelId
+    ) {
+
+        pendingModelId =
+            String(
+                modelId ?? ""
+            ).trim();
+
+
+        return pendingModelId;
+
+    }
+
+
+    function clearPendingModelId() {
+
+        pendingModelId =
+            "";
+
+
         return true;
+
+    }
+
+
+    function getPendingModelId() {
+
+        return pendingModelId;
+
+    }
+
+
+    function getPendingProviderId() {
+
+        return pendingProviderId;
 
     }
 
@@ -726,50 +843,7 @@
 
 
     /* =====================================================
-       ACTIVE MODEL
-    ===================================================== */
-
-    function isActiveModel(
-        model
-    ) {
-
-        const status =
-            normalize(
-                model?.status
-            );
-
-
-        /*
-         * Beberapa data lama mungkin tidak memiliki status.
-         *
-         * Jangan membuang model hanya karena status kosong
-         * apabila data tersebut berasal dari catalog KIE.
-         */
-        if (!status) {
-
-            return true;
-
-        }
-
-
-        return (
-            status === "active" ||
-            status === "enabled"
-        );
-
-    }
-
-
-    /* =====================================================
-       LOAD ACTIVE MODELS
-       -----------------------------------------------------
-       Data dipakai untuk:
-       - lookup model
-       - auto-fill name
-       - harga
-       - edit state
-
-       Data ini TIDAK lagi dipakai untuk membuat SELECT.
+       LOAD MODELS
     ===================================================== */
 
     async function loadActiveModels(
@@ -780,7 +854,7 @@
             window.GENZModelsData;
 
 
-        const requestedModelId =
+        const selectedModelId =
             String(
                 options.selectedModelId ??
                 pendingModelId ??
@@ -789,16 +863,7 @@
             ).trim();
 
 
-        if (requestedModelId) {
-
-            setPendingModelId(
-                requestedModelId
-            );
-
-        }
-
-
-        const requestedProviderId =
+        const providerId =
             String(
                 options.providerId ??
                 pendingProviderId ??
@@ -807,10 +872,18 @@
             ).trim();
 
 
-        if (requestedProviderId) {
+        if (selectedModelId) {
+
+            pendingModelId =
+                selectedModelId;
+
+        }
+
+
+        if (providerId) {
 
             pendingProviderId =
-                requestedProviderId;
+                providerId;
 
         }
 
@@ -821,8 +894,8 @@
                 "function"
         ) {
 
-            console.warn(
-                "[model-form-layout] GENZModelsData belum tersedia."
+            console.error(
+                "[GEN-Z.AI] GENZModelsData.loadKieModels() tidak tersedia."
             );
 
 
@@ -831,130 +904,423 @@
             ];
 
         }
+
+
+        /*
+         * Hindari request bersamaan yang sama.
+         */
+        if (
+            loadingPromise &&
+            options.force !== true
+        ) {
+
+            try {
+
+                return await loadingPromise;
+
+            } catch (error) {
+
+                /* request berikutnya boleh jalan */
+
+            }
+
+        }
+
+
+        loadingPromise =
+            (async function () {
+
+                /*
+                 * Ambil seluruh catalog.
+                 *
+                 * Filter ACTIVE dilakukan di sini
+                 * agar perbedaan casing ACTIVE/active
+                 * tidak menjadi masalah.
+                 */
+                const result =
+                    await data.loadKieModels(
+                        {
+                            activeOnly:
+                                false,
+
+                            force:
+                                options.force === true
+                        }
+                    );
+
+
+                const incoming =
+                    Array.isArray(
+                        result
+                    )
+                        ? result
+                        : [];
+
+
+                /*
+                 * Hanya model aktif.
+                 */
+                const activeModels =
+                    incoming.filter(
+                        isActiveModel
+                    );
+
+
+                /*
+                 * Jangan filter cache permanen berdasarkan
+                 * Provider. Cache harus menyimpan catalog.
+                 */
+                modelCache =
+                    activeModels;
+
+
+                return [
+                    ...modelCache
+                ];
+
+            })();
 
 
         try {
 
-            const models =
-                await data.loadKieModels(
-                    {
-                        /*
-                         * Ambil katalog aktif.
-                         */
-                        activeOnly:
-                            true,
-
-                        force:
-                            options.force === true
-                    }
-                );
-
-
-            const incoming =
-                Array.isArray(
-                    models
-                )
-                    ? models
-                    : [];
-
-
-            modelCache =
-                incoming.filter(
-                    isActiveModel
-                );
-
-
-            /*
-             * Jika model edit belum masuk ke hasil aktif,
-             * cari dari katalog tanpa activeOnly.
-             */
-            if (
-                requestedModelId &&
-                !findModel(
-                    requestedModelId
-                )
-            ) {
-
-                try {
-
-                    const allModels =
-                        await data.loadKieModels(
-                            {
-                                activeOnly:
-                                    false,
-
-                                force:
-                                    false
-                            }
-                        );
-
-
-                    if (
-                        Array.isArray(
-                            allModels
-                        )
-                    ) {
-
-                        const editModel =
-                            allModels.find(
-                                function (model) {
-
-                                    return (
-                                        normalize(
-                                            model?.model_id
-                                        ) ===
-                                        normalize(
-                                            requestedModelId
-                                        )
-                                    );
-
-                                }
-                            );
-
-
-                        if (editModel) {
-
-                            modelCache.push(
-                                editModel
-                            );
-
-                        }
-
-                    }
-
-                } catch (error) {
-
-                    console.warn(
-                        "[model-form-layout] Gagal mengambil fallback model:",
-                        error
-                    );
-
-                }
-
-            }
-
-
-            return [
-                ...modelCache
-            ];
+            return await loadingPromise;
 
         } catch (error) {
 
             console.error(
-                "[model-form-layout] Gagal memuat Model ID:",
+                "[GEN-Z.AI] Gagal memuat Model:",
                 error
             );
 
 
-            /*
-             * Jangan menghancurkan cache lama jika request
-             * gagal.
-             */
             return [
                 ...modelCache
             ];
 
+        } finally {
+
+            loadingPromise =
+                null;
+
         }
+
+    }
+
+
+    /* =====================================================
+       FILTER MODEL FOR CURRENT PROVIDER
+    ===================================================== */
+
+    function getModelsForProvider(
+        providerValue
+    ) {
+
+        const value =
+            String(
+                providerValue ?? ""
+            ).trim();
+
+
+        /*
+         * Jika Provider belum dipilih,
+         * jangan tampilkan semua model secara membabi buta.
+         * Tampilkan kosong.
+         */
+        if (!value) {
+
+            return [];
+
+        }
+
+
+        return modelCache.filter(
+            function (model) {
+
+                return (
+                    isActiveModel(
+                        model
+                    ) &&
+                    modelMatchesProvider(
+                        model,
+                        value
+                    )
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       POPULATE MODEL SELECT
+       ===================================================== */
+
+    function populateModelSelect(
+        options = {}
+    ) {
+
+        const select =
+            getModelSelect();
+
+
+        if (!select) {
+
+            console.warn(
+                "[GEN-Z.AI] #modelCodeSearch tidak ditemukan."
+            );
+
+
+            return false;
+
+        }
+
+
+        const providerId =
+            String(
+                options.providerId ??
+                getCurrentProvider() ??
+                pendingProviderId ??
+                ""
+            ).trim();
+
+
+        const selectedModelId =
+            String(
+                options.selectedModelId ??
+                pendingModelId ??
+                getCurrentModelId() ??
+                ""
+            ).trim();
+
+
+        /*
+         * Ambil model berdasarkan Provider.
+         */
+        const models =
+            getModelsForProvider(
+                providerId
+            );
+
+
+        /*
+         * Reset options.
+         */
+        select.innerHTML =
+            "";
+
+
+        /*
+         * Placeholder.
+         */
+        const placeholder =
+            document.createElement(
+                "option"
+            );
+
+
+        placeholder.value =
+            "";
+
+
+        placeholder.textContent =
+            providerId
+                ? "Pilih Model ID"
+                : "Pilih Provider terlebih dahulu";
+
+
+        placeholder.disabled =
+            false;
+
+
+        placeholder.selected =
+            true;
+
+
+        select.appendChild(
+            placeholder
+        );
+
+
+        /*
+         * Sort berdasarkan Model ID.
+         */
+        models.sort(
+            function (a, b) {
+
+                const aId =
+                    String(
+                        a?.model_id ?? ""
+                    );
+
+
+                const bId =
+                    String(
+                        b?.model_id ?? ""
+                    );
+
+
+                return aId.localeCompare(
+                    bId,
+                    undefined,
+                    {
+                        sensitivity:
+                            "base"
+                    }
+                );
+
+            }
+        );
+
+
+        /*
+         * Buat option.
+         */
+        models.forEach(
+            function (model) {
+
+                const modelId =
+                    String(
+                        model?.model_id ?? ""
+                    ).trim();
+
+
+                if (!modelId) {
+
+                    return;
+
+                }
+
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+
+                option.value =
+                    modelId;
+
+
+                /*
+                 * Model ID adalah label utama.
+                 */
+                option.textContent =
+                    modelId;
+
+
+                /*
+                 * Simpan metadata.
+                 */
+                option.dataset.modelId =
+                    modelId;
+
+
+                if (
+                    model?.model_name
+                ) {
+
+                    option.dataset.modelName =
+                        String(
+                            model.model_name
+                        );
+
+                }
+
+
+                if (
+                    model?.model_family
+                ) {
+
+                    option.dataset.modelFamily =
+                        String(
+                            model.model_family
+                        );
+
+                }
+
+
+                if (
+                    model?.provider
+                ) {
+
+                    option.dataset.provider =
+                        String(
+                            model.provider
+                        );
+
+                }
+
+
+                select.appendChild(
+                    option
+                );
+
+            }
+        );
+
+
+        /*
+         * Pulihkan Model yang sebelumnya dipilih.
+         */
+        if (
+            selectedModelId &&
+            models.some(
+                function (model) {
+
+                    return (
+                        normalize(
+                            model?.model_id
+                        ) ===
+                        normalize(
+                            selectedModelId
+                        )
+                    );
+
+                }
+            )
+        ) {
+
+            select.value =
+                selectedModelId;
+
+        } else {
+
+            select.value =
+                "";
+
+        }
+
+
+        /*
+         * Hidden field harus mengikuti SELECT.
+         */
+        const hidden =
+            getElement(
+                "modelCode"
+            );
+
+
+        if (hidden) {
+
+            hidden.value =
+                select.value || "";
+
+        }
+
+
+        console.info(
+            "[GEN-Z.AI] Model Select populated:",
+            {
+                provider:
+                    providerId,
+                total:
+                    models.length
+            }
+        );
+
+
+        return true;
 
     }
 
@@ -999,10 +1365,6 @@
     }
 
 
-    /* =====================================================
-       FIND MODEL BY ANY ID
-    ===================================================== */
-
     function findModelById(
         modelId
     ) {
@@ -1015,170 +1377,96 @@
 
 
     /* =====================================================
-       UPDATE SELECTED MODEL INFO
-    ===================================================== */
-
-    function updateSelectedModelInfo(
-        model
-    ) {
-
-        const info =
-            getElement(
-                "selectedModelInfo"
-            );
-
-
-        if (!info) {
-
-            return;
-
-        }
-
-
-        if (!model) {
-
-            const provider =
-                getCurrentProvider();
-
-
-            info.textContent =
-                provider
-                    ? "Belum ada Model ID yang dipilih."
-                    : "Pilih Provider terlebih dahulu.";
-
-
-            return;
-
-        }
-
-
-        const modelName =
-            String(
-                model.model_name ||
-                ""
-            ).trim();
-
-
-        const modelId =
-            String(
-                model.model_id ||
-                ""
-            ).trim();
-
-
-        const family =
-            String(
-                model.model_family ||
-                ""
-            ).trim();
-
-
-        const parts = [
-
-            modelName,
-
-            modelId,
-
-            family
-
-        ].filter(
-            Boolean
-        );
-
-
-        info.textContent =
-            parts.length
-                ? parts.join(
-                    " · "
-                )
-                : "Model dipilih.";
-
-    }
-
-
-    /* =====================================================
-       PRICE MODULE
-    ===================================================== */
-
-    function getPriceModule() {
-
-        return (
-            window.GENZModelsPrice ||
-            null
-        );
-
-    }
-
-
-    /* =====================================================
-       GET MODEL USD PRICE
+       MODEL USD PRICE
     ===================================================== */
 
     function getModelUsdPrice(
         model
     ) {
 
+        if (!model) {
+
+            return null;
+
+        }
+
+
         const priceModule =
-            getPriceModule();
+            window.GENZModelsPrice;
 
 
         if (
-            !priceModule ||
-            typeof priceModule.getModelPrice !==
+            priceModule &&
+            typeof priceModule.getModelPrice ===
                 "function"
         ) {
 
-            return null;
+            try {
+
+                const result =
+                    priceModule.getModelPrice(
+                        model
+                    );
+
+
+                if (result) {
+
+                    const usd =
+                        toNumber(
+                            result.usd,
+                            NaN
+                        );
+
+
+                    if (
+                        Number.isFinite(
+                            usd
+                        )
+                    ) {
+
+                        return usd;
+
+                    }
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[model-form-layout] Gagal membaca harga model:",
+                    error
+                );
+
+            }
 
         }
 
 
-        try {
-
-            const result =
-                priceModule.getModelPrice(
-                    model
-                );
+        const metadata =
+            model?.metadata;
 
 
-            if (!result) {
-
-                return null;
-
-            }
-
-
-            const usd =
-                toNumber(
-                    result.usd,
-                    NaN
-                );
+        const fallback =
+            metadata?.price_usd ??
+            metadata?.usd_price ??
+            metadata?.unit_price ??
+            model?.price_usd ??
+            model?.unit_price ??
+            null;
 
 
-            if (
-                !Number.isFinite(
-                    usd
-                )
-            ) {
-
-                return null;
-
-            }
-
-
-            return usd;
-
-        } catch (error) {
-
-            console.warn(
-                "[model-form-layout] Gagal mengambil harga model:",
-                error
+        const usd =
+            toNumber(
+                fallback,
+                NaN
             );
 
 
-            return null;
-
-        }
+        return Number.isFinite(
+            usd
+        )
+            ? usd
+            : null;
 
     }
 
@@ -1210,7 +1498,9 @@
             );
 
 
-        if (usd !== null) {
+        if (
+            usd !== null
+        ) {
 
             field.value =
                 usd;
@@ -1224,42 +1514,13 @@
         }
 
 
-        /*
-         * Fallback metadata.
-         */
-        const metadata =
-            model?.metadata;
-
-
-        const fallback =
-            metadata?.price_usd ??
-            metadata?.usd_price ??
-            metadata?.unit_price ??
-            metadata?.price ??
-            model?.price_usd ??
-            model?.unit_price ??
-            null;
-
-
-        if (
-            fallback !== null &&
-            fallback !== undefined &&
-            fallback !== ""
-        ) {
-
-            field.value =
-                fallback;
-
-        }
-
-
         updateUsdPreview();
 
     }
 
 
     /* =====================================================
-       UPDATE USD PREVIEW
+       USD PREVIEW
     ===================================================== */
 
     function updateUsdPreview() {
@@ -1341,7 +1602,7 @@
 
 
     /* =====================================================
-       USD PRICE EVENTS
+       USD EVENTS
     ===================================================== */
 
     function bindUsdPriceEvents() {
@@ -1404,193 +1665,8 @@
 
 
     /* =====================================================
-       PROVIDER CHANGE
-       -----------------------------------------------------
-       Provider berubah:
-       - simpan Provider
-       - kosongkan Model ID
-       - minta Search melakukan refresh
-       
-       TIDAK:
-       - membuat SELECT
-       - mengisi OPTION
-       - menghapus search dropdown
-    ===================================================== */
-
-    function bindProviderEvent() {
-
-        if (
-            boundProviderEvent
-        ) {
-
-            return true;
-
-        }
-
-
-        const provider =
-            getElement(
-                "providerId"
-            );
-
-
-        if (!provider) {
-
-            return false;
-
-        }
-
-
-        provider.addEventListener(
-            "change",
-            async function () {
-
-                const providerId =
-                    String(
-                        provider.value ||
-                        ""
-                    ).trim();
-
-
-                pendingProviderId =
-                    providerId;
-
-
-                clearPendingModelId();
-
-
-                /*
-                 * Bersihkan Model ID melalui Search module
-                 * jika tersedia.
-                 */
-                const search =
-                    window.GENZModelsSearch;
-
-
-                if (
-                    search &&
-                    typeof search.clearSelectedModelInfo ===
-                        "function"
-                ) {
-
-                    try {
-
-                        search.clearSelectedModelInfo();
-
-                    } catch (error) {
-
-                        console.warn(
-                            "[model-form-layout] Search clear gagal:",
-                            error
-                        );
-
-                    }
-
-                }
-
-
-                /*
-                 * Hidden field.
-                 */
-                const hidden =
-                    getElement(
-                        "modelCode"
-                    );
-
-
-                if (hidden) {
-
-                    hidden.value =
-                        "";
-
-                }
-
-
-                /*
-                 * Input Model ID.
-                 *
-                 * Hanya dikosongkan.
-                 * Element TIDAK diganti.
-                 */
-                const input =
-                    getModelSearchInput();
-
-
-                if (input) {
-
-                    input.value =
-                        "";
-
-                }
-
-
-                updateSelectedModelInfo(
-                    null
-                );
-
-
-                /*
-                 * Minta Search melakukan refresh katalog
-                 * berdasarkan Provider baru.
-                 */
-                if (
-                    search &&
-                    typeof search.refreshCatalog ===
-                        "function"
-                ) {
-
-                    try {
-
-                        await search.refreshCatalog(
-                            {
-                                providerId
-                            }
-                        );
-
-                        return;
-
-                    } catch (error) {
-
-                        console.warn(
-                            "[model-form-layout] Search catalog refresh gagal:",
-                            error
-                        );
-
-                    }
-
-                }
-
-
-                /*
-                 * Fallback hanya memuat cache.
-                 */
-                await loadActiveModels(
-                    {
-                        providerId
-                    }
-                );
-
-            }
-        );
-
-
-        boundProviderEvent =
-            true;
-
-
-        return true;
-
-    }
-
-
-    /* =====================================================
-       SET MODEL
-       -----------------------------------------------------
-       Dipanggil oleh Edit/Search ketika Model sudah
-       ditemukan.
-
-       Tidak membuat SELECT.
-    ===================================================== */
+       SELECT MODEL
+       ===================================================== */
 
     function setModel(
         model
@@ -1620,36 +1696,37 @@
         }
 
 
-        setPendingModelId(
-            modelId
-        );
+        pendingModelId =
+            modelId;
 
 
-        const providerId =
+        const modelProvider =
             String(
-                getCurrentProvider() ||
                 model.provider_id ||
                 model.provider ||
+                model.provider_code ||
                 ""
             ).trim();
 
 
-        if (providerId) {
+        if (modelProvider) {
 
             pendingProviderId =
-                providerId;
+                modelProvider;
 
         }
 
 
         /*
-         * Simpan ke cache jika belum ada.
+         * Simpan ke cache.
          */
-        if (
-            !findModel(
+        const existing =
+            findModel(
                 modelId
-            )
-        ) {
+            );
+
+
+        if (!existing) {
 
             modelCache.push(
                 model
@@ -1659,11 +1736,80 @@
 
 
         /*
-         * Sinkron Input + Hidden.
+         * SELECT.
          */
-        syncModelSearchValue(
-            modelId
-        );
+        const select =
+            getModelSelect();
+
+
+        if (select) {
+
+            /*
+             * Pastikan option tersedia.
+             */
+            const exists =
+                Array.from(
+                    select.options
+                ).some(
+                    function (option) {
+
+                        return (
+                            normalize(
+                                option.value
+                            ) ===
+                            normalize(
+                                modelId
+                            )
+                        );
+
+                    }
+                );
+
+
+            if (!exists) {
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+
+                option.value =
+                    modelId;
+
+
+                option.textContent =
+                    modelId;
+
+
+                select.appendChild(
+                    option
+                );
+
+            }
+
+
+            select.value =
+                modelId;
+
+        }
+
+
+        /*
+         * Hidden Model ID.
+         */
+        const hidden =
+            getElement(
+                "modelCode"
+            );
+
+
+        if (hidden) {
+
+            hidden.value =
+                modelId;
+
+        }
 
 
         /*
@@ -1685,7 +1831,7 @@
 
 
         /*
-         * Family.
+         * Model Family.
          */
         const family =
             getElement(
@@ -1693,29 +1839,31 @@
             );
 
 
-        if (
-            family &&
-            model.model_family
-        ) {
+        if (family) {
 
             family.value =
-                model.model_family;
+                model.model_family ||
+                "";
 
         }
 
 
-        updateSelectedModelInfo(
-            model
-        );
-
-
+        /*
+         * Harga.
+         */
         loadModelUsdPrice(
             model
         );
 
 
         /*
-         * Beri tahu module lain.
+         * Credit.
+         */
+        syncCreditPreview();
+
+
+        /*
+         * Event internal.
          */
         document.dispatchEvent(
             new CustomEvent(
@@ -1735,8 +1883,453 @@
 
 
     /* =====================================================
-       GET CURRENT MODEL
+       HANDLE MODEL CHANGE
+       ===================================================== */
+
+    function handleModelChange() {
+
+        const select =
+            getModelSelect();
+
+
+        if (!select) {
+
+            return false;
+
+        }
+
+
+        const modelId =
+            String(
+                select.value ?? ""
+            ).trim();
+
+
+        const hidden =
+            getElement(
+                "modelCode"
+            );
+
+
+        if (hidden) {
+
+            hidden.value =
+                modelId;
+
+        }
+
+
+        if (!modelId) {
+
+            clearModelSelection(
+                {
+                    keepPending:
+                        false
+                }
+            );
+
+
+            return true;
+
+        }
+
+
+        const model =
+            findModel(
+                modelId
+            );
+
+
+        if (!model) {
+
+            console.warn(
+                "[GEN-Z.AI] Model ID tidak ditemukan:",
+                modelId
+            );
+
+
+            return false;
+
+        }
+
+
+        return setModel(
+            model
+        );
+
+    }
+
+
+    /* =====================================================
+       BIND MODEL EVENT
+       ===================================================== */
+
+    function bindModelEvent() {
+
+        if (
+            boundModelEvent
+        ) {
+
+            return true;
+
+        }
+
+
+        const select =
+            getModelSelect();
+
+
+        if (!select) {
+
+            return false;
+
+        }
+
+
+        select.addEventListener(
+            "change",
+            handleModelChange
+        );
+
+
+        select.__genzModelSelectHandler =
+            handleModelChange;
+
+
+        boundModelEvent =
+            true;
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       PROVIDER CHANGE
+       ===================================================== */
+
+    async function handleProviderChange() {
+
+        const provider =
+            getElement(
+                "providerId"
+            );
+
+
+        const providerId =
+            String(
+                provider?.value ?? ""
+            ).trim();
+
+
+        pendingProviderId =
+            providerId;
+
+
+        clearPendingModelId();
+
+
+        /*
+         * Clear Model field.
+         */
+        const hidden =
+            getElement(
+                "modelCode"
+            );
+
+
+        if (hidden) {
+
+            hidden.value =
+                "";
+
+        }
+
+
+        const select =
+            getModelSelect();
+
+
+        if (select) {
+
+            select.innerHTML =
+                "";
+
+
+            const placeholder =
+                document.createElement(
+                    "option"
+                );
+
+
+            placeholder.value =
+                "";
+
+
+            placeholder.textContent =
+                providerId
+                    ? "Memuat Model..."
+                    : "Pilih Provider terlebih dahulu";
+
+
+            placeholder.selected =
+                true;
+
+
+            select.appendChild(
+                placeholder
+            );
+
+
+            select.disabled =
+                !providerId;
+
+        }
+
+
+        /*
+         * Load catalog.
+         */
+        await loadActiveModels(
+            {
+                providerId
+            }
+        );
+
+
+        /*
+         * Populate sesuai Provider.
+         */
+        populateModelSelect(
+            {
+                providerId
+            }
+        );
+
+
+        updateUsdPreview();
+
+        syncCreditPreview();
+
+
+        /*
+         * Inform module lain.
+         */
+        document.dispatchEvent(
+            new CustomEvent(
+                "genz-model-provider-models-loaded",
+                {
+                    detail: {
+                        providerId,
+                        models:
+                            getModelsForProvider(
+                                providerId
+                            )
+                    }
+                }
+            )
+        );
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       BIND PROVIDER EVENT
+       ===================================================== */
+
+    function bindProviderEvent() {
+
+        if (
+            boundProviderEvent
+        ) {
+
+            return true;
+
+        }
+
+
+        const provider =
+            getElement(
+                "providerId"
+            );
+
+
+        if (!provider) {
+
+            return false;
+
+        }
+
+
+        provider.addEventListener(
+            "change",
+            handleProviderChange
+        );
+
+
+        provider.__genzModelProviderHandler =
+            handleProviderChange;
+
+
+        boundProviderEvent =
+            true;
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       CLEAR MODEL
+       ===================================================== */
+
+    function clearModelSelection(
+        options = {}
+    ) {
+
+        const select =
+            getModelSelect();
+
+
+        if (select) {
+
+            select.value =
+                "";
+
+        }
+
+
+        const hidden =
+            getElement(
+                "modelCode"
+            );
+
+
+        if (hidden) {
+
+            hidden.value =
+                "";
+
+        }
+
+
+        const name =
+            getElement(
+                "modelName"
+            );
+
+
+        if (name) {
+
+            name.value =
+                "";
+
+        }
+
+
+        const family =
+            getElement(
+                "modelFamily"
+            );
+
+
+        if (family) {
+
+            family.value =
+                "";
+
+        }
+
+
+        if (
+            options.keepPending !== true
+        ) {
+
+            clearPendingModelId();
+
+        }
+
+
+        const price =
+            getElement(
+                "kieUnitPrice"
+            );
+
+
+        if (price) {
+
+            price.value =
+                "";
+
+        }
+
+
+        updateUsdPreview();
+
+        syncCreditPreview();
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       SYNC MODEL SEARCH VALUE
+       -----------------------------------------------------
+       Nama fungsi dipertahankan untuk kompatibilitas.
+       Sekarang sebenarnya menyinkronkan SELECT.
     ===================================================== */
+
+    function syncModelSearchValue(
+        modelId
+    ) {
+
+        const value =
+            String(
+                modelId ?? ""
+            ).trim();
+
+
+        const select =
+            getModelSelect();
+
+
+        if (select) {
+
+            select.value =
+                value;
+
+        }
+
+
+        const hidden =
+            getElement(
+                "modelCode"
+            );
+
+
+        if (hidden) {
+
+            hidden.value =
+                value;
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       CURRENT MODEL
+       ===================================================== */
 
     function getCurrentModel() {
 
@@ -1759,76 +2352,51 @@
 
 
     /* =====================================================
-       CLEAR MODEL SELECTION
-    ===================================================== */
+       UPDATE SELECTED MODEL INFO
+       ===================================================== */
 
-    function clearModelSelection(
-        options = {}
+    function updateSelectedModelInfo(
+        model
     ) {
 
-        const input =
-            getModelSearchInput();
+        if (!model) {
 
-
-        if (input) {
-
-            input.value =
-                "";
+            return clearModelSelection();
 
         }
 
 
-        const hidden =
-            getElement(
-                "modelCode"
-            );
-
-
-        if (hidden) {
-
-            hidden.value =
-                "";
-
-        }
-
-
-        if (
-            options.keepPending !== true
-        ) {
-
-            clearPendingModelId();
-
-        }
-
-
-        updateSelectedModelInfo(
-            null
+        return setModel(
+            model
         );
 
+    }
 
-        /*
-         * Jangan memanggil Search.clear() secara agresif
-         * karena event delegation Search sendiri mengatur
-         * dropdown.
-         */
-        const search =
-            window.GENZModelsSearch;
+
+    /* =====================================================
+       CREDIT PREVIEW
+       ===================================================== */
+
+    function syncCreditPreview() {
+
+        const calculation =
+            window.GENZModelPriceCalculation;
 
 
         if (
-            search &&
-            typeof search.clearSelectedModelInfo ===
+            calculation &&
+            typeof calculation.syncForm ===
                 "function"
         ) {
 
             try {
 
-                search.clearSelectedModelInfo();
+                return calculation.syncForm();
 
             } catch (error) {
 
                 console.warn(
-                    "[model-form-layout] Search clear info gagal:",
+                    "[model-form-layout] Credit calculation error:",
                     error
                 );
 
@@ -1837,46 +2405,33 @@
         }
 
 
-        return true;
+        return null;
 
     }
 
 
     /* =====================================================
        REFRESH
-       -----------------------------------------------------
-       Refresh hanya memperbarui data catalog dan memberi
-       tahu Search.
-
-       TIDAK menyentuh DOM dropdown Model ID.
-    ===================================================== */
+       ===================================================== */
 
     async function refresh(
         options = {}
     ) {
-
-        const selectedModelId =
-            String(
-                options.selectedModelId ??
-                pendingModelId ??
-                getCurrentModelId() ??
-                ""
-            ).trim();
-
-
-        if (selectedModelId) {
-
-            pendingModelId =
-                selectedModelId;
-
-        }
-
 
         const providerId =
             String(
                 options.providerId ??
                 getCurrentProvider() ??
                 pendingProviderId ??
+                ""
+            ).trim();
+
+
+        const selectedModelId =
+            String(
+                options.selectedModelId ??
+                pendingModelId ??
+                getCurrentModelId() ??
                 ""
             ).trim();
 
@@ -1889,58 +2444,35 @@
         }
 
 
-        /*
-         * Muat catalog untuk kebutuhan lookup/harga.
-         */
+        if (selectedModelId) {
+
+            pendingModelId =
+                selectedModelId;
+
+        }
+
+
         await loadActiveModels(
             {
-                selectedModelId,
-
                 providerId,
-
+                selectedModelId,
                 force:
                     options.force === true
             }
         );
 
 
-        /*
-         * Jangan populate SELECT.
-         *
-         * Search module adalah satu-satunya pemilik
-         * hasil Model ID.
-         */
-        const search =
-            window.GENZModelsSearch;
-
-
-        if (
-            search &&
-            typeof search.setModels ===
-                "function"
-        ) {
-
-            try {
-
-                search.setModels(
-                    modelCache
-                );
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-layout] Search setModels gagal:",
-                    error
-                );
-
+        populateModelSelect(
+            {
+                providerId,
+                selectedModelId
             }
-
-        }
+        );
 
 
         /*
-         * Jika sedang mempertahankan model Edit,
-         * sinkronkan hidden field tanpa mengganti input.
+         * Jika Edit memiliki Model ID,
+         * isi seluruh field.
          */
         if (selectedModelId) {
 
@@ -1972,68 +2504,84 @@
 
 
     /* =====================================================
-       CREDIT PREVIEW
-    ===================================================== */
-
-    function syncCreditPreview() {
-
-        const calculation =
-            window.GENZModelPriceCalculation;
-
-
-        if (
-            calculation &&
-            typeof calculation.syncForm ===
-                "function"
-        ) {
-
-            try {
-
-                return calculation.syncForm();
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-layout] Credit calculation delegation gagal:",
-                    error
-                );
-
-            }
-
-        }
-
-
-        return null;
-
-    }
-
-
-    /* =====================================================
        INITIALIZE
-    ===================================================== */
+       ===================================================== */
 
     async function initialize(
         options = {}
     ) {
 
+        /*
+         * Pastikan SELECT dibuat sebelum event dipasang.
+         */
+        getModelSelect();
+
+
+        bindProviderEvent();
+
+        bindModelEvent();
+
+        bindUsdPriceEvents();
+
+
+        /*
+         * Simpan state.
+         */
+        const providerId =
+            String(
+                options.providerId ??
+                getCurrentProvider() ??
+                ""
+            ).trim();
+
+
+        if (providerId) {
+
+            pendingProviderId =
+                providerId;
+
+        }
+
+
+        const existingModelId =
+            String(
+                options.selectedModelId ??
+                getCurrentModelId() ??
+                ""
+            ).trim();
+
+
+        if (existingModelId) {
+
+            pendingModelId =
+                existingModelId;
+
+        }
+
+
+        /*
+         * Jika sudah initialized, tetap refresh ketika
+         * ada Provider / Model yang diberikan.
+         */
         if (
             initialized
         ) {
 
-            /*
-             * Tetap lakukan refresh jika ada Provider
-             * atau Model yang secara eksplisit diberikan.
-             */
             if (
-                options.providerId ||
-                options.selectedModelId
+                providerId ||
+                existingModelId
             ) {
 
                 await refresh(
-                    options
+                    {
+                        providerId,
+                        selectedModelId:
+                            existingModelId
+                    }
                 );
 
             }
+
 
             return true;
 
@@ -2045,127 +2593,48 @@
 
 
         /*
-         * Simpan state Edit.
+         * Awal halaman:
+         * jika Provider sudah terpilih, langsung
+         * isi daftar Model.
          */
-        if (
-            options.selectedModelId
-        ) {
+        if (providerId) {
 
-            setPendingModelId(
-                options.selectedModelId
+            await loadActiveModels(
+                {
+                    providerId,
+                    selectedModelId:
+                        existingModelId
+                }
+            );
+
+
+            populateModelSelect(
+                {
+                    providerId,
+                    selectedModelId:
+                        existingModelId
+                }
             );
 
         } else {
 
-            const existingModelId =
-                getCurrentModelId();
-
-
-            if (existingModelId) {
-
-                setPendingModelId(
-                    existingModelId
-                );
-
-            }
-
-        }
-
-
-        if (
-            options.providerId
-        ) {
-
-            pendingProviderId =
-                String(
-                    options.providerId
-                ).trim();
+            populateModelSelect(
+                {
+                    providerId: ""
+                }
+            );
 
         }
 
 
         /*
-         * Provider event.
+         * Restore Edit Model.
          */
-        bindProviderEvent();
-
-
-        /*
-         * PENTING:
-         * Tidak ada ensureModelSelect().
-         * Tidak ada penggantian INPUT menjadi SELECT.
-         */
-        getModelSearchInput();
-
-
-        /*
-         * Harga.
-         */
-        bindUsdPriceEvents();
-
-
-        /*
-         * Credit.
-         */
-        syncCreditPreview();
-
-
-        /*
-         * Load catalog.
-         */
-        await loadActiveModels(
-            {
-                selectedModelId:
-                    pendingModelId,
-
-                providerId:
-                    pendingProviderId
-            }
-        );
-
-
-        /*
-         * Berikan catalog kepada Search.
-         */
-        const search =
-            window.GENZModelsSearch;
-
-
-        if (
-            search &&
-            typeof search.setModels ===
-                "function"
-        ) {
-
-            try {
-
-                search.setModels(
-                    modelCache
-                );
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-layout] Gagal sinkron Search:",
-                    error
-                );
-
-            }
-
-        }
-
-
-        /*
-         * Jika Edit Model sudah mempunyai model,
-         * sinkronkan tanpa mengubah element input.
-         */
-        if (
-            pendingModelId
-        ) {
+        if (existingModelId) {
 
             const model =
                 findModel(
-                    pendingModelId
+                    existingModelId
                 );
 
 
@@ -2193,7 +2662,7 @@
 
 
         console.info(
-            "[GEN-Z.AI] Model Form Layout initialized."
+            "[GEN-Z.AI] Model Form Layout initialized as SELECT."
         );
 
 
@@ -2203,34 +2672,23 @@
 
 
     /* =====================================================
-       GET PENDING MODEL ID
-    ===================================================== */
-
-    function getPendingModelId() {
-
-        return pendingModelId;
-
-    }
-
-
-    /* =====================================================
-       GET PENDING PROVIDER ID
-    ===================================================== */
-
-    function getPendingProviderId() {
-
-        return pendingProviderId;
-
-    }
-
-
-    /* =====================================================
-       GET PROVIDER
-    ===================================================== */
+       LOAD MODEL CACHE
+       ===================================================== */
 
     function getCurrentProviderId() {
 
         return getCurrentProvider();
+
+    }
+
+
+    function clearPendingProviderId() {
+
+        pendingProviderId =
+            "";
+
+
+        return true;
 
     }
 
@@ -2250,6 +2708,10 @@
 
             getCachedModels,
 
+            getModelsForProvider,
+
+            populateModelSelect,
+
             findModel,
 
             findModelById,
@@ -2265,6 +2727,8 @@
             getPendingProviderId,
 
             clearPendingModelId,
+
+            clearPendingProviderId,
 
             clearModelSelection,
 
@@ -2286,13 +2750,17 @@
 
             formatIdr,
 
-            modelMatchesProvider
+            modelMatchesProvider,
+
+            handleModelChange,
+
+            handleProviderChange
 
         });
 
 
     console.info(
-        "[GEN-Z.AI] GENZModelFormLayout module loaded."
+        "[GEN-Z.AI] GENZModelFormLayout loaded: MODEL SELECT MODE."
     );
 
 })();
