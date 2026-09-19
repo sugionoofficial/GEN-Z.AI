@@ -25,7 +25,7 @@
    - Menghitung credit sendiri
    - Mengelola Provider sendiri
    - Mengelola Model catalog sendiri
-   - Mengambil alih layout
+   - Mengelola Pricing / Credit Calculation
 
    OWNER LAIN:
    Provider:
@@ -43,6 +43,17 @@
        GENZModelFormEdit
        GENZModelFormDelete
        GENZModelFormCoordinator
+
+   CATATAN PENTING:
+   Pricing sengaja TIDAK dibinding di file ini.
+   GENZModelPriceCalculation adalah satu-satunya
+   owner event Credit / Discount / Credit Final.
+
+   Tujuan:
+   Mencegah duplicate listener dan recursive
+   price synchronization yang dapat menyebabkan:
+
+       Maximum call stack size exceeded
 ========================================================= */
 
 (function () {
@@ -154,20 +165,6 @@
 
         return (
             window.GENZModelFormLayout ||
-            null
-        );
-
-    }
-
-
-    /* =====================================================
-       PRICE
-    ===================================================== */
-
-    function getPriceCalculation() {
-
-        return (
-            window.GENZModelPriceCalculation ||
             null
         );
 
@@ -325,6 +322,7 @@
         /*
          * Pastikan display benar-benar tertutup.
          */
+
         modal.style.display =
             "none";
 
@@ -332,6 +330,7 @@
         /*
          * Bersihkan kemungkinan inline visibility.
          */
+
         modal.style.visibility =
             "hidden";
 
@@ -339,6 +338,7 @@
         /*
          * Pulihkan body.
          */
+
         document.body.classList.remove(
             "modal-open"
         );
@@ -743,23 +743,34 @@
         }
 
 
-        document.dispatchEvent(
+        try {
 
-            new CustomEvent(
-                "genz-model-provider-changed",
-                {
-                    detail: {
+            document.dispatchEvent(
 
-                        providerId,
+                new CustomEvent(
+                    "genz-model-provider-changed",
+                    {
+                        detail: {
 
-                        source:
-                            "model-form-events"
+                            providerId,
 
+                            source:
+                                "model-form-events"
+
+                        }
                     }
-                }
-            )
+                )
 
-        );
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[model-form-events] Provider changed event gagal:",
+                error
+            );
+
+        }
 
     }
 
@@ -837,6 +848,14 @@
                         );
 
 
+                    /*
+                     * Model Name sekarang mengikuti
+                     * catalog KIE / Supabase.
+                     *
+                     * Hanya isi jika kosong agar
+                     * tidak merusak state edit.
+                     */
+
                     if (
 
                         modelName &&
@@ -854,23 +873,34 @@
                     }
 
 
-                    document.dispatchEvent(
+                    try {
 
-                        new CustomEvent(
-                            "genz-model-selected",
-                            {
-                                detail: {
+                        document.dispatchEvent(
 
-                                    model,
+                            new CustomEvent(
+                                "genz-model-selected",
+                                {
+                                    detail: {
 
-                                    source:
-                                        "model-form-events"
+                                        model,
 
+                                        source:
+                                            "model-form-events"
+
+                                    }
                                 }
-                            }
-                        )
+                            )
 
-                    );
+                        );
+
+                    } catch (eventError) {
+
+                        console.warn(
+                            "[model-form-events] Model selected event gagal:",
+                            eventError
+                        );
+
+                    }
 
                 }
 
@@ -878,75 +908,6 @@
 
                 console.warn(
                     "[model-form-events] Model selection warning:",
-                    error
-                );
-
-            }
-
-        }
-
-    }
-
-
-    /* =====================================================
-       PRICE INPUT
-    ===================================================== */
-
-    function handlePriceInput(
-        event
-    ) {
-
-        const calculation =
-            getPriceCalculation();
-
-
-        if (!calculation) {
-
-            return;
-
-        }
-
-
-        if (
-
-            typeof calculation.syncForm ===
-                "function"
-
-        ) {
-
-            try {
-
-                calculation.syncForm();
-
-                return;
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-events] Price sync warning:",
-                    error
-                );
-
-            }
-
-        }
-
-
-        if (
-
-            typeof calculation.updatePreview ===
-                "function"
-
-        ) {
-
-            try {
-
-                calculation.updatePreview();
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-events] Price preview warning:",
                     error
                 );
 
@@ -1162,62 +1123,38 @@
 
 
     /* =====================================================
-       BIND PRICE
+       PRICING
+       -----------------------------------------------------
+       SENGAJA TIDAK ADA bindPrice().
+
+       GENZModelPriceCalculation adalah satu-satunya
+       owner untuk:
+
+       - creditCost
+       - discountPercent
+       - creditFinal
+       - discountAmount
+       - preview credit
+
+       Jangan menambahkan listener pricing
+       di module ini.
+
+       Sebelumnya file ini ikut memanggil:
+
+           calculation.syncForm()
+
+       pada input/change.
+
+       Sementara model-price-calculation.js juga
+       memasang listener sendiri.
+
+       Hal tersebut menghasilkan duplicate event path
+       dan berpotensi menyebabkan recursive event chain.
+
+       Pricing sekarang sepenuhnya dikelola oleh:
+
+           GENZModelPriceCalculation.bind()
     ===================================================== */
-
-    function bindPrice() {
-
-        const fields = [
-
-            "creditCost",
-
-            "credit_cost",
-
-            "discountPercent",
-
-            "discount_percent"
-
-        ];
-
-
-        let count = 0;
-
-
-        for (const id of fields) {
-
-            const element =
-                getElement(id);
-
-
-            if (!element) {
-
-                continue;
-
-            }
-
-
-            addListener(
-                element,
-                "input",
-                handlePriceInput
-            );
-
-
-            addListener(
-                element,
-                "change",
-                handlePriceInput
-            );
-
-
-            count += 1;
-
-        }
-
-
-        return count > 0;
-
-    }
 
 
     /* =====================================================
@@ -1298,6 +1235,7 @@
              *
              * Tombol lainnya memakai handler Close.
              */
+
             const handler =
                 id === "cancelModalBtn" ||
                 id === "cancelModelBtn" ||
@@ -1335,6 +1273,7 @@
        BIND CANCEL DATA ATTRIBUTE
        -----------------------------------------------------
        Tetap mendukung tombol yang menggunakan:
+
            data-model-cancel
     ===================================================== */
 
@@ -1357,6 +1296,7 @@
                  * tombol tersebut juga memiliki
                  * ID cancelModalBtn.
                  */
+
                 if (
                     button.id ===
                         "cancelModalBtn" ||
@@ -1482,11 +1422,24 @@
         bindModel();
 
 
-        /* ================================================
-           CREDIT / DISCOUNT
-        ================================================ */
-
-        bindPrice();
+        /*
+         * =================================================
+         * PRICING TIDAK DIBIND DI SINI
+         * =================================================
+         *
+         * Pricing owner:
+         * GENZModelPriceCalculation
+         *
+         * Jangan panggil:
+         *
+         *     bindPrice()
+         *
+         * atau:
+         *
+         *     syncForm()
+         *
+         * dari event pricing di module ini.
+         */
 
 
         /* ================================================
@@ -1517,7 +1470,8 @@
         bindEscape();
 
 
-        initialized = true;
+        initialized =
+            true;
 
 
         console.info(
@@ -1596,8 +1550,6 @@
             handleProviderChange,
 
             handleModelChange,
-
-            handlePriceInput,
 
             handleCloseClick,
 
