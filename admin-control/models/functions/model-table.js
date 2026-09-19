@@ -1,38 +1,37 @@
 /* =========================================================
    GEN-Z.AI
-   MODEL TABLE
+   MODEL CARD RENDERER
    ---------------------------------------------------------
    File:
    admin-control/models/functions/model-table.js
 
    Tanggung jawab:
-   - Menyimpan data Models untuk tampilan tabel
-   - Normalisasi data tabel
-   - Render tabel
-   - Render row
-   - Render empty state
-   - Format angka
-   - Format status
-   - Format duration
-   - Format ratio
-   - Format resolution
-   - Lookup Model berdasarkan database ID / model_id
+   - Menyimpan catalog model
+   - Normalisasi model
+   - Render premium model card
+   - Render status
+   - Render duration
+   - Render ratio
+   - Render resolution
+   - Render pricing
+   - Menyediakan lookup model
+   - Menyediakan data-action="edit"
 
-   ARSITEKTUR:
-   - Model identity berasal dari model folder / registry
-   - Supabase hanya melengkapi data administratif
-   - models.id BUKAN syarat agar model dapat ditampilkan
+   SOURCE OF TRUTH:
+   models/<model-folder>/
+
+   MODEL ID:
+   - Tidak pernah diedit dari UI
+   - Tetap menjadi referensi Generate
 
    Tidak bertanggung jawab:
    - Search
+   - Query Supabase
+   - Create model
+   - Delete model
+   - Update database
+   - Pricing calculation database
    - Provider loading
-   - Form Create/Edit
-   - CRUD API
-   - Price calculation
-   - Event listener
-   - Delete confirmation
-   - KIE pricing
-   - kie_* table
    ========================================================= */
 
 (function () {
@@ -40,82 +39,49 @@
     "use strict";
 
 
-    /* =====================================================
+    /* =========================================================
        STATE
-       ===================================================== */
+    ========================================================= */
 
     let models = [];
 
 
-    /* =====================================================
-       TABLE BODY
-       ===================================================== */
+    /* =========================================================
+       DOM
+    ========================================================= */
 
-    function getTableBody() {
+    function getContainer() {
 
         return (
-
-            document.getElementById(
-                "modelTableBody"
-            ) ||
-
-            document.getElementById(
-                "modelsTableBody"
-            ) ||
-
-            document.querySelector(
-                "#modelsTable tbody"
-            ) ||
-
-            document.querySelector(
-                "#models-table tbody"
-            ) ||
-
-            document.querySelector(
-                "table tbody"
-            )
-
+            document.getElementById("modelsTable") ||
+            document.getElementById("models-table") ||
+            document.getElementById("modelGrid") ||
+            document.getElementById("modelsGrid") ||
+            document.getElementById("modelTableBody")
         );
 
     }
 
 
-    /* =====================================================
-       HTML ESCAPE
-       ===================================================== */
+    /* =========================================================
+       ESCAPE HTML
+    ========================================================= */
 
     function escapeHtml(value) {
 
-        return String(
-            value ?? ""
-        )
-            .replace(
-                /&/g,
-                "&amp;"
-            )
-            .replace(
-                /</g,
-                "&lt;"
-            )
-            .replace(
-                />/g,
-                "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#039;"
-            );
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
 
     }
 
 
-    /* =====================================================
+    /* =========================================================
        NORMALIZE ARRAY
-       ===================================================== */
+    ========================================================= */
 
     function normalizeArray(value) {
 
@@ -124,12 +90,9 @@
             return [
                 ...new Set(
                     value
-                        .map(
-                            item =>
-                                String(
-                                    item ?? ""
-                                ).trim()
-                        )
+                        .map(function (item) {
+                            return String(item ?? "").trim();
+                        })
                         .filter(Boolean)
                 )
             ];
@@ -148,13 +111,9 @@
         }
 
 
-        if (
-            typeof value === "string"
-        ) {
+        if (typeof value === "string") {
 
-            const text =
-                value.trim();
-
+            const text = value.trim();
 
             if (!text) {
                 return [];
@@ -162,9 +121,7 @@
 
 
             /*
-             * JSON array:
-             *
-             * ["9:16","16:9"]
+             * JSON array
              */
 
             if (
@@ -175,14 +132,10 @@
                 try {
 
                     const parsed =
-                        JSON.parse(
-                            text
-                        );
+                        JSON.parse(text);
 
                     if (
-                        Array.isArray(
-                            parsed
-                        )
+                        Array.isArray(parsed)
                     ) {
 
                         return normalizeArray(
@@ -192,16 +145,14 @@
                     }
 
                 } catch {
-                    /* fallback below */
+                    /* fallback */
                 }
 
             }
 
 
             /*
-             * PostgreSQL array:
-             *
-             * {"9:16","16:9"}
+             * PostgreSQL array
              */
 
             if (
@@ -210,27 +161,22 @@
             ) {
 
                 const inner =
-                    text.slice(
-                        1,
-                        -1
-                    );
-
+                    text.slice(1, -1);
 
                 return [
                     ...new Set(
                         inner
                             .split(",")
-                            .map(
-                                item =>
-                                    String(
-                                        item
-                                    )
-                                        .trim()
-                                        .replace(
-                                            /^"(.*)"$/,
-                                            "$1"
-                                        )
-                            )
+                            .map(function (item) {
+
+                                return String(item)
+                                    .trim()
+                                    .replace(
+                                        /^"(.*)"$/,
+                                        "$1"
+                                    );
+
+                            })
                             .filter(Boolean)
                     )
                 ];
@@ -239,19 +185,16 @@
 
 
             /*
-             * Comma separated.
+             * Comma separated
              */
 
             return [
                 ...new Set(
                     text
                         .split(",")
-                        .map(
-                            item =>
-                                String(
-                                    item
-                                ).trim()
-                        )
+                        .map(function (item) {
+                            return String(item).trim();
+                        })
                         .filter(Boolean)
                 )
             ];
@@ -267,15 +210,12 @@
 
                 return [
                     ...new Set(
-                        Object.values(
-                            value
-                        )
-                            .map(
-                                item =>
-                                    String(
-                                        item ?? ""
-                                    ).trim()
-                            )
+                        Object.values(value)
+                            .map(function (item) {
+                                return String(
+                                    item ?? ""
+                                ).trim();
+                            })
                             .filter(Boolean)
                     )
                 ];
@@ -294,9 +234,9 @@
     }
 
 
-    /* =====================================================
+    /* =========================================================
        NUMBER
-       ===================================================== */
+    ========================================================= */
 
     function normalizeNumber(
         value,
@@ -315,71 +255,19 @@
 
 
         const number =
-            Number(
-                value
-            );
+            Number(value);
 
 
-        return Number.isFinite(
-            number
-        )
+        return Number.isFinite(number)
             ? number
             : fallback;
 
     }
 
 
-    /* =====================================================
-       MODEL IDENTIFIER
-       ===================================================== */
-
-    function getModelIdentifier(model) {
-
-        if (
-            !model ||
-            typeof model !== "object"
-        ) {
-
-            return "";
-
-        }
-
-
-        /*
-         * Prioritas:
-         *
-         * 1. Supabase UUID
-         * 2. model_id dari model folder
-         *
-         * Dengan begitu model folder tetap dapat
-         * ditampilkan walaupun belum mempunyai
-         * row models di Supabase.
-         */
-
-        const databaseId =
-            String(
-                model.id ??
-                ""
-            ).trim();
-
-
-        if (databaseId) {
-            return databaseId;
-        }
-
-
-        return String(
-            model.model_id ??
-            model.modelId ??
-            ""
-        ).trim();
-
-    }
-
-
-    /* =====================================================
-       NORMALIZE MODEL
-       ===================================================== */
+    /* =========================================================
+       MODEL NORMALIZATION
+    ========================================================= */
 
     function normalizeModel(model) {
 
@@ -395,19 +283,49 @@
 
         const provider =
             model.provider &&
-            typeof model.provider ===
-                "object"
-
+            typeof model.provider === "object"
                 ? model.provider
-
                 : null;
 
 
+        const databaseId =
+            String(
+                model.id ??
+                ""
+            ).trim();
+
+
+        const modelId =
+            String(
+                model.model_id ??
+                model.modelId ??
+                model.id_model ??
+                ""
+            ).trim();
+
+
         /*
-         * models.provider_id
+         * Model ID wajib berasal dari
+         * model folder / registry.
          *
-         * FK ke providers.id.
+         * Jangan membuat ID baru.
          */
+
+        if (!modelId) {
+
+            return null;
+
+        }
+
+
+        const modelName =
+            String(
+                model.model_name ??
+                model.modelName ??
+                model.name ??
+                modelId
+            ).trim();
+
 
         const providerId =
             String(
@@ -416,12 +334,6 @@
                 ""
             ).trim();
 
-
-        /*
-         * providers.provider_id
-         *
-         * kode provider.
-         */
 
         const providerCode =
             String(
@@ -432,10 +344,6 @@
             ).trim();
 
 
-        /*
-         * Provider name.
-         */
-
         let providerName =
             String(
                 model.provider_name ??
@@ -444,11 +352,6 @@
                 ""
             ).trim();
 
-
-        /*
-         * Jika provider hanya tersedia sebagai
-         * string, gunakan sebagai fallback.
-         */
 
         if (
             !providerName &&
@@ -474,64 +377,41 @@
         }
 
 
-        /*
-         * Model identity.
-         */
-
-        const modelId =
+        const description =
             String(
-                model.model_id ??
-                model.modelId ??
+                model.description ??
                 ""
             ).trim();
 
-
-        const modelName =
-            String(
-                model.model_name ??
-                model.modelName ??
-                model.name ??
-                modelId ??
-                ""
-            ).trim();
-
-
-        /*
-         * Supported ratios.
-         */
 
         const supportedRatios =
             normalizeArray(
                 model.supported_ratios ??
                 model.supportedRatios ??
-                model.ratios
+                model.ratios ??
+                model.parameters?.aspect_ratio?.enum ??
+                model.parameters?.aspect_ratio?.values
             );
 
-
-        /*
-         * Supported resolutions.
-         */
 
         const supportedResolutions =
             normalizeArray(
                 model.supported_resolutions ??
                 model.supportedResolutions ??
-                model.resolutions
+                model.resolutions ??
+                model.parameters?.resolution?.enum ??
+                model.parameters?.resolution?.values
             );
 
 
-        /*
-         * Duration.
-         */
-
-        const minDuration =
+        let minDuration =
             model.min_duration ??
             model.minDuration ??
             model.duration_min ??
             "";
 
 
-        const maxDuration =
+        let maxDuration =
             model.max_duration ??
             model.maxDuration ??
             model.duration_max ??
@@ -539,7 +419,54 @@
 
 
         /*
-         * Credit.
+         * Support parameters.js object.
+         */
+
+        const durationParameter =
+            model.parameters?.duration;
+
+
+        if (
+            durationParameter &&
+            typeof durationParameter ===
+                "object"
+        ) {
+
+            if (
+                minDuration === "" &&
+                durationParameter.min !==
+                    undefined
+            ) {
+
+                minDuration =
+                    durationParameter.min;
+
+            }
+
+
+            if (
+                maxDuration === "" &&
+                durationParameter.max !==
+                    undefined
+            ) {
+
+                maxDuration =
+                    durationParameter.max;
+
+            }
+
+        }
+
+
+        /*
+         * Credit fields.
+         *
+         * Catatan:
+         * Sistem pricing lama masih memakai
+         * credit_cost / credit_final.
+         *
+         * Jangan mengubah maknanya menjadi
+         * USD di renderer ini.
          */
 
         const creditCost =
@@ -561,17 +488,8 @@
             );
 
 
-        /*
-         * credit_final.
-         *
-         * Jika sudah tersedia dari Supabase,
-         * gunakan nilai tersebut.
-         *
-         * Jika belum tersedia, hitung dari
-         * credit_cost dan discount_percent.
-         */
-
         let creditFinal;
+
 
         if (
             model.credit_final !==
@@ -587,9 +505,7 @@
                     creditCost
                 );
 
-        } else if (
-            discountPercent > 0
-        ) {
+        } else {
 
             creditFinal =
                 creditCost -
@@ -599,21 +515,11 @@
                     100
                 );
 
-        } else {
-
-            creditFinal =
-                creditCost;
-
         }
 
 
         /*
          * Status.
-         *
-         * Untuk model folder yang belum
-         * mempunyai konfigurasi DB,
-         * gunakan active sebagai fallback
-         * agar model dapat digunakan.
          */
 
         const status =
@@ -625,50 +531,22 @@
                 .toLowerCase();
 
 
-        /*
-         * Database ID boleh kosong.
-         * Ini disengaja.
-         */
-
-        const databaseId =
-            String(
-                model.id ??
-                ""
-            ).trim();
-
-
-        /*
-         * Identifier untuk UI.
-         */
-
-        const identifier =
-            databaseId ||
-            modelId;
-
-
         return {
-
-            /*
-             * Supabase primary key.
-             */
 
             id:
                 databaseId,
 
-
-            /*
-             * Stable UI identifier.
-             */
-
             identifier:
+                databaseId ||
+                modelId,
 
+            model_id:
+                modelId,
 
-                identifier,
+            model_name:
+                modelName,
 
-
-            /*
-             * Provider.
-             */
+            description,
 
             provider_id:
                 providerId,
@@ -679,33 +557,6 @@
             provider_name:
                 providerName,
 
-
-            /*
-             * Model.
-             */
-
-            model_id:
-                modelId,
-
-            model_name:
-                modelName,
-
-
-            /*
-             * Description.
-             */
-
-            description:
-                String(
-                    model.description ??
-                    ""
-                ).trim(),
-
-
-            /*
-             * Credit.
-             */
-
             credit_cost:
                 creditCost,
 
@@ -715,21 +566,11 @@
             credit_final:
                 creditFinal,
 
-
-            /*
-             * Duration.
-             */
-
             min_duration:
                 minDuration,
 
             max_duration:
                 maxDuration,
-
-
-            /*
-             * Supported parameters.
-             */
 
             supported_ratios:
                 supportedRatios,
@@ -737,43 +578,20 @@
             supported_resolutions:
                 supportedResolutions,
 
-
-            /*
-             * Status.
-             */
-
             status:
-
-
                 status || "active",
 
-
-            /*
-             * Folder source metadata.
-             */
-
             source:
-                model.source ??
+                model.source ||
                 "model-folder",
 
-
             folder:
-                model.folder ??
+                model.folder ||
                 null,
-
-
-            /*
-             * Parameter definition.
-             */
 
             parameters:
-                model.parameters ??
+                model.parameters ||
                 null,
-
-
-            /*
-             * Original record.
-             */
 
             original:
                 model
@@ -783,21 +601,17 @@
     }
 
 
-    /* =====================================================
+    /* =========================================================
        SET MODELS
-       ===================================================== */
+    ========================================================= */
 
     function setModels(list) {
 
         models =
             Array.isArray(list)
-
                 ? list
-                    .map(
-                        normalizeModel
-                    )
+                    .map(normalizeModel)
                     .filter(Boolean)
-
                 : [];
 
 
@@ -806,9 +620,9 @@
     }
 
 
-    /* =====================================================
+    /* =========================================================
        GET MODELS
-       ===================================================== */
+    ========================================================= */
 
     function getModels() {
 
@@ -817,22 +631,18 @@
     }
 
 
-    /* =====================================================
+    /* =========================================================
        FORMAT NUMBER
-       ===================================================== */
+    ========================================================= */
 
     function formatNumber(value) {
 
         const number =
-            Number(
-                value
-            );
+            Number(value);
 
 
         if (
-            !Number.isFinite(
-                number
-            )
+            !Number.isFinite(number)
         ) {
 
             return "0";
@@ -842,32 +652,26 @@
 
         return new Intl.NumberFormat(
             "id-ID"
-        ).format(
-            number
-        );
+        ).format(number);
 
     }
 
 
-    /* =====================================================
+    /* =========================================================
        FORMAT DECIMAL
-       ===================================================== */
+    ========================================================= */
 
     function formatDecimal(
         value,
-        maximumFractionDigits = 6
+        maximumFractionDigits = 2
     ) {
 
         const number =
-            Number(
-                value
-            );
+            Number(value);
 
 
         if (
-            !Number.isFinite(
-                number
-            )
+            !Number.isFinite(number)
         ) {
 
             return "-";
@@ -878,47 +682,37 @@
         return new Intl.NumberFormat(
             "id-ID",
             {
-                minimumFractionDigits:
-                    0,
-
-                maximumFractionDigits:
-                    maximumFractionDigits
+                minimumFractionDigits: 0,
+                maximumFractionDigits
             }
-        ).format(
-            number
-        );
+        ).format(number);
 
     }
 
 
-    /* =====================================================
+    /* =========================================================
        FORMAT DISCOUNT
-       ===================================================== */
+    ========================================================= */
 
     function formatDiscount(value) {
 
         const discount =
-            Number(
-                value
-            );
+            Number(value);
 
 
         if (
-            !Number.isFinite(
-                discount
-            ) ||
+            !Number.isFinite(discount) ||
             discount <= 0
         ) {
 
-            return "-";
+            return "Tidak ada";
 
         }
 
 
         return (
             formatDecimal(
-                discount,
-                2
+                discount
             ) +
             "%"
         );
@@ -926,9 +720,9 @@
     }
 
 
-    /* =====================================================
+    /* =========================================================
        FORMAT DURATION
-       ===================================================== */
+    ========================================================= */
 
     function formatDuration(model) {
 
@@ -940,7 +734,6 @@
         const min =
             model.min_duration;
 
-
         const max =
             model.max_duration;
 
@@ -948,17 +741,13 @@
         const hasMin =
             min !== null &&
             min !== undefined &&
-            String(
-                min
-            ).trim() !== "";
+            String(min).trim() !== "";
 
 
         const hasMax =
             max !== null &&
             max !== undefined &&
-            String(
-                max
-            ).trim() !== "";
+            String(max).trim() !== "";
 
 
         if (
@@ -972,24 +761,18 @@
             ) {
 
                 return (
-                    escapeHtml(
-                        min
-                    ) +
-                    "s"
+                    escapeHtml(min) +
+                    " detik"
                 );
 
             }
 
 
             return (
-                escapeHtml(
-                    min
-                ) +
+                escapeHtml(min) +
                 " - " +
-                escapeHtml(
-                    max
-                ) +
-                "s"
+                escapeHtml(max) +
+                " detik"
             );
 
         }
@@ -998,10 +781,9 @@
         if (hasMin) {
 
             return (
-                escapeHtml(
-                    min
-                ) +
-                "s"
+                "Min. " +
+                escapeHtml(min) +
+                " detik"
             );
 
         }
@@ -1010,10 +792,9 @@
         if (hasMax) {
 
             return (
-                escapeHtml(
-                    max
-                ) +
-                "s"
+                "Maks. " +
+                escapeHtml(max) +
+                " detik"
             );
 
         }
@@ -1024,71 +805,87 @@
     }
 
 
-    /* =====================================================
-       FORMAT ARRAY
-       ===================================================== */
+    /* =========================================================
+       FORMAT RATIO
+    ========================================================= */
 
-    function formatArray(value) {
+    function formatRatio(model) {
 
-        const items =
+        const ratios =
             normalizeArray(
-                value
+                model?.supported_ratios
             );
 
 
-        if (
-            !items.length
-        ) {
+        if (!ratios.length) {
 
-            return "-";
+            return (
+                '<span class="chip">-</span>'
+            );
 
         }
 
 
-        return escapeHtml(
-            items.join(
-                ", "
-            )
-        );
+        return ratios
+            .map(function (ratio) {
+
+                return (
+                    '<span class="chip">' +
+                    escapeHtml(ratio) +
+                    "</span>"
+                );
+
+            })
+            .join("");
 
     }
 
 
-    /* =====================================================
-       FORMAT RATIO
-       ===================================================== */
-
-    function formatRatio(model) {
-
-        return formatArray(
-            model?.supported_ratios
-        );
-
-    }
-
-
-    /* =====================================================
+    /* =========================================================
        FORMAT RESOLUTION
-       ===================================================== */
+    ========================================================= */
 
     function formatResolution(model) {
 
-        return formatArray(
-            model?.supported_resolutions
-        );
+        const resolutions =
+            normalizeArray(
+                model?.supported_resolutions
+            );
+
+
+        if (!resolutions.length) {
+
+            return (
+                '<span class="chip">-</span>'
+            );
+
+        }
+
+
+        return resolutions
+            .map(function (resolution) {
+
+                return (
+                    '<span class="chip">' +
+                    escapeHtml(resolution) +
+                    "</span>"
+                );
+
+            })
+            .join("");
 
     }
 
 
-    /* =====================================================
+    /* =========================================================
        FORMAT STATUS
-       ===================================================== */
+    ========================================================= */
 
     function formatStatus(status) {
 
         const value =
             String(
-                status ??
+                status ||
                 "active"
             )
                 .trim()
@@ -1096,121 +893,129 @@
 
 
         let label =
-            "Active";
-
+            "Aktif";
 
         let className =
             "status-active";
 
 
-        switch (value) {
+        if (
+            value === "inactive" ||
+            value === "disabled" ||
+            value === "nonaktif"
+        ) {
 
-            case "active":
+            label =
+                "Nonaktif";
 
-                label =
-                    "Active";
+            className =
+                "status-inactive";
 
-                className =
-                    "status-active";
-
-                break;
-
-
-            case "maintenance":
-
-                label =
-                    "Maintenance";
-
-                className =
-                    "status-maintenance";
-
-                break;
+        }
 
 
-            case "inactive":
+        if (
+            value === "maintenance" ||
+            value === "maintain"
+        ) {
 
-                label =
-                    "Inactive";
+            label =
+                "Maintenance";
 
-                className =
-                    "status-inactive";
-
-                break;
-
-
-            default:
-
-                label =
-                    value
-                        ? value
-                            .charAt(0)
-                            .toUpperCase() +
-                          value.slice(1)
-                        : "Active";
-
-                className =
-                    "status-" +
-                    (
-                        value ||
-                        "active"
-                    );
-
-                break;
+            className =
+                "status-maintenance";
 
         }
 
 
         return (
-
-            '<span class="status ' +
-            escapeHtml(
-                className
-            ) +
+            '<span class="status-badge ' +
+            className +
             '">' +
-
-                escapeHtml(
-                    label
-                ) +
-
+            escapeHtml(label) +
             "</span>"
-
         );
 
     }
 
 
-    /* =====================================================
-       RENDER MODEL CELL
-       ===================================================== */
+    /* =========================================================
+       PRICE
+    ========================================================= */
 
-    function renderModelCell(model) {
+    function renderPrice(model) {
 
-        const modelId =
-            model.model_id ||
-            "-";
+        const original =
+            Number(
+                model.credit_cost
+            );
 
 
-        const modelName =
-            model.model_name ||
-            modelId ||
-            "-";
+        const finalPrice =
+            Number(
+                model.credit_final
+            );
+
+
+        const discount =
+            Number(
+                model.discount_percent
+            );
 
 
         return (
 
-            '<div class="model-name">' +
+            '<div class="price-box">' +
 
-                escapeHtml(
-                    modelName
-                ) +
+                '<div class="price-row">' +
 
-            "</div>" +
+                    "<span>Harga dasar</span>" +
 
-            '<div class="model-id">' +
+                    "<strong>" +
 
-                escapeHtml(
-                    modelId
-                ) +
+                        escapeHtml(
+                            formatNumber(
+                                original
+                            )
+                        ) +
+
+                    "</strong>" +
+
+                "</div>" +
+
+
+                '<div class="price-row">' +
+
+                    "<span>Diskon</span>" +
+
+                    "<strong class=\"discount-value\">" +
+
+                        escapeHtml(
+                            formatDiscount(
+                                discount
+                            )
+                        ) +
+
+                    "</strong>" +
+
+                "</div>" +
+
+
+                '<div class="price-row price-final">' +
+
+                    "<span>Harga final</span>" +
+
+                    "<strong>" +
+
+                        escapeHtml(
+                            formatNumber(
+                                finalPrice
+                            )
+                        ) +
+
+                    "</strong>" +
+
+                "</div>" +
 
             "</div>"
 
@@ -1219,151 +1024,49 @@
     }
 
 
-    /* =====================================================
-       RENDER PROVIDER CELL
-       ===================================================== */
+    /* =========================================================
+       MODEL CARD
+    ========================================================= */
 
-    function renderProviderCell(model) {
-
-        const providerName =
-            model.provider_name ||
-            model.provider_code ||
-            model.provider_id ||
-            "-";
-
-
-        const providerCode =
-            model.provider_code;
-
-
-        return (
-
-            '<div class="provider">' +
-
-                escapeHtml(
-                    providerName
-                ) +
-
-            "</div>" +
-
-            (
-                providerCode
-                    ? (
-
-                        '<div class="model-id">' +
-
-                            escapeHtml(
-                                providerCode
-                            ) +
-
-                        "</div>"
-
-                    )
-                    : ""
-            )
-
-        );
-
-    }
-
-
-    /* =====================================================
-       RENDER ROW
-       ===================================================== */
-
-    function renderRow(model) {
+    function renderCard(model) {
 
         const normalized =
-            normalizeModel(
-                model
-            );
+            normalizeModel(model);
 
 
-        if (
-            !normalized
-        ) {
+        if (!normalized) {
 
             return "";
 
         }
 
-
-        /*
-         * Identifier untuk action.
-         *
-         * Jika ada UUID Supabase:
-         *     gunakan UUID.
-         *
-         * Jika belum ada:
-         *     gunakan model_id.
-         */
 
         const identifier =
-            normalized.identifier;
+            normalized.model_id;
 
 
-        if (!identifier) {
-
-            return "";
-
-        }
+        const status =
+            normalized.status;
 
 
-        const credit =
-            formatNumber(
-                normalized.credit_cost
-            );
+        const type =
+            normalized.original?.type ||
+            normalized.original?.model_type ||
+            "image-to-video";
 
-
-        const discount =
-            formatDiscount(
-                normalized.discount_percent
-            );
-
-
-        const finalCredit =
-            formatNumber(
-                normalized.credit_final
-            );
-
-
-        const duration =
-            formatDuration(
-                normalized
-            );
-
-
-        const ratio =
-            formatRatio(
-                normalized
-            );
-
-
-        const resolution =
-            formatResolution(
-                normalized
-            );
-
-
-        /*
-         * data-model-id:
-         *
-         * UUID jika ada,
-         * model_id jika belum ada.
-         *
-         * model-table-events.js akan mencoba
-         * resolve berdasarkan UUID terlebih dahulu,
-         * kemudian model_id.
-         */
 
         return (
 
-            "<tr" +
+            '<article' +
+
+                ' class="model-card"' +
 
                 ' data-model-id="' +
-                    escapeHtml(
-                        identifier
-                    ) +
+                    escapeHtml(identifier) +
+                '"' +
+
+                ' data-model-code="' +
+                    escapeHtml(identifier) +
                 '"' +
 
                 ' data-model-db-id="' +
@@ -1372,150 +1075,181 @@
                     ) +
                 '"' +
 
-                ' data-model-code="' +
-                    escapeHtml(
-                        normalized.model_id
-                    ) +
+                ' data-status="' +
+                    escapeHtml(status) +
                 '"' +
 
             ">" +
 
 
-            /* =============================================
-               1. MODEL
-               ============================================= */
+                '<span class="premium-badge">' +
+                    "Premium" +
+                "</span>" +
 
-            "<td>" +
 
-                renderModelCell(
+                '<div class="model-top">' +
+
+                    '<div class="model-icon">' +
+                        "◆" +
+                    "</div>" +
+
+
+                    '<div class="model-title">' +
+
+                        '<h2 class="model-name">' +
+                            escapeHtml(
+                                normalized.model_name
+                            ) +
+                        "</h2>" +
+
+
+                        '<div class="model-id">' +
+                            escapeHtml(
+                                normalized.model_id
+                            ) +
+                        "</div>" +
+
+                    "</div>" +
+
+                "</div>" +
+
+
+                '<div class="model-description">' +
+
+                    escapeHtml(
+                        normalized.description ||
+                        "Model AI tersedia dari repository GEN-Z.AI."
+                    ) +
+
+                "</div>" +
+
+
+                '<div class="model-meta">' +
+
+                    '<div class="meta-item">' +
+
+                        '<div class="meta-label">' +
+                            "Provider" +
+                        "</div>" +
+
+                        '<div class="meta-value">' +
+                            escapeHtml(
+                                normalized.provider_name
+                            ) +
+                        "</div>" +
+
+                    "</div>" +
+
+
+                    '<div class="meta-item">' +
+
+                        '<div class="meta-label">' +
+                            "Tipe" +
+                        "</div>" +
+
+                        '<div class="meta-value">' +
+                            escapeHtml(type) +
+                        "</div>" +
+
+                    "</div>" +
+
+
+                    '<div class="meta-item">' +
+
+                        '<div class="meta-label">' +
+                            "Durasi" +
+                        "</div>" +
+
+                        '<div class="meta-value">' +
+                            formatDuration(
+                                normalized
+                            ) +
+                        "</div>" +
+
+                    "</div>" +
+
+
+                    '<div class="meta-item">' +
+
+                        '<div class="meta-label">' +
+                            "Source" +
+                        "</div>" +
+
+                        '<div class="meta-value">' +
+                            escapeHtml(
+                                normalized.source
+                            ) +
+                        "</div>" +
+
+                    "</div>" +
+
+                "</div>" +
+
+
+                renderPrice(
                     normalized
                 ) +
 
-            "</td>" +
+
+                '<div class="parameter-section">' +
+
+                    '<div class="parameter-title">' +
+                        "Aspect Ratio" +
+                    "</div>" +
+
+                    '<div class="chips">' +
+                        formatRatio(
+                            normalized
+                        ) +
+                    "</div>" +
+
+                "</div>" +
 
 
-            /* =============================================
-               2. PROVIDER
-               ============================================= */
+                '<div class="parameter-section">' +
 
-            "<td>" +
+                    '<div class="parameter-title">' +
+                        "Resolution" +
+                    "</div>" +
 
-                renderProviderCell(
-                    normalized
-                ) +
+                    '<div class="chips">' +
+                        formatResolution(
+                            normalized
+                        ) +
+                    "</div>" +
 
-            "</td>" +
-
-
-            /* =============================================
-               3. CREDIT
-               ============================================= */
-
-            '<td class="credit-normal">' +
-
-                escapeHtml(
-                    credit
-                ) +
-
-            "</td>" +
+                "</div>" +
 
 
-            /* =============================================
-               4. DISKON
-               ============================================= */
+                '<div class="status-row">' +
 
-            '<td class="discount">' +
+                    formatStatus(
+                        normalized.status
+                    ) +
 
-                escapeHtml(
-                    discount
-                ) +
+                    '<span class="chip">' +
+                        "ID Referensi Tetap" +
+                    "</span>" +
 
-            "</td>" +
-
-
-            /* =============================================
-               5. CREDIT FINAL
-               ============================================= */
-
-            '<td class="credit-final">' +
-
-                escapeHtml(
-                    finalCredit
-                ) +
-
-            "</td>" +
+                "</div>" +
 
 
-            /* =============================================
-               6. DURATION
-               ============================================= */
+                '<div class="model-actions">' +
 
-            "<td>" +
-
-                duration +
-
-            "</td>" +
-
-
-            /* =============================================
-               7. RATIO
-               ============================================= */
-
-            "<td>" +
-
-                ratio +
-
-            "</td>" +
-
-
-            /* =============================================
-               8. RESOLUTION
-               ============================================= */
-
-            "<td>" +
-
-                resolution +
-
-            "</td>" +
-
-
-            /* =============================================
-               9. STATUS
-               ============================================= */
-
-            "<td>" +
-
-                formatStatus(
-                    normalized.status
-                ) +
-
-            "</td>" +
-
-
-            /* =============================================
-               10. AKSI
-               ============================================= */
-
-            "<td>" +
-
-                '<div class="actions">' +
-
-                    /*
-                     * EDIT
-                     */
-
-                    "<button" +
+                    '<button' +
 
                         ' type="button"' +
 
-                        ' class="btn btn-secondary btn-small btn-edit-model"' +
+                        ' class="btn btn-primary btn-small btn-edit-model"' +
 
                         ' data-action="edit"' +
 
                         ' data-model-id="' +
-                            escapeHtml(
-                                identifier
-                            ) +
+                            escapeHtml(identifier) +
+                        '"' +
+
+                        ' data-model-code="' +
+                            escapeHtml(identifier) +
                         '"' +
 
                         ' data-model-db-id="' +
@@ -1524,95 +1258,56 @@
                             ) +
                         '"' +
 
-                        ' data-model-code="' +
-                            escapeHtml(
-                                normalized.model_id
-                            ) +
-                        '"' +
-
                     ">" +
 
-                        "Edit" +
-
-                    "</button>" +
-
-
-                    /*
-                     * DELETE
-                     */
-
-                    "<button" +
-
-                        ' type="button"' +
-
-                        ' class="btn btn-danger btn-small btn-delete-model"' +
-
-                        ' data-action="delete"' +
-
-                        ' data-model-id="' +
-                            escapeHtml(
-                                identifier
-                            ) +
-                        '"' +
-
-                        ' data-model-db-id="' +
-                            escapeHtml(
-                                normalized.id
-                            ) +
-                        '"' +
-
-                        ' data-model-code="' +
-                            escapeHtml(
-                                normalized.model_id
-                            ) +
-                        '"' +
-
-                    ">" +
-
-                        "Hapus" +
+                        "✎ Edit Model" +
 
                     "</button>" +
 
                 "</div>" +
 
-            "</td>" +
-
-
-            "</tr>"
+            "</article>"
 
         );
 
     }
 
 
-    /* =====================================================
+    /* =========================================================
        EMPTY STATE
-       ===================================================== */
+    ========================================================= */
 
     function renderEmpty() {
 
-        const body =
-            getTableBody();
+        const container =
+            getContainer();
 
 
-        if (!body) {
+        if (!container) {
 
             return false;
 
         }
 
 
-        body.innerHTML =
+        container.innerHTML =
 
-            '<tr class="models-empty-row">' +
+            '<div class="state-panel">' +
 
-                '<td colspan="10" class="empty">' +
+                '<div class="state-icon">' +
+                    "◇" +
+                "</div>" +
 
-                    "Belum ada Model." +
+                '<div class="state-title">' +
+                    "Tidak ada model" +
+                "</div>" +
 
-                "</td>" +
+                '<div class="state-description">' +
+                    "Belum ada model yang tersedia " +
+                    "dari folder models/ repository." +
+                "</div>" +
 
-            "</tr>";
+            "</div>";
 
 
         return true;
@@ -1620,20 +1315,68 @@
     }
 
 
-    /* =====================================================
-       RENDER TABLE
-       ===================================================== */
+    /* =========================================================
+       ERROR STATE
+    ========================================================= */
+
+    function renderError(
+        message
+    ) {
+
+        const container =
+            getContainer();
+
+
+        if (!container) {
+
+            return false;
+
+        }
+
+
+        container.innerHTML =
+
+            '<div class="state-panel">' +
+
+                '<div class="state-icon">' +
+                    "!" +
+                "</div>" +
+
+                '<div class="state-title">' +
+                    "Model gagal dimuat" +
+                "</div>" +
+
+                '<div class="state-description">' +
+
+                    escapeHtml(
+                        message ||
+                        "Terjadi kesalahan saat membaca model."
+                    ) +
+
+                "</div>" +
+
+            "</div>";
+
+
+        return true;
+
+    }
+
+
+    /* =========================================================
+       RENDER
+    ========================================================= */
 
     function render(list) {
 
-        const body =
-            getTableBody();
+        const container =
+            getContainer();
 
 
-        if (!body) {
+        if (!container) {
 
             console.warn(
-                "[GEN-Z.AI] Model table body tidak ditemukan."
+                "[GEN-Z.AI] Container model tidak ditemukan."
             );
 
             return false;
@@ -1642,14 +1385,10 @@
 
 
         if (
-            Array.isArray(
-                list
-            )
+            Array.isArray(list)
         ) {
 
-            setModels(
-                list
-            );
+            setModels(list);
 
         }
 
@@ -1663,36 +1402,36 @@
         }
 
 
-        const rows =
+        const html =
             models
-                .map(
-                    renderRow
-                )
+                .map(renderCard)
                 .filter(Boolean)
                 .join("");
 
 
-        if (!rows) {
+        if (!html) {
 
             return renderEmpty();
 
         }
 
 
-        body.innerHTML =
-            rows;
+        container.innerHTML =
+            html;
 
 
         /*
-         * Pastikan event delegation
-         * tetap terpasang setelah innerHTML
-         * diganti.
+         * Event delegation.
+         *
+         * model-table-events.js menangani
+         * data-action="edit".
          */
 
         try {
 
             const events =
                 window.GENZModelTableEvents;
+
 
             if (
                 events &&
@@ -1701,8 +1440,7 @@
             ) {
 
                 events.rebind(
-                    body.closest("table") ||
-                    body
+                    container
                 );
 
             } else if (
@@ -1712,8 +1450,17 @@
             ) {
 
                 events.bind(
-                    body.closest("table") ||
-                    body
+                    container
+                );
+
+            } else if (
+                events &&
+                typeof events.initialize ===
+                    "function"
+            ) {
+
+                events.initialize(
+                    container
                 );
 
             }
@@ -1721,7 +1468,7 @@
         } catch (error) {
 
             console.warn(
-                "[GEN-Z.AI] Model table event rebind warning:",
+                "[GEN-Z.AI] Model event binding warning:",
                 error
             );
 
@@ -1733,16 +1480,14 @@
     }
 
 
-    /* =====================================================
-       FIND BY DATABASE ID
-       ===================================================== */
+    /* =========================================================
+       LOOKUP BY DATABASE ID
+    ========================================================= */
 
     function findById(id) {
 
         const value =
-            String(
-                id ?? ""
-            ).trim();
+            String(id ?? "").trim();
 
 
         if (!value) {
@@ -1753,28 +1498,25 @@
 
 
         return (
+            models.find(function (model) {
 
-            models.find(
-                model =>
-
+                return (
                     String(
                         model.id ??
                         ""
-                    ).trim() ===
-                    value
+                    ).trim() === value
+                );
 
-            ) ||
-
+            }) ||
             null
-
         );
 
     }
 
 
-    /* =====================================================
-       FIND BY MODEL ID
-       ===================================================== */
+    /* =========================================================
+       LOOKUP BY MODEL ID
+    ========================================================= */
 
     function findByModelId(
         modelId
@@ -1794,32 +1536,25 @@
 
 
         return (
+            models.find(function (model) {
 
-            models.find(
-                model =>
-
+                return (
                     String(
                         model.model_id ??
                         ""
-                    ).trim() ===
-                    value
+                    ).trim() === value
+                );
 
-            ) ||
-
+            }) ||
             null
-
         );
 
     }
 
 
-    /* =====================================================
-       FIND BY IDENTIFIER
-       -----------------------------------------------------
-       Mendukung:
-       - Supabase UUID
-       - model_id
-       ===================================================== */
+    /* =========================================================
+       LOOKUP BY IDENTIFIER
+    ========================================================= */
 
     function findByIdentifier(
         identifier
@@ -1839,34 +1574,17 @@
 
 
         return (
-
-            models.find(
-                model =>
-
-                    String(
-                        model.id ??
-                        ""
-                    ).trim() ===
-                        value ||
-
-                    String(
-                        model.model_id ??
-                        ""
-                    ).trim() ===
-                        value
-
-            ) ||
-
+            findById(value) ||
+            findByModelId(value) ||
             null
-
         );
 
     }
 
 
-    /* =====================================================
-       FIND BY PROVIDER + MODEL ID
-       ===================================================== */
+    /* =========================================================
+       LOOKUP PROVIDER + MODEL
+    ========================================================= */
 
     function findByProviderAndModelId(
         providerId,
@@ -1896,205 +1614,75 @@
 
 
         return (
+            models.find(function (item) {
 
-            models.find(
-                item => {
-
-                    const providerMatches =
-
-                        String(
-                            item.provider_id ??
-                            ""
-                        ).trim() ===
-                            provider ||
-
-                        String(
-                            item.provider_code ??
-                            ""
-                        ).trim() ===
-                            provider;
+                const providerMatches =
+                    String(
+                        item.provider_id ??
+                        ""
+                    ).trim() === provider ||
+                    String(
+                        item.provider_code ??
+                        ""
+                    ).trim() === provider;
 
 
-                    const modelMatches =
+                return (
+                    providerMatches &&
+                    String(
+                        item.model_id ??
+                        ""
+                    ).trim() === model
+                );
 
-                        String(
-                            item.model_id ??
-                            ""
-                        ).trim() ===
-                            model;
-
-
-                    return (
-                        providerMatches &&
-                        modelMatches
-                    );
-
-                }
-
-            ) ||
-
+            }) ||
             null
-
         );
 
     }
 
 
-    /* =====================================================
-       REMOVE LOCAL MODEL
-       -----------------------------------------------------
-       BUKAN DELETE DATABASE.
-       ===================================================== */
+    /* =========================================================
+       UPDATE LOCAL MODEL
+       ========================================================= */
 
-    function removeById(id) {
+    function updateModel(
+        model
+    ) {
 
-        const value =
-            String(
-                id ?? ""
-            ).trim();
+        const normalized =
+            normalizeModel(model);
 
 
-        if (!value) {
+        if (!normalized) {
 
             return false;
 
         }
 
 
-        const previousLength =
-            models.length;
-
-
-        models =
-            models.filter(
-                model => {
-
-                    const dbId =
-                        String(
-                            model.id ??
-                            ""
-                        ).trim();
-
-
-                    const modelId =
-                        String(
-                            model.model_id ??
-                            ""
-                        ).trim();
-
+        const index =
+            models.findIndex(
+                function (item) {
 
                     return (
-                        dbId !== value &&
-                        modelId !== value
+                        (
+                            normalized.id &&
+                            item.id ===
+                                normalized.id
+                        ) ||
+                        (
+                            normalized.model_id &&
+                            item.model_id ===
+                                normalized.model_id
+                        )
                     );
 
                 }
             );
 
 
-        if (
-            models.length !==
-            previousLength
-        ) {
-
-            render();
-
-            return true;
-
-        }
-
-
-        return false;
-
-    }
-
-
-    /* =====================================================
-       UPDATE LOCAL MODEL
-       -----------------------------------------------------
-       BUKAN UPDATE DATABASE.
-       ===================================================== */
-
-    function updateModel(model) {
-
-        const normalized =
-            normalizeModel(
-                model
-            );
-
-
-        if (
-            !normalized
-        ) {
-
-            return false;
-
-        }
-
-
-        const databaseId =
-            String(
-                normalized.id ??
-                ""
-            ).trim();
-
-
-        const modelId =
-            String(
-                normalized.model_id ??
-                ""
-            ).trim();
-
-
-        const index =
-            models.findIndex(
-                item => {
-
-                    const itemDbId =
-                        String(
-                            item.id ??
-                            ""
-                        ).trim();
-
-
-                    const itemModelId =
-                        String(
-                            item.model_id ??
-                            ""
-                        ).trim();
-
-
-                    if (
-                        databaseId &&
-                        itemDbId ===
-                            databaseId
-                    ) {
-
-                        return true;
-
-                    }
-
-
-                    if (
-                        modelId &&
-                        itemModelId ===
-                            modelId
-                    ) {
-
-                        return true;
-
-                    }
-
-
-                    return false;
-
-                }
-            );
-
-
-        if (
-            index === -1
-        ) {
+        if (index === -1) {
 
             models.push(
                 normalized
@@ -2115,9 +1703,72 @@
     }
 
 
-    /* =====================================================
+    /* =========================================================
+       REMOVE LOCAL MODEL
+       ---------------------------------------------------------
+       Tidak menghapus Supabase.
+       Hanya kompatibilitas internal.
+       ========================================================= */
+
+    function removeById(
+        identifier
+    ) {
+
+        const value =
+            String(
+                identifier ?? ""
+            ).trim();
+
+
+        if (!value) {
+
+            return false;
+
+        }
+
+
+        const previous =
+            models.length;
+
+
+        models =
+            models.filter(
+                function (model) {
+
+                    return (
+                        String(
+                            model.id ??
+                            ""
+                        ).trim() !== value &&
+                        String(
+                            model.model_id ??
+                            ""
+                        ).trim() !== value
+                    );
+
+                }
+            );
+
+
+        if (
+            models.length !== previous
+        ) {
+
+            render();
+
+            return true;
+
+        }
+
+
+        return false;
+
+    }
+
+
+    /* =========================================================
        CLEAR
-       ===================================================== */
+    ========================================================= */
 
     function clear() {
 
@@ -2128,18 +1779,11 @@
     }
 
 
-    /* =====================================================
+    /* =========================================================
        INITIALIZE
-       ===================================================== */
+    ========================================================= */
 
     function initialize() {
-
-        /*
-         * Ambil cache dari Models Data jika
-         * tersedia.
-         *
-         * Tidak melakukan query Supabase.
-         */
 
         const data =
             window.GENZModelsData;
@@ -2151,21 +1795,29 @@
                 "function"
         ) {
 
-            const cached =
-                data.getCachedModels();
+            try {
+
+                const cached =
+                    data.getCachedModels();
 
 
-            if (
-                Array.isArray(
-                    cached
-                )
-            ) {
+                if (
+                    Array.isArray(cached) &&
+                    cached.length
+                ) {
 
-                setModels(
-                    cached
+                    setModels(cached);
+
+                    render();
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Model cache initialization warning:",
+                    error
                 );
-
-                render();
 
             }
 
@@ -2177,9 +1829,9 @@
     }
 
 
-    /* =====================================================
+    /* =========================================================
        PUBLIC API
-       ===================================================== */
+    ========================================================= */
 
     window.GENZModelTable =
         Object.freeze({
@@ -2192,7 +1844,14 @@
 
             render,
 
-            renderRow,
+            renderCard,
+
+            renderRow:
+                renderCard,
+
+            renderEmpty,
+
+            renderError,
 
             findById,
 
@@ -2202,15 +1861,27 @@
 
             findByProviderAndModelId,
 
-            removeById,
-
             updateModel,
+
+            removeById,
 
             clear,
 
-            getTableBody,
+            getTableBody:
+                getContainer,
 
-            getModelIdentifier,
+            getContainer,
+
+            getModelIdentifier:
+                function (model) {
+
+                    return String(
+                        model?.model_id ??
+                        model?.modelId ??
+                        ""
+                    ).trim();
+
+                },
 
             escapeHtml,
 
@@ -2234,9 +1905,7 @@
 
             formatStatus,
 
-            renderModelCell,
-
-            renderProviderCell
+            renderPrice
 
         });
 
