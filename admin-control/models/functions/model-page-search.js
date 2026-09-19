@@ -13,20 +13,35 @@
    - Filter Model Name
    - Filter Model Family
    - Filter Provider
-   - Render hasil melalui GENZModelTable
 
    TIDAK BERTANGGUNG JAWAB:
-   - Search Model ID di Form
+   - Search Model ID pada Form
    - Provider
-   - CRUD
+   - Model CRUD
    - Pricing
    - Data loading
    - Form Layout
-   - Table rendering
+   - Authorization / Role
+   - Table CRUD
 
-   CATATAN:
-   Search halaman dan Search Model ID Form
-   adalah DUA SISTEM BERBEDA.
+   SUMBER DATA:
+   GENZModelsData
+
+   RENDER:
+   GENZModelTable
+
+   ROLE:
+   Modul ini TIDAK mengubah atau menentukan role
+   owner / admin / user.
+
+   Authorization tetap berada pada:
+   - Auth
+   - Admin guard
+   - API authorization
+   - Supabase / backend policy
+
+   SEARCH PAGE dan SEARCH FORM adalah dua sistem
+   yang berbeda.
 ========================================================= */
 
 (function () {
@@ -45,6 +60,30 @@
     let handlers = null;
 
     let models = [];
+
+
+    /* =====================================================
+       MODULE ACCESS
+    ===================================================== */
+
+    function getDataModule() {
+
+        return (
+            window.GENZModelsData ||
+            null
+        );
+
+    }
+
+
+    function getTableModule() {
+
+        return (
+            window.GENZModelTable ||
+            null
+        );
+
+    }
 
 
     /* =====================================================
@@ -76,35 +115,7 @@
 
 
     /* =====================================================
-       DATA MODULE
-    ===================================================== */
-
-    function getDataModule() {
-
-        return (
-            window.GENZModelsData ||
-            null
-        );
-
-    }
-
-
-    /* =====================================================
-       TABLE MODULE
-    ===================================================== */
-
-    function getTableModule() {
-
-        return (
-            window.GENZModelTable ||
-            null
-        );
-
-    }
-
-
-    /* =====================================================
-       NORMALIZE
+       NORMALIZATION
     ===================================================== */
 
     function normalizeString(
@@ -134,12 +145,22 @@
         }
 
 
+        const provider =
+            (
+                model.provider &&
+                typeof model.provider === "object"
+            )
+                ? model.provider
+                : null;
+
+
         return {
 
             ...model,
 
             id:
-                model.id ?? "",
+                model.id ??
+                "",
 
             model_id:
                 model.model_id ??
@@ -158,18 +179,18 @@
                 model.family ??
                 "",
 
-            provider:
-                model.provider ??
-                "",
-
             provider_id:
                 model.provider_id ??
                 model.providerId ??
+                provider?.id ??
+                provider?.provider_id ??
                 "",
 
             provider_name:
                 model.provider_name ??
                 model.providerName ??
+                provider?.provider_name ??
+                provider?.name ??
                 "",
 
             status:
@@ -186,7 +207,9 @@
     ) {
 
         if (
-            !Array.isArray(list)
+            !Array.isArray(
+                list
+            )
         ) {
 
             return [];
@@ -199,17 +222,28 @@
                 normalizeModel
             )
             .filter(
-                Boolean
+                function (
+                    model
+                ) {
+
+                    return (
+                        !!model &&
+                        !!String(
+                            model.model_id ??
+                            ""
+                        ).trim()
+                    );
+
+                }
             );
 
     }
 
 
     /* =====================================================
-       LOAD CURRENT SOURCE
+       SOURCE
        -----------------------------------------------------
-       Search TIDAK membuat API sendiri.
-       Selalu mengambil katalog dari Data owner.
+       ModelsData adalah satu-satunya source catalog.
     ===================================================== */
 
     function loadSourceModels() {
@@ -219,50 +253,63 @@
 
 
         if (
-            data &&
-            typeof data.getCachedModels ===
-                "function"
+            !data
         ) {
 
-            try {
-
-                const cached =
-                    data.getCachedModels();
-
-
-                if (
-                    Array.isArray(
-                        cached
-                    )
-                ) {
-
-                    models =
-                        normalizeModels(
-                            cached
-                        );
-
-                    return [
-                        ...models
-                    ];
-
-                }
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-page-search] getCachedModels error:",
-                    error
-                );
-
-            }
+            return [
+                ...models
+            ];
 
         }
 
 
-        /*
-         * Fallback ke state yang sudah disimpan
-         * oleh module ini.
-         */
+        if (
+            typeof data.getCachedModels !==
+            "function"
+        ) {
+
+            return [
+                ...models
+            ];
+
+        }
+
+
+        try {
+
+            const cached =
+                data.getCachedModels();
+
+
+            if (
+                Array.isArray(
+                    cached
+                )
+            ) {
+
+                models =
+                    normalizeModels(
+                        cached
+                    );
+
+
+                return [
+                    ...models
+                ];
+
+            }
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Model page search source error:",
+                error
+            );
+
+        }
+
 
         return [
             ...models
@@ -286,8 +333,12 @@
 
 
         /*
-         * Jika Search sedang aktif,
-         * langsung hitung ulang.
+         * Jangan langsung render di sini.
+         *
+         * ModelsData / ModelsUI / Table tetap menjadi
+         * owner lifecycle rendering.
+         *
+         * Search hanya menyimpan catalog.
          */
 
         if (
@@ -323,22 +374,35 @@
        STATUS
     ===================================================== */
 
+    function normalizeStatus(
+        model
+    ) {
+
+        return normalizeString(
+            model?.status
+        );
+
+    }
+
+
     function isActive(
         model
     ) {
 
         const status =
-            normalizeString(
-                model?.status
+            normalizeStatus(
+                model
             );
 
 
         /*
-         * Data lama tanpa status
-         * dianggap aktif.
+         * Model tanpa status tetap dianggap aktif
+         * untuk kompatibilitas data lama.
          */
 
-        if (!status) {
+        if (
+            !status
+        ) {
 
             return true;
 
@@ -369,27 +433,21 @@
          * Semua status.
          */
 
-        if (!filter) {
+        if (
+            !filter
+        ) {
 
             return true;
 
         }
 
 
-        const modelStatus =
-            normalizeString(
-                model?.status
-            );
-
-
         if (
             filter === "active"
         ) {
 
-            return (
-                isActive(
-                    model
-                )
+            return isActive(
+                model
             );
 
         }
@@ -407,21 +465,19 @@
 
 
         /*
-         * Untuk status tambahan
-         * jika nanti ditambahkan ke HTML.
+         * Status lain jika nanti ditambahkan.
          */
 
-        if (
+        const modelStatus =
+            normalizeStatus(
+                model
+            );
+
+
+        return (
             modelStatus ===
             filter
-        ) {
-
-            return true;
-
-        }
-
-
-        return false;
+        );
 
     }
 
@@ -430,7 +486,7 @@
        SEARCH TEXT
     ===================================================== */
 
-    function getSearchText(
+    function getSearchValues(
         model
     ) {
 
@@ -442,11 +498,9 @@
 
             model?.model_family,
 
-            model?.provider,
+            model?.provider_name,
 
-            model?.provider_id,
-
-            model?.provider_name
+            model?.provider_id
 
         ]
             .map(
@@ -459,10 +513,6 @@
     }
 
 
-    /* =====================================================
-       MATCH SEARCH
-    ===================================================== */
-
     function matchesSearch(
         model,
         keyword
@@ -474,12 +524,9 @@
             );
 
 
-        /*
-         * Search kosong =
-         * semua Model cocok.
-         */
-
-        if (!term) {
+        if (
+            !term
+        ) {
 
             return true;
 
@@ -487,7 +534,7 @@
 
 
         const values =
-            getSearchText(
+            getSearchValues(
                 model
             );
 
@@ -544,32 +591,36 @@
             );
 
 
-        /*
-         * Ranking pencarian.
-         *
-         * Exact Model ID
-         * ↓
-         * Model ID diawali keyword
-         * ↓
-         * Model ID mengandung keyword
-         * ↓
-         * Nama
-         * ↓
-         * Alphabetical
-         */
-
         const term =
             normalizeString(
                 keyword
             );
 
 
-        if (!term) {
+        /*
+         * Tidak perlu ranking jika search kosong.
+         */
+
+        if (
+            !term
+        ) {
 
             return filtered;
 
         }
 
+
+        /* =================================================
+           SEARCH RANKING
+
+           1. Exact Model ID
+           2. Model ID prefix
+           3. Model ID contains
+           4. Model Name prefix
+           5. Model Name contains
+           6. Provider
+           7. Alphabetical
+        ================================================= */
 
         filtered.sort(
             function (
@@ -599,9 +650,20 @@
                     );
 
 
-                /*
-                 * Exact ID.
-                 */
+                const aProvider =
+                    normalizeString(
+                        a.provider_name
+                    );
+
+                const bProvider =
+                    normalizeString(
+                        b.provider_name
+                    );
+
+
+                /* =========================================
+                   EXACT ID
+                ========================================= */
 
                 const aExact =
                     aId === term
@@ -627,18 +689,18 @@
                 }
 
 
-                /*
-                 * Prefix ID.
-                 */
+                /* =========================================
+                   ID PREFIX
+                ========================================= */
 
-                const aPrefix =
+                const aIdPrefix =
                     aId.startsWith(
                         term
                     )
                         ? 10000
                         : 0;
 
-                const bPrefix =
+                const bIdPrefix =
                     bId.startsWith(
                         term
                     )
@@ -647,30 +709,30 @@
 
 
                 if (
-                    aPrefix !==
-                    bPrefix
+                    aIdPrefix !==
+                    bIdPrefix
                 ) {
 
                     return (
-                        bPrefix -
-                        aPrefix
+                        bIdPrefix -
+                        aIdPrefix
                     );
 
                 }
 
 
-                /*
-                 * ID contains.
-                 */
+                /* =========================================
+                   ID CONTAINS
+                ========================================= */
 
-                const aContains =
+                const aIdContains =
                     aId.includes(
                         term
                     )
                         ? 1000
                         : 0;
 
-                const bContains =
+                const bIdContains =
                     bId.includes(
                         term
                     )
@@ -679,21 +741,53 @@
 
 
                 if (
-                    aContains !==
-                    bContains
+                    aIdContains !==
+                    bIdContains
                 ) {
 
                     return (
-                        bContains -
-                        aContains
+                        bIdContains -
+                        aIdContains
                     );
 
                 }
 
 
-                /*
-                 * Name contains.
-                 */
+                /* =========================================
+                   NAME PREFIX
+                ========================================= */
+
+                const aNamePrefix =
+                    aName.startsWith(
+                        term
+                    )
+                        ? 500
+                        : 0;
+
+                const bNamePrefix =
+                    bName.startsWith(
+                        term
+                    )
+                        ? 500
+                        : 0;
+
+
+                if (
+                    aNamePrefix !==
+                    bNamePrefix
+                ) {
+
+                    return (
+                        bNamePrefix -
+                        aNamePrefix
+                    );
+
+                }
+
+
+                /* =========================================
+                   NAME CONTAINS
+                ========================================= */
 
                 const aNameContains =
                     aName.includes(
@@ -723,6 +817,42 @@
                 }
 
 
+                /* =========================================
+                   PROVIDER
+                ========================================= */
+
+                const aProviderContains =
+                    aProvider.includes(
+                        term
+                    )
+                        ? 50
+                        : 0;
+
+                const bProviderContains =
+                    bProvider.includes(
+                        term
+                    )
+                        ? 50
+                        : 0;
+
+
+                if (
+                    aProviderContains !==
+                    bProviderContains
+                ) {
+
+                    return (
+                        bProviderContains -
+                        aProviderContains
+                    );
+
+                }
+
+
+                /* =========================================
+                   ALPHABETICAL
+                ========================================= */
+
                 return aId.localeCompare(
                     bId,
                     "id",
@@ -742,7 +872,11 @@
 
 
     /* =====================================================
-       RENDER
+       TABLE
+       -----------------------------------------------------
+       Table tetap owner rendering.
+
+       Search hanya meneruskan hasil filter.
     ===================================================== */
 
     function render(
@@ -757,9 +891,10 @@
             !table
         ) {
 
-            console.error(
-                "[model-page-search] GENZModelTable belum tersedia."
+            console.warn(
+                "[GEN-Z.AI] GENZModelTable belum tersedia."
             );
+
 
             return false;
 
@@ -768,14 +903,13 @@
 
         if (
             typeof table.setModels !==
-                "function" ||
-            typeof table.render !==
-                "function"
+            "function"
         ) {
 
-            console.error(
-                "[model-page-search] API GENZModelTable tidak lengkap."
+            console.warn(
+                "[GEN-Z.AI] GENZModelTable.setModels() tidak tersedia."
             );
+
 
             return false;
 
@@ -793,17 +927,36 @@
             );
 
 
-            table.render();
+            /*
+             * Jangan memaksa render apabila table
+             * memiliki lifecycle render sendiri.
+             *
+             * Jika render tersedia, kita tetap panggil
+             * karena Page Search adalah perubahan
+             * tampilan yang memang harus terlihat segera.
+             */
+
+            if (
+                typeof table.render ===
+                "function"
+            ) {
+
+                table.render();
+
+            }
 
 
             return true;
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.error(
-                "[model-page-search] Render table error:",
+                "[GEN-Z.AI] Model page search render error:",
                 error
             );
+
 
             return false;
 
@@ -819,9 +972,10 @@
     function apply() {
 
         /*
-         * Selalu ambil katalog terbaru.
-         * Jangan menggunakan hasil filter sebelumnya
-         * sebagai source berikutnya.
+         * Selalu mulai dari source catalog.
+         *
+         * Jangan melakukan filter terhadap hasil filter
+         * sebelumnya.
          */
 
         const source =
@@ -854,25 +1008,6 @@
                 keyword,
                 status
             );
-
-
-        console.info(
-            "[GEN-Z.AI] Page Model Search:",
-            {
-                keyword:
-                    String(
-                        keyword || ""
-                    ),
-                status:
-                    String(
-                        status || ""
-                    ),
-                total:
-                    source.length,
-                result:
-                    result.length
-            }
-        );
 
 
         render(
@@ -954,10 +1089,6 @@
         }
 
 
-        /*
-         * Escape mengosongkan pencarian.
-         */
-
         if (
             event.key ===
             "Escape"
@@ -1005,7 +1136,9 @@
             getStatusFilter();
 
 
-        if (input) {
+        if (
+            input
+        ) {
 
             input.value =
                 "";
@@ -1013,7 +1146,9 @@
         }
 
 
-        if (status) {
+        if (
+            status
+        ) {
 
             status.value =
                 "";
@@ -1049,38 +1184,27 @@
             getStatusFilter();
 
 
-        if (!input) {
-
-            console.warn(
-                "[model-page-search] #searchInput belum tersedia."
-            );
-
-        }
-
-
-        /*
-         * Simpan handler.
-         */
-
         handlers = {
 
             input:
                 handleSearchInput,
 
-            status:
-                handleStatusChange,
-
             keydown:
-                handleKeydown
+                handleKeydown,
+
+            status:
+                handleStatusChange
 
         };
 
 
         /*
-         * Search utama.
+         * Search input.
          */
 
-        if (input) {
+        if (
+            input
+        ) {
 
             input.addEventListener(
                 "input",
@@ -1100,7 +1224,9 @@
          * Status filter.
          */
 
-        if (status) {
+        if (
+            status
+        ) {
 
             status.addEventListener(
                 "change",
@@ -1112,11 +1238,6 @@
 
         bound =
             true;
-
-
-        console.info(
-            "[GEN-Z.AI] Model Page Search bound."
-        );
 
 
         return true;
@@ -1182,6 +1303,7 @@
         handlers =
             null;
 
+
         bound =
             false;
 
@@ -1201,16 +1323,18 @@
             initialized
         ) {
 
+            /*
+             * Pastikan listener tetap tersedia
+             * jika DOM telah berubah.
+             */
+
             bind();
+
 
             return true;
 
         }
 
-
-        /*
-         * Ambil katalog awal.
-         */
 
         loadSourceModels();
 
@@ -1220,6 +1344,14 @@
 
         initialized =
             true;
+
+
+        /*
+         * Terapkan filter awal jika HTML sudah
+         * memiliki nilai search/filter.
+         */
+
+        apply();
 
 
         console.info(
@@ -1284,7 +1416,13 @@
 
             getSearchInput,
 
-            getStatusFilter
+            getStatusFilter,
+
+            isActive,
+            
+            matchesStatus,
+
+            matchesSearch
 
         });
 
@@ -1292,5 +1430,6 @@
     console.info(
         "[GEN-Z.AI] GENZModelPageSearch loaded."
     );
+
 
 })();
