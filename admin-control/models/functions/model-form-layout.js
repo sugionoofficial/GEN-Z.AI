@@ -485,7 +485,8 @@
                                     provider?.provider_id,
                                     provider?.provider,
                                     provider?.provider_name,
-                                    provider?.name
+                                    provider?.name,
+                                    provider?.provider_code
                                 ].some(
                                     function (candidate) {
 
@@ -525,7 +526,7 @@
 
     /* =====================================================
        MODEL -> PROVIDER MATCH
-    ===================================================== */
+       ===================================================== */
 
     function modelMatchesProvider(
         model,
@@ -561,10 +562,20 @@
 
             model?.provider_code,
 
-            model?.provider_name
+            model?.provider_name,
+
+            model?.providerId,
+
+            model?.providerName
 
         ];
 
+
+        /*
+         * -------------------------------------------------
+         * MATCH LANGSUNG
+         * -------------------------------------------------
+         */
 
         if (
             candidates.some(
@@ -586,6 +597,12 @@
         }
 
 
+        /*
+         * -------------------------------------------------
+         * MATCH DENGAN PROVIDER YANG SUDAH DI-RESOLVE
+         * -------------------------------------------------
+         */
+
         if (selected) {
 
             const providerCandidates = [
@@ -596,9 +613,17 @@
 
                 selected.provider,
 
+                selected.provider_uuid,
+
+                selected.provider_code,
+
                 selected.provider_name,
 
-                selected.name
+                selected.name,
+
+                selected.providerId,
+
+                selected.providerName
 
             ];
 
@@ -606,13 +631,26 @@
             return candidates.some(
                 function (candidate) {
 
+                    const normalizedCandidate =
+                        normalize(
+                            candidate
+                        );
+
+
+                    if (
+                        !normalizedCandidate
+                    ) {
+
+                        return false;
+
+                    }
+
+
                     return providerCandidates.some(
                         function (providerCandidate) {
 
                             return (
-                                normalize(
-                                    candidate
-                                ) ===
+                                normalizedCandidate ===
                                 normalize(
                                     providerCandidate
                                 )
@@ -628,6 +666,138 @@
 
 
         return false;
+
+    }
+
+
+    /* =====================================================
+       KIE PROVIDER DETECTION
+       -----------------------------------------------------
+       Provider KIE dapat direpresentasikan oleh:
+       - kie_ai
+       - kie-ai
+       - kie.ai
+       - kie ai
+       - kie
+       - KIE.AI
+    ===================================================== */
+
+    function isKieProviderValue(
+        value
+    ) {
+
+        const normalized =
+            normalize(
+                value
+            );
+
+
+        if (!normalized) {
+
+            return false;
+
+        }
+
+
+        return (
+
+            normalized === "kie_ai" ||
+            normalized === "kie-ai" ||
+            normalized === "kie.ai" ||
+            normalized === "kie ai" ||
+            normalized === "kie"
+
+        );
+
+    }
+
+
+    function providerLooksLikeKie(
+        provider
+    ) {
+
+        if (!provider) {
+
+            return false;
+
+        }
+
+
+        const values = [
+
+            provider.id,
+
+            provider.provider_id,
+
+            provider.provider,
+
+            provider.provider_uuid,
+
+            provider.provider_code,
+
+            provider.provider_name,
+
+            provider.name,
+
+            provider.providerId,
+
+            provider.providerName
+
+        ];
+
+
+        return values.some(
+            function (value) {
+
+                return isKieProviderValue(
+                    value
+                );
+
+            }
+        );
+
+    }
+
+
+    function modelLooksLikeKie(
+        model
+    ) {
+
+        if (!model) {
+
+            return false;
+
+        }
+
+
+        const values = [
+
+            model.provider,
+
+            model.provider_id,
+
+            model.provider_uuid,
+
+            model.provider_code,
+
+            model.provider_name,
+
+            model.providerId,
+
+            model.providerName
+
+        ];
+
+
+        return values.some(
+            function (value) {
+
+                return isKieProviderValue(
+                    value
+                );
+
+            }
+        );
 
     }
 
@@ -1050,6 +1220,14 @@
 
     /* =====================================================
        FILTER MODEL
+       -----------------------------------------------------
+       PERBAIKAN UTAMA.
+
+       Provider pada Supabase dapat berupa UUID,
+       sedangkan katalog KIE menggunakan kie_ai.
+
+       Jangan menghilangkan semua model hanya karena
+       identifier Provider berbeda.
     ===================================================== */
 
     function getModelsForProvider(
@@ -1062,6 +1240,10 @@
             ).trim();
 
 
+        /*
+         * Tidak ada Provider.
+         */
+
         if (!value) {
 
             return [];
@@ -1069,21 +1251,362 @@
         }
 
 
-        return modelCache.filter(
-            function (model) {
+        /*
+         * Hanya model aktif yang boleh masuk dropdown.
+         */
 
-                return (
-                    isActiveModel(
+        const activeModels =
+            modelCache.filter(
+                function (model) {
+
+                    return isActiveModel(
                         model
-                    ) &&
-                    modelMatchesProvider(
-                        model,
-                        value
-                    )
+                    );
+
+                }
+            );
+
+
+        if (!activeModels.length) {
+
+            return [];
+
+        }
+
+
+        /*
+         * Resolve Provider dari module Provider / dropdown.
+         */
+
+        const selectedProvider =
+            resolveProvider(
+                value
+            );
+
+
+        /*
+         * =================================================
+           KUMPULKAN SEMUA IDENTIFIER PROVIDER
+           =================================================
+        */
+
+        const providerCandidates =
+            new Set();
+
+
+        function addProviderCandidate(
+            candidate
+        ) {
+
+            const normalized =
+                normalize(
+                    candidate
+                );
+
+
+            if (normalized) {
+
+                providerCandidates.add(
+                    normalized
                 );
 
             }
+
+        }
+
+
+        /*
+         * Identifier langsung dari select.
+         */
+
+        addProviderCandidate(
+            value
         );
+
+
+        /*
+         * Identifier dari object Provider.
+         */
+
+        if (
+            selectedProvider
+        ) {
+
+            addProviderCandidate(
+                selectedProvider.id
+            );
+
+            addProviderCandidate(
+                selectedProvider.provider_id
+            );
+
+            addProviderCandidate(
+                selectedProvider.provider
+            );
+
+            addProviderCandidate(
+                selectedProvider.provider_uuid
+            );
+
+            addProviderCandidate(
+                selectedProvider.provider_code
+            );
+
+            addProviderCandidate(
+                selectedProvider.provider_name
+            );
+
+            addProviderCandidate(
+                selectedProvider.name
+            );
+
+            addProviderCandidate(
+                selectedProvider.providerId
+            );
+
+            addProviderCandidate(
+                selectedProvider.providerName
+            );
+
+        }
+
+
+        /*
+         * =================================================
+           MATCH NORMAL
+           =================================================
+        */
+
+        const matched =
+            activeModels.filter(
+                function (model) {
+
+                    const modelCandidates = [
+
+                        model?.provider,
+
+                        model?.provider_id,
+
+                        model?.provider_uuid,
+
+                        model?.provider_code,
+
+                        model?.provider_name,
+
+                        model?.providerId,
+
+                        model?.providerName
+
+                    ];
+
+
+                    return modelCandidates.some(
+                        function (candidate) {
+
+                            const normalized =
+                                normalize(
+                                    candidate
+                                );
+
+
+                            if (!normalized) {
+
+                                return false;
+
+                            }
+
+
+                            return providerCandidates.has(
+                                normalized
+                            );
+
+                        }
+                    );
+
+                }
+            );
+
+
+        /*
+         * Jika identifier cocok secara normal,
+         * gunakan hasil normal.
+         */
+
+        if (
+            matched.length
+        ) {
+
+            return matched;
+
+        }
+
+
+        /*
+         * =================================================
+           FALLBACK KIE.AI
+           =================================================
+        */
+
+        const selectedProviderIsKie =
+            providerLooksLikeKie(
+                selectedProvider
+            );
+
+
+        const selectedValueIsKie =
+            isKieProviderValue(
+                value
+            );
+
+
+        const kieModels =
+            activeModels.filter(
+                function (model) {
+
+                    return modelLooksLikeKie(
+                        model
+                    );
+
+                }
+            );
+
+
+        /*
+         * Provider jelas KIE.AI.
+         */
+
+        if (
+            (
+                selectedProviderIsKie ||
+                selectedValueIsKie
+            ) &&
+            kieModels.length
+        ) {
+
+            console.info(
+                "[GEN-Z.AI] Provider KIE.AI terdeteksi. Menggunakan katalog model KIE:",
+                {
+                    provider:
+                        value,
+
+                    models:
+                        kieModels.length
+                }
+            );
+
+
+            return kieModels;
+
+        }
+
+
+        /*
+         * =================================================
+           FALLBACK PROVIDER KIE DENGAN UUID
+           =================================================
+           Kasus:
+           
+             providerId = UUID Supabase
+
+           sedangkan object Provider memiliki:
+
+             provider_name = KIE.AI
+             provider_id   = UUID
+
+           Jika Provider tidak berhasil dicocokkan langsung
+           dengan model KIE, tetapi object Provider
+           menunjukkan bahwa Provider tersebut adalah KIE,
+           gunakan katalog KIE.
+        */
+
+        if (
+            selectedProvider &&
+            kieModels.length
+        ) {
+
+            const providerText =
+                [
+
+                    selectedProvider.provider,
+                    selectedProvider.provider_id,
+                    selectedProvider.provider_code,
+                    selectedProvider.provider_name,
+                    selectedProvider.name
+
+                ]
+                    .filter(Boolean)
+                    .map(
+                        normalize
+                    )
+                    .join(" ");
+
+
+            if (
+                providerText.includes(
+                    "kie"
+                )
+            ) {
+
+                console.info(
+                    "[GEN-Z.AI] Provider Supabase terdeteksi sebagai KIE.AI. Menggunakan katalog model KIE:",
+                    {
+                        provider:
+                            value,
+
+                        models:
+                            kieModels.length
+                    }
+                );
+
+
+                return kieModels;
+
+            }
+
+        }
+
+
+        /*
+         * =================================================
+           FALLBACK AMAN BERDASARKAN SATU-SATUNYA KATALOG
+           =================================================
+           
+           Jika hanya ada satu provider yang direpresentasikan
+           oleh seluruh model cache dan Provider aktif
+           tidak memiliki identifier yang dapat dipetakan,
+           jangan asal menampilkan model dari provider lain.
+
+           Jadi fallback hanya boleh jika SEMUA model aktif
+           berasal dari KIE.
+        */
+
+        if (
+            kieModels.length ===
+            activeModels.length
+        ) {
+
+            console.info(
+                "[GEN-Z.AI] Seluruh katalog aktif berasal dari KIE.AI. Model ditampilkan meskipun identifier Provider berbeda:",
+                {
+                    provider:
+                        value,
+
+                    models:
+                        kieModels.length
+                }
+            );
+
+
+            return kieModels;
+
+        }
+
+
+        /*
+         * Tidak ada model yang dapat dipetakan.
+         */
+
+        return [];
 
     }
 
@@ -1310,6 +1833,15 @@
         }
 
 
+        /*
+         * Model sudah selesai dimuat.
+         * Dropdown harus aktif jika Provider dipilih.
+         */
+
+        select.disabled =
+            !providerId;
+
+
         return true;
 
     }
@@ -1408,10 +1940,6 @@
         }
 
 
-        const data =
-            window.GENZModelsData;
-
-
         let token =
             "";
 
@@ -1500,7 +2028,7 @@
                     );
 
 
-                const text =
+                const responseText =
                     await response.text();
 
 
@@ -1508,13 +2036,13 @@
                     null;
 
 
-                if (text) {
+                if (responseText) {
 
                     try {
 
                         dataResponse =
                             JSON.parse(
-                                text
+                                responseText
                             );
 
                     } catch {
@@ -2334,17 +2862,6 @@
             );
 
 
-        /*
-         * IMPORTANT:
-         *
-         * Ratio dan Resolution TIDAK lagi disabled.
-         *
-         * Nilainya tetap readonly dari sisi SOURCE
-         * karena option hanya dibuat dari KIE/Supabase.
-         *
-         * Checkbox boleh dipilih user saat edit.
-         */
-
         if (
             readonly
         ) {
@@ -2584,17 +3101,7 @@
 
     /* =====================================================
        SYNC DURATION FIELDS
-       -----------------------------------------------------
-       Checkbox Duration:
-           [5] [8] [10]
-
-       Jika:
-           [5] [10]
-
-       maka:
-           minDuration = 5
-           maxDuration = 10
-    ===================================================== */
+       ===================================================== */
 
     function syncDurationFields() {
 
@@ -2835,14 +3342,7 @@
 
     /* =====================================================
        RENDER CAPABILITIES
-       -----------------------------------------------------
-       SEMUA OPTION WAJIB BERASAL DARI:
-           /api/kie-config
-               |
-               +-- kie_parameters
-               |
-               +-- enum_values
-    ===================================================== */
+       ===================================================== */
 
     function renderCapabilities(
         options = {}
@@ -2878,14 +3378,6 @@
 
             capabilities.ratios.forEach(
                 function (value) {
-
-                    /*
-                     * IMPORTANT:
-                     * ratio tidak disabled.
-                     *
-                     * Semua option yang tampil tetap
-                     * berasal dari Supabase/KIE.
-                     */
 
                     const item =
                         createCapabilityCheckbox(
@@ -2986,16 +3478,6 @@
                         false;
 
 
-                    /*
-                     * Jika field duration sudah memiliki
-                     * nilai dari record Supabase, gunakan
-                     * range tersebut untuk menentukan
-                     * checkbox awal.
-                     *
-                     * Jika kosong, JANGAN mencentang
-                     * semua option secara otomatis.
-                     */
-
                     if (
                         existingMin &&
                         existingMax &&
@@ -3071,14 +3553,6 @@
             capabilities.resolutions.forEach(
                 function (value) {
 
-                    /*
-                     * Resolution sekarang editable
-                     * melalui checkbox.
-                     *
-                     * Option tetap 100% berasal dari
-                     * konfigurasi Supabase/KIE.
-                     */
-
                     const item =
                         createCapabilityCheckbox(
                             "resolution",
@@ -3116,23 +3590,8 @@
         }
 
 
-        /*
-         * Sinkronisasi field lama.
-         *
-         * Pada mode create, tidak ada selection
-         * buatan sehingga field tetap kosong.
-         */
-
         syncLegacyCapabilityFields();
 
-
-        /*
-         * HANYA sinkron duration jika checkbox
-         * memang sudah memiliki selection.
-         *
-         * Ini mencegah render kosong menghapus
-         * min/max yang baru saja diisi dari Supabase.
-         */
 
         const durationChecked =
             getCheckedCapabilityValues(
