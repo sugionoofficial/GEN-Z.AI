@@ -27,6 +27,12 @@
        model-form-delete.js
        model-form-coordinator.js
        model-form-events.js
+
+   PAGE SEARCH:
+   - model-page-search.js
+     khusus untuk pencarian utama halaman Models
+   - Berbeda dengan models-search.js
+     yang menangani pencarian Model ID pada Form
 ========================================================= */
 
 (function () {
@@ -47,7 +53,7 @@
 
     /* =====================================================
        MODULE ORDER
-       =====================================================
+    =====================================================
 
        Urutan sangat penting.
 
@@ -72,9 +78,17 @@
          ↓
        FORM CRUD
          ↓
-       SEARCH
+       FORM EVENTS
+         ↓
+       MODEL SEARCH FUNCTIONS
+         ↓
+       MODEL SEARCH COORDINATOR
          ↓
        TABLE
+         ↓
+       TABLE EVENTS
+         ↓
+       PAGE SEARCH
          ↓
        UI
          ↓
@@ -241,6 +255,8 @@
 
         /* =================================================
            SEARCH DROPDOWN
+           -------------------------------------------------
+           Khusus pencarian Model ID di Form.
         ================================================= */
 
         {
@@ -255,6 +271,8 @@
 
         /* =================================================
            SEARCH RENDER
+           -------------------------------------------------
+           Khusus pencarian Model ID di Form.
         ================================================= */
 
         {
@@ -269,6 +287,8 @@
 
         /* =================================================
            SEARCH SELECT
+           -------------------------------------------------
+           Khusus pencarian Model ID di Form.
         ================================================= */
 
         {
@@ -283,6 +303,8 @@
 
         /* =================================================
            SEARCH EVENTS
+           -------------------------------------------------
+           Khusus pencarian Model ID di Form.
         ================================================= */
 
         {
@@ -297,6 +319,11 @@
 
         /* =================================================
            SEARCH COORDINATOR
+           -------------------------------------------------
+           models-search.js menangani pencarian
+           Model ID di Form Tambah/Edit.
+
+           BUKAN pencarian utama halaman Models.
         ================================================= */
 
         {
@@ -334,6 +361,37 @@
 
             global:
                 "GENZModelTableEvents"
+        },
+
+
+        /* =================================================
+           PAGE SEARCH
+           -------------------------------------------------
+           KHUSUS pencarian utama halaman Models.
+
+           Target:
+               #searchInput
+
+           Filter:
+               #statusFilter
+
+           Module ini BERBEDA dari:
+               models-search.js
+
+           models-search.js:
+               Search Model ID di Form.
+
+           model-page-search.js:
+               Search Model di halaman utama.
+        ================================================= */
+
+        {
+            src:
+                FUNCTION_PATH +
+                "model-page-search.js",
+
+            global:
+                "GENZModelPageSearch"
         },
 
 
@@ -794,8 +852,14 @@
                Table harus selesai sebelum
                Table Events.
 
-               Semua harus selesai sebelum
+               Table Events harus tersedia sebelum
+               Page Search.
+
+               Page Search harus tersedia sebelum
                UI dan Init.
+
+               Semua harus selesai sebelum
+               lifecycle dijalankan.
             ============================================= */
 
             for (
