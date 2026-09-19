@@ -17,7 +17,8 @@
         }
 
         :root {
-            --bg-main: #e7e7e7;
+            --bg-main: #07090d;
+            --bg-soft: #0d1118;
             --bg-white: #ffffff;
             --bg-dark: #111111;
             --bg-dark-2: #181818;
@@ -28,9 +29,9 @@
 
             --border: rgba(0, 0, 0, 0.08);
 
-            --red: #ff0033;
+            --red: #ff1744;
             --red-dark: #c90028;
-            --red-light: #ff3157;
+            --red-light: #ff4567;
 
             --green: #18a957;
             --yellow: #e0a800;
@@ -39,9 +40,9 @@
                 0 10px 30px rgba(0, 0, 0, 0.08);
 
             --red-glow:
-                0 0 4px rgba(255, 0, 51, 0.95),
-                0 0 12px rgba(255, 0, 51, 0.65),
-                0 0 25px rgba(255, 0, 51, 0.30);
+                0 0 4px rgba(255, 23, 68, 0.95),
+                0 0 12px rgba(255, 23, 68, 0.65),
+                0 0 25px rgba(255, 23, 68, 0.30);
         }
 
         html,
@@ -60,14 +61,26 @@
                 sans-serif;
 
             background:
-                linear-gradient(
-                    135deg,
-                    #d7d7d7 0%,
-                    #eeeeee 42%,
-                    #ffffff 100%
-                );
+                radial-gradient(
+                    circle at 10% 10%,
+                    rgba(255, 23, 68, 0.09),
+                    transparent 28%
+                ),
+                radial-gradient(
+                    circle at 90% 20%,
+                    rgba(255, 69, 103, 0.05),
+                    transparent 25%
+                ),
+                radial-gradient(
+                    circle at 50% 100%,
+                    rgba(255, 23, 68, 0.04),
+                    transparent 35%
+                ),
+                var(--bg-main);
 
             color: var(--text-main);
+
+            overflow-x: hidden;
         }
 
         button,
@@ -81,198 +94,20 @@
         }
 
         /* =========================================================
-           LAYOUT
-           ========================================================= */
-
-        .admin-layout {
-            min-height: 100vh;
-            display: flex;
-        }
-
-        /* =========================================================
-           SIDEBAR
-           ========================================================= */
-
-        .sidebar {
-            width: 250px;
-            min-width: 250px;
-            min-height: 100vh;
-
-            background:
-                linear-gradient(
-                    180deg,
-                    #0c0c0c 0%,
-                    #151515 50%,
-                    #0b0b0b 100%
-                );
-
-            color: #ffffff;
-
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-
-            z-index: 100;
-
-            display: flex;
-            flex-direction: column;
-
-            border-right:
-                1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .sidebar-logo {
-            height: 80px;
-
-            display: flex;
-            align-items: center;
-
-            padding: 0 24px;
-
-            border-bottom:
-                1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .sidebar-logo strong {
-            font-size: 23px;
-            font-weight: 900;
-            letter-spacing: 1px;
-        }
-
-        .sidebar-logo span {
-            color: var(--red);
-        }
-
-        .sidebar-nav {
-            padding: 18px 12px;
-            flex: 1;
-        }
-
-        .nav-section-title {
-            font-size: 10px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-
-            color: #666666;
-
-            padding: 12px 12px 8px;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-
-            width: 100%;
-
-            padding: 12px 14px;
-            margin-bottom: 5px;
-
-            color: #aaaaaa;
-            text-decoration: none;
-
-            border-radius: 10px;
-
-            font-size: 14px;
-            font-weight: 600;
-
-            transition:
-                background 0.2s ease,
-                color 0.2s ease,
-                transform 0.2s ease;
-        }
-
-        .nav-item:hover {
-            background:
-                rgba(255, 255, 255, 0.06);
-
-            color: #ffffff;
-
-            transform:
-                translateX(2px);
-        }
-
-        .nav-item.active {
-            background:
-                linear-gradient(
-                    90deg,
-                    rgba(255, 0, 51, 0.20),
-                    rgba(255, 0, 51, 0.05)
-                );
-
-            color: #ffffff;
-
-            border-left:
-                3px solid var(--red);
-
-            box-shadow:
-                inset 0 0 15px
-                rgba(255, 0, 51, 0.05);
-        }
-
-        .nav-icon {
-            width: 22px;
-            min-width: 22px;
-
-            text-align: center;
-
-            font-size: 16px;
-        }
-
-        .sidebar-footer {
-            padding: 15px;
-
-            border-top:
-                1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .logout-btn {
-            width: 100%;
-
-            border:
-                1px solid rgba(255, 255, 255, 0.08);
-
-            background:
-                rgba(255, 255, 255, 0.04);
-
-            color: #bbbbbb;
-
-            padding: 11px 14px;
-
-            border-radius: 9px;
-
-            font-size: 13px;
-            font-weight: 700;
-
-            transition:
-                all 0.2s ease;
-        }
-
-        .logout-btn:hover {
-            background:
-                rgba(255, 0, 51, 0.12);
-
-            border-color:
-                rgba(255, 0, 51, 0.35);
-
-            color: #ffffff;
-        }
-
-        /* =========================================================
            MAIN
            ========================================================= */
 
         .main-content {
-            margin-left: 250px;
-
-            width:
-                calc(100% - 250px);
+            width: min(1500px, 100%);
 
             min-height: 100vh;
 
-            padding: 28px;
+            margin: 0 auto;
+
+            padding:
+                105px
+                28px
+                45px;
         }
 
         /* =========================================================
@@ -291,6 +126,8 @@
         }
 
         .page-title h1 {
+            color: #ffffff;
+
             font-size: 30px;
             font-weight: 900;
 
@@ -300,7 +137,7 @@
         }
 
         .page-title p {
-            color: var(--text-muted);
+            color: #8d96a5;
 
             font-size: 14px;
         }
@@ -353,7 +190,7 @@
 
             box-shadow:
                 0 5px 16px
-                rgba(255, 0, 51, 0.20);
+                rgba(255, 23, 68, 0.20);
         }
 
         .btn-primary:hover {
@@ -362,22 +199,27 @@
 
             box-shadow:
                 0 7px 22px
-                rgba(255, 0, 51, 0.30);
+                rgba(255, 23, 68, 0.30);
         }
 
         .btn-secondary {
             background:
-                #ffffff;
+                rgba(255, 255, 255, 0.95);
 
             color: #333333;
 
             border:
-                1px solid var(--border);
+                1px solid
+                rgba(0, 0, 0, 0.10);
         }
 
         .btn-secondary:hover {
             background:
-                #f5f5f5;
+                #ffffff;
+
+            box-shadow:
+                0 7px 22px
+                rgba(255, 23, 68, 0.12);
         }
 
         .btn-small {
@@ -410,7 +252,8 @@
                 );
 
             border:
-                1px solid rgba(255, 0, 51, 0.18);
+                1px solid
+                rgba(255, 23, 68, 0.18);
 
             border-radius: 14px;
 
@@ -484,12 +327,13 @@
                 0 14px 0 42px;
 
             border:
-                1px solid rgba(0, 0, 0, 0.10);
+                1px solid
+                rgba(255, 255, 255, 0.10);
 
             border-radius: 10px;
 
             background:
-                rgba(255, 255, 255, 0.95);
+                rgba(255, 255, 255, 0.96);
 
             outline: none;
 
@@ -502,11 +346,11 @@
 
         .search-box input:focus {
             border-color:
-                rgba(255, 0, 51, 0.45);
+                rgba(255, 23, 68, 0.55);
 
             box-shadow:
                 0 0 0 3px
-                rgba(255, 0, 51, 0.08);
+                rgba(255, 23, 68, 0.10);
         }
 
         .search-icon {
@@ -521,6 +365,8 @@
             color: #888888;
 
             font-size: 16px;
+
+            pointer-events: none;
         }
 
         .filter-select {
@@ -532,7 +378,8 @@
                 0 35px 0 13px;
 
             border:
-                1px solid rgba(0, 0, 0, 0.10);
+                1px solid
+                rgba(0, 0, 0, 0.10);
 
             border-radius: 10px;
 
@@ -549,11 +396,11 @@
 
         .filter-select:focus {
             border-color:
-                rgba(255, 0, 51, 0.45);
+                rgba(255, 23, 68, 0.45);
 
             box-shadow:
                 0 0 0 3px
-                rgba(255, 0, 51, 0.08);
+                rgba(255, 23, 68, 0.08);
         }
 
         /* =========================================================
@@ -594,7 +441,8 @@
                 );
 
             border:
-                2px solid var(--red);
+                2px solid
+                var(--red);
 
             border-radius: 18px;
 
@@ -626,7 +474,7 @@
             background:
                 radial-gradient(
                     circle,
-                    rgba(255, 0, 51, 0.12),
+                    rgba(255, 23, 68, 0.12),
                     transparent 70%
                 );
 
@@ -639,13 +487,13 @@
 
             box-shadow:
                 0 0 5px
-                rgba(255, 0, 51, 1),
+                rgba(255, 23, 68, 1),
 
                 0 0 16px
-                rgba(255, 0, 51, 0.75),
+                rgba(255, 23, 68, 0.75),
 
                 0 0 32px
-                rgba(255, 0, 51, 0.35);
+                rgba(255, 23, 68, 0.35);
         }
 
         .model-top {
@@ -684,11 +532,11 @@
 
             border:
                 1px solid
-                rgba(255, 0, 51, 0.35);
+                rgba(255, 23, 68, 0.35);
 
             box-shadow:
                 0 0 12px
-                rgba(255, 0, 51, 0.20);
+                rgba(255, 23, 68, 0.20);
 
             font-size: 17px;
         }
@@ -746,14 +594,14 @@
             border-radius: 999px;
 
             background:
-                rgba(255, 0, 51, 0.08);
+                rgba(255, 23, 68, 0.08);
 
             color:
                 var(--red);
 
             border:
                 1px solid
-                rgba(255, 0, 51, 0.35);
+                rgba(255, 23, 68, 0.35);
 
             font-size: 9px;
 
@@ -766,7 +614,7 @@
 
             box-shadow:
                 0 0 9px
-                rgba(255, 0, 51, 0.15);
+                rgba(255, 23, 68, 0.15);
         }
 
         /* =========================================================
@@ -844,7 +692,7 @@
 
             border:
                 1px solid
-                rgba(255, 0, 51, 0.15);
+                rgba(255, 23, 68, 0.15);
 
             border-radius: 12px;
 
@@ -1114,13 +962,13 @@
 
             border:
                 2px solid
-                rgba(255, 0, 51, 0.35);
+                rgba(255, 23, 68, 0.35);
 
             border-radius: 16px;
 
             box-shadow:
                 0 0 15px
-                rgba(255, 0, 51, 0.10);
+                rgba(255, 23, 68, 0.10);
         }
 
         .state-icon {
@@ -1138,14 +986,14 @@
             border-radius: 50%;
 
             background:
-                rgba(255, 0, 51, 0.06);
+                rgba(255, 23, 68, 0.06);
 
             color:
                 var(--red);
 
             border:
                 1px solid
-                rgba(255, 0, 51, 0.25);
+                rgba(255, 23, 68, 0.25);
 
             font-size: 24px;
 
@@ -1253,10 +1101,10 @@
             inset: 0;
 
             background:
-                rgba(255, 255, 255, 0.72);
+                rgba(7, 9, 13, 0.58);
 
             backdrop-filter:
-                blur(3px);
+                blur(5px);
 
             z-index: 9998;
 
@@ -1272,7 +1120,14 @@
 
         .loading-box {
             background:
+                rgba(20, 23, 30, 0.96);
+
+            color:
                 #ffffff;
+
+            border:
+                1px solid
+                rgba(255, 23, 68, 0.22);
 
             border-radius: 14px;
 
@@ -1281,7 +1136,9 @@
 
             box-shadow:
                 0 15px 40px
-                rgba(0, 0, 0, 0.12);
+                rgba(0, 0, 0, 0.35),
+                0 0 25px
+                rgba(255, 23, 68, 0.06);
 
             display: flex;
 
@@ -1299,7 +1156,8 @@
             height: 20px;
 
             border:
-                3px solid #eeeeee;
+                3px solid
+                rgba(255, 255, 255, 0.12);
 
             border-top-color:
                 var(--red);
@@ -1331,69 +1189,28 @@
 
         @media (max-width: 1100px) {
 
-            .sidebar {
-                width: 220px;
-                min-width: 220px;
-            }
-
-            .main-content {
-                margin-left: 220px;
-
-                width:
-                    calc(100% - 220px);
-            }
-
             .stats-grid {
                 grid-template-columns:
                     repeat(2, minmax(0, 1fr));
+            }
+
+            .main-content {
+                padding:
+                    105px
+                    22px
+                    40px;
             }
         }
 
         @media (max-width: 800px) {
 
-            .sidebar {
-                position: static;
-
-                width: 100%;
-                min-width: 0;
-
-                min-height: auto;
-            }
-
-            .admin-layout {
-                display: block;
-            }
-
-            .sidebar-nav {
-                display: flex;
-
-                overflow-x: auto;
-
-                padding: 10px;
-            }
-
-            .nav-section-title {
-                display: none;
-            }
-
-            .nav-item {
-                white-space: nowrap;
-
-                width: auto;
-
-                margin-bottom: 0;
-            }
-
-            .sidebar-footer {
-                display: none;
-            }
-
             .main-content {
-                margin-left: 0;
-
                 width: 100%;
 
-                padding: 18px;
+                padding:
+                    90px
+                    18px
+                    35px;
             }
 
             .page-header {
@@ -1405,14 +1222,17 @@
             }
 
             .header-actions .btn {
-                flex: 1;
+                width: 100%;
             }
         }
 
         @media (max-width: 560px) {
 
             .main-content {
-                padding: 13px;
+                padding:
+                    88px
+                    13px
+                    30px;
             }
 
             .stats-grid {
@@ -1431,7 +1251,8 @@
             }
 
             .models-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
             }
 
             .toolbar {
@@ -1457,7 +1278,30 @@
             }
 
             .model-meta {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns:
+                    1fr 1fr;
+            }
+
+            .toast-container {
+                left: 13px;
+                right: 13px;
+                bottom: 13px;
+            }
+
+            .toast {
+                min-width: 0;
+                width: 100%;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
             }
         }
     </style>
@@ -1465,277 +1309,217 @@
 
 <body>
 
-<div class="admin-layout">
+<!-- =============================================================
+     SHARED ADMIN NAVIGATION
+     ============================================================= -->
 
-    <!-- =========================================================
-         SIDEBAR
-         ========================================================= -->
+<div id="adminNavigation"></div>
 
-    <aside class="sidebar">
 
-        <div class="sidebar-logo">
-            <strong>
-                GEN-Z<span>.AI</span>
-            </strong>
+<!-- =============================================================
+     MAIN
+     ============================================================= -->
+
+<main class="main-content">
+
+    <header class="page-header">
+
+        <div class="page-title">
+
+            <h1>
+                Models
+            </h1>
+
+            <p>
+                Model tersedia otomatis dari folder model
+                di repository GEN-Z.AI
+            </p>
+
         </div>
 
-        <nav class="sidebar-nav">
-
-            <div class="nav-section-title">
-                Main
-            </div>
-
-            <a
-                href="./index.html"
-                class="nav-item"
-            >
-                <span class="nav-icon">⌂</span>
-                <span>Dashboard</span>
-            </a>
-
-            <a
-                href="./users.html"
-                class="nav-item"
-            >
-                <span class="nav-icon">◉</span>
-                <span>Users</span>
-            </a>
-
-            <a
-                href="./providers.html"
-                class="nav-item"
-            >
-                <span class="nav-icon">◈</span>
-                <span>Providers</span>
-            </a>
-
-            <a
-                href="./models.html"
-                class="nav-item active"
-            >
-                <span class="nav-icon">▣</span>
-                <span>Models</span>
-            </a>
-
-            <a
-                href="./credit.html"
-                class="nav-item"
-            >
-                <span class="nav-icon">◆</span>
-                <span>Credit</span>
-            </a>
-
-        </nav>
-
-        <div class="sidebar-footer">
+        <div class="header-actions">
 
             <button
                 type="button"
-                id="logoutBtn"
-                class="logout-btn"
+                id="refreshModelsBtn"
+                class="btn btn-secondary"
             >
-                Keluar
+                ↻ Refresh
             </button>
 
         </div>
 
-    </aside>
+    </header>
 
 
     <!-- =========================================================
-         MAIN
+         STATS
          ========================================================= -->
 
-    <main class="main-content">
+    <section class="stats-grid">
 
-        <header class="page-header">
+        <div class="stat-card">
 
-            <div class="page-title">
-
-                <h1>Models</h1>
-
-                <p>
-                    Model tersedia otomatis dari folder model
-                    di repository GEN-Z.AI
-                </p>
-
+            <div class="stat-label">
+                Total Model
             </div>
-
-            <div class="header-actions">
-
-                <button
-                    type="button"
-                    id="refreshModelsBtn"
-                    class="btn btn-secondary"
-                >
-                    ↻ Refresh
-                </button>
-
-            </div>
-
-        </header>
-
-
-        <!-- =====================================================
-             STATS
-             ===================================================== -->
-
-        <section class="stats-grid">
-
-            <div class="stat-card">
-
-                <div class="stat-label">
-                    Total Model
-                </div>
-
-                <div
-                    id="totalModels"
-                    class="stat-value"
-                >
-                    0
-                </div>
-
-            </div>
-
-            <div class="stat-card">
-
-                <div class="stat-label">
-                    Model Aktif
-                </div>
-
-                <div
-                    id="activeModels"
-                    class="stat-value green"
-                >
-                    0
-                </div>
-
-            </div>
-
-            <div class="stat-card">
-
-                <div class="stat-label">
-                    Model Nonaktif
-                </div>
-
-                <div
-                    id="inactiveModels"
-                    class="stat-value"
-                >
-                    0
-                </div>
-
-            </div>
-
-            <div class="stat-card">
-
-                <div class="stat-label">
-                    Provider
-                </div>
-
-                <div
-                    id="totalProviders"
-                    class="stat-value red"
-                >
-                    0
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =====================================================
-             SEARCH / FILTER
-             ===================================================== -->
-
-        <section class="toolbar">
-
-            <div class="search-box">
-
-                <span class="search-icon">
-                    ⌕
-                </span>
-
-                <input
-                    type="search"
-                    id="modelSearch"
-                    autocomplete="off"
-                    placeholder="Cari model, model ID, provider..."
-                >
-
-            </div>
-
-            <select
-                id="modelStatusFilter"
-                class="filter-select"
-            >
-                <option value="all">
-                    Semua Status
-                </option>
-
-                <option value="active">
-                    Aktif
-                </option>
-
-                <option value="inactive">
-                    Nonaktif
-                </option>
-            </select>
-
-            <select
-                id="modelProviderFilter"
-                class="filter-select"
-            >
-                <option value="all">
-                    Semua Provider
-                </option>
-            </select>
-
-        </section>
-
-
-        <!-- =====================================================
-             MODEL GRID
-             ===================================================== -->
-
-        <section class="models-wrapper">
 
             <div
-                id="modelsTable"
-                class="models-grid"
+                id="totalModels"
+                class="stat-value"
+            >
+                0
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-label">
+                Model Aktif
+            </div>
+
+            <div
+                id="activeModels"
+                class="stat-value green"
+            >
+                0
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-label">
+                Model Nonaktif
+            </div>
+
+            <div
+                id="inactiveModels"
+                class="stat-value"
+            >
+                0
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-label">
+                Provider
+            </div>
+
+            <div
+                id="totalProviders"
+                class="stat-value red"
+            >
+                0
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================================
+         SEARCH / FILTER
+         ========================================================= -->
+
+    <section class="toolbar">
+
+        <div class="search-box">
+
+            <span class="search-icon">
+                ⌕
+            </span>
+
+            <input
+                type="search"
+                id="modelSearch"
+                autocomplete="off"
+                placeholder="Cari model, model ID, provider..."
             >
 
-                <div class="state-panel">
+        </div>
 
-                    <div class="state-icon">
-                        ◌
-                    </div>
 
-                    <div class="state-title">
-                        Memuat model...
-                    </div>
+        <select
+            id="modelStatusFilter"
+            class="filter-select"
+        >
 
-                    <div class="state-description">
-                        Membaca model dari registry repository GEN-Z.AI.
-                    </div>
+            <option value="all">
+                Semua Status
+            </option>
 
+            <option value="active">
+                Aktif
+            </option>
+
+            <option value="inactive">
+                Nonaktif
+            </option>
+
+        </select>
+
+
+        <select
+            id="modelProviderFilter"
+            class="filter-select"
+        >
+
+            <option value="all">
+                Semua Provider
+            </option>
+
+        </select>
+
+    </section>
+
+
+    <!-- =========================================================
+         MODEL GRID
+         ========================================================= -->
+
+    <section class="models-wrapper">
+
+        <div
+            id="modelsTable"
+            class="models-grid"
+        >
+
+            <div class="state-panel">
+
+                <div class="state-icon">
+                    ◌
+                </div>
+
+                <div class="state-title">
+                    Memuat model...
+                </div>
+
+                <div class="state-description">
+                    Membaca model dari registry repository GEN-Z.AI.
                 </div>
 
             </div>
 
-            <!--
-                Compatibility container.
-                Tidak digunakan sebagai UI utama.
-            -->
+        </div>
 
-            <div id="modelTableBody"></div>
 
-        </section>
+        <!--
+            Compatibility container.
+            Tidak digunakan sebagai UI utama.
+        -->
 
-    </main>
+        <div id="modelTableBody"></div>
 
-</div>
+    </section>
+
+</main>
 
 
 <!-- =============================================================
@@ -1798,6 +1582,15 @@
 <script
     type="module"
     src="./supabase.js"
+></script>
+
+
+<!-- =============================================================
+     SHARED ADMIN NAVIGATION
+     ============================================================= -->
+
+<script
+    src="./admin-nav.js"
 ></script>
 
 
@@ -2090,14 +1883,6 @@
                 getModelsUI();
 
 
-            /*
-             * models-data dan table wajib.
-             *
-             * UI boleh belum siap karena beberapa
-             * implementasi lama melakukan bootstrap
-             * sedikit setelah module dimuat.
-             */
-
             if (
                 data &&
                 typeof data.loadModels ===
@@ -2108,11 +1893,6 @@
                 return true;
             }
 
-            /*
-             * Jika ModelsUI sudah ada,
-             * berarti seluruh coordinator biasanya
-             * sudah tersedia.
-             */
 
             if (
                 data &&
@@ -2122,6 +1902,7 @@
 
                 return true;
             }
+
 
             await sleep(50);
         }
@@ -2154,17 +1935,10 @@
 
 
         /*
-         * PENTING:
+         * Semua model dari registry dimuat.
          *
-         * models-data.js menggunakan:
-         *
-         * includeInactive
-         *
-         * bukan activeOnly.
-         *
-         * Semua model dari registry harus
-         * dimuat agar filter Aktif / Nonaktif
-         * bekerja.
+         * includeInactive sengaja true agar
+         * filter aktif/nonaktif dapat bekerja.
          */
 
         const result =
@@ -2276,11 +2050,6 @@
                 getModelsUI();
 
 
-            /*
-             * Jika coordinator UI mempunyai
-             * initialize(), gunakan coordinator.
-             */
-
             if (
                 ui &&
                 typeof ui.initialize ===
@@ -2289,11 +2058,6 @@
 
                 await ui.initialize();
 
-
-                /*
-                 * Setelah coordinator selesai,
-                 * ambil data terakhir dari table.
-                 */
 
                 const table =
                     getModelTable();
@@ -2314,10 +2078,6 @@
                 }
             }
 
-
-            /*
-             * Fallback langsung.
-             */
 
             const models =
                 await loadAllModels(false);
@@ -2438,81 +2198,6 @@
 
 
     /* =========================================================
-       LOGOUT
-       ========================================================= */
-
-    const logoutButton =
-        document.getElementById(
-            "logoutBtn"
-        );
-
-
-    if (logoutButton) {
-
-        logoutButton.addEventListener(
-            "click",
-            async () => {
-
-                logoutButton.disabled =
-                    true;
-
-
-                try {
-
-                    const supabase =
-                        window.GENZ_SUPABASE ||
-                        window.supabaseClient ||
-                        null;
-
-
-                    if (
-                        supabase &&
-                        supabase.auth &&
-                        typeof supabase
-                            .auth
-                            .signOut ===
-                            "function"
-                    ) {
-
-                        await supabase
-                            .auth
-                            .signOut();
-
-                    }
-
-                }
-                catch (error) {
-
-                    console.error(
-                        "[Models] logout error:",
-                        error
-                    );
-
-                }
-                finally {
-
-                    /*
-                     * models.html berada di:
-                     *
-                     * admin-control/models.html
-                     *
-                     * login.html berada di:
-                     *
-                     * login.html
-                     *
-                     * Jadi harus naik satu folder.
-                     */
-
-                    window.location.href =
-                        "../login.html";
-                }
-            }
-        );
-
-    }
-
-
-    /* =========================================================
        AUTH CHECK
        ========================================================= */
 
@@ -2566,11 +2251,8 @@
 
 
                     /*
-                     * Jangan melakukan redirect
-                     * di sini.
-                     *
-                     * Halaman login / auth guard
-                     * yang menangani akses.
+                     * Auth guard utama tetap
+                     * menangani redirect.
                      */
 
                     if (!data?.user) {
@@ -2596,11 +2278,6 @@
             await sleep(50);
         }
 
-
-        /*
-         * Jangan memblokir halaman hanya karena
-         * client Supabase belum tersedia.
-         */
 
         return true;
     }
