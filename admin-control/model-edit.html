@@ -91,12 +91,6 @@
            SHARED ADMIN NAV COMPATIBILITY
         ===================================================== */
 
-        /*
-         * admin-nav.js menggunakan sidebar fixed.
-         * Halaman ini hanya menyediakan ruang untuk sidebar.
-         * Tidak ada sidebar kedua di file ini.
-         */
-
         .main {
             width: calc(100% - 300px);
             min-height: 100vh;
@@ -124,8 +118,7 @@
 
             margin-bottom: 24px;
 
-            padding:
-                0;
+            padding: 0;
         }
 
         .eyebrow {
@@ -511,6 +504,163 @@
                 Monaco,
                 Consolas,
                 monospace;
+        }
+
+        /* =====================================================
+           PROVIDER SELECTOR
+        ===================================================== */
+
+        .provider-options {
+            display: grid;
+
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+
+            gap: 10px;
+
+            width: 100%;
+        }
+
+        .provider-option {
+            position: relative;
+
+            display: flex;
+            align-items: center;
+
+            gap: 11px;
+
+            min-height: 58px;
+
+            padding: 11px 13px;
+
+            border:
+                1px solid #cfcfcf;
+
+            border-radius: 11px;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #fff,
+                    #f3f3f3
+                );
+
+            cursor: pointer;
+
+            transition:
+                border-color .18s ease,
+                box-shadow .18s ease,
+                background .18s ease,
+                transform .18s ease;
+        }
+
+        .provider-option:hover {
+            border-color:
+                rgba(255,23,68,.72);
+
+            box-shadow:
+                0 0 8px rgba(255,23,68,.18);
+        }
+
+        .provider-option.selected {
+            border-color:
+                var(--neon-red);
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #fff,
+                    #f0f0f0
+                );
+
+            box-shadow:
+                0 0 6px rgba(255,23,68,.75),
+                0 0 17px rgba(255,23,68,.22);
+        }
+
+        .provider-option input {
+            width: 19px;
+            height: 19px;
+
+            min-width: 19px;
+            min-height: 19px;
+
+            flex:
+                0 0 19px;
+
+            margin: 0;
+            padding: 0;
+
+            accent-color:
+                var(--neon-red);
+
+            cursor: pointer;
+        }
+
+        .provider-option-text {
+            min-width: 0;
+
+            display: block;
+        }
+
+        .provider-option-name {
+            display: block;
+
+            color: #171717;
+
+            font-size: 13px;
+            font-weight: 900;
+
+            line-height: 1.3;
+
+            overflow-wrap: anywhere;
+        }
+
+        .provider-option-id {
+            display: block;
+
+            margin-top: 4px;
+
+            color: #777;
+
+            font-size: 10px;
+
+            line-height: 1.3;
+
+            overflow-wrap: anywhere;
+        }
+
+        .provider-empty {
+            min-height: 48px;
+
+            display: flex;
+            align-items: center;
+
+            padding: 11px 13px;
+
+            border:
+                1px dashed #c8c8c8;
+
+            border-radius: 10px;
+
+            color: #777;
+
+            background:
+                rgba(250,250,250,.95);
+
+            font-size: 11px;
+
+            grid-column: 1 / -1;
+        }
+
+        .provider-empty.provider-error {
+            color: #8c001d;
+
+            border-color:
+                rgba(255,23,68,.55);
+
+            background:
+                rgba(255,255,255,.96);
         }
 
         /* =====================================================
@@ -973,6 +1123,11 @@
                 grid-template-columns:
                     repeat(2,minmax(0,1fr));
             }
+
+            .provider-options {
+                grid-template-columns:
+                    1fr;
+            }
         }
 
         @media (max-width: 600px) {
@@ -1039,7 +1194,7 @@
 
     <!-- =====================================================
          SHARED ADMIN NAVIGATION
-         ===================================================== -->
+    ===================================================== -->
 
     <div id="adminNavigation"></div>
 
@@ -1123,7 +1278,9 @@
                 class="hidden"
             >
 
-                <!-- MODEL HERO -->
+                <!-- =================================================
+                     MODEL HERO
+                ================================================= -->
 
                 <section class="model-hero">
 
@@ -1158,7 +1315,7 @@
 
                 <!-- =================================================
                      BASIC CONFIG
-                ================================================== -->
+                ================================================= -->
 
                 <section class="form-card">
 
@@ -1217,17 +1374,33 @@
                         </div>
 
 
-                        <div class="field">
+                        <!-- =================================================
+                             PROVIDER
+                        ================================================== -->
+
+                        <div class="field full">
 
                             <label>
                                 Provider
                             </label>
 
                             <div
-                                class="readonly-value"
-                                id="providerName"
+                                id="modelProviderOptions"
+                                class="provider-options"
+                                aria-label="Pilih Provider"
                             >
-                                -
+
+                                <div class="provider-empty">
+                                    Memuat provider dari Supabase...
+                                </div>
+
+                            </div>
+
+                            <div class="field-help">
+                                Pilih tepat satu provider.
+                                Daftar provider berasal langsung
+                                dari data provider yang tersedia
+                                pada Supabase.
                             </div>
 
                         </div>
@@ -1592,7 +1765,6 @@
 
     <!-- =====================================================
          SHARED ADMIN NAV
-         HARUS SETELAH ELEMENT NAV
     ===================================================== -->
 
     <script src="./admin-nav.js"></script>
@@ -1654,8 +1826,10 @@
         const modelId =
             document.getElementById("modelId");
 
-        const providerName =
-            document.getElementById("providerName");
+        const modelProviderOptions =
+            document.getElementById(
+                "modelProviderOptions"
+            );
 
         const modelType =
             document.getElementById("modelType");
@@ -1708,6 +1882,8 @@
         let currentDatabaseRow = null;
 
         let currentProviderId = null;
+
+        let availableProviders = [];
 
         let saving = false;
 
@@ -2272,21 +2448,6 @@
         }
 
 
-        function getProviderName(
-            model
-        ) {
-
-            return (
-                model?.provider_name ||
-                model?.providerName ||
-                model?.config?.providerName ||
-                model?.provider_id ||
-                model?.providerId ||
-                "-"
-            );
-        }
-
-
         function getProviderId(
             model
         ) {
@@ -2295,6 +2456,7 @@
                 model?.provider_id ||
                 model?.providerId ||
                 model?.config?.providerId ||
+                model?.provider?.id ||
                 null
             );
         }
@@ -2309,6 +2471,516 @@
                 model?.model_type ||
                 model?.config?.type ||
                 "-"
+            );
+        }
+
+
+        /* =====================================================
+           PROVIDER HELPERS
+        ===================================================== */
+
+        function normalizeId(
+            value
+        ) {
+
+            return String(
+                value ?? ""
+            )
+                .trim()
+                .toLowerCase();
+        }
+
+
+        function providerDbId(
+            provider
+        ) {
+
+            return (
+                provider?.id ||
+                provider?.uuid ||
+                provider?.provider_uuid ||
+                null
+            );
+        }
+
+
+        function providerRegistryId(
+            provider
+        ) {
+
+            return (
+                provider?.provider_id ||
+                provider?.alias ||
+                provider?.key ||
+                ""
+            );
+        }
+
+
+        function providerDisplayName(
+            provider
+        ) {
+
+            return (
+                provider?.provider_name ||
+                provider?.name ||
+                provider?.label ||
+                providerRegistryId(provider) ||
+                providerDbId(provider) ||
+                "Provider"
+            );
+        }
+
+
+        function resolveProvider(
+            providers,
+            model
+        ) {
+
+            const rawProviderId =
+                getProviderId(
+                    model
+                );
+
+
+            const rawProviderName =
+                model?.provider_name ||
+                model?.providerName ||
+                model?.config?.providerName ||
+                model?.provider?.name ||
+                "";
+
+
+            if (
+                rawProviderId
+            ) {
+
+                const matchedById =
+                    providers.find(
+                        provider => {
+
+                            const dbId =
+                                providerDbId(
+                                    provider
+                                );
+
+                            const registryId =
+                                providerRegistryId(
+                                    provider
+                                );
+
+
+                            return (
+                                normalizeId(dbId) ===
+                                    normalizeId(
+                                        rawProviderId
+                                    ) ||
+
+                                normalizeId(registryId) ===
+                                    normalizeId(
+                                        rawProviderId
+                                    )
+                            );
+                        }
+                    );
+
+
+                if (
+                    matchedById
+                ) {
+
+                    return matchedById;
+                }
+            }
+
+
+            if (
+                rawProviderName
+            ) {
+
+                const matchedByName =
+                    providers.find(
+                        provider => {
+
+                            const name =
+                                providerDisplayName(
+                                    provider
+                                );
+
+                            return (
+                                normalizeId(name) ===
+                                normalizeId(
+                                    rawProviderName
+                                )
+                            );
+                        }
+                    );
+
+
+                if (
+                    matchedByName
+                ) {
+
+                    return matchedByName;
+                }
+            }
+
+
+            return null;
+        }
+
+
+        function getSelectedProviderId() {
+
+            const selected =
+                modelProviderOptions?.querySelector(
+                    'input[name="modelProvider"]:checked'
+                );
+
+
+            return (
+                selected?.value ||
+                ""
+            ).trim();
+        }
+
+
+        function updateProviderVisuals() {
+
+            if (
+                !modelProviderOptions
+            ) {
+
+                return;
+            }
+
+
+            modelProviderOptions
+                .querySelectorAll(
+                    ".provider-option"
+                )
+                .forEach(
+                    option => {
+
+                        const checkbox =
+                            option.querySelector(
+                                'input[name="modelProvider"]'
+                            );
+
+
+                        option.classList.toggle(
+                            "selected",
+                            Boolean(
+                                checkbox?.checked
+                            )
+                        );
+                    }
+                );
+        }
+
+
+        function renderProviderOptions(
+            providers,
+            selectedId = ""
+        ) {
+
+            availableProviders =
+                Array.isArray(
+                    providers
+                )
+                    ? providers.filter(
+                        provider =>
+                            Boolean(
+                                providerDbId(
+                                    provider
+                                )
+                            )
+                    )
+                    : [];
+
+
+            modelProviderOptions.innerHTML =
+                "";
+
+
+            if (
+                !availableProviders.length
+            ) {
+
+                const empty =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                empty.className =
+                    "provider-empty provider-error";
+
+
+                empty.textContent =
+                    "Tidak ada provider terdaftar di Supabase.";
+
+
+                modelProviderOptions.appendChild(
+                    empty
+                );
+
+
+                currentProviderId =
+                    null;
+
+
+                return;
+            }
+
+
+            let selectedMatched =
+                false;
+
+
+            availableProviders.forEach(
+                provider => {
+
+                    const dbId =
+                        String(
+                            providerDbId(
+                                provider
+                            )
+                        );
+
+
+                    const registryId =
+                        providerRegistryId(
+                            provider
+                        );
+
+
+                    const displayName =
+                        providerDisplayName(
+                            provider
+                        );
+
+
+                    const option =
+                        document.createElement(
+                            "label"
+                        );
+
+
+                    option.className =
+                        "provider-option";
+
+
+                    const checkbox =
+                        document.createElement(
+                            "input"
+                        );
+
+
+                    /*
+                     * =================================================
+                     * ACTUAL CHECKBOX
+                     *
+                     * Tetap checkbox secara visual,
+                     * tetapi JS memastikan hanya satu
+                     * provider yang aktif.
+                     * =================================================
+                     */
+
+                    checkbox.type =
+                        "checkbox";
+
+
+                    checkbox.name =
+                        "modelProvider";
+
+
+                    /*
+                     * PENTING:
+                     * value selalu UUID/ID database provider.
+                     *
+                     * Bukan:
+                     * kie_ai
+                     * bytedance
+                     * google
+                     *
+                     * melainkan:
+                     * providers.id
+                     */
+
+                    checkbox.value =
+                        dbId;
+
+
+                    const isSelected =
+                        normalizeId(dbId) ===
+                        normalizeId(selectedId);
+
+
+                    checkbox.checked =
+                        isSelected;
+
+
+                    if (
+                        isSelected
+                    ) {
+
+                        selectedMatched =
+                            true;
+                    }
+
+
+                    const text =
+                        document.createElement(
+                            "span"
+                        );
+
+
+                    text.className =
+                        "provider-option-text";
+
+
+                    const name =
+                        document.createElement(
+                            "span"
+                        );
+
+
+                    name.className =
+                        "provider-option-name";
+
+
+                    name.textContent =
+                        displayName;
+
+
+                    const providerIdText =
+                        document.createElement(
+                            "span"
+                        );
+
+
+                    providerIdText.className =
+                        "provider-option-id mono";
+
+
+                    providerIdText.textContent =
+                        registryId ||
+                        dbId;
+
+
+                    text.append(
+                        name,
+                        providerIdText
+                    );
+
+
+                    option.append(
+                        checkbox,
+                        text
+                    );
+
+
+                    checkbox.addEventListener(
+                        "change",
+                        () => {
+
+                            if (
+                                checkbox.checked
+                            ) {
+
+                                modelProviderOptions
+                                    .querySelectorAll(
+                                        'input[name="modelProvider"]'
+                                    )
+                                    .forEach(
+                                        other => {
+
+                                            if (
+                                                other !==
+                                                checkbox
+                                            ) {
+
+                                                other.checked =
+                                                    false;
+                                            }
+                                        }
+                                    );
+                            }
+
+
+                            currentProviderId =
+                                getSelectedProviderId() ||
+                                null;
+
+
+                            updateProviderVisuals();
+                        }
+                    );
+
+
+                    modelProviderOptions.appendChild(
+                        option
+                    );
+                }
+            );
+
+
+            /*
+             * =================================================
+             * Jika selectedId tidak ditemukan,
+             * jangan memilih provider secara sembarang.
+             *
+             * Admin harus memilih sendiri.
+             * =================================================
+             */
+
+            if (
+                !selectedMatched
+            ) {
+
+                currentProviderId =
+                    null;
+
+            } else {
+
+                currentProviderId =
+                    getSelectedProviderId() ||
+                    null;
+            }
+
+
+            updateProviderVisuals();
+        }
+
+
+        function renderSelectedProvider(
+            providers,
+            model
+        ) {
+
+            const matched =
+                resolveProvider(
+                    providers,
+                    model
+                );
+
+
+            const selectedId =
+                matched
+                    ? providerDbId(
+                        matched
+                    )
+                    : (
+                        getProviderId(
+                            model
+                        ) || ""
+                    );
+
+
+            renderProviderOptions(
+                providers,
+                selectedId
             );
         }
 
@@ -2334,7 +3006,9 @@
                 await supabase.auth.getSession();
 
 
-            if (error) {
+            if (
+                error
+            ) {
 
                 throw error;
             }
@@ -2344,7 +3018,9 @@
                 data?.session?.access_token;
 
 
-            if (!token) {
+            if (
+                !token
+            ) {
 
                 throw new Error(
                     "Session admin tidak ditemukan. Silakan login kembali."
@@ -2375,6 +3051,9 @@
                     `Bearer ${token}`,
 
                 "Content-Type":
+                    "application/json",
+
+                "Accept":
                     "application/json"
 
             };
@@ -2397,7 +3076,9 @@
             ) {
 
                 options.body =
-                    JSON.stringify(body);
+                    JSON.stringify(
+                        body
+                    );
             }
 
 
@@ -2435,6 +3116,7 @@
 
                 throw new Error(
                     data?.error ||
+                    data?.message ||
                     `Admin API gagal (HTTP ${response.status}).`
                 );
             }
@@ -2447,6 +3129,7 @@
 
                 throw new Error(
                     data.error ||
+                    data.message ||
                     "Admin API mengembalikan error."
                 );
             }
@@ -2531,7 +3214,9 @@
                 getQueryModelId();
 
 
-            if (!requestedId) {
+            if (
+                !requestedId
+            ) {
 
                 setLoading(false);
 
@@ -2546,12 +3231,10 @@
 
             try {
 
-                /*
-                 * =================================================
-                 * STEP 1
-                 * Repository adalah sumber utama.
-                 * =================================================
-                 */
+                /* =================================================
+                   STEP 1
+                   Repository adalah sumber utama.
+                ================================================= */
 
                 const repositoryModel =
                     await loadRepositoryModel(
@@ -2559,7 +3242,9 @@
                     );
 
 
-                if (!repositoryModel) {
+                if (
+                    !repositoryModel
+                ) {
 
                     throw new Error(
                         `Model "${requestedId}" tidak ditemukan pada registry repository.`
@@ -2567,162 +3252,162 @@
                 }
 
 
+                /* =================================================
+                   STEP 2
+                   Ambil konfigurasi melalui ADMIN API.
+                ================================================= */
+
+                const apiData =
+                    await adminApi(
+                        "GET"
+                    );
+
+
                 /*
-                 * =================================================
-                 * STEP 2
-                 * Ambil konfigurasi database melalui ADMIN API.
+                 * Provider WAJIB berasal dari API.
                  *
-                 * PENTING:
-                 * Tidak lagi SELECT langsung dari browser.
-                 * =================================================
+                 * Tidak ada fallback hardcode.
                  */
 
+                const providers =
+                    Array.isArray(
+                        apiData.providers
+                    )
+                        ? apiData.providers
+                        : [];
+
+
+                if (
+                    !providers.length
+                ) {
+
+                    throw new Error(
+                        "Tidak ada provider yang terdaftar pada Supabase."
+                    );
+                }
+
+
+                const databaseModels =
+                    Array.isArray(
+                        apiData.models
+                    )
+                        ? apiData.models
+                        : [];
+
+
+                const found =
+                    databaseModels.find(
+                        item =>
+                            String(
+                                item?.model_id ||
+                                ""
+                            ).trim() ===
+                            requestedId
+                    );
+
+
                 let mergedModel = {
+
                     ...repositoryModel
+
                 };
 
 
-                try {
+                if (
+                    found
+                ) {
 
-                    const apiData =
-                        await adminApi(
-                            "GET"
+                    currentDatabaseRow =
+                        found;
+
+
+                    currentProviderId =
+                        found.provider_id ||
+                        null;
+
+
+                    mergedModel = {
+
+                        ...repositoryModel,
+
+                        ...found,
+
+                        model_id:
+                            requestedId
+
+                    };
+
+                } else {
+
+                    /*
+                     * Row database belum ada.
+                     *
+                     * Provider repository hanya digunakan
+                     * untuk mencari provider yang benar
+                     * di daftar Supabase.
+                     */
+
+                    const repositoryProvider =
+                        getProviderId(
+                            repositoryModel
                         );
 
 
-                    const databaseModels =
-                        Array.isArray(
-                            apiData.models
-                        )
-                            ? apiData.models
-                            : [];
+                    if (
+                        repositoryProvider
+                    ) {
 
-
-                    const found =
-                        databaseModels.find(
-                            item =>
-                                String(
-                                    item?.model_id ||
-                                    ""
-                                ).trim() ===
-                                requestedId
-                        );
-
-
-                    if (found) {
-
-                        currentDatabaseRow =
-                            found;
-
-                        currentProviderId =
-                            found.provider_id ||
-                            null;
-
-
-                        mergedModel = {
-
-                            ...repositoryModel,
-
-                            ...found,
-
-                            model_id:
-                                requestedId
-
-                        };
-
-                    } else {
-
-                        /*
-                         * Row database belum ada.
-                         *
-                         * Cari provider dari API providers.
-                         * Jangan pernah mengarang UUID.
-                         */
-
-                        const providers =
-                            Array.isArray(
-                                apiData.providers
-                            )
-                                ? apiData.providers
-                                : [];
-
-
-                        const repositoryProvider =
-                            getProviderId(
+                        const matchedProvider =
+                            resolveProvider(
+                                providers,
                                 repositoryModel
                             );
 
 
                         if (
-                            repositoryProvider
+                            matchedProvider
                         ) {
 
-                            const matchedProvider =
-                                providers.find(
-                                    provider =>
-                                        String(
-                                            provider?.id ||
-                                            ""
-                                        ) ===
-                                        String(
-                                            repositoryProvider
-                                        ) ||
-                                        String(
-                                            provider?.provider_id ||
-                                            ""
-                                        ) ===
-                                        String(
-                                            repositoryProvider
-                                        )
+                            currentProviderId =
+                                providerDbId(
+                                    matchedProvider
                                 );
 
 
-                            if (
-                                matchedProvider
-                            ) {
+                            mergedModel = {
 
-                                currentProviderId =
-                                    matchedProvider.id;
+                                ...repositoryModel,
 
-                                mergedModel = {
+                                provider_id:
+                                    providerDbId(
+                                        matchedProvider
+                                    ),
 
-                                    ...repositoryModel,
+                                provider_name:
+                                    providerDisplayName(
+                                        matchedProvider
+                                    )
 
-                                    provider_id:
-                                        matchedProvider.id,
-
-                                    provider_name:
-                                        matchedProvider.provider_name ||
-                                        repositoryModel.providerName ||
-                                        repositoryModel.provider_name
-
-                                };
-
-                            }
-
+                            };
                         }
-
                     }
-
-                } catch (apiError) {
-
-                    /*
-                     * Jangan fallback ke direct INSERT.
-                     *
-                     * Jika API admin gagal, halaman tetap dapat
-                     * menampilkan repository model, tetapi
-                     * penyimpanan harus dihentikan nanti.
-                     */
-
-                    console.warn(
-                        "[GEN-Z.AI] Admin model API gagal saat load:",
-                        apiError
-                    );
-
                 }
 
 
+                /*
+                 * =================================================
+                 * STEP 3
+                 * Render model dan provider.
+                 * =================================================
+                 */
+
                 renderModel(
+                    mergedModel
+                );
+
+
+                renderSelectedProvider(
+                    providers,
                     mergedModel
                 );
 
@@ -2757,7 +3442,9 @@
             model
         ) {
 
-            if (!model) {
+            if (
+                !model
+            ) {
 
                 throw new Error(
                     "Data model kosong."
@@ -2770,10 +3457,14 @@
 
 
             currentModelId =
-                getModelId(model);
+                getModelId(
+                    model
+                );
 
 
-            if (!currentModelId) {
+            if (
+                !currentModelId
+            ) {
 
                 throw new Error(
                     "Model ID tidak tersedia dari config.js."
@@ -2782,40 +3473,46 @@
 
 
             const name =
-                getModelName(model);
+                getModelName(
+                    model
+                );
 
-            const provider =
-                getProviderName(model);
 
             const type =
-                getModelType(model);
+                getModelType(
+                    model
+                );
 
 
             heroModelName.textContent =
                 name;
 
+
             heroModelId.textContent =
                 currentModelId;
+
 
             modelName.value =
                 name;
 
+
             modelId.textContent =
                 currentModelId;
 
-            providerName.textContent =
-                provider;
 
             modelType.textContent =
                 type;
 
+
             description.value =
-                model?.description || "";
+                model?.description ||
+                "";
 
 
             statusToggle.checked =
                 String(
-                    model?.status || ""
+                    model?.status ||
+                    ""
                 )
                     .trim()
                     .toLowerCase() ===
@@ -2847,7 +3544,6 @@
 
                 currentProviderId =
                     model.provider_id;
-
             }
 
 
@@ -2870,7 +3566,30 @@
                 calculateCredit();
 
 
+            const providerId =
+                getSelectedProviderId();
+
+
+            if (
+                !providerId
+            ) {
+
+                throw new Error(
+                    "Pilih satu Provider terlebih dahulu."
+                );
+            }
+
+
             return {
+
+                /*
+                 * PENTING:
+                 * provider_id di sini adalah
+                 * UUID/ID asli providers.id.
+                 */
+
+                provider_id:
+                    providerId,
 
                 model_name:
                     modelName.value.trim(),
@@ -2895,11 +3614,13 @@
 
         /* =====================================================
            SAVE MODEL
-           ===================================================== */
+        ===================================================== */
 
         async function saveModel() {
 
-            if (saving) {
+            if (
+                saving
+            ) {
 
                 return;
             }
@@ -2908,7 +3629,9 @@
             hideAlert();
 
 
-            if (!currentModel) {
+            if (
+                !currentModel
+            ) {
 
                 showAlert(
                     "Data model belum tersedia.",
@@ -2923,7 +3646,9 @@
                 modelName.value.trim();
 
 
-            if (!name) {
+            if (
+                !name
+            ) {
 
                 showAlert(
                     "Nama model wajib diisi.",
@@ -2940,7 +3665,9 @@
                 currentModelId;
 
 
-            if (!modelIdValue) {
+            if (
+                !modelIdValue
+            ) {
 
                 showAlert(
                     "Model ID tidak tersedia.",
@@ -2951,7 +3678,9 @@
             }
 
 
-            if (!supabase) {
+            if (
+                !supabase
+            ) {
 
                 showAlert(
                     "Supabase belum terhubung. Periksa konfigurasi Supabase pada project.",
@@ -2962,11 +3691,73 @@
             }
 
 
+            /*
+             * Provider harus dipilih sebelum proses
+             * penyimpanan dimulai.
+             */
+
+            const selectedProviderId =
+                getSelectedProviderId();
+
+
+            if (
+                !selectedProviderId
+            ) {
+
+                showAlert(
+                    "Pilih satu Provider terlebih dahulu.",
+                    "error"
+                );
+
+                modelProviderOptions?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center"
+                });
+
+                return;
+            }
+
+
+            /*
+             * Pastikan provider yang dipilih memang
+             * berasal dari daftar provider yang diberikan
+             * oleh API.
+             */
+
+            const validProvider =
+                availableProviders.find(
+                    provider =>
+                        normalizeId(
+                            providerDbId(
+                                provider
+                            )
+                        ) ===
+                        normalizeId(
+                            selectedProviderId
+                        )
+                );
+
+
+            if (
+                !validProvider
+            ) {
+
+                showAlert(
+                    "Provider yang dipilih tidak valid atau sudah tidak terdaftar di Supabase.",
+                    "error"
+                );
+
+                return;
+            }
+
+
             saving =
                 true;
 
+
             saveButton.disabled =
                 true;
+
 
             saveButton.textContent =
                 "Menyimpan...";
@@ -2974,19 +3765,10 @@
 
             try {
 
-                /*
-                 * =================================================
-                 * STEP 1
-                 *
-                 * Ambil data terbaru melalui ADMIN API.
-                 *
-                 * TIDAK ADA:
-                 * supabase.from("models").insert()
-                 * supabase.from("models").update()
-                 *
-                 * Semua operasi database melalui server.
-                 * =================================================
-                 */
+                /* =================================================
+                   STEP 1
+                   Ambil data terbaru dari ADMIN API.
+                ================================================= */
 
                 const apiData =
                     await adminApi(
@@ -3017,24 +3799,77 @@
 
 
                 /*
-                 * =================================================
-                 * STEP 2
-                 * Simpan data yang boleh diedit.
-                 * =================================================
+                 * Jika provider di halaman sudah lama,
+                 * pastikan provider tersebut masih ada
+                 * pada response API terbaru.
                  */
+
+                const latestProviders =
+                    Array.isArray(
+                        apiData.providers
+                    )
+                        ? apiData.providers
+                        : [];
+
+
+                const latestProvider =
+                    latestProviders.find(
+                        provider =>
+                            normalizeId(
+                                providerDbId(
+                                    provider
+                                )
+                            ) ===
+                            normalizeId(
+                                selectedProviderId
+                            )
+                    );
+
+
+                if (
+                    !latestProvider
+                ) {
+
+                    throw new Error(
+                        "Provider yang dipilih tidak ditemukan pada data Supabase terbaru."
+                    );
+                }
+
+
+                /* =================================================
+                   STEP 2
+                   Payload.
+                ================================================= */
 
                 const payload =
                     buildSavePayload();
 
 
                 /*
-                 * =================================================
-                 * STEP 3
-                 * UPDATE
-                 *
-                 * Row sudah ada.
-                 * =================================================
+                 * Pastikan value yang dikirim benar-benar
+                 * database ID provider, bukan alias.
                  */
+
+                payload.provider_id =
+                    providerDbId(
+                        latestProvider
+                    );
+
+
+                if (
+                    !payload.provider_id
+                ) {
+
+                    throw new Error(
+                        "ID database Provider tidak tersedia."
+                    );
+                }
+
+
+                /* =================================================
+                   STEP 3
+                   UPDATE
+                ================================================= */
 
                 if (
                     existingRow?.id
@@ -3075,7 +3910,7 @@
 
                     currentProviderId =
                         savedModel.provider_id ||
-                        currentProviderId;
+                        payload.provider_id;
 
 
                     currentModel = {
@@ -3088,6 +3923,18 @@
                             modelIdValue
 
                     };
+
+
+                    /*
+                     * Sinkronkan kembali checkbox
+                     * menggunakan provider ID yang benar.
+                     */
+
+                    renderProviderOptions(
+                        latestProviders,
+                        savedModel.provider_id ||
+                        payload.provider_id
+                    );
 
 
                     creditFinalValue.textContent =
@@ -3105,68 +3952,43 @@
                 }
 
 
-                /*
-                 * =================================================
-                 * STEP 4
-                 * CREATE
-                 *
-                 * Row belum ada.
-                 * =================================================
-                 */
+                /* =================================================
+                   STEP 4
+                   CREATE
+                ================================================= */
 
                 else {
-
-                    /*
-                     * Provider wajib tersedia.
-                     *
-                     * Prioritas:
-                     * 1. currentProviderId
-                     * 2. currentModel.provider_id
-                     * 3. currentModel.providerId
-                     * 4. config.providerId
-                     *
-                     * API akan melakukan resolusi provider_id
-                     * terhadap providers.id / providers.provider_id.
-                     */
-
-                    const providerValue =
-                        currentProviderId ||
-                        getProviderId(
-                            currentModel
-                        );
-
-
-                    if (!providerValue) {
-
-                        throw new Error(
-                            "Provider ID tidak ditemukan. Model tidak dapat dibuat di konfigurasi admin."
-                        );
-                    }
-
 
                     const createPayload = {
 
                         provider_id:
-                            providerValue,
+                            payload.provider_id,
 
                         model_id:
                             modelIdValue,
 
-                        ...payload
+                        model_name:
+                            payload.model_name,
+
+                        description:
+                            payload.description,
+
+                        credit_cost:
+                            payload.credit_cost,
+
+                        discount_percent:
+                            payload.discount_percent,
+
+                        status:
+                            payload.status
 
                     };
 
 
                     /*
-                     * =================================================
-                     * POST KE ADMIN API
+                     * POST melalui Admin API.
                      *
-                     * BUKAN:
-                     * supabase.from("models").insert()
-                     *
-                     * POST ditangani api/admin-models.js.
-                     * Server menggunakan SUPABASE_SERVICE_ROLE_KEY.
-                     * =================================================
+                     * Tidak ada direct INSERT dari browser.
                      */
 
                     const result =
@@ -3197,7 +4019,7 @@
 
                     currentProviderId =
                         savedModel.provider_id ||
-                        providerValue;
+                        createPayload.provider_id;
 
 
                     currentModel = {
@@ -3210,6 +4032,13 @@
                             modelIdValue
 
                     };
+
+
+                    renderProviderOptions(
+                        latestProviders,
+                        savedModel.provider_id ||
+                        createPayload.provider_id
+                    );
 
 
                     creditFinalValue.textContent =
@@ -3226,12 +4055,10 @@
                 }
 
 
-                /*
-                 * =================================================
-                 * STEP 5
-                 * Kembali ke Models.
-                 * =================================================
-                 */
+                /* =================================================
+                   STEP 5
+                   Kembali ke Models.
+                ================================================= */
 
                 setTimeout(
                     () => {
@@ -3257,11 +4084,7 @@
 
 
                 /*
-                 * Berikan pesan yang lebih jelas jika
-                 * server mengembalikan error RLS.
-                 *
-                 * Secara normal pesan ini tidak akan muncul
-                 * lagi karena browser tidak menulis langsung.
+                 * Pesan RLS hanya sebagai diagnosis.
                  */
 
                 if (
@@ -3273,7 +4096,7 @@
                 ) {
 
                     message =
-                        "Server masih melakukan operasi langsung yang terkena RLS. Pastikan deployment terbaru api/admin-models.js sudah aktif di Vercel.";
+                        "Operasi database terkena RLS. Pastikan deployment terbaru api/admin-models.js sudah aktif di Vercel.";
                 }
 
 
@@ -3287,8 +4110,10 @@
                 saving =
                     false;
 
+
                 saveButton.disabled =
                     false;
+
 
                 saveButton.textContent =
                     "Simpan Perubahan";
