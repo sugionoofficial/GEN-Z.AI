@@ -408,7 +408,86 @@ const inFilter = (
 
 
 // ========================================
+// STATUS HELPERS
+// ========================================
+//
+// Status database dibuat fleksibel.
+// Nilai berikut dianggap aktif:
+//
+// active
+// enabled
+// published
+// live
+// ready
+//
+// Status kosong juga dipertahankan sebagai
+// kompatibilitas dengan data lama.
+// ========================================
+
+const normalizeStatus = (
+    value
+) => {
+
+    return String(
+        value == null
+            ? ""
+            : value
+    )
+        .trim()
+        .toLowerCase();
+
+};
+
+
+const isActiveStatus = (
+    value
+) => {
+
+    const status =
+        normalizeStatus(value);
+
+    if (!status) {
+
+        return true;
+
+    }
+
+    return (
+
+        status === "active" ||
+        status === "enabled" ||
+        status === "published" ||
+        status === "live" ||
+        status === "ready"
+
+    );
+
+};
+
+
+// ========================================
 // LOAD MODELS
+// ========================================
+//
+// PENTING:
+//
+// Jangan menggunakan:
+//
+//   &status=eq.ACTIVE
+//
+// pada query PostgREST.
+//
+// Status di database bisa berupa:
+//   ACTIVE
+//   active
+//   Active
+//   enabled
+//   published
+//
+// Filter dilakukan setelah data diterima
+// supaya Admin Models tidak kehilangan
+// seluruh katalog hanya karena perbedaan
+// kapitalisasi status.
 // ========================================
 
 const loadModels = async (
@@ -422,7 +501,6 @@ const loadModels = async (
         "id,provider,model_family,model_id," +
         "model_name,status,documentation_url,metadata," +
         "created_at,updated_at" +
-        "&status=eq.ACTIVE" +
         "&order=model_name.asc";
 
 
@@ -467,11 +545,24 @@ const loadModels = async (
     }
 
 
-    return Array.isArray(
-        result.data
-    )
-        ? result.data
-        : [];
+    const rows =
+        Array.isArray(
+            result.data
+        )
+            ? result.data
+            : [];
+
+
+    // ====================================
+    // FILTER STATUS DI JAVASCRIPT
+    // ====================================
+
+    return rows.filter(
+        model =>
+            isActiveStatus(
+                model?.status
+            )
+    );
 
 };
 
@@ -703,7 +794,7 @@ const loadParameters = async (
     }
 
 
-    let path =
+    const path =
         "/rest/v1/kie_parameters" +
         "?select=" +
         "id,workflow_id,variant_id," +
@@ -1046,11 +1137,6 @@ const loadDependencies = async (
 // Filter workflow dan variant dilakukan
 // di JavaScript setelah data pricing
 // diambil dari Supabase.
-//
-// Jumlah pricing saat ini kecil sehingga
-// pendekatan ini lebih aman daripada
-// menggunakan beberapa parameter "or"
-// PostgREST yang terpisah.
 // ========================================
 
 const loadPricing = async (
@@ -1143,10 +1229,6 @@ const loadPricing = async (
                 // =================================
                 // WORKFLOW MATCH
                 // =================================
-                //
-                // NULL = global
-                // ID  = harus termasuk workflow aktif
-                // =================================
 
                 const workflowMatches =
                     item.workflow_id === null ||
@@ -1164,10 +1246,6 @@ const loadPricing = async (
 
                 // =================================
                 // VARIANT MATCH
-                // =================================
-                //
-                // NULL = berlaku untuk semua variant
-                // ID  = harus termasuk variant aktif
                 // =================================
 
                 const variantMatches =
