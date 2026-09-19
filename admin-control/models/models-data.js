@@ -42,70 +42,43 @@ let providerCache = [];
 ========================================================= */
 
 function getSupabaseClient() {
-
-    /*
-     * Client utama GEN-Z.AI.
-     *
-     * admin-control/supabase.js membuat:
-     *
-     * window.GENZ_SUPABASE
-     *
-     * sehingga seluruh module admin harus menggunakan
-     * client yang sama.
-     */
     if (
         typeof window !== "undefined" &&
         window.GENZ_SUPABASE &&
         typeof window.GENZ_SUPABASE.from === "function"
     ) {
-
         return window.GENZ_SUPABASE;
-
     }
 
-
-    /*
-     * Compatibility dengan implementasi lama.
-     */
     if (
         typeof window !== "undefined" &&
         window.supabaseClient &&
         typeof window.supabaseClient.from === "function"
     ) {
-
         return window.supabaseClient;
-
     }
 
-
     /*
-     * Compatibility apabila SDK client langsung
-     * pernah dipasang sebagai global.
+     * Compatibility fallback.
      *
-     * Catatan:
-     * window.supabase dari CDN biasanya adalah SDK,
-     * bukan instance client.
-     *
-     * Karena itu hanya digunakan jika memang
-     * mempunyai method .from().
+     * Supabase JS v2 menggunakan window.supabase
+     * sebagai SDK namespace, bukan client instance.
+     * Karena itu jangan menganggap window.supabase
+     * sebagai client kecuali memang memiliki .from().
      */
     if (
         typeof window !== "undefined" &&
         window.supabase &&
         typeof window.supabase.from === "function"
     ) {
-
         return window.supabase;
-
     }
-
 
     throw new Error(
         "Supabase client belum tersedia. " +
-        "Pastikan ./supabase.js dimuat setelah config.js " +
-        "dan sebelum Models module."
+        "Pastikan config.js dan supabase.js dimuat " +
+        "sebelum Models module."
     );
-
 }
 
 /* =========================================================
