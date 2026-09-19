@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -37,9 +38,6 @@
         :root {
             --neon-red: #ff1744;
             --neon-red-dark: #d50032;
-            --neon-red-soft: rgba(255,23,68,.16);
-            --neon-red-glow: rgba(255,23,68,.42);
-
             --white: #ffffff;
             --gray-50: #fafafa;
             --gray-100: #f3f3f3;
@@ -89,381 +87,29 @@
             cursor: pointer;
         }
 
-
         /* =====================================================
-           APP
+           SHARED ADMIN NAV COMPATIBILITY
         ===================================================== */
 
-        .app {
-            min-height: 100vh;
-        }
-
-
-        /* =====================================================
-           TOP NAVIGATION
-           SLIDE DOWN
-        ===================================================== */
-
-        .nav-toggle {
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            z-index: 500;
-
-            width: 44px;
-            height: 44px;
-
-            display: grid;
-            place-items: center;
-
-            padding: 0;
-
-            border: 1px solid rgba(255,255,255,.18);
-            border-radius: 11px;
-
-            color: #fff;
-            background: rgba(20,20,20,.96);
-
-            box-shadow:
-                0 6px 18px rgba(0,0,0,.25),
-                0 0 14px rgba(255,23,68,.18);
-
-            font-size: 21px;
-            font-weight: 900;
-            line-height: 1;
-
-            transition:
-                background .2s ease,
-                border-color .2s ease,
-                box-shadow .2s ease,
-                transform .2s ease;
-        }
-
-        .nav-toggle:hover {
-            background: var(--neon-red);
-            border-color: var(--neon-red);
-
-            box-shadow:
-                0 0 18px rgba(255,23,68,.55),
-                0 8px 24px rgba(0,0,0,.25);
-        }
-
-        .nav-toggle:active {
-            transform: scale(.96);
-        }
-
-        .nav-toggle:focus-visible {
-            outline: 3px solid rgba(255,23,68,.25);
-            outline-offset: 2px;
-        }
-
-
-        /* =====================================================
-           NAV PANEL
-        ===================================================== */
-
-        .sidebar {
-            position: fixed;
-
-            top: 0;
-            left: 0;
-            right: 0;
-
-            width: 100%;
-            height: auto;
-
-            max-height: min(82vh, 620px);
-
-            overflow-y: auto;
-
-            padding:
-                76px 18px 22px;
-
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(20,20,20,.995),
-                    rgba(38,38,38,.995)
-                );
-
-            border-bottom:
-                1px solid rgba(255,255,255,.12);
-
-            z-index: 400;
-
-            transform:
-                translateY(-105%);
-
-            opacity: 0;
-
-            visibility: hidden;
-
-            box-shadow:
-                0 14px 40px rgba(0,0,0,.35),
-                0 0 30px rgba(255,23,68,.10);
-
-            transition:
-                transform .28s ease,
-                opacity .22s ease,
-                visibility .28s ease;
-        }
-
-        .app.nav-open .sidebar {
-            transform:
-                translateY(0);
-
-            opacity: 1;
-
-            visibility: visible;
-        }
-
-
-        /* =====================================================
-           BRAND
-        ===================================================== */
-
-        .brand {
-            display: flex;
-            align-items: center;
-
-            gap: 11px;
-
-            width: min(1100px, 100%);
-            margin: 0 auto 20px;
-
-            padding:
-                0 4px 18px;
-
-            color: #fff;
-
-            border-bottom:
-                1px solid rgba(255,255,255,.08);
-        }
-
-        .brand-logo {
-            width: 38px;
-            height: 38px;
-
-            display: grid;
-            place-items: center;
-
-            flex-shrink: 0;
-
-            border-radius: 11px;
-
-            background: var(--neon-red);
-            color: #fff;
-
-            font-size: 17px;
-            font-weight: 900;
-
-            box-shadow:
-                0 0 12px rgba(255,23,68,.75),
-                0 0 30px rgba(255,23,68,.35);
-        }
-
-        .brand-text {
-            font-size: 18px;
-            font-weight: 900;
-            letter-spacing: .5px;
-        }
-
-        .brand-sub {
-            margin-top: 2px;
-
-            color: #aaa;
-
-            font-size: 10px;
-            letter-spacing: 1.4px;
-        }
-
-
-        /* =====================================================
-           NAV
-        ===================================================== */
-
-        .nav-title {
-            width: min(1100px, 100%);
-            margin: 0 auto 9px;
-
-            padding:
-                0 4px;
-
-            color: #777;
-
-            font-size: 10px;
-            font-weight: 800;
-
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-        }
-
-        .nav {
-            width: min(1100px, 100%);
-            margin: 0 auto;
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(5, minmax(0, 1fr));
-
-            gap: 7px;
-        }
-
-        .nav a {
-            min-height: 48px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            gap: 9px;
-
-            padding: 0 12px;
-
-            color: #bdbdbd;
-
-            text-decoration: none;
-
-            border:
-                1px solid rgba(255,255,255,.06);
-
-            border-radius: 10px;
-
-            background:
-                rgba(255,255,255,.025);
-
-            transition:
-                color .2s ease,
-                background .2s ease,
-                border-color .2s ease,
-                box-shadow .2s ease;
-        }
-
-        .nav a:hover {
-            color: #fff;
-
-            background:
-                rgba(255,255,255,.08);
-
-            border-color:
-                rgba(255,255,255,.12);
-        }
-
-        .nav a.active {
-            color: #fff;
-
-            background:
-                linear-gradient(
-                    90deg,
-                    rgba(255,23,68,.28),
-                    rgba(255,23,68,.08)
-                );
-
-            border-color:
-                rgba(255,23,68,.45);
-
-            box-shadow:
-                inset 3px 0 0 var(--neon-red),
-                0 0 15px rgba(255,23,68,.08);
-        }
-
-        .nav-icon {
-            width: 22px;
-
-            text-align: center;
-
-            font-size: 17px;
-        }
-
-        .nav-label {
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-
-        /* =====================================================
-           LOGOUT
-        ===================================================== */
-
-        .sidebar-bottom {
-            width: min(1100px, 100%);
-            margin: 15px auto 0;
-        }
-
-        .logout {
-            width: 100%;
-            min-height: 42px;
-
-            border:
-                1px solid rgba(255,255,255,.12);
-
-            border-radius: 10px;
-
-            color: #ccc;
-            background:
-                rgba(255,255,255,.04);
-
-            transition: .2s ease;
-        }
-
-        .logout:hover {
-            color: #fff;
-
-            border-color:
-                rgba(255,23,68,.5);
-
-            background:
-                rgba(255,23,68,.12);
-        }
-
-
-        /* =====================================================
-           NAV OVERLAY
-        ===================================================== */
-
-        .sidebar-overlay {
-            position: fixed;
-            inset: 0;
-
-            z-index: 350;
-
-            background:
-                rgba(0,0,0,.42);
-
-            opacity: 0;
-            visibility: hidden;
-
-            pointer-events: none;
-
-            transition:
-                opacity .25s ease,
-                visibility .25s ease;
-        }
-
-        .app.nav-open .sidebar-overlay {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
-        }
-
-
-        /* =====================================================
-           MAIN
-        ===================================================== */
+        /*
+         * admin-nav.js menggunakan sidebar fixed.
+         * Halaman ini hanya menyediakan ruang untuk sidebar.
+         * Tidak ada sidebar kedua di file ini.
+         */
 
         .main {
-            width: 100%;
+            width: calc(100% - 300px);
+            min-height: 100vh;
+            margin-left: 300px;
 
             padding:
-                28px 18px 40px;
+                28px 24px 40px;
         }
 
         .content {
             width: min(1100px, 100%);
             margin: 0 auto;
         }
-
 
         /* =====================================================
            HEADER
@@ -479,7 +125,7 @@
             margin-bottom: 24px;
 
             padding:
-                0 0 0 56px;
+                0;
         }
 
         .eyebrow {
@@ -558,7 +204,6 @@
                 0 0 22px rgba(255,23,68,.55);
         }
 
-
         /* =====================================================
            GLOBAL BLOCK
         ===================================================== */
@@ -587,7 +232,6 @@
                 0 0 15px rgba(255,23,68,.30),
                 0 10px 30px rgba(0,0,0,.10);
         }
-
 
         /* =====================================================
            MODEL HERO
@@ -695,7 +339,6 @@
             letter-spacing: 1px;
         }
 
-
         /* =====================================================
            FORM CARD
         ===================================================== */
@@ -774,7 +417,6 @@
             font-size: 10px;
             line-height: 1.45;
         }
-
 
         /* =====================================================
            INPUT
@@ -870,7 +512,6 @@
                 Consolas,
                 monospace;
         }
-
 
         /* =====================================================
            STATUS
@@ -978,7 +619,6 @@
                 translateX(24px);
         }
 
-
         /* =====================================================
            CREDIT
         ===================================================== */
@@ -1064,7 +704,6 @@
                 var(--neon-red-dark);
         }
 
-
         /* =====================================================
            PARAMETERS
         ===================================================== */
@@ -1129,7 +768,6 @@
 
             overflow-wrap: anywhere;
         }
-
 
         /* =====================================================
            ACTIONS
@@ -1209,7 +847,6 @@
             box-shadow: none;
         }
 
-
         /* =====================================================
            ALERT
         ===================================================== */
@@ -1257,7 +894,6 @@
             color:
                 #14532d;
         }
-
 
         /* =====================================================
            LOADING
@@ -1307,17 +943,22 @@
             display: none !important;
         }
 
-
         /* =====================================================
-           TABLET
+           MOBILE / TABLET
         ===================================================== */
 
-        @media (max-width: 800px) {
+        @media (max-width: 900px) {
 
-            .nav {
-                grid-template-columns:
-                    repeat(3,minmax(0,1fr));
+            .main {
+                width: 100%;
+                margin-left: 0;
+
+                padding:
+                    82px 18px 35px;
             }
+        }
+
+        @media (max-width: 800px) {
 
             .form-grid {
                 grid-template-columns:
@@ -1332,55 +973,19 @@
                 grid-template-columns:
                     repeat(2,minmax(0,1fr));
             }
-
-            .credit-preview {
-                grid-template-columns:
-                    repeat(3,minmax(0,1fr));
-            }
         }
-
-
-        /* =====================================================
-           MOBILE
-        ===================================================== */
 
         @media (max-width: 600px) {
 
-            .nav-toggle {
-                top: 12px;
-                left: 12px;
-            }
-
-            .sidebar {
-                padding:
-                    68px 14px 16px;
-
-                max-height:
-                    90vh;
-            }
-
-            .nav {
-                grid-template-columns:
-                    1fr;
-            }
-
-            .nav a {
-                justify-content: flex-start;
-
-                min-height: 46px;
-            }
-
             .main {
                 padding:
-                    18px 12px 30px;
+                    76px 12px 30px;
             }
 
             .page-header {
                 flex-direction: column;
 
                 gap: 14px;
-
-                padding-left: 54px;
             }
 
             .back-button {
@@ -1433,662 +1038,550 @@
 <body>
 
     <!-- =====================================================
-         NAVIGATION TOGGLE
+         SHARED ADMIN NAVIGATION
+         ===================================================== -->
+
+    <div id="adminNavigation"></div>
+
+
+    <!-- =====================================================
+         MAIN
     ===================================================== -->
 
-    <button
-        type="button"
-        class="nav-toggle"
-        id="navToggle"
-        aria-label="Buka navigasi"
-        aria-controls="adminSidebar"
-        aria-expanded="false"
-    >
-        ☰
-    </button>
+    <main class="main">
 
+        <div class="content">
 
-    <div
-        class="app"
-        id="appShell"
-    >
+            <!-- =================================================
+                 HEADER
+            ================================================= -->
 
-        <!-- =================================================
-             SLIDE-DOWN NAVIGATION
-        ================================================= -->
-
-        <aside
-            class="sidebar"
-            id="adminSidebar"
-        >
-
-            <div class="brand">
-
-                <div class="brand-logo">
-                    G
-                </div>
+            <header class="page-header">
 
                 <div>
 
-                    <div class="brand-text">
-                        GEN-Z.AI
+                    <div class="eyebrow">
+                        Model Management
                     </div>
 
-                    <div class="brand-sub">
-                        ADMIN CONTROL
-                    </div>
+                    <h1>
+                        Edit Model
+                    </h1>
+
+                    <p class="page-description">
+                        Konfigurasi model yang berasal dari
+                        folder model di repository.
+                        Model ID dikunci karena digunakan
+                        sebagai referensi utama pada
+                        halaman Generate.
+                    </p>
 
                 </div>
 
-            </div>
-
-
-            <div class="nav-title">
-                Management
-            </div>
-
-
-            <nav class="nav">
-
-                <a href="./index.html">
-                    <span class="nav-icon">⌂</span>
-                    <span class="nav-label">
-                        Dashboard
-                    </span>
-                </a>
-
-                <a href="./users.html">
-                    <span class="nav-icon">♙</span>
-                    <span class="nav-label">
-                        Users
-                    </span>
-                </a>
-
-                <a href="./providers.html">
-                    <span class="nav-icon">◈</span>
-                    <span class="nav-label">
-                        Providers
-                    </span>
-                </a>
-
-                <a
-                    href="./models.html"
-                    class="active"
-                >
-                    <span class="nav-icon">◆</span>
-                    <span class="nav-label">
-                        Models
-                    </span>
-                </a>
-
-                <a href="./credit.html">
-                    <span class="nav-icon">₿</span>
-                    <span class="nav-label">
-                        Credit
-                    </span>
-                </a>
-
-            </nav>
-
-
-            <div class="sidebar-bottom">
 
                 <button
                     type="button"
-                    class="logout"
-                    id="logoutButton"
+                    class="back-button"
+                    id="backButton"
                 >
-                    Logout
+                    ← Kembali
                 </button>
 
+            </header>
+
+
+            <!-- =================================================
+                 ALERT
+            ================================================== -->
+
+            <div
+                id="alertBox"
+                class="alert"
+                role="alert"
+            ></div>
+
+
+            <!-- =================================================
+                 LOADING
+            ================================================== -->
+
+            <div
+                id="loadingBox"
+                class="loading"
+            >
+                <span class="spinner"></span>
+                Memuat konfigurasi model...
             </div>
 
-        </aside>
 
+            <!-- =================================================
+                 EDIT CONTENT
+            ================================================== -->
 
-        <div
-            class="sidebar-overlay"
-            id="sidebarOverlay"
-            aria-hidden="true"
-        ></div>
+            <div
+                id="editContent"
+                class="hidden"
+            >
 
+                <!-- MODEL HERO -->
 
-        <!-- =================================================
-             MAIN
-        ================================================= -->
+                <section class="model-hero">
 
-        <main class="main">
+                    <div class="model-hero-top">
 
-            <div class="content">
+                        <div>
 
-                <!-- =================================================
-                     HEADER
-                ================================================= -->
+                            <h2
+                                class="model-title"
+                                id="heroModelName"
+                            >
+                                -
+                            </h2>
 
-                <header class="page-header">
+                            <div
+                                class="model-id"
+                                id="heroModelId"
+                            >
+                                -
+                            </div>
 
-                    <div>
-
-                        <div class="eyebrow">
-                            Model Management
                         </div>
 
-                        <h1>
-                            Edit Model
-                        </h1>
+                        <div class="premium-badge">
+                            PREMIUM MODEL
+                        </div>
 
-                        <p class="page-description">
-                            Konfigurasi model yang berasal dari
-                            folder model di repository.
-                            Model ID dikunci karena digunakan
-                            sebagai referensi utama pada
-                            halaman Generate.
-                        </p>
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     BASIC CONFIG
+                ================================================== -->
+
+                <section class="form-card">
+
+                    <h2 class="section-title">
+                        Informasi Model
+                    </h2>
+
+                    <p class="section-description">
+                        Identitas teknis model berasal dari
+                        folder model. Nama, deskripsi, dan
+                        status dapat dikonfigurasi oleh admin.
+                        Model ID tidak dapat diubah.
+                    </p>
+
+
+                    <div class="form-grid">
+
+                        <div class="field">
+
+                            <label for="modelName">
+                                Nama Model
+                            </label>
+
+                            <input
+                                type="text"
+                                id="modelName"
+                                maxlength="150"
+                                autocomplete="off"
+                            >
+
+                            <div class="field-help">
+                                Nama tampilan model.
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label>
+                                Model ID
+                            </label>
+
+                            <div
+                                class="readonly-value mono"
+                                id="modelId"
+                            >
+                                -
+                            </div>
+
+                            <div class="field-help">
+                                Immutable. Digunakan sebagai
+                                referensi halaman Generate.
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label>
+                                Provider
+                            </label>
+
+                            <div
+                                class="readonly-value"
+                                id="providerName"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label>
+                                Model Type
+                            </label>
+
+                            <div
+                                class="readonly-value"
+                                id="modelType"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <div class="field full">
+
+                            <label>
+                                Status Model
+                            </label>
+
+                            <div class="status-box">
+
+                                <div class="status-info">
+
+                                    <strong id="statusText">
+                                        Nonaktif
+                                    </strong>
+
+                                    <span>
+                                        Model aktif dapat
+                                        digunakan pada sistem
+                                        Generate.
+                                    </span>
+
+                                </div>
+
+
+                                <label class="switch">
+
+                                    <input
+                                        type="checkbox"
+                                        id="statusToggle"
+                                    >
+
+                                    <span class="slider"></span>
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field full">
+
+                            <label for="description">
+                                Deskripsi
+                            </label>
+
+                            <textarea
+                                id="description"
+                                maxlength="1000"
+                                placeholder="Deskripsi model..."
+                            ></textarea>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     PRICING
+                ================================================== -->
+
+                <section class="form-card">
+
+                    <h2 class="section-title">
+                        Pricing Credit
+                    </h2>
+
+                    <p class="section-description">
+                        Sistem pricing GEN-Z.AI menggunakan
+                        credit_cost sebagai harga dasar.
+                        Diskon dihitung otomatis menjadi
+                        credit_final. Nilai credit tidak
+                        diperlakukan sebagai USD.
+                    </p>
+
+
+                    <div class="form-grid">
+
+                        <div class="field">
+
+                            <label for="creditCost">
+                                Harga Dasar Credit
+                            </label>
+
+                            <div class="credit-input-wrap">
+
+                                <span class="credit-prefix">
+                                    CREDIT
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="creditCost"
+                                    min="0"
+                                    step="0.000001"
+                                    inputmode="decimal"
+                                >
+
+                            </div>
+
+                            <div class="field-help">
+                                Nilai ini disimpan ke
+                                models.credit_cost.
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="discount">
+                                Diskon
+                            </label>
+
+                            <div class="credit-input-wrap">
+
+                                <input
+                                    type="number"
+                                    id="discount"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                >
+
+                                <span
+                                    class="credit-prefix"
+                                    style="
+                                        left:auto;
+                                        right:13px;
+                                    "
+                                >
+                                    %
+                                </span>
+
+                            </div>
+
+                            <div class="field-help">
+                                0 berarti tanpa diskon.
+                                Maksimum 100%.
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label>
+                                Credit Setelah Diskon
+                            </label>
+
+                            <div
+                                class="readonly-value mono"
+                                id="creditFinalValue"
+                            >
+                                0
+                            </div>
+
+                            <div class="field-help">
+                                Dihitung otomatis dan tidak
+                                menjadi input manual.
+                            </div>
+
+                        </div>
 
                     </div>
 
 
-                    <button
-                        type="button"
-                        class="back-button"
-                        id="backButton"
-                    >
-                        ← Kembali
-                    </button>
+                    <div class="credit-preview">
 
-                </header>
+                        <div class="price-box">
 
+                            <div class="price-label">
+                                Credit Normal
+                            </div>
 
-                <!-- ALERT -->
+                            <div
+                                class="price-value"
+                                id="previewNormal"
+                            >
+                                0
+                            </div>
 
-                <div
-                    id="alertBox"
-                    class="alert"
-                    role="alert"
-                ></div>
+                        </div>
 
 
-                <!-- LOADING -->
+                        <div class="price-box">
 
-                <div
-                    id="loadingBox"
-                    class="loading"
-                >
-                    <span class="spinner"></span>
-                    Memuat konfigurasi model...
-                </div>
+                            <div class="price-label">
+                                Diskon
+                            </div>
+
+                            <div
+                                class="price-value"
+                                id="previewDiscount"
+                            >
+                                0%
+                            </div>
+
+                        </div>
+
+
+                        <div class="price-box final">
+
+                            <div class="price-label">
+                                Credit Final
+                            </div>
+
+                            <div
+                                class="price-value"
+                                id="previewFinal"
+                            >
+                                0
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
 
 
                 <!-- =================================================
-                     EDIT CONTENT
+                     PARAMETERS
                 ================================================== -->
 
-                <div
-                    id="editContent"
-                    class="hidden"
-                >
+                <section class="form-card">
 
-                    <!-- MODEL HERO -->
+                    <h2 class="section-title">
+                        Parameter Model
+                    </h2>
 
-                    <section class="model-hero">
+                    <p class="section-description">
+                        Parameter teknis dibaca langsung dari
+                        parameters.js pada folder model.
+                        Nilai ini tidak dapat diedit dari
+                        halaman admin.
+                    </p>
 
-                        <div class="model-hero-top">
 
-                            <div>
+                    <div class="parameter-grid">
 
-                                <h2
-                                    class="model-title"
-                                    id="heroModelName"
-                                >
-                                    -
-                                </h2>
+                        <div class="parameter-card">
 
-                                <div
-                                    class="model-id"
-                                    id="heroModelId"
-                                >
-                                    -
-                                </div>
-
+                            <div class="parameter-label">
+                                Duration
                             </div>
 
-                            <div class="premium-badge">
-                                PREMIUM MODEL
-                            </div>
-
-                        </div>
-
-                    </section>
-
-
-                    <!-- =================================================
-                         BASIC CONFIG
-                    ================================================== -->
-
-                    <section class="form-card">
-
-                        <h2 class="section-title">
-                            Informasi Model
-                        </h2>
-
-                        <p class="section-description">
-                            Identitas teknis model berasal dari
-                            folder model. Nama, deskripsi, dan
-                            status dapat dikonfigurasi oleh admin.
-                            Model ID tidak dapat diubah.
-                        </p>
-
-
-                        <div class="form-grid">
-
-                            <div class="field">
-
-                                <label for="modelName">
-                                    Nama Model
-                                </label>
-
-                                <input
-                                    type="text"
-                                    id="modelName"
-                                    maxlength="150"
-                                    autocomplete="off"
-                                >
-
-                                <div class="field-help">
-                                    Nama tampilan model.
-                                </div>
-
-                            </div>
-
-
-                            <div class="field">
-
-                                <label>
-                                    Model ID
-                                </label>
-
-                                <div
-                                    class="readonly-value mono"
-                                    id="modelId"
-                                >
-                                    -
-                                </div>
-
-                                <div class="field-help">
-                                    Immutable. Digunakan sebagai
-                                    referensi halaman Generate.
-                                </div>
-
-                            </div>
-
-
-                            <div class="field">
-
-                                <label>
-                                    Provider
-                                </label>
-
-                                <div
-                                    class="readonly-value"
-                                    id="providerName"
-                                >
-                                    -
-                                </div>
-
-                            </div>
-
-
-                            <div class="field">
-
-                                <label>
-                                    Model Type
-                                </label>
-
-                                <div
-                                    class="readonly-value"
-                                    id="modelType"
-                                >
-                                    -
-                                </div>
-
-                            </div>
-
-
-                            <div class="field full">
-
-                                <label>
-                                    Status Model
-                                </label>
-
-                                <div class="status-box">
-
-                                    <div class="status-info">
-
-                                        <strong id="statusText">
-                                            Nonaktif
-                                        </strong>
-
-                                        <span>
-                                            Model aktif dapat
-                                            digunakan pada sistem
-                                            Generate.
-                                        </span>
-
-                                    </div>
-
-
-                                    <label class="switch">
-
-                                        <input
-                                            type="checkbox"
-                                            id="statusToggle"
-                                        >
-
-                                        <span class="slider"></span>
-
-                                    </label>
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="field full">
-
-                                <label for="description">
-                                    Deskripsi
-                                </label>
-
-                                <textarea
-                                    id="description"
-                                    maxlength="1000"
-                                    placeholder="Deskripsi model..."
-                                ></textarea>
-
-                            </div>
-
-                        </div>
-
-                    </section>
-
-
-                    <!-- =================================================
-                         PRICING
-                    ================================================== -->
-
-                    <section class="form-card">
-
-                        <h2 class="section-title">
-                            Pricing Credit
-                        </h2>
-
-                        <p class="section-description">
-                            Sistem pricing GEN-Z.AI menggunakan
-                            credit_cost sebagai harga dasar.
-                            Diskon dihitung otomatis menjadi
-                            credit_final. Nilai credit tidak
-                            diperlakukan sebagai USD.
-                        </p>
-
-
-                        <div class="form-grid">
-
-                            <div class="field">
-
-                                <label for="creditCost">
-                                    Harga Dasar Credit
-                                </label>
-
-                                <div class="credit-input-wrap">
-
-                                    <span class="credit-prefix">
-                                        CREDIT
-                                    </span>
-
-                                    <input
-                                        type="number"
-                                        id="creditCost"
-                                        min="0"
-                                        step="0.000001"
-                                        inputmode="decimal"
-                                    >
-
-                                </div>
-
-                                <div class="field-help">
-                                    Nilai ini disimpan ke
-                                    models.credit_cost.
-                                </div>
-
-                            </div>
-
-
-                            <div class="field">
-
-                                <label for="discount">
-                                    Diskon
-                                </label>
-
-                                <div class="credit-input-wrap">
-
-                                    <input
-                                        type="number"
-                                        id="discount"
-                                        min="0"
-                                        max="100"
-                                        step="0.01"
-                                        inputmode="decimal"
-                                    >
-
-                                    <span
-                                        class="credit-prefix"
-                                        style="
-                                            left:auto;
-                                            right:13px;
-                                        "
-                                    >
-                                        %
-                                    </span>
-
-                                </div>
-
-                                <div class="field-help">
-                                    0 berarti tanpa diskon.
-                                    Maksimum 100%.
-                                </div>
-
-                            </div>
-
-
-                            <div class="field">
-
-                                <label>
-                                    Credit Setelah Diskon
-                                </label>
-
-                                <div
-                                    class="readonly-value mono"
-                                    id="creditFinalValue"
-                                >
-                                    0
-                                </div>
-
-                                <div class="field-help">
-                                    Dihitung otomatis dan tidak
-                                    menjadi input manual.
-                                </div>
-
-                            </div>
-
-                        </div>
-
-
-                        <div class="credit-preview">
-
-                            <div class="price-box">
-
-                                <div class="price-label">
-                                    Credit Normal
-                                </div>
-
-                                <div
-                                    class="price-value"
-                                    id="previewNormal"
-                                >
-                                    0
-                                </div>
-
-                            </div>
-
-
-                            <div class="price-box">
-
-                                <div class="price-label">
-                                    Diskon
-                                </div>
-
-                                <div
-                                    class="price-value"
-                                    id="previewDiscount"
-                                >
-                                    0%
-                                </div>
-
-                            </div>
-
-
-                            <div class="price-box final">
-
-                                <div class="price-label">
-                                    Credit Final
-                                </div>
-
-                                <div
-                                    class="price-value"
-                                    id="previewFinal"
-                                >
-                                    0
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </section>
-
-
-                    <!-- =================================================
-                         PARAMETERS
-                    ================================================== -->
-
-                    <section class="form-card">
-
-                        <h2 class="section-title">
-                            Parameter Model
-                        </h2>
-
-                        <p class="section-description">
-                            Parameter teknis dibaca langsung dari
-                            parameters.js pada folder model.
-                            Nilai ini tidak dapat diedit dari
-                            halaman admin.
-                        </p>
-
-
-                        <div class="parameter-grid">
-
-                            <div class="parameter-card">
-
-                                <div class="parameter-label">
-                                    Duration
-                                </div>
-
-                                <div
-                                    class="parameter-value"
-                                    id="durationValue"
-                                >
-                                    -
-                                </div>
-
-                            </div>
-
-
-                            <div class="parameter-card">
-
-                                <div class="parameter-label">
-                                    Aspect Ratio
-                                </div>
-
-                                <div
-                                    class="parameter-value"
-                                    id="ratioValue"
-                                >
-                                    -
-                                </div>
-
-                            </div>
-
-
-                            <div class="parameter-card">
-
-                                <div class="parameter-label">
-                                    Resolution
-                                </div>
-
-                                <div
-                                    class="parameter-value"
-                                    id="resolutionValue"
-                                >
-                                    -
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </section>
-
-
-                    <!-- =================================================
-                         ACTIONS
-                    ================================================== -->
-
-                    <section class="form-card">
-
-                        <div class="actions">
-
-                            <button
-                                type="button"
-                                class="btn btn-secondary"
-                                id="cancelButton"
+                            <div
+                                class="parameter-value"
+                                id="durationValue"
                             >
-                                Batal
-                            </button>
-
-                            <button
-                                type="button"
-                                class="btn btn-primary"
-                                id="saveButton"
-                            >
-                                Simpan Perubahan
-                            </button>
+                                -
+                            </div>
 
                         </div>
 
-                    </section>
 
-                </div>
+                        <div class="parameter-card">
+
+                            <div class="parameter-label">
+                                Aspect Ratio
+                            </div>
+
+                            <div
+                                class="parameter-value"
+                                id="ratioValue"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <div class="parameter-card">
+
+                            <div class="parameter-label">
+                                Resolution
+                            </div>
+
+                            <div
+                                class="parameter-value"
+                                id="resolutionValue"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     ACTIONS
+                ================================================== -->
+
+                <section class="form-card">
+
+                    <div class="actions">
+
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            id="cancelButton"
+                        >
+                            Batal
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            id="saveButton"
+                        >
+                            Simpan Perubahan
+                        </button>
+
+                    </div>
+
+                </section>
 
             </div>
 
-        </main>
+        </div>
 
-    </div>
+    </main>
 
 
-    <!-- =========================================================
+    <!-- =====================================================
          SUPABASE
-    ========================================================= -->
+    ===================================================== -->
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -2097,9 +1590,17 @@
     <script src="./supabase.js"></script>
 
 
-    <!-- =========================================================
-         MODEL EDIT MODULE
-    ========================================================= -->
+    <!-- =====================================================
+         SHARED ADMIN NAV
+         HARUS SETELAH ELEMENT NAV
+    ===================================================== -->
+
+    <script src="./admin-nav.js"></script>
+
+
+    <!-- =====================================================
+         MODEL EDIT
+    ===================================================== -->
 
     <script type="module">
 
@@ -2123,18 +1624,6 @@
            ELEMENTS
         ===================================================== */
 
-        const appShell =
-            document.getElementById("appShell");
-
-        const navToggle =
-            document.getElementById("navToggle");
-
-        const sidebarOverlay =
-            document.getElementById("sidebarOverlay");
-
-        const adminSidebar =
-            document.getElementById("adminSidebar");
-
         const backButton =
             document.getElementById("backButton");
 
@@ -2143,9 +1632,6 @@
 
         const saveButton =
             document.getElementById("saveButton");
-
-        const logoutButton =
-            document.getElementById("logoutButton");
 
         const alertBox =
             document.getElementById("alertBox");
@@ -2219,101 +1705,11 @@
 
         let currentModelId = null;
 
+        let currentDatabaseRow = null;
+
+        let currentProviderId = null;
+
         let saving = false;
-
-
-        /* =====================================================
-           NAVIGATION
-           SLIDE DOWN
-        ===================================================== */
-
-        function setNavigation(open) {
-
-            appShell.classList.toggle(
-                "nav-open",
-                Boolean(open)
-            );
-
-            navToggle.setAttribute(
-                "aria-expanded",
-                String(Boolean(open))
-            );
-
-            navToggle.setAttribute(
-                "aria-label",
-                open
-                    ? "Tutup navigasi"
-                    : "Buka navigasi"
-            );
-
-            navToggle.textContent =
-                open
-                    ? "×"
-                    : "☰";
-
-            sidebarOverlay.setAttribute(
-                "aria-hidden",
-                String(!open)
-            );
-        }
-
-
-        function toggleNavigation() {
-
-            const isOpen =
-                appShell.classList.contains(
-                    "nav-open"
-                );
-
-            setNavigation(
-                !isOpen
-            );
-        }
-
-
-        navToggle.addEventListener(
-            "click",
-            toggleNavigation
-        );
-
-
-        sidebarOverlay.addEventListener(
-            "click",
-            () => {
-                setNavigation(false);
-            }
-        );
-
-
-        adminSidebar
-            .querySelectorAll("a")
-            .forEach(
-                link => {
-
-                    link.addEventListener(
-                        "click",
-                        () => {
-                            setNavigation(false);
-                        }
-                    );
-
-                }
-            );
-
-
-        document.addEventListener(
-            "keydown",
-            event => {
-
-                if (
-                    event.key === "Escape"
-                ) {
-
-                    setNavigation(false);
-                }
-
-            }
-        );
 
 
         /* =====================================================
@@ -2326,10 +1722,7 @@
         ) {
 
             alertBox.textContent =
-                String(
-                    message ||
-                    ""
-                );
+                String(message || "");
 
             alertBox.className =
                 "alert show " +
@@ -2355,9 +1748,7 @@
             loading
         ) {
 
-            if (
-                loading
-            ) {
+            if (loading) {
 
                 loadingBox.classList.remove(
                     "hidden"
@@ -2405,9 +1796,7 @@
                         .trim()
                 );
 
-            return Number.isFinite(
-                parsed
-            )
+            return Number.isFinite(parsed)
                 ? parsed
                 : fallback;
         }
@@ -2449,9 +1838,7 @@
         ) {
 
             const numeric =
-                nonNegative(
-                    value
-                );
+                nonNegative(value);
 
             const factor =
                 1000000;
@@ -2492,9 +1879,7 @@
                 try {
 
                     const parsed =
-                        JSON.parse(
-                            value
-                        );
+                        JSON.parse(value);
 
                     if (
                         Array.isArray(parsed)
@@ -2514,9 +1899,7 @@
                         item =>
                             item.trim()
                     )
-                    .filter(
-                        Boolean
-                    );
+                    .filter(Boolean);
             }
 
 
@@ -2612,6 +1995,7 @@
 
 
             return {
+
                 credit_cost:
                     base,
 
@@ -2623,6 +2007,7 @@
 
                 credit_final:
                     finalCredit
+
             };
         }
 
@@ -2765,8 +2150,11 @@
 
 
             return {
+
                 min: minimum,
+
                 max: maximum
+
             };
         }
 
@@ -2814,9 +2202,7 @@
                 );
 
 
-            if (
-                !ratios.length
-            ) {
+            if (!ratios.length) {
 
                 ratios =
                     getParameterEnum(
@@ -2838,9 +2224,7 @@
                 );
 
 
-            if (
-                !resolutions.length
-            ) {
+            if (!resolutions.length) {
 
                 resolutions =
                     getParameterEnum(
@@ -2903,6 +2287,19 @@
         }
 
 
+        function getProviderId(
+            model
+        ) {
+
+            return (
+                model?.provider_id ||
+                model?.providerId ||
+                model?.config?.providerId ||
+                null
+            );
+        }
+
+
         function getModelType(
             model
         ) {
@@ -2917,105 +2314,145 @@
 
 
         /* =====================================================
-           RENDER MODEL
+           SUPABASE SESSION
         ===================================================== */
 
-        function renderModel(
-            model
+        async function getAccessToken() {
+
+            if (!supabase) {
+
+                throw new Error(
+                    "Supabase belum terhubung. Periksa konfigurasi Supabase."
+                );
+            }
+
+
+            const {
+                data,
+                error
+            } =
+                await supabase.auth.getSession();
+
+
+            if (error) {
+
+                throw error;
+            }
+
+
+            const token =
+                data?.session?.access_token;
+
+
+            if (!token) {
+
+                throw new Error(
+                    "Session admin tidak ditemukan. Silakan login kembali."
+                );
+            }
+
+
+            return token;
+        }
+
+
+        /* =====================================================
+           ADMIN API
+        ===================================================== */
+
+        async function adminApi(
+            method = "GET",
+            body = null
         ) {
 
+            const token =
+                await getAccessToken();
+
+
+            const headers = {
+
+                "Authorization":
+                    `Bearer ${token}`,
+
+                "Content-Type":
+                    "application/json"
+
+            };
+
+
+            const options = {
+
+                method,
+
+                headers,
+
+                cache:
+                    "no-store"
+
+            };
+
+
             if (
-                !model
+                body !== null
+            ) {
+
+                options.body =
+                    JSON.stringify(body);
+            }
+
+
+            const response =
+                await fetch(
+                    "/api/admin-models",
+                    options
+                );
+
+
+            const text =
+                await response.text();
+
+
+            let data =
+                null;
+
+
+            try {
+
+                data =
+                    text
+                        ? JSON.parse(text)
+                        : null;
+
+            } catch (_) {
+
+                data = null;
+            }
+
+
+            if (
+                !response.ok
             ) {
 
                 throw new Error(
-                    "Data model kosong."
+                    data?.error ||
+                    `Admin API gagal (HTTP ${response.status}).`
                 );
             }
 
 
-            currentModel =
-                model;
-
-
-            currentModelId =
-                getModelId(model);
-
-
             if (
-                !currentModelId
+                data &&
+                data.success === false
             ) {
 
                 throw new Error(
-                    "Model ID tidak tersedia dari config.js."
+                    data.error ||
+                    "Admin API mengembalikan error."
                 );
             }
 
 
-            const name =
-                getModelName(model);
-
-            const provider =
-                getProviderName(model);
-
-            const type =
-                getModelType(model);
-
-
-            heroModelName.textContent =
-                name;
-
-            heroModelId.textContent =
-                currentModelId;
-
-            modelName.value =
-                name;
-
-            modelId.textContent =
-                currentModelId;
-
-            providerName.textContent =
-                provider;
-
-            modelType.textContent =
-                type;
-
-            description.value =
-                model?.description || "";
-
-
-            statusToggle.checked =
-                String(
-                    model?.status || ""
-                ).toLowerCase() ===
-                "active";
-
-
-            updateStatusText();
-
-
-            creditCost.value =
-                nonNegative(
-                    model?.credit_cost ??
-                    model?.creditCost ??
-                    0
-                );
-
-
-            discount.value =
-                clampDiscount(
-                    model?.discount_percent ??
-                    model?.discountPercent ??
-                    0
-                );
-
-
-            updateCreditPreview();
-
-
-            renderParameters(
-                model
-            );
+            return data || {};
         }
 
 
@@ -3094,9 +2531,7 @@
                 getQueryModelId();
 
 
-            if (
-                !requestedId
-            ) {
+            if (!requestedId) {
 
                 setLoading(false);
 
@@ -3112,7 +2547,10 @@
             try {
 
                 /*
+                 * =================================================
+                 * STEP 1
                  * Repository adalah sumber utama.
+                 * =================================================
                  */
 
                 const repositoryModel =
@@ -3121,9 +2559,7 @@
                     );
 
 
-                if (
-                    !repositoryModel
-                ) {
+                if (!repositoryModel) {
 
                     throw new Error(
                         `Model "${requestedId}" tidak ditemukan pada registry repository.`
@@ -3132,11 +2568,13 @@
 
 
                 /*
-                 * Supabase hanya konfigurasi admin.
+                 * =================================================
+                 * STEP 2
+                 * Ambil konfigurasi database melalui ADMIN API.
                  *
-                 * Row boleh belum ada.
-                 * Jika belum ada, model repository
-                 * tetap ditampilkan.
+                 * PENTING:
+                 * Tidak lagi SELECT langsung dari browser.
+                 * =================================================
                  */
 
                 let mergedModel = {
@@ -3144,70 +2582,143 @@
                 };
 
 
-                if (
-                    supabase
-                ) {
+                try {
 
-                    try {
+                    const apiData =
+                        await adminApi(
+                            "GET"
+                        );
 
-                        const {
-                            data,
-                            error
-                        } =
-                            await supabase
-                                .from("models")
-                                .select(
-                                    [
-                                        "id",
-                                        "provider_id",
-                                        "model_id",
-                                        "model_name",
-                                        "description",
-                                        "credit_cost",
-                                        "discount_percent",
-                                        "credit_final",
-                                        "status",
-                                        "updated_at"
-                                    ].join(",")
-                                )
-                                .eq(
-                                    "model_id",
-                                    requestedId
-                                )
-                                .maybeSingle();
+
+                    const databaseModels =
+                        Array.isArray(
+                            apiData.models
+                        )
+                            ? apiData.models
+                            : [];
+
+
+                    const found =
+                        databaseModels.find(
+                            item =>
+                                String(
+                                    item?.model_id ||
+                                    ""
+                                ).trim() ===
+                                requestedId
+                        );
+
+
+                    if (found) {
+
+                        currentDatabaseRow =
+                            found;
+
+                        currentProviderId =
+                            found.provider_id ||
+                            null;
+
+
+                        mergedModel = {
+
+                            ...repositoryModel,
+
+                            ...found,
+
+                            model_id:
+                                requestedId
+
+                        };
+
+                    } else {
+
+                        /*
+                         * Row database belum ada.
+                         *
+                         * Cari provider dari API providers.
+                         * Jangan pernah mengarang UUID.
+                         */
+
+                        const providers =
+                            Array.isArray(
+                                apiData.providers
+                            )
+                                ? apiData.providers
+                                : [];
+
+
+                        const repositoryProvider =
+                            getProviderId(
+                                repositoryModel
+                            );
 
 
                         if (
-                            error
+                            repositoryProvider
                         ) {
 
-                            console.warn(
-                                "[GEN-Z.AI] Supabase model config tidak dapat dibaca:",
-                                error
-                            );
+                            const matchedProvider =
+                                providers.find(
+                                    provider =>
+                                        String(
+                                            provider?.id ||
+                                            ""
+                                        ) ===
+                                        String(
+                                            repositoryProvider
+                                        ) ||
+                                        String(
+                                            provider?.provider_id ||
+                                            ""
+                                        ) ===
+                                        String(
+                                            repositoryProvider
+                                        )
+                                );
 
-                        } else if (
-                            data
-                        ) {
 
-                            mergedModel = {
-                                ...repositoryModel,
-                                ...data,
+                            if (
+                                matchedProvider
+                            ) {
 
-                                model_id:
-                                    requestedId
-                            };
+                                currentProviderId =
+                                    matchedProvider.id;
+
+                                mergedModel = {
+
+                                    ...repositoryModel,
+
+                                    provider_id:
+                                        matchedProvider.id,
+
+                                    provider_name:
+                                        matchedProvider.provider_name ||
+                                        repositoryModel.providerName ||
+                                        repositoryModel.provider_name
+
+                                };
+
+                            }
+
                         }
 
-                    } catch (
-                        configError
-                    ) {
-
-                        console.warn(
-                            "[GEN-Z.AI] Gagal membaca konfigurasi admin:",
-                            configError
-                        );
                     }
+
+                } catch (apiError) {
+
+                    /*
+                     * Jangan fallback ke direct INSERT.
+                     *
+                     * Jika API admin gagal, halaman tetap dapat
+                     * menampilkan repository model, tetapi
+                     * penyimpanan harus dihentikan nanti.
+                     */
+
+                    console.warn(
+                        "[GEN-Z.AI] Admin model API gagal saat load:",
+                        apiError
+                    );
+
                 }
 
 
@@ -3218,9 +2729,7 @@
 
                 setLoading(false);
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.error(
                     "GEN-Z.AI model-edit load error:",
@@ -3241,15 +2750,156 @@
 
 
         /* =====================================================
-           SAVE MODEL
-           UPDATE ATAU INSERT
+           RENDER MODEL
         ===================================================== */
+
+        function renderModel(
+            model
+        ) {
+
+            if (!model) {
+
+                throw new Error(
+                    "Data model kosong."
+                );
+            }
+
+
+            currentModel =
+                model;
+
+
+            currentModelId =
+                getModelId(model);
+
+
+            if (!currentModelId) {
+
+                throw new Error(
+                    "Model ID tidak tersedia dari config.js."
+                );
+            }
+
+
+            const name =
+                getModelName(model);
+
+            const provider =
+                getProviderName(model);
+
+            const type =
+                getModelType(model);
+
+
+            heroModelName.textContent =
+                name;
+
+            heroModelId.textContent =
+                currentModelId;
+
+            modelName.value =
+                name;
+
+            modelId.textContent =
+                currentModelId;
+
+            providerName.textContent =
+                provider;
+
+            modelType.textContent =
+                type;
+
+            description.value =
+                model?.description || "";
+
+
+            statusToggle.checked =
+                String(
+                    model?.status || ""
+                )
+                    .trim()
+                    .toLowerCase() ===
+                "active";
+
+
+            updateStatusText();
+
+
+            creditCost.value =
+                nonNegative(
+                    model?.credit_cost ??
+                    model?.creditCost ??
+                    0
+                );
+
+
+            discount.value =
+                clampDiscount(
+                    model?.discount_percent ??
+                    model?.discountPercent ??
+                    0
+                );
+
+
+            if (
+                model?.provider_id
+            ) {
+
+                currentProviderId =
+                    model.provider_id;
+
+            }
+
+
+            renderParameters(
+                model
+            );
+
+
+            updateCreditPreview();
+        }
+
+
+        /* =====================================================
+           BUILD SAVE PAYLOAD
+        ===================================================== */
+
+        function buildSavePayload() {
+
+            const pricing =
+                calculateCredit();
+
+
+            return {
+
+                model_name:
+                    modelName.value.trim(),
+
+                description:
+                    description.value.trim(),
+
+                credit_cost:
+                    pricing.credit_cost,
+
+                discount_percent:
+                    pricing.discount_percent,
+
+                status:
+                    statusToggle.checked
+                        ? "active"
+                        : "inactive"
+
+            };
+        }
+
+
+        /* =====================================================
+           SAVE MODEL
+           ===================================================== */
 
         async function saveModel() {
 
-            if (
-                saving
-            ) {
+            if (saving) {
 
                 return;
             }
@@ -3258,9 +2908,7 @@
             hideAlert();
 
 
-            if (
-                !currentModel
-            ) {
+            if (!currentModel) {
 
                 showAlert(
                     "Data model belum tersedia.",
@@ -3275,9 +2923,7 @@
                 modelName.value.trim();
 
 
-            if (
-                !name
-            ) {
+            if (!name) {
 
                 showAlert(
                     "Nama model wajib diisi.",
@@ -3294,9 +2940,7 @@
                 currentModelId;
 
 
-            if (
-                !modelIdValue
-            ) {
+            if (!modelIdValue) {
 
                 showAlert(
                     "Model ID tidak tersedia.",
@@ -3307,9 +2951,7 @@
             }
 
 
-            if (
-                !supabase
-            ) {
+            if (!supabase) {
 
                 showAlert(
                     "Supabase belum terhubung. Periksa konfigurasi Supabase pada project.",
@@ -3318,39 +2960,6 @@
 
                 return;
             }
-
-
-            const pricing =
-                updateCreditPreview();
-
-
-            /*
-             * credit_cost tetap CREDIT.
-             * Tidak ada konversi USD.
-             */
-
-            const payload = {
-
-                model_name:
-                    name,
-
-                description:
-                    description.value.trim(),
-
-                credit_cost:
-                    pricing.credit_cost,
-
-                discount_percent:
-                    pricing.discount_percent,
-
-                status:
-                    statusToggle.checked
-                        ? "active"
-                        : "inactive",
-
-                updated_at:
-                    new Date().toISOString()
-            };
 
 
             saving =
@@ -3366,109 +2975,107 @@
             try {
 
                 /*
-                 * -------------------------------------------------
+                 * =================================================
                  * STEP 1
-                 * Cek apakah row sudah ada.
-                 * -------------------------------------------------
+                 *
+                 * Ambil data terbaru melalui ADMIN API.
+                 *
+                 * TIDAK ADA:
+                 * supabase.from("models").insert()
+                 * supabase.from("models").update()
+                 *
+                 * Semua operasi database melalui server.
+                 * =================================================
                  */
 
-                const {
-                    data: existingRows,
-                    error: lookupError
-                } =
-                    await supabase
-                        .from("models")
-                        .select(
-                            [
-                                "id",
-                                "provider_id",
-                                "model_id"
-                            ].join(",")
-                        )
-                        .eq(
-                            "model_id",
-                            modelIdValue
-                        )
-                        .limit(1);
+                const apiData =
+                    await adminApi(
+                        "GET"
+                    );
 
 
-                if (
-                    lookupError
-                ) {
-
-                    throw lookupError;
-                }
+                const databaseModels =
+                    Array.isArray(
+                        apiData.models
+                    )
+                        ? apiData.models
+                        : [];
 
 
                 const existingRow =
-                    Array.isArray(existingRows) &&
-                    existingRows.length > 0
-                        ? existingRows[0]
-                        : null;
+                    databaseModels.find(
+                        item =>
+                            String(
+                                item?.model_id ||
+                                ""
+                            ).trim() ===
+                            String(
+                                modelIdValue
+                            ).trim()
+                    ) ||
+                    null;
 
 
                 /*
-                 * -------------------------------------------------
+                 * =================================================
                  * STEP 2
+                 * Simpan data yang boleh diedit.
+                 * =================================================
+                 */
+
+                const payload =
+                    buildSavePayload();
+
+
+                /*
+                 * =================================================
+                 * STEP 3
                  * UPDATE
-                 * -------------------------------------------------
+                 *
+                 * Row sudah ada.
+                 * =================================================
                  */
 
                 if (
-                    existingRow &&
-                    existingRow.id
+                    existingRow?.id
                 ) {
 
-                    const {
-                        data,
-                        error
-                    } =
-                        await supabase
-                            .from("models")
-                            .update(
-                                payload
-                            )
-                            .eq(
-                                "id",
-                                existingRow.id
-                            )
-                            .select(
-                                [
-                                    "id",
-                                    "provider_id",
-                                    "model_id",
-                                    "model_name",
-                                    "description",
-                                    "credit_cost",
-                                    "discount_percent",
-                                    "credit_final",
-                                    "status",
-                                    "updated_at"
-                                ].join(",")
-                            );
+                    const result =
+                        await adminApi(
+                            "PATCH",
+                            {
+
+                                id:
+                                    existingRow.id,
+
+                                ...payload
+
+                            }
+                        );
+
+
+                    const savedModel =
+                        result?.model ||
+                        null;
 
 
                     if (
-                        error
-                    ) {
-
-                        throw error;
-                    }
-
-
-                    if (
-                        !Array.isArray(data) ||
-                        data.length === 0
+                        !savedModel
                     ) {
 
                         throw new Error(
-                            "Konfigurasi model gagal diperbarui di Supabase."
+                            "API tidak mengembalikan model setelah update."
                         );
                     }
 
 
-                    const savedModel =
-                        data[0];
+                    currentDatabaseRow =
+                        savedModel;
+
+
+                    currentProviderId =
+                        savedModel.provider_id ||
+                        currentProviderId;
 
 
                     currentModel = {
@@ -3479,7 +3086,15 @@
 
                         model_id:
                             modelIdValue
+
                     };
+
+
+                    creditFinalValue.textContent =
+                        formatCredit(
+                            savedModel.credit_final ??
+                            calculateCredit().credit_final
+                        );
 
 
                     showAlert(
@@ -3491,88 +3106,98 @@
 
 
                 /*
-                 * -------------------------------------------------
-                 * STEP 3
-                 * INSERT
+                 * =================================================
+                 * STEP 4
+                 * CREATE
                  *
-                 * Jika model belum memiliki row Supabase,
-                 * buat konfigurasi admin baru.
-                 * -------------------------------------------------
+                 * Row belum ada.
+                 * =================================================
                  */
 
                 else {
 
-                    const insertPayload = {
-
-                        ...payload,
-
-                        model_id:
-                            modelIdValue
-                    };
-
-
                     /*
-                     * Gunakan provider_id jika repository/
-                     * registry sudah menyediakan UUID provider.
+                     * Provider wajib tersedia.
                      *
-                     * Jika tidak tersedia, jangan mengarang UUID.
+                     * Prioritas:
+                     * 1. currentProviderId
+                     * 2. currentModel.provider_id
+                     * 3. currentModel.providerId
+                     * 4. config.providerId
+                     *
+                     * API akan melakukan resolusi provider_id
+                     * terhadap providers.id / providers.provider_id.
                      */
 
-                    if (
-                        currentModel.provider_id
-                    ) {
-
-                        insertPayload.provider_id =
-                            currentModel.provider_id;
-                    }
+                    const providerValue =
+                        currentProviderId ||
+                        getProviderId(
+                            currentModel
+                        );
 
 
-                    const {
-                        data,
-                        error
-                    } =
-                        await supabase
-                            .from("models")
-                            .insert(
-                                insertPayload
-                            )
-                            .select(
-                                [
-                                    "id",
-                                    "provider_id",
-                                    "model_id",
-                                    "model_name",
-                                    "description",
-                                    "credit_cost",
-                                    "discount_percent",
-                                    "credit_final",
-                                    "status",
-                                    "updated_at"
-                                ].join(",")
-                            );
-
-
-                    if (
-                        error
-                    ) {
-
-                        throw error;
-                    }
-
-
-                    if (
-                        !Array.isArray(data) ||
-                        data.length === 0
-                    ) {
+                    if (!providerValue) {
 
                         throw new Error(
-                            "Konfigurasi model gagal dibuat di Supabase."
+                            "Provider ID tidak ditemukan. Model tidak dapat dibuat di konfigurasi admin."
                         );
                     }
 
 
+                    const createPayload = {
+
+                        provider_id:
+                            providerValue,
+
+                        model_id:
+                            modelIdValue,
+
+                        ...payload
+
+                    };
+
+
+                    /*
+                     * =================================================
+                     * POST KE ADMIN API
+                     *
+                     * BUKAN:
+                     * supabase.from("models").insert()
+                     *
+                     * POST ditangani api/admin-models.js.
+                     * Server menggunakan SUPABASE_SERVICE_ROLE_KEY.
+                     * =================================================
+                     */
+
+                    const result =
+                        await adminApi(
+                            "POST",
+                            createPayload
+                        );
+
+
                     const savedModel =
-                        data[0];
+                        result?.model ||
+                        null;
+
+
+                    if (
+                        !savedModel
+                    ) {
+
+                        throw new Error(
+                            "API tidak mengembalikan model setelah pembuatan."
+                        );
+                    }
+
+
+                    currentDatabaseRow =
+                        savedModel;
+
+
+                    currentProviderId =
+                        savedModel.provider_id ||
+                        providerValue;
 
 
                     currentModel = {
@@ -3583,7 +3208,15 @@
 
                         model_id:
                             modelIdValue
+
                     };
+
+
+                    creditFinalValue.textContent =
+                        formatCredit(
+                            savedModel.credit_final ??
+                            calculateCredit().credit_final
+                        );
 
 
                     showAlert(
@@ -3594,18 +3227,10 @@
 
 
                 /*
-                 * Update tampilan credit final.
-                 */
-
-                creditFinalValue.textContent =
-                    formatCredit(
-                        pricing.credit_final
-                    );
-
-
-                /*
-                 * Kembali ke halaman Models
-                 * setelah penyimpanan berhasil.
+                 * =================================================
+                 * STEP 5
+                 * Kembali ke Models.
+                 * =================================================
                  */
 
                 setTimeout(
@@ -3618,10 +3243,7 @@
                     900
                 );
 
-
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.error(
                     "GEN-Z.AI model-edit save error:",
@@ -3629,12 +3251,36 @@
                 );
 
 
-                showAlert(
+                let message =
                     error?.message ||
-                    "Gagal menyimpan perubahan model.",
+                    "Gagal menyimpan perubahan model.";
+
+
+                /*
+                 * Berikan pesan yang lebih jelas jika
+                 * server mengembalikan error RLS.
+                 *
+                 * Secara normal pesan ini tidak akan muncul
+                 * lagi karena browser tidak menulis langsung.
+                 */
+
+                if (
+                    String(message)
+                        .toLowerCase()
+                        .includes(
+                            "row-level security"
+                        )
+                ) {
+
+                    message =
+                        "Server masih melakukan operasi langsung yang terkena RLS. Pastikan deployment terbaru api/admin-models.js sudah aktif di Vercel.";
+                }
+
+
+                showAlert(
+                    message,
                     "error"
                 );
-
 
             } finally {
 
@@ -3647,37 +3293,6 @@
                 saveButton.textContent =
                     "Simpan Perubahan";
             }
-        }
-
-
-        /* =====================================================
-           LOGOUT
-        ===================================================== */
-
-        async function logout() {
-
-            try {
-
-                if (
-                    supabase
-                ) {
-
-                    await supabase.auth.signOut();
-                }
-
-            } catch (
-                error
-            ) {
-
-                console.error(
-                    "Logout error:",
-                    error
-                );
-            }
-
-
-            window.location.href =
-                "../login.html";
         }
 
 
@@ -3703,12 +3318,6 @@
         );
 
 
-        logoutButton.addEventListener(
-            "click",
-            logout
-        );
-
-
         statusToggle.addEventListener(
             "change",
             updateStatusText
@@ -3730,8 +3339,6 @@
         /* =====================================================
            INITIALIZE
         ===================================================== */
-
-        setNavigation(false);
 
         updateCreditPreview();
 
