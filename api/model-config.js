@@ -3,17 +3,47 @@
  * GEN-Z.AI
  * MODEL CONFIG API
  * ---------------------------------------------------------
+ * File:
+ *   api/model-config.js
+ *
  * Endpoint:
  *   GET /api/model-config
  *   GET /api/model-config?model_id=grok-imagine/image-to-video
  *
- * Tanggung jawab:
- * - Authenticate user
- * - Membaca model aktif dari tabel `models`
- * - Membaca provider dari tabel `providers`
- * - Memastikan provider aktif
- * - Memuat adapter model dari folder `models/`
- * - Menggabungkan konfigurasi database + adapter
+ * ARSITEKTUR:
+ *
+ *   models/<model-folder>/
+ *          ↓
+ *       index.js
+ *          ↓
+ *       config.js
+ *       parameters.js
+ *       create-task.js
+ *       query-task.js
+ *
+ *   Supabase:
+ *       providers
+ *       models
+ *
+ * MODEL FOLDER ADALAH SOURCE OF TRUTH UNTUK:
+ * - model_id
+ * - model_name
+ * - providerId
+ * - providerName
+ * - type
+ * - API adapter
+ * - parameters
+ * - validation
+ * - createTask
+ * - queryTask
+ *
+ * SUPABASE DIGUNAKAN UNTUK:
+ * - models.id
+ * - provider database
+ * - status administratif
+ * - pricing
+ * - description
+ * - konfigurasi admin lainnya
  *
  * Tidak menggunakan:
  * - kie_models
@@ -29,610 +59,1735 @@
 
 import grokImagineImageToVideo from "../models/grok-imagine-image-to-video/index.js";
 
+
 /* =========================================================
    ENVIRONMENT
-========================================================= */
+   ========================================================= */
 
-const SUPABASE_URL = String(process.env.SUPABASE_URL || "")
-    .trim()
-    .replace(/\/+$/, "");
+const SUPABASE_URL =
+    String(
+        process.env.SUPABASE_URL || ""
+    )
+        .trim()
+        .replace(
+            /\/+$/,
+            ""
+        );
 
-const SUPABASE_SERVICE_ROLE_KEY = String(
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-).trim();
+
+const SUPABASE_SERVICE_ROLE_KEY =
+    String(
+        process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    ).trim();
+
 
 /* =========================================================
    MODEL REGISTRY
-========================================================= */
+   ---------------------------------------------------------
+   Satu tempat untuk mendaftarkan adapter model.
 
-/*
- * Registry ini sengaja statis untuk adapter yang tersedia
- * di source code.
- *
- * Data model tetap berasal dari Supabase.
- *
- * Artinya:
- * - Supabase menentukan model yang aktif
- * - Registry menentukan adapter API yang digunakan
- */
-const MODEL_REGISTRY = {
-    "grok-imagine/image-to-video": grokImagineImageToVideo
-};
+   Untuk menambah model berikutnya:
+
+   import model2 from "../models/model-folder/index.js";
+
+   lalu:
+
+   "model-2/id": model2
+
+   Jangan mengembalikan arsitektur lama.
+   ========================================================= */
+
+const MODEL_REGISTRY = Object.freeze({
+
+    "grok-imagine/image-to-video":
+        grokImagineImageToVideo
+
+});
+
 
 /* =========================================================
    RESPONSE HELPERS
-========================================================= */
+   ========================================================= */
 
-function json(res, statusCode, data) {
-    res.statusCode = statusCode;
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.setHeader("Cache-Control", "no-store");
+function json(
+    res,
+    statusCode,
+    data
+) {
 
-    return res.end(JSON.stringify(data));
+    res.statusCode =
+        statusCode;
+
+
+    res.setHeader(
+        "Content-Type",
+        "application/json; charset=utf-8"
+    );
+
+
+    res.setHeader(
+        "Cache-Control",
+        "no-store"
+    );
+
+
+    return res.end(
+        JSON.stringify(
+            data
+        )
+    );
+
 }
 
-function success(res, data = {}) {
-    return json(res, 200, {
-        success: true,
-        ...data
-    });
+
+function success(
+    res,
+    data = {}
+) {
+
+    return json(
+        res,
+        200,
+        {
+            success: true,
+            ...data
+        }
+    );
+
 }
 
-function error(res, statusCode, message, extra = {}) {
-    return json(res, statusCode, {
-        success: false,
-        error: message,
-        ...extra
-    });
+
+function error(
+    res,
+    statusCode,
+    message,
+    extra = {}
+) {
+
+    return json(
+        res,
+        statusCode,
+        {
+            success: false,
+            error: message,
+            ...extra
+        }
+    );
+
 }
+
 
 /* =========================================================
    SUPABASE REQUEST
-========================================================= */
+   ========================================================= */
 
-async function supabaseRequest(path, options = {}) {
+async function supabaseRequest(
+    path,
+    options = {}
+) {
+
     if (!SUPABASE_URL) {
-        throw new Error("SUPABASE_URL is not configured");
+
+        throw new Error(
+            "SUPABASE_URL is not configured"
+        );
+
     }
+
 
     if (!SUPABASE_SERVICE_ROLE_KEY) {
-        throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured");
+
+        throw new Error(
+            "SUPABASE_SERVICE_ROLE_KEY is not configured"
+        );
+
     }
 
-    const response = await fetch(`${SUPABASE_URL}${path}`, {
-        ...options,
-        headers: {
-            apikey: SUPABASE_SERVICE_ROLE_KEY,
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            "Content-Type": "application/json",
-            ...(options.headers || {})
-        }
-    });
 
-    const text = await response.text();
+    const response =
+        await fetch(
+            `${SUPABASE_URL}${path}`,
+            {
+                ...options,
+
+                headers: {
+
+                    apikey:
+                        SUPABASE_SERVICE_ROLE_KEY,
+
+                    Authorization:
+                        `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    ...(options.headers || {})
+
+                }
+
+            }
+        );
+
+
+    const text =
+        await response.text();
+
 
     let data = null;
 
+
     if (text) {
+
         try {
-            data = JSON.parse(text);
+
+            data =
+                JSON.parse(
+                    text
+                );
+
         } catch {
-            data = text;
+
+            data =
+                text;
+
         }
+
     }
+
 
     if (!response.ok) {
+
         const message =
-            typeof data === "object" && data !== null
-                ? data.message ||
-                  data.error_description ||
-                  data.error ||
-                  `Supabase request failed with status ${response.status}`
+
+            typeof data ===
+                "object" &&
+            data !== null
+
+                ? (
+                    data.message ||
+                    data.error_description ||
+                    data.error ||
+                    `Supabase request failed with status ${response.status}`
+                )
+
                 : `Supabase request failed with status ${response.status}`;
 
-        const err = new Error(message);
-        err.status = response.status;
-        err.data = data;
+
+        const err =
+            new Error(
+                message
+            );
+
+
+        err.status =
+            response.status;
+
+
+        err.data =
+            data;
+
 
         throw err;
+
     }
 
+
     return data;
+
 }
+
 
 /* =========================================================
    AUTHENTICATE USER
-========================================================= */
+   ========================================================= */
 
-async function authenticateUser(req) {
-    const authorization = String(
-        req.headers?.authorization ||
-        req.headers?.Authorization ||
-        ""
-    ).trim();
+async function authenticateUser(
+    req
+) {
+
+    const authorization =
+        String(
+            req.headers?.authorization ||
+            req.headers?.Authorization ||
+            ""
+        ).trim();
+
 
     if (!authorization) {
+
         throw Object.assign(
-            new Error("Authorization header is required"),
-            { status: 401 }
+            new Error(
+                "Authorization header is required"
+            ),
+            {
+                status: 401
+            }
         );
+
     }
 
-    const match = authorization.match(/^Bearer\s+(.+)$/i);
+
+    const match =
+        authorization.match(
+            /^Bearer\s+(.+)$/i
+        );
+
 
     if (!match) {
+
         throw Object.assign(
-            new Error("Invalid Authorization header"),
-            { status: 401 }
+            new Error(
+                "Invalid Authorization header"
+            ),
+            {
+                status: 401
+            }
         );
+
     }
 
-    const accessToken = match[1].trim();
+
+    const accessToken =
+        match[1].trim();
+
 
     if (!accessToken) {
+
         throw Object.assign(
-            new Error("Access token is missing"),
-            { status: 401 }
+            new Error(
+                "Access token is missing"
+            ),
+            {
+                status: 401
+            }
         );
+
     }
 
-    const user = await supabaseRequest("/auth/v1/user", {
-        method: "GET",
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            apikey: SUPABASE_SERVICE_ROLE_KEY
-        }
-    });
 
-    if (!user || !user.id) {
-        throw Object.assign(
-            new Error("Invalid or expired session"),
-            { status: 401 }
+    const user =
+        await supabaseRequest(
+            "/auth/v1/user",
+            {
+                method: "GET",
+
+                headers: {
+
+                    Authorization:
+                        `Bearer ${accessToken}`,
+
+                    apikey:
+                        SUPABASE_SERVICE_ROLE_KEY
+
+                }
+
+            }
         );
+
+
+    if (
+        !user ||
+        !user.id
+    ) {
+
+        throw Object.assign(
+            new Error(
+                "Invalid or expired session"
+            ),
+            {
+                status: 401
+            }
+        );
+
     }
+
 
     return user;
+
 }
+
 
 /* =========================================================
    QUERY PARAMETER
-========================================================= */
+   ========================================================= */
 
-function getQueryModelId(req) {
-    const url = new URL(
-        req.url || "/api/model-config",
-        "http://localhost"
-    );
+function getQueryModelId(
+    req
+) {
 
-    const modelId = url.searchParams.get("model_id");
+    const url =
+        new URL(
+            req.url ||
+                "/api/model-config",
+
+            "http://localhost"
+        );
+
+
+    const modelId =
+        url.searchParams.get(
+            "model_id"
+        );
+
 
     if (!modelId) {
+
         return null;
+
     }
 
+
     return modelId.trim();
+
 }
+
 
 /* =========================================================
    ARRAY NORMALIZER
-========================================================= */
+   ========================================================= */
 
-function normalizeArray(value) {
-    if (Array.isArray(value)) {
-        return value;
+function normalizeArray(
+    value
+) {
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return [
+            ...new Set(
+                value
+                    .map(
+                        item =>
+                            String(
+                                item ??
+                                ""
+                            ).trim()
+                    )
+                    .filter(Boolean)
+            )
+        ];
+
     }
 
-    if (value === null || value === undefined) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
         return [];
+
     }
 
-    if (typeof value === "string") {
-        const trimmed = value.trim();
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        const trimmed =
+            value.trim();
+
 
         if (!trimmed) {
+
             return [];
+
         }
 
+
         /*
-         * PostgreSQL array:
+         * PostgreSQL array.
+         *
          * {"2:3","9:16"}
          */
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-            const content = trimmed.slice(1, -1).trim();
+
+        if (
+            trimmed.startsWith("{") &&
+            trimmed.endsWith("}")
+        ) {
+
+            const content =
+                trimmed.slice(
+                    1,
+                    -1
+                ).trim();
+
 
             if (!content) {
+
                 return [];
+
             }
 
-            return content
-                .split(",")
-                .map(item =>
-                    item
-                        .trim()
-                        .replace(/^"(.*)"$/, "$1")
+
+            return [
+                ...new Set(
+                    content
+                        .split(",")
+                        .map(
+                            item =>
+                                item
+                                    .trim()
+                                    .replace(
+                                        /^"(.*)"$/,
+                                        "$1"
+                                    )
+                        )
+                        .filter(Boolean)
                 )
-                .filter(Boolean);
+            ];
+
         }
 
+
         /*
-         * JSON array
+         * JSON array.
          */
+
         if (
             trimmed.startsWith("[") &&
             trimmed.endsWith("]")
         ) {
-            try {
-                const parsed = JSON.parse(trimmed);
 
-                if (Array.isArray(parsed)) {
-                    return parsed;
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        trimmed
+                    );
+
+
+                if (
+                    Array.isArray(
+                        parsed
+                    )
+                ) {
+
+                    return normalizeArray(
+                        parsed
+                    );
+
                 }
+
             } catch {
-                // lanjut ke comma separated
+
+                /* fallback ke comma separated */
+
             }
+
         }
 
+
         /*
-         * Comma separated
+         * Comma separated.
          */
-        return trimmed
-            .split(",")
-            .map(item => item.trim())
-            .filter(Boolean);
+
+        return [
+            ...new Set(
+                trimmed
+                    .split(",")
+                    .map(
+                        item =>
+                            item.trim()
+                    )
+                    .filter(Boolean)
+            )
+        ];
+
     }
 
+
     return [];
+
 }
+
 
 /* =========================================================
    NUMBER NORMALIZER
-========================================================= */
+   ========================================================= */
 
-function normalizeNumber(value) {
+function normalizeNumber(
+    value,
+    fallback = null
+) {
+
     if (
         value === null ||
         value === undefined ||
         value === ""
     ) {
-        return null;
+
+        return fallback;
+
     }
 
-    const number = Number(value);
 
-    return Number.isFinite(number) ? number : null;
+    const number =
+        Number(
+            value
+        );
+
+
+    return Number.isFinite(
+        number
+    )
+        ? number
+        : fallback;
+
 }
 
-/* =========================================================
-   BOOLEAN NORMALIZER
-========================================================= */
-
-function normalizeBoolean(value, fallback = false) {
-    if (typeof value === "boolean") {
-        return value;
-    }
-
-    if (typeof value === "string") {
-        const normalized = value.trim().toLowerCase();
-
-        if (normalized === "true") {
-            return true;
-        }
-
-        if (normalized === "false") {
-            return false;
-        }
-    }
-
-    if (typeof value === "number") {
-        return value !== 0;
-    }
-
-    return fallback;
-}
 
 /* =========================================================
    PARAMETER SERIALIZER
-========================================================= */
+   ---------------------------------------------------------
+   Function seperti validate() tidak boleh dikirim
+   ke browser.
+   ========================================================= */
 
-/*
- * Adapter parameter metadata harus aman dikirim ke browser.
- *
- * Function validator / function callback tidak dikirim.
- */
-function serializeParameters(parameters) {
-    if (!parameters) {
-        return [];
-    }
+function serializeParameters(
+    parameters
+) {
 
-    /*
-     * Jika adapter mengembalikan array parameter.
-     */
-    if (Array.isArray(parameters)) {
-        return parameters.map(parameter => {
-            if (
-                !parameter ||
-                typeof parameter !== "object"
-            ) {
-                return parameter;
-            }
-
-            const output = {};
-
-            for (const [key, value] of Object.entries(parameter)) {
-                if (typeof value === "function") {
-                    continue;
-                }
-
-                if (key === "validate") {
-                    continue;
-                }
-
-                output[key] = value;
-            }
-
-            return output;
-        });
-    }
-
-    /*
-     * Jika adapter menggunakan object:
-     *
-     * {
-     *   prompt: {...},
-     *   duration: {...}
-     * }
-     */
     if (
-        typeof parameters === "object" &&
-        !Array.isArray(parameters)
+        !parameters
     ) {
+
+        return {};
+
+    }
+
+
+    if (
+        Array.isArray(
+            parameters
+        )
+    ) {
+
+        return parameters.map(
+            parameter => {
+
+                if (
+                    !parameter ||
+                    typeof parameter !==
+                        "object"
+                ) {
+
+                    return parameter;
+
+                }
+
+
+                const output = {};
+
+
+                for (
+                    const [
+                        key,
+                        value
+                    ]
+                    of Object.entries(
+                        parameter
+                    )
+                ) {
+
+                    if (
+                        typeof value ===
+                        "function"
+                    ) {
+
+                        continue;
+
+                    }
+
+
+                    if (
+                        key ===
+                        "validate"
+                    ) {
+
+                        continue;
+
+                    }
+
+
+                    output[key] =
+                        value;
+
+                }
+
+
+                return output;
+
+            }
+        );
+
+    }
+
+
+    if (
+        typeof parameters ===
+        "object"
+    ) {
+
         const output = {};
 
-        for (const [key, value] of Object.entries(parameters)) {
-            if (typeof value === "function") {
+
+        for (
+            const [
+                key,
+                value
+            ]
+            of Object.entries(
+                parameters
+            )
+        ) {
+
+            if (
+                typeof value ===
+                "function"
+            ) {
+
                 continue;
+
             }
+
 
             if (
                 value &&
-                typeof value === "object" &&
-                !Array.isArray(value)
+                typeof value ===
+                    "object" &&
+                !Array.isArray(
+                    value
+                )
             ) {
+
                 const item = {};
 
-                for (const [subKey, subValue] of Object.entries(value)) {
-                    if (typeof subValue === "function") {
+
+                for (
+                    const [
+                        subKey,
+                        subValue
+                    ]
+                    of Object.entries(
+                        value
+                    )
+                ) {
+
+                    if (
+                        typeof subValue ===
+                        "function"
+                    ) {
+
                         continue;
+
                     }
 
-                    if (subKey === "validate") {
+
+                    if (
+                        subKey ===
+                        "validate"
+                    ) {
+
                         continue;
+
                     }
 
-                    item[subKey] = subValue;
+
+                    item[subKey] =
+                        subValue;
+
                 }
 
-                output[key] = item;
+
+                output[key] =
+                    item;
+
+
                 continue;
+
             }
 
-            output[key] = value;
+
+            output[key] =
+                value;
+
         }
+
 
         return output;
+
     }
 
-    return [];
+
+    return {};
+
 }
+
 
 /* =========================================================
-   LOAD MODEL
-========================================================= */
+   MODEL REGISTRY LOOKUP
+   ========================================================= */
 
-async function loadModel(modelId) {
-    /*
-     * Jangan gunakan:
-     *
-     * model_id=eq=${encodeURIComponent(modelId)}
-     *
-     * karena supabaseRequest menggunakan URL secara langsung.
-     *
-     * encodeURIComponent di sini bisa menyebabkan:
-     *
-     * %2F
-     *
-     * lalu encoding ulang menjadi:
-     *
-     * %252F
-     *
-     * Manusia menciptakan URL encoding lalu membuat URL
-     * encoding lagi. Sebuah tradisi teknologi yang tak perlu.
-     */
+function getModelAdapter(
+    modelId
+) {
 
-    const params = new URLSearchParams();
+    if (!modelId) {
 
-    params.set("select", "*");
-    params.set("status", "eq.active");
-
-    /*
-     * URLSearchParams akan melakukan encoding sendiri.
-     */
-    params.set("model_id", `eq.${modelId}`);
-
-    params.set("limit", "1");
-
-    const models = await supabaseRequest(
-        `/rest/v1/models?${params.toString()}`,
-        {
-            method: "GET"
-        }
-    );
-
-    if (!Array.isArray(models) || models.length === 0) {
         return null;
+
     }
 
-    return models[0];
+
+    return (
+        MODEL_REGISTRY[
+            modelId
+        ] ||
+
+        null
+    );
+
 }
+
+
+/* =========================================================
+   LOAD OPTIONAL DATABASE MODEL
+   ---------------------------------------------------------
+   Model folder tetap valid walaupun row models belum
+   tersedia.
+
+   Jika row ada:
+   - pricing dipakai
+   - description dipakai
+   - status dipakai
+   - provider_id dipakai
+
+   Jika row belum ada:
+   - identity tetap berasal dari folder
+   - parameter tetap berasal dari folder
+   - provider tetap berasal dari config model
+   ========================================================= */
+
+async function loadDatabaseModel(
+    modelId
+) {
+
+    if (
+        !SUPABASE_URL ||
+        !SUPABASE_SERVICE_ROLE_KEY
+    ) {
+
+        return null;
+
+    }
+
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "select",
+        "*"
+    );
+
+
+    /*
+     * URLSearchParams melakukan encoding
+     * sendiri.
+     *
+     * Jangan encodeURIComponent() lagi.
+     */
+
+    params.set(
+        "model_id",
+        `eq.${modelId}`
+    );
+
+
+    params.set(
+        "limit",
+        "1"
+    );
+
+
+    try {
+
+        const rows =
+            await supabaseRequest(
+                `/rest/v1/models?${params.toString()}`,
+                {
+                    method: "GET"
+                }
+            );
+
+
+        if (
+            !Array.isArray(
+                rows
+            ) ||
+            !rows.length
+        ) {
+
+            return null;
+
+        }
+
+
+        return rows[0];
+
+    } catch (err) {
+
+        /*
+         * Model folder tidak boleh mati hanya
+         * karena konfigurasi administratif DB
+         * belum tersedia.
+         */
+
+        console.warn(
+            "[model-config] Optional database model load failed:",
+            err
+        );
+
+
+        return null;
+
+    }
+
+}
+
 
 /* =========================================================
    LOAD PROVIDER
-========================================================= */
+   ========================================================= */
 
-async function loadProvider(providerDatabaseId) {
-    if (!providerDatabaseId) {
+async function loadProviderByDatabaseId(
+    providerDatabaseId
+) {
+
+    if (
+        !providerDatabaseId
+    ) {
+
         return null;
+
     }
 
-    const params = new URLSearchParams();
 
-    params.set("select", "*");
-    params.set("id", `eq.${providerDatabaseId}`);
-    params.set("limit", "1");
+    const params =
+        new URLSearchParams();
 
-    const providers = await supabaseRequest(
-        `/rest/v1/providers?${params.toString()}`,
-        {
-            method: "GET"
-        }
+
+    params.set(
+        "select",
+        "*"
     );
 
-    if (!Array.isArray(providers) || providers.length === 0) {
+
+    params.set(
+        "id",
+        `eq.${providerDatabaseId}`
+    );
+
+
+    params.set(
+        "limit",
+        "1"
+    );
+
+
+    const providers =
+        await supabaseRequest(
+            `/rest/v1/providers?${params.toString()}`,
+            {
+                method: "GET"
+            }
+        );
+
+
+    if (
+        !Array.isArray(
+            providers
+        ) ||
+        !providers.length
+    ) {
+
         return null;
+
     }
+
 
     return providers[0];
+
 }
 
+
 /* =========================================================
-   BUILD MODEL RESPONSE
-========================================================= */
+   LOAD PROVIDER BY PROVIDER CODE
+   ---------------------------------------------------------
+   Fallback ketika models row belum ada.
+   ========================================================= */
 
-function buildModelResponse(model, provider, adapter) {
-    const adapterConfig = adapter?.config || {};
-    const adapterParameters = adapter?.parameters || [];
+async function loadProviderByCode(
+    providerCode
+) {
 
-    const supportedRatios = normalizeArray(
-        model.supported_ratios
+    if (
+        !providerCode
+    ) {
+
+        return null;
+
+    }
+
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "select",
+        "*"
     );
 
-    const supportedResolutions = normalizeArray(
-        model.supported_resolutions
+
+    params.set(
+        "provider_id",
+        `eq.${providerCode}`
     );
 
-    const minDuration = normalizeNumber(
-        model.min_duration
+
+    params.set(
+        "limit",
+        "1"
     );
 
-    const maxDuration = normalizeNumber(
-        model.max_duration
-    );
 
-    const creditCost = normalizeNumber(
-        model.credit_cost
-    );
+    const providers =
+        await supabaseRequest(
+            `/rest/v1/providers?${params.toString()}`,
+            {
+                method: "GET"
+            }
+        );
 
-    const discountPercent = normalizeNumber(
-        model.discount_percent
-    );
 
-    const creditFinal = normalizeNumber(
-        model.credit_final
-    );
+    if (
+        !Array.isArray(
+            providers
+        ) ||
+        !providers.length
+    ) {
+
+        return null;
+
+    }
+
+
+    return providers[0];
+
+}
+
+
+/* =========================================================
+   BUILD MODEL CONFIG
+   ========================================================= */
+
+function buildModelConfig(
+    adapter,
+    databaseModel = null,
+    provider = null
+) {
+
+    const config =
+        adapter?.config ||
+        {};
+
+
+    const parameters =
+        adapter?.parameters ||
+        {};
+
+
+    const modelId =
+        String(
+            config.id ||
+            databaseModel?.model_id ||
+            ""
+        ).trim();
+
+
+    const modelName =
+        String(
+            config.name ||
+            databaseModel?.model_name ||
+            modelId
+        ).trim();
+
+
+    const providerId =
+        String(
+            config.providerId ||
+            provider?.provider_id ||
+            ""
+        ).trim();
+
+
+    const providerName =
+        String(
+            config.providerName ||
+            provider?.provider_name ||
+            provider?.name ||
+            providerId ||
+            ""
+        ).trim();
+
+
+    /*
+     * Parameter enum dari model folder.
+     *
+     * Ini menjadi source of truth untuk
+     * ratio dan resolution.
+     */
+
+    const ratioParameter =
+        parameters.aspect_ratio ||
+        null;
+
+
+    const resolutionParameter =
+        parameters.resolution ||
+        null;
+
+
+    const durationParameter =
+        parameters.duration ||
+        null;
+
+
+    const folderRatios =
+        normalizeArray(
+            ratioParameter?.enum
+        );
+
+
+    const folderResolutions =
+        normalizeArray(
+            resolutionParameter?.enum
+        );
+
+
+    /*
+     * Jika Supabase memiliki override administratif,
+     * gunakan data DB.
+     *
+     * Namun jika kosong, gunakan parameter folder.
+     */
+
+    const supportedRatios =
+        normalizeArray(
+            databaseModel?.supported_ratios
+        );
+
+
+    const supportedResolutions =
+        normalizeArray(
+            databaseModel?.supported_resolutions
+        );
+
+
+    const finalRatios =
+        supportedRatios.length
+            ? supportedRatios
+            : folderRatios;
+
+
+    const finalResolutions =
+        supportedResolutions.length
+            ? supportedResolutions
+            : folderResolutions;
+
+
+    /*
+     * Duration:
+     *
+     * Model folder:
+     * min = 6
+     * max = 30
+     *
+     * Supabase dapat melengkapi/override
+     * jika memang sudah dikonfigurasi.
+     */
+
+    const folderMinDuration =
+        normalizeNumber(
+            durationParameter?.min
+        );
+
+
+    const folderMaxDuration =
+        normalizeNumber(
+            durationParameter?.max
+        );
+
+
+    const dbMinDuration =
+        normalizeNumber(
+            databaseModel?.min_duration
+        );
+
+
+    const dbMaxDuration =
+        normalizeNumber(
+            databaseModel?.max_duration
+        );
+
+
+    const minDuration =
+        dbMinDuration !== null
+            ? dbMinDuration
+            : folderMinDuration;
+
+
+    const maxDuration =
+        dbMaxDuration !== null
+            ? dbMaxDuration
+            : folderMaxDuration;
+
+
+    /*
+     * Pricing hanya berasal dari Supabase.
+     */
+
+    const creditCost =
+        normalizeNumber(
+            databaseModel?.credit_cost,
+            0
+        );
+
+
+    const discountPercent =
+        normalizeNumber(
+            databaseModel?.discount_percent,
+            0
+        );
+
+
+    let creditFinal =
+        normalizeNumber(
+            databaseModel?.credit_final
+        );
+
+
+    if (
+        creditFinal === null
+    ) {
+
+        creditFinal =
+            discountPercent > 0
+
+                ? creditCost -
+                    (
+                        creditCost *
+                        discountPercent /
+                        100
+                    )
+
+                : creditCost;
+
+    }
+
+
+    /*
+     * Status:
+     *
+     * Jika belum ada row DB,
+     * adapter dianggap tersedia.
+     *
+     * Status provider tetap harus active
+     * jika provider DB ditemukan.
+     */
+
+    const modelStatus =
+        String(
+            databaseModel?.status ||
+            "active"
+        )
+            .trim()
+            .toLowerCase();
+
 
     return {
-        id: model.id,
 
-        model_id: model.model_id,
+        /*
+         * Database ID boleh null.
+         */
+
+        id:
+            databaseModel?.id ||
+            null,
+
+
+        /*
+         * Model identity.
+         */
+
+        model_id:
+            modelId,
 
         model_name:
-            model.model_name ||
-            adapterConfig.name ||
-            model.model_id,
+            modelName,
+
 
         description:
-            model.description ||
-            "",
+            String(
+                databaseModel?.description ||
+                config.description ||
+                ""
+            ).trim(),
+
+
+        /*
+         * Provider.
+         */
 
         provider: {
-            id: provider?.id || null,
 
-            provider_id:
-                provider?.provider_id ||
+            id:
+                provider?.id ||
+                databaseModel?.provider_id ||
                 null,
 
-            provider_name:
-                provider?.provider_name ||
-                provider?.name ||
-                adapterConfig.providerName ||
-                "",
+            provider_id:
+                providerId,
 
-            description:
-                provider?.description ||
-                "",
+            provider_name:
+                providerName,
 
             status:
-                provider?.status ||
-                ""
+                String(
+                    provider?.status ||
+                    "active"
+                )
+                    .trim()
+                    .toLowerCase()
+
         },
+
+
+        /*
+         * Pricing.
+         */
 
         pricing: {
-            credit_cost: creditCost,
-            discount_percent: discountPercent,
-            credit_final: creditFinal
+
+            credit_cost:
+                creditCost,
+
+            discount_percent:
+                discountPercent,
+
+            credit_final:
+                creditFinal
+
         },
+
+
+        /*
+         * Duration.
+         */
 
         duration: {
-            min: minDuration,
-            max: maxDuration
+
+            min:
+                minDuration,
+
+            max:
+                maxDuration
+
         },
 
-        supported_ratios: supportedRatios,
 
-        supported_resolutions: supportedResolutions,
+        /*
+         * Parameter support.
+         */
 
-        status: model.status || "inactive",
+        supported_ratios:
+            finalRatios,
+
+        supported_resolutions:
+            finalResolutions,
+
+
+        /*
+         * Model type.
+         */
 
         type:
-            adapterConfig.type ||
+            config.type ||
             "unknown",
 
-        parameters: serializeParameters(
-            adapterParameters
-        ),
+
+        /*
+         * Status.
+         */
+
+        status:
+            modelStatus,
+
+
+        /*
+         * Model folder.
+         */
+
+        source:
+            "model-folder",
+
+
+        /*
+         * Parameter definitions.
+         *
+         * Ini yang dipakai generation UI.
+         */
+
+        parameters:
+            serializeParameters(
+                parameters
+            ),
+
+
+        /*
+         * Adapter API metadata.
+         */
 
         api: {
+
             createTask:
-                adapterConfig.api?.createTask ||
+                config.api?.createTask ||
                 null,
 
             queryTask:
-                adapterConfig.api?.queryTask ||
+                config.api?.queryTask ||
                 null
+
         }
+
     };
+
 }
+
+
+/* =========================================================
+   LOAD ONE MODEL
+   ========================================================= */
+
+async function resolveModel(
+    modelId
+) {
+
+    const adapter =
+        getModelAdapter(
+            modelId
+        );
+
+
+    if (!adapter) {
+
+        return {
+
+            error:
+                "Model adapter is not registered"
+
+        };
+
+    }
+
+
+    const config =
+        adapter.config ||
+        {};
+
+
+    /*
+     * Ambil konfigurasi administratif
+     * dari Supabase bila tersedia.
+     */
+
+    const databaseModel =
+        await loadDatabaseModel(
+            modelId
+        );
+
+
+    /*
+     * Provider code dari model folder
+     * adalah sumber utama.
+     */
+
+    const adapterProviderCode =
+        String(
+            config.providerId ||
+            ""
+        ).trim();
+
+
+    let provider =
+        null;
+
+
+    /*
+     * Jika row models sudah ada,
+     * gunakan provider_id FK.
+     */
+
+    if (
+        databaseModel?.provider_id
+    ) {
+
+        provider =
+            await loadProviderByDatabaseId(
+                databaseModel.provider_id
+            );
+
+    }
+
+
+    /*
+     * Jika belum ditemukan,
+     * gunakan provider code dari model folder.
+     */
+
+    if (
+        !provider &&
+        adapterProviderCode
+    ) {
+
+        provider =
+            await loadProviderByCode(
+                adapterProviderCode
+            );
+
+    }
+
+
+    /*
+     * Jika provider tersedia di Supabase,
+     * pastikan provider cocok.
+     */
+
+    if (
+        provider &&
+        provider.provider_id &&
+        adapterProviderCode &&
+        provider.provider_id !==
+            adapterProviderCode
+    ) {
+
+        return {
+
+            error:
+                "Model provider configuration mismatch",
+
+            details: {
+
+                model_id:
+                    modelId,
+
+                model_folder_provider:
+                    adapterProviderCode,
+
+                database_provider:
+                    provider.provider_id
+
+            }
+
+        };
+
+    }
+
+
+    /*
+     * Provider wajib ada untuk model yang
+     * akan digunakan.
+     */
+
+    if (!provider) {
+
+        return {
+
+            error:
+                "Provider not found",
+
+            details: {
+
+                model_id:
+                    modelId,
+
+                provider_id:
+                    adapterProviderCode ||
+                    null
+
+            }
+
+        };
+
+    }
+
+
+    /*
+     * Provider harus active.
+     */
+
+    if (
+        String(
+            provider.status ||
+            ""
+        )
+            .trim()
+            .toLowerCase() !==
+            "active"
+    ) {
+
+        return {
+
+            error:
+                "Model provider is not active",
+
+            details: {
+
+                model_id:
+                    modelId,
+
+                provider_id:
+                    provider.provider_id ||
+                    null,
+
+                provider_status:
+                    provider.status ||
+                    null
+
+            }
+
+        };
+
+    }
+
+
+    return {
+
+        model:
+            buildModelConfig(
+                adapter,
+                databaseModel,
+                provider
+            )
+
+    };
+
+}
+
+
+/* =========================================================
+   LOAD ALL REGISTERED MODELS
+   ========================================================= */
+
+async function loadAllModels() {
+
+    const result = [];
+
+
+    for (
+        const [
+            modelId,
+            adapter
+        ]
+        of Object.entries(
+            MODEL_REGISTRY
+        )
+    ) {
+
+        try {
+
+            const resolved =
+                await resolveModel(
+                    modelId
+                );
+
+
+            if (
+                resolved?.model
+            ) {
+
+                result.push(
+                    resolved.model
+                );
+
+            } else {
+
+                console.warn(
+                    `[model-config] Model skipped: ${modelId}`,
+                    resolved?.error ||
+                    "Unknown error"
+                );
+
+            }
+
+        } catch (err) {
+
+            console.error(
+                `[model-config] Failed resolving ${modelId}:`,
+                err
+            );
+
+        }
+
+    }
+
+
+    return result;
+
+}
+
 
 /* =========================================================
    HANDLER
-========================================================= */
+   ========================================================= */
 
-export default async function handler(req, res) {
+export default async function handler(
+    req,
+    res
+) {
+
     /*
      * -------------------------------------------------------
      * METHOD
      * -------------------------------------------------------
      */
 
-    if (req.method !== "GET") {
-        res.setHeader("Allow", "GET");
+    if (
+        req.method !==
+        "GET"
+    ) {
+
+        res.setHeader(
+            "Allow",
+            "GET"
+        );
+
 
         return error(
             res,
             405,
             "Method not allowed"
         );
+
     }
+
 
     /*
      * -------------------------------------------------------
@@ -641,23 +1796,36 @@ export default async function handler(req, res) {
      */
 
     try {
-        await authenticateUser(req);
+
+        await authenticateUser(
+            req
+        );
+
     } catch (err) {
+
         return error(
             res,
-            err.status || 401,
-            err.message || "Unauthorized"
+            err.status ||
+                401,
+
+            err.message ||
+                "Unauthorized"
         );
+
     }
+
 
     /*
      * -------------------------------------------------------
-     * MODEL ID
+     * REQUESTED MODEL
      * -------------------------------------------------------
      */
 
     const requestedModelId =
-        getQueryModelId(req);
+        getQueryModelId(
+            req
+        );
+
 
     /*
      * -------------------------------------------------------
@@ -665,247 +1833,89 @@ export default async function handler(req, res) {
      * -------------------------------------------------------
      */
 
-    if (requestedModelId) {
-        let model;
+    if (
+        requestedModelId
+    ) {
 
-        try {
-            model = await loadModel(
+        const resolved =
+            await resolveModel(
                 requestedModelId
             );
-        } catch (err) {
-            console.error(
-                "[model-config] Failed to load model:",
-                err
-            );
 
-            return error(
-                res,
-                500,
-                "Failed to load model configuration"
-            );
-        }
 
-        if (!model) {
-            return error(
-                res,
-                404,
-                "Active model not found",
-                {
-                    model_id: requestedModelId
-                }
-            );
-        }
-
-        /*
-         * Adapter harus tersedia di source code.
-         */
-        const adapter =
-            MODEL_REGISTRY[model.model_id];
-
-        if (!adapter) {
-            return error(
-                res,
-                500,
-                "Model adapter is not registered",
-                {
-                    model_id: model.model_id
-                }
-            );
-        }
-
-        /*
-         * Provider berdasarkan:
-         *
-         * models.provider_id
-         *       ↓
-         * providers.id
-         */
-        let provider;
-
-        try {
-            provider = await loadProvider(
-                model.provider_id
-            );
-        } catch (err) {
-            console.error(
-                "[model-config] Failed to load provider:",
-                err
-            );
-
-            return error(
-                res,
-                500,
-                "Failed to load provider configuration"
-            );
-        }
-
-        if (!provider) {
-            return error(
-                res,
-                404,
-                "Provider not found",
-                {
-                    model_id: model.model_id
-                }
-            );
-        }
-
-        /*
-         * Model aktif tetapi provider tidak aktif
-         * tidak boleh digunakan.
-         */
         if (
-            String(provider.status || "")
-                .toLowerCase() !== "active"
+            resolved?.error
         ) {
+
+            const status =
+                resolved.error ===
+                    "Model adapter is not registered"
+
+                    ? 404
+
+                    : resolved.error ===
+                        "Model provider is not active"
+
+                        ? 409
+
+                        : 404;
+
+
             return error(
                 res,
-                409,
-                "Model provider is not active",
-                {
-                    model_id: model.model_id,
-                    provider_id:
-                        provider.provider_id ||
-                        null
-                }
+                status,
+                resolved.error,
+                resolved.details ||
+                    {}
             );
+
         }
 
-        /*
-         * Pastikan adapter menggunakan provider
-         * yang sama dengan database.
-         */
-        if (
-            adapter.config?.providerId &&
-            provider.provider_id &&
-            adapter.config.providerId !==
-                provider.provider_id
-        ) {
-            return error(
-                res,
-                409,
-                "Model provider configuration mismatch",
-                {
-                    model_id: model.model_id,
-                    database_provider_id:
-                        provider.provider_id,
-                    adapter_provider_id:
-                        adapter.config.providerId
-                }
-            );
-        }
 
         return success(
             res,
             {
-                model: buildModelResponse(
-                    model,
-                    provider,
-                    adapter
-                )
+                model:
+                    resolved.model
             }
         );
+
     }
+
 
     /*
      * -------------------------------------------------------
-     * ALL ACTIVE MODELS
+     * ALL REGISTERED MODELS
      * -------------------------------------------------------
-     *
-     * Dipakai oleh halaman yang membutuhkan daftar model.
      */
 
     try {
-        const params = new URLSearchParams();
 
-        params.set("select", "*");
-        params.set("status", "eq.active");
-        params.set("order", "model_name.asc");
+        const models =
+            await loadAllModels();
 
-        const models = await supabaseRequest(
-            `/rest/v1/models?${params.toString()}`,
+
+        return success(
+            res,
             {
-                method: "GET"
+                models
             }
         );
 
-        if (!Array.isArray(models)) {
-            return success(res, {
-                models: []
-            });
-        }
-
-        const result = [];
-
-        for (const model of models) {
-            const adapter =
-                MODEL_REGISTRY[model.model_id];
-
-            /*
-             * Model database tanpa adapter tidak
-             * ditampilkan sebagai model siap generate.
-             */
-            if (!adapter) {
-                continue;
-            }
-
-            let provider = null;
-
-            try {
-                provider = await loadProvider(
-                    model.provider_id
-                );
-            } catch (err) {
-                console.error(
-                    `[model-config] Failed loading provider for ${model.model_id}:`,
-                    err
-                );
-
-                continue;
-            }
-
-            if (!provider) {
-                continue;
-            }
-
-            if (
-                String(provider.status || "")
-                    .toLowerCase() !== "active"
-            ) {
-                continue;
-            }
-
-            if (
-                adapter.config?.providerId &&
-                provider.provider_id &&
-                adapter.config.providerId !==
-                    provider.provider_id
-            ) {
-                continue;
-            }
-
-            result.push(
-                buildModelResponse(
-                    model,
-                    provider,
-                    adapter
-                )
-            );
-        }
-
-        return success(res, {
-            models: result
-        });
     } catch (err) {
+
         console.error(
-            "[model-config] Failed to load models:",
+            "[model-config] Failed loading models:",
             err
         );
+
 
         return error(
             res,
             500,
             "Failed to load model configurations"
         );
+
     }
+
 }
