@@ -6,12 +6,15 @@
    File:
    admin-control/models/functions/model-form-edit.js
 
-   Fungsi:
+   OWNER:
+   EDIT MODEL
+
+   Tanggung jawab:
    - Mode Edit Model
    - Populate data model ke form
    - Validasi data edit
    - Build payload update
-   - Update model melalui coordinator/API owner
+   - Update model melalui coordinator
    - Sinkronisasi Model ID dengan Model Form Layout
    - Tidak mengambil alih Provider
    - Tidak mengambil alih Pricing
@@ -21,118 +24,198 @@
    - Provider  -> GENZModelsProvider / GENZModelProviderDropdown
    - Model ID  -> GENZModelFormLayout
    - Pricing   -> GENZModelPriceCalculation
-   - CRUD      -> GENZModelFormCoordinator / API form owner
+   - CRUD      -> GENZModelFormCoordinator
+   - Modal     -> GENZModelFormEvents
+
+   PENTING:
+   File ini TIDAK lagi bergantung kepada:
+       window.GENZModelsForm
 ========================================================= */
 
 (function () {
+
     "use strict";
+
+
+    /* =====================================================
+       STATE
+    ===================================================== */
 
     let editingModel = null;
     let initialized = false;
     let saving = false;
+
 
     /* =====================================================
        ELEMENT HELPERS
     ===================================================== */
 
     function getElement(id) {
+
         return document.getElementById(id);
+
     }
 
+
     function firstElement(ids) {
+
         for (const id of ids) {
-            const element = getElement(id);
+
+            const element =
+                getElement(id);
 
             if (element) {
+
                 return element;
+
             }
+
         }
 
         return null;
+
     }
 
+
     function getValue(id) {
-        const element = getElement(id);
+
+        const element =
+            getElement(id);
 
         if (!element) {
+
             return "";
+
         }
 
         return element.value ?? "";
+
     }
 
-    function setValue(id, value) {
-        const element = getElement(id);
+
+    function setValue(
+        id,
+        value
+    ) {
+
+        const element =
+            getElement(id);
 
         if (!element) {
+
             return;
+
         }
+
 
         if (Array.isArray(value)) {
-            element.value = value.join(", ");
+
+            element.value =
+                value.join(", ");
+
             return;
+
         }
 
-        element.value = value ?? "";
+
+        element.value =
+            value ?? "";
+
     }
+
 
     /* =====================================================
        NORMALIZE ARRAY
     ===================================================== */
 
     function normalizeArray(input) {
+
         if (Array.isArray(input)) {
+
             return input
-                .map(item => String(item).trim())
+                .map(item =>
+                    String(item).trim()
+                )
                 .filter(Boolean);
+
         }
+
 
         if (
             input === null ||
             input === undefined ||
             input === ""
         ) {
+
             return [];
+
         }
+
 
         return String(input)
             .split(",")
-            .map(item => item.trim())
+            .map(item =>
+                item.trim()
+            )
             .filter(Boolean);
+
     }
+
 
     /* =====================================================
        NUMBER
     ===================================================== */
 
     function toNumber(value) {
+
         if (
             value === null ||
             value === undefined ||
             value === ""
         ) {
+
             return null;
+
         }
 
-        const number = Number(value);
+
+        const number =
+            Number(value);
+
 
         return Number.isFinite(number)
             ? number
             : null;
+
     }
+
 
     /* =====================================================
        NOTIFICATION
     ===================================================== */
 
-    function notify(message, type = "info") {
+    function notify(
+        message,
+        type = "info"
+    ) {
+
         const existing =
-            getElement("modelNotification") ||
-            getElement("notification") ||
-            getElement("toast");
+            getElement(
+                "modelNotification"
+            ) ||
+            getElement(
+                "notification"
+            ) ||
+            getElement(
+                "toast"
+            );
+
 
         if (existing) {
-            existing.textContent = message;
+
+            existing.textContent =
+                message;
+
 
             existing.classList.remove(
                 "success",
@@ -142,33 +225,63 @@
                 "show"
             );
 
-            existing.classList.add(type);
 
-            requestAnimationFrame(() => {
-                existing.classList.add("show");
-            });
+            existing.classList.add(
+                type
+            );
+
+
+            requestAnimationFrame(
+                () => {
+
+                    existing.classList.add(
+                        "show"
+                    );
+
+                }
+            );
+
 
             window.clearTimeout(
                 existing.__genzTimer
             );
 
+
             existing.__genzTimer =
-                window.setTimeout(() => {
-                    existing.classList.remove("show");
-                }, 3500);
+                window.setTimeout(
+                    () => {
+
+                        existing.classList.remove(
+                            "show"
+                        );
+
+                    },
+                    3500
+                );
+
 
             return;
+
         }
 
-        const toast =
-            document.createElement("div");
 
-        toast.id = "modelNotification";
+        const toast =
+            document.createElement(
+                "div"
+            );
+
+
+        toast.id =
+            "modelNotification";
+
 
         toast.className =
             `genz-model-notification ${type}`;
 
-        toast.textContent = message;
+
+        toast.textContent =
+            message;
+
 
         Object.assign(
             toast.style,
@@ -191,60 +304,106 @@
             }
         );
 
-        document.body.appendChild(toast);
 
-        window.setTimeout(() => {
-            toast.style.opacity = "0";
-            toast.style.transform =
-                "translateY(8px)";
-            toast.style.transition =
-                "opacity .2s ease, transform .2s ease";
+        document.body.appendChild(
+            toast
+        );
 
-            window.setTimeout(() => {
-                toast.remove();
-            }, 250);
-        }, 3500);
+
+        window.setTimeout(
+            () => {
+
+                toast.style.opacity =
+                    "0";
+
+                toast.style.transform =
+                    "translateY(8px)";
+
+                toast.style.transition =
+                    "opacity .2s ease, transform .2s ease";
+
+
+                window.setTimeout(
+                    () => {
+
+                        toast.remove();
+
+                    },
+                    250
+                );
+
+            },
+            3500
+        );
+
     }
+
 
     /* =====================================================
        FORM LAYOUT
     ===================================================== */
 
     function getFormLayout() {
+
         return (
             window.GENZModelFormLayout ||
             null
         );
+
     }
+
 
     /* =====================================================
        PRICE CALCULATION
     ===================================================== */
 
     function getPriceCalculation() {
+
         return (
             window.GENZModelPriceCalculation ||
             null
         );
+
     }
+
 
     /* =====================================================
        PROVIDER MODULE
     ===================================================== */
 
     function getProviderModule() {
+
         return (
             window.GENZModelsProvider ||
             null
         );
+
     }
 
+
     function getProviderDropdown() {
+
         return (
             window.GENZModelProviderDropdown ||
             null
         );
+
     }
+
+
+    /* =====================================================
+       FORM EVENTS
+    ===================================================== */
+
+    function getFormEvents() {
+
+        return (
+            window.GENZModelFormEvents ||
+            null
+        );
+
+    }
+
 
     /* =====================================================
        SET PROVIDER
@@ -253,82 +412,114 @@
     async function setProvider(
         providerIdentifier
     ) {
+
         const value =
             String(
                 providerIdentifier || ""
             ).trim();
 
+
         if (!value) {
+
             return null;
+
         }
+
 
         const dropdown =
             getProviderDropdown();
+
 
         if (
             dropdown &&
             typeof dropdown.setValue ===
                 "function"
         ) {
+
             try {
+
                 const result =
                     await dropdown.setValue(
                         value
                     );
 
+
                 return result || value;
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-edit] Provider dropdown error:",
                     error
                 );
+
             }
+
         }
+
 
         const providerModule =
             getProviderModule();
+
 
         if (
             providerModule &&
             typeof providerModule.getProviderById ===
                 "function"
         ) {
+
             try {
+
                 const provider =
                     providerModule.getProviderById(
                         value
                     );
 
+
                 if (provider) {
+
                     const providerValue =
                         provider.provider_id ||
                         provider.provider ||
                         provider.id ||
                         value;
 
+
                     setValue(
                         "providerId",
                         providerValue
                     );
 
+
                     return provider;
+
                 }
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-edit] Provider lookup error:",
                     error
                 );
+
             }
+
         }
 
+
         const select =
-            getElement("providerId");
+            getElement(
+                "providerId"
+            );
+
 
         if (select) {
+
             const option =
                 Array.from(
                     select.options || []
                 ).find(option => {
+
                     const optionValue =
                         String(
                             option.value || ""
@@ -336,63 +527,73 @@
                             .trim()
                             .toLowerCase();
 
+
                     return (
                         optionValue ===
                         value.toLowerCase()
                     );
+
                 });
 
+
             if (option) {
+
                 select.value =
                     option.value;
 
+
                 return option.value;
+
             }
+
         }
 
+
         return null;
+
     }
+
 
     /* =====================================================
        MODEL ID
-       =====================================================
+    =====================================================
 
-       PENTING:
-
-       modelCodeSearch sekarang dikelola oleh
+       modelCodeSearch dikelola oleh
        GENZModelFormLayout.
 
-       Jangan lagi:
-           search.value = modelId
-
-       karena elemen tersebut sekarang adalah SELECT.
-
-       Layout menjadi satu-satunya owner Model ID.
+       File Edit tidak boleh mengambil alih
+       option Model ID.
     ===================================================== */
 
-    async function setModel(model) {
+    async function setModel(
+        model
+    ) {
+
         if (!model) {
+
             return null;
+
         }
+
 
         const layout =
             getFormLayout();
+
 
         if (
             layout &&
             typeof layout.setModel ===
                 "function"
         ) {
+
             try {
+
                 const result =
                     await layout.setModel(
                         model
                     );
 
-                /*
-                 * Hidden Model Code tetap
-                 * dipastikan sinkron.
-                 */
+
                 const modelId =
                     String(
                         model.model_id ||
@@ -400,31 +601,39 @@
                         ""
                     ).trim();
 
+
                 if (modelId) {
+
                     setValue(
                         "modelCode",
                         modelId
                     );
+
                 }
+
 
                 return (
                     result ||
                     model
                 );
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-edit] Layout setModel error:",
                     error
                 );
+
             }
+
         }
 
-        /*
-         * Fallback kompatibilitas.
 
-         * Hanya digunakan apabila
+        /*
+         * Fallback kompatibilitas jika
          * Model Form Layout belum tersedia.
          */
+
         const modelId =
             String(
                 model.model_id ||
@@ -432,28 +641,37 @@
                 ""
             ).trim();
 
+
         if (!modelId) {
+
             return null;
+
         }
+
 
         setValue(
             "modelCode",
             modelId
         );
 
+
         const search =
             getElement(
                 "modelCodeSearch"
             );
 
+
         if (search) {
+
             /*
-             * Untuk SELECT, pilih option.
+             * SELECT.
              */
+
             if (
                 search.tagName ===
                 "SELECT"
             ) {
+
                 const option =
                     Array.from(
                         search.options || []
@@ -464,68 +682,89 @@
                         modelId
                     );
 
+
                 if (option) {
+
                     search.value =
                         option.value;
+
                 }
+
             } else {
+
                 /*
                  * Legacy INPUT.
                  */
+
                 search.value =
                     modelId;
+
             }
+
         }
 
+
         return model;
+
     }
+
 
     /* =====================================================
        WAIT MODEL SELECT
-    =====================================================
-
-       Provider change dapat menyebabkan
-       Model ID dropdown di-refresh secara
-       asynchronous.
-
-       Fungsi ini memberi waktu satu tick
-       sebelum melakukan setModel.
     ===================================================== */
 
     async function waitForModelLayout() {
+
         const layout =
             getFormLayout();
 
+
         if (!layout) {
+
             return;
+
         }
 
-        await new Promise(resolve => {
-            window.setTimeout(
-                resolve,
-                0
-            );
-        });
+
+        await new Promise(
+            resolve => {
+
+                window.setTimeout(
+                    resolve,
+                    0
+                );
+
+            }
+        );
+
 
         /*
-         * Jika layout memiliki refresh(),
-         * biarkan layout menyelesaikan
-         * sinkronisasi internalnya.
+         * Layout menyelesaikan refresh
+         * internalnya sendiri.
          */
+
         if (
             typeof layout.refresh ===
             "function"
         ) {
+
             try {
+
                 await layout.refresh();
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-edit] Layout refresh warning:",
                     error
                 );
+
             }
+
         }
+
     }
+
 
     /* =====================================================
        SELECTED MODEL INFO
@@ -534,30 +773,40 @@
     function updateSelectedModelInfo(
         model
     ) {
+
         const info =
             getElement(
                 "selectedModelInfo"
             );
 
+
         if (!info) {
+
             return;
+
         }
 
+
         if (!model) {
+
             info.textContent =
                 "Belum ada model dipilih.";
 
             return;
+
         }
+
 
         const name =
             model.model_name ||
             model.model_id ||
             "-";
 
+
         const id =
             model.model_id ||
             "-";
+
 
         info.innerHTML = `
             <strong>Model dipilih:</strong>
@@ -567,13 +816,18 @@
                 ${escapeHtml(id)}
             </span>
         `;
+
     }
+
 
     /* =====================================================
        ESCAPE HTML
     ===================================================== */
 
-    function escapeHtml(value) {
+    function escapeHtml(
+        value
+    ) {
+
         return String(
             value ?? ""
         )
@@ -597,13 +851,16 @@
                 /'/g,
                 "&#039;"
             );
+
     }
+
 
     /* =====================================================
        COLLECT DATA
     ===================================================== */
 
     function collectData() {
+
         let modelId =
             String(
                 getValue(
@@ -611,35 +868,44 @@
                 )
             ).trim();
 
+
         /*
          * Fallback jika hidden Model Code
          * belum tersinkron.
          */
+
         if (!modelId) {
+
             modelId =
                 String(
                     getValue(
                         "modelCodeSearch"
                     )
                 ).trim();
+
         }
+
 
         const creditCost =
             getValue(
                 "creditCost"
             ).trim();
 
+
         const discountPercent =
             getValue(
                 "discountPercent"
             ).trim();
+
 
         const creditFinal =
             getValue(
                 "creditFinal"
             ).trim();
 
+
         return {
+
             id:
                 getValue(
                     "modelRecordId"
@@ -702,29 +968,47 @@
                 )
                     .trim()
                     .toLowerCase()
+
         };
+
     }
+
 
     /* =====================================================
        VALIDATE
     ===================================================== */
 
-    function validate(data) {
+    function validate(
+        data
+    ) {
+
         if (!data) {
+
             return "Data model tidak tersedia.";
+
         }
+
 
         if (!data.provider_id) {
+
             return "Provider wajib dipilih.";
+
         }
+
 
         if (!data.model_id) {
+
             return "Model ID wajib dipilih.";
+
         }
 
+
         if (!data.model_name) {
+
             return "Model Name wajib diisi.";
+
         }
+
 
         if (
             data.credit_cost !==
@@ -733,10 +1017,13 @@
                 data.credit_cost
             ) === null
         ) {
+
             return (
                 "Credit Cost harus berupa angka."
             );
+
         }
+
 
         if (
             data.discount_percent !==
@@ -745,15 +1032,19 @@
                 data.discount_percent
             ) === null
         ) {
+
             return (
                 "Discount Percent harus berupa angka."
             );
+
         }
+
 
         const discount =
             toNumber(
                 data.discount_percent
             );
+
 
         if (
             discount !== null &&
@@ -762,10 +1053,13 @@
                 discount > 100
             )
         ) {
+
             return (
                 "Discount Percent harus antara 0 sampai 100."
             );
+
         }
+
 
         if (
             data.credit_final !==
@@ -774,10 +1068,13 @@
                 data.credit_final
             ) === null
         ) {
+
             return (
                 "Credit Final harus berupa angka."
             );
+
         }
+
 
         if (
             data.min_duration !==
@@ -786,10 +1083,13 @@
                 data.min_duration
             ) === null
         ) {
+
             return (
                 "Minimum Duration harus berupa angka."
             );
+
         }
+
 
         if (
             data.max_duration !==
@@ -798,30 +1098,38 @@
                 data.max_duration
             ) === null
         ) {
+
             return (
                 "Maximum Duration harus berupa angka."
             );
+
         }
+
 
         const min =
             toNumber(
                 data.min_duration
             );
 
+
         const max =
             toNumber(
                 data.max_duration
             );
+
 
         if (
             min !== null &&
             max !== null &&
             min > max
         ) {
+
             return (
                 "Minimum Duration tidak boleh lebih besar dari Maximum Duration."
             );
+
         }
+
 
         if (
             data.status &&
@@ -833,24 +1141,36 @@
                 data.status
             )
         ) {
+
             return (
                 "Status model tidak valid."
             );
+
         }
 
+
         return null;
+
     }
+
 
     /* =====================================================
        BUILD PAYLOAD
     ===================================================== */
 
-    function buildPayload(data) {
+    function buildPayload(
+        data
+    ) {
+
         if (!data) {
+
             return null;
+
         }
 
+
         const payload = {
+
             provider_id:
                 data.provider_id,
 
@@ -886,18 +1206,35 @@
 
             status:
                 data.status
+
         };
 
-        if (editingModel?.id) {
+
+        /*
+         * UUID record database.
+         */
+
+        if (
+            editingModel?.id
+        ) {
+
             payload.id =
                 editingModel.id;
-        } else if (data.id) {
+
+        } else if (
+            data.id
+        ) {
+
             payload.id =
                 data.id;
+
         }
 
+
         return payload;
+
     }
+
 
     /* =====================================================
        UPDATE
@@ -906,70 +1243,80 @@
     async function update(
         model = null
     ) {
+
         const target =
             model ||
             editingModel;
 
+
         if (!target) {
+
             throw new Error(
                 "Model yang akan diedit tidak tersedia."
             );
+
         }
+
 
         const data =
             collectData();
+
 
         const validationError =
             validate(
                 data
             );
 
+
         if (validationError) {
+
             notify(
                 validationError,
                 "error"
             );
 
+
             throw new Error(
                 validationError
             );
+
         }
+
 
         const payload =
             buildPayload(
                 data
             );
 
+
+        /*
+         * Coordinator adalah satu-satunya
+         * pintu CRUD.
+         */
+
         const coordinator =
             window.GENZModelFormCoordinator;
+
 
         if (
             coordinator &&
             typeof coordinator.update ===
                 "function"
         ) {
+
             return coordinator.update(
                 payload
             );
+
         }
 
-        const form =
-            window.GENZModelsForm;
-
-        if (
-            form &&
-            typeof form.saveToApi ===
-                "function"
-        ) {
-            return form.saveToApi(
-                payload
-            );
-        }
 
         throw new Error(
-            "Module update model belum tersedia."
+            "Module GENZModelFormCoordinator belum tersedia."
         );
+
     }
+
 
     /* =====================================================
        UPDATE FROM FORM
@@ -978,44 +1325,146 @@
     async function updateFromForm(
         event = null
     ) {
+
         if (event) {
+
             event.preventDefault();
+
             event.stopPropagation();
+
         }
 
+
         if (saving) {
-            return;
+
+            return null;
+
         }
+
 
         saving = true;
 
+
         try {
+
             const result =
                 await update();
+
 
             notify(
                 "Model berhasil diperbarui.",
                 "success"
             );
 
+
+            /*
+             * Bersihkan cache Data module
+             * setelah update berhasil.
+             */
+
+            const dataModule =
+                window.GENZModelsData;
+
+
+            if (
+                dataModule &&
+                typeof dataModule.clearCache ===
+                    "function"
+            ) {
+
+                dataModule.clearCache();
+
+            }
+
+
+            /*
+             * Informasikan UI.
+             */
+
+            document.dispatchEvent(
+
+                new CustomEvent(
+                    "genz-model-updated",
+                    {
+                        detail: {
+
+                            result,
+
+                            model:
+                                collectData()
+
+                        }
+                    }
+                )
+
+            );
+
+
+            /*
+             * Tutup modal melalui owner event.
+             */
+
+            const formEvents =
+                getFormEvents();
+
+
+            if (
+                formEvents &&
+                typeof formEvents.closeModal ===
+                    "function"
+            ) {
+
+                formEvents.closeModal();
+
+            }
+
+
             return result;
+
         } catch (error) {
+
             console.error(
                 "[model-form-edit] Update error:",
                 error
             );
 
-            notify(
-                error?.message ||
-                "Gagal memperbarui model.",
-                "error"
-            );
+
+            /*
+             * Jika error sudah diberi
+             * notifikasi oleh update(),
+             * tetap tampilkan pesan final
+             * untuk error API lainnya.
+             */
+
+            if (
+                error?.message
+            ) {
+
+                notify(
+                    error.message,
+                    "error"
+                );
+
+            } else {
+
+                notify(
+                    "Gagal memperbarui model.",
+                    "error"
+                );
+
+            }
+
 
             throw error;
+
         } finally {
+
             saving = false;
+
         }
+
     }
+
 
     /* =====================================================
        POPULATE
@@ -1024,31 +1473,41 @@
     async function populate(
         model
     ) {
+
         if (!model) {
+
             return false;
+
         }
 
+
         /*
-         * Simpan referensi model yang sedang diedit.
+         * Simpan referensi model yang sedang
+         * diedit.
          */
+
         editingModel = {
             ...model
         };
 
+
         /*
-         * Record ID
+         * Record ID.
          */
+
         setValue(
             "modelRecordId",
             model.id || ""
         );
 
+
         /*
-         * Provider
+         * Provider.
          *
          * Provider harus dipilih terlebih dahulu
          * karena Model ID dropdown mengikuti Provider.
          */
+
         const providerIdentifier =
             model.provider_id ||
             model.provider ||
@@ -1056,89 +1515,103 @@
             model.provider_uuid ||
             "";
 
+
         if (providerIdentifier) {
+
             await setProvider(
                 providerIdentifier
             );
+
         }
+
 
         /*
          * Beri kesempatan Provider event
          * menyelesaikan refresh Model ID.
          */
+
         await waitForModelLayout();
 
+
         /*
-         * Model ID
+         * Model ID.
          *
-         * Mulai sekarang WAJIB melalui
-         * GENZModelFormLayout.
+         * WAJIB melalui Layout.
          */
+
         await setModel(
             model
         );
 
+
         /*
-         * Model Name dari database
-         * harus dipertahankan.
-         *
-         * Layout boleh mengisi nama otomatis
-         * dari catalog, tetapi Edit harus
-         * mempertahankan nilai tersimpan.
+         * Model Name dari database harus
+         * dipertahankan.
          */
+
         setValue(
             "modelName",
             model.model_name || ""
         );
 
+
         /*
-         * Description
+         * Description.
          */
+
         setValue(
             "description",
             model.description || ""
         );
 
+
         /*
-         * Credit
+         * Credit.
          */
+
         setValue(
             "creditCost",
             model.credit_cost ?? ""
         );
+
 
         setValue(
             "discountPercent",
             model.discount_percent ?? 0
         );
 
+
         /*
-         * Credit Final sengaja menggunakan
-         * nilai database saat pertama kali Edit.
-         *
-         * Tidak dihitung ulang diam-diam.
+         * Credit Final menggunakan nilai
+         * database saat Edit dibuka.
          */
+
         setValue(
             "creditFinal",
             model.credit_final ?? ""
         );
 
+
         /*
-         * Duration
+         * Duration.
          */
+
         setValue(
             "minDuration",
             model.min_duration ?? ""
         );
+
 
         setValue(
             "maxDuration",
             model.max_duration ?? ""
         );
 
+
         /*
-         * Ratio
+         * Ratio.
          */
+
         setValue(
             "supportedRatios",
             normalizeArray(
@@ -1146,9 +1619,11 @@
             )
         );
 
+
         /*
-         * Resolution
+         * Resolution.
          */
+
         setValue(
             "supportedResolutions",
             normalizeArray(
@@ -1156,171 +1631,215 @@
             )
         );
 
+
         /*
-         * Status
+         * Status.
          */
+
         setValue(
             "modelStatus",
             model.status ||
             "active"
         );
 
+
         /*
-         * Selected Model Info
+         * Selected Model Info.
          */
+
         updateSelectedModelInfo(
             model
         );
 
+
         /*
-         * Sinkronisasi preview Credit.
-         *
-         * Hanya jika module tersedia.
-         *
-         * Tidak mengambil alih nilai credit_final
-         * yang tersimpan.
+         * Preview Credit.
          */
+
         const priceCalculation =
             getPriceCalculation();
+
 
         if (
             priceCalculation &&
             typeof priceCalculation.updatePreview ===
                 "function"
         ) {
+
             try {
+
                 priceCalculation.updatePreview();
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-edit] Credit preview warning:",
                     error
                 );
+
             }
+
         }
 
+
         /*
-         * Preview USD/IDR dimiliki Layout.
+         * Preview USD/IDR.
          */
+
         const layout =
             getFormLayout();
+
 
         if (
             layout &&
             typeof layout.updateUsdPreview ===
                 "function"
         ) {
+
             try {
+
                 await layout.updateUsdPreview();
+
             } catch (error) {
+
                 console.warn(
                     "[model-form-edit] USD preview warning:",
                     error
                 );
+
             }
+
         }
 
+
         document.dispatchEvent(
+
             new CustomEvent(
                 "genz-model-edit-populated",
                 {
                     detail: {
+
                         model: {
                             ...model
                         }
+
                     }
                 }
             )
+
         );
 
+
         return true;
+
     }
+
 
     /* =====================================================
        OPEN
+    =====================================================
+
+       Modal lifecycle tidak lagi menggunakan
+       GENZModelsForm.
+
+       Populate tetap menjadi tanggung jawab
+       Edit module.
+
+       Pembukaan modal dilakukan langsung di sini
+       hanya sebagai lifecycle UI minimal jika
+       models-ui belum menangani modal.
     ===================================================== */
 
     async function open(
         model
     ) {
+
         if (!model) {
+
             console.warn(
                 "[model-form-edit] Model tidak tersedia."
             );
 
             return false;
+
         }
+
 
         editingModel = {
             ...model
         };
 
-        /*
-         * Gunakan coordinator/form owner jika
-         * tersedia agar lifecycle modal tetap
-         * terpusat.
-         */
-        const form =
-            window.GENZModelsForm;
 
-        if (
-            form &&
-            typeof form.openEditForm ===
-                "function"
-        ) {
+        try {
+
             /*
-             * Hindari recursive call jika
-             * openEditForm sedang memanggil
-             * module ini.
-             *
-             * Populate langsung dilakukan
-             * apabila form owner tidak punya
-             * mekanisme yang aman.
+             * Populate terlebih dahulu supaya
+             * Provider dan Model ID siap ketika
+             * modal ditampilkan.
              */
-            try {
-                await populate(
-                    model
+
+            await populate(
+                model
+            );
+
+
+            /*
+             * Modal owner utama.
+             */
+
+            const formEvents =
+                getFormEvents();
+
+
+            if (
+                formEvents &&
+                typeof formEvents.openModal ===
+                    "function"
+            ) {
+
+                return (
+                    await formEvents.openModal(
+                        "edit",
+                        model
+                    )
+                ) !== false;
+
+            }
+
+
+            /*
+             * Fallback langsung ke DOM.
+             */
+
+            const modal =
+                getElement(
+                    "modelModal"
                 );
 
-                if (
-                    typeof form.openModal ===
-                    "function"
-                ) {
-                    form.openModal();
-                }
+
+            if (!modal) {
 
                 return true;
-            } catch (error) {
-                console.error(
-                    "[model-form-edit] Open error:",
-                    error
-                );
+
             }
-        }
 
-        /*
-         * Fallback modal.
-         */
-        const modal =
-            getElement(
-                "modelModal"
-            );
-
-        if (modal) {
-            modal.classList.add(
-                "open"
-            );
 
             modal.classList.add(
+                "open",
                 "show"
             );
+
 
             modal.classList.remove(
                 "hidden"
             );
 
-            modal.removeAttribute(
-                "aria-hidden"
+
+            modal.setAttribute(
+                "aria-hidden",
+                "false"
             );
+
 
             if (
                 window.getComputedStyle(
@@ -1328,66 +1847,103 @@
                 ).display ===
                 "none"
             ) {
+
                 modal.style.display =
                     "flex";
+
             }
+
 
             document.body.classList.add(
                 "modal-open"
             );
+
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "[model-form-edit] Open error:",
+                error
+            );
+
+
+            return false;
+
         }
 
-        await populate(
-            model
-        );
-
-        return true;
     }
+
 
     /* =====================================================
        CLEAR STATE
     ===================================================== */
 
     function clear() {
-        editingModel = null;
-        saving = false;
+
+        editingModel =
+            null;
+
+        saving =
+            false;
+
     }
+
 
     /* =====================================================
        STATE
     ===================================================== */
 
     function getEditingModel() {
+
         return editingModel;
+
     }
 
+
     function isEditing() {
+
         return Boolean(
             editingModel
         );
+
     }
 
+
     function isSaving() {
+
         return saving;
+
     }
+
 
     /* =====================================================
        INITIALIZE
     ===================================================== */
 
     function initialize() {
+
         if (initialized) {
+
             return true;
+
         }
 
-        initialized = true;
+
+        initialized =
+            true;
+
 
         console.log(
             "[GEN-Z.AI] GENZModelFormEdit initialized."
         );
 
+
         return true;
+
     }
+
 
     /* =====================================================
        PUBLIC API
@@ -1395,6 +1951,7 @@
 
     window.GENZModelFormEdit =
         Object.freeze({
+
             initialize,
 
             open,
@@ -1424,6 +1981,8 @@
             isEditing,
 
             isSaving
+
         });
+
 
 })();
