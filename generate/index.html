@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -9,27 +10,80 @@
 
     <title>GEN-Z.AI - Generate Video</title>
 
+    <!-- =====================================================
+         SUPABASE
+    ====================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- =====================================================
+         GEN-Z CONFIG
+         PENTING:
+         generate/index.html berada di /generate/
+         sehingga config berada di ../assets/js/config.js
+    ====================================================== -->
+
+    <script src="../assets/js/config.js"></script>
+
     <style>
         * {
             box-sizing: border-box;
         }
 
         :root {
-            --bg: #f5f7fb;
-            --card: #ffffff;
-            --border: #e5e7eb;
-            --text: #111827;
-            --muted: #6b7280;
-            --primary: #111827;
-            --danger: #dc2626;
-            --success: #059669;
-            --warning: #d97706;
-            --sidebar: #111827;
-            --sidebar-hover: #1f2937;
+            --bg-white: #ffffff;
+            --bg-gray-1: #f8f8f8;
+            --bg-gray-2: #eeeeee;
+            --bg-gray-3: #dddddd;
+
+            --card: rgba(255, 255, 255, .97);
+            --card-soft: rgba(248, 248, 248, .97);
+
+            --border: rgba(255, 23, 68, .52);
+
+            --text: #171717;
+            --text-soft: #2f2f2f;
+            --muted: #666b73;
+
+            --primary: #ff1744;
+            --primary-dark: #d9002f;
+            --primary-light: #ff4567;
+
+            --danger: #ff1744;
+            --success: #078f58;
+            --warning: #bd7300;
+
+            --sidebar: rgba(255, 255, 255, .98);
+            --sidebar-hover: rgba(255, 23, 68, .08);
+
+            --neon:
+                0 0 7px rgba(255, 23, 68, .48),
+                0 0 18px rgba(255, 23, 68, .22);
+
+            --neon-strong:
+                0 0 8px rgba(255, 23, 68, .68),
+                0 0 22px rgba(255, 23, 68, .36),
+                0 0 45px rgba(255, 23, 68, .16);
+
+            --shadow:
+                0 12px 30px rgba(0, 0, 0, .08);
+        }
+
+        html {
+            min-height: 100%;
+            background:
+                linear-gradient(
+                    135deg,
+                    #ffffff 0%,
+                    #f5f5f5 35%,
+                    #dedede 70%,
+                    #fafafa 100%
+                );
         }
 
         body {
             margin: 0;
+
             font-family:
                 Inter,
                 system-ui,
@@ -37,8 +91,38 @@
                 BlinkMacSystemFont,
                 "Segoe UI",
                 sans-serif;
-            background: var(--bg);
+
             color: var(--text);
+
+            min-height: 100vh;
+
+            background:
+                radial-gradient(
+                    circle at 8% 8%,
+                    rgba(255, 23, 68, .075),
+                    transparent 24%
+                ),
+
+                radial-gradient(
+                    circle at 92% 12%,
+                    rgba(255, 23, 68, .055),
+                    transparent 24%
+                ),
+
+                radial-gradient(
+                    circle at 50% 100%,
+                    rgba(0, 0, 0, .045),
+                    transparent 38%
+                ),
+
+                linear-gradient(
+                    135deg,
+                    #ffffff 0%,
+                    #f2f2f2 48%,
+                    #dddddd 100%
+                );
+
+            overflow-x: hidden;
         }
 
         button,
@@ -52,6 +136,10 @@
             cursor: pointer;
         }
 
+        /* =====================================================
+           APP
+        ====================================================== */
+
         .app {
             min-height: 100vh;
             display: flex;
@@ -59,222 +147,525 @@
 
         /* =====================================================
            SIDEBAR
-        ===================================================== */
+        ====================================================== */
 
         .sidebar {
             width: 250px;
             min-width: 250px;
-            background: var(--sidebar);
-            color: #fff;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, .99),
+                    rgba(236, 236, 236, .97)
+                );
+
+            color: #171717;
+
             min-height: 100vh;
+
             padding: 20px 14px;
+
             position: fixed;
+
             inset: 0 auto 0 0;
+
             z-index: 100;
+
             overflow-y: auto;
+
+            border-right: 1px solid var(--primary);
+
+            box-shadow:
+                3px 0 18px rgba(255, 23, 68, .14);
         }
 
         .brand {
             padding: 8px 12px 22px;
+
+            border-bottom:
+                1px solid rgba(255, 23, 68, .28);
+
+            margin-bottom: 14px;
         }
 
         .brand-title {
             font-size: 21px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
+
+            font-weight: 900;
+
+            letter-spacing: -.5px;
+
+            color: #151515;
+
+            text-shadow:
+                0 0 7px rgba(255, 23, 68, .25);
         }
 
         .brand-subtitle {
             margin-top: 4px;
-            color: #9ca3af;
+
+            color: #777;
+
             font-size: 12px;
         }
 
         .nav {
             display: flex;
+
             flex-direction: column;
-            gap: 5px;
+
+            gap: 6px;
         }
 
         .nav a {
             display: flex;
+
             align-items: center;
+
             gap: 10px;
-            color: #d1d5db;
+
+            color: #444;
+
             text-decoration: none;
+
             padding: 11px 12px;
+
             border-radius: 9px;
+
             font-size: 14px;
-            transition: background .15s ease;
+
+            font-weight: 650;
+
+            border: 1px solid transparent;
+
+            transition:
+                background .18s ease,
+                color .18s ease,
+                border-color .18s ease,
+                box-shadow .18s ease,
+                transform .18s ease;
         }
 
         .nav a:hover {
-            background: var(--sidebar-hover);
-            color: #fff;
+            background:
+                rgba(255, 23, 68, .07);
+
+            color: var(--primary);
+
+            border-color:
+                rgba(255, 23, 68, .28);
+
+            box-shadow:
+                0 0 8px rgba(255, 23, 68, .16);
+
+            transform:
+                translateX(2px);
         }
 
         .nav a.active {
-            background: #374151;
-            color: #fff;
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255, 23, 68, .13),
+                    rgba(255, 23, 68, .045)
+                );
+
+            color: var(--primary);
+
+            border-color:
+                rgba(255, 23, 68, .62);
+
+            box-shadow:
+                var(--neon);
         }
 
         .nav-icon {
             width: 22px;
+
             text-align: center;
+
+            font-size: 17px;
+
+            color: var(--primary);
+
+            text-shadow:
+                0 0 8px rgba(255, 23, 68, .55);
         }
 
         /* =====================================================
            MAIN
-        ===================================================== */
+        ====================================================== */
 
         .main {
             width: calc(100% - 250px);
+
             margin-left: 250px;
+
             min-height: 100vh;
         }
 
+        /* =====================================================
+           TOPBAR
+        ====================================================== */
+
         .topbar {
             height: 70px;
-            background: #fff;
-            border-bottom: 1px solid var(--border);
+
+            background:
+                rgba(255, 255, 255, .92);
+
+            backdrop-filter:
+                blur(12px);
+
+            -webkit-backdrop-filter:
+                blur(12px);
+
+            border-bottom:
+                1px solid var(--primary);
+
             display: flex;
+
             align-items: center;
+
             justify-content: space-between;
+
             padding: 0 28px;
+
             position: sticky;
+
             top: 0;
+
             z-index: 50;
+
+            box-shadow:
+                0 5px 20px rgba(255, 23, 68, .08);
         }
 
         .page-title {
             font-size: 20px;
-            font-weight: 750;
+
+            font-weight: 850;
+
+            color: #151515;
+        }
+
+        .page-title::after {
+            content: "";
+
+            display: block;
+
+            width: 42px;
+
+            height: 2px;
+
+            margin-top: 4px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--primary),
+                    transparent
+                );
+
+            box-shadow:
+                0 0 8px rgba(255, 23, 68, .7);
         }
 
         .topbar-right {
             display: flex;
+
             align-items: center;
+
             gap: 10px;
         }
 
         .role-badge,
         .credit-badge {
-            border: 1px solid var(--border);
-            background: #fff;
+            border:
+                1px solid rgba(255, 23, 68, .48);
+
+            background:
+                rgba(255, 255, 255, .9);
+
             border-radius: 999px;
+
             padding: 7px 12px;
+
             font-size: 12px;
-            font-weight: 650;
+
+            font-weight: 750;
+
+            box-shadow:
+                0 0 7px rgba(255, 23, 68, .15);
+        }
+
+        .role-badge {
+            color: #333;
         }
 
         .credit-badge {
             color: var(--success);
+
+            border-color:
+                rgba(7, 143, 88, .35);
         }
+
+        /* =====================================================
+           CONTENT
+        ====================================================== */
 
         .content {
             padding: 28px;
+
             max-width: 1100px;
+
             margin: 0 auto;
         }
 
         /* =====================================================
+           COMMON PREMIUM BLOCK
+        ====================================================== */
+
+        .model-header,
+        .card,
+        .page-error {
+            position: relative;
+
+            overflow: hidden;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255, 255, 255, .99),
+                    rgba(237, 237, 237, .96)
+                );
+
+            border:
+                1px solid var(--primary);
+
+            border-radius: 14px;
+
+            box-shadow:
+                var(--shadow),
+                0 0 8px rgba(255, 23, 68, .42),
+                0 0 20px rgba(255, 23, 68, .16),
+                inset 0 1px 0 rgba(255, 255, 255, 1);
+        }
+
+        .model-header::before,
+        .card::before,
+        .page-error::before {
+            content: "";
+
+            position: absolute;
+
+            top: 0;
+            left: 0;
+
+            width: 100%;
+            height: 2px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    #ff1744,
+                    #ff4567,
+                    #ff1744,
+                    transparent
+                );
+
+            box-shadow:
+                0 0 10px rgba(255, 23, 68, .78),
+                0 0 25px rgba(255, 23, 68, .38);
+
+            pointer-events: none;
+        }
+
+        .model-header::after,
+        .card::after,
+        .page-error::after {
+            content: "";
+
+            position: absolute;
+
+            inset: 0;
+
+            pointer-events: none;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255, 23, 68, .025),
+                    transparent 45%
+                );
+        }
+
+        /* =====================================================
            MODEL HEADER
-        ===================================================== */
+        ====================================================== */
 
         .model-header {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
             padding: 20px;
+
             margin-bottom: 18px;
         }
 
         .model-header-top {
             display: flex;
+
             align-items: flex-start;
+
             justify-content: space-between;
+
             gap: 20px;
+
+            position: relative;
+
+            z-index: 1;
         }
 
         .model-name {
             margin: 0;
+
             font-size: 22px;
-            font-weight: 800;
+
+            font-weight: 850;
+
+            color: #171717;
+
+            text-shadow:
+                0 0 6px rgba(255, 23, 68, .16);
         }
 
         .model-description {
             margin: 7px 0 0;
+
             color: var(--muted);
+
             line-height: 1.5;
+
             font-size: 14px;
         }
 
         .provider-info {
             text-align: right;
+
             flex-shrink: 0;
         }
 
         .provider-label {
             color: var(--muted);
+
             font-size: 11px;
+
             text-transform: uppercase;
+
             letter-spacing: .06em;
         }
 
         .provider-name {
             margin-top: 4px;
+
             font-size: 14px;
-            font-weight: 700;
+
+            font-weight: 800;
+
+            color: var(--primary);
+
+            text-shadow:
+                0 0 7px rgba(255, 23, 68, .25);
         }
 
         .model-meta {
             display: flex;
+
             flex-wrap: wrap;
+
             gap: 8px;
+
             margin-top: 16px;
+
+            position: relative;
+
+            z-index: 1;
         }
 
         .meta-chip {
-            border: 1px solid var(--border);
+            border:
+                1px solid rgba(255, 23, 68, .45);
+
             border-radius: 8px;
+
             padding: 6px 9px;
-            background: #f9fafb;
-            color: #374151;
+
+            background:
+                rgba(255, 255, 255, .82);
+
+            color: #353535;
+
             font-size: 12px;
+
+            font-weight: 650;
+
+            box-shadow:
+                0 0 7px rgba(255, 23, 68, .14);
         }
 
         /* =====================================================
            CARD
-        ===================================================== */
+        ====================================================== */
 
         .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
             padding: 22px;
+
             margin-bottom: 18px;
         }
 
         .card-title {
             margin: 0 0 4px;
+
             font-size: 17px;
-            font-weight: 750;
+
+            font-weight: 800;
+
+            position: relative;
+
+            z-index: 1;
         }
 
         .card-description {
             color: var(--muted);
+
             font-size: 13px;
+
             margin: 0 0 20px;
+
+            position: relative;
+
+            z-index: 1;
         }
 
         /* =====================================================
            FORM
-        ===================================================== */
+        ====================================================== */
 
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+
+            grid-template-columns:
+                repeat(
+                    2,
+                    minmax(0, 1fr)
+                );
+
             gap: 18px;
+
+            position: relative;
+
+            z-index: 1;
         }
 
         .field {
@@ -287,15 +678,23 @@
 
         .label {
             display: block;
+
             margin-bottom: 7px;
+
             font-size: 13px;
-            font-weight: 700;
+
+            font-weight: 750;
+
+            color: #222;
         }
 
         .label-note {
             font-size: 11px;
+
             color: var(--muted);
+
             font-weight: 400;
+
             margin-left: 5px;
         }
 
@@ -305,44 +704,76 @@
         select,
         textarea {
             width: 100%;
-            border: 1px solid #d1d5db;
+
+            border:
+                1px solid #c9c9c9;
+
             border-radius: 9px;
-            background: #fff;
+
+            background:
+                rgba(255, 255, 255, .96);
+
             color: var(--text);
+
             outline: none;
+
             padding: 11px 12px;
+
             transition:
                 border-color .15s ease,
-                box-shadow .15s ease;
+                box-shadow .15s ease,
+                background .15s ease;
         }
 
         textarea {
             min-height: 130px;
+
             resize: vertical;
+
             line-height: 1.5;
+        }
+
+        input:hover,
+        select:hover,
+        textarea:hover {
+            border-color:
+                rgba(255, 23, 68, .45);
         }
 
         input:focus,
         select:focus,
         textarea:focus {
-            border-color: #6b7280;
-            box-shadow: 0 0 0 3px rgba(107, 114, 128, .12);
+            border-color:
+                var(--primary);
+
+            background: #fff;
+
+            box-shadow:
+                0 0 0 3px
+                    rgba(255, 23, 68, .09),
+                0 0 12px
+                    rgba(255, 23, 68, .22);
         }
 
         .input-help {
             margin-top: 6px;
+
             color: var(--muted);
+
             font-size: 11px;
+
             line-height: 1.45;
         }
 
         /* =====================================================
            OPTION GROUP
-        ===================================================== */
+        ====================================================== */
 
         .option-grid {
             display: flex;
+
             flex-wrap: wrap;
+
             gap: 9px;
         }
 
@@ -352,135 +783,271 @@
 
         .option-item input {
             position: absolute;
+
             opacity: 0;
+
             pointer-events: none;
         }
 
         .option-label {
             display: inline-flex;
+
             align-items: center;
+
             justify-content: center;
+
             min-width: 72px;
+
             padding: 10px 13px;
-            border: 1px solid #d1d5db;
+
+            border:
+                1px solid #c9c9c9;
+
             border-radius: 9px;
-            background: #fff;
+
+            background:
+                rgba(255, 255, 255, .96);
+
             font-size: 13px;
-            font-weight: 650;
+
+            font-weight: 700;
+
             cursor: pointer;
+
             user-select: none;
+
             transition:
                 border-color .15s ease,
                 background .15s ease,
-                color .15s ease;
+                color .15s ease,
+                box-shadow .15s ease,
+                transform .15s ease;
         }
 
         .option-label:hover {
-            border-color: #9ca3af;
+            border-color:
+                var(--primary);
+
+            color:
+                var(--primary);
+
+            box-shadow:
+                0 0 8px
+                    rgba(255, 23, 68, .2);
         }
 
         .option-item input:checked + .option-label {
-            border-color: #111827;
-            background: #111827;
+            border-color:
+                var(--primary);
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #d9002f,
+                    #ff1744
+                );
+
             color: #fff;
+
+            box-shadow:
+                0 0 8px rgba(255, 23, 68, .6),
+                0 0 20px rgba(255, 23, 68, .22);
         }
 
         .option-item input:disabled + .option-label {
             opacity: .45;
+
             cursor: not-allowed;
+
+            box-shadow: none;
         }
 
         .empty-options {
             color: var(--muted);
+
             font-size: 13px;
+
             padding: 10px 0;
         }
 
         /* =====================================================
            CHECKBOX
-        ===================================================== */
+        ====================================================== */
 
         .checkbox-row {
             display: flex;
+
             align-items: center;
+
             gap: 9px;
+
             padding: 10px 0;
         }
 
         .checkbox-row input {
             width: 17px;
+
             height: 17px;
-            accent-color: #111827;
+
+            accent-color:
+                var(--primary);
         }
 
         .checkbox-row label {
             font-size: 13px;
-            font-weight: 600;
+
+            font-weight: 650;
+
             cursor: pointer;
         }
 
         /* =====================================================
            ACTION
-        ===================================================== */
+        ====================================================== */
 
         .actions {
             display: flex;
+
             align-items: center;
+
             justify-content: space-between;
+
             gap: 12px;
+
             margin-top: 22px;
+
+            position: relative;
+
+            z-index: 2;
         }
 
         .actions-left,
         .actions-right {
             display: flex;
+
             gap: 10px;
+
             align-items: center;
         }
 
         .btn {
             border: 0;
+
             border-radius: 9px;
+
             padding: 11px 16px;
-            font-weight: 700;
+
+            font-weight: 750;
+
             font-size: 13px;
+
+            transition:
+                transform .18s ease,
+                box-shadow .18s ease,
+                filter .18s ease,
+                background .18s ease;
         }
 
         .btn-primary {
-            background: #111827;
+            background:
+                linear-gradient(
+                    135deg,
+                    #c9002d,
+                    #ff1744,
+                    #ff4567
+                );
+
             color: #fff;
+
+            border:
+                1px solid #ff1744;
+
+            min-width: 150px;
+
+            box-shadow:
+                0 0 8px rgba(255, 23, 68, .58),
+                0 0 20px rgba(255, 23, 68, .25);
         }
 
         .btn-primary:hover {
-            background: #1f2937;
+            transform:
+                translateY(-2px);
+
+            filter:
+                brightness(1.06);
+
+            box-shadow:
+                0 0 10px rgba(255, 23, 68, .75),
+                0 0 28px rgba(255, 23, 68, .36),
+                0 0 50px rgba(255, 23, 68, .15);
         }
 
         .btn-secondary {
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid var(--border);
+            background:
+                linear-gradient(
+                    145deg,
+                    #ffffff,
+                    #ededed
+                );
+
+            color: #333;
+
+            border:
+                1px solid rgba(255, 23, 68, .42);
+
+            box-shadow:
+                0 0 7px
+                    rgba(255, 23, 68, .12);
         }
 
         .btn-secondary:hover {
-            background: #e5e7eb;
+            background:
+                #fff;
+
+            color:
+                var(--primary);
+
+            border-color:
+                var(--primary);
+
+            box-shadow:
+                0 0 9px
+                    rgba(255, 23, 68, .28);
+
+            transform:
+                translateY(-1px);
         }
 
         .btn:disabled {
             opacity: .55;
+
             cursor: not-allowed;
+
+            transform: none;
+
+            box-shadow: none;
         }
 
         /* =====================================================
            STATUS
-        ===================================================== */
+        ====================================================== */
 
         .status {
             display: none;
+
             border-radius: 10px;
+
             padding: 13px 15px;
+
             margin-bottom: 18px;
+
             font-size: 13px;
+
             line-height: 1.5;
+
+            position: relative;
+
+            overflow: hidden;
         }
 
         .status.show {
@@ -488,32 +1055,71 @@
         }
 
         .status.info {
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            color: #1e40af;
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255, 255, 255, .98),
+                    rgba(238, 238, 238, .98)
+                );
+
+            border:
+                1px solid
+                    rgba(255, 23, 68, .42);
+
+            color:
+                #444;
+
+            box-shadow:
+                var(--neon);
         }
 
         .status.success {
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
-            color: #065f46;
+            background:
+                rgba(236, 253, 245, .95);
+
+            border:
+                1px solid
+                    rgba(7, 143, 88, .5);
+
+            color:
+                #065f46;
+
+            box-shadow:
+                0 0 10px
+                    rgba(7, 143, 88, .14);
         }
 
         .status.error {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #991b1b;
+            background:
+                rgba(255, 242, 242, .97);
+
+            border:
+                1px solid
+                    var(--primary);
+
+            color:
+                #991b1b;
+
+            box-shadow:
+                0 0 9px
+                    rgba(255, 23, 68, .28);
         }
 
         .status.warning {
-            background: #fffbeb;
-            border: 1px solid #fde68a;
-            color: #92400e;
+            background:
+                rgba(255, 251, 235, .97);
+
+            border:
+                1px solid
+                    rgba(189, 115, 0, .45);
+
+            color:
+                #92400e;
         }
 
         /* =====================================================
            RESULT
-        ===================================================== */
+        ====================================================== */
 
         .result-card {
             display: none;
@@ -525,10 +1131,21 @@
 
         .result-row {
             display: grid;
-            grid-template-columns: 130px minmax(0, 1fr);
+
+            grid-template-columns:
+                130px minmax(0, 1fr);
+
             gap: 12px;
+
             padding: 10px 0;
-            border-bottom: 1px solid #f0f1f3;
+
+            border-bottom:
+                1px solid
+                    rgba(255, 23, 68, .14);
+
+            position: relative;
+
+            z-index: 1;
         }
 
         .result-row:last-child {
@@ -537,14 +1154,20 @@
 
         .result-label {
             color: var(--muted);
+
             font-size: 12px;
+
             font-weight: 650;
         }
 
         .result-value {
             font-size: 13px;
-            font-weight: 650;
+
+            font-weight: 700;
+
             word-break: break-word;
+
+            color: #222;
         }
 
         .task-id {
@@ -555,17 +1178,24 @@
                 Monaco,
                 Consolas,
                 monospace;
+
+            color:
+                var(--primary);
         }
 
         /* =====================================================
            LOADING
-        ===================================================== */
+        ====================================================== */
 
         .loading {
             display: none;
+
             align-items: center;
+
             gap: 10px;
+
             color: var(--muted);
+
             font-size: 13px;
         }
 
@@ -575,29 +1205,41 @@
 
         .spinner {
             width: 16px;
+
             height: 16px;
-            border: 2px solid #d1d5db;
-            border-top-color: #111827;
+
+            border:
+                2px solid #d1d1d1;
+
+            border-top-color:
+                var(--primary);
+
             border-radius: 50%;
-            animation: spin .8s linear infinite;
+
+            animation:
+                spin .8s linear infinite;
+
+            box-shadow:
+                0 0 7px
+                    rgba(255, 23, 68, .3);
         }
 
         @keyframes spin {
             to {
-                transform: rotate(360deg);
+                transform:
+                    rotate(360deg);
             }
         }
 
         /* =====================================================
            ERROR PAGE
-        ===================================================== */
+        ====================================================== */
 
         .page-error {
             display: none;
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 14px;
+
             padding: 30px;
+
             text-align: center;
         }
 
@@ -607,28 +1249,72 @@
 
         .page-error h2 {
             margin: 0 0 8px;
+
             font-size: 19px;
+
+            color:
+                var(--primary);
+
+            text-shadow:
+                0 0 7px
+                    rgba(255, 23, 68, .2);
         }
 
         .page-error p {
             margin: 0;
+
             color: var(--muted);
+
             font-size: 13px;
+
             line-height: 1.5;
         }
 
         /* =====================================================
+           CONFIG WARNING
+        ====================================================== */
+
+        .config-hint {
+            margin-top: 14px;
+
+            padding: 10px 12px;
+
+            border-radius: 8px;
+
+            background:
+                rgba(255, 23, 68, .045);
+
+            border:
+                1px solid
+                    rgba(255, 23, 68, .2);
+
+            color: #555;
+
+            font-size: 11px;
+
+            line-height: 1.5;
+
+            text-align: left;
+        }
+
+        /* =====================================================
            MOBILE
-        ===================================================== */
+        ====================================================== */
 
         @media (max-width: 850px) {
+
             .sidebar {
                 width: 220px;
+
                 min-width: 220px;
             }
 
             .main {
-                width: calc(100% - 220px);
+                width:
+                    calc(
+                        100% - 220px
+                    );
+
                 margin-left: 220px;
             }
 
@@ -637,7 +1323,8 @@
             }
 
             .form-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
             }
 
             .field.full {
@@ -646,11 +1333,30 @@
         }
 
         @media (max-width: 680px) {
+
             .sidebar {
                 position: static;
+
                 width: 100%;
+
                 min-width: 0;
+
                 min-height: auto;
+
+                border-right: 0;
+
+                border-bottom:
+                    1px solid
+                        var(--primary);
+
+                box-shadow:
+                    0 3px 15px
+                        rgba(
+                            255,
+                            23,
+                            68,
+                            .12
+                        );
             }
 
             .app {
@@ -659,11 +1365,31 @@
 
             .main {
                 width: 100%;
+
                 margin-left: 0;
             }
 
             .topbar {
                 padding: 0 16px;
+
+                height: 64px;
+            }
+
+            .page-title {
+                font-size: 17px;
+            }
+
+            .topbar-right {
+                gap: 6px;
+            }
+
+            .role-badge,
+            .credit-badge {
+                padding:
+                    6px 9px;
+
+                font-size:
+                    10px;
             }
 
             .content {
@@ -671,7 +1397,8 @@
             }
 
             .model-header-top {
-                flex-direction: column;
+                flex-direction:
+                    column;
             }
 
             .provider-info {
@@ -679,8 +1406,11 @@
             }
 
             .actions {
-                flex-direction: column;
-                align-items: stretch;
+                flex-direction:
+                    column;
+
+                align-items:
+                    stretch;
             }
 
             .actions-left,
@@ -692,9 +1422,30 @@
                 flex: 1;
             }
 
+            .loading {
+                justify-content:
+                    center;
+            }
+
             .result-row {
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
+
                 gap: 4px;
+            }
+
+            .nav {
+                display: grid;
+
+                grid-template-columns:
+                    repeat(
+                        2,
+                        minmax(0, 1fr)
+                    );
+            }
+
+            .brand {
+                padding-bottom: 15px;
             }
         }
     </style>
@@ -711,6 +1462,7 @@
     <aside class="sidebar">
 
         <div class="brand">
+
             <div class="brand-title">
                 GEN-Z.AI
             </div>
@@ -718,12 +1470,14 @@
             <div class="brand-subtitle">
                 AI Video Generation
             </div>
+
         </div>
 
         <nav
             class="nav"
             id="navigation"
         >
+
             <a
                 href="/user/dashboard.html"
                 data-nav="dashboard"
@@ -756,6 +1510,7 @@
                 <span class="nav-icon">◎</span>
                 <span>Profile</span>
             </a>
+
         </nav>
 
     </aside>
@@ -873,6 +1628,14 @@
                     Konfigurasi model tidak dapat dimuat.
                 </p>
 
+                <div
+                    id="configHint"
+                    class="config-hint"
+                >
+                    Halaman ini membutuhkan sesi login
+                    dan konfigurasi model yang aktif.
+                </div>
+
             </div>
 
             <!-- =================================================
@@ -889,7 +1652,8 @@
                 </h2>
 
                 <p class="card-description">
-                    Parameter yang tersedia mengikuti konfigurasi model dan database.
+                    Parameter yang tersedia mengikuti konfigurasi
+                    model dan database.
                 </p>
 
                 <form
@@ -923,7 +1687,10 @@
                                 class="loading"
                             >
                                 <span class="spinner"></span>
-                                <span>Membuat task...</span>
+
+                                <span>
+                                    Membuat task...
+                                </span>
                             </div>
 
                             <button
@@ -1021,10 +1788,6 @@
 const CONFIG =
     window.GENZ_CONFIG || {};
 
-/*
- * Fallback hanya digunakan apabila config.js
- * sudah tersedia melalui window.GENZ_CONFIG.
- */
 const SUPABASE_URL =
     String(
         CONFIG.SUPABASE_URL || ""
@@ -1040,9 +1803,13 @@ const SUPABASE_KEY =
 ========================================================= */
 
 let supabaseClient = null;
+
 let currentUser = null;
+
 let currentProfile = null;
+
 let currentModel = null;
+
 let modelLoaded = false;
 
 /* =========================================================
@@ -1137,6 +1904,7 @@ function showStatus(
     message,
     type = "info"
 ) {
+
     statusEl.textContent =
         message;
 
@@ -1145,6 +1913,7 @@ function showStatus(
 }
 
 function hideStatus() {
+
     statusEl.className =
         "status";
 
@@ -1159,6 +1928,7 @@ function hideStatus() {
 function showPageError(
     message
 ) {
+
     pageErrorMessageEl.textContent =
         message;
 
@@ -1166,17 +1936,32 @@ function showPageError(
         "show"
     );
 
+    /*
+     * Jangan menyembunyikan form
+     * jika masalah hanya terjadi
+     * pada konfigurasi sementara.
+     *
+     * Tombol Generate tetap terlihat,
+     * tetapi disabled sampai model siap.
+     */
     generateCard.style.display =
-        "none";
+        "";
+
+    generateButton.disabled =
+        true;
 }
 
 function hidePageError() {
+
     pageErrorEl.classList.remove(
         "show"
     );
 
     generateCard.style.display =
         "";
+
+    generateButton.disabled =
+        false;
 }
 
 /* =========================================================
@@ -1189,14 +1974,21 @@ async function loadSupabase() {
         !SUPABASE_URL ||
         !SUPABASE_KEY
     ) {
+
         throw new Error(
-            "Konfigurasi Supabase tidak ditemukan."
+            "Konfigurasi Supabase tidak ditemukan. Periksa ../assets/js/config.js."
         );
     }
+
+    /*
+     * config.js sekarang dimuat
+     * sebelum module script.
+     */
 
     if (
         window.supabase?.createClient
     ) {
+
         supabaseClient =
             window.supabase.createClient(
                 SUPABASE_URL,
@@ -1207,13 +1999,45 @@ async function loadSupabase() {
     }
 
     /*
-     * Load Supabase CDN jika belum tersedia.
+     * Fallback jika CDN belum selesai.
      */
+
     await new Promise(
         (
             resolve,
             reject
         ) => {
+
+            const existing =
+                document.querySelector(
+                    'script[src*="@supabase/supabase-js"]'
+                );
+
+            if (existing) {
+
+                existing.addEventListener(
+                    "load",
+                    resolve,
+                    {
+                        once: true
+                    }
+                );
+
+                existing.addEventListener(
+                    "error",
+                    () =>
+                        reject(
+                            new Error(
+                                "Gagal memuat Supabase client."
+                            )
+                        ),
+                    {
+                        once: true
+                    }
+                );
+
+                return;
+            }
 
             const script =
                 document.createElement(
@@ -1243,6 +2067,7 @@ async function loadSupabase() {
     if (
         !window.supabase?.createClient
     ) {
+
         throw new Error(
             "Supabase client tidak tersedia."
         );
@@ -1262,6 +2087,7 @@ async function loadSupabase() {
 async function loadCurrentUser() {
 
     if (!supabaseClient) {
+
         throw new Error(
             "Supabase belum siap."
         );
@@ -1281,8 +2107,9 @@ async function loadCurrentUser() {
         !data ||
         !data.user
     ) {
+
         throw new Error(
-            "Sesi login tidak ditemukan."
+            "Sesi login tidak ditemukan. Silakan login terlebih dahulu."
         );
     }
 
@@ -1331,9 +2158,12 @@ async function loadProfile() {
         credits === null ||
         credits === undefined
     ) {
+
         creditBadgeEl.textContent =
             "Credit: -";
+
     } else {
+
         creditBadgeEl.textContent =
             `Credit: ${formatNumber(credits)}`;
     }
@@ -1361,6 +2191,7 @@ function getModelId() {
         queryModelId &&
         queryModelId.trim()
     ) {
+
         return queryModelId.trim();
     }
 
@@ -1373,6 +2204,7 @@ function getModelId() {
         sessionModelId &&
         sessionModelId.trim()
     ) {
+
         return sessionModelId.trim();
     }
 
@@ -1385,6 +2217,7 @@ function getModelId() {
         localModelId &&
         localModelId.trim()
     ) {
+
         return localModelId.trim();
     }
 
@@ -1401,6 +2234,7 @@ async function loadModelConfig() {
         getModelId();
 
     if (!modelId) {
+
         throw new Error(
             "Model ID tidak ditemukan. Pilih model terlebih dahulu."
         );
@@ -1414,15 +2248,12 @@ async function loadModelConfig() {
             ?.access_token;
 
     if (!accessToken) {
+
         throw new Error(
             "Session login tidak tersedia."
         );
     }
 
-    /*
-     * URLSearchParams melakukan encoding
-     * dengan benar.
-     */
     const params =
         new URLSearchParams();
 
@@ -1447,10 +2278,14 @@ async function loadModelConfig() {
     let data = null;
 
     try {
+
         data =
             await response.json();
+
     } catch {
-        data = null;
+
+        data =
+            null;
     }
 
     if (!response.ok) {
@@ -1465,6 +2300,7 @@ async function loadModelConfig() {
         !data?.success ||
         !data?.model
     ) {
+
         throw new Error(
             data?.error ||
             "Konfigurasi model tidak tersedia."
@@ -1487,12 +2323,14 @@ async function loadModelConfig() {
 function formatNumber(
     value
 ) {
+
     const number =
         Number(value);
 
     if (
         !Number.isFinite(number)
     ) {
+
         return String(value);
     }
 
@@ -1550,6 +2388,7 @@ function renderModelHeader(
         model.pricing?.credit_final !==
             undefined
     ) {
+
         chips.push(
             createMetaChip(
                 "Credit",
@@ -1594,6 +2433,7 @@ function createMetaChip(
     label,
     value
 ) {
+
     const element =
         document.createElement(
             "div"
@@ -1624,6 +2464,7 @@ function parameterDefinition(
             parameters
         )
     ) {
+
         return (
             parameters.find(
                 item =>
@@ -1640,6 +2481,7 @@ function parameterDefinition(
         typeof parameters ===
             "object"
     ) {
+
         return (
             parameters[name] ||
             null
@@ -1709,6 +2551,7 @@ function renderPromptField() {
     if (
         definition?.description
     ) {
+
         const note =
             document.createElement(
                 "span"
@@ -1749,6 +2592,7 @@ function renderPromptField() {
     if (
         definition?.maxLength
     ) {
+
         textarea.maxLength =
             Number(
                 definition.maxLength
@@ -1816,10 +2660,6 @@ function renderImageUrlField() {
     input.placeholder =
         "https://example.com/image.jpg";
 
-    /*
-     * Tidak dibuat required karena
-     * KIE juga mendukung task_id.
-     */
     input.required =
         false;
 
@@ -1841,6 +2681,7 @@ function renderImageUrlField() {
     if (
         definition?.maxItems
     ) {
+
         help.textContent +=
             ` Maksimal ${definition.maxItems} item.`;
     }
@@ -1906,6 +2747,7 @@ function renderTaskIdField() {
     if (
         definition?.description
     ) {
+
         help.textContent =
             definition.description;
     }
@@ -1974,6 +2816,7 @@ function renderIndexField() {
         index <= max;
         index++
     ) {
+
         const option =
             document.createElement(
                 "option"
@@ -1990,6 +2833,7 @@ function renderIndexField() {
                 definition?.default
             ) === index
         ) {
+
             option.selected =
                 true;
         }
@@ -2091,6 +2935,7 @@ function renderModeField() {
             definition?.default ===
             value
         ) {
+
             input.checked =
                 true;
         }
@@ -2139,6 +2984,7 @@ function renderAspectRatioField() {
     if (
         ratios.length === 0
     ) {
+
         const empty =
             document.createElement(
                 "div"
@@ -2200,12 +3046,10 @@ function renderAspectRatioField() {
             input.id =
                 `ratio-${sanitizeId(ratio)}`;
 
-            /*
-             * Default pertama.
-             */
             if (
                 index === 0
             ) {
+
                 input.checked =
                     true;
             }
@@ -2273,6 +3117,7 @@ function renderDurationField() {
         !Number.isFinite(min) &&
         !Number.isFinite(max)
     ) {
+
         const empty =
             document.createElement(
                 "div"
@@ -2296,12 +3141,10 @@ function renderDurationField() {
     }
 
     /*
-     * Jika min dan max tersedia,
-     * tampilkan pilihan setiap detik.
-     *
-     * Database tetap menjadi sumber
-     * range yang sah.
+     * Range database tetap menjadi
+     * sumber nilai yang sah.
      */
+
     if (
         Number.isFinite(min) &&
         Number.isFinite(max) &&
@@ -2351,6 +3194,7 @@ function renderDurationField() {
             if (
                 value === min
             ) {
+
                 input.checked =
                     true;
             }
@@ -2405,6 +3249,7 @@ function renderDurationField() {
         if (
             Number.isFinite(min)
         ) {
+
             input.min =
                 String(min);
         }
@@ -2412,6 +3257,7 @@ function renderDurationField() {
         if (
             Number.isFinite(max)
         ) {
+
             input.max =
                 String(max);
         }
@@ -2441,14 +3287,19 @@ function renderDurationField() {
         Number.isFinite(min) &&
         Number.isFinite(max)
     ) {
+
         help.textContent =
             `Database mengizinkan ${min}-${max} detik.`;
+
     } else if (
         Number.isFinite(min)
     ) {
+
         help.textContent =
             `Minimum ${min} detik.`;
+
     } else {
+
         help.textContent =
             `Maksimum ${max} detik.`;
     }
@@ -2482,6 +3333,7 @@ function renderResolutionField() {
     if (
         resolutions.length === 0
     ) {
+
         const empty =
             document.createElement(
                 "div"
@@ -2546,6 +3398,7 @@ function renderResolutionField() {
             if (
                 index === 0
             ) {
+
                 input.checked =
                     true;
             }
@@ -2667,87 +3520,67 @@ function renderDynamicFields() {
     dynamicFieldsEl.innerHTML =
         "";
 
-    /*
-     * Prompt
-     */
     if (
         parameterDefinition(
             "prompt"
         )
     ) {
+
         renderPromptField();
     }
 
-    /*
-     * Image URL
-     */
     if (
         parameterDefinition(
             "image_urls"
         )
     ) {
+
         renderImageUrlField();
     }
 
-    /*
-     * Task ID
-     */
     if (
         parameterDefinition(
             "task_id"
         )
     ) {
+
         renderTaskIdField();
     }
 
-    /*
-     * Index
-     */
     if (
         parameterDefinition(
             "index"
         )
     ) {
+
         renderIndexField();
     }
 
-    /*
-     * Mode
-     */
     if (
         parameterDefinition(
             "mode"
         )
     ) {
+
         renderModeField();
     }
 
     /*
-     * Database-controlled
-     * aspect ratio.
+     * Tetap database-controlled.
      */
+
     renderAspectRatioField();
 
-    /*
-     * Database-controlled
-     * duration.
-     */
     renderDurationField();
 
-    /*
-     * Database-controlled
-     * resolution.
-     */
     renderResolutionField();
 
-    /*
-     * NSFW checker
-     */
     if (
         parameterDefinition(
             "nsfw_checker"
         )
     ) {
+
         renderNsfwCheckerField();
     }
 
@@ -2773,34 +3606,29 @@ function updateSpicyAvailability() {
     if (
         !spicyInput
     ) {
+
         return;
     }
 
-    /*
-     * KIE:
-     * external image input + spicy
-     * tidak didukung.
-     *
-     * Kita disable di UI.
-     * create-task.js juga melakukan
-     * normalisasi sebagai safety net.
-     */
     if (
         imageInput &&
         imageInput.value.trim()
     ) {
+
         spicyInput.disabled =
             true;
 
         if (
             spicyInput.checked
         ) {
+
             const normalInput =
                 document.querySelector(
                     '[name="mode"][value="normal"]'
                 );
 
             if (normalInput) {
+
                 normalInput.checked =
                     true;
             }
@@ -2821,9 +3649,6 @@ function collectParameters() {
 
     const parameters = {};
 
-    /*
-     * Prompt
-     */
     const prompt =
         document.querySelector(
             '[name="prompt"]'
@@ -2833,13 +3658,11 @@ function collectParameters() {
         prompt &&
         prompt.value.trim()
     ) {
+
         parameters.prompt =
             prompt.value.trim();
     }
 
-    /*
-     * Image URL
-     */
     const imageUrl =
         document.querySelector(
             '[name="image_urls"]'
@@ -2849,14 +3672,12 @@ function collectParameters() {
         imageUrl &&
         imageUrl.value.trim()
     ) {
+
         parameters.image_urls = [
             imageUrl.value.trim()
         ];
     }
 
-    /*
-     * Task ID
-     */
     const taskId =
         document.querySelector(
             '[name="task_id"]'
@@ -2866,13 +3687,11 @@ function collectParameters() {
         taskId &&
         taskId.value.trim()
     ) {
+
         parameters.task_id =
             taskId.value.trim();
     }
 
-    /*
-     * Index
-     */
     const index =
         document.querySelector(
             '[name="index"]'
@@ -2882,45 +3701,35 @@ function collectParameters() {
         index &&
         index.value !== ""
     ) {
+
         parameters.index =
             Number(
                 index.value
             );
     }
 
-    /*
-     * Mode
-     */
     const mode =
         document.querySelector(
             '[name="mode"]:checked'
         );
 
-    if (
-        mode
-    ) {
+    if (mode) {
+
         parameters.mode =
             mode.value;
     }
 
-    /*
-     * Aspect ratio
-     */
     const ratio =
         document.querySelector(
             '[name="aspect_ratio"]:checked'
         );
 
-    if (
-        ratio
-    ) {
+    if (ratio) {
+
         parameters.aspect_ratio =
             ratio.value;
     }
 
-    /*
-     * Duration
-     */
     const durationRadio =
         document.querySelector(
             '[name="duration"]:checked'
@@ -2931,49 +3740,42 @@ function collectParameters() {
             '[name="duration"]:not([type="radio"])'
         );
 
-    if (
-        durationRadio
-    ) {
+    if (durationRadio) {
+
         parameters.duration =
             Number(
                 durationRadio.value
             );
+
     } else if (
         durationInput &&
         durationInput.value !== ""
     ) {
+
         parameters.duration =
             Number(
                 durationInput.value
             );
     }
 
-    /*
-     * Resolution
-     */
     const resolution =
         document.querySelector(
             '[name="resolution"]:checked'
         );
 
-    if (
-        resolution
-    ) {
+    if (resolution) {
+
         parameters.resolution =
             resolution.value;
     }
 
-    /*
-     * NSFW
-     */
     const nsfw =
         document.querySelector(
             '[name="nsfw_checker"]'
         );
 
-    if (
-        nsfw
-    ) {
+    if (nsfw) {
+
         parameters.nsfw_checker =
             nsfw.checked;
     }
@@ -2991,33 +3793,25 @@ function validateClientParameters(
 
     const errors = [];
 
-    /*
-     * Image + task_id tidak boleh
-     * bersamaan.
-     */
     if (
         parameters.image_urls?.length &&
         parameters.task_id
     ) {
+
         errors.push(
             "Image URL dan Task ID tidak boleh digunakan bersamaan."
         );
     }
 
-    /*
-     * Prompt
-     */
     if (
         !parameters.prompt
     ) {
+
         errors.push(
             "Prompt wajib diisi."
         );
     }
 
-    /*
-     * Database ratio
-     */
     const ratios =
         normalizeArray(
             currentModel?.supported_ratios
@@ -3030,14 +3824,12 @@ function validateClientParameters(
             parameters.aspect_ratio
         )
     ) {
+
         errors.push(
             `Aspect ratio ${parameters.aspect_ratio} tidak tersedia untuk model ini.`
         );
     }
 
-    /*
-     * Database resolution
-     */
     const resolutions =
         normalizeArray(
             currentModel?.supported_resolutions
@@ -3050,14 +3842,12 @@ function validateClientParameters(
             parameters.resolution
         )
     ) {
+
         errors.push(
             `Resolution ${parameters.resolution} tidak tersedia untuk model ini.`
         );
     }
 
-    /*
-     * Database duration
-     */
     const duration =
         Number(
             parameters.duration
@@ -3081,6 +3871,7 @@ function validateClientParameters(
             Number.isFinite(min) &&
             duration < min
         ) {
+
             errors.push(
                 `Durasi minimum adalah ${min} detik.`
             );
@@ -3090,6 +3881,7 @@ function validateClientParameters(
             Number.isFinite(max) &&
             duration > max
         ) {
+
             errors.push(
                 `Durasi maksimum adalah ${max} detik.`
             );
@@ -3115,6 +3907,7 @@ async function generateVideo(
             ?.access_token;
 
     if (!accessToken) {
+
         throw new Error(
             "Session login tidak tersedia."
         );
@@ -3147,15 +3940,17 @@ async function generateVideo(
     let data = null;
 
     try {
+
         data =
             await response.json();
+
     } catch {
-        data = null;
+
+        data =
+            null;
     }
 
-    if (
-        !response.ok
-    ) {
+    if (!response.ok) {
 
         const errors =
             Array.isArray(
@@ -3176,6 +3971,7 @@ async function generateVideo(
     if (
         !data?.success
     ) {
+
         throw new Error(
             data?.error ||
             "Generation gagal."
@@ -3231,18 +4027,13 @@ function resetForm() {
 
     generateForm.reset();
 
-    /*
-     * Setelah reset, checkbox/radio
-     * perlu dikembalikan ke default.
-     */
     const ratio =
         document.querySelector(
             '[name="aspect_ratio"]'
         );
 
-    if (
-        ratio
-    ) {
+    if (ratio) {
+
         ratio.checked =
             true;
     }
@@ -3257,6 +4048,7 @@ function resetForm() {
         duration.type ===
             "radio"
     ) {
+
         duration.checked =
             true;
     }
@@ -3266,9 +4058,8 @@ function resetForm() {
             '[name="resolution"]'
         );
 
-    if (
-        resolution
-    ) {
+    if (resolution) {
+
         resolution.checked =
             true;
     }
@@ -3278,9 +4069,8 @@ function resetForm() {
             '[name="mode"][value="normal"]'
         );
 
-    if (
-        modeNormal
-    ) {
+    if (modeNormal) {
+
         modeNormal.checked =
             true;
     }
@@ -3290,9 +4080,8 @@ function resetForm() {
             '[name="nsfw_checker"]'
         );
 
-    if (
-        nsfw
-    ) {
+    if (nsfw) {
+
         nsfw.checked =
             true;
     }
@@ -3304,6 +4093,14 @@ function resetForm() {
     );
 
     hideStatus();
+
+    if (modelLoaded) {
+
+        showStatus(
+            "Form berhasil di-reset.",
+            "info"
+        );
+    }
 }
 
 /* =========================================================
@@ -3313,6 +4110,7 @@ function resetForm() {
 function sanitizeId(
     value
 ) {
+
     return String(
         value
     )
@@ -3338,6 +4136,7 @@ function normalizeArray(
     if (
         Array.isArray(value)
     ) {
+
         return value.map(
             item =>
                 String(item)
@@ -3348,6 +4147,7 @@ function normalizeArray(
         value === null ||
         value === undefined
     ) {
+
         return [];
     }
 
@@ -3359,15 +4159,15 @@ function normalizeArray(
         const trimmed =
             value.trim();
 
-        if (
-            !trimmed
-        ) {
+        if (!trimmed) {
+
             return [];
         }
 
         /*
          * PostgreSQL array.
          */
+
         if (
             trimmed.startsWith("{") &&
             trimmed.endsWith("}")
@@ -3379,9 +4179,8 @@ function normalizeArray(
                     -1
                 ).trim();
 
-            if (
-                !content
-            ) {
+            if (!content) {
+
                 return [];
             }
 
@@ -3402,6 +4201,7 @@ function normalizeArray(
         /*
          * JSON array.
          */
+
         if (
             trimmed.startsWith("[") &&
             trimmed.endsWith("]")
@@ -3419,6 +4219,7 @@ function normalizeArray(
                         parsed
                     )
                 ) {
+
                     return parsed.map(
                         item =>
                             String(
@@ -3458,6 +4259,7 @@ generateForm.addEventListener(
             !modelLoaded ||
             !currentModel
         ) {
+
             showStatus(
                 "Konfigurasi model belum siap.",
                 "error"
@@ -3554,10 +4356,10 @@ resetButton.addEventListener(
     resetForm
 );
 
-/*
- * Saat Image URL berubah,
- * update aturan mode spicy.
- */
+/* =========================================================
+   IMAGE INPUT EVENT
+========================================================= */
+
 document.addEventListener(
     "input",
     event => {
@@ -3566,6 +4368,7 @@ document.addEventListener(
             event.target?.name ===
             "image_urls"
         ) {
+
             updateSpicyAvailability();
         }
     }
@@ -3583,6 +4386,15 @@ async function initialize() {
             "Memuat konfigurasi...",
             "info"
         );
+
+        /*
+         * 1. Config
+         * 2. Supabase
+         * 3. User
+         * 4. Profile
+         * 5. Model
+         * 6. Dynamic fields
+         */
 
         await loadSupabase();
 
@@ -3612,6 +4424,12 @@ async function initialize() {
             error
         );
 
+        modelLoaded =
+            false;
+
+        currentModel =
+            null;
+
         showStatus(
             error.message ||
                 "Gagal memuat halaman Generate.",
@@ -3624,6 +4442,10 @@ async function initialize() {
         );
     }
 }
+
+/* =========================================================
+   START
+========================================================= */
 
 initialize();
 
