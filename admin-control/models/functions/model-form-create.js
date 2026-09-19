@@ -43,6 +43,9 @@
 
    API/Data owner:
    models-data.js / endpoint /api/admin-models
+
+   MODAL:
+   GENZModelFormEvents
 ========================================================= */
 
 (function () {
@@ -118,6 +121,7 @@
 
         }
 
+
         if (
             value === null ||
             value === undefined ||
@@ -127,6 +131,7 @@
             return [];
 
         }
+
 
         return String(value)
             .split(",")
@@ -158,10 +163,12 @@
                 "toast"
             );
 
+
         if (existing) {
 
             existing.textContent =
                 message;
+
 
             existing.classList.remove(
                 "success",
@@ -171,9 +178,11 @@
                 "show"
             );
 
+
             existing.classList.add(
                 type
             );
+
 
             window.requestAnimationFrame(
                 () => {
@@ -185,9 +194,11 @@
                 }
             );
 
+
             window.clearTimeout(
                 existing.__genzTimer
             );
+
 
             existing.__genzTimer =
                 window.setTimeout(
@@ -201,6 +212,7 @@
                     3500
                 );
 
+
             return;
 
         }
@@ -211,14 +223,18 @@
                 "div"
             );
 
+
         toast.id =
             "modelNotification";
+
 
         toast.className =
             `genz-model-notification ${type}`;
 
+
         toast.textContent =
             message;
+
 
         Object.assign(
             toast.style,
@@ -241,9 +257,11 @@
             }
         );
 
+
         document.body.appendChild(
             toast
         );
+
 
         window.setTimeout(
             () => {
@@ -256,6 +274,7 @@
 
                 toast.style.transition =
                     "opacity .2s ease, transform .2s ease";
+
 
                 window.setTimeout(
                     () => {
@@ -290,6 +309,7 @@
             getValue(
                 "modelCode"
             );
+
 
         if (!modelId) {
 
@@ -969,6 +989,7 @@
              */
 
             document.dispatchEvent(
+
                 new CustomEvent(
                     "genz-model-created",
                     {
@@ -982,25 +1003,72 @@
                         }
                     }
                 )
+
             );
 
 
-            /*
-             * Tutup modal melalui
-             * Form coordinator apabila tersedia.
-             */
+            /* =================================================
+               CLOSE MODAL
+            =================================================
 
-            const form =
-                window.GENZModelsForm;
+               Tidak lagi menggunakan:
+
+                   window.GENZModelsForm
+
+               Modal ditutup melalui event module,
+               sehingga CREATE tidak bergantung pada
+               legacy models-form.js.
+            */
+
+            const formEvents =
+                window.GENZModelFormEvents;
 
 
             if (
-                form &&
-                typeof form.closeModal ===
+                formEvents &&
+                typeof formEvents.closeModal ===
                     "function"
             ) {
 
-                form.closeModal();
+                formEvents.closeModal();
+
+            } else {
+
+                /*
+                 * Fallback minimal apabila event module
+                 * belum termuat.
+                 */
+
+                const modal =
+                    getElement(
+                        "modelModal"
+                    );
+
+
+                if (modal) {
+
+                    modal.classList.remove(
+                        "open",
+                        "show"
+                    );
+
+                    modal.classList.add(
+                        "hidden"
+                    );
+
+                    modal.setAttribute(
+                        "aria-hidden",
+                        "true"
+                    );
+
+                    modal.style.display =
+                        "none";
+
+                    document.body.classList.remove(
+                        "modal-open"
+                    );
+
+                }
 
             }
 
