@@ -18,6 +18,11 @@
    - Query Supabase
    - CRUD
    - Membuat Model baru
+
+   SOURCE OF TRUTH:
+   - GENZModelsSearch
+   - models
+   - providers
    ========================================================= */
 
 (function () {
@@ -27,7 +32,7 @@
 
     /* =====================================================
        HELPERS
-    ===================================================== */
+       ===================================================== */
 
     function cleanString(value) {
 
@@ -47,7 +52,7 @@
 
     /* =====================================================
        GET HIDDEN MODEL INPUT
-    ===================================================== */
+       ===================================================== */
 
     function getHiddenInput() {
 
@@ -64,7 +69,7 @@
 
     /* =====================================================
        GET SEARCH INPUT
-    ===================================================== */
+       ===================================================== */
 
     function getSearchInput() {
 
@@ -84,7 +89,7 @@
 
     /* =====================================================
        GET INFO BOX
-    ===================================================== */
+       ===================================================== */
 
     function getInfoBox() {
 
@@ -101,7 +106,7 @@
 
     /* =====================================================
        GET PROVIDER SELECT
-    ===================================================== */
+       ===================================================== */
 
     function getProviderSelect() {
 
@@ -113,13 +118,14 @@
 
     /* =====================================================
        MODEL ID
-    ===================================================== */
+       ===================================================== */
 
     function getModelId(model) {
 
         if (
             !model ||
-            typeof model !== "object"
+            typeof model !==
+                "object"
         ) {
 
             return "";
@@ -133,40 +139,64 @@
 
 
     /* =====================================================
-       PROVIDER VALUES
-    ===================================================== */
+       MODEL PROVIDER VALUES
+       ===================================================== */
 
-    function getModelProviderValues(model) {
+    function getModelProviderValues(
+        model
+    ) {
 
         if (
             !model ||
-            typeof model !== "object"
+            typeof model !==
+                "object"
         ) {
 
             return [];
         }
+
+
+        const provider =
+            model.provider &&
+            typeof model.provider ===
+                "object"
+                ? model.provider
+                : null;
+
 
         return [
             model.provider_id,
             model.providerId,
             model.provider_uuid,
             model.providerUuid,
-            model.provider
+
+            provider?.id,
+            provider?.provider_id
         ]
-            .map(normalizeString)
+            .map(
+                normalizeString
+            )
             .filter(Boolean);
     }
 
 
-    function getProviderValues(provider) {
+    /* =====================================================
+       PROVIDER VALUES
+       ===================================================== */
+
+    function getProviderValues(
+        provider
+    ) {
 
         if (
             !provider ||
-            typeof provider !== "object"
+            typeof provider !==
+                "object"
         ) {
 
             return [];
         }
+
 
         return [
             provider.id,
@@ -174,14 +204,16 @@
             provider.provider_name,
             provider.name
         ]
-            .map(normalizeString)
+            .map(
+                normalizeString
+            )
             .filter(Boolean);
     }
 
 
     /* =====================================================
        PROVIDER MODULE
-    ===================================================== */
+       ===================================================== */
 
     function getProviderModule() {
 
@@ -194,9 +226,11 @@
 
     /* =====================================================
        FIND PROVIDER
-    ===================================================== */
+       ===================================================== */
 
-    function findProvider(model) {
+    function findProvider(
+        model
+    ) {
 
         const providerModule =
             getProviderModule();
@@ -212,7 +246,7 @@
 
         if (
             typeof providerModule.getProviders !==
-            "function"
+                "function"
         ) {
 
             return null;
@@ -220,6 +254,7 @@
 
 
         let providers = [];
+
 
         try {
 
@@ -262,24 +297,23 @@
         /*
          * Prioritas:
          *
-         * 1. UUID / DB ID
+         * 1. Database UUID
          * 2. provider_id
          *
-         * Nama provider hanya digunakan sebagai
-         * fallback kompatibilitas.
+         * Nama hanya fallback.
          */
         for (
             const provider of providers
         ) {
 
-            const values =
+            const providerValues =
                 getProviderValues(
                     provider
                 );
 
 
             if (
-                values.length === 0
+                providerValues.length === 0
             ) {
 
                 continue;
@@ -290,7 +324,7 @@
                 modelValues.some(
                     function (value) {
 
-                        return values.includes(
+                        return providerValues.includes(
                             value
                         );
                     }
@@ -308,10 +342,7 @@
 
     /* =====================================================
        FIND CATALOG MODEL
-       
-       Selection hanya boleh berasal dari
-       GENZModelsSearch catalog.
-    ===================================================== */
+       ===================================================== */
 
     function findCatalogModel(
         model
@@ -336,47 +367,46 @@
 
 
         if (
-            search &&
-            typeof search.findModelById ===
-            "function"
+            !search ||
+            typeof search.findModelById !==
+                "function"
         ) {
 
-            try {
-
-                const catalogModel =
-                    search.findModelById(
-                        modelId
-                    );
-
-
-                if (
-                    catalogModel
-                ) {
-
-                    return catalogModel;
-                }
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Catalog Model lookup gagal:",
-                    error
-                );
-            }
+            return null;
         }
 
 
-        /*
-         * Jika search module belum tersedia,
-         * jangan mengarang data.
-         */
+        try {
+
+            const catalogModel =
+                search.findModelById(
+                    modelId
+                );
+
+
+            if (
+                catalogModel
+            ) {
+
+                return catalogModel;
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Catalog Model lookup gagal:",
+                error
+            );
+        }
+
+
         return null;
     }
 
 
     /* =====================================================
-       PROVIDER SELECT VALUE
-    ===================================================== */
+       RESOLVE PROVIDER SELECT VALUE
+       ===================================================== */
 
     function resolveProviderSelectValue(
         provider
@@ -384,7 +414,8 @@
 
         if (
             !provider ||
-            typeof provider !== "object"
+            typeof provider !==
+                "object"
         ) {
 
             return "";
@@ -404,16 +435,20 @@
 
 
         const candidates = [
+
             provider.id,
+
             provider.provider_id
+
         ]
-            .map(cleanString)
+            .map(
+                cleanString
+            )
             .filter(Boolean);
 
 
         /*
-         * Pastikan value benar-benar ada
-         * pada option Provider.
+         * Exact match terlebih dahulu.
          */
         for (
             const candidate of candidates
@@ -428,7 +463,8 @@
                         return (
                             cleanString(
                                 item.value
-                            ) === candidate
+                            ) ===
+                            candidate
                         );
                     }
                 );
@@ -444,7 +480,7 @@
 
 
         /*
-         * Fallback case-insensitive.
+         * Case insensitive fallback.
          */
         for (
             const candidate of candidates
@@ -465,7 +501,8 @@
                         return (
                             normalizeString(
                                 item.value
-                            ) === normalized
+                            ) ===
+                            normalized
                         );
                     }
                 );
@@ -488,7 +525,15 @@
 
     /* =====================================================
        SYNC PROVIDER
-    ===================================================== */
+       -----------------------------------------------------
+       IMPORTANT:
+       Tidak dispatch "change".
+
+       Selection Model sedang melakukan sinkronisasi
+       internal. Dispatch change akan masuk kembali
+       ke model-search-events dan dapat menghapus
+       Model yang baru dipilih.
+       ===================================================== */
 
     function syncProvider(
         model
@@ -512,18 +557,21 @@
             getProviderSelect();
 
 
+        if (
+            !select
+        ) {
+
+            return false;
+        }
+
+
         const providerValue =
             resolveProviderSelectValue(
                 provider
             );
 
 
-        /*
-         * Jangan mengisi Provider dengan value
-         * yang tidak tersedia pada select.
-         */
         if (
-            !select ||
             !providerValue
         ) {
 
@@ -532,74 +580,58 @@
 
 
         /*
-         * Gunakan module Provider jika tersedia.
+         * Jika sudah sama, tidak perlu melakukan
+         * apa pun.
          */
-        const providerModule =
-            getProviderModule();
-
-
         if (
-            providerModule &&
-            typeof providerModule.setValue ===
-            "function"
+            cleanString(
+                select.value
+            ) ===
+            providerValue
         ) {
 
-            try {
-
-                const result =
-                    providerModule.setValue(
-                        providerValue
-                    );
-
-
-                if (
-                    result !== false
-                ) {
-
-                    return true;
-                }
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Provider module setValue gagal:",
-                    error
-                );
-            }
+            return true;
         }
 
 
         /*
-         * Fallback langsung ke select.
+         * Gunakan Provider module hanya jika
+         * tersedia dan tidak menyebabkan event
+         * recursive.
+         *
+         * Karena kita tidak mengetahui apakah
+         * setValue() melakukan dispatch change,
+         * direct assignment digunakan sebagai
+         * jalur aman.
          */
-        if (
-            select.value !==
-            providerValue
-        ) {
+        try {
 
             select.value =
                 providerValue;
 
+        } catch (error) {
 
-            select.dispatchEvent(
-                new Event(
-                    "change",
-                    {
-                        bubbles:
-                            true
-                    }
-                )
+            console.warn(
+                "[GEN-Z.AI] Gagal mengubah Provider select:",
+                error
             );
+
+            return false;
         }
 
 
-        return true;
+        return (
+            cleanString(
+                select.value
+            ) ===
+            providerValue
+        );
     }
 
 
     /* =====================================================
        UPDATE INFO BOX
-    ===================================================== */
+       ===================================================== */
 
     function updateInfoBox(
         model
@@ -643,6 +675,7 @@
             cleanString(
                 model?.provider_name ??
                 model?.providerName ??
+                model?.provider?.provider_name ??
                 model?.provider_id ??
                 model?.provider
             );
@@ -702,7 +735,7 @@
 
     /* =====================================================
        UPDATE INPUTS
-    ===================================================== */
+       ===================================================== */
 
     function updateInputs(
         modelId
@@ -730,21 +763,21 @@
             getSearchInput();
 
 
+        /*
+         * Hidden Model ID.
+         */
         if (
             hiddenInput
         ) {
 
             hiddenInput.value =
                 id;
-
-            /*
-             * Jangan dispatch input/change ke hidden
-             * karena dapat memicu event loop pada
-             * form coordinator.
-             */
         }
 
 
+        /*
+         * Search display.
+         */
         if (
             searchInput
         ) {
@@ -754,13 +787,50 @@
         }
 
 
+        /*
+         * Sengaja TIDAK dispatch input/change.
+         *
+         * Dispatch di sini bisa memanggil search
+         * lagi dan membuat event chain recursive.
+         */
         return true;
     }
 
 
     /* =====================================================
+       CLEAR DROPDOWN
+       ===================================================== */
+
+    function hideDropdown() {
+
+        const dropdown =
+            window.GENZModelSearchDropdown;
+
+
+        if (
+            dropdown &&
+            typeof dropdown.hide ===
+                "function"
+        ) {
+
+            try {
+
+                dropdown.hide();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal menutup Model dropdown:",
+                    error
+                );
+            }
+        }
+    }
+
+
+    /* =====================================================
        SELECT MODEL
-    ===================================================== */
+       ===================================================== */
 
     function selectModel(
         model
@@ -768,7 +838,8 @@
 
         if (
             !model ||
-            typeof model !== "object"
+            typeof model !==
+                "object"
         ) {
 
             return false;
@@ -790,10 +861,10 @@
 
 
         /*
-         * Sangat penting:
+         * Jangan menerima object arbitrary.
          *
-         * Model yang dipilih harus berasal
-         * dari katalog yang telah dimuat.
+         * Model wajib berasal dari catalog
+         * GENZModelsSearch.
          */
         const catalogModel =
             findCatalogModel(
@@ -814,10 +885,6 @@
         }
 
 
-        /*
-         * Gunakan object catalog sebagai
-         * satu-satunya source untuk selection.
-         */
         const selectedModel =
             catalogModel;
 
@@ -828,27 +895,18 @@
             );
 
 
-        /*
-         * Isi Model ID.
-         */
-        updateInputs(
-            selectedId
-        );
+        if (
+            !selectedId
+        ) {
+
+            return false;
+        }
 
 
         /*
-         * Tampilkan informasi Model.
-         */
-        updateInfoBox(
-            selectedModel
-        );
-
-
-        /*
-         * Sinkronkan Provider.
+         * 1. Sinkronkan Provider terlebih dahulu.
          *
-         * Jika Provider tidak ditemukan,
-         * jangan membuat Provider baru.
+         * Tidak menghasilkan event change.
          */
         syncProvider(
             selectedModel
@@ -856,35 +914,32 @@
 
 
         /*
-         * Tutup dropdown setelah selection.
+         * 2. Isi Model ID.
          */
-        const dropdown =
-            window.GENZModelSearchDropdown;
-
-
-        if (
-            dropdown &&
-            typeof dropdown.hide ===
-            "function"
-        ) {
-
-            try {
-
-                dropdown.hide();
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Gagal menutup Model dropdown:",
-                    error
-                );
-            }
-        }
+        updateInputs(
+            selectedId
+        );
 
 
         /*
-         * Beri tahu module lain bahwa Model
-         * telah dipilih.
+         * 3. Update informasi Model.
+         */
+        updateInfoBox(
+            selectedModel
+        );
+
+
+        /*
+         * 4. Tutup dropdown.
+         */
+        hideDropdown();
+
+
+        /*
+         * 5. Notify module lain.
+         *
+         * Event ini hanya satu arah.
+         * Tidak mengubah selection kembali.
          */
         try {
 
@@ -893,6 +948,7 @@
                     "genz-model-selected",
                     {
                         detail: {
+
                             model:
                                 selectedModel,
 
@@ -918,7 +974,7 @@
 
     /* =====================================================
        CLEAR SELECTED
-    ===================================================== */
+       ===================================================== */
 
     function clearSelected() {
 
@@ -966,8 +1022,8 @@
 
 
     /* =====================================================
-       GET SELECTED
-    ===================================================== */
+       GET SELECTED MODEL
+       ===================================================== */
 
     function getSelectedModel() {
 
@@ -996,7 +1052,7 @@
         if (
             search &&
             typeof search.findModelById ===
-            "function"
+                "function"
         ) {
 
             try {
@@ -1024,7 +1080,7 @@
 
     /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
 
     window.GENZModelSearchSelect =
         Object.freeze({
