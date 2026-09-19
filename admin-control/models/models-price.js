@@ -1,367 +1,602 @@
 /* =========================================================
    GEN-Z.AI
    ADMIN MODEL MANAGEMENT
-   KIE PRICE MODULE
-
+   MODEL PRICE MODULE
+   ---------------------------------------------------------
    File:
    admin-control/models/models-price.js
 
    Tanggung jawab:
-   - Load pricing KIE
-   - Cache pricing
-   - Cari pricing berdasarkan model
-   - Harga terendah / tertinggi
-   - Konversi USD -> IDR
-   - Preview harga KIE
-   - Kalkulasi biaya
+   - Membaca pricing dari tabel `models`
+   - Cache pricing model
+   - Mencari pricing berdasarkan model
+   - Kalkulasi credit
+   - Format harga / credit
+   - Menyediakan compatibility API untuk Models UI
 
-   TIDAK menangani:
-   - Provider
-   - Model form
+   Sumber data:
+       models.credit_cost
+       models.discount_percent
+       models.credit_final
+
+   TIDAK menggunakan:
+       kie_pricing
+       kie_models
+       kie_workflows
+       kie_workflow_variants
+       kie_parameters
+       kie_constraints
+       kie_dependencies
+
+   Tidak menangani:
+   - Provider CRUD
+   - Model CRUD
    - Model Search
    - Save model
    - Update model
    - Delete model
-
-   Arsitektur:
-   models-price.js
-          ↓
-     kie_pricing
-          ↓
-   models-ui.js
 ========================================================= */
 
 (function () {
+
     "use strict";
 
+
+    /* =====================================================
+       STATE
+    ===================================================== */
+
     let pricingCache = [];
+
     let initialized = false;
+
     let loadingPromise = null;
+
 
     /* =====================================================
        CONFIG
     ===================================================== */
 
-    const DEFAULT_USD_IDR_RATE = 17700;
+    const MODEL_TABLE =
+        "models";
 
-    const PRICING_TABLE =
-        "kie_pricing";
+
+    /*
+     * Dipertahankan hanya untuk compatibility
+     * dengan fungsi konversi harga lama.
+     *
+     * Credit model TIDAK menggunakan kurs ini.
+     */
+
+    const DEFAULT_USD_IDR_RATE =
+        17700;
+
 
     /* =====================================================
        SUPABASE
     ===================================================== */
 
     function getSupabase() {
+
         return (
             window.GENZ_SUPABASE ||
             window.supabaseClient ||
             null
         );
+
     }
+
 
     /* =====================================================
        UTILITY
     ===================================================== */
 
-    function escapeHtml(value) {
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+    function escapeHtml(
+        value
+    ) {
+
+        return String(
+            value ?? ""
+        )
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+
     }
 
-    function toNumber(value) {
+
+    function toNumber(
+        value
+    ) {
+
         if (
             value === null ||
             value === undefined ||
             value === ""
         ) {
+
             return null;
+
         }
 
-        const number =
-            Number(value);
 
-        return Number.isFinite(number)
+        const number =
+            Number(
+                value
+            );
+
+
+        return Number.isFinite(
+            number
+        )
             ? number
             : null;
+
     }
 
-    function normalizeString(value) {
+
+    function normalizeString(
+        value
+    ) {
+
         return String(
             value ?? ""
         )
             .trim()
             .toLowerCase();
+
     }
 
-    /* =====================================================
-       FORMAT USD
-    ===================================================== */
 
-    function formatUsd(value) {
-        const number =
-            toNumber(value);
+    function normalizeArray(
+        value
+    ) {
 
-        if (number === null) {
-            return "-";
-        }
-
-        return new Intl.NumberFormat(
-            "en-US",
-            {
-                style: "currency",
-                currency: "USD",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 6
-            }
-        ).format(number);
-    }
-
-    /* =====================================================
-       FORMAT IDR
-    ===================================================== */
-
-    function formatIdr(value) {
-        const number =
-            toNumber(value);
-
-        if (number === null) {
-            return "-";
-        }
-
-        return new Intl.NumberFormat(
-            "id-ID",
-            {
-                style: "currency",
-                currency: "IDR",
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            }
-        ).format(
-            Math.round(number)
-        );
-    }
-
-    /* =====================================================
-       USD -> IDR RATE
-    ===================================================== */
-
-    function getUsdToIdrRate() {
-        const candidates = [
-            window.GENZ_USD_IDR_RATE,
-
-            window.GENZ_CONFIG &&
-            window.GENZ_CONFIG.USD_IDR_RATE,
-
-            window.GENZ_CONFIG &&
-            window.GENZ_CONFIG.usd_idr_rate,
-
-            localStorage.getItem(
-                "GENZ_USD_IDR_RATE"
+        if (
+            Array.isArray(
+                value
             )
-        ];
-
-        for (
-            const candidate
-            of candidates
         ) {
-            const rate =
-                Number(candidate);
 
-            if (
-                Number.isFinite(rate) &&
-                rate > 0
-            ) {
-                return rate;
-            }
+            return [
+                ...value
+            ];
+
         }
 
-        return DEFAULT_USD_IDR_RATE;
-    }
-
-    function setUsdToIdrRate(rate) {
-        const number =
-            Number(rate);
 
         if (
-            !Number.isFinite(number) ||
-            number <= 0
+            value === null ||
+            value === undefined ||
+            value === ""
         ) {
-            return false;
+
+            return [];
+
         }
 
-        window.GENZ_USD_IDR_RATE =
-            number;
 
-        try {
-            localStorage.setItem(
-                "GENZ_USD_IDR_RATE",
-                String(number)
-            );
-        } catch (error) {
-            console.warn(
-                "[models-price] Tidak dapat menyimpan kurs:",
+        if (
+            typeof value ===
+            "string"
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        value
+                    );
+
+
+                if (
+                    Array.isArray(
+                        parsed
+                    )
+                ) {
+
+                    return parsed;
+
+                }
+
+            } catch (
                 error
-            );
+            ) {
+
+                /* Bukan JSON, lanjutkan. */
+
+            }
+
+
+            return value
+                .split(",")
+                .map(
+                    item =>
+                        item.trim()
+                )
+                .filter(
+                    Boolean
+                );
+
         }
 
-        return true;
+
+        return [];
+
     }
+
 
     /* =====================================================
-       PRICE CONVERSION
+       CREDIT CALCULATION
     ===================================================== */
 
-    function priceToIdr(
-        usdPrice,
-        rate = null
+    function calculateCreditFinal(
+        creditCost,
+        discountPercent
     ) {
-        const price =
+
+        const cost =
             toNumber(
-                usdPrice
+                creditCost
             );
 
-        if (price === null) {
-            return null;
-        }
 
-        const exchangeRate =
-            rate === null
-                ? getUsdToIdrRate()
-                : toNumber(rate);
-
-        if (
-            exchangeRate === null ||
-            exchangeRate <= 0
-        ) {
-            return null;
-        }
-
-        return (
-            price *
-            exchangeRate
-        );
-    }
-
-    function idrToUsd(
-        idrPrice,
-        rate = null
-    ) {
-        const price =
+        const discount =
             toNumber(
-                idrPrice
+                discountPercent
             );
 
-        if (price === null) {
-            return null;
-        }
-
-        const exchangeRate =
-            rate === null
-                ? getUsdToIdrRate()
-                : toNumber(rate);
 
         if (
-            exchangeRate === null ||
-            exchangeRate <= 0
+            cost === null
         ) {
+
             return null;
+
         }
 
-        return (
-            price /
-            exchangeRate
+
+        const safeDiscount =
+            discount === null
+                ? 0
+                : Math.min(
+                    100,
+                    Math.max(
+                        0,
+                        discount
+                    )
+                );
+
+
+        const result =
+            cost *
+            (
+                1 -
+                (
+                    safeDiscount /
+                    100
+                )
+            );
+
+
+        return Number(
+            result.toFixed(
+                6
+            )
         );
+
     }
+
+
+    function calculateDiscountAmount(
+        creditCost,
+        discountPercent
+    ) {
+
+        const cost =
+            toNumber(
+                creditCost
+            );
+
+
+        const discount =
+            toNumber(
+                discountPercent
+            );
+
+
+        if (
+            cost === null
+        ) {
+
+            return null;
+
+        }
+
+
+        const safeDiscount =
+            discount === null
+                ? 0
+                : Math.min(
+                    100,
+                    Math.max(
+                        0,
+                        discount
+                    )
+                );
+
+
+        return Number(
+            (
+                cost *
+                (
+                    safeDiscount /
+                    100
+                )
+            ).toFixed(
+                6
+            )
+        );
+
+    }
+
+
+    /* =====================================================
+       NORMALIZE MODEL PRICING
+       -----------------------------------------------------
+       Model menjadi satu-satunya sumber data.
+    ===================================================== */
+
+    function normalizeModelPricing(
+        model
+    ) {
+
+        if (
+            !model ||
+            typeof model !==
+                "object"
+        ) {
+
+            return null;
+
+        }
+
+
+        const creditCost =
+            toNumber(
+                model.credit_cost
+            );
+
+
+        const discountPercent =
+            toNumber(
+                model.discount_percent
+            );
+
+
+        const calculatedFinal =
+            calculateCreditFinal(
+                creditCost,
+                discountPercent
+            );
+
+
+        const storedFinal =
+            toNumber(
+                model.credit_final
+            );
+
+
+        /*
+         * Jika credit_final tersedia di database,
+         * gunakan nilai database.
+         *
+         * Jika kosong, hitung dari cost + discount.
+         */
+
+        const creditFinal =
+            storedFinal !== null
+                ? storedFinal
+                : calculatedFinal;
+
+
+        return {
+
+            id:
+                model.id ??
+                null,
+
+            model_id:
+                model.model_id ??
+                "",
+
+            model_name:
+                model.model_name ??
+                "",
+
+            provider_id:
+                model.provider_id ??
+                null,
+
+            credit_cost:
+                creditCost,
+
+            discount_percent:
+                discountPercent === null
+                    ? 0
+                    : discountPercent,
+
+            credit_final:
+                creditFinal,
+
+            calculated_credit_final:
+                calculatedFinal,
+
+            discount_amount:
+                calculateDiscountAmount(
+                    creditCost,
+                    discountPercent
+                ),
+
+            min_duration:
+                toNumber(
+                    model.min_duration
+                ),
+
+            max_duration:
+                toNumber(
+                    model.max_duration
+                ),
+
+            supported_ratios:
+                normalizeArray(
+                    model.supported_ratios
+                ),
+
+            supported_resolutions:
+                normalizeArray(
+                    model.supported_resolutions
+                ),
+
+            status:
+                model.status ??
+                null,
+
+            created_at:
+                model.created_at ??
+                null,
+
+            updated_at:
+                model.updated_at ??
+                null,
+
+            raw:
+                model
+
+        };
+
+    }
+
 
     /* =====================================================
        LOAD PRICING
+       -----------------------------------------------------
+       Sumber langsung tabel models.
     ===================================================== */
 
     async function loadPricing(
         options = {}
     ) {
+
         const {
             force = false,
-            workflowId = null,
-            variantId = null,
+            modelId = null,
+            providerId = null,
             status = null
         } = options;
 
+
         /*
-         * Gunakan cache jika tersedia.
+         * Cache.
          */
+
         if (
             !force &&
             pricingCache.length > 0
         ) {
+
             return filterPricing(
                 pricingCache,
                 {
-                    workflowId,
-                    variantId,
+                    modelId,
+                    providerId,
                     status
                 }
             );
+
         }
 
+
         /*
-         * Jika sedang loading,
-         * gunakan request yang sama.
+         * Request yang sedang berjalan.
          */
+
         if (
             loadingPromise &&
             !force
         ) {
+
             const result =
                 await loadingPromise;
+
 
             return filterPricing(
                 result,
                 {
-                    workflowId,
-                    variantId,
+                    modelId,
+                    providerId,
                     status
                 }
             );
+
         }
+
 
         const supabase =
             getSupabase();
 
-        if (!supabase) {
+
+        if (
+            !supabase
+        ) {
+
             throw new Error(
                 "Supabase client belum tersedia."
             );
+
         }
+
 
         loadingPromise =
             (async function () {
-                let query =
-                    supabase
+
+                const {
+                    data,
+                    error
+                } =
+                    await supabase
                         .from(
-                            PRICING_TABLE
+                            MODEL_TABLE
                         )
                         .select(`
                             id,
-                            workflow_id,
-                            variant_id,
-                            operation,
-                            sku_key,
-                            billing_unit,
-                            unit_price,
-                            currency,
-                            conditions,
-                            pricing_context,
-                            source_type,
-                            source_url,
-                            source_reference,
-                            pricing_status,
-                            effective_at,
-                            expires_at,
+                            provider_id,
+                            model_id,
+                            model_name,
+                            credit_cost,
+                            discount_percent,
+                            credit_final,
+                            min_duration,
+                            max_duration,
+                            supported_ratios,
+                            supported_resolutions,
                             status,
                             created_at,
                             updated_at
@@ -369,136 +604,202 @@
                         .order(
                             "created_at",
                             {
-                                ascending: false
+                                ascending:
+                                    false
                             }
                         );
 
-                /*
-                 * Status hanya diterapkan
-                 * jika memang diberikan.
-                 */
-                if (status) {
-                    query =
-                        query.eq(
-                            "status",
-                            status
-                        );
-                }
 
-                if (workflowId) {
-                    query =
-                        query.eq(
-                            "workflow_id",
-                            workflowId
-                        );
-                }
-
-                if (variantId) {
-                    query =
-                        query.eq(
-                            "variant_id",
-                            variantId
-                        );
-                }
-
-                const {
-                    data,
+                if (
                     error
-                } = await query;
+                ) {
 
-                if (error) {
                     console.error(
-                        "[models-price] Gagal memuat pricing KIE:",
+                        "[models-price] Gagal memuat pricing model:",
                         error
                     );
 
+
                     throw error;
+
                 }
 
+
                 pricingCache =
-                    Array.isArray(data)
-                        ? data
-                        : [];
+                    (
+                        Array.isArray(
+                            data
+                        )
+                            ? data
+                            : []
+                    )
+                        .map(
+                            normalizeModelPricing
+                        )
+                        .filter(
+                            Boolean
+                        );
+
 
                 return [
                     ...pricingCache
                 ];
+
             })();
 
+
         try {
-            return await loadingPromise;
+
+            const result =
+                await loadingPromise;
+
+
+            return filterPricing(
+                result,
+                {
+                    modelId,
+                    providerId,
+                    status
+                }
+            );
 
         } finally {
+
             loadingPromise =
                 null;
+
         }
+
     }
 
+
     /* =====================================================
-       FILTER
+       FILTER PRICING
     ===================================================== */
 
     function filterPricing(
         pricing,
         options = {}
     ) {
+
         const {
-            workflowId = null,
-            variantId = null,
+            modelId = null,
+            providerId = null,
             status = null
         } = options;
 
+
         if (
-            !Array.isArray(pricing)
+            !Array.isArray(
+                pricing
+            )
         ) {
+
             return [];
+
         }
+
+
+        const normalizedModelId =
+            modelId !== null
+                ? normalizeString(
+                    modelId
+                )
+                : null;
+
+
+        const normalizedProviderId =
+            providerId !== null
+                ? normalizeString(
+                    providerId
+                )
+                : null;
+
+
+        const normalizedStatus =
+            status !== null
+                ? normalizeString(
+                    status
+                )
+                : null;
+
 
         return pricing.filter(
             item => {
 
                 if (
-                    workflowId &&
-                    String(
-                        item.workflow_id ??
-                        ""
-                    ) !==
-                    String(
-                        workflowId
-                    )
+                    normalizedModelId
                 ) {
-                    return false;
+
+                    const itemModelId =
+                        normalizeString(
+                            item.model_id
+                        );
+
+
+                    if (
+                        itemModelId !==
+                        normalizedModelId
+                    ) {
+
+                        return false;
+
+                    }
+
                 }
 
-                if (
-                    variantId &&
-                    String(
-                        item.variant_id ??
-                        ""
-                    ) !==
-                    String(
-                        variantId
-                    )
-                ) {
-                    return false;
-                }
 
                 if (
-                    status &&
-                    normalizeString(
-                        item.status
-                    ) !==
-                    normalizeString(
-                        status
-                    )
+                    normalizedProviderId
                 ) {
-                    return false;
+
+                    const itemProviderId =
+                        normalizeString(
+                            item.provider_id
+                        );
+
+
+                    if (
+                        itemProviderId !==
+                        normalizedProviderId
+                    ) {
+
+                        return false;
+
+                    }
+
                 }
+
+
+                if (
+                    normalizedStatus
+                ) {
+
+                    const itemStatus =
+                        normalizeString(
+                            item.status
+                        );
+
+
+                    if (
+                        itemStatus !==
+                        normalizedStatus
+                    ) {
+
+                        return false;
+
+                    }
+
+                }
+
 
                 return true;
+
             }
         );
+
     }
+
 
     /* =====================================================
        FIND PRICING FOR MODEL
@@ -508,209 +809,197 @@
         model,
         pricing = pricingCache
     ) {
-        if (!model) {
+
+        if (
+            !model
+        ) {
+
             return [];
+
         }
+
 
         if (
             !Array.isArray(
                 pricing
             )
         ) {
+
             return [];
+
         }
+
 
         const modelId =
             normalizeString(
                 model.model_id
             );
 
-        const modelName =
+
+        const modelDbId =
             normalizeString(
-                model.model_name
+                model.id
             );
 
-        const metadata =
-            model.metadata &&
-            typeof model.metadata ===
-                "object"
-                ? model.metadata
-                : {};
-
-        const workflowIds = [];
 
         if (
-            metadata.workflow_id
+            !modelId &&
+            !modelDbId
         ) {
-            workflowIds.push(
-                String(
-                    metadata.workflow_id
-                )
-            );
+
+            return [];
+
         }
 
-        if (
-            Array.isArray(
-                metadata.workflow_ids
-            )
-        ) {
-            metadata.workflow_ids
-                .forEach(
-                    id => {
-                        if (id) {
-                            workflowIds.push(
-                                String(id)
-                            );
-                        }
-                    }
-                );
-        }
-
-        const uniqueWorkflowIds =
-            [
-                ...new Set(
-                    workflowIds
-                )
-            ];
 
         return pricing.filter(
             item => {
 
-                /*
-                 * Match workflow ID.
-                 */
-                if (
-                    uniqueWorkflowIds.includes(
-                        String(
-                            item.workflow_id ??
-                            ""
-                        )
-                    )
-                ) {
-                    return true;
-                }
-
-                const sku =
+                const itemModelId =
                     normalizeString(
-                        item.sku_key
+                        item.model_id
                     );
 
-                const operation =
+
+                const itemDbId =
                     normalizeString(
-                        item.operation
+                        item.id
                     );
 
-                const context =
-                    JSON.stringify(
-                        item.pricing_context ||
-                        {}
-                    )
-                        .toLowerCase();
 
-                const conditions =
-                    JSON.stringify(
-                        item.conditions ||
-                        {}
-                    )
-                        .toLowerCase();
+                return (
 
-                /*
-                 * Model ID.
-                 */
-                if (
-                    modelId &&
                     (
-                        sku.includes(
-                            modelId
-                        ) ||
-                        operation.includes(
-                            modelId
-                        ) ||
-                        context.includes(
-                            modelId
-                        ) ||
-                        conditions.includes(
-                            modelId
-                        )
-                    )
-                ) {
-                    return true;
-                }
+                        modelId &&
+                        itemModelId ===
+                        modelId
+                    ) ||
 
-                /*
-                 * Model Name.
-                 */
-                if (
-                    modelName &&
                     (
-                        sku.includes(
-                            modelName
-                        ) ||
-                        operation.includes(
-                            modelName
-                        ) ||
-                        context.includes(
-                            modelName
-                        ) ||
-                        conditions.includes(
-                            modelName
-                        )
+                        modelDbId &&
+                        itemDbId ===
+                        modelDbId
                     )
-                ) {
-                    return true;
-                }
 
-                return false;
+                );
+
             }
         );
+
     }
+
+
+    /* =====================================================
+       FIND BY MODEL ID
+    ===================================================== */
+
+    function getModelPricingById(
+        modelId,
+        pricing = pricingCache
+    ) {
+
+        const normalized =
+            normalizeString(
+                modelId
+            );
+
+
+        if (
+            !normalized ||
+            !Array.isArray(
+                pricing
+            )
+        ) {
+
+            return null;
+
+        }
+
+
+        return (
+            pricing.find(
+                item =>
+                    normalizeString(
+                        item.model_id
+                    ) ===
+                    normalized
+            ) ||
+            null
+        );
+
+    }
+
 
     /* =====================================================
        LOWEST PRICE
+       -----------------------------------------------------
+       Compatibility API.
+       Untuk model baru hanya ada satu record pricing
+       per model, tetapi fungsi tetap dipertahankan.
     ===================================================== */
 
     function getLowestPrice(
         pricing
     ) {
+
         if (
-            !Array.isArray(pricing) ||
+            !Array.isArray(
+                pricing
+            ) ||
             pricing.length === 0
         ) {
+
             return null;
+
         }
 
-        let lowest = null;
+
+        let lowest =
+            null;
+
 
         pricing.forEach(
             item => {
 
-                const price =
+                const value =
                     toNumber(
-                        item.unit_price
+                        item.credit_final ??
+                        item.credit_cost
                     );
 
+
                 if (
-                    price === null ||
-                    price < 0
+                    value === null ||
+                    value < 0
                 ) {
+
                     return;
+
                 }
+
 
                 if (
                     lowest === null ||
-                    price <
+                    value <
                     Number(
-                        lowest.unit_price
+                        lowest.credit_final ??
+                        lowest.credit_cost
                     )
                 ) {
+
                     lowest =
                         item;
+
                 }
+
             }
         );
 
+
         return lowest;
+
     }
+
 
     /* =====================================================
        HIGHEST PRICE
@@ -719,45 +1008,65 @@
     function getHighestPrice(
         pricing
     ) {
+
         if (
-            !Array.isArray(pricing) ||
+            !Array.isArray(
+                pricing
+            ) ||
             pricing.length === 0
         ) {
+
             return null;
+
         }
 
-        let highest = null;
+
+        let highest =
+            null;
+
 
         pricing.forEach(
             item => {
 
-                const price =
+                const value =
                     toNumber(
-                        item.unit_price
+                        item.credit_final ??
+                        item.credit_cost
                     );
 
+
                 if (
-                    price === null ||
-                    price < 0
+                    value === null ||
+                    value < 0
                 ) {
+
                     return;
+
                 }
+
 
                 if (
                     highest === null ||
-                    price >
+                    value >
                     Number(
-                        highest.unit_price
+                        highest.credit_final ??
+                        highest.credit_cost
                     )
                 ) {
+
                     highest =
                         item;
+
                 }
+
             }
         );
 
+
         return highest;
+
     }
+
 
     /* =====================================================
        AVERAGE PRICE
@@ -766,19 +1075,26 @@
     function getAveragePrice(
         pricing
     ) {
+
         if (
-            !Array.isArray(pricing) ||
+            !Array.isArray(
+                pricing
+            ) ||
             pricing.length === 0
         ) {
+
             return null;
+
         }
+
 
         const values =
             pricing
                 .map(
                     item =>
                         toNumber(
-                            item.unit_price
+                            item.credit_final ??
+                            item.credit_cost
                         )
                 )
                 .filter(
@@ -787,11 +1103,15 @@
                         value >= 0
                 );
 
+
         if (
             values.length === 0
         ) {
+
             return null;
+
         }
+
 
         const total =
             values.reduce(
@@ -803,29 +1123,243 @@
                 0
             );
 
+
         return (
             total /
             values.length
         );
+
     }
+
+
+    /* =====================================================
+       GET MODEL PRICE
+    ===================================================== */
+
+    function getModelPrice(
+        model,
+        pricing = pricingCache
+    ) {
+
+        /*
+         * Jika model belum ada di cache,
+         * gunakan langsung record model.
+         *
+         * Ini penting supaya form tidak tergantung
+         * pada request pricing tambahan.
+         */
+
+        if (
+            model &&
+            (
+                Object.prototype.hasOwnProperty.call(
+                    model,
+                    "credit_cost"
+                ) ||
+                Object.prototype.hasOwnProperty.call(
+                    model,
+                    "credit_final"
+                )
+            )
+        ) {
+
+            const normalized =
+                normalizeModelPricing(
+                    model
+                );
+
+
+            if (
+                normalized
+            ) {
+
+                return {
+
+                    pricing:
+                        [
+                            normalized
+                        ],
+
+                    item:
+                        normalized,
+
+                    creditCost:
+                        normalized.credit_cost,
+
+                    discountPercent:
+                        normalized.discount_percent,
+
+                    creditFinal:
+                        normalized.credit_final,
+
+                    discountAmount:
+                        normalized.discount_amount
+
+                };
+
+            }
+
+        }
+
+
+        const matches =
+            findPricingForModel(
+                model,
+                pricing
+            );
+
+
+        const item =
+            getLowestPrice(
+                matches
+            );
+
+
+        if (
+            !item
+        ) {
+
+            return null;
+
+        }
+
+
+        return {
+
+            pricing:
+                matches,
+
+            item,
+
+            creditCost:
+                toNumber(
+                    item.credit_cost
+                ),
+
+            discountPercent:
+                toNumber(
+                    item.discount_percent
+                ) ?? 0,
+
+            creditFinal:
+                toNumber(
+                    item.credit_final
+                ),
+
+            discountAmount:
+                toNumber(
+                    item.discount_amount
+                )
+
+        };
+
+    }
+
+
+    /* =====================================================
+       CREDIT SUMMARY
+    ===================================================== */
+
+    function getCreditSummary(
+        model
+    ) {
+
+        if (
+            !model
+        ) {
+
+            return {
+
+                creditCost:
+                    null,
+
+                discountPercent:
+                    0,
+
+                discountAmount:
+                    null,
+
+                creditFinal:
+                    null
+
+            };
+
+        }
+
+
+        const normalized =
+            normalizeModelPricing(
+                model
+            );
+
+
+        if (
+            !normalized
+        ) {
+
+            return {
+
+                creditCost:
+                    null,
+
+                discountPercent:
+                    0,
+
+                discountAmount:
+                    null,
+
+                creditFinal:
+                    null
+
+            };
+
+        }
+
+
+        return {
+
+            creditCost:
+                normalized.credit_cost,
+
+            discountPercent:
+                normalized.discount_percent,
+
+            discountAmount:
+                normalized.discount_amount,
+
+            creditFinal:
+                normalized.credit_final,
+
+            calculatedCreditFinal:
+                normalized.calculated_credit_final
+
+        };
+
+    }
+
 
     /* =====================================================
        CALCULATE COST
+       -----------------------------------------------------
+       Compatibility utility.
     ===================================================== */
 
     function calculateCost(
         unitPrice,
         quantity = 1
     ) {
+
         const price =
             toNumber(
                 unitPrice
             );
 
+
         const qty =
             Number(
                 quantity
             );
+
 
         if (
             price === null ||
@@ -834,102 +1368,365 @@
             ) ||
             qty < 0
         ) {
+
             return null;
+
         }
+
 
         return (
             price *
             qty
         );
+
     }
 
+
     /* =====================================================
-       CALCULATE DISCOUNT
+       USD / IDR COMPATIBILITY
        ===================================================== */
 
-    function calculateDiscount(
-        normalPrice,
-        discountPercent
+    function getUsdToIdrRate() {
+
+        const candidates = [
+
+            window.GENZ_USD_IDR_RATE,
+
+            window.GENZ_CONFIG &&
+            window.GENZ_CONFIG.USD_IDR_RATE,
+
+            window.GENZ_CONFIG &&
+            window.GENZ_CONFIG.usd_idr_rate,
+
+            (() => {
+
+                try {
+
+                    return localStorage.getItem(
+                        "GENZ_USD_IDR_RATE"
+                    );
+
+                } catch (
+                    error
+                ) {
+
+                    return null;
+
+                }
+
+            })()
+
+        ];
+
+
+        for (
+            const candidate
+            of candidates
+        ) {
+
+            const rate =
+                Number(
+                    candidate
+                );
+
+
+            if (
+                Number.isFinite(
+                    rate
+                ) &&
+                rate > 0
+            ) {
+
+                return rate;
+
+            }
+
+        }
+
+
+        return DEFAULT_USD_IDR_RATE;
+
+    }
+
+
+    function setUsdToIdrRate(
+        rate
     ) {
+
+        const number =
+            Number(
+                rate
+            );
+
+
+        if (
+            !Number.isFinite(
+                number
+            ) ||
+            number <= 0
+        ) {
+
+            return false;
+
+        }
+
+
+        window.GENZ_USD_IDR_RATE =
+            number;
+
+
+        try {
+
+            localStorage.setItem(
+                "GENZ_USD_IDR_RATE",
+                String(
+                    number
+                )
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[models-price] Tidak dapat menyimpan kurs:",
+                error
+            );
+
+        }
+
+
+        return true;
+
+    }
+
+
+    function priceToIdr(
+        usdPrice,
+        rate = null
+    ) {
+
         const price =
             toNumber(
-                normalPrice
+                usdPrice
             );
 
-        const discount =
-            toNumber(
-                discountPercent
-            );
 
         if (
-            price === null ||
-            discount === null
+            price === null
         ) {
+
             return null;
+
         }
 
+
+        const exchangeRate =
+            rate === null
+                ? getUsdToIdrRate()
+                : toNumber(
+                    rate
+                );
+
+
         if (
-            discount < 0 ||
-            discount > 100
+            exchangeRate === null ||
+            exchangeRate <= 0
         ) {
+
             return null;
+
         }
+
 
         return (
             price *
-            (
-                1 -
-                (
-                    discount /
-                    100
-                )
-            )
+            exchangeRate
         );
+
     }
 
-    /* =====================================================
-       CALCULATE FINAL CREDIT
-    ===================================================== */
 
-    function calculateCreditFinal(
-        creditCost,
-        discountPercent
+    function idrToUsd(
+        idrPrice,
+        rate = null
     ) {
-        const cost =
+
+        const price =
             toNumber(
-                creditCost
+                idrPrice
             );
 
-        const discount =
-            toNumber(
-                discountPercent
-            );
 
         if (
-            cost === null ||
-            discount === null
+            price === null
         ) {
+
             return null;
+
         }
 
+
+        const exchangeRate =
+            rate === null
+                ? getUsdToIdrRate()
+                : toNumber(
+                    rate
+                );
+
+
         if (
-            discount < 0 ||
-            discount > 100
+            exchangeRate === null ||
+            exchangeRate <= 0
         ) {
+
             return null;
+
         }
+
 
         return (
-            cost *
-            (
-                1 -
-                (
-                    discount /
-                    100
-                )
+            price /
+            exchangeRate
+        );
+
+    }
+
+
+    /* =====================================================
+       FORMAT CREDIT
+    ===================================================== */
+
+    function formatCredit(
+        value
+    ) {
+
+        const number =
+            toNumber(
+                value
+            );
+
+
+        if (
+            number === null
+        ) {
+
+            return "-";
+
+        }
+
+
+        return new Intl.NumberFormat(
+            "id-ID",
+            {
+                minimumFractionDigits:
+                    0,
+
+                maximumFractionDigits:
+                    6
+            }
+        ).format(
+            number
+        );
+
+    }
+
+
+    /* =====================================================
+       FORMAT USD
+       -----------------------------------------------------
+       Compatibility API.
+    ===================================================== */
+
+    function formatUsd(
+        value
+    ) {
+
+        const number =
+            toNumber(
+                value
+            );
+
+
+        if (
+            number === null
+        ) {
+
+            return "-";
+
+        }
+
+
+        return new Intl.NumberFormat(
+            "en-US",
+            {
+                style:
+                    "currency",
+
+                currency:
+                    "USD",
+
+                minimumFractionDigits:
+                    2,
+
+                maximumFractionDigits:
+                    6
+
+            }
+        ).format(
+            number
+        );
+
+    }
+
+
+    /* =====================================================
+       FORMAT IDR
+    ===================================================== */
+
+    function formatIdr(
+        value
+    ) {
+
+        const number =
+            toNumber(
+                value
+            );
+
+
+        if (
+            number === null
+        ) {
+
+            return "-";
+
+        }
+
+
+        return new Intl.NumberFormat(
+            "id-ID",
+            {
+                style:
+                    "currency",
+
+                currency:
+                    "IDR",
+
+                minimumFractionDigits:
+                    0,
+
+                maximumFractionDigits:
+                    0
+
+            }
+        ).format(
+            Math.round(
+                number
             )
         );
+
     }
+
 
     /* =====================================================
        PRICE SUMMARY
@@ -938,38 +1735,53 @@
     function getPriceSummary(
         pricing
     ) {
+
         if (
             !Array.isArray(
                 pricing
             ) ||
             pricing.length === 0
         ) {
+
             return {
-                count: 0,
-                lowest: null,
-                highest: null,
-                average: null,
-                lowestIdr: null,
-                highestIdr: null
+
+                count:
+                    0,
+
+                lowest:
+                    null,
+
+                highest:
+                    null,
+
+                average:
+                    null
+
             };
+
         }
+
 
         const lowest =
             getLowestPrice(
                 pricing
             );
 
+
         const highest =
             getHighestPrice(
                 pricing
             );
+
 
         const average =
             getAveragePrice(
                 pricing
             );
 
+
         return {
+
             count:
                 pricing.length,
 
@@ -977,113 +1789,125 @@
 
             highest,
 
-            average,
+            average
 
-            lowestIdr:
-                lowest
-                    ? priceToIdr(
-                        lowest.unit_price
-                    )
-                    : null,
-
-            highestIdr:
-                highest
-                    ? priceToIdr(
-                        highest.unit_price
-                    )
-                    : null,
-
-            averageIdr:
-                average !== null
-                    ? priceToIdr(
-                        average
-                    )
-                    : null
         };
+
     }
 
+
     /* =====================================================
-       RENDER PRICE
+       RENDER MODEL CREDIT
     ===================================================== */
 
     function renderPrice(
         pricing
     ) {
+
         if (
             !Array.isArray(
                 pricing
             ) ||
             pricing.length === 0
         ) {
+
             return `
-                <div class="kie-price">
-                    <div class="kie-price-empty">
-                        Harga KIE belum tersedia
+                <div class="model-price">
+                    <div class="model-price-empty">
+                        Credit belum tersedia
                     </div>
                 </div>
             `;
+
         }
 
-        const lowest =
+
+        const item =
             getLowestPrice(
                 pricing
             );
 
-        if (!lowest) {
+
+        if (
+            !item
+        ) {
+
             return `
-                <div class="kie-price">
-                    <div class="kie-price-empty">
-                        Harga KIE tidak valid
+                <div class="model-price">
+                    <div class="model-price-empty">
+                        Credit tidak valid
                     </div>
                 </div>
             `;
+
         }
 
-        const usd =
+
+        const creditCost =
             toNumber(
-                lowest.unit_price
+                item.credit_cost
             );
 
-        const idr =
-            priceToIdr(
-                usd
+
+        const discount =
+            toNumber(
+                item.discount_percent
+            ) ?? 0;
+
+
+        const creditFinal =
+            toNumber(
+                item.credit_final
             );
 
-        const unit =
-            lowest.billing_unit ||
-            "unit";
-
-        const count =
-            pricing.length;
 
         return `
-            <div class="kie-price">
+            <div class="model-price">
 
-                <div class="kie-price-usd">
-                    ${formatUsd(usd)}
-                </div>
-
-                <div class="kie-price-idr">
-                    ${formatIdr(idr)}
-                </div>
-
-                <div class="kie-price-unit">
-                    per ${escapeHtml(unit)}
+                <div class="model-credit-cost">
+                    Credit:
+                    <strong>
+                        ${escapeHtml(
+                            formatCredit(
+                                creditCost
+                            )
+                        )}
+                    </strong>
                 </div>
 
                 ${
-                    count > 1
+                    discount > 0
                         ? `
-                            <div class="kie-price-count">
-                                ${count} pricing ditemukan
+                            <div class="model-credit-discount">
+                                Diskon:
+                                <strong>
+                                    ${escapeHtml(
+                                        formatCredit(
+                                            discount
+                                        )
+                                    )}%
+                                </strong>
                             </div>
                         `
                         : ""
                 }
 
+                <div class="model-credit-final">
+                    Credit Final:
+                    <strong>
+                        ${escapeHtml(
+                            formatCredit(
+                                creditFinal
+                            )
+                        )}
+                    </strong>
+                </div>
+
             </div>
         `;
+
     }
+
 
     /* =====================================================
        RENDER PRICE PREVIEW
@@ -1092,20 +1916,24 @@
     function renderPricePreview(
         pricing
     ) {
+
         if (
             !Array.isArray(
                 pricing
             ) ||
             pricing.length === 0
         ) {
+
             return `
-                <div class="kie-price-preview">
-                    <div class="kie-price-empty">
-                        Belum ada data harga KIE.
+                <div class="model-price-preview">
+                    <div class="model-price-empty">
+                        Belum ada data credit model.
                     </div>
                 </div>
             `;
+
         }
+
 
         const rows =
             pricing
@@ -1116,258 +1944,297 @@
                 .map(
                     item => {
 
-                        const usd =
+                        const cost =
                             toNumber(
-                                item.unit_price
+                                item.credit_cost
                             );
 
-                        const idr =
-                            priceToIdr(
-                                usd
+
+                        const discount =
+                            toNumber(
+                                item.discount_percent
+                            ) ?? 0;
+
+
+                        const finalCredit =
+                            toNumber(
+                                item.credit_final
                             );
+
 
                         return `
-                            <div class="kie-price-preview-row">
+                            <div class="model-price-preview-row">
 
                                 <div>
+
                                     <strong>
                                         ${escapeHtml(
-                                            item.operation ||
-                                            item.sku_key ||
-                                            "KIE"
+                                            item.model_name ||
+                                            item.model_id ||
+                                            "Model"
                                         )}
                                     </strong>
 
-                                    <div class="kie-price-unit">
+                                    <div>
                                         ${escapeHtml(
-                                            item.billing_unit ||
-                                            "unit"
+                                            item.model_id ||
+                                            ""
                                         )}
                                     </div>
+
                                 </div>
 
                                 <div>
 
-                                    <div class="kie-price-usd">
-                                        ${formatUsd(usd)}
+                                    <div>
+                                        Credit:
+                                        <strong>
+                                            ${escapeHtml(
+                                                formatCredit(
+                                                    cost
+                                                )
+                                            )}
+                                        </strong>
                                     </div>
 
-                                    <div class="kie-price-idr">
-                                        ${formatIdr(idr)}
+                                    <div>
+                                        Diskon:
+                                        <strong>
+                                            ${escapeHtml(
+                                                formatCredit(
+                                                    discount
+                                                )
+                                            )}%
+                                        </strong>
+                                    </div>
+
+                                    <div>
+                                        Final:
+                                        <strong>
+                                            ${escapeHtml(
+                                                formatCredit(
+                                                    finalCredit
+                                                )
+                                            )}
+                                        </strong>
                                     </div>
 
                                 </div>
 
                             </div>
                         `;
+
                     }
                 )
                 .join("");
 
+
         return `
-            <div class="kie-price-preview">
+            <div class="model-price-preview">
                 ${rows}
             </div>
         `;
+
     }
 
+
     /* =====================================================
-       RENDER PRICE SUMMARY
+       RENDER SUMMARY
     ===================================================== */
 
     function renderPriceSummary(
         pricing
     ) {
+
         const summary =
             getPriceSummary(
                 pricing
             );
 
+
         if (
             summary.count === 0
         ) {
+
             return `
-                <div class="kie-price-summary">
-                    Harga KIE belum tersedia.
+                <div class="model-price-summary">
+                    Credit model belum tersedia.
                 </div>
             `;
+
         }
 
-        return `
-            <div class="kie-price-summary">
 
-                <div class="kie-price-summary-row">
-                    <span>Jumlah Pricing</span>
+        const lowest =
+            summary.lowest;
+
+
+        return `
+            <div class="model-price-summary">
+
+                <div class="model-price-summary-row">
+                    <span>
+                        Jumlah Model
+                    </span>
+
                     <strong>
                         ${summary.count}
                     </strong>
                 </div>
 
-                <div class="kie-price-summary-row">
-                    <span>Harga Terendah</span>
+                <div class="model-price-summary-row">
+                    <span>
+                        Credit Terendah
+                    </span>
+
                     <strong>
-                        ${formatUsd(
-                            summary.lowest?.unit_price
+                        ${escapeHtml(
+                            formatCredit(
+                                lowest?.credit_final ??
+                                lowest?.credit_cost
+                            )
                         )}
                     </strong>
                 </div>
 
-                <div class="kie-price-summary-row">
-                    <span>Harga Terendah IDR</span>
-                    <strong>
-                        ${formatIdr(
-                            summary.lowestIdr
-                        )}
-                    </strong>
-                </div>
+                <div class="model-price-summary-row">
+                    <span>
+                        Credit Tertinggi
+                    </span>
 
-                <div class="kie-price-summary-row">
-                    <span>Harga Tertinggi</span>
                     <strong>
-                        ${formatUsd(
-                            summary.highest?.unit_price
+                        ${escapeHtml(
+                            formatCredit(
+                                summary.highest?.credit_final ??
+                                summary.highest?.credit_cost
+                            )
                         )}
                     </strong>
                 </div>
 
             </div>
         `;
+
     }
 
-    /* =====================================================
-       FIND MODEL PRICE
-    ===================================================== */
-
-    function getModelPrice(
-        model,
-        pricing = pricingCache
-    ) {
-        const matches =
-            findPricingForModel(
-                model,
-                pricing
-            );
-
-        const lowest =
-            getLowestPrice(
-                matches
-            );
-
-        if (!lowest) {
-            return null;
-        }
-
-        const usd =
-            toNumber(
-                lowest.unit_price
-            );
-
-        return {
-            pricing: matches,
-
-            item: lowest,
-
-            usd,
-
-            idr:
-                priceToIdr(
-                    usd
-                ),
-
-            currency:
-                lowest.currency ||
-                "USD",
-
-            billing_unit:
-                lowest.billing_unit ||
-                "unit"
-        };
-    }
 
     /* =====================================================
        CACHE
     ===================================================== */
 
     function clearCache() {
-        pricingCache = [];
+
+        pricingCache =
+            [];
 
         loadingPromise =
             null;
+
     }
 
+
     function getCachedPricing() {
+
         return [
             ...pricingCache
         ];
+
     }
 
+
     function hasCachedPricing() {
+
         return (
-            pricingCache.length > 0
+            pricingCache.length >
+            0
         );
+
     }
+
 
     /* =====================================================
        INITIALIZE
     ===================================================== */
 
     async function initialize() {
-        if (initialized) {
+
+        if (
+            initialized
+        ) {
+
             return [
                 ...pricingCache
             ];
+
         }
 
+
+        /*
+         * Pricing model berasal dari tabel models.
+         *
+         * Jika gagal dimuat, jangan membuat seluruh
+         * halaman Models gagal.
+         */
+
         try {
+
             const result =
                 await loadPricing({
-                    force: false
+                    force:
+                        false
                 });
+
 
             initialized =
                 true;
 
+
             console.info(
-                "[models-price] Pricing module initialized:",
+                "[GEN-Z.AI] Model pricing initialized:",
                 result.length
             );
 
+
             return result;
 
-        } catch (error) {
-            /*
-             * Pricing bukan alasan halaman Models
-             * harus gagal total.
-             *
-             * Model CRUD tetap dapat digunakan
-             * walaupun tabel pricing sedang
-             * kosong / tidak tersedia.
-             */
+        } catch (
+            error
+        ) {
+
             console.warn(
-                "[models-price] Pricing initialization dilewati:",
+                "[GEN-Z.AI] Model pricing initialization dilewati:",
                 error
             );
 
+
             initialized =
                 true;
+
 
             pricingCache =
                 [];
 
+
             return [];
+
         }
+
     }
+
 
     /* =====================================================
        RESET
     ===================================================== */
 
     function reset() {
+
         initialized =
             false;
 
         clearCache();
+
     }
+
 
     /* =====================================================
        PUBLIC API
@@ -1386,7 +2253,13 @@
 
             findPricingForModel,
 
+            getModelPricingById,
+
             getModelPrice,
+
+            getCreditSummary,
+
+            normalizeModelPricing,
 
             getLowestPrice,
 
@@ -1398,13 +2271,15 @@
 
             calculateCost,
 
-            calculateDiscount,
+            calculateDiscountAmount,
 
             calculateCreditFinal,
 
             priceToIdr,
 
             idrToUsd,
+
+            formatCredit,
 
             formatUsd,
 
@@ -1428,8 +2303,10 @@
 
         });
 
+
     console.log(
         "[GEN-Z.AI] GENZModelsPrice loaded."
     );
+
 
 })();
