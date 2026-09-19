@@ -2,11 +2,19 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Edit Model - GEN-Z.AI</title>
 
     <style>
+
+        /* =====================================================
+           RESET
+        ===================================================== */
+
         * {
             box-sizing: border-box;
         }
@@ -26,21 +34,49 @@
                 sans-serif;
         }
 
+        :root {
+            --neon-red: #ff1744;
+            --neon-red-dark: #d50032;
+            --neon-red-soft: rgba(255,23,68,.16);
+            --neon-red-glow: rgba(255,23,68,.42);
+
+            --white: #ffffff;
+            --gray-50: #fafafa;
+            --gray-100: #f3f3f3;
+            --gray-200: #e7e7e7;
+            --gray-300: #d2d2d2;
+            --gray-500: #777;
+            --gray-700: #333;
+            --gray-900: #171717;
+        }
+
         body {
             min-height: 100vh;
-            color: #171717;
+
+            color: var(--gray-900);
+
             background:
                 radial-gradient(
-                    circle at top left,
-                    rgba(255,255,255,.95),
-                    transparent 35%
+                    circle at 10% 5%,
+                    rgba(255,255,255,.98),
+                    rgba(255,255,255,.72) 24%,
+                    transparent 48%
+                ),
+                radial-gradient(
+                    circle at 90% 90%,
+                    rgba(255,255,255,.96),
+                    rgba(210,210,210,.58) 34%,
+                    transparent 66%
                 ),
                 linear-gradient(
                     135deg,
-                    #8d8d8d 0%,
-                    #d7d7d7 42%,
+                    #898989 0%,
+                    #cfcfcf 30%,
+                    #f2f2f2 65%,
                     #ffffff 100%
                 );
+
+            background-attachment: fixed;
         }
 
         button,
@@ -54,6 +90,7 @@
             cursor: pointer;
         }
 
+
         /* =====================================================
            APP
         ===================================================== */
@@ -63,8 +100,9 @@
             min-height: 100vh;
         }
 
+
         /* =====================================================
-           TOP LEFT NAVIGATION BUTTON
+           NAV TOGGLE
         ===================================================== */
 
         .nav-toggle {
@@ -83,7 +121,7 @@
             border-radius: 11px;
 
             color: #fff;
-            background: rgba(20,20,20,.94);
+            background: rgba(20,20,20,.95);
 
             box-shadow:
                 0 6px 18px rgba(0,0,0,.25),
@@ -96,22 +134,28 @@
             transition:
                 background .2s ease,
                 border-color .2s ease,
-                box-shadow .2s ease;
+                box-shadow .2s ease,
+                transform .2s ease;
         }
 
         .nav-toggle:hover {
-            background: #ff1744;
-            border-color: #ff1744;
+            background: var(--neon-red);
+            border-color: var(--neon-red);
 
             box-shadow:
                 0 0 18px rgba(255,23,68,.55),
                 0 8px 24px rgba(0,0,0,.25);
         }
 
+        .nav-toggle:active {
+            transform: scale(.96);
+        }
+
         .nav-toggle:focus-visible {
             outline: 3px solid rgba(255,23,68,.25);
             outline-offset: 2px;
         }
+
 
         /* =====================================================
            SIDEBAR
@@ -128,11 +172,12 @@
             background:
                 linear-gradient(
                     180deg,
-                    rgba(20,20,20,.98),
-                    rgba(40,40,40,.98)
+                    rgba(20,20,20,.99),
+                    rgba(40,40,40,.99)
                 );
 
-            border-right: 1px solid rgba(255,255,255,.12);
+            border-right:
+                1px solid rgba(255,255,255,.12);
 
             z-index: 200;
 
@@ -150,7 +195,8 @@
             align-items: center;
             gap: 11px;
 
-            padding: 4px 10px 25px;
+            padding:
+                4px 10px 25px;
 
             color: #fff;
         }
@@ -164,7 +210,7 @@
 
             border-radius: 11px;
 
-            background: #ff1744;
+            background: var(--neon-red);
             color: #fff;
 
             font-size: 17px;
@@ -191,7 +237,8 @@
         }
 
         .nav-title {
-            padding: 0 11px 9px;
+            padding:
+                0 11px 9px;
 
             color: #777;
 
@@ -223,7 +270,10 @@
 
             border-radius: 10px;
 
-            transition: .2s ease;
+            transition:
+                color .2s ease,
+                background .2s ease,
+                box-shadow .2s ease;
         }
 
         .nav a:hover {
@@ -242,13 +292,15 @@
                 );
 
             box-shadow:
-                inset 3px 0 0 #ff1744,
+                inset 3px 0 0 var(--neon-red),
                 0 0 15px rgba(255,23,68,.08);
         }
 
         .nav-icon {
             width: 22px;
+
             text-align: center;
+
             font-size: 17px;
         }
 
@@ -269,18 +321,25 @@
             width: 100%;
             min-height: 42px;
 
-            border: 1px solid rgba(255,255,255,.12);
+            border:
+                1px solid rgba(255,255,255,.12);
+
             border-radius: 10px;
 
             color: #ccc;
             background: rgba(255,255,255,.04);
+
+            transition: .2s ease;
         }
 
         .logout:hover {
             color: #fff;
 
-            border-color: rgba(255,23,68,.5);
-            background: rgba(255,23,68,.12);
+            border-color:
+                rgba(255,23,68,.5);
+
+            background:
+                rgba(255,23,68,.12);
         }
 
         .sidebar-overlay {
@@ -291,8 +350,10 @@
 
             z-index: 150;
 
-            background: rgba(0,0,0,.38);
+            background:
+                rgba(0,0,0,.38);
         }
+
 
         /* =====================================================
            MAIN
@@ -318,6 +379,7 @@
             margin: 0 auto;
         }
 
+
         /* =====================================================
            HEADER
         ===================================================== */
@@ -337,7 +399,7 @@
         .eyebrow {
             margin-bottom: 6px;
 
-            color: #d50032;
+            color: var(--neon-red-dark);
 
             font-size: 11px;
             font-weight: 900;
@@ -349,7 +411,9 @@
         h1 {
             margin: 0;
 
-            font-size: clamp(25px,4vw,36px);
+            font-size:
+                clamp(25px,4vw,36px);
+
             line-height: 1.1;
 
             letter-spacing: -1px;
@@ -373,22 +437,71 @@
 
             padding: 0 17px;
 
-            border: 1px solid rgba(0,0,0,.18);
+            border:
+                1px solid var(--neon-red);
+
             border-radius: 10px;
 
             color: #222;
-            background: rgba(255,255,255,.72);
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #fff,
+                    #e5e5e5
+                );
 
             font-weight: 800;
 
             box-shadow:
-                0 5px 18px rgba(0,0,0,.08);
+                0 0 5px rgba(255,23,68,.55),
+                0 0 14px rgba(255,23,68,.18),
+                0 6px 18px rgba(0,0,0,.08);
+
+            transition: .2s ease;
         }
 
         .back-button:hover {
             color: #fff;
-            background: #222;
+
+            background:
+                var(--neon-red);
+
+            box-shadow:
+                0 0 8px rgba(255,23,68,1),
+                0 0 22px rgba(255,23,68,.55);
         }
+
+
+        /* =====================================================
+           GLOBAL BLOCK
+        ===================================================== */
+
+        .model-hero,
+        .form-card,
+        .price-box,
+        .parameter-card,
+        .status-box,
+        .alert,
+        .loading,
+        .actions {
+            border:
+                1px solid var(--neon-red) !important;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.97) 0%,
+                    rgba(247,247,247,.97) 45%,
+                    rgba(225,225,225,.96) 100%
+                ) !important;
+
+            box-shadow:
+                0 0 5px rgba(255,23,68,.88),
+                0 0 15px rgba(255,23,68,.30),
+                0 10px 30px rgba(0,0,0,.10);
+        }
+
 
         /* =====================================================
            MODEL HERO
@@ -400,23 +513,41 @@
             margin-bottom: 18px;
             padding: 22px;
 
-            border: 1px solid #ff1744;
             border-radius: 18px;
 
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,.94),
-                    rgba(237,237,237,.88)
-                );
+            overflow: hidden;
 
             box-shadow:
-                0 0 7px rgba(255,23,68,.8),
-                0 0 25px rgba(255,23,68,.28),
-                0 14px 40px rgba(0,0,0,.10);
+                0 0 6px rgba(255,23,68,.95),
+                0 0 20px rgba(255,23,68,.45),
+                0 0 42px rgba(255,23,68,.18),
+                0 14px 40px rgba(0,0,0,.12);
+        }
+
+        .model-hero::before,
+        .form-card::before {
+            content: "";
+
+            position: absolute;
+
+            inset: -2px;
+
+            border:
+                1px solid rgba(255,23,68,.16);
+
+            border-radius: inherit;
+
+            pointer-events: none;
+
+            box-shadow:
+                0 0 18px rgba(255,23,68,.14),
+                0 0 35px rgba(255,23,68,.06);
         }
 
         .model-hero-top {
+            position: relative;
+            z-index: 1;
+
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
@@ -454,21 +585,30 @@
 
             padding: 7px 12px;
 
-            border: 1px solid #ff1744;
+            border:
+                1px solid var(--neon-red);
+
             border-radius: 999px;
 
-            color: #d50032;
+            color: var(--neon-red-dark);
 
-            background: rgba(255,23,68,.06);
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255,255,255,.95),
+                    rgba(235,235,235,.90)
+                );
 
             box-shadow:
-                0 0 13px rgba(255,23,68,.25);
+                0 0 6px rgba(255,23,68,.85),
+                0 0 18px rgba(255,23,68,.30);
 
             font-size: 10px;
             font-weight: 900;
 
             letter-spacing: 1px;
         }
+
 
         /* =====================================================
            FORM CARD
@@ -480,16 +620,20 @@
             margin-bottom: 18px;
             padding: 24px;
 
-            border: 1px solid rgba(255,255,255,.85);
             border-radius: 18px;
 
-            background: rgba(255,255,255,.84);
-
-            box-shadow:
-                0 12px 35px rgba(0,0,0,.10),
-                inset 0 0 0 1px rgba(0,0,0,.03);
+            overflow: hidden;
 
             backdrop-filter: blur(8px);
+        }
+
+        .form-card:hover,
+        .model-hero:hover {
+            box-shadow:
+                0 0 7px rgba(255,23,68,1),
+                0 0 24px rgba(255,23,68,.48),
+                0 0 45px rgba(255,23,68,.18),
+                0 14px 40px rgba(0,0,0,.12);
         }
 
         .section-title {
@@ -545,12 +689,19 @@
             line-height: 1.45;
         }
 
+
+        /* =====================================================
+           INPUT
+        ===================================================== */
+
         input,
         textarea,
         select {
             width: 100%;
 
-            border: 1px solid #cfcfcf;
+            border:
+                1px solid #cfcfcf;
+
             border-radius: 10px;
 
             outline: none;
@@ -581,7 +732,8 @@
         input:focus,
         textarea:focus,
         select:focus {
-            border-color: #ff1744;
+            border-color:
+                var(--neon-red);
 
             box-shadow:
                 0 0 0 3px rgba(255,23,68,.10),
@@ -589,12 +741,23 @@
         }
 
         input[readonly],
-        textarea[readonly] {
+        textarea[readonly],
+        .readonly-value {
             color: #555;
 
-            background: #eeeeee;
+            background:
+                linear-gradient(
+                    145deg,
+                    #fff,
+                    #e6e6e6
+                );
 
-            cursor: not-allowed;
+            border-color:
+                rgba(255,23,68,.55);
+
+            box-shadow:
+                inset 0 0 8px rgba(255,23,68,.05),
+                0 0 5px rgba(255,23,68,.12);
         }
 
         .readonly-value {
@@ -605,11 +768,7 @@
 
             padding: 0 13px;
 
-            border: 1px solid #d1d1d1;
             border-radius: 10px;
-
-            color: #555;
-            background: #eeeeee;
 
             font-size: 13px;
 
@@ -626,6 +785,7 @@
                 monospace;
         }
 
+
         /* =====================================================
            STATUS
         ===================================================== */
@@ -641,10 +801,15 @@
 
             padding: 8px 12px;
 
-            border: 1px solid #d0d0d0;
             border-radius: 10px;
 
-            background: #fff;
+            background:
+                linear-gradient(
+                    135deg,
+                    #fff 0%,
+                    #f5f5f5 50%,
+                    #ddd 100%
+                ) !important;
         }
 
         .status-info strong {
@@ -676,6 +841,7 @@
             position: absolute;
 
             opacity: 0;
+
             pointer-events: none;
         }
 
@@ -714,45 +880,49 @@
         }
 
         .switch input:checked + .slider {
-            background: #ff1744;
+            background:
+                var(--neon-red);
 
             box-shadow:
                 0 0 12px rgba(255,23,68,.55);
         }
 
         .switch input:checked + .slider::before {
-            transform: translateX(24px);
+            transform:
+                translateX(24px);
         }
 
+
         /* =====================================================
-           PRICING
+           CREDIT PRICING
         ===================================================== */
 
-        .price-input-wrap {
+        .credit-input-wrap {
             position: relative;
         }
 
-        .price-prefix {
+        .credit-prefix {
             position: absolute;
 
             left: 13px;
             top: 50%;
 
-            transform: translateY(-50%);
+            transform:
+                translateY(-50%);
 
             color: #555;
 
             font-size: 12px;
-            font-weight: 800;
+            font-weight: 900;
 
             pointer-events: none;
         }
 
-        .price-input-wrap input {
-            padding-left: 42px;
+        .credit-input-wrap input {
+            padding-left: 64px;
         }
 
-        .price-preview {
+        .credit-preview {
             display: grid;
 
             grid-template-columns:
@@ -766,15 +936,14 @@
         .price-box {
             padding: 15px;
 
-            border: 1px solid #ddd;
             border-radius: 12px;
 
             background:
                 linear-gradient(
                     145deg,
                     #fff,
-                    #eeeeee
-                );
+                    #eee
+                ) !important;
         }
 
         .price-label {
@@ -796,15 +965,19 @@
 
         .price-box.final {
             border-color:
-                rgba(255,23,68,.45);
+                var(--neon-red) !important;
 
             box-shadow:
-                0 0 14px rgba(255,23,68,.13);
+                0 0 6px rgba(255,23,68,.95),
+                0 0 20px rgba(255,23,68,.38),
+                0 8px 24px rgba(0,0,0,.10);
         }
 
         .price-box.final .price-value {
-            color: #d50032;
+            color:
+                var(--neon-red-dark);
         }
+
 
         /* =====================================================
            PARAMETERS
@@ -826,10 +999,27 @@
 
             padding: 15px;
 
-            border: 1px solid #ddd;
             border-radius: 12px;
 
-            background: #f4f4f4;
+            background:
+                linear-gradient(
+                    145deg,
+                    #fff 0%,
+                    #f3f3f3 48%,
+                    #dedede 100%
+                ) !important;
+
+            box-shadow:
+                0 0 5px rgba(255,23,68,.65),
+                0 0 14px rgba(255,23,68,.20),
+                0 7px 20px rgba(0,0,0,.08);
+        }
+
+        .parameter-card:hover {
+            box-shadow:
+                0 0 6px rgba(255,23,68,.9),
+                0 0 20px rgba(255,23,68,.32),
+                0 8px 22px rgba(0,0,0,.10);
         }
 
         .parameter-label {
@@ -854,6 +1044,7 @@
             overflow-wrap: anywhere;
         }
 
+
         /* =====================================================
            ACTIONS
         ===================================================== */
@@ -866,7 +1057,16 @@
 
             gap: 10px;
 
-            margin-top: 23px;
+            padding: 15px;
+
+            border-radius: 15px;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.96),
+                    rgba(226,226,226,.94)
+                ) !important;
         }
 
         .btn {
@@ -878,7 +1078,8 @@
 
             font-weight: 850;
 
-            border: 1px solid transparent;
+            border:
+                1px solid transparent;
         }
 
         .btn-secondary {
@@ -896,16 +1097,19 @@
         .btn-primary {
             color: #fff;
 
-            background: #ff1744;
+            background:
+                var(--neon-red);
 
-            border-color: #ff1744;
+            border-color:
+                var(--neon-red);
 
             box-shadow:
                 0 0 12px rgba(255,23,68,.4);
         }
 
         .btn-primary:hover {
-            background: #e60032;
+            background:
+                #e60032;
 
             box-shadow:
                 0 0 20px rgba(255,23,68,.55);
@@ -918,6 +1122,7 @@
 
             box-shadow: none;
         }
+
 
         /* =====================================================
            ALERT
@@ -940,25 +1145,33 @@
             display: block;
         }
 
-        .alert.error {
-            color: #8c001d;
-
-            border:
-                1px solid rgba(255,23,68,.35);
+        .alert.error,
+        .alert.success {
+            border-color:
+                var(--neon-red) !important;
 
             background:
-                rgba(255,23,68,.08);
+                linear-gradient(
+                    135deg,
+                    rgba(255,255,255,.97),
+                    rgba(235,235,235,.95)
+                ) !important;
+
+            box-shadow:
+                0 0 5px rgba(255,23,68,.65),
+                0 0 15px rgba(255,23,68,.20);
+        }
+
+        .alert.error {
+            color:
+                #8c001d;
         }
 
         .alert.success {
-            color: #14532d;
-
-            border:
-                1px solid rgba(22,163,74,.3);
-
-            background:
-                rgba(22,163,74,.08);
+            color:
+                #14532d;
         }
+
 
         /* =====================================================
            LOADING
@@ -975,6 +1188,8 @@
             color: #555;
 
             font-size: 13px;
+
+            border-radius: 18px;
         }
 
         .spinner {
@@ -983,18 +1198,22 @@
 
             margin-right: 10px;
 
-            border: 3px solid #ddd;
+            border:
+                3px solid #ddd;
 
-            border-top-color: #ff1744;
+            border-top-color:
+                var(--neon-red);
 
             border-radius: 50%;
 
-            animation: spin .75s linear infinite;
+            animation:
+                spin .75s linear infinite;
         }
 
         @keyframes spin {
             to {
-                transform: rotate(360deg);
+                transform:
+                    rotate(360deg);
             }
         }
 
@@ -1002,8 +1221,9 @@
             display: none !important;
         }
 
+
         /* =====================================================
-           RESPONSIVE
+           MOBILE
         ===================================================== */
 
         @media (max-width: 900px) {
@@ -1017,10 +1237,12 @@
                 padding: 20px;
             }
 
-            .price-preview {
-                grid-template-columns: 1fr;
+            .credit-preview {
+                grid-template-columns:
+                    1fr;
             }
         }
+
 
         @media (max-width: 720px) {
 
@@ -1031,11 +1253,13 @@
                 left: 0;
                 bottom: 0;
 
-                width: min(245px,82vw);
+                width:
+                    min(245px,82vw);
 
                 height: 100vh;
 
-                transform: translateX(-100%);
+                transform:
+                    translateX(-100%);
 
                 overflow-y: auto;
             }
@@ -1044,8 +1268,10 @@
                 display: block;
             }
 
-            .app:not(.sidebar-collapsed) .sidebar {
-                transform: translateX(0);
+            .app:not(.sidebar-collapsed)
+            .sidebar {
+                transform:
+                    translateX(0);
 
                 box-shadow:
                     12px 0 35px rgba(0,0,0,.35);
@@ -1072,7 +1298,8 @@
             }
 
             .form-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
             }
 
             .field.full {
@@ -1080,7 +1307,8 @@
             }
 
             .parameter-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
             }
 
             .model-hero-top {
@@ -1088,1737 +1316,1817 @@
             }
 
             .actions {
-                flex-direction: column-reverse;
+                flex-direction:
+                    column-reverse;
             }
 
             .actions .btn {
                 width: 100%;
             }
+
+            .model-hero,
+            .form-card,
+            .price-box,
+            .parameter-card,
+            .status-box,
+            .alert,
+            .loading,
+            .actions {
+                border-radius: 14px;
+            }
         }
 
-        /* =====================================================
-   GLOBAL NEON RED BLOCK SYSTEM
-   Semua blok pada halaman Edit Model
-===================================================== */
-
-:root {
-    --neon-red: #ff1744;
-    --neon-red-dark: #d50032;
-    --neon-red-soft: rgba(255, 23, 68, 0.22);
-    --neon-red-glow: rgba(255, 23, 68, 0.42);
-
-    --block-white: rgba(255, 255, 255, 0.96);
-    --block-gray: rgba(232, 232, 232, 0.94);
-}
-
-/* Background halaman */
-body {
-    background:
-        radial-gradient(
-            circle at 12% 8%,
-            rgba(255, 255, 255, 0.98) 0%,
-            rgba(255, 255, 255, 0.72) 25%,
-            transparent 48%
-        ),
-        radial-gradient(
-            circle at 88% 92%,
-            rgba(255, 255, 255, 0.95) 0%,
-            rgba(210, 210, 210, 0.55) 35%,
-            transparent 65%
-        ),
-        linear-gradient(
-            135deg,
-            #8a8a8a 0%,
-            #cfcfcf 28%,
-            #f4f4f4 62%,
-            #ffffff 100%
-        );
-    background-attachment: fixed;
-}
-
-/* =====================================================
-   SEMUA BLOK UTAMA
-===================================================== */
-
-.model-hero,
-.form-card,
-.price-box,
-.parameter-card,
-.status-box,
-.alert,
-.loading {
-    border: 1px solid var(--neon-red) !important;
-
-    background:
-        linear-gradient(
-            145deg,
-            var(--block-white) 0%,
-            rgba(247, 247, 247, 0.97) 42%,
-            var(--block-gray) 100%
-        ) !important;
-
-    box-shadow:
-        0 0 5px rgba(255, 23, 68, 0.90),
-        0 0 14px rgba(255, 23, 68, 0.38),
-        0 10px 30px rgba(0, 0, 0, 0.10) !important;
-}
-
-/* Efek neon tambahan pada blok utama */
-.model-hero::before,
-.form-card::before {
-    content: "";
-    position: absolute;
-    inset: -2px;
-    border: 1px solid rgba(255, 23, 68, 0.18);
-    border-radius: inherit;
-    pointer-events: none;
-    box-shadow:
-        0 0 18px rgba(255, 23, 68, 0.16),
-        0 0 35px rgba(255, 23, 68, 0.08);
-}
-
-/* Pastikan blok tetap memiliki positioning */
-.model-hero,
-.form-card {
-    position: relative;
-}
-
-/* =====================================================
-   MODEL HERO
-===================================================== */
-
-.model-hero {
-    border-width: 1px !important;
-    box-shadow:
-        0 0 6px rgba(255, 23, 68, 0.95),
-        0 0 20px rgba(255, 23, 68, 0.45),
-        0 0 42px rgba(255, 23, 68, 0.18),
-        0 14px 40px rgba(0, 0, 0, 0.12) !important;
-}
-
-/* =====================================================
-   FORM SECTION
-===================================================== */
-
-.form-card {
-    overflow: hidden;
-}
-
-.form-card:hover,
-.model-hero:hover {
-    box-shadow:
-        0 0 7px rgba(255, 23, 68, 1),
-        0 0 24px rgba(255, 23, 68, 0.48),
-        0 0 45px rgba(255, 23, 68, 0.18),
-        0 14px 40px rgba(0, 0, 0, 0.12) !important;
-}
-
-/* =====================================================
-   STATUS BLOCK
-===================================================== */
-
-.status-box {
-    border-color: var(--neon-red) !important;
-    background:
-        linear-gradient(
-            135deg,
-            #ffffff 0%,
-            #f5f5f5 50%,
-            #dddddd 100%
-        ) !important;
-
-    box-shadow:
-        0 0 5px rgba(255, 23, 68, 0.65),
-        0 0 14px rgba(255, 23, 68, 0.20) !important;
-}
-
-/* =====================================================
-   PRICE BLOCK
-===================================================== */
-
-.price-box {
-    border-color: var(--neon-red) !important;
-    background:
-        linear-gradient(
-            145deg,
-            #ffffff 0%,
-            #f5f5f5 48%,
-            #dddddd 100%
-        ) !important;
-
-    box-shadow:
-        0 0 5px rgba(255, 23, 68, 0.70),
-        0 0 15px rgba(255, 23, 68, 0.22),
-        0 8px 22px rgba(0, 0, 0, 0.08) !important;
-}
-
-.price-box.final {
-    border-color: var(--neon-red) !important;
-
-    box-shadow:
-        0 0 6px rgba(255, 23, 68, 0.95),
-        0 0 20px rgba(255, 23, 68, 0.38),
-        0 8px 24px rgba(0, 0, 0, 0.10) !important;
-}
-
-/* =====================================================
-   PARAMETER BLOCK
-===================================================== */
-
-.parameter-card {
-    border-color: var(--neon-red) !important;
-
-    background:
-        linear-gradient(
-            145deg,
-            #ffffff 0%,
-            #f3f3f3 48%,
-            #dedede 100%
-        ) !important;
-
-    box-shadow:
-        0 0 5px rgba(255, 23, 68, 0.65),
-        0 0 14px rgba(255, 23, 68, 0.20),
-        0 7px 20px rgba(0, 0, 0, 0.08) !important;
-}
-
-.parameter-card:hover {
-    border-color: var(--neon-red) !important;
-
-    box-shadow:
-        0 0 6px rgba(255, 23, 68, 0.9),
-        0 0 20px rgba(255, 23, 68, 0.32),
-        0 8px 22px rgba(0, 0, 0, 0.10) !important;
-}
-
-/* =====================================================
-   ALERT
-===================================================== */
-
-.alert.error,
-.alert.success {
-    border-color: var(--neon-red) !important;
-
-    background:
-        linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.97),
-            rgba(235, 235, 235, 0.95)
-        ) !important;
-
-    box-shadow:
-        0 0 5px rgba(255, 23, 68, 0.65),
-        0 0 15px rgba(255, 23, 68, 0.20) !important;
-}
-
-/* =====================================================
-   LOADING
-===================================================== */
-
-.loading {
-    border-color: var(--neon-red) !important;
-
-    background:
-        linear-gradient(
-            145deg,
-            #ffffff,
-            #e5e5e5
-        ) !important;
-
-    box-shadow:
-        0 0 6px rgba(255, 23, 68, 0.75),
-        0 0 18px rgba(255, 23, 68, 0.22) !important;
-}
-
-/* =====================================================
-   INPUT / READONLY BLOCK
-===================================================== */
-
-.readonly-value,
-input[readonly],
-textarea[readonly] {
-    border-color: rgba(255, 23, 68, 0.55) !important;
-
-    background:
-        linear-gradient(
-            145deg,
-            #ffffff,
-            #e6e6e6
-        ) !important;
-
-    box-shadow:
-        inset 0 0 8px rgba(255, 23, 68, 0.05),
-        0 0 5px rgba(255, 23, 68, 0.12);
-}
-
-/* =====================================================
-   BUTTON BACK
-===================================================== */
-
-.back-button {
-    border-color: var(--neon-red) !important;
-
-    background:
-        linear-gradient(
-            145deg,
-            #ffffff,
-            #e5e5e5
-        ) !important;
-
-    box-shadow:
-        0 0 5px rgba(255, 23, 68, 0.55),
-        0 0 14px rgba(255, 23, 68, 0.18),
-        0 6px 18px rgba(0, 0, 0, 0.08) !important;
-}
-
-.back-button:hover {
-    color: #fff !important;
-    background: var(--neon-red) !important;
-
-    box-shadow:
-        0 0 8px rgba(255, 23, 68, 1),
-        0 0 22px rgba(255, 23, 68, 0.55) !important;
-}
-
-/* =====================================================
-   ACTION BUTTON AREA
-===================================================== */
-
-.actions {
-    padding: 15px;
-
-    border: 1px solid var(--neon-red);
-    border-radius: 15px;
-
-    background:
-        linear-gradient(
-            145deg,
-            rgba(255, 255, 255, 0.96),
-            rgba(226, 226, 226, 0.94)
-        );
-
-    box-shadow:
-        0 0 5px rgba(255, 23, 68, 0.75),
-        0 0 18px rgba(255, 23, 68, 0.22),
-        0 10px 25px rgba(0, 0, 0, 0.08);
-}
-
-/* =====================================================
-   PREMIUM BADGE
-===================================================== */
-
-.premium-badge {
-    border-color: var(--neon-red) !important;
-    color: var(--neon-red-dark) !important;
-
-    background:
-        linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.95),
-            rgba(235, 235, 235, 0.90)
-        ) !important;
-
-    box-shadow:
-        0 0 6px rgba(255, 23, 68, 0.85),
-        0 0 18px rgba(255, 23, 68, 0.30) !important;
-}
-
-/* =====================================================
-   MOBILE
-===================================================== */
-
-@media (max-width: 720px) {
-
-    .model-hero,
-    .form-card,
-    .price-box,
-    .parameter-card,
-    .status-box,
-    .alert,
-    .loading,
-    .actions {
-        border-radius: 14px;
-    }
-
-    .form-card,
-    .model-hero {
-        box-shadow:
-            0 0 5px rgba(255, 23, 68, 0.85),
-            0 0 16px rgba(255, 23, 68, 0.28),
-            0 8px 25px rgba(0, 0, 0, 0.10) !important;
-    }
-}
     </style>
 </head>
 
+
 <body>
 
-<!-- =========================================================
-     TOP LEFT NAVIGATION
-========================================================= -->
-
-<button
-    type="button"
-    class="nav-toggle"
-    id="navToggle"
-    aria-label="Tutup navigasi"
-    aria-controls="adminSidebar"
-    aria-expanded="true"
->
-    ☰
-</button>
-
-
-<div
-    class="app"
-    id="appShell"
->
-
     <!-- =====================================================
-         SIDEBAR
-    ====================================================== -->
+         NAVIGATION BUTTON
+    ===================================================== -->
 
-    <aside
-        class="sidebar"
-        id="adminSidebar"
+    <button
+        type="button"
+        class="nav-toggle"
+        id="navToggle"
+        aria-label="Tutup navigasi"
+        aria-controls="adminSidebar"
+        aria-expanded="true"
     >
+        ☰
+    </button>
 
-        <div class="brand">
-
-            <div class="brand-logo">
-                G
-            </div>
-
-            <div>
-                <div class="brand-text">
-                    GEN-Z.AI
-                </div>
-
-                <div class="brand-sub">
-                    ADMIN CONTROL
-                </div>
-            </div>
-
-        </div>
-
-
-        <div class="nav-title">
-            Management
-        </div>
-
-
-        <nav class="nav">
-
-            <a href="./index.html">
-                <span class="nav-icon">⌂</span>
-                <span class="nav-label">
-                    Dashboard
-                </span>
-            </a>
-
-            <a href="./users.html">
-                <span class="nav-icon">♙</span>
-                <span class="nav-label">
-                    Users
-                </span>
-            </a>
-
-            <a href="./providers.html">
-                <span class="nav-icon">◈</span>
-                <span class="nav-label">
-                    Providers
-                </span>
-            </a>
-
-            <a
-                href="./models.html"
-                class="active"
-            >
-                <span class="nav-icon">◆</span>
-                <span class="nav-label">
-                    Models
-                </span>
-            </a>
-
-            <a href="./credit.html">
-                <span class="nav-icon">₿</span>
-                <span class="nav-label">
-                    Credit
-                </span>
-            </a>
-
-        </nav>
-
-
-        <div class="sidebar-bottom">
-
-            <button
-                type="button"
-                class="logout"
-                id="logoutButton"
-            >
-                Logout
-            </button>
-
-        </div>
-
-    </aside>
-
-
-    <!-- MOBILE OVERLAY -->
 
     <div
-        class="sidebar-overlay"
-        id="sidebarOverlay"
-        aria-hidden="true"
-    ></div>
+        class="app"
+        id="appShell"
+    >
 
+        <!-- =================================================
+             SIDEBAR
+        ================================================= -->
 
-    <!-- =====================================================
-         MAIN
-    ====================================================== -->
+        <aside
+            class="sidebar"
+            id="adminSidebar"
+        >
 
-    <main class="main">
+            <div class="brand">
 
-        <div class="content">
-
-            <!-- HEADER -->
-
-            <header class="page-header">
+                <div class="brand-logo">
+                    G
+                </div>
 
                 <div>
 
-                    <div class="eyebrow">
-                        Model Management
+                    <div class="brand-text">
+                        GEN-Z.AI
                     </div>
 
-                    <h1>
-                        Edit Model
-                    </h1>
-
-                    <p class="page-description">
-                        Konfigurasi model yang berasal dari
-                        folder model di repository.
-                        Model ID dikunci karena digunakan
-                        sebagai referensi utama pada halaman
-                        Generate.
-                    </p>
+                    <div class="brand-sub">
+                        ADMIN CONTROL
+                    </div>
 
                 </div>
 
-
-                <button
-                    type="button"
-                    class="back-button"
-                    id="backButton"
-                >
-                    ← Kembali
-                </button>
-
-            </header>
-
-
-            <!-- ALERT -->
-
-            <div
-                id="alertBox"
-                class="alert"
-            ></div>
-
-
-            <!-- LOADING -->
-
-            <div
-                id="loadingBox"
-                class="form-card loading"
-            >
-                <span class="spinner"></span>
-
-                Memuat konfigurasi model...
             </div>
 
 
-            <!-- =================================================
-                 EDIT CONTENT
-            ================================================== -->
+            <div class="nav-title">
+                Management
+            </div>
 
-            <div
-                id="editContent"
-                class="hidden"
-            >
 
-                <!-- MODEL HERO -->
+            <nav class="nav">
 
-                <section class="model-hero">
+                <a href="./index.html">
+                    <span class="nav-icon">⌂</span>
+                    <span class="nav-label">
+                        Dashboard
+                    </span>
+                </a>
 
-                    <div class="model-hero-top">
+                <a href="./users.html">
+                    <span class="nav-icon">♙</span>
+                    <span class="nav-label">
+                        Users
+                    </span>
+                </a>
 
-                        <div>
+                <a href="./providers.html">
+                    <span class="nav-icon">◈</span>
+                    <span class="nav-label">
+                        Providers
+                    </span>
+                </a>
 
-                            <h2
-                                class="model-title"
-                                id="heroModelName"
-                            >
-                                -
-                            </h2>
+                <a
+                    href="./models.html"
+                    class="active"
+                >
+                    <span class="nav-icon">◆</span>
+                    <span class="nav-label">
+                        Models
+                    </span>
+                </a>
 
-                            <div
-                                class="model-id"
-                                id="heroModelId"
-                            >
-                                -
-                            </div>
+                <a href="./credit.html">
+                    <span class="nav-icon">₿</span>
+                    <span class="nav-label">
+                        Credit
+                    </span>
+                </a>
 
+            </nav>
+
+
+            <div class="sidebar-bottom">
+
+                <button
+                    type="button"
+                    class="logout"
+                    id="logoutButton"
+                >
+                    Logout
+                </button>
+
+            </div>
+
+        </aside>
+
+
+        <div
+            class="sidebar-overlay"
+            id="sidebarOverlay"
+            aria-hidden="true"
+        ></div>
+
+
+        <!-- =================================================
+             MAIN
+        ================================================= -->
+
+        <main class="main">
+
+            <div class="content">
+
+                <!-- HEADER -->
+
+                <header class="page-header">
+
+                    <div>
+
+                        <div class="eyebrow">
+                            Model Management
                         </div>
 
-                        <div class="premium-badge">
-                            PREMIUM MODEL
-                        </div>
+                        <h1>
+                            Edit Model
+                        </h1>
+
+                        <p class="page-description">
+                            Konfigurasi model yang berasal dari
+                            folder model di repository.
+                            Model ID dikunci karena digunakan
+                            sebagai referensi utama pada
+                            halaman Generate.
+                        </p>
 
                     </div>
 
-                </section>
+
+                    <button
+                        type="button"
+                        class="back-button"
+                        id="backButton"
+                    >
+                        ← Kembali
+                    </button>
+
+                </header>
 
 
-                <!-- BASIC CONFIG -->
+                <!-- ALERT -->
 
-                <section class="form-card">
-
-                    <h2 class="section-title">
-                        Informasi Model
-                    </h2>
-
-                    <p class="section-description">
-                        Identitas teknis model berasal dari
-                        folder model. Hanya informasi
-                        administrasi yang dapat diubah.
-                    </p>
+                <div
+                    id="alertBox"
+                    class="alert"
+                    role="alert"
+                ></div>
 
 
-                    <div class="form-grid">
+                <!-- LOADING -->
 
-                        <!-- MODEL NAME -->
+                <div
+                    id="loadingBox"
+                    class="loading"
+                >
+                    <span class="spinner"></span>
+                    Memuat konfigurasi model...
+                </div>
 
-                        <div class="field">
 
-                            <label for="modelName">
-                                Nama Model
-                            </label>
+                <!-- =================================================
+                     EDIT CONTENT
+                ================================================== -->
 
-                            <input
-                                type="text"
-                                id="modelName"
-                                maxlength="150"
-                                autocomplete="off"
-                            >
+                <div
+                    id="editContent"
+                    class="hidden"
+                >
 
-                            <div class="field-help">
-                                Nama yang ditampilkan pada
-                                halaman admin dan Generate.
+                    <!-- MODEL HERO -->
+
+                    <section class="model-hero">
+
+                        <div class="model-hero-top">
+
+                            <div>
+
+                                <h2
+                                    class="model-title"
+                                    id="heroModelName"
+                                >
+                                    -
+                                </h2>
+
+                                <div
+                                    class="model-id"
+                                    id="heroModelId"
+                                >
+                                    -
+                                </div>
+
+                            </div>
+
+                            <div class="premium-badge">
+                                PREMIUM MODEL
                             </div>
 
                         </div>
 
+                    </section>
 
-                        <!-- MODEL ID -->
 
-                        <div class="field">
+                    <!-- =================================================
+                         BASIC CONFIG
+                    ================================================== -->
 
-                            <label>
-                                Model ID
-                            </label>
+                    <section class="form-card">
 
-                            <div
-                                class="readonly-value mono"
-                                id="modelId"
-                            >
-                                -
+                        <h2 class="section-title">
+                            Informasi Model
+                        </h2>
+
+                        <p class="section-description">
+                            Identitas teknis model berasal dari
+                            folder model. Nama, deskripsi, dan
+                            status dapat dikonfigurasi oleh admin.
+                            Model ID tidak dapat diubah.
+                        </p>
+
+
+                        <div class="form-grid">
+
+                            <!-- NAME -->
+
+                            <div class="field">
+
+                                <label for="modelName">
+                                    Nama Model
+                                </label>
+
+                                <input
+                                    type="text"
+                                    id="modelName"
+                                    maxlength="150"
+                                    autocomplete="off"
+                                >
+
+                                <div class="field-help">
+                                    Nama tampilan model.
+                                </div>
+
                             </div>
 
-                            <div class="field-help">
-                                Tidak dapat diubah.
-                                Digunakan sebagai referensi
-                                sistem.
+
+                            <!-- MODEL ID -->
+
+                            <div class="field">
+
+                                <label>
+                                    Model ID
+                                </label>
+
+                                <div
+                                    class="readonly-value mono"
+                                    id="modelId"
+                                >
+                                    -
+                                </div>
+
+                                <div class="field-help">
+                                    Immutable. Digunakan sebagai
+                                    referensi halaman Generate.
+                                </div>
+
+                            </div>
+
+
+                            <!-- PROVIDER -->
+
+                            <div class="field">
+
+                                <label>
+                                    Provider
+                                </label>
+
+                                <div
+                                    class="readonly-value"
+                                    id="providerName"
+                                >
+                                    -
+                                </div>
+
+                            </div>
+
+
+                            <!-- TYPE -->
+
+                            <div class="field">
+
+                                <label>
+                                    Model Type
+                                </label>
+
+                                <div
+                                    class="readonly-value"
+                                    id="modelType"
+                                >
+                                    -
+                                </div>
+
+                            </div>
+
+
+                            <!-- STATUS -->
+
+                            <div class="field full">
+
+                                <label>
+                                    Status Model
+                                </label>
+
+                                <div class="status-box">
+
+                                    <div class="status-info">
+
+                                        <strong id="statusText">
+                                            Nonaktif
+                                        </strong>
+
+                                        <span>
+                                            Model aktif dapat
+                                            digunakan pada sistem
+                                            Generate.
+                                        </span>
+
+                                    </div>
+
+
+                                    <label class="switch">
+
+                                        <input
+                                            type="checkbox"
+                                            id="statusToggle"
+                                        >
+
+                                        <span class="slider"></span>
+
+                                    </label>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- DESCRIPTION -->
+
+                            <div class="field full">
+
+                                <label for="description">
+                                    Deskripsi
+                                </label>
+
+                                <textarea
+                                    id="description"
+                                    maxlength="1000"
+                                    placeholder="Deskripsi model..."
+                                ></textarea>
+
                             </div>
 
                         </div>
 
+                    </section>
 
-                        <!-- PROVIDER -->
 
-                        <div class="field">
+                    <!-- =================================================
+                         PRICING
+                    ================================================== -->
 
-                            <label>
-                                Provider
-                            </label>
+                    <section class="form-card">
 
-                            <div
-                                class="readonly-value"
-                                id="providerName"
-                            >
-                                -
+                        <h2 class="section-title">
+                            Pricing Credit
+                        </h2>
+
+                        <p class="section-description">
+                            Sistem pricing GEN-Z.AI menggunakan
+                            credit_cost sebagai harga dasar.
+                            Diskon dihitung otomatis menjadi
+                            credit_final. Nilai credit tidak
+                            diperlakukan sebagai USD.
+                        </p>
+
+
+                        <div class="form-grid">
+
+                            <!-- CREDIT COST -->
+
+                            <div class="field">
+
+                                <label for="creditCost">
+                                    Harga Dasar Credit
+                                </label>
+
+                                <div class="credit-input-wrap">
+
+                                    <span class="credit-prefix">
+                                        CREDIT
+                                    </span>
+
+                                    <input
+                                        type="number"
+                                        id="creditCost"
+                                        min="0"
+                                        step="0.000001"
+                                        inputmode="decimal"
+                                    >
+
+                                </div>
+
+                                <div class="field-help">
+                                    Nilai ini disimpan ke
+                                    models.credit_cost.
+                                </div>
+
                             </div>
 
-                        </div>
 
+                            <!-- DISCOUNT -->
 
-                        <!-- TYPE -->
+                            <div class="field">
 
-                        <div class="field">
+                                <label for="discount">
+                                    Diskon
+                                </label>
 
-                            <label>
-                                Model Type
-                            </label>
+                                <div class="credit-input-wrap">
 
-                            <div
-                                class="readonly-value"
-                                id="modelType"
-                            >
-                                -
-                            </div>
+                                    <input
+                                        type="number"
+                                        id="discount"
+                                        min="0"
+                                        max="100"
+                                        step="0.01"
+                                        inputmode="decimal"
+                                    >
 
-                        </div>
-
-
-                        <!-- STATUS -->
-
-                        <div class="field full">
-
-                            <label>
-                                Status Model
-                            </label>
-
-                            <div class="status-box">
-
-                                <div class="status-info">
-
-                                    <strong id="statusText">
-                                        Nonaktif
-                                    </strong>
-
-                                    <span>
-                                        Model aktif dapat
-                                        digunakan pada sistem
-                                        Generate.
+                                    <span
+                                        class="credit-prefix"
+                                        style="
+                                            left:auto;
+                                            right:13px;
+                                        "
+                                    >
+                                        %
                                     </span>
 
                                 </div>
 
-                                <label class="switch">
+                                <div class="field-help">
+                                    0 berarti tanpa diskon.
+                                    Maksimum 100%.
+                                </div>
 
-                                    <input
-                                        type="checkbox"
-                                        id="statusToggle"
-                                    >
+                            </div>
 
-                                    <span class="slider"></span>
 
+                            <!-- FINAL CREDIT -->
+
+                            <div class="field">
+
+                                <label>
+                                    Credit Setelah Diskon
                                 </label>
 
-                            </div>
-
-                        </div>
-
-
-                        <!-- DESCRIPTION -->
-
-                        <div class="field full">
-
-                            <label for="description">
-                                Deskripsi
-                            </label>
-
-                            <textarea
-                                id="description"
-                                maxlength="1000"
-                                placeholder="Deskripsi model..."
-                            ></textarea>
-
-                        </div>
-
-                    </div>
-
-                </section>
-
-
-                <!-- PRICING -->
-
-                <section class="form-card">
-
-                    <h2 class="section-title">
-                        Pricing
-                    </h2>
-
-                    <p class="section-description">
-                        Harga dasar ditampilkan dalam USD
-                        dan dikonversi ke Rupiah untuk
-                        tampilan admin.
-                    </p>
-
-
-                    <div class="form-grid">
-
-                        <!-- USD -->
-
-                        <div class="field">
-
-                            <label for="priceUsd">
-                                Harga Dasar USD
-                            </label>
-
-                            <div class="price-input-wrap">
-
-                                <span class="price-prefix">
-                                    $
-                                </span>
-
-                                <input
-                                    type="number"
-                                    id="priceUsd"
-                                    min="0"
-                                    step="0.000001"
-                                    inputmode="decimal"
+                                <div
+                                    class="readonly-value mono"
+                                    id="creditFinalValue"
                                 >
+                                    0
+                                </div>
+
+                                <div class="field-help">
+                                    Dihitung otomatis dan tidak
+                                    menjadi input manual.
+                                </div>
 
                             </div>
 
                         </div>
 
 
-                        <!-- EXCHANGE RATE -->
+                        <!-- CREDIT PREVIEW -->
 
-                        <div class="field">
+                        <div class="credit-preview">
 
-                            <label for="exchangeRate">
-                                Kurs USD → IDR
-                            </label>
+                            <div class="price-box">
 
-                            <div class="price-input-wrap">
+                                <div class="price-label">
+                                    Credit Normal
+                                </div>
 
-                                <input
-                                    type="number"
-                                    id="exchangeRate"
-                                    min="0"
-                                    step="1"
-                                    inputmode="numeric"
-                                    value="16000"
+                                <div
+                                    class="price-value"
+                                    id="previewNormal"
                                 >
+                                    0
+                                </div>
 
-                                <span
-                                    class="price-prefix"
-                                    style="
-                                        left:auto;
-                                        right:13px;
-                                    "
+                            </div>
+
+
+                            <div class="price-box">
+
+                                <div class="price-label">
+                                    Diskon
+                                </div>
+
+                                <div
+                                    class="price-value"
+                                    id="previewDiscount"
                                 >
-                                    IDR
-                                </span>
+                                    0%
+                                </div>
 
                             </div>
 
-                            <div class="field-help">
-                                Kurs hanya digunakan untuk
-                                kalkulasi tampilan.
-                            </div>
 
-                        </div>
+                            <div class="price-box final">
 
+                                <div class="price-label">
+                                    Credit Final
+                                </div>
 
-                        <!-- DISCOUNT -->
-
-                        <div class="field">
-
-                            <label for="discount">
-                                Diskon
-                            </label>
-
-                            <div class="price-input-wrap">
-
-                                <input
-                                    type="number"
-                                    id="discount"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
-                                    inputmode="decimal"
+                                <div
+                                    class="price-value"
+                                    id="previewFinal"
                                 >
+                                    0
+                                </div>
 
-                                <span
-                                    class="price-prefix"
-                                    style="
-                                        left:auto;
-                                        right:13px;
-                                    "
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- =================================================
+                         PARAMETERS
+                    ================================================== -->
+
+                    <section class="form-card">
+
+                        <h2 class="section-title">
+                            Parameter Model
+                        </h2>
+
+                        <p class="section-description">
+                            Parameter teknis dibaca langsung dari
+                            parameters.js pada folder model.
+                            Nilai ini tidak dapat diedit dari
+                            halaman admin.
+                        </p>
+
+
+                        <div class="parameter-grid">
+
+                            <div class="parameter-card">
+
+                                <div class="parameter-label">
+                                    Duration
+                                </div>
+
+                                <div
+                                    class="parameter-value"
+                                    id="durationValue"
                                 >
-                                    %
-                                </span>
+                                    -
+                                </div>
 
                             </div>
 
-                            <div class="field-help">
-                                Nilai 0 berarti tanpa diskon.
+
+                            <div class="parameter-card">
+
+                                <div class="parameter-label">
+                                    Aspect Ratio
+                                </div>
+
+                                <div
+                                    class="parameter-value"
+                                    id="ratioValue"
+                                >
+                                    -
+                                </div>
+
+                            </div>
+
+
+                            <div class="parameter-card">
+
+                                <div class="parameter-label">
+                                    Resolution
+                                </div>
+
+                                <div
+                                    class="parameter-value"
+                                    id="resolutionValue"
+                                >
+                                    -
+                                </div>
+
                             </div>
 
                         </div>
 
-                    </div>
+                    </section>
 
 
-                    <!-- PRICE PREVIEW -->
+                    <!-- =================================================
+                         ACTIONS
+                    ================================================== -->
 
-                    <div class="price-preview">
+                    <section class="form-card">
 
-                        <div class="price-box">
+                        <div class="actions">
 
-                            <div class="price-label">
-                                Harga USD
-                            </div>
-
-                            <div
-                                class="price-value"
-                                id="previewUsd"
+                            <button
+                                type="button"
+                                class="btn btn-secondary"
+                                id="cancelButton"
                             >
-                                $0.00
-                            </div>
+                                Batal
+                            </button>
 
-                        </div>
-
-
-                        <div class="price-box">
-
-                            <div class="price-label">
-                                Harga IDR
-                            </div>
-
-                            <div
-                                class="price-value"
-                                id="previewIdr"
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                id="saveButton"
                             >
-                                Rp0
-                            </div>
+                                Simpan Perubahan
+                            </button>
 
                         </div>
 
+                    </section>
 
-                        <div class="price-box final">
-
-                            <div class="price-label">
-                                Setelah Diskon
-                            </div>
-
-                            <div
-                                class="price-value"
-                                id="previewFinal"
-                            >
-                                Rp0
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </section>
-
-
-                <!-- PARAMETERS -->
-
-                <section class="form-card">
-
-                    <h2 class="section-title">
-                        Parameter Model
-                    </h2>
-
-                    <p class="section-description">
-                        Parameter teknis dibaca langsung dari
-                        parameters.js pada folder model dan
-                        tidak dapat diedit dari halaman admin.
-                    </p>
-
-
-                    <div class="parameter-grid">
-
-                        <div class="parameter-card">
-
-                            <div class="parameter-label">
-                                Duration
-                            </div>
-
-                            <div
-                                class="parameter-value"
-                                id="durationValue"
-                            >
-                                -
-                            </div>
-
-                        </div>
-
-
-                        <div class="parameter-card">
-
-                            <div class="parameter-label">
-                                Aspect Ratio
-                            </div>
-
-                            <div
-                                class="parameter-value"
-                                id="ratioValue"
-                            >
-                                -
-                            </div>
-
-                        </div>
-
-
-                        <div class="parameter-card">
-
-                            <div class="parameter-label">
-                                Resolution
-                            </div>
-
-                            <div
-                                class="parameter-value"
-                                id="resolutionValue"
-                            >
-                                -
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </section>
-
-
-                <!-- ACTIONS -->
-
-                <section class="form-card">
-
-                    <div class="actions">
-
-                        <button
-                            type="button"
-                            class="btn btn-secondary"
-                            id="cancelButton"
-                        >
-                            Batal
-                        </button>
-
-                        <button
-                            type="button"
-                            class="btn btn-primary"
-                            id="saveButton"
-                        >
-                            Simpan Perubahan
-                        </button>
-
-                    </div>
-
-                </section>
+                </div>
 
             </div>
 
-        </div>
+        </main>
 
-    </main>
-
-</div>
+    </div>
 
 
-<!-- =========================================================
-     SUPABASE SDK
-========================================================= -->
+    <!-- =========================================================
+         SUPABASE
+    ========================================================= -->
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- Shared project configuration -->
+    <script src="../assets/js/config.js"></script>
 
-<script src="../assets/js/config.js"></script>
-
-<!-- Shared Supabase client -->
-
-<script src="./supabase.js"></script>
+    <script src="./supabase.js"></script>
 
 
-<!-- =========================================================
-     MODEL EDIT
-========================================================= -->
+    <!-- =========================================================
+         MODEL EDIT MODULE
+    ========================================================= -->
 
-<script type="module">
+    <script type="module">
 
-    import {
-        loadModels
-    } from "./models/models-data.js";
-
-
-    /* =====================================================
-       SHARED SUPABASE CLIENT
-    ===================================================== */
-
-    const supabase =
-        window.GENZ_SUPABASE ||
-        window.supabaseClient ||
-        null;
+        import {
+            getRegistryModel,
+            getModelByModelId
+        } from "./models/models-data.js";
 
 
-    /* =====================================================
-       ELEMENTS
-    ===================================================== */
+        /* =====================================================
+           SUPABASE
+        ===================================================== */
 
-    const appShell =
-        document.getElementById("appShell");
-
-    const navToggle =
-        document.getElementById("navToggle");
-
-    const sidebarOverlay =
-        document.getElementById("sidebarOverlay");
-
-    const adminSidebar =
-        document.getElementById("adminSidebar");
-
-    const backButton =
-        document.getElementById("backButton");
-
-    const cancelButton =
-        document.getElementById("cancelButton");
-
-    const saveButton =
-        document.getElementById("saveButton");
-
-    const logoutButton =
-        document.getElementById("logoutButton");
-
-    const alertBox =
-        document.getElementById("alertBox");
-
-    const loadingBox =
-        document.getElementById("loadingBox");
-
-    const editContent =
-        document.getElementById("editContent");
-
-    const heroModelName =
-        document.getElementById("heroModelName");
-
-    const heroModelId =
-        document.getElementById("heroModelId");
-
-    const modelName =
-        document.getElementById("modelName");
-
-    const modelId =
-        document.getElementById("modelId");
-
-    const providerName =
-        document.getElementById("providerName");
-
-    const modelType =
-        document.getElementById("modelType");
-
-    const description =
-        document.getElementById("description");
-
-    const statusToggle =
-        document.getElementById("statusToggle");
-
-    const statusText =
-        document.getElementById("statusText");
-
-    const priceUsd =
-        document.getElementById("priceUsd");
-
-    const exchangeRate =
-        document.getElementById("exchangeRate");
-
-    const discount =
-        document.getElementById("discount");
-
-    const previewUsd =
-        document.getElementById("previewUsd");
-
-    const previewIdr =
-        document.getElementById("previewIdr");
-
-    const previewFinal =
-        document.getElementById("previewFinal");
-
-    const durationValue =
-        document.getElementById("durationValue");
-
-    const ratioValue =
-        document.getElementById("ratioValue");
-
-    const resolutionValue =
-        document.getElementById("resolutionValue");
+        const supabase =
+            window.GENZ_SUPABASE ||
+            window.supabaseClient ||
+            null;
 
 
-    /* =====================================================
-       STATE
-    ===================================================== */
+        /* =====================================================
+           ELEMENTS
+        ===================================================== */
 
-    let currentModel = null;
+        const appShell =
+            document.getElementById(
+                "appShell"
+            );
 
-    let currentModelId = null;
+        const navToggle =
+            document.getElementById(
+                "navToggle"
+            );
 
-    let saving = false;
+        const sidebarOverlay =
+            document.getElementById(
+                "sidebarOverlay"
+            );
+
+        const adminSidebar =
+            document.getElementById(
+                "adminSidebar"
+            );
+
+        const backButton =
+            document.getElementById(
+                "backButton"
+            );
+
+        const cancelButton =
+            document.getElementById(
+                "cancelButton"
+            );
+
+        const saveButton =
+            document.getElementById(
+                "saveButton"
+            );
+
+        const logoutButton =
+            document.getElementById(
+                "logoutButton"
+            );
+
+        const alertBox =
+            document.getElementById(
+                "alertBox"
+            );
+
+        const loadingBox =
+            document.getElementById(
+                "loadingBox"
+            );
+
+        const editContent =
+            document.getElementById(
+                "editContent"
+            );
+
+        const heroModelName =
+            document.getElementById(
+                "heroModelName"
+            );
+
+        const heroModelId =
+            document.getElementById(
+                "heroModelId"
+            );
+
+        const modelName =
+            document.getElementById(
+                "modelName"
+            );
+
+        const modelId =
+            document.getElementById(
+                "modelId"
+            );
+
+        const providerName =
+            document.getElementById(
+                "providerName"
+            );
+
+        const modelType =
+            document.getElementById(
+                "modelType"
+            );
+
+        const description =
+            document.getElementById(
+                "description"
+            );
+
+        const statusToggle =
+            document.getElementById(
+                "statusToggle"
+            );
+
+        const statusText =
+            document.getElementById(
+                "statusText"
+            );
+
+        const creditCost =
+            document.getElementById(
+                "creditCost"
+            );
+
+        const discount =
+            document.getElementById(
+                "discount"
+            );
+
+        const creditFinalValue =
+            document.getElementById(
+                "creditFinalValue"
+            );
+
+        const previewNormal =
+            document.getElementById(
+                "previewNormal"
+            );
+
+        const previewDiscount =
+            document.getElementById(
+                "previewDiscount"
+            );
+
+        const previewFinal =
+            document.getElementById(
+                "previewFinal"
+            );
+
+        const durationValue =
+            document.getElementById(
+                "durationValue"
+            );
+
+        const ratioValue =
+            document.getElementById(
+                "ratioValue"
+            );
+
+        const resolutionValue =
+            document.getElementById(
+                "resolutionValue"
+            );
 
 
-    /* =====================================================
-       NAVIGATION
-    ===================================================== */
+        /* =====================================================
+           STATE
+        ===================================================== */
 
-    function setNavigation(open) {
+        let currentModel = null;
 
-        appShell.classList.toggle(
-            "sidebar-collapsed",
-            !open
-        );
+        let currentModelId = null;
 
-        navToggle.setAttribute(
-            "aria-expanded",
-            String(open)
-        );
+        let saving = false;
 
-        navToggle.setAttribute(
-            "aria-label",
+
+        /* =====================================================
+           NAVIGATION
+        ===================================================== */
+
+        function setNavigation(
             open
-                ? "Tutup navigasi"
-                : "Buka navigasi"
-        );
-    }
-
-
-    function toggleNavigation() {
-
-        const isOpen =
-            !appShell.classList.contains(
-                "sidebar-collapsed"
-            );
-
-        setNavigation(!isOpen);
-    }
-
-
-    navToggle.addEventListener(
-        "click",
-        toggleNavigation
-    );
-
-
-    sidebarOverlay.addEventListener(
-        "click",
-        () => setNavigation(false)
-    );
-
-
-    adminSidebar
-        .querySelectorAll("a")
-        .forEach(link => {
-
-            link.addEventListener(
-                "click",
-                () => {
-
-                    if (
-                        window.innerWidth <= 720
-                    ) {
-                        setNavigation(false);
-                    }
-
-                }
-            );
-
-        });
-
-
-    /* =====================================================
-       HELPERS
-    ===================================================== */
-
-    function showAlert(
-        message,
-        type = "error"
-    ) {
-
-        alertBox.textContent =
-            message;
-
-        alertBox.className =
-            "alert show " + type;
-    }
-
-
-    function hideAlert() {
-
-        alertBox.textContent = "";
-
-        alertBox.className =
-            "alert";
-    }
-
-
-    function setLoading(value) {
-
-        if (value) {
-
-            loadingBox.classList.remove(
-                "hidden"
-            );
-
-            editContent.classList.add(
-                "hidden"
-            );
-
-        } else {
-
-            loadingBox.classList.add(
-                "hidden"
-            );
-
-            editContent.classList.remove(
-                "hidden"
-            );
-
-        }
-    }
-
-
-    function numberValue(
-        value,
-        fallback = 0
-    ) {
-
-        const n =
-            Number(value);
-
-        return Number.isFinite(n)
-            ? n
-            : fallback;
-    }
-
-
-    function normalizeArray(value) {
-
-        if (Array.isArray(value)) {
-            return value;
-        }
-
-        if (
-            typeof value === "string"
         ) {
 
-            try {
+            appShell.classList.toggle(
+                "sidebar-collapsed",
+                !open
+            );
 
-                const parsed =
-                    JSON.parse(value);
+            navToggle.setAttribute(
+                "aria-expanded",
+                String(open)
+            );
 
-                if (
-                    Array.isArray(parsed)
-                ) {
-                    return parsed;
+            navToggle.setAttribute(
+                "aria-label",
+                open
+                    ? "Tutup navigasi"
+                    : "Buka navigasi"
+            );
+        }
+
+
+        function toggleNavigation() {
+
+            const isOpen =
+                !appShell.classList.contains(
+                    "sidebar-collapsed"
+                );
+
+            setNavigation(
+                !isOpen
+            );
+        }
+
+
+        navToggle.addEventListener(
+            "click",
+            toggleNavigation
+        );
+
+
+        sidebarOverlay.addEventListener(
+            "click",
+            () => {
+                setNavigation(false);
+            }
+        );
+
+
+        adminSidebar
+            .querySelectorAll("a")
+            .forEach(
+                link => {
+
+                    link.addEventListener(
+                        "click",
+                        () => {
+
+                            if (
+                                window.innerWidth <= 720
+                            ) {
+
+                                setNavigation(
+                                    false
+                                );
+
+                            }
+
+                        }
+                    );
+
                 }
+            );
 
-            } catch (_) {
-                /* ignore */
+
+        /* =====================================================
+           ALERT
+        ===================================================== */
+
+        function showAlert(
+            message,
+            type = "error"
+        ) {
+
+            alertBox.textContent =
+                String(
+                    message ||
+                    ""
+                );
+
+            alertBox.className =
+                "alert show " +
+                type;
+        }
+
+
+        function hideAlert() {
+
+            alertBox.textContent =
+                "";
+
+            alertBox.className =
+                "alert";
+        }
+
+
+        /* =====================================================
+           LOADING
+        ===================================================== */
+
+        function setLoading(
+            loading
+        ) {
+
+            if (loading) {
+
+                loadingBox.classList.remove(
+                    "hidden"
+                );
+
+                editContent.classList.add(
+                    "hidden"
+                );
+
+            } else {
+
+                loadingBox.classList.add(
+                    "hidden"
+                );
+
+                editContent.classList.remove(
+                    "hidden"
+                );
+
+            }
+        }
+
+
+        /* =====================================================
+           NUMBER
+        ===================================================== */
+
+        function numberValue(
+            value,
+            fallback = 0
+        ) {
+
+            if (
+                value === null ||
+                value === undefined ||
+                value === ""
+            ) {
+
+                return fallback;
             }
 
-            return value
-                .split(",")
-                .map(
-                    item =>
-                        item.trim()
-                )
-                .filter(Boolean);
+            const parsed =
+                Number(
+                    String(value)
+                        .replace(/,/g, "")
+                        .trim()
+                );
+
+            return Number.isFinite(
+                parsed
+            )
+                ? parsed
+                : fallback;
         }
 
-        return [];
-    }
 
-
-    function getQueryModelId() {
-
-        const params =
-            new URLSearchParams(
-                window.location.search
-            );
-
-        return (
-            params.get("model_id") ||
-            params.get("id") ||
-            ""
-        ).trim();
-    }
-
-
-    function goBack() {
-
-        if (
-            document.referrer &&
-            document.referrer.includes(
-                window.location.host
-            )
+        function nonNegative(
+            value
         ) {
 
-            window.history.back();
-
-            return;
+            return Math.max(
+                0,
+                numberValue(
+                    value,
+                    0
+                )
+            );
         }
 
-        window.location.href =
-            "./models.html";
-    }
 
+        function clampDiscount(
+            value
+        ) {
 
-    /* =====================================================
-       PRICING
-    ===================================================== */
-
-    function updatePricePreview() {
-
-        const usd =
-            Math.max(
-                0,
-                numberValue(
-                    priceUsd.value
-                )
-            );
-
-        const rate =
-            Math.max(
-                0,
-                numberValue(
-                    exchangeRate.value
-                )
-            );
-
-        const discountPercent =
-            Math.min(
+            return Math.min(
                 100,
                 Math.max(
                     0,
                     numberValue(
-                        discount.value
+                        value,
+                        0
                     )
                 )
             );
+        }
 
-        const idr =
-            usd * rate;
 
-        const finalIdr =
-            idr *
-            (
-                1 -
-                discountPercent / 100
+        function roundCredit(
+            value
+        ) {
+
+            const numeric =
+                nonNegative(
+                    value
+                );
+
+            const factor =
+                1000000;
+
+            return (
+                Math.round(
+                    (
+                        numeric +
+                        Number.EPSILON
+                    ) *
+                    factor
+                ) /
+                factor
             );
+        }
 
-        const finalUsd =
-            usd *
-            (
-                1 -
-                discountPercent / 100
-            );
 
-        previewUsd.textContent =
-            "$" +
-            usd.toLocaleString(
-                "en-US",
+        /* =====================================================
+           ARRAY NORMALIZER
+        ===================================================== */
+
+        function normalizeArray(
+            value
+        ) {
+
+            if (
+                Array.isArray(value)
+            ) {
+
+                return value;
+            }
+
+
+            if (
+                typeof value === "string"
+            ) {
+
+                try {
+
+                    const parsed =
+                        JSON.parse(
+                            value
+                        );
+
+                    if (
+                        Array.isArray(
+                            parsed
+                        )
+                    ) {
+
+                        return parsed;
+                    }
+
+                } catch (_) {
+                    /* fallback */
+                }
+
+
+                return value
+                    .split(",")
+                    .map(
+                        item =>
+                            item.trim()
+                    )
+                    .filter(
+                        Boolean
+                    );
+            }
+
+
+            return [];
+        }
+
+
+        /* =====================================================
+           QUERY
+        ===================================================== */
+
+        function getQueryModelId() {
+
+            const params =
+                new URLSearchParams(
+                    window.location.search
+                );
+
+            return (
+                params.get(
+                    "model_id"
+                ) ||
+                params.get(
+                    "id"
+                ) ||
+                ""
+            ).trim();
+        }
+
+
+        /* =====================================================
+           BACK
+        ===================================================== */
+
+        function goBack() {
+
+            if (
+                document.referrer &&
+                document.referrer.includes(
+                    window.location.host
+                )
+            ) {
+
+                window.history.back();
+
+                return;
+            }
+
+            window.location.href =
+                "./models.html";
+        }
+
+
+        /* =====================================================
+           STATUS
+        ===================================================== */
+
+        function updateStatusText() {
+
+            statusText.textContent =
+                statusToggle.checked
+                    ? "Aktif"
+                    : "Nonaktif";
+        }
+
+
+        /* =====================================================
+           CREDIT CALCULATION
+        ===================================================== */
+
+        function calculateCredit() {
+
+            const base =
+                nonNegative(
+                    creditCost.value
+                );
+
+            const discountPercent =
+                clampDiscount(
+                    discount.value
+                );
+
+            const discountAmount =
+                roundCredit(
+                    base *
+                    (
+                        discountPercent /
+                        100
+                    )
+                );
+
+            const finalCredit =
+                roundCredit(
+                    base -
+                    discountAmount
+                );
+
+
+            return {
+                credit_cost:
+                    base,
+
+                discount_percent:
+                    discountPercent,
+
+                discount_amount:
+                    discountAmount,
+
+                credit_final:
+                    finalCredit
+            };
+        }
+
+
+        function formatCredit(
+            value
+        ) {
+
+            return new Intl.NumberFormat(
+                "id-ID",
                 {
-                    minimumFractionDigits: 2,
+                    minimumFractionDigits: 0,
                     maximumFractionDigits: 6
                 }
+            ).format(
+                nonNegative(
+                    value
+                )
             );
-
-        previewIdr.textContent =
-            "Rp" +
-            Math.round(idr)
-                .toLocaleString(
-                    "id-ID"
-                );
-
-        previewFinal.textContent =
-            "Rp" +
-            Math.round(finalIdr)
-                .toLocaleString(
-                    "id-ID"
-                );
-
-        return {
-            usd,
-            rate,
-            idr,
-            discountPercent,
-            finalIdr,
-            finalUsd
-        };
-    }
-
-
-    /* =====================================================
-       PARAMETERS
-    ===================================================== */
-
-    function renderParameters(model) {
-
-        const duration =
-            model?.duration ||
-            model?.parameters?.duration ||
-            null;
-
-        const minDuration =
-            model?.min_duration ??
-            duration?.min ??
-            null;
-
-        const maxDuration =
-            model?.max_duration ??
-            duration?.max ??
-            null;
-
-
-        if (
-            minDuration !== null &&
-            maxDuration !== null
-        ) {
-
-            durationValue.textContent =
-                `${minDuration} - ${maxDuration} detik`;
-
-        } else if (
-            minDuration !== null
-        ) {
-
-            durationValue.textContent =
-                `${minDuration} detik`;
-
-        } else if (
-            maxDuration !== null
-        ) {
-
-            durationValue.textContent =
-                `${maxDuration} detik`;
-
-        } else {
-
-            durationValue.textContent =
-                "Mengikuti parameters.js";
         }
 
 
-        const ratios =
-            normalizeArray(
-                model?.supported_ratios ||
-                model?.aspect_ratios ||
-                model?.parameters?.aspect_ratio
-            );
-
-        ratioValue.textContent =
-            ratios.length
-                ? ratios.join(" • ")
-                : "Mengikuti parameters.js";
-
-
-        const resolutions =
-            normalizeArray(
-                model?.supported_resolutions ||
-                model?.resolutions ||
-                model?.parameters?.resolution
-            );
-
-        resolutionValue.textContent =
-            resolutions.length
-                ? resolutions.join(" • ")
-                : "Mengikuti parameters.js";
-    }
-
-
-    /* =====================================================
-       STATUS
-    ===================================================== */
-
-    function updateStatusText() {
-
-        statusText.textContent =
-            statusToggle.checked
-                ? "Aktif"
-                : "Nonaktif";
-    }
-
-
-    /* =====================================================
-       RENDER MODEL
-    ===================================================== */
-
-    function renderModel(model) {
-
-        currentModel =
-            model;
-
-        currentModelId =
-            model.model_id ||
-            model.id;
-
-        const name =
-            model.model_name ||
-            model.name ||
-            currentModelId;
-
-        const provider =
-            model.provider_name ||
-            model.providerName ||
-            model.provider_id ||
-            model.providerId ||
-            "-";
-
-        const type =
-            model.type ||
-            model.model_type ||
-            "-";
-
-
-        heroModelName.textContent =
-            name;
-
-        heroModelId.textContent =
-            currentModelId;
-
-        modelName.value =
-            name;
-
-        modelId.textContent =
-            currentModelId;
-
-        providerName.textContent =
-            provider;
-
-        modelType.textContent =
-            type;
-
-        description.value =
-            model.description || "";
-
-
-        statusToggle.checked =
-            String(
-                model.status || ""
-            ).toLowerCase() ===
-            "active";
-
-        updateStatusText();
-
-
-        /* Parameter teknis dari model folder */
-
-        renderParameters(model);
-
-
-        /*
-         * Harga.
-         *
-         * Tetap kompatibel dengan data
-         * yang tersedia pada object model.
-         */
-
-        const existingPrice =
-            model.price_usd ??
-            model.priceUSD ??
-            model.credit_cost ??
-            0;
-
-        priceUsd.value =
-            numberValue(
-                existingPrice
-            );
-
-
-        discount.value =
-            numberValue(
-                model.discount_percent ?? 0
-            );
-
-
-        if (
-            !exchangeRate.value ||
-            numberValue(
-                exchangeRate.value
-            ) <= 0
-        ) {
-
-            exchangeRate.value =
-                "16000";
-        }
-
-
-        updatePricePreview();
-    }
-
-
-    /* =====================================================
-       LOAD MODEL
-    ===================================================== */
-
-    async function loadModel() {
-
-        hideAlert();
-
-        setLoading(true);
-
-
-        const requestedId =
-            getQueryModelId();
-
-
-        if (!requestedId) {
-
-            setLoading(false);
-
-            showAlert(
-                "Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...",
-                "error"
-            );
-
-            return;
-        }
-
-
-        try {
+        function updateCreditPreview() {
 
             const result =
-                await loadModels({
-                    force: true,
-                    activeOnly: false
-                });
+                calculateCredit();
 
 
-            const models =
-                Array.isArray(result)
-                    ? result
-                    : (
-                        result?.models ||
-                        []
+            previewNormal.textContent =
+                formatCredit(
+                    result.credit_cost
+                );
+
+
+            previewDiscount.textContent =
+                new Intl.NumberFormat(
+                    "id-ID",
+                    {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2
+                    }
+                ).format(
+                    result.discount_percent
+                ) +
+                "%";
+
+
+            previewFinal.textContent =
+                formatCredit(
+                    result.credit_final
+                );
+
+
+            creditFinalValue.textContent =
+                formatCredit(
+                    result.credit_final
+                );
+
+
+            return result;
+        }
+
+
+        /* =====================================================
+           PARAMETERS
+        ===================================================== */
+
+        function getParameterObject(
+            model
+        ) {
+
+            return (
+                model?.parameters ||
+                model?.parameterDefinitions ||
+                model?.parameter_definitions ||
+                {}
+            );
+        }
+
+
+        function getParameterDefinition(
+            model,
+            key
+        ) {
+
+            const parameters =
+                getParameterObject(
+                    model
+                );
+
+            return (
+                parameters?.[key] ||
+                null
+            );
+        }
+
+
+        function getParameterEnum(
+            model,
+            key
+        ) {
+
+            const definition =
+                getParameterDefinition(
+                    model,
+                    key
+                );
+
+            if (
+                !definition ||
+                !Array.isArray(
+                    definition.enum
+                )
+            ) {
+
+                return [];
+            }
+
+            return definition.enum;
+        }
+
+
+        function getDurationRange(
+            model
+        ) {
+
+            const definition =
+                getParameterDefinition(
+                    model,
+                    "duration"
+                );
+
+
+            const minimum =
+                definition?.min ??
+                definition?.minimum ??
+                model?.min_duration ??
+                null;
+
+            const maximum =
+                definition?.max ??
+                definition?.maximum ??
+                model?.max_duration ??
+                null;
+
+
+            return {
+                min:
+                    minimum,
+
+                max:
+                    maximum
+            };
+        }
+
+
+        function renderParameters(
+            model
+        ) {
+
+            const duration =
+                getDurationRange(
+                    model
+                );
+
+
+            if (
+                duration.min !== null &&
+                duration.max !== null
+            ) {
+
+                durationValue.textContent =
+                    `${duration.min} - ${duration.max} detik`;
+
+            } else if (
+                duration.min !== null
+            ) {
+
+                durationValue.textContent =
+                    `${duration.min} detik`;
+
+            } else if (
+                duration.max !== null
+            ) {
+
+                durationValue.textContent =
+                    `${duration.max} detik`;
+
+            } else {
+
+                durationValue.textContent =
+                    "Mengikuti parameters.js";
+            }
+
+
+            let ratios =
+                normalizeArray(
+                    model?.supported_ratios
+                );
+
+
+            if (
+                !ratios.length
+            ) {
+
+                ratios =
+                    getParameterEnum(
+                        model,
+                        "aspect_ratio"
+                    );
+            }
+
+
+            ratioValue.textContent =
+                ratios.length
+                    ? ratios.join(" • ")
+                    : "Mengikuti parameters.js";
+
+
+            let resolutions =
+                normalizeArray(
+                    model?.supported_resolutions
+                );
+
+
+            if (
+                !resolutions.length
+            ) {
+
+                resolutions =
+                    getParameterEnum(
+                        model,
+                        "resolution"
+                    );
+            }
+
+
+            resolutionValue.textContent =
+                resolutions.length
+                    ? resolutions.join(" • ")
+                    : "Mengikuti parameters.js";
+        }
+
+
+        /* =====================================================
+           MODEL NORMALIZATION
+        ===================================================== */
+
+        function getModelName(
+            model
+        ) {
+
+            return (
+                model?.model_name ||
+                model?.name ||
+                model?.config?.name ||
+                model?.model_id ||
+                model?.id ||
+                "-"
+            );
+        }
+
+
+        function getModelId(
+            model
+        ) {
+
+            return (
+                model?.model_id ||
+                model?.config?.id ||
+                ""
+            );
+        }
+
+
+        function getProviderName(
+            model
+        ) {
+
+            return (
+                model?.provider_name ||
+                model?.providerName ||
+                model?.config?.providerName ||
+                model?.provider_id ||
+                model?.providerId ||
+                "-"
+            );
+        }
+
+
+        function getModelType(
+            model
+        ) {
+
+            return (
+                model?.type ||
+                model?.model_type ||
+                model?.config?.type ||
+                "-"
+            );
+        }
+
+
+        /* =====================================================
+           RENDER
+        ===================================================== */
+
+        function renderModel(
+            model
+        ) {
+
+            if (
+                !model
+            ) {
+
+                throw new Error(
+                    "Data model kosong."
+                );
+            }
+
+
+            currentModel =
+                model;
+
+
+            currentModelId =
+                getModelId(
+                    model
+                );
+
+
+            if (
+                !currentModelId
+            ) {
+
+                throw new Error(
+                    "Model ID tidak tersedia dari config.js."
+                );
+            }
+
+
+            const name =
+                getModelName(
+                    model
+                );
+
+            const provider =
+                getProviderName(
+                    model
+                );
+
+            const type =
+                getModelType(
+                    model
+                );
+
+
+            heroModelName.textContent =
+                name;
+
+            heroModelId.textContent =
+                currentModelId;
+
+
+            modelName.value =
+                name;
+
+            modelId.textContent =
+                currentModelId;
+
+            providerName.textContent =
+                provider;
+
+            modelType.textContent =
+                type;
+
+
+            description.value =
+                model?.description ||
+                "";
+
+
+            statusToggle.checked =
+                String(
+                    model?.status ||
+                    ""
+                ).toLowerCase() ===
+                "active";
+
+
+            updateStatusText();
+
+
+            /* =================================================
+               CREDIT
+            ================================================= */
+
+            creditCost.value =
+                nonNegative(
+                    model?.credit_cost ??
+                    model?.creditCost ??
+                    0
+                );
+
+
+            discount.value =
+                clampDiscount(
+                    model?.discount_percent ??
+                    model?.discountPercent ??
+                    0
+                );
+
+
+            updateCreditPreview();
+
+
+            /* =================================================
+               TECHNICAL PARAMETERS
+            ================================================= */
+
+            renderParameters(
+                model
+            );
+        }
+
+
+        /* =====================================================
+           LOAD REPOSITORY MODEL
+        ===================================================== */
+
+        async function loadRepositoryModel(
+            requestedId
+        ) {
+
+            /*
+             * Sumber utama:
+             *
+             * models/<folder>/config.js
+             * models/<folder>/parameters.js
+             *
+             * Supabase tidak menentukan keberadaan model.
+             */
+
+            try {
+
+                const registryModel =
+                    getRegistryModel(
+                        requestedId
                     );
 
 
-            const found =
-                models.find(
-                    item =>
-                        String(
-                            item.model_id ||
-                            item.id ||
-                            ""
-                        ) ===
-                        String(
-                            requestedId
-                        )
+                if (
+                    registryModel
+                ) {
+
+                    return registryModel;
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] getRegistryModel gagal:",
+                    error
+                );
+            }
+
+
+            /*
+             * Fallback ke getModelByModelId.
+             * Ini tetap menggunakan registry model.
+             */
+
+            try {
+
+                const model =
+                    await getModelByModelId(
+                        requestedId
+                    );
+
+
+                if (
+                    model
+                ) {
+
+                    return model;
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] getModelByModelId gagal:",
+                    error
+                );
+            }
+
+
+            return null;
+        }
+
+
+        /* =====================================================
+           LOAD MODEL
+        ===================================================== */
+
+        async function loadModel() {
+
+            hideAlert();
+
+            setLoading(
+                true
+            );
+
+
+            const requestedId =
+                getQueryModelId();
+
+
+            if (
+                !requestedId
+            ) {
+
+                setLoading(
+                    false
                 );
 
-
-            if (!found) {
-
-                setLoading(false);
-
                 showAlert(
-                    `Model "${requestedId}" tidak ditemukan dari registry model.`,
+                    "Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...",
                     "error"
                 );
 
@@ -2826,339 +3134,528 @@ textarea[readonly] {
             }
 
 
-            renderModel(found);
+            try {
 
-            setLoading(false);
+                /*
+                 * STEP 1
+                 * Ambil model langsung dari
+                 * registry repository.
+                 */
 
-        } catch (error) {
+                const repositoryModel =
+                    await loadRepositoryModel(
+                        requestedId
+                    );
 
-            console.error(
-                "GEN-Z.AI model-edit load error:",
+
+                if (
+                    !repositoryModel
+                ) {
+
+                    throw new Error(
+                        `Model "${requestedId}" tidak ditemukan pada registry repository.`
+                    );
+                }
+
+
+                /*
+                 * STEP 2
+                 * Ambil konfigurasi admin dari
+                 * Supabase jika tersedia.
+                 *
+                 * Supabase TIDAK menggantikan
+                 * model repository.
+                 */
+
+                let mergedModel = {
+                    ...repositoryModel
+                };
+
+
+                if (
+                    supabase
+                ) {
+
+                    try {
+
+                        const {
+                            data,
+                            error
+                        } =
+                            await supabase
+                                .from("models")
+                                .select(
+                                    [
+                                        "id",
+                                        "provider_id",
+                                        "model_id",
+                                        "model_name",
+                                        "description",
+                                        "credit_cost",
+                                        "discount_percent",
+                                        "credit_final",
+                                        "status",
+                                        "updated_at"
+                                    ].join(",")
+                                )
+                                .eq(
+                                    "model_id",
+                                    requestedId
+                                )
+                                .maybeSingle();
+
+
+                        if (
+                            error
+                        ) {
+
+                            console.warn(
+                                "[GEN-Z.AI] Supabase model config tidak dapat dibaca:",
+                                error
+                            );
+
+                        } else if (
+                            data
+                        ) {
+
+                            mergedModel = {
+                                ...repositoryModel,
+
+                                ...data,
+
+                                /*
+                                 * Model ID tetap berasal
+                                 * dari repository.
+                                 */
+
+                                model_id:
+                                    requestedId
+                            };
+
+                        }
+
+                    } catch (
+                        configError
+                    ) {
+
+                        console.warn(
+                            "[GEN-Z.AI] Gagal membaca konfigurasi admin:",
+                            configError
+                        );
+                    }
+
+                }
+
+
+                renderModel(
+                    mergedModel
+                );
+
+
+                setLoading(
+                    false
+                );
+
+            } catch (
                 error
-            );
+            ) {
 
-            setLoading(false);
-
-            showAlert(
-                error?.message ||
-                "Gagal memuat data model.",
-                "error"
-            );
-        }
-    }
+                console.error(
+                    "GEN-Z.AI model-edit load error:",
+                    error
+                );
 
 
-    /* =====================================================
-       SAVE MODEL
-    ===================================================== */
-
-    async function saveModel() {
-
-        if (saving) {
-            return;
-        }
-
-        hideAlert();
+                setLoading(
+                    false
+                );
 
 
-        if (!currentModel) {
-
-            showAlert(
-                "Data model belum tersedia.",
-                "error"
-            );
-
-            return;
+                showAlert(
+                    error?.message ||
+                    "Gagal memuat data model.",
+                    "error"
+                );
+            }
         }
 
 
-        const name =
-            modelName.value.trim();
+        /* =====================================================
+           SAVE MODEL
+        ===================================================== */
+
+        async function saveModel() {
+
+            if (
+                saving
+            ) {
+
+                return;
+            }
 
 
-        if (!name) {
-
-            showAlert(
-                "Nama model wajib diisi.",
-                "error"
-            );
-
-            modelName.focus();
-
-            return;
-        }
+            hideAlert();
 
 
-        if (!supabase) {
+            if (
+                !currentModel
+            ) {
 
-            showAlert(
-                "Supabase belum terhubung. Periksa konfigurasi Supabase pada project.",
-                "error"
-            );
+                showAlert(
+                    "Data model belum tersedia.",
+                    "error"
+                );
 
-            return;
-        }
-
-
-        const pricing =
-            updatePricePreview();
+                return;
+            }
 
 
-        const dbModelId =
-            currentModel.id || null;
-
-        const modelIdValue =
-            currentModel.model_id ||
-            currentModelId;
+            const name =
+                modelName.value.trim();
 
 
-        /*
-         * MODEL ID TIDAK PERNAH DIUBAH.
-         */
+            if (
+                !name
+            ) {
 
-        const payload = {
+                showAlert(
+                    "Nama model wajib diisi.",
+                    "error"
+                );
 
-            model_name:
-                name,
+                modelName.focus();
 
-            description:
-                description.value.trim(),
-
-            discount_percent:
-                pricing.discountPercent,
-
-            status:
-                statusToggle.checked
-                    ? "active"
-                    : "inactive",
-
-            updated_at:
-                new Date().toISOString()
-        };
+                return;
+            }
 
 
-        /*
-         * Pertahankan field harga lama
-         * hanya jika memang tersedia pada
-         * object model.
-         */
-
-        if (
-            Object.prototype.hasOwnProperty.call(
-                currentModel,
-                "credit_cost"
-            )
-        ) {
-
-            payload.credit_cost =
-                pricing.usd;
-        }
+            const modelIdValue =
+                currentModelId;
 
 
-        if (
-            Object.prototype.hasOwnProperty.call(
-                currentModel,
-                "credit_final"
-            )
-        ) {
+            if (
+                !modelIdValue
+            ) {
 
-            payload.credit_final =
-                pricing.finalUsd;
-        }
+                showAlert(
+                    "Model ID tidak tersedia.",
+                    "error"
+                );
 
-
-        saving = true;
-
-        saveButton.disabled =
-            true;
-
-        saveButton.textContent =
-            "Menyimpan...";
+                return;
+            }
 
 
-        try {
+            if (
+                !supabase
+            ) {
 
-            let query =
-                supabase
-                    .from("models")
-                    .update(payload);
+                showAlert(
+                    "Supabase belum terhubung. Periksa konfigurasi Supabase pada project.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            const pricing =
+                updateCreditPreview();
 
 
             /*
-             * Gunakan UUID database jika
-             * tersedia. Model ID tetap hanya
-             * sebagai referensi model.
+             * Jangan pernah mengubah model_id.
+             *
+             * Jangan pernah memasukkan USD ke
+             * credit_cost.
              */
 
-            if (dbModelId) {
+            const payload = {
 
-                query =
-                    query.eq(
-                        "id",
-                        dbModelId
-                    );
+                model_name:
+                    name,
 
-            } else {
+                description:
+                    description.value.trim(),
 
-                query =
-                    query.eq(
-                        "model_id",
-                        modelIdValue
-                    );
-            }
+                credit_cost:
+                    pricing.credit_cost,
 
+                discount_percent:
+                    pricing.discount_percent,
 
-            const {
-                error
-            } =
-                await query;
+                status:
+                    statusToggle.checked
+                        ? "active"
+                        : "inactive",
 
-
-            if (error) {
-                throw error;
-            }
-
-
-            showAlert(
-                "Perubahan model berhasil disimpan.",
-                "success"
-            );
-
-
-            currentModel = {
-                ...currentModel,
-                ...payload,
-                model_name: name,
-                status: payload.status
+                updated_at:
+                    new Date()
+                        .toISOString()
             };
 
 
-            heroModelName.textContent =
-                name;
+            saving =
+                true;
 
-
-            setTimeout(
-                () => {
-
-                    window.location.href =
-                        "./models.html";
-
-                },
-                900
-            );
-
-        } catch (error) {
-
-            console.error(
-                "GEN-Z.AI model-edit save error:",
-                error
-            );
-
-            showAlert(
-                error?.message ||
-                "Gagal menyimpan perubahan model.",
-                "error"
-            );
-
-        } finally {
-
-            saving = false;
 
             saveButton.disabled =
-                false;
+                true;
 
             saveButton.textContent =
-                "Simpan Perubahan";
+                "Menyimpan...";
+
+
+            try {
+
+                /*
+                 * Coba gunakan UUID database jika
+                 * sudah tersedia dari hasil load.
+                 */
+
+                let query =
+                    supabase
+                        .from("models")
+                        .update(
+                            payload
+                        );
+
+
+                if (
+                    currentModel.id
+                ) {
+
+                    query =
+                        query.eq(
+                            "id",
+                            currentModel.id
+                        );
+
+                } else {
+
+                    query =
+                        query.eq(
+                            "model_id",
+                            modelIdValue
+                        );
+
+                }
+
+
+                const {
+                    data,
+                    error
+                } =
+                    await query
+                        .select(
+                            [
+                                "id",
+                                "model_id",
+                                "model_name",
+                                "description",
+                                "credit_cost",
+                                "discount_percent",
+                                "credit_final",
+                                "status",
+                                "updated_at"
+                            ].join(",")
+                        );
+
+
+                if (
+                    error
+                ) {
+
+                    throw error;
+                }
+
+
+                /*
+                 * UPDATE tanpa row tidak boleh
+                 * dianggap sukses.
+                 *
+                 * Ini penting karena Supabase dapat
+                 * mengembalikan tidak ada error
+                 * walaupun filter tidak menemukan row.
+                 */
+
+                if (
+                    !Array.isArray(data) ||
+                    data.length === 0
+                ) {
+
+                    throw new Error(
+                        `Konfigurasi model "${modelIdValue}" belum memiliki row pada tabel models. Model ada di repository, tetapi belum ada konfigurasi admin di Supabase.`
+                    );
+                }
+
+
+                const savedModel =
+                    data[0];
+
+
+                currentModel = {
+                    ...currentModel,
+                    ...savedModel,
+
+                    /*
+                     * Tetap pertahankan metadata
+                     * repository.
+                     */
+
+                    model_id:
+                        modelIdValue
+                };
+
+
+                heroModelName.textContent =
+                    name;
+
+
+                creditFinalValue.textContent =
+                    formatCredit(
+                        pricing.credit_final
+                    );
+
+
+                showAlert(
+                    "Perubahan model berhasil disimpan.",
+                    "success"
+                );
+
+
+                setTimeout(
+                    () => {
+
+                        window.location.href =
+                            "./models.html";
+
+                    },
+                    900
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "GEN-Z.AI model-edit save error:",
+                    error
+                );
+
+
+                showAlert(
+                    error?.message ||
+                    "Gagal menyimpan perubahan model.",
+                    "error"
+                );
+
+            } finally {
+
+                saving =
+                    false;
+
+                saveButton.disabled =
+                    false;
+
+                saveButton.textContent =
+                    "Simpan Perubahan";
+            }
         }
-    }
 
 
-    /* =====================================================
-       LOGOUT
-    ===================================================== */
+        /* =====================================================
+           LOGOUT
+        ===================================================== */
 
-    async function logout() {
+        async function logout() {
 
-        try {
+            try {
 
-            if (supabase) {
+                if (
+                    supabase
+                ) {
 
-                await supabase.auth.signOut();
+                    await supabase.auth.signOut();
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "Logout error:",
+                    error
+                );
             }
 
-        } catch (error) {
 
-            console.error(
-                "Logout error:",
-                error
-            );
+            window.location.href =
+                "../login.html";
         }
 
 
-        window.location.href =
-            "../login.html";
-    }
+        /* =====================================================
+           EVENTS
+        ===================================================== */
+
+        backButton.addEventListener(
+            "click",
+            goBack
+        );
 
 
-    /* =====================================================
-       EVENTS
-    ===================================================== */
-
-    backButton.addEventListener(
-        "click",
-        goBack
-    );
+        cancelButton.addEventListener(
+            "click",
+            goBack
+        );
 
 
-    cancelButton.addEventListener(
-        "click",
-        goBack
-    );
+        saveButton.addEventListener(
+            "click",
+            saveModel
+        );
 
 
-    saveButton.addEventListener(
-        "click",
-        saveModel
-    );
+        logoutButton.addEventListener(
+            "click",
+            logout
+        );
 
 
-    logoutButton.addEventListener(
-        "click",
-        logout
-    );
+        statusToggle.addEventListener(
+            "change",
+            updateStatusText
+        );
 
 
-    statusToggle.addEventListener(
-        "change",
-        updateStatusText
-    );
+        creditCost.addEventListener(
+            "input",
+            updateCreditPreview
+        );
 
 
-    priceUsd.addEventListener(
-        "input",
-        updatePricePreview
-    );
+        discount.addEventListener(
+            "input",
+            updateCreditPreview
+        );
 
 
-    exchangeRate.addEventListener(
-        "input",
-        updatePricePreview
-    );
+        /* =====================================================
+           INITIALIZE
+        ===================================================== */
+
+        setNavigation(
+            window.innerWidth > 720
+        );
 
 
-    discount.addEventListener(
-        "input",
-        updatePricePreview
-    );
+        updateCreditPreview();
 
 
-    /* =====================================================
-       INITIALIZE
-    ===================================================== */
+        loadModel();
 
-    loadModel();
-
-</script>
+    </script>
 
 </body>
 </html>
