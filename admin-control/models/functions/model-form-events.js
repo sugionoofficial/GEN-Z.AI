@@ -17,7 +17,6 @@
    - Backdrop modal
    - Escape keyboard
    - Tombol cancel
-   - Sinkronisasi event ke module pemilik
 
    TIDAK BOLEH:
    - Query Supabase
@@ -25,14 +24,15 @@
    - Menghitung credit sendiri
    - Mengelola Provider sendiri
    - Mengelola Model catalog sendiri
-   - Mengelola Pricing / Credit Calculation
+   - Mengelola Pricing sendiri
+   - Membuat capability KIE sendiri
 
-   OWNER LAIN:
+   OWNER:
    Provider:
        GENZModelsProvider
        GENZModelProviderDropdown
 
-   Model catalog/layout:
+   Model catalog + KIE config:
        GENZModelFormLayout
 
    Pricing:
@@ -44,17 +44,7 @@
        GENZModelFormDelete
        GENZModelFormCoordinator
 
-   CATATAN PENTING:
-   Pricing sengaja TIDAK dibinding di file ini.
-   GENZModelPriceCalculation adalah satu-satunya
-   owner event Credit / Discount / Credit Final.
-
-   Tujuan:
-   Mencegah duplicate listener dan recursive
-   price synchronization yang dapat menyebabkan:
-
-       Maximum call stack size exceeded
-========================================================= */
+   ========================================================= */
 
 (function () {
 
@@ -116,7 +106,7 @@
 
 
     /* =====================================================
-       FORM CREATE
+       MODULE ACCESS
     ===================================================== */
 
     function getCreateModule() {
@@ -129,10 +119,6 @@
     }
 
 
-    /* =====================================================
-       FORM EDIT
-    ===================================================== */
-
     function getEditModule() {
 
         return (
@@ -142,10 +128,6 @@
 
     }
 
-
-    /* =====================================================
-       FORM COORDINATOR
-    ===================================================== */
 
     function getCoordinator() {
 
@@ -157,40 +139,11 @@
     }
 
 
-    /* =====================================================
-       FORM LAYOUT
-    ===================================================== */
-
     function getLayout() {
 
         return (
             window.GENZModelFormLayout ||
             null
-        );
-
-    }
-
-
-    /* =====================================================
-       SAFE CALL
-    ===================================================== */
-
-    async function callAsync(
-        fn,
-        ...args
-    ) {
-
-        if (
-            typeof fn !==
-            "function"
-        ) {
-
-            return undefined;
-
-        }
-
-        return await fn(
-            ...args
         );
 
     }
@@ -213,11 +166,13 @@
 
         }
 
+
         element.addEventListener(
             event,
             handler,
             options
         );
+
 
         handlers.push({
 
@@ -230,6 +185,7 @@
             options
 
         });
+
 
         return true;
 
@@ -248,6 +204,7 @@
 
             const item =
                 handlers.pop();
+
 
             try {
 
@@ -268,7 +225,10 @@
 
         }
 
-        initialized = false;
+
+        initialized =
+            false;
+
 
         return true;
 
@@ -293,14 +253,11 @@
                 "[model-form-events] #modelModal tidak ditemukan."
             );
 
+
             return false;
 
         }
 
-
-        /* =================================================
-           HENTIKAN EVENT YANG MUNGKIN MASIH BERJALAN
-        ================================================= */
 
         modal.classList.remove(
             "open",
@@ -319,25 +276,13 @@
         );
 
 
-        /*
-         * Pastikan display benar-benar tertutup.
-         */
-
         modal.style.display =
             "none";
 
 
-        /*
-         * Bersihkan kemungkinan inline visibility.
-         */
-
         modal.style.visibility =
             "hidden";
 
-
-        /*
-         * Pulihkan body.
-         */
 
         document.body.classList.remove(
             "modal-open"
@@ -349,9 +294,9 @@
         );
 
 
-        /* =================================================
-           TUTUP MODEL SEARCH DROPDOWN
-        ================================================= */
+        /* ================================================
+           MODEL SEARCH DROPDOWN
+        ================================================ */
 
         const search =
             window.GENZModelsSearch;
@@ -379,10 +324,6 @@
         }
 
 
-        /* =================================================
-           FALLBACK SEARCH DROPDOWN
-        ================================================= */
-
         const searchDropdown =
             window.GENZModelSearchDropdown;
 
@@ -409,10 +350,6 @@
         }
 
 
-        /* =================================================
-           EVENT NOTIFICATION
-        ================================================= */
-
         try {
 
             document.dispatchEvent(
@@ -420,8 +357,10 @@
                     "genz-model-modal-closed",
                     {
                         detail: {
+
                             source:
                                 "model-form-events"
+
                         }
                     }
                 )
@@ -448,7 +387,7 @@
 
 
     /* =====================================================
-       IS MODAL OPEN
+       MODAL STATUS
     ===================================================== */
 
     function isModalOpen() {
@@ -550,13 +489,13 @@
                     event
                 );
 
-
             } catch (error) {
 
                 console.error(
                     "[model-form-events] Coordinator submit error:",
                     error
                 );
+
 
                 throw error;
 
@@ -587,22 +526,9 @@
 
         ) {
 
-            try {
-
-                return await edit.updateFromForm(
-                    event
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "[model-form-events] Edit submit error:",
-                    error
-                );
-
-                throw error;
-
-            }
+            return await edit.updateFromForm(
+                event
+            );
 
         }
 
@@ -624,22 +550,9 @@
 
         ) {
 
-            try {
-
-                return await create.createFromForm(
-                    event
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "[model-form-events] Create submit error:",
-                    error
-                );
-
-                throw error;
-
-            }
+            return await create.createFromForm(
+                event
+            );
 
         }
 
@@ -656,6 +569,14 @@
 
     /* =====================================================
        PROVIDER CHANGE
+       -----------------------------------------------------
+       HANYA event coordinator.
+
+       Layout adalah owner:
+           - load models
+           - filter provider
+           - reset model
+           - load KIE config
     ===================================================== */
 
     async function handleProviderChange(
@@ -671,7 +592,7 @@
 
         if (!select) {
 
-            return;
+            return false;
 
         }
 
@@ -685,6 +606,12 @@
         const layout =
             getLayout();
 
+
+        /*
+         * Provider kosong:
+         * biarkan layout membersihkan seluruh
+         * state Model + KIE.
+         */
 
         if (!providerId) {
 
@@ -713,10 +640,28 @@
             }
 
 
-            return;
+            return true;
 
         }
 
+
+        /*
+         * PENTING:
+         *
+         * Jangan memanggil:
+         *
+         *   handleProviderChange()
+         *   layout.handleProviderChange()
+         *   layout.refresh()
+         *
+         * sekaligus.
+         *
+         * Layout sekarang mempunyai owner event provider
+         * sendiri ketika digunakan secara standalone.
+         *
+         * Di sini kita hanya meminta refresh dengan
+         * provider eksplisit.
+         */
 
         if (
 
@@ -729,7 +674,15 @@
 
             try {
 
-                await layout.refresh();
+                await layout.refresh(
+                    {
+                        providerId,
+
+                        selectedModelId:
+                            ""
+
+                    }
+                );
 
             } catch (error) {
 
@@ -746,7 +699,6 @@
         try {
 
             document.dispatchEvent(
-
                 new CustomEvent(
                     "genz-model-provider-changed",
                     {
@@ -760,7 +712,6 @@
                         }
                     }
                 )
-
             );
 
         } catch (error) {
@@ -772,14 +723,29 @@
 
         }
 
+
+        return true;
+
     }
 
 
     /* =====================================================
        MODEL ID CHANGE
+       -----------------------------------------------------
+       Layout menjadi SINGLE OWNER untuk:
+           - mencari model
+           - Model Name
+           - Model Family
+           - kie_parameters
+           - kie_pricing
+           - ratio
+           - duration
+           - resolution
+
+       Events hanya meneruskan perubahan.
     ===================================================== */
 
-    function handleModelChange(
+    async function handleModelChange(
         event
     ) {
 
@@ -792,7 +758,7 @@
 
         if (!select) {
 
-            return;
+            return false;
 
         }
 
@@ -807,6 +773,42 @@
             getLayout();
 
 
+        if (!modelId) {
+
+            if (
+
+                layout &&
+
+                typeof layout.clearModelSelection ===
+                    "function"
+
+            ) {
+
+                layout.clearModelSelection(
+                    {
+                        keepPending:
+                            false
+                    }
+                );
+
+            }
+
+
+            return true;
+
+        }
+
+
+        /*
+         * Jangan mengisi modelName / family sendiri.
+         *
+         * Jangan membaca pricing sendiri.
+         *
+         * Jangan membaca capability sendiri.
+         *
+         * Semua dilakukan GENZModelFormLayout.setModel().
+         */
+
         if (
 
             layout &&
@@ -814,7 +816,8 @@
             typeof layout.findModel ===
                 "function" &&
 
-            modelId
+            typeof layout.setModel ===
+                "function"
 
         ) {
 
@@ -826,94 +829,89 @@
                     );
 
 
-                if (model) {
+                if (!model) {
 
-                    const hidden =
-                        getElement(
-                            "modelCode"
-                        );
-
-
-                    if (hidden) {
-
-                        hidden.value =
-                            modelId;
-
-                    }
+                    console.warn(
+                        "[model-form-events] Model ID tidak ditemukan dalam catalog:",
+                        modelId
+                    );
 
 
-                    const modelName =
-                        getElement(
-                            "modelName"
-                        );
-
-
-                    /*
-                     * Model Name sekarang mengikuti
-                     * catalog KIE / Supabase.
-                     *
-                     * Hanya isi jika kosong agar
-                     * tidak merusak state edit.
-                     */
-
-                    if (
-
-                        modelName &&
-
-                        !String(
-                            modelName.value || ""
-                        ).trim()
-
-                    ) {
-
-                        modelName.value =
-                            model.model_name ||
-                            modelId;
-
-                    }
-
-
-                    try {
-
-                        document.dispatchEvent(
-
-                            new CustomEvent(
-                                "genz-model-selected",
-                                {
-                                    detail: {
-
-                                        model,
-
-                                        source:
-                                            "model-form-events"
-
-                                    }
-                                }
-                            )
-
-                        );
-
-                    } catch (eventError) {
-
-                        console.warn(
-                            "[model-form-events] Model selected event gagal:",
-                            eventError
-                        );
-
-                    }
+                    return false;
 
                 }
 
+
+                const result =
+                    await layout.setModel(
+                        model
+                    );
+
+
+                /*
+                 * Event hanya dikirim setelah layout
+                 * selesai memuat KIE config.
+                 */
+
+                try {
+
+                    document.dispatchEvent(
+                        new CustomEvent(
+                            "genz-model-selected",
+                            {
+                                detail: {
+
+                                    model,
+
+                                    modelId,
+
+                                    kieConfig:
+                                        typeof layout.getCurrentKieConfig ===
+                                            "function"
+                                            ? layout.getCurrentKieConfig()
+                                            : null,
+
+                                    source:
+                                        "model-form-events"
+
+                                }
+                            }
+                        )
+                    );
+
+                } catch (eventError) {
+
+                    console.warn(
+                        "[model-form-events] Model selected event gagal:",
+                        eventError
+                    );
+
+                }
+
+
+                return result !== false;
+
             } catch (error) {
 
-                console.warn(
-                    "[model-form-events] Model selection warning:",
+                console.error(
+                    "[model-form-events] Gagal memproses Model ID:",
                     error
                 );
+
+
+                return false;
 
             }
 
         }
+
+
+        console.error(
+            "[model-form-events] GENZModelFormLayout tidak tersedia."
+        );
+
+
+        return false;
 
     }
 
@@ -935,7 +933,7 @@
         }
 
 
-        closeModal();
+        return closeModal();
 
     }
 
@@ -956,14 +954,13 @@
 
         if (!modal) {
 
-            return;
+            return false;
 
         }
 
 
         /*
-         * Hanya klik langsung pada backdrop.
-         * Klik isi modal tidak menutup modal.
+         * Hanya klik tepat pada backdrop.
          */
 
         if (
@@ -971,12 +968,12 @@
             modal
         ) {
 
-            return;
+            return false;
 
         }
 
 
-        closeModal();
+        return closeModal();
 
     }
 
@@ -994,7 +991,7 @@
             "Escape"
         ) {
 
-            return;
+            return false;
 
         }
 
@@ -1003,7 +1000,7 @@
             !isModalOpen()
         ) {
 
-            return;
+            return false;
 
         }
 
@@ -1013,7 +1010,7 @@
         event.stopPropagation();
 
 
-        closeModal();
+        return closeModal();
 
     }
 
@@ -1035,7 +1032,7 @@
         }
 
 
-        closeModal();
+        return closeModal();
 
     }
 
@@ -1123,65 +1120,17 @@
 
 
     /* =====================================================
-       PRICING
-       -----------------------------------------------------
-       SENGAJA TIDAK ADA bindPrice().
-
-       GENZModelPriceCalculation adalah satu-satunya
-       owner untuk:
-
-       - creditCost
-       - discountPercent
-       - creditFinal
-       - discountAmount
-       - preview credit
-
-       Jangan menambahkan listener pricing
-       di module ini.
-
-       Sebelumnya file ini ikut memanggil:
-
-           calculation.syncForm()
-
-       pada input/change.
-
-       Sementara model-price-calculation.js juga
-       memasang listener sendiri.
-
-       Hal tersebut menghasilkan duplicate event path
-       dan berpotensi menyebabkan recursive event chain.
-
-       Pricing sekarang sepenuhnya dikelola oleh:
-
-           GENZModelPriceCalculation.bind()
-    ===================================================== */
-
-
-    /* =====================================================
-       BIND CLOSE BUTTONS
-       -----------------------------------------------------
-       ID AKTUAL DARI models.html:
-
-           #closeModalBtn
-           #cancelModalBtn
-
-       Keduanya sengaja didaftarkan secara eksplisit.
+       CLOSE BUTTONS
     ===================================================== */
 
     function bindCloseButtons() {
 
         const selectors = [
 
-            /*
-             * ID AKTUAL
-             */
             "closeModalBtn",
 
             "cancelModalBtn",
 
-            /*
-             * Compatibility ID lama
-             */
             "closeModelModal",
 
             "closeModelBtn",
@@ -1214,8 +1163,7 @@
 
 
             /*
-             * Close dan Cancel tidak boleh
-             * menjadi submit button.
+             * Close / Cancel tidak boleh submit form.
              */
 
             if (
@@ -1229,27 +1177,23 @@
             }
 
 
-            /*
-             * Tombol Cancel memakai handler
-             * khusus Cancel.
-             *
-             * Tombol lainnya memakai handler Close.
-             */
+            const isCancel =
+                id ===
+                    "cancelModalBtn" ||
 
-            const handler =
-                id === "cancelModalBtn" ||
-                id === "cancelModelBtn" ||
-                id === "cancelModelButton"
+                id ===
+                    "cancelModelBtn" ||
 
-                    ? handleCancel
-
-                    : handleCloseClick;
+                id ===
+                    "cancelModelButton";
 
 
             addListener(
                 element,
                 "click",
-                handler
+                isCancel
+                    ? handleCancel
+                    : handleCloseClick
             );
 
 
@@ -1270,11 +1214,7 @@
 
 
     /* =====================================================
-       BIND CANCEL DATA ATTRIBUTE
-       -----------------------------------------------------
-       Tetap mendukung tombol yang menggunakan:
-
-           data-model-cancel
+       DATA ATTRIBUTE CANCEL
     ===================================================== */
 
     function bindCancel() {
@@ -1292,18 +1232,21 @@
             button => {
 
                 /*
-                 * Hindari duplicate binding jika
-                 * tombol tersebut juga memiliki
-                 * ID cancelModalBtn.
+                 * Jangan bind dua kali terhadap
+                 * tombol yang sudah memiliki ID.
                  */
 
                 if (
+
                     button.id ===
                         "cancelModalBtn" ||
+
                     button.id ===
                         "cancelModelBtn" ||
+
                     button.id ===
                         "cancelModelButton"
+
                 ) {
 
                     return;
@@ -1341,7 +1284,7 @@
 
 
     /* =====================================================
-       BIND BACKDROP
+       BACKDROP
     ===================================================== */
 
     function bindBackdrop() {
@@ -1369,7 +1312,7 @@
 
 
     /* =====================================================
-       BIND ESCAPE
+       ESCAPE
     ===================================================== */
 
     function bindEscape() {
@@ -1391,7 +1334,15 @@
 
         /*
          * Jika bind dipanggil ulang,
-         * listener lama dibuang terlebih dahulu.
+         * hapus seluruh listener lama.
+         *
+         * Ini penting agar:
+         *
+         *     initialize()
+         *     bind()
+         *     rebind()
+         *
+         * tidak menghasilkan listener berlapis.
          */
 
         if (initialized) {
@@ -1401,71 +1352,17 @@
         }
 
 
-        /* ================================================
-           SUBMIT
-        ================================================ */
-
         bindSubmit();
-
-
-        /* ================================================
-           PROVIDER
-        ================================================ */
 
         bindProvider();
 
-
-        /* ================================================
-           MODEL ID
-        ================================================ */
-
         bindModel();
-
-
-        /*
-         * =================================================
-         * PRICING TIDAK DIBIND DI SINI
-         * =================================================
-         *
-         * Pricing owner:
-         * GENZModelPriceCalculation
-         *
-         * Jangan panggil:
-         *
-         *     bindPrice()
-         *
-         * atau:
-         *
-         *     syncForm()
-         *
-         * dari event pricing di module ini.
-         */
-
-
-        /* ================================================
-           CLOSE + CANCEL
-        ================================================ */
 
         bindCloseButtons();
 
-
-        /* ================================================
-           DATA ATTRIBUTE CANCEL
-        ================================================ */
-
         bindCancel();
 
-
-        /* ================================================
-           BACKDROP
-        ================================================ */
-
         bindBackdrop();
-
-
-        /* ================================================
-           ESCAPE
-        ================================================ */
 
         bindEscape();
 
