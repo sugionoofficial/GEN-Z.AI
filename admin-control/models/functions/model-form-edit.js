@@ -9,29 +9,9 @@
    OWNER:
    EDIT MODEL
 
-   ARSITEKTUR:
-   ---------------------------------------------------------
-   Provider
-       -> GENZModelsProvider / GENZModelProviderDropdown
-
-   Model Catalog
-       -> GENZModelFormLayout
-       -> Supabase / KIE
-
-   KIE Configuration
-       -> kie_models
-       -> kie_parameters
-       -> kie_pricing
-
-   CRUD
-       -> GENZModelFormCoordinator
-
-   Events
-       -> GENZModelFormEvents
-
    =========================================================
 
-   SOURCE OF TRUTH:
+   SOURCE OF TRUTH
    ---------------------------------------------------------
    Model ID
        -> KIE
@@ -42,40 +22,48 @@
    Model Family
        -> KIE
 
-   Ratio
-       -> KIE parameters
+   Ratio OPTIONS
+       -> KIE / Supabase
 
-   Duration
-       -> KIE parameters
+   Duration OPTIONS
+       -> KIE / Supabase
 
-   Resolution
-       -> KIE parameters
+   Resolution OPTIONS
+       -> KIE / Supabase
 
-   KIE Price
-       -> KIE pricing
+   KIE Unit Price
+       -> kie_pricing / Supabase
+
+   Saved capability selection
+       -> models / Supabase
 
    =========================================================
 
-   EDITABLE:
+   EDITABLE
    ---------------------------------------------------------
    Description
    Credit Cost
    Discount
    Status
 
-   Capability KIE:
-   READONLY / mengikuti KIE
+   Capability selection
+       -> checkbox
+       -> pilihan berasal dari KIE/Supabase
 
    =========================================================
 
-   IMPORTANT:
+   IMPORTANT
    ---------------------------------------------------------
    Tidak melakukan query Supabase langsung.
-   Tidak membuat capability sendiri.
-   Tidak membuat Model ID sendiri.
-   Tidak membuat Model Name sendiri.
-   Tidak membuat harga KIE sendiri.
-   Tidak membuat ratio/duration/resolution sendiri.
+
+   Tidak membuat:
+   - Model ID
+   - Model Name
+   - Model Family
+   - Ratio
+   - Duration
+   - Resolution
+   - KIE Price
 
    =========================================================
 */
@@ -534,7 +522,8 @@
 
             } catch {
 
-                modelId = "";
+                modelId =
+                    "";
 
             }
 
@@ -753,13 +742,12 @@
     /* =====================================================
        SET PROVIDER
        -----------------------------------------------------
-       silent = true digunakan ketika membuka EDIT.
+       silent=true:
+       - tidak memanggil dropdown.setValue()
+       - tidak dispatch provider-changed
+       - tidak memicu refresh recursive
 
-       Tujuannya:
-       - menetapkan provider tanpa dispatch event
-       - mencegah provider-changed
-       - mencegah refresh berulang
-       - mencegah recursive event chain
+       Ini khusus ketika membuka Edit Model.
     ===================================================== */
 
     async function setProvider(
@@ -784,13 +772,6 @@
          * =================================================
          * SILENT MODE
          * =================================================
-         *
-         * Jangan menggunakan dropdown.setValue()
-         * karena method tersebut dapat dispatch:
-         *
-         * genz-models-provider-changed
-         *
-         * ketika form Edit baru dibuka.
          */
 
         if (silent) {
@@ -804,55 +785,49 @@
                 );
 
 
-            if (select) {
-
-                const option =
-                    Array.from(
-                        select.options || []
-                    ).find(
-                        option => {
-
-                            return (
-                                String(
-                                    option.value || ""
-                                )
-                                    .trim()
-                                    .toLowerCase() ===
-                                value.toLowerCase()
-                            );
-
-                        }
-                    );
-
-
-                if (option) {
-
-                    select.value =
-                        option.value;
-
-                    return option.value;
-
-                }
-
-            }
-
-
-            /*
-             * Jika provider dropdown belum memiliki
-             * option, tetap isi value apabila select
-             * tersedia. Layout.refresh() menerima
-             * providerIdentifier secara eksplisit.
-             */
-
-            if (select) {
-
-                select.value =
-                    value;
+            if (!select) {
 
                 return value;
 
             }
 
+
+            const option =
+                Array.from(
+                    select.options || []
+                ).find(
+                    option => {
+
+                        return (
+                            String(
+                                option.value || ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            value.toLowerCase()
+                        );
+
+                    }
+                );
+
+
+            if (option) {
+
+                select.value =
+                    option.value;
+
+                return option.value;
+
+            }
+
+
+            /*
+             * Jika option belum tersedia,
+             * tetap simpan value untuk Layout.
+             */
+
+            select.value =
+                value;
 
             return value;
 
@@ -863,10 +838,6 @@
          * =================================================
          * NORMAL MODE
          * =================================================
-         *
-         * Saat user benar-benar mengganti provider,
-         * gunakan dropdown normal agar lifecycle event
-         * tetap bekerja.
          */
 
         const dropdown =
@@ -994,15 +965,6 @@
 
     /* =====================================================
        SET MODEL
-       -----------------------------------------------------
-       Selalu melalui Layout.
-       Tidak memanipulasi KIE state secara manual.
-
-       Catatan:
-       Fungsi ini tetap tersedia untuk pemanggilan eksternal.
-       Saat populate(), fungsi ini TIDAK dipanggil lagi
-       setelah layout.refresh(), karena refresh() sudah
-       melakukan setModel() sendiri.
     ===================================================== */
 
     async function setModel(
@@ -1065,18 +1027,10 @@
         }
 
 
-        /*
-         * Hanya satu panggilan setModel().
-         */
-
         await layout.setModel(
             kieModel
         );
 
-
-        /*
-         * Layout menjadi source of truth.
-         */
 
         setValue(
             "modelCode",
@@ -1084,43 +1038,23 @@
         );
 
 
-        /*
-         * Model Name.
-         */
-
-        const modelName =
+        setValue(
+            "modelName",
             String(
                 kieModel.model_name ||
                 ""
-            ).trim();
-
-
-        setValue(
-            "modelName",
-            modelName
+            ).trim()
         );
-
-
-        /*
-         * Model Family.
-         */
-
-        const modelFamily =
-            String(
-                kieModel.model_family ||
-                ""
-            ).trim();
 
 
         setValue(
             "modelFamily",
-            modelFamily
+            String(
+                kieModel.model_family ||
+                ""
+            ).trim()
         );
 
-
-        /*
-         * Field KIE identity readonly.
-         */
 
         const modelNameElement =
             getElement(
@@ -1150,10 +1084,6 @@
         }
 
 
-        /*
-         * KIE Unit Price readonly.
-         */
-
         const kieUnitPrice =
             getElement(
                 "kieUnitPrice"
@@ -1179,28 +1109,14 @@
 
 
     /* =====================================================
-       WAIT FOR LAYOUT
-       -----------------------------------------------------
-       Tidak menggunakan setTimeout(0).
-
-       Layout sudah menjadi module dependency.
-       Jika belum tersedia, langsung return false.
+       WAIT FOR MODEL LAYOUT
     ===================================================== */
 
     async function waitForModelLayout() {
 
-        const layout =
-            getFormLayout();
-
-
-        if (!layout) {
-
-            return false;
-
-        }
-
-
-        return true;
+        return Boolean(
+            getFormLayout()
+        );
 
     }
 
@@ -1270,11 +1186,6 @@
         }
 
 
-        /*
-         * Tidak dispatch change/input.
-         * Layout langsung menyinkronkan field.
-         */
-
         if (
             typeof layout.syncLegacyCapabilityFields ===
             "function"
@@ -1320,12 +1231,323 @@
 
 
     /* =====================================================
-       COLLECT EDITABLE DATA
+       APPLY SAVED CAPABILITY SELECTION
        -----------------------------------------------------
-       Identity dan capability TIDAK diambil sebagai
-       sumber utama dari form.
+       INI BAGIAN PENTING UNTUK EDIT.
 
-       Semuanya diverifikasi kembali terhadap KIE.
+       KIE/Supabase menyediakan SEMUA OPTION.
+
+       Record model Supabase menentukan mana yang
+       sebelumnya dipilih.
+
+       Contoh:
+
+       Supabase:
+           supported_ratios:
+               ["16:9", "9:16"]
+
+       KIE options:
+           ["16:9", "9:16", "1:1"]
+
+       Hasil Edit:
+           [x] 16:9
+           [x] 9:16
+           [ ] 1:1
+
+       Ratio/resolution yang sebelumnya disabled oleh
+       Layout dibuka kembali menjadi selectable khusus
+       pada form Edit.
+
+       Duration:
+           min_duration = 5
+           max_duration = 10
+
+       KIE options:
+           5, 8, 10, 12
+
+       Hasil:
+           [x] 5
+           [x] 8
+           [x] 10
+           [ ] 12
+    ===================================================== */
+
+    function applySavedCapabilitySelection(
+        model
+    ) {
+
+        if (!model) {
+
+            return false;
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * DATA YANG SUDAH TERSIMPAN DI SUPABASE
+         * -------------------------------------------------
+         */
+
+        const savedRatios =
+            uniqueArray(
+                model.supported_ratios ??
+                model.supportedRatios ??
+                []
+            );
+
+
+        const savedResolutions =
+            uniqueArray(
+                model.supported_resolutions ??
+                model.supportedResolutions ??
+                []
+            );
+
+
+        const savedMin =
+            toNumber(
+                model.min_duration ??
+                model.minDuration
+            );
+
+
+        const savedMax =
+            toNumber(
+                model.max_duration ??
+                model.maxDuration
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * RATIO
+         * -------------------------------------------------
+         */
+
+        const ratioCheckboxes =
+            document.querySelectorAll(
+                'input[data-kie-capability="ratio"]'
+            );
+
+
+        ratioCheckboxes.forEach(
+            checkbox => {
+
+                const value =
+                    String(
+                        checkbox.dataset.kieValue ??
+                        ""
+                    ).trim();
+
+
+                /*
+                 * Ratio berasal dari KIE.
+                 *
+                 * Admin hanya memilih.
+                 */
+
+                checkbox.disabled =
+                    false;
+
+
+                checkbox.removeAttribute(
+                    "aria-readonly"
+                );
+
+
+                checkbox.checked =
+                    savedRatios.some(
+                        saved =>
+                            saved.toLowerCase() ===
+                            value.toLowerCase()
+                    );
+
+            }
+        );
+
+
+        /*
+         * -------------------------------------------------
+         * RESOLUTION
+         * -------------------------------------------------
+         */
+
+        const resolutionCheckboxes =
+            document.querySelectorAll(
+                'input[data-kie-capability="resolution"]'
+            );
+
+
+        resolutionCheckboxes.forEach(
+            checkbox => {
+
+                const value =
+                    String(
+                        checkbox.dataset.kieValue ??
+                        ""
+                    ).trim();
+
+
+                checkbox.disabled =
+                    false;
+
+
+                checkbox.removeAttribute(
+                    "aria-readonly"
+                );
+
+
+                checkbox.checked =
+                    savedResolutions.some(
+                        saved =>
+                            saved.toLowerCase() ===
+                            value.toLowerCase()
+                    );
+
+            }
+        );
+
+
+        /*
+         * -------------------------------------------------
+         * DURATION
+         * -------------------------------------------------
+         *
+         * Duration yang tersimpan direpresentasikan
+         * oleh min/max.
+         *
+         * Checkbox yang berada di dalam range tersebut
+         * dicentang.
+         */
+
+        const durationCheckboxes =
+            document.querySelectorAll(
+                'input[data-kie-capability="duration"]'
+            );
+
+
+        durationCheckboxes.forEach(
+            checkbox => {
+
+                const value =
+                    String(
+                        checkbox.dataset.kieValue ??
+                        ""
+                    ).trim();
+
+
+                const numeric =
+                    Number(
+                        value
+                    );
+
+
+                checkbox.disabled =
+                    false;
+
+
+                checkbox.removeAttribute(
+                    "aria-readonly"
+                );
+
+
+                if (
+                    savedMin !== null &&
+                    savedMax !== null &&
+                    Number.isFinite(
+                        numeric
+                    )
+                ) {
+
+                    checkbox.checked =
+                        numeric >= savedMin &&
+                        numeric <= savedMax;
+
+                } else {
+
+                    /*
+                     * Tidak ada selection lama.
+                     * Jangan membuat pilihan sendiri.
+                     */
+
+                    checkbox.checked =
+                        false;
+
+                }
+
+            }
+        );
+
+
+        /*
+         * -------------------------------------------------
+         * SINKRONKAN FIELD LEGACY
+         * -------------------------------------------------
+         */
+
+        syncKieCapabilities();
+
+
+        /*
+         * Pastikan min/max berasal dari checkbox.
+         */
+
+        const layout =
+            getFormLayout();
+
+
+        if (
+            layout &&
+            typeof layout.syncDurationFields ===
+            "function"
+        ) {
+
+            try {
+
+                layout.syncDurationFields();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Duration sync warning:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        if (
+            layout &&
+            typeof layout.syncLegacyCapabilityFields ===
+            "function"
+        ) {
+
+            try {
+
+                layout.syncLegacyCapabilityFields();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Legacy capability sync warning:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       COLLECT EDITABLE DATA
     ===================================================== */
 
     function collectData() {
@@ -1508,30 +1730,13 @@
 
 
         /*
-         * Capability harus berasal dari state KIE.
-         */
-
-        let ratios =
-            [];
-
-        let resolutions =
-            [];
-
-        let minDuration =
-            "";
-
-        let maxDuration =
-            "";
-
-
-        /*
-         * Sinkronisasi langsung melalui Layout.
+         * Capability berasal dari checkbox.
          */
 
         syncKieCapabilities();
 
 
-        ratios =
+        const ratios =
             normalizeArray(
                 getValue(
                     "supportedRatios"
@@ -1539,7 +1744,7 @@
             );
 
 
-        resolutions =
+        const resolutions =
             normalizeArray(
                 getValue(
                     "supportedResolutions"
@@ -1547,23 +1752,17 @@
             );
 
 
-        minDuration =
+        const minDuration =
             getValue(
                 "minDuration"
             );
 
 
-        maxDuration =
+        const maxDuration =
             getValue(
                 "maxDuration"
             );
 
-
-        /*
-         * Jika Layout menyediakan current
-         * capability state, gunakan itu sebagai
-         * validasi tambahan.
-         */
 
         const kieConfig =
             typeof layout.getCurrentKieConfig ===
@@ -1666,11 +1865,6 @@
         }
 
 
-        /*
-         * Pastikan model benar-benar ada
-         * dalam katalog KIE.
-         */
-
         const kieModel =
             getCurrentKieModel();
 
@@ -1704,7 +1898,7 @@
 
 
         /*
-         * Credit.
+         * Credit Cost.
          */
 
         if (
@@ -1911,14 +2105,6 @@
         }
 
 
-        /*
-         * Payload mempertahankan struktur
-         * API lama.
-         *
-         * Model identity sudah diverifikasi
-         * dari KIE sebelum fungsi ini dipanggil.
-         */
-
         const payload = {
 
             id:
@@ -1988,13 +2174,6 @@
         };
 
 
-        /*
-         * Model Family dikirim jika API/backend
-         * mendukung field tersebut.
-         *
-         * Tidak memaksa field lain.
-         */
-
         if (
             data.model_family
         ) {
@@ -2032,25 +2211,12 @@
         }
 
 
-        /*
-         * Sinkronkan capability KIE tanpa
-         * men-trigger event DOM.
-         */
-
         syncKieCapabilities();
 
-
-        /*
-         * Ambil form.
-         */
 
         let data =
             collectData();
 
-
-        /*
-         * Rebuild berdasarkan KIE.
-         */
 
         data =
             buildKieData(
@@ -2083,10 +2249,6 @@
                 data
             );
 
-
-        /*
-         * Coordinator menjadi satu pintu CRUD.
-         */
 
         const coordinator =
             window.GENZModelFormCoordinator;
@@ -2124,12 +2286,6 @@
 
             event.preventDefault();
 
-            /*
-             * stopPropagation hanya satu tingkat.
-             *
-             * Jangan dispatch submit lagi.
-             */
-
             event.stopPropagation();
 
         }
@@ -2158,10 +2314,6 @@
             );
 
 
-            /*
-             * Clear cache model.
-             */
-
             const dataModule =
                 window.GENZModelsData;
 
@@ -2188,10 +2340,6 @@
             }
 
 
-            /*
-             * Informasikan UI.
-             */
-
             try {
 
                 document.dispatchEvent(
@@ -2214,10 +2362,6 @@
                 /* ignore */
             }
 
-
-            /*
-             * Tutup modal melalui owner.
-             */
 
             const formEvents =
                 getFormEvents();
@@ -2277,32 +2421,18 @@
     /* =====================================================
        POPULATE
        -----------------------------------------------------
-       OPTIMIZED EDIT FLOW:
+       FLOW:
 
-       1. Simpan record yang sedang diedit
-       2. Record ID
+       1. Simpan record Supabase
+       2. Isi editable data dari Supabase
        3. Provider silent
-       4. Validasi Layout
-       5. SATU KALI refresh KIE
-       6. Layout memilih model + load config
-       7. Identity KIE
-       8. Editable DB fields
-       9. Sync capability
+       4. Load catalog KIE/Supabase
+       5. Load KIE config
+       6. Render semua capability yang tersedia
+       7. Terapkan selection dari record Supabase
+       8. KIE identity readonly
+       9. KIE price readonly
        10. Credit preview
-       11. Event notification
-
-       IMPORTANT:
-       -----------------------------------------------------
-       Tidak melakukan:
-           refresh()
-           setModel()
-           updateUsdPreview()
-           refresh()
-
-       berulang-ulang.
-
-       layout.refresh() sudah bertanggung jawab untuk
-       memilih model dan memuat KIE configuration.
     ===================================================== */
 
     async function populate(
@@ -2336,12 +2466,11 @@
 
         /*
          * =================================================
-         * EDITABLE DATABASE FIELDS
+         * EDITABLE DATABASE DATA
          * =================================================
          *
-         * Diisi langsung dari record database.
-         *
-         * Identity KIE tidak diambil dari sini.
+         * Ini berasal langsung dari record model
+         * yang sudah dimuat dari Supabase.
          */
 
         setValue(
@@ -2349,6 +2478,13 @@
             model.description || ""
         );
 
+
+        /*
+         * CREDIT COST
+         * -------------------------------------------------
+         * Harga/credit yang digunakan aplikasi berasal
+         * dari record Supabase.
+         */
 
         setValue(
             "creditCost",
@@ -2379,14 +2515,6 @@
          * =================================================
          * PROVIDER
          * =================================================
-         *
-         * Silent agar tidak men-trigger:
-         *
-         * genz-models-provider-changed
-         *
-         * Event tersebut tidak diperlukan ketika Edit
-         * karena kita sendiri akan melakukan refresh dengan
-         * providerId yang eksplisit.
          */
 
         const providerIdentifier =
@@ -2411,7 +2539,7 @@
 
         /*
          * =================================================
-         * WAIT FOR LAYOUT
+         * LAYOUT
          * =================================================
          */
 
@@ -2443,11 +2571,8 @@
 
         /*
          * =================================================
-         * MODEL ID
+         * EXISTING MODEL ID
          * =================================================
-         *
-         * Model ID harus berasal dari record yang sudah
-         * tersimpan dan diverifikasi terhadap katalog KIE.
          */
 
         const existingModelId =
@@ -2468,23 +2593,15 @@
 
         /*
          * =================================================
-         * SATU KALI REFRESH KIE
+         * SATU KALI REFRESH
          * =================================================
          *
-         * Ini adalah titik utama optimasi.
-         *
-         * layout.refresh() sudah:
-         *
-         * - loadActiveModels()
-         * - populateModelSelect()
-         * - findModel()
-         * - setModel()
-         * - loadKieConfig()
-         * - renderCapabilities()
-         * - loadModelUsdPrice()
-         * - syncCreditPreview()
-         *
-         * Jangan mengulang proses tersebut di sini.
+         * Refresh memuat:
+         * - model catalog
+         * - KIE config
+         * - parameters
+         * - pricing
+         * - capability options
          */
 
         if (
@@ -2512,12 +2629,8 @@
 
         /*
          * =================================================
-         * CARI MODEL HASIL REFRESH
+         * VALIDASI MODEL KIE
          * =================================================
-         *
-         * Hanya validasi/reference.
-         *
-         * TIDAK memanggil setModel() lagi.
          */
 
         if (
@@ -2540,11 +2653,6 @@
 
         if (!kieModel) {
 
-            /*
-             * Jangan menggunakan identity lama dari database
-             * sebagai pengganti data KIE.
-             */
-
             throw new Error(
                 `Model "${existingModelId}" tidak ditemukan dalam katalog KIE.`
             );
@@ -2556,12 +2664,6 @@
          * =================================================
          * KIE IDENTITY
          * =================================================
-         *
-         * layout.refresh() seharusnya sudah mengisi field
-         * identity melalui setModel().
-         *
-         * Di sini hanya memastikan nilai readonly tetap
-         * berasal dari KIE.
          */
 
         setValue(
@@ -2591,40 +2693,43 @@
         );
 
 
-        /*
-         * Identity readonly.
-         */
-
-        const modelName =
+        const modelNameElement =
             getElement(
                 "modelName"
             );
 
 
-        if (modelName) {
+        if (modelNameElement) {
 
-            modelName.readOnly =
+            modelNameElement.readOnly =
                 true;
 
         }
 
 
-        const modelFamily =
+        const modelFamilyElement =
             getElement(
                 "modelFamily"
             );
 
 
-        if (modelFamily) {
+        if (modelFamilyElement) {
 
-            modelFamily.readOnly =
+            modelFamilyElement.readOnly =
                 true;
 
         }
 
 
         /*
-         * KIE Unit Price readonly.
+         * =================================================
+         * KIE PRICE
+         * =================================================
+         *
+         * layout.setModel() sudah mengambil harga dari
+         * kie_pricing melalui KIE config.
+         *
+         * Tidak boleh diisi manual.
          */
 
         const kieUnitPrice =
@@ -2638,33 +2743,33 @@
             kieUnitPrice.readOnly =
                 true;
 
+            kieUnitPrice.dataset.kieManaged =
+                "true";
+
         }
 
 
         /*
          * =================================================
-         * CAPABILITY KIE
+         * CAPABILITY
          * =================================================
          *
-         * Ratio / Duration / Resolution tidak mengambil
-         * source dari database lama.
+         * Layout sudah membuat checkbox berdasarkan
+         * parameter KIE/Supabase.
          *
-         * Layout tetap menjadi source of truth.
+         * Sekarang selection lama dari record Supabase
+         * diterapkan.
          */
 
-        syncKieCapabilities();
+        applySavedCapabilitySelection(
+            model
+        );
 
 
         /*
          * =================================================
          * CREDIT PREVIEW
          * =================================================
-         *
-         * Hanya satu update preview dari sisi Edit.
-         *
-         * USD preview tidak dipanggil ulang karena
-         * layout.refresh() sudah melakukan update pricing
-         * saat setModel().
          */
 
         const priceCalculation =
@@ -2706,12 +2811,8 @@
 
         /*
          * =================================================
-         * EDIT POPULATED EVENT
+         * EVENT
          * =================================================
-         *
-         * Event hanya sebagai notification.
-         *
-         * Tidak memanggil populate() kembali.
          */
 
         try {
@@ -2759,16 +2860,7 @@
     /* =====================================================
        OPEN
        -----------------------------------------------------
-       OPTIMIZED:
-
-       Modal ditampilkan SEBELUM populate().
-
-       Dengan begitu user langsung melihat form Edit,
-       sementara data KIE dimuat oleh Layout.
-
-       Ini menghilangkan kesan tombol Edit "stuck"
-       karena sebelumnya browser menunggu seluruh proses
-       async selesai sebelum modal terlihat.
+       Modal langsung dibuka sebelum proses async.
     ===================================================== */
 
     async function open(
@@ -2788,7 +2880,7 @@
 
         /*
          * =================================================
-         * OPEN MODAL IMMEDIATELY
+         * BUKA MODAL TERLEBIH DAHULU
          * =================================================
          */
 
@@ -2801,10 +2893,6 @@
         if (modal) {
 
             try {
-
-                /*
-                 * Support native dialog.
-                 */
 
                 if (
                     modal.tagName ===
@@ -2820,10 +2908,6 @@
                     }
 
                 } else {
-
-                    /*
-                     * Existing GEN-Z.AI modal system.
-                     */
 
                     modal.classList.add(
                         "open",
@@ -2864,14 +2948,10 @@
             } catch (error) {
 
                 console.warn(
-                    "[model-form-edit] Immediate modal open warning:",
+                    "[model-form-edit] Modal open warning:",
                     error
                 );
 
-
-                /*
-                 * Fallback.
-                 */
 
                 modal.classList.add(
                     "open",
@@ -2914,7 +2994,7 @@
 
         /*
          * =================================================
-         * POPULATE AFTER MODAL IS VISIBLE
+         * LOAD DATA
          * =================================================
          */
 
