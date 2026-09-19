@@ -2171,70 +2171,99 @@
 
     function updateActiveProviderStatistic() {
 
-        const statisticElement =
-            document.getElementById(
-                "statProviders"
-            );
+    const statisticElement =
+        document.getElementById(
+            "statProviders"
+        );
 
-        if (!statisticElement) {
-            return;
-        }
-
-        const providerModule =
-            window.GENZModelsProvider;
-
-        /*
-         * Provider module belum tersedia.
-         * Jangan mengubah angka secara sembarangan.
-         */
-        if (
-            !providerModule ||
-            typeof providerModule.getProviders !==
-                "function"
-        ) {
-            return;
-        }
-
-        try {
-
-            const providers =
-                providerModule.getProviders();
-
-            if (!Array.isArray(providers)) {
-                return;
-            }
-
-            const activeProviders =
-                providers.filter(
-                    function (provider) {
-
-                        const status =
-                            String(
-                                provider?.status || ""
-                            )
-                                .trim()
-                                .toLowerCase();
-
-                        return (
-                            status === "active"
-                        );
-                    }
-                ).length;
-
-            statisticElement.textContent =
-                String(
-                    activeProviders
-                );
-
-        } catch (error) {
-
-            console.warn(
-                "[models.html] Gagal menghitung Provider aktif:",
-                error
-            );
-
-        }
+    if (!statisticElement) {
+        return;
     }
+
+    /*
+     * Kartu Provider pada halaman Models
+     * menunjukkan jumlah Provider yang benar-benar
+     * digunakan oleh Model yang ACTIVE.
+     *
+     * Sumber utama:
+     *     GENZModelsData.getCachedModels()
+     *
+     * Contoh:
+     *     22 Model ACTIVE
+     *     semuanya menggunakan provider "kie"
+     *
+     * hasil:
+     *     Provider = 1
+     */
+
+    const dataModule =
+        window.GENZModelsData;
+
+    if (
+        !dataModule ||
+        typeof dataModule.getCachedModels !==
+            "function"
+    ) {
+        return;
+    }
+
+    try {
+
+        const models =
+            dataModule.getCachedModels();
+
+        if (!Array.isArray(models)) {
+            return;
+        }
+
+        const activeProviderIds =
+            new Set();
+
+        models.forEach(
+            function (model) {
+
+                const status =
+                    String(
+                        model?.status || ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+                if (status !== "active") {
+                    return;
+                }
+
+                const providerId =
+                    String(
+                        model?.provider ||
+                        model?.provider_id ||
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase();
+
+                if (providerId) {
+                    activeProviderIds.add(
+                        providerId
+                    );
+                }
+            }
+        );
+
+        statisticElement.textContent =
+            String(
+                activeProviderIds.size
+            );
+
+    } catch (error) {
+
+        console.warn(
+            "[models.html] Gagal menghitung Provider dari Model aktif:",
+            error
+        );
+
+    }
+}
 
     /*
      * Tunggu sampai module Models selesai dimuat.
