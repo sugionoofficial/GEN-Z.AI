@@ -1079,143 +1079,249 @@
     ===================================================== */
 
     async function loadActiveModels(
-        options = {}
+    options = {}
+) {
+
+    const data =
+        window.GENZModelsData;
+
+
+    const selectedModelId =
+        String(
+            options.selectedModelId ??
+            pendingModelId ??
+            getCurrentModelId() ??
+            ""
+        ).trim();
+
+
+    const providerId =
+        String(
+            options.providerId ??
+            pendingProviderId ??
+            getCurrentProvider() ??
+            ""
+        ).trim();
+
+
+    if (selectedModelId) {
+
+        pendingModelId =
+            selectedModelId;
+
+    }
+
+
+    if (providerId) {
+
+        pendingProviderId =
+            providerId;
+
+    }
+
+
+    if (
+        !data ||
+        typeof data.loadKieModels !==
+            "function"
     ) {
 
-        const data =
-            window.GENZModelsData;
+        console.error(
+            "[GEN-Z.AI] GENZModelsData.loadKieModels() tidak tersedia."
+        );
 
 
-        const selectedModelId =
-            String(
-                options.selectedModelId ??
-                pendingModelId ??
-                getCurrentModelId() ??
-                ""
-            ).trim();
+        return [
+            ...modelCache
+        ];
+
+    }
 
 
-        const providerId =
-            String(
-                options.providerId ??
-                pendingProviderId ??
-                getCurrentProvider() ??
-                ""
-            ).trim();
-
-
-        if (selectedModelId) {
-
-            pendingModelId =
-                selectedModelId;
-
-        }
-
-
-        if (providerId) {
-
-            pendingProviderId =
-                providerId;
-
-        }
-
-
-        if (
-            !data ||
-            typeof data.loadKieModels !==
-                "function"
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] GENZModelsData.loadKieModels() tidak tersedia."
-            );
-
-
-            return [
-                ...modelCache
-            ];
-
-        }
-
-
-        if (
-            loadingPromise &&
-            options.force !== true
-        ) {
-
-            try {
-
-                return await loadingPromise;
-
-            } catch {
-
-                /* request berikutnya boleh berjalan */
-
-            }
-
-        }
-
-
-        loadingPromise =
-            (async function () {
-
-                const result =
-                    await data.loadKieModels(
-                        {
-                            activeOnly:
-                                false,
-
-                            force:
-                                options.force === true
-                        }
-                    );
-
-
-                const incoming =
-                    Array.isArray(
-                        result
-                    )
-                        ? result
-                        : [];
-
-
-                modelCache =
-                    incoming.filter(
-                        isActiveModel
-                    );
-
-
-                return [
-                    ...modelCache
-                ];
-
-            })();
-
+    if (
+        loadingPromise &&
+        options.force !== true
+    ) {
 
         try {
 
             return await loadingPromise;
 
-        } catch (error) {
+        } catch {
 
-            console.error(
-                "[GEN-Z.AI] Gagal memuat Model:",
-                error
+            /* request berikutnya tetap boleh berjalan */
+
+        }
+
+    }
+
+
+    loadingPromise =
+        (async function () {
+
+            /*
+             * PENTING:
+             *
+             * Jangan melakukan filter status di sini.
+             *
+             * models-data.js sudah menerima:
+             *
+             *     activeOnly: false
+             *
+             * sehingga seluruh model yang berasal dari
+             * sumber KIE/Supabase harus dipertahankan.
+             *
+             * Status bukan tanggung jawab layout.
+             */
+
+            const result =
+                await data.loadKieModels(
+                    {
+                        activeOnly:
+                            false,
+
+                        force:
+                            options.force === true
+                    }
+                );
+
+
+            const incoming =
+                Array.isArray(
+                    result
+                )
+                    ? result
+                    : [];
+
+
+            /*
+             * SINGLE SOURCE OF TRUTH:
+             *
+             * Jangan:
+             *
+             *     incoming.filter(isActiveModel)
+             *
+             * karena status dari database/KIE bisa berbeda
+             * dengan daftar status UI.
+             */
+
+            modelCache =
+                incoming.filter(
+                    function (model) {
+
+                        return (
+                            model &&
+                            String(
+                                model.model_id ??
+                                ""
+                            ).trim() !== ""
+                        );
+
+                    }
+                );
+
+
+            console.info(
+                "[GEN-Z.AI] Model catalog diterima:",
+                {
+                    providerId,
+                    total:
+                        incoming.length,
+                    valid:
+                        modelCache.length
+                }
             );
+
+
+            /*
+             * Debug model pertama.
+             * Ini membantu memastikan data benar-benar masuk
+             * tanpa mengarang model apa pun.
+             */
+
+            if (
+                modelCache.length
+            ) {
+
+                console.info(
+                    "[GEN-Z.AI] Model catalog sample:",
+                    modelCache
+                        .slice(
+                            0,
+                            3
+                        )
+                        .map(
+                            function (model) {
+
+                                return {
+
+                                    model_id:
+                                        model.model_id,
+
+                                    model_name:
+                                        model.model_name,
+
+                                    model_family:
+                                        model.model_family,
+
+                                    provider:
+                                        model.provider,
+
+                                    provider_id:
+                                        model.provider_id,
+
+                                    provider_name:
+                                        model.provider_name,
+
+                                    status:
+                                        model.status
+
+                                };
+
+                            }
+                        )
+                );
+
+            } else {
+
+                console.warn(
+                    "[GEN-Z.AI] Model catalog kosong setelah loadKieModels()."
+                );
+
+            }
 
 
             return [
                 ...modelCache
             ];
 
-        } finally {
+        })();
 
-            loadingPromise =
-                null;
 
-        }
+    try {
+
+        return await loadingPromise;
+
+    } catch (error) {
+
+        console.error(
+            "[GEN-Z.AI] Gagal memuat Model:",
+            error
+        );
+
+
+        return [
+            ...modelCache
+        ];
+
+    } finally {
+
+        loadingPromise =
+            null;
 
     }
+
+}
 
 
     /* =====================================================
