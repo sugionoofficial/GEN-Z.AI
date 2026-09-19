@@ -2,23 +2,22 @@
    GEN-Z.AI
    MODEL SEARCH RENDER
    ---------------------------------------------------------
+   File:
+   admin-control/models/functions/model-search-render.js
+
    Tanggung jawab:
-   - Membuat HTML hasil pencarian Model
-   - Menampilkan data Model yang berasal dari KIE/Supabase
+   - Render hasil pencarian Model
+   - Menampilkan Model ID dari catalog
+   - Menampilkan nama, family, provider jika tersedia
+   - Menjaga data tetap berasal dari source of truth
 
-   TIDAK mengurus:
-   - Query
-   - Provider
-   - Selection
-   - Event
+   Tidak bertanggung jawab:
+   - Query database
+   - Provider selection
+   - Model selection
+   - Event handling
    - CRUD
-
-   ATURAN:
-   - Tidak membuat Model ID manual
-   - Tidak mengubah Model ID
-   - Tidak membuat data Model baru
-   - Tidak menambahkan fallback Model ID
-   - Hanya merender hasil yang diberikan search module
+   - Membuat Model ID baru
    ========================================================= */
 
 (function () {
@@ -27,37 +26,44 @@
 
 
     /* =====================================================
+       CONSTANTS
+    ===================================================== */
+
+    const RESULT_BOX_IDS = [
+        "modelSearchResults",
+        "modelResults",
+        "modelDropdown"
+    ];
+
+
+    /* =====================================================
        ESCAPE HTML
     ===================================================== */
 
-    function escapeHtml(
-        value
-    ) {
+    function escapeHtml(value) {
 
-        return String(
-            value ?? ""
-        )
-            .replace(
-                /&/g,
-                "&amp;"
-            )
-            .replace(
-                /</g,
-                "&lt;"
-            )
-            .replace(
-                />/g,
-                "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#039;"
-            );
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
+
+    /* =====================================================
+       STRING
+    ===================================================== */
+
+    function cleanString(value) {
+
+        return String(value ?? "").trim();
+    }
+
+
+    function normalizeString(value) {
+
+        return cleanString(value).toLowerCase();
     }
 
 
@@ -67,103 +73,93 @@
 
     function getBox() {
 
-        return (
-            document.getElementById(
-                "modelSearchResults"
-            ) ||
-            document.getElementById(
-                "modelResults"
-            ) ||
-            document.getElementById(
-                "modelDropdown"
-            )
-        );
+        for (const id of RESULT_BOX_IDS) {
 
+            const element =
+                document.getElementById(id);
+
+            if (element) {
+
+                return element;
+            }
+        }
+
+        return null;
     }
 
 
     /* =====================================================
-       SHOW DROPDOWN
+       DROPDOWN MODULE
     ===================================================== */
+
+    function getDropdown() {
+
+        return (
+            window.GENZModelSearchDropdown ||
+            null
+        );
+    }
+
 
     function showDropdown() {
 
         const dropdown =
-            window.GENZModelSearchDropdown;
-
+            getDropdown();
 
         if (
             dropdown &&
-            typeof dropdown.show ===
-                "function"
+            typeof dropdown.show === "function"
         ) {
 
             try {
 
-                dropdown.show();
+                return dropdown.show() !== false;
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
-                    "[GEN-Z.AI] Model search dropdown show error:",
+                    "[GEN-Z.AI] Gagal menampilkan Model dropdown:",
                     error
                 );
-
             }
-
         }
 
+        return false;
     }
 
-
-    /* =====================================================
-       HIDE DROPDOWN
-    ===================================================== */
 
     function hideDropdown() {
 
         const dropdown =
-            window.GENZModelSearchDropdown;
-
+            getDropdown();
 
         if (
             dropdown &&
-            typeof dropdown.hide ===
-                "function"
+            typeof dropdown.hide === "function"
         ) {
 
             try {
 
-                dropdown.hide();
+                return dropdown.hide() !== false;
 
-            } catch (
-                error
-            ) {
+            } catch (error) {
 
                 console.warn(
-                    "[GEN-Z.AI] Model search dropdown hide error:",
+                    "[GEN-Z.AI] Gagal menyembunyikan Model dropdown:",
                     error
                 );
-
             }
-
         }
 
+        return false;
     }
 
 
     /* =====================================================
-       NORMALIZE MODEL ID
-       
-       Hanya membaca data.
-       Tidak membuat fallback dari nama/provider.
+       MODEL DATA
     ===================================================== */
 
-    function getModelId(
-        model
-    ) {
+    function getModelId(model) {
 
         if (
             !model ||
@@ -171,26 +167,16 @@
         ) {
 
             return "";
-
         }
 
-
-        return String(
+        return cleanString(
             model.model_id ??
-            model.modelId ??
-            ""
-        ).trim();
-
+            model.modelId
+        );
     }
 
 
-    /* =====================================================
-       NORMALIZE MODEL NAME
-    ===================================================== */
-
-    function getModelName(
-        model
-    ) {
+    function getModelName(model) {
 
         if (
             !model ||
@@ -198,26 +184,17 @@
         ) {
 
             return "";
-
         }
 
-
-        return String(
+        return cleanString(
             model.model_name ??
             model.modelName ??
-            ""
-        ).trim();
-
+            model.name
+        );
     }
 
 
-    /* =====================================================
-       NORMALIZE MODEL FAMILY
-    ===================================================== */
-
-    function getModelFamily(
-        model
-    ) {
+    function getModelFamily(model) {
 
         if (
             !model ||
@@ -225,26 +202,17 @@
         ) {
 
             return "";
-
         }
 
-
-        return String(
+        return cleanString(
             model.model_family ??
             model.modelFamily ??
-            ""
-        ).trim();
-
+            model.family
+        );
     }
 
 
-    /* =====================================================
-       NORMALIZE PROVIDER
-    ===================================================== */
-
-    function getProvider(
-        model
-    ) {
+    function getProviderName(model) {
 
         if (
             !model ||
@@ -252,32 +220,38 @@
         ) {
 
             return "";
-
         }
 
-
-        return String(
+        return cleanString(
             model.provider_name ??
+            model.providerName ??
             model.provider_id ??
-            model.provider ??
-            ""
-        ).trim();
+            model.provider
+        );
+    }
 
+
+    function getStatus(model) {
+
+        if (
+            !model ||
+            typeof model !== "object"
+        ) {
+
+            return "";
+        }
+
+        return cleanString(
+            model.status
+        );
     }
 
 
     /* =====================================================
-       VALID RESULT
-       
-       Hanya Model yang mempunyai Model ID valid
-       boleh ditampilkan.
-       
-       Tidak ada "manual model".
+       VALID MODEL
     ===================================================== */
 
-    function isValidModel(
-        model
-    ) {
+    function isValidModel(model) {
 
         if (
             !model ||
@@ -285,18 +259,76 @@
         ) {
 
             return false;
-
         }
 
+        return Boolean(
+            getModelId(model)
+        );
+    }
 
-        const modelId =
-            getModelId(
-                model
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    function isModelSelectable(model) {
+
+        const status =
+            normalizeString(
+                getStatus(model)
             );
 
+        /*
+         * Catalog dari models-search biasanya
+         * sudah difilter active.
+         *
+         * Jika status tidak tersedia, record
+         * tetap dianggap selectable.
+         */
+        if (!status) {
 
-        return !!modelId;
+            return true;
+        }
 
+        return (
+            status === "active" ||
+            status === "enabled" ||
+            status === "published"
+        );
+    }
+
+
+    /* =====================================================
+       BUILD META
+    ===================================================== */
+
+    function buildMeta(model) {
+
+        const parts = [];
+
+        const family =
+            getModelFamily(model);
+
+        const provider =
+            getProviderName(model);
+
+        if (family) {
+
+            parts.push(
+                family
+            );
+        }
+
+        if (provider) {
+
+            parts.push(
+                provider
+            );
+        }
+
+        return parts
+            .map(escapeHtml)
+            .join(" · ");
     }
 
 
@@ -304,132 +336,72 @@
        BUILD MODEL ITEM
     ===================================================== */
 
-    function buildItem(
-        model
-    ) {
+    function buildItem(model) {
 
         if (
-            !isValidModel(
-                model
-            )
+            !isValidModel(model)
         ) {
 
             return "";
-
         }
 
+        if (
+            !isModelSelectable(model)
+        ) {
+
+            return "";
+        }
 
         const modelId =
-            getModelId(
-                model
-            );
-
+            getModelId(model);
 
         const modelName =
-            getModelName(
-                model
-            );
+            getModelName(model);
 
-
-        const family =
-            getModelFamily(
-                model
-            );
-
-
-        const provider =
-            getProvider(
-                model
-            );
-
-
-        /*
-         * Hanya data dari model.
-         * Tidak ada data buatan.
-         */
-
-        let meta = "";
-
-
-        if (
-            family
-        ) {
-
-            meta +=
-                escapeHtml(
-                    family
-                );
-
-        }
-
-
-        if (
-            provider
-        ) {
-
-            if (
-                meta
-            ) {
-
-                meta +=
-                    " · ";
-
-            }
-
-
-            meta +=
-                escapeHtml(
-                    provider
-                );
-
-        }
+        const meta =
+            buildMeta(model);
 
 
         return (
-            '<div class="model-search-item"' +
-            ' role="option"' +
-            ' tabindex="-1"' +
-            ' data-model-id="' +
-            escapeHtml(
-                modelId
-            ) +
-            '">' +
+            '<div' +
+                ' class="model-search-item"' +
+                ' role="option"' +
+                ' tabindex="-1"' +
+                ' data-model-id="' +
+                    escapeHtml(modelId) +
+                '"' +
+            '>' +
 
                 '<div class="model-search-item-main">' +
 
-                    "<strong>" +
-                    escapeHtml(
-                        modelId
-                    ) +
-                    "</strong>" +
+                    '<strong class="model-search-item-id">' +
+                        escapeHtml(modelId) +
+                    '</strong>' +
 
                     (
                         modelName
                             ? (
-                                "<span>" +
-                                escapeHtml(
-                                    modelName
-                                ) +
-                                "</span>"
+                                '<span class="model-search-item-name">' +
+                                    escapeHtml(modelName) +
+                                '</span>'
                             )
                             : ""
                     ) +
 
-                "</div>" +
+                '</div>' +
 
                 (
                     meta
                         ? (
                             '<div class="model-search-item-meta">' +
-                            meta +
-                            "</div>"
+                                meta +
+                            '</div>'
                         )
                         : ""
                 ) +
 
-            "</div>"
+            '</div>'
         );
-
     }
 
 
@@ -438,42 +410,82 @@
     ===================================================== */
 
     function renderEmpty(
-        message
+        message = "Model tidak ditemukan."
     ) {
 
         const box =
             getBox();
 
+        if (!box) {
 
-        if (
-            !box
-        ) {
+            console.warn(
+                "[GEN-Z.AI] Model search result box tidak ditemukan."
+            );
 
             return false;
-
         }
 
 
-        const text =
-            String(
-                message ||
-                "Model tidak ditemukan."
-            );
-
-
         box.innerHTML =
-            '<div class="model-search-empty">' +
-            escapeHtml(
-                text
-            ) +
-            "</div>";
+            '<div class="model-search-empty" role="status">' +
+                escapeHtml(message) +
+            '</div>';
 
 
         showDropdown();
 
 
         return true;
+    }
 
+
+    /* =====================================================
+       DEDUPLICATE
+    ===================================================== */
+
+    function uniqueModels(
+        models
+    ) {
+
+        const seen =
+            new Set();
+
+        const result = [];
+
+        models.forEach(
+            function (model) {
+
+                if (
+                    !isValidModel(model)
+                ) {
+
+                    return;
+                }
+
+                const modelId =
+                    normalizeString(
+                        getModelId(model)
+                    );
+
+                if (!modelId) {
+
+                    return;
+                }
+
+                if (
+                    seen.has(modelId)
+                ) {
+
+                    return;
+                }
+
+                seen.add(modelId);
+
+                result.push(model);
+            }
+        );
+
+        return result;
     }
 
 
@@ -482,56 +494,39 @@
     ===================================================== */
 
     function render(
-        results
+        results = []
     ) {
 
         const box =
             getBox();
 
-
-        if (
-            !box
-        ) {
+        if (!box) {
 
             console.warn(
-                "[GEN-Z.AI] Model search result box tidak ditemukan."
+                "[GEN-Z.AI] #modelSearchResults tidak ditemukan."
             );
-
 
             return false;
-
         }
 
-
-        /*
-         * Pastikan input search tidak bisa
-         * menghasilkan model manual.
-         */
 
         if (
-            !Array.isArray(
-                results
-            )
+            !Array.isArray(results)
         ) {
 
-            return renderEmpty(
-                "Model tidak ditemukan."
-            );
-
+            return renderEmpty();
         }
 
 
         /*
-         * Filter hanya record yang mempunyai
-         * Model ID dari sumber data.
-         *
-         * Tidak ada pembuatan Model ID baru.
+         * Renderer tidak pernah membuat
+         * Model ID sendiri.
          */
-
         const validResults =
-            results.filter(
-                isValidModel
-            );
+            uniqueModels(results)
+                .filter(
+                    isModelSelectable
+                );
 
 
         if (
@@ -541,102 +536,73 @@
             return renderEmpty(
                 "Model tidak ditemukan."
             );
-
         }
 
 
-        /*
-         * Hilangkan duplicate Model ID.
-         *
-         * Tidak mengubah record.
-         */
-
-        const seen =
-            new Set();
-
-
-        const uniqueResults =
-            validResults.filter(
-                function (
-                    model
-                ) {
-
-                    const modelId =
-                        getModelId(
-                            model
-                        )
-                            .toLowerCase();
-
-
-                    if (
-                        seen.has(
-                            modelId
-                        )
-                    ) {
-
-                        return false;
-
-                    }
-
-
-                    seen.add(
-                        modelId
-                    );
-
-
-                    return true;
-
-                }
-            );
-
-
-        if (
-            uniqueResults.length === 0
-        ) {
-
-            return renderEmpty(
-                "Model tidak ditemukan."
-            );
-
-        }
-
-
-        /*
-         * Render.
-         */
-
-        box.innerHTML =
-            uniqueResults
-                .map(
-                    buildItem
-                )
-                .filter(
-                    Boolean
-                )
+        const html =
+            validResults
+                .map(buildItem)
+                .filter(Boolean)
                 .join("");
 
 
-        /*
-         * Jika karena alasan tertentu
-         * semua item gagal dibuat.
-         */
-
-        if (
-            !box.innerHTML.trim()
-        ) {
+        if (!html) {
 
             return renderEmpty(
                 "Model tidak ditemukan."
             );
-
         }
 
 
+        box.innerHTML =
+            html;
+
+
+        /*
+         * Accessibility.
+         */
+        box.setAttribute(
+            "role",
+            "listbox"
+        );
+
+
+        /*
+         * Pastikan dropdown benar-benar dibuka
+         * setelah HTML hasil pencarian tersedia.
+         */
         showDropdown();
 
 
-        return true;
+        /*
+         * Reposition setelah render.
+         *
+         * Penting karena isi dropdown dapat mengubah
+         * ukuran element.
+         */
+        const dropdown =
+            getDropdown();
 
+        if (
+            dropdown &&
+            typeof dropdown.refresh === "function"
+        ) {
+
+            try {
+
+                dropdown.refresh();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Refresh posisi dropdown gagal:",
+                    error
+                );
+            }
+        }
+
+
+        return true;
     }
 
 
@@ -649,30 +615,19 @@
         const box =
             getBox();
 
+        if (box) {
 
-        if (
-            box
-        ) {
-
-            box.innerHTML =
-                "";
-
+            box.innerHTML = "";
         }
-
 
         hideDropdown();
 
-
         return true;
-
     }
 
 
     /* =====================================================
        GET RENDERED MODEL IDS
-       
-       Debug/helper saja.
-       Tidak membuat data.
     ===================================================== */
 
     function getRenderedModelIds() {
@@ -680,37 +635,234 @@
         const box =
             getBox();
 
-
-        if (
-            !box
-        ) {
+        if (!box) {
 
             return [];
-
         }
 
 
         return Array.from(
             box.querySelectorAll(
-                "[data-model-id]"
+                ".model-search-item[data-model-id]"
             )
         )
             .map(
-                function (
-                    element
-                ) {
+                function (element) {
 
-                    return String(
-                        element.dataset.modelId ??
-                        ""
-                    ).trim();
-
+                    return cleanString(
+                        element.dataset.modelId
+                    );
                 }
             )
-            .filter(
-                Boolean
+            .filter(Boolean);
+    }
+
+
+    /* =====================================================
+       GET RENDERED ITEMS
+    ===================================================== */
+
+    function getRenderedItems() {
+
+        const box =
+            getBox();
+
+        if (!box) {
+
+            return [];
+        }
+
+
+        return Array.from(
+            box.querySelectorAll(
+                ".model-search-item[data-model-id]"
+            )
+        );
+    }
+
+
+    /* =====================================================
+       FIND RENDERED ITEM
+    ===================================================== */
+
+    function findRenderedItem(
+        modelId
+    ) {
+
+        const id =
+            normalizeString(
+                modelId
             );
 
+        if (!id) {
+
+            return null;
+        }
+
+
+        const items =
+            getRenderedItems();
+
+
+        return (
+            items.find(
+                function (item) {
+
+                    return (
+                        normalizeString(
+                            item.dataset.modelId
+                        ) === id
+                    );
+                }
+            ) ||
+            null
+        );
+    }
+
+
+    /* =====================================================
+       SET ACTIVE ITEM
+    ===================================================== */
+
+    function setActive(
+        modelId
+    ) {
+
+        const items =
+            getRenderedItems();
+
+
+        items.forEach(
+            function (item) {
+
+                item.classList.remove(
+                    "active"
+                );
+
+                item.setAttribute(
+                    "aria-selected",
+                    "false"
+                );
+            }
+        );
+
+
+        const item =
+            findRenderedItem(
+                modelId
+            );
+
+
+        if (!item) {
+
+            return false;
+        }
+
+
+        item.classList.add(
+            "active"
+        );
+
+        item.setAttribute(
+            "aria-selected",
+            "true"
+        );
+
+
+        try {
+
+            item.scrollIntoView({
+                block:
+                    "nearest"
+            });
+
+        } catch (
+            error
+        ) {
+
+            /*
+             * Browser lama tidak menjadi alasan
+             * seluruh UI ikut mogok.
+             */
+        }
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       CLEAR ACTIVE
+    ===================================================== */
+
+    function clearActive() {
+
+        const items =
+            getRenderedItems();
+
+
+        items.forEach(
+            function (item) {
+
+                item.classList.remove(
+                    "active"
+                );
+
+                item.setAttribute(
+                    "aria-selected",
+                    "false"
+                );
+            }
+        );
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       GET ACTIVE ITEM
+    ===================================================== */
+
+    function getActiveItem() {
+
+        const box =
+            getBox();
+
+        if (!box) {
+
+            return null;
+        }
+
+
+        return (
+            box.querySelector(
+                ".model-search-item.active"
+            ) ||
+            null
+        );
+    }
+
+
+    /* =====================================================
+       GET ACTIVE MODEL ID
+    ===================================================== */
+
+    function getActiveModelId() {
+
+        const item =
+            getActiveItem();
+
+
+        if (!item) {
+
+            return "";
+        }
+
+
+        return cleanString(
+            item.dataset.modelId
+        );
     }
 
 
@@ -729,7 +881,21 @@
 
             isValidModel,
 
-            getRenderedModelIds
+            isModelSelectable,
+
+            getRenderedModelIds,
+
+            getRenderedItems,
+
+            findRenderedItem,
+
+            setActive,
+
+            clearActive,
+
+            getActiveItem,
+
+            getActiveModelId
 
         });
 
