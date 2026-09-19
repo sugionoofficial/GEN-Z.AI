@@ -1,47 +1,46 @@
 /**
  * =========================================================
  * GEN-Z.AI
- * MODEL DATA MODULE
+ * MODELS DATA MODULE
  * ---------------------------------------------------------
  * File:
  * admin-control/models/models-data.js
  *
  * Tanggung jawab:
- * - Load data model dari Supabase
- * - Load provider dari Supabase
- * - Normalisasi data model
- * - Menjadi sumber data untuk seluruh module Models
+ * - Membaca data models dari Supabase
+ * - Membaca data providers dari Supabase
+ * - Normalisasi data
+ * - Cache data
+ * - Lookup model/provider
  *
- * Database:
- * - models
- * - providers
- *
- * Tidak menggunakan:
- * - kie_models
- * - kie_workflows
- * - kie_workflow_variants
- * - kie_parameters
- * - kie_constraints
- * - kie_dependencies
- * - kie_pricing
+ * Tidak bertanggung jawab:
+ * - Render UI
+ * - Event DOM
+ * - Form
+ * - Modal
+ * - Query KIE
  * =========================================================
  */
 
 const MODEL_TABLE = "models";
 const PROVIDER_TABLE = "providers";
 
-/* =========================================================
-   STATE
-========================================================= */
-
 let modelCache = [];
 let providerCache = [];
 
+let modelsLoaded = false;
+let providersLoaded = false;
+
+let modelsLoadingPromise = null;
+let providersLoadingPromise = null;
+
+
 /* =========================================================
-   SUPABASE CLIENT
-========================================================= */
+ * SUPABASE
+ * ========================================================= */
 
 function getSupabaseClient() {
+
     if (
         typeof window !== "undefined" &&
         window.GENZ_SUPABASE &&
@@ -58,22 +57,6 @@ function getSupabaseClient() {
         return window.supabaseClient;
     }
 
-    /*
-     * Compatibility fallback.
-     *
-     * Supabase JS v2 menggunakan window.supabase
-     * sebagai SDK namespace, bukan client instance.
-     * Karena itu jangan menganggap window.supabase
-     * sebagai client kecuali memang memiliki .from().
-     */
-    if (
-        typeof window !== "undefined" &&
-        window.supabase &&
-        typeof window.supabase.from === "function"
-    ) {
-        return window.supabase;
-    }
-
     throw new Error(
         "Supabase client belum tersedia. " +
         "Pastikan config.js dan supabase.js dimuat " +
@@ -81,137 +64,94 @@ function getSupabaseClient() {
     );
 }
 
+
 /* =========================================================
-   ARRAY NORMALIZER
-========================================================= */
+ * NORMALIZATION
+ * ========================================================= */
 
 function normalizeArray(value) {
 
     if (Array.isArray(value)) {
-        return value;
+        return value.slice();
     }
 
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
+    if (value === null || value === undefined) {
         return [];
     }
 
     if (typeof value === "string") {
 
-        const text =
-            value.trim();
+        const trimmed = value.trim();
 
-        if (!text) {
+        if (!trimmed) {
             return [];
         }
 
         /*
          * PostgreSQL array:
-         *
-         * {"2:3","9:16"}
+         * {16:9,9:16}
          */
         if (
-            text.startsWith("{") &&
-            text.endsWith("}")
+            trimmed.startsWith("{") &&
+            trimmed.endsWith("}")
         ) {
-
-            const content =
-                text
-                    .slice(1, -1)
-                    .trim();
-
-            if (!content) {
-                return [];
-            }
-
-            return content
+            return trimmed
+                .slice(1, -1)
                 .split(",")
-                .map(
-                    item =>
-                        item
-                            .trim()
-                            .replace(
-                                /^"(.*)"$/,
-                                "$1"
-                            )
-                )
+                .map(value => value.trim())
                 .filter(Boolean);
-
         }
 
         /*
          * JSON array
          */
-        if (
-            text.startsWith("[") &&
-            text.endsWith("]")
-        ) {
+        try {
 
-            try {
+            const parsed =
+                JSON.parse(trimmed);
 
-                const parsed =
-                    JSON.parse(text);
-
-                if (
-                    Array.isArray(
-                        parsed
-                    )
-                ) {
-                    return parsed;
-                }
-
-            } catch {
-                /*
-                 * Bukan JSON.
-                 * Lanjut sebagai comma separated.
-                 */
+            if (Array.isArray(parsed)) {
+                return parsed;
             }
 
+        } catch (_) {
+            /* bukan JSON */
         }
 
         /*
-         * Comma separated
+         * CSV / comma separated
          */
-        return text
-            .split(",")
-            .map(
-                item =>
-                    item.trim()
-            )
-            .filter(Boolean);
+        if (trimmed.includes(",")) {
+            return trimmed
+                .split(",")
+                .map(value => value.trim())
+                .filter(Boolean);
+        }
 
+        return [trimmed];
     }
 
-    return [];
-
+    return [value];
 }
+
 
 /*
  * Compatibility export.
  *
- * Beberapa module form menggunakan nama
- * normalizeArrayValue.
- *
- * Sumber logika tetap satu.
+ * Module lain menggunakan normalizeArrayValue.
  */
-export const normalizeArrayValue =
+const normalizeArrayValue =
     normalizeArray;
 
-/* =========================================================
-   NUMBER NORMALIZER
-========================================================= */
 
-function normalizeNumber(value) {
+function normalizeNumber(value, fallback = 0) {
 
     if (
         value === null ||
         value === undefined ||
         value === ""
     ) {
-        return null;
+        return fallback;
     }
 
     const number =
@@ -219,32 +159,39 @@ function normalizeNumber(value) {
 
     return Number.isFinite(number)
         ? number
-        : null;
+        : fallback;
 }
 
-/* =========================================================
-   CACHE CONTROL
-========================================================= */
 
-export function clearProviderCache() {
+/* =========================================================
+ * CACHE
+ * ========================================================= */
+
+function clearProviderCache() {
 
     providerCache = [];
+    providersLoaded = false;
+    providersLoadingPromise = null;
 
+    return true;
 }
 
-export function clearModelCache() {
+
+function clearModelCache() {
 
     modelCache = [];
+    modelsLoaded = false;
+    modelsLoadingPromise = null;
 
+    return true;
 }
 
-/* =========================================================
-   LOAD PROVIDERS
-========================================================= */
 
-export async function loadProviders(
-    options = {}
-) {
+/* =========================================================
+ * PROVIDERS
+ * ========================================================= */
+
+async function loadProviders(options = {}) {
 
     const {
         force = false,
@@ -252,72 +199,81 @@ export async function loadProviders(
     } = options;
 
     if (
-        !force &&
-        providerCache.length > 0
+        providersLoaded &&
+        !force
     ) {
-
-        return [
-            ...providerCache
-        ];
-
+        return providerCache.slice();
     }
 
-    const supabase =
-        getSupabaseClient();
-
-    let query =
-        supabase
-            .from(
-                PROVIDER_TABLE
-            )
-            .select("*")
-            .order(
-                "provider_name",
-                {
-                    ascending: true
-                }
-            );
-
-    if (!includeInactive) {
-
-        query =
-            query.eq(
-                "status",
-                "active"
-            );
-
+    if (providersLoadingPromise) {
+        return providersLoadingPromise;
     }
 
-    const {
-        data,
-        error
-    } =
-        await query;
+    providersLoadingPromise =
+        (async function () {
 
-    if (error) {
-        throw error;
+            const supabase =
+                getSupabaseClient();
+
+            let query =
+                supabase
+                    .from(PROVIDER_TABLE)
+                    .select("*")
+                    .order(
+                        "provider_name",
+                        {
+                            ascending: true
+                        }
+                    );
+
+            if (!includeInactive) {
+                query =
+                    query.eq(
+                        "status",
+                        "active"
+                    );
+            }
+
+            const {
+                data,
+                error
+            } = await query;
+
+            if (error) {
+                throw new Error(
+                    `Gagal memuat providers: ${error.message}`
+                );
+            }
+
+            providerCache =
+                Array.isArray(data)
+                    ? data.slice()
+                    : [];
+
+            providersLoaded = true;
+
+            return providerCache.slice();
+
+        })();
+
+    try {
+
+        return await providersLoadingPromise;
+
+    } finally {
+
+        providersLoadingPromise = null;
     }
-
-    providerCache =
-        Array.isArray(data)
-            ? data
-            : [];
-
-    return [
-        ...providerCache
-    ];
-
 }
 
-/* =========================================================
-   PROVIDER LOOKUP
-========================================================= */
 
-export async function getProviderById(
-    providerId
-) {
+async function getProviderById(providerId) {
 
-    if (!providerId) {
+    if (
+        providerId === null ||
+        providerId === undefined ||
+        providerId === ""
+    ) {
         return null;
     }
 
@@ -327,22 +283,20 @@ export async function getProviderById(
     return (
         providers.find(
             provider =>
-                String(
-                    provider.id
-                ) ===
-                String(
-                    providerId
-                )
+                String(provider.id) ===
+                String(providerId)
         ) || null
     );
-
 }
 
-export async function getProviderByCode(
-    providerCode
-) {
 
-    if (!providerCode) {
+async function getProviderByCode(providerCode) {
+
+    if (
+        providerCode === null ||
+        providerCode === undefined ||
+        providerCode === ""
+    ) {
         return null;
     }
 
@@ -352,23 +306,18 @@ export async function getProviderByCode(
     return (
         providers.find(
             provider =>
-                String(
-                    provider.provider_id ||
-                    ""
-                ).toLowerCase() ===
-                String(
-                    providerCode
-                ).toLowerCase()
+                String(provider.provider_id) ===
+                String(providerCode)
         ) || null
     );
-
 }
 
-/* =========================================================
-   NORMALIZE MODEL
-========================================================= */
 
-export function normalizeModel(
+/* =========================================================
+ * MODEL NORMALIZATION
+ * ========================================================= */
+
+function normalizeModel(
     model,
     providers = providerCache
 ) {
@@ -380,62 +329,78 @@ export function normalizeModel(
     const provider =
         providers.find(
             item =>
-                String(
-                    item.id
-                ) ===
-                String(
-                    model.provider_id
-                )
+                String(item.id) ===
+                String(model.provider_id)
         ) || null;
 
-    const creditCost =
-        normalizeNumber(
-            model.credit_cost
+    const supportedRatios =
+        normalizeArray(
+            model.supported_ratios
         );
 
-    const discountPercent =
-        normalizeNumber(
-            model.discount_percent
-        );
-
-    const creditFinal =
-        normalizeNumber(
-            model.credit_final
+    const supportedResolutions =
+        normalizeArray(
+            model.supported_resolutions
         );
 
     const minDuration =
         normalizeNumber(
-            model.min_duration
+            model.min_duration,
+            0
         );
 
     const maxDuration =
         normalizeNumber(
-            model.max_duration
+            model.max_duration,
+            minDuration
         );
 
-    return {
+    const creditCost =
+        normalizeNumber(
+            model.credit_cost,
+            0
+        );
 
+    const discountPercent =
+        normalizeNumber(
+            model.discount_percent,
+            0
+        );
+
+    const calculatedFinal =
+        creditCost -
+        (
+            creditCost *
+            discountPercent /
+            100
+        );
+
+    const creditFinal =
+        model.credit_final !== null &&
+        model.credit_final !== undefined
+            ? normalizeNumber(
+                model.credit_final,
+                calculatedFinal
+            )
+            : calculatedFinal;
+
+    return {
         ...model,
 
         id:
-            model.id ||
-            null,
+            model.id ?? null,
 
         provider_id:
-            model.provider_id ||
-            null,
+            model.provider_id ?? null,
 
         model_id:
-            model.model_id ||
-            "",
+            model.model_id ?? "",
 
         model_name:
-            model.model_name ||
-            "",
+            model.model_name ?? "",
 
         description:
-            model.description ||
-            "",
+            model.description ?? "",
 
         credit_cost:
             creditCost,
@@ -453,53 +418,34 @@ export function normalizeModel(
             maxDuration,
 
         supported_ratios:
-            normalizeArray(
-                model.supported_ratios
-            ),
+            supportedRatios,
 
         supported_resolutions:
-            normalizeArray(
-                model.supported_resolutions
-            ),
+            supportedResolutions,
 
         status:
-            model.status ||
-            "inactive",
+            model.status || "inactive",
 
-        provider:
-            provider
-                ? {
-
-                    id:
-                        provider.id,
-
-                    provider_id:
-                        provider.provider_id ||
-                        "",
-
-                    provider_name:
-                        provider.provider_name ||
-                        provider.name ||
-                        "",
-
-                    status:
-                        provider.status ||
-                        ""
-
-                }
-                : null
-
+        provider: provider
+            ? {
+                id: provider.id,
+                provider_id:
+                    provider.provider_id,
+                provider_name:
+                    provider.provider_name,
+                status:
+                    provider.status
+            }
+            : null
     };
-
 }
 
-/* =========================================================
-   LOAD MODELS
-========================================================= */
 
-export async function loadModels(
-    options = {}
-) {
+/* =========================================================
+ * MODELS
+ * ========================================================= */
+
+async function loadModels(options = {}) {
 
     const {
         force = false,
@@ -508,104 +454,116 @@ export async function loadModels(
     } = options;
 
     if (
-        !force &&
-        modelCache.length > 0
+        modelsLoaded &&
+        !force
     ) {
-
-        return [
-            ...modelCache
-        ];
-
+        return modelCache.slice();
     }
 
-    const supabase =
-        getSupabaseClient();
-
-    const providers =
-        await loadProviders({
-            force,
-            includeInactive: true
-        });
-
-    let query =
-        supabase
-            .from(
-                MODEL_TABLE
-            )
-            .select("*")
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-    if (!includeInactive) {
-
-        query =
-            query.eq(
-                "status",
-                "active"
-            );
-
+    if (modelsLoadingPromise) {
+        return modelsLoadingPromise;
     }
 
-    const {
-        data,
-        error
-    } =
-        await query;
+    modelsLoadingPromise =
+        (async function () {
 
-    if (error) {
-        throw error;
+            const supabase =
+                getSupabaseClient();
+
+            const providers =
+                await loadProviders({
+                    force,
+                    includeInactive: true
+                });
+
+            let query =
+                supabase
+                    .from(MODEL_TABLE)
+                    .select("*")
+                    .order(
+                        "model_name",
+                        {
+                            ascending: true
+                        }
+                    );
+
+            if (!includeInactive) {
+                query =
+                    query.eq(
+                        "status",
+                        "active"
+                    );
+            }
+
+            const {
+                data,
+                error
+            } = await query;
+
+            if (error) {
+                throw new Error(
+                    `Gagal memuat models: ${error.message}`
+                );
+            }
+
+            let models =
+                Array.isArray(data)
+                    ? data
+                    : [];
+
+            models =
+                models
+                    .map(
+                        model =>
+                            normalizeModel(
+                                model,
+                                providers
+                            )
+                    )
+                    .filter(Boolean);
+
+            if (activeProviderOnly) {
+
+                models =
+                    models.filter(
+                        model =>
+                            model.provider &&
+                            model.provider.status ===
+                            "active"
+                    );
+            }
+
+            modelCache =
+                models.slice();
+
+            modelsLoaded = true;
+
+            return modelCache.slice();
+
+        })();
+
+    try {
+
+        return await modelsLoadingPromise;
+
+    } finally {
+
+        modelsLoadingPromise = null;
     }
-
-    let models =
-        Array.isArray(data)
-            ? data
-                .map(
-                    model =>
-                        normalizeModel(
-                            model,
-                            providers
-                        )
-                )
-                .filter(Boolean)
-            : [];
-
-    if (activeProviderOnly) {
-
-        models =
-            models.filter(
-                model =>
-                    model.provider &&
-                    String(
-                        model.provider.status ||
-                        ""
-                    ).toLowerCase() ===
-                    "active"
-            );
-
-    }
-
-    modelCache =
-        models;
-
-    return [
-        ...modelCache
-    ];
-
 }
 
+
 /* =========================================================
-   MODEL LOOKUP
-========================================================= */
+ * MODEL LOOKUP
+ * ========================================================= */
 
-export async function getModelById(
-    id
-) {
+async function getModelById(id) {
 
-    if (!id) {
+    if (
+        id === null ||
+        id === undefined ||
+        id === ""
+    ) {
         return null;
     }
 
@@ -615,20 +573,20 @@ export async function getModelById(
     return (
         models.find(
             model =>
-                String(
-                    model.id
-                ) ===
+                String(model.id) ===
                 String(id)
         ) || null
     );
-
 }
 
-export async function getModelByModelId(
-    modelId
-) {
 
-    if (!modelId) {
+async function getModelByModelId(modelId) {
+
+    if (
+        modelId === null ||
+        modelId === undefined ||
+        modelId === ""
+    ) {
         return null;
     }
 
@@ -638,44 +596,71 @@ export async function getModelByModelId(
     return (
         models.find(
             model =>
-                String(
-                    model.model_id
-                ) ===
+                String(model.model_id) ===
                 String(modelId)
         ) || null
     );
-
 }
 
-/* =========================================================
-   FILTER MODELS
-========================================================= */
 
-export function filterModels(
+function filterModels(
     models,
     filters = {}
 ) {
 
-    if (!Array.isArray(models)) {
-        return [];
-    }
+    const source =
+        Array.isArray(models)
+            ? models
+            : [];
 
     const {
-        search = "",
-        providerId = "",
-        providerCode = "",
-        status = ""
+        providerId,
+        providerCode,
+        status,
+        search
     } = filters;
 
-    const searchText =
-        String(search)
-            .trim()
-            .toLowerCase();
+    const normalizedSearch =
+        typeof search === "string"
+            ? search
+                .trim()
+                .toLowerCase()
+            : "";
 
-    return models.filter(
+    return source.filter(
         model => {
 
-            if (searchText) {
+            if (
+                providerId !== undefined &&
+                providerId !== null &&
+                String(model.provider_id) !==
+                String(providerId)
+            ) {
+                return false;
+            }
+
+            if (
+                providerCode &&
+                (
+                    !model.provider ||
+                    String(
+                        model.provider.provider_id
+                    ) !==
+                    String(providerCode)
+                )
+            ) {
+                return false;
+            }
+
+            if (
+                status &&
+                String(model.status) !==
+                String(status)
+            ) {
+                return false;
+            }
+
+            if (normalizedSearch) {
 
                 const haystack =
                     [
@@ -691,315 +676,214 @@ export function filterModels(
 
                 if (
                     !haystack.includes(
-                        searchText
+                        normalizedSearch
                     )
                 ) {
                     return false;
                 }
-
-            }
-
-            if (
-                providerId &&
-                String(
-                    model.provider_id
-                ) !==
-                String(
-                    providerId
-                )
-            ) {
-                return false;
-            }
-
-            if (
-                providerCode &&
-                String(
-                    model.provider?.provider_id ||
-                    ""
-                ).toLowerCase() !==
-                String(
-                    providerCode
-                ).toLowerCase()
-            ) {
-                return false;
-            }
-
-            if (
-                status &&
-                String(
-                    model.status ||
-                    ""
-                ).toLowerCase() !==
-                String(
-                    status
-                ).toLowerCase()
-            ) {
-                return false;
             }
 
             return true;
-
         }
     );
-
 }
+
 
 /* =========================================================
-   FORMAT HELPERS
-========================================================= */
+ * FORMATTERS
+ * ========================================================= */
 
-export function formatCredit(
-    value
-) {
+function formatDuration(model) {
 
-    const number =
-        normalizeNumber(
-            value
-        );
-
-    if (
-        number === null
-    ) {
-        return "-";
+    if (!model) {
+        return "";
     }
 
-    return new Intl.NumberFormat(
-        "id-ID"
-    ).format(
-        number
-    );
-
-}
-
-export function formatPercent(
-    value
-) {
-
-    const number =
+    const min =
         normalizeNumber(
-            value
+            model.min_duration,
+            0
         );
 
-    if (
-        number === null
-    ) {
-        return "-";
-    }
-
-    return `${number}%`;
-
-}
-
-export function formatDuration(
-    min,
-    max
-) {
-
-    const minimum =
+    const max =
         normalizeNumber(
+            model.max_duration,
             min
         );
 
-    const maximum =
+    if (
+        min === max
+    ) {
+        return `${min}s`;
+    }
+
+    return `${min}s - ${max}s`;
+}
+
+
+function formatCredit(value) {
+
+    const number =
         normalizeNumber(
-            max
+            value,
+            0
         );
 
-    if (
-        minimum === null &&
-        maximum === null
-    ) {
-        return "-";
-    }
-
-    if (
-        minimum !== null &&
-        maximum !== null
-    ) {
-        return `${minimum}-${maximum}s`;
-    }
-
-    if (
-        minimum !== null
-    ) {
-        return `${minimum}s+`;
-    }
-
-    return `-${maximum}s`;
-
+    return number.toLocaleString(
+        "id-ID"
+    );
 }
 
-export function formatList(
-    value
-) {
 
-    const items =
-        normalizeArray(
-            value
+function formatDiscount(value) {
+
+    const number =
+        normalizeNumber(
+            value,
+            0
         );
 
-    if (
-        items.length === 0
-    ) {
-        return "-";
-    }
-
-    return items.join(
-        ", "
-    );
-
+    return `${number}%`;
 }
+
 
 /* =========================================================
-   STATUS HELPERS
-========================================================= */
+ * STATUS / USABILITY
+ * ========================================================= */
 
-export function isModelActive(
-    model
-) {
+function isActiveModel(model) {
 
-    return (
-        String(
-            model?.status ||
-            ""
-        ).toLowerCase() ===
-        "active"
+    return Boolean(
+        model &&
+        model.status === "active"
     );
-
 }
 
-export function isProviderActive(
-    model
-) {
 
-    return (
-        String(
-            model?.provider?.status ||
-            ""
-        ).toLowerCase() ===
-        "active"
+function isUsableModel(model) {
+
+    return Boolean(
+        model &&
+        model.status === "active" &&
+        model.provider &&
+        model.provider.status === "active"
     );
-
 }
 
-export function isModelUsable(
-    model
-) {
-
-    return (
-        isModelActive(model) &&
-        isProviderActive(model)
-    );
-
-}
 
 /* =========================================================
-   CACHE SNAPSHOT
-========================================================= */
+ * CACHE GETTERS
+ * ========================================================= */
 
-export function getModelCache() {
+function getCachedModels() {
 
-    return [
-        ...modelCache
-    ];
-
+    return modelCache.slice();
 }
 
-export function getProviderCache() {
 
-    return [
-        ...providerCache
-    ];
+function getCachedProviders() {
 
+    return providerCache.slice();
 }
 
-/*
- * Compatibility aliases.
- *
- * Beberapa module lama mungkin masih memanggil
- * nama cached yang berbeda.
- */
-export function getCachedModels() {
-
-    return getModelCache();
-
-}
-
-export function getCachedProviders() {
-
-    return getProviderCache();
-
-}
 
 /* =========================================================
-   DEFAULT EXPORT
-========================================================= */
+ * GLOBAL COMPATIBILITY
+ * ========================================================= */
 
 const ModelData = {
 
     MODEL_TABLE,
     PROVIDER_TABLE,
 
-    loadModels,
+    getSupabaseClient,
+
+    normalizeArray,
+    normalizeArrayValue,
+    normalizeNumber,
+    normalizeModel,
+
+    clearProviderCache,
+    clearModelCache,
+
     loadProviders,
-
-    getModelById,
-    getModelByModelId,
-
     getProviderById,
     getProviderByCode,
 
-    normalizeModel,
-    normalizeArray,
-    normalizeArrayValue,
-
+    loadModels,
+    getModelById,
+    getModelByModelId,
     filterModels,
 
-    formatCredit,
-    formatPercent,
     formatDuration,
-    formatList,
+    formatCredit,
+    formatDiscount,
 
-    isModelActive,
-    isProviderActive,
-    isModelUsable,
-
-    clearModelCache,
-    clearProviderCache,
-
-    getModelCache,
-    getProviderCache,
+    isActiveModel,
+    isUsableModel,
 
     getCachedModels,
     getCachedProviders
-
 };
 
 
-/* =========================================================
-   ES MODULE EXPORT
-========================================================= */
+/*
+ * ---------------------------------------------------------
+ * IMPORTANT
+ * ---------------------------------------------------------
+ *
+ * Hanya SATU default export di file ini.
+ *
+ * Jangan menambahkan:
+ *
+ * export default ModelData;
+ * export { ModelData as default };
+ *
+ * secara bersamaan.
+ * ---------------------------------------------------------
+ */
+
+export {
+    normalizeArray,
+    normalizeArrayValue,
+    normalizeNumber,
+    normalizeModel,
+
+    clearProviderCache,
+    clearModelCache,
+
+    loadProviders,
+    getProviderById,
+    getProviderByCode,
+
+    loadModels,
+    getModelById,
+    getModelByModelId,
+    filterModels,
+
+    formatDuration,
+    formatCredit,
+    formatDiscount,
+
+    isActiveModel,
+    isUsableModel,
+
+    getCachedModels,
+    getCachedProviders,
+
+    getSupabaseClient
+};
 
 export default ModelData;
 
 
 /* =========================================================
-   LEGACY GLOBAL COMPATIBILITY
-   ---------------------------------------------------------
-   models-loader.js masih menggunakan:
-       window.GENZModelsData
-
-   ES Module export tidak otomatis membuat global window.
-   Karena itu kita daftarkan secara eksplisit.
-========================================================= */
+ * BROWSER GLOBAL
+ * ========================================================= */
 
 if (
     typeof window !== "undefined"
 ) {
-
     window.GENZModelsData =
         ModelData;
-
 }
-
-export default ModelData;
