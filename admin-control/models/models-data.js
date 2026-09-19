@@ -957,4 +957,31 @@ const ModelData = {
 
 };
 
+
+/* =========================================================
+   ES MODULE EXPORT
+========================================================= */
+
+export default ModelData;
+
+
+/* =========================================================
+   LEGACY GLOBAL COMPATIBILITY
+   ---------------------------------------------------------
+   models-loader.js masih menggunakan:
+       window.GENZModelsData
+
+   ES Module export tidak otomatis membuat global window.
+   Karena itu kita daftarkan secara eksplisit.
+========================================================= */
+
+if (
+    typeof window !== "undefined"
+) {
+
+    window.GENZModelsData =
+        ModelData;
+
+}
+
 export default ModelData;
