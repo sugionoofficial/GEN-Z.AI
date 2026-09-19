@@ -2,52 +2,44 @@
    GEN-Z.AI
    ADMIN MODEL MANAGEMENT
    UI MODULE
-
+   ---------------------------------------------------------
    File:
    admin-control/models/models-ui.js
 
-   TANGGUNG JAWAB:
+   Tanggung jawab:
    - UI state
-   - Notification
+   - Notification / alert
    - Modal orchestration
-   - Load/sinkronisasi catalog
-   - Sinkronisasi Provider state
+   - Sinkronisasi catalog
+   - Sinkronisasi provider
    - Statistics
-   - Pricing state
    - Refresh
-   - Tombol UI umum Add / Refresh
+   - Tombol Add / Refresh
+   - Delegasi Create / Edit / Delete
 
-   BUKAN OWNER:
-   - Provider CRUD / dropdown
-   - Model catalog API
-   - Search
-   - Search events
-   - Form CRUD
-   - Form events
-   - Table rendering
-   - Table events
-   - Price calculation
-   - Lifecycle utama
+   Tidak bertanggung jawab:
+   - Query Supabase
+   - Provider CRUD
+   - Model CRUD database
+   - Search logic
+   - Table rendering logic
+   - Price calculation logic
 
-   OWNER:
-   Provider       -> GENZModelsProvider
-   Catalog        -> GENZModelsData
-   Search         -> GENZModelsSearch
-   Form Create    -> GENZModelFormCreate
-   Form Edit      -> GENZModelFormEdit
-   Form Events    -> GENZModelFormEvents
-   Form Layout    -> GENZModelFormLayout
-   Table          -> GENZModelTable
-   Table Events   -> GENZModelTableEvents
-   Pricing        -> GENZModelsPrice
-   Lifecycle      -> GENZModelsInit
+   Arsitektur:
+   GENZModelsData
+        ↓
+   GENZModelsUI
+        ↓
+   Table / Search / Form modules
 
-   PRINSIP:
-   Satu fungsi = satu owner.
-   models-ui hanya mengorkestrasi state dan tampilan.
-
-   CATATAN:
-   GENZModelsForm legacy tidak digunakan lagi oleh UI.
+   Tidak menggunakan:
+   - kie_models
+   - kie_workflows
+   - kie_workflow_variants
+   - kie_parameters
+   - kie_constraints
+   - kie_dependencies
+   - kie_pricing
    ========================================================= */
 
 (function () {
@@ -59,21 +51,22 @@
        STATE
     ===================================================== */
 
-    let initialized = false;
-
-    let initializing = null;
-
     const state = {
 
         models: [],
 
         providers: [],
 
-        pricing: [],
+        loading: false,
 
-        loading: false
+        initialized: false,
+
+        initializing: null
 
     };
+
+
+    let buttonsBound = false;
 
 
     /* =====================================================
@@ -83,6 +76,27 @@
     function $(id) {
 
         return document.getElementById(id);
+
+    }
+
+
+    function getElement(target) {
+
+        if (!target) {
+            return null;
+        }
+
+        if (
+            typeof target === "string"
+        ) {
+
+            return document.querySelector(
+                target
+            );
+
+        }
+
+        return target;
 
     }
 
@@ -121,6 +135,16 @@
     }
 
 
+    function getPageSearch() {
+
+        return (
+            window.GENZModelPageSearch ||
+            null
+        );
+
+    }
+
+
     function getFormCreate() {
 
         return (
@@ -141,10 +165,10 @@
     }
 
 
-    function getFormEvents() {
+    function getFormDelete() {
 
         return (
-            window.GENZModelFormEvents ||
+            window.GENZModelFormDelete ||
             null
         );
 
@@ -161,7 +185,47 @@
     }
 
 
-    function getModelsPrice() {
+    function getFormEvents() {
+
+        return (
+            window.GENZModelFormEvents ||
+            null
+        );
+
+    }
+
+
+    function getFormCoordinator() {
+
+        return (
+            window.GENZModelFormCoordinator ||
+            null
+        );
+
+    }
+
+
+    function getTable() {
+
+        return (
+            window.GENZModelTable ||
+            null
+        );
+
+    }
+
+
+    function getTableEvents() {
+
+        return (
+            window.GENZModelTableEvents ||
+            null
+        );
+
+    }
+
+
+    function getPrice() {
 
         return (
             window.GENZModelsPrice ||
@@ -173,7 +237,10 @@
 
     /* =====================================================
        NOTIFICATION
-    ===================================================== */
+       -----------------------------------------------------
+       showAlert dipertahankan karena models-provider.js
+       masih menggunakan API tersebut.
+       ===================================================== */
 
     function notify(
         message,
@@ -181,19 +248,31 @@
         duration = 3500
     ) {
 
+        const text =
+            String(
+                message === null ||
+                message === undefined
+                    ? ""
+                    : message
+            );
+
+
         const existing =
-            $("modelNotification") ||
-            $("notification") ||
-            $("toast");
+            $(
+                "modelNotification"
+            ) ||
+            $(
+                "notification"
+            ) ||
+            $(
+                "toast"
+            );
 
 
         if (existing) {
 
             existing.textContent =
-                String(
-                    message ??
-                    ""
-                );
+                text;
 
 
             existing.classList.remove(
@@ -244,6 +323,15 @@
         }
 
 
+        if (
+            !document.body
+        ) {
+
+            return null;
+
+        }
+
+
         const toast =
             document.createElement(
                 "div"
@@ -256,16 +344,11 @@
 
         toast.className =
             "genz-model-notification " +
-            String(
-                type || "info"
-            );
+            type;
 
 
         toast.textContent =
-            String(
-                message ??
-                ""
-            );
+            text;
 
 
         Object.assign(
@@ -314,6 +397,12 @@
                 pointerEvents:
                     "none",
 
+                opacity:
+                    "1",
+
+                transform:
+                    "translateY(0)",
+
                 transition:
                     "opacity .2s ease, transform .2s ease"
 
@@ -330,7 +419,8 @@
             function () {
 
                 if (
-                    !toast
+                    !toast ||
+                    !toast.parentNode
                 ) {
 
                     return;
@@ -340,7 +430,6 @@
 
                 toast.style.opacity =
                     "0";
-
 
                 toast.style.transform =
                     "translateY(8px)";
@@ -372,30 +461,102 @@
     }
 
 
+    /*
+     * Compatibility API.
+     *
+     * models-provider.js menggunakan showAlert().
+     */
+    function showAlert(
+        message,
+        type = "info",
+        duration = 3500
+    ) {
+
+        return notify(
+            message,
+            type,
+            duration
+        );
+
+    }
+
+
     /* =====================================================
-       MODAL DOM
-       -----------------------------------------------------
-       UI memiliki helper DOM modal saja.
-       Lifecycle form tetap didelegasikan ke:
-       - GENZModelFormCreate
-       - GENZModelFormEdit
-       - GENZModelFormEvents
-    ===================================================== */
+       ERROR MESSAGE
+       ===================================================== */
+
+    function getErrorMessage(
+        error,
+        fallback = "Terjadi kesalahan."
+    ) {
+
+        if (!error) {
+            return fallback;
+        }
+
+
+        if (
+            Array.isArray(
+                error.errors
+            ) &&
+            error.errors.length
+        ) {
+
+            return error.errors.join(
+                "\n"
+            );
+
+        }
+
+
+        if (
+            error.message
+        ) {
+
+            return String(
+                error.message
+            );
+
+        }
+
+
+        if (
+            typeof error ===
+                "string"
+        ) {
+
+            return error;
+
+        }
+
+
+        return fallback;
+
+    }
+
+
+    /* =====================================================
+       MODAL
+       ===================================================== */
 
     function getModal() {
 
         return (
+            $(
+                "modelModal"
+            ) ||
 
-            $("modelModal") ||
+            $(
+                "modelEditModal"
+            ) ||
 
-            $("modelEditModal") ||
-
-            $("editModelModal") ||
+            $(
+                "editModelModal"
+            ) ||
 
             document.querySelector(
                 "[data-model-modal]"
             )
-
         );
 
     }
@@ -405,12 +566,8 @@
         modal
     ) {
 
-        if (
-            !modal
-        ) {
-
+        if (!modal) {
             return false;
-
         }
 
 
@@ -437,13 +594,13 @@
         }
 
 
-        modal.classList.add(
-            "show"
+        modal.classList.remove(
+            "hidden"
         );
 
 
-        modal.classList.remove(
-            "hidden"
+        modal.classList.add(
+            "show"
         );
 
 
@@ -478,12 +635,8 @@
         modal
     ) {
 
-        if (
-            !modal
-        ) {
-
+        if (!modal) {
             return false;
-
         }
 
 
@@ -524,271 +677,134 @@
 
 
     /* =====================================================
-       CREATE MODAL
-       -----------------------------------------------------
-       Add Model:
-       UI
-        -> FormCreate.reset()
-        -> FormLayout.refresh()
-        -> Modal DOM
-        -> FormEvents menangani submit
-    ===================================================== */
+       MODEL CATALOG
+       ===================================================== */
 
-    async function openModal() {
-
-        const create =
-            getFormCreate();
-
-
-        if (
-            create &&
-            typeof create.reset ===
-                "function"
-        ) {
-
-            try {
-
-                create.reset();
-
-            } catch (error) {
-
-                console.warn(
-                    "[models-ui] FormCreate.reset error:",
-                    error
-                );
-
-            }
-
-        }
-
-
-        const layout =
-            getFormLayout();
-
-
-        if (
-            layout &&
-            typeof layout.refresh ===
-                "function"
-        ) {
-
-            try {
-
-                await layout.refresh();
-
-            } catch (error) {
-
-                console.warn(
-                    "[models-ui] FormLayout.refresh error:",
-                    error
-                );
-
-            }
-
-        }
-
-
-        const modal =
-            getModal();
-
-
-        if (
-            !modal
-        ) {
-
-            notify(
-                "Modal tambah model belum tersedia.",
-                "error"
-            );
-
-            return false;
-
-        }
-
-
-        const opened =
-            showModalElement(
-                modal
-            );
-
-
-        if (
-            opened
-        ) {
-
-            const searchInput =
-                $("modelCodeSearch");
-
-
-            if (
-                searchInput
-            ) {
-
-                window.setTimeout(
-                    function () {
-
-                        try {
-
-                            searchInput.focus();
-
-                        } catch (error) {
-
-                            console.warn(
-                                "[models-ui] modelCodeSearch focus error:",
-                                error
-                            );
-
-                        }
-
-                    },
-                    50
-                );
-
-            }
-
-        }
-
-
-        return opened;
-
-    }
-
-
-    /* =====================================================
-       EDIT MODAL
-       -----------------------------------------------------
-       Edit owner:
-       GENZModelFormEdit
-    ===================================================== */
-
-    async function openEditModal(
-        model
+    async function loadModels(
+        options = {}
     ) {
 
+        const data =
+            getModelsData();
+
+
         if (
-            !model
+            !data
         ) {
 
-            notify(
-                "Model tidak ditemukan.",
-                "error"
+            throw new Error(
+                "GENZModelsData belum tersedia."
             );
-
-            return false;
 
         }
 
 
-        const edit =
-            getFormEdit();
-
-
-        if (
-            !edit ||
-            typeof edit.open !==
-                "function"
-        ) {
-
-            notify(
-                "Module form edit belum tersedia.",
-                "error"
-            );
-
-            return false;
-
-        }
+        state.loading =
+            true;
 
 
         try {
 
-            const result =
-                await edit.open(
-                    model
-                );
-
-
-            if (
-                result === false
-            ) {
-
-                return false;
-
-            }
+            let models = [];
 
 
             /*
-             * FormEdit saat ini dapat membuka modal
-             * sendiri. Jika implementasi tersebut tidak
-             * membuka DOM modal, pastikan modal terlihat.
+             * Prioritas:
+             * loadModels()
+             *
+             * Ini adalah owner catalog.
              */
-            const modal =
-                getModal();
-
-
             if (
-                modal &&
-                !modal.classList.contains(
-                    "show"
-                )
+                typeof data.loadModels ===
+                    "function"
             ) {
 
-                showModalElement(
-                    modal
-                );
+                const result =
+                    await data.loadModels(
+                        options
+                    );
+
+
+                models =
+                    Array.isArray(
+                        result
+                    )
+                        ? result
+                        : [];
+
+            }
+
+            /*
+             * Compatibility fallback.
+             */
+            else if (
+                typeof data.getCachedModels ===
+                    "function"
+            ) {
+
+                const result =
+                    data.getCachedModels();
+
+
+                models =
+                    Array.isArray(
+                        result
+                    )
+                        ? result
+                        : [];
 
             }
 
 
-            return true;
+            state.models =
+                models;
 
-        } catch (error) {
 
-            console.error(
-                "[models-ui] openEditModal error:",
-                error
+            syncSearchState();
+
+            syncTableState();
+
+            updateStatistics(
+                state.models
             );
 
 
-            notify(
-                error?.message ||
-                "Gagal membuka form edit model.",
-                "error"
-            );
+            return [
+                ...state.models
+            ];
 
+        } finally {
 
-            return false;
+            state.loading =
+                false;
 
         }
 
     }
 
 
-    /* =====================================================
-       CLOSE MODAL
-       -----------------------------------------------------
-       FormEvents menjadi owner close event.
-    ===================================================== */
+    async function refreshModels(
+        options = {}
+    ) {
 
-    function closeModal() {
-
-        const events =
-            getFormEvents();
+        const data =
+            getModelsData();
 
 
         if (
-            events &&
-            typeof events.closeModal ===
+            data &&
+            typeof data.clearCache ===
                 "function"
         ) {
 
             try {
 
-                return events.closeModal();
+                data.clearCache();
 
             } catch (error) {
 
-                console.error(
-                    "[models-ui] FormEvents.closeModal error:",
+                console.warn(
+                    "[models-ui] clearCache warning:",
                     error
                 );
 
@@ -797,42 +813,39 @@
         }
 
 
-        return hideModalElement(
-            getModal()
+        return loadModels(
+            {
+                ...options,
+
+                force:
+                    true,
+
+                activeOnly:
+                    options.activeOnly === true
+            }
         );
 
     }
 
 
     /* =====================================================
-       PROVIDER STATE
-       -----------------------------------------------------
-       Provider module adalah owner Provider.
-       UI hanya membaca dan menyimpan state.
-    ===================================================== */
+       PROVIDER
+       ===================================================== */
 
     async function loadProviders(
         options = {}
     ) {
 
-        const providerModule =
+        const provider =
             getModelsProvider();
 
 
         if (
-            !providerModule ||
-            typeof providerModule.loadProviders !==
-                "function"
+            !provider
         ) {
-
-            console.warn(
-                "[models-ui] GENZModelsProvider.loadProviders() belum tersedia."
-            );
-
 
             state.providers =
                 [];
-
 
             return [];
 
@@ -841,29 +854,65 @@
 
         try {
 
-            const providers =
-                await providerModule.loadProviders(
-                    {
+            let providers = [];
 
-                        force:
-                            options.force === true,
 
-                        activeOnly:
-                            options.activeOnly !== false
+            if (
+                typeof provider.loadProviders ===
+                    "function"
+            ) {
 
-                    }
-                );
+                const result =
+                    await provider.loadProviders(
+                        {
+                            ...options,
+
+                            force:
+                                options.force === true,
+
+                            activeOnly:
+                                options.activeOnly !== false
+
+                        }
+                    );
+
+
+                providers =
+                    Array.isArray(
+                        result
+                    )
+                        ? result
+                        : [];
+
+            }
+
+
+            else if (
+                typeof provider.getProviders ===
+                    "function"
+            ) {
+
+                const result =
+                    provider.getProviders();
+
+
+                providers =
+                    Array.isArray(
+                        result
+                    )
+                        ? result
+                        : [];
+
+            }
 
 
             state.providers =
-                Array.isArray(
-                    providers
-                )
-                    ? providers
-                    : [];
+                providers;
 
 
-            return state.providers;
+            return [
+                ...state.providers
+            ];
 
         } catch (error) {
 
@@ -892,29 +941,19 @@
 
     function syncProviderState() {
 
-        const providerModule =
+        const provider =
             getModelsProvider();
 
 
         if (
-            !providerModule
-        ) {
-
-            state.providers =
-                [];
-
-
-            return state.providers;
-
-        }
-
-
-        if (
-            typeof providerModule.getProviders !==
+            !provider ||
+            typeof provider.getProviders !==
                 "function"
         ) {
 
-            return state.providers;
+            return [
+                ...state.providers
+            ];
 
         }
 
@@ -922,7 +961,7 @@
         try {
 
             const providers =
-                providerModule.getProviders();
+                provider.getProviders();
 
 
             if (
@@ -946,7 +985,9 @@
         }
 
 
-        return state.providers;
+        return [
+            ...state.providers
+        ];
 
     }
 
@@ -955,25 +996,23 @@
         providerId
     ) {
 
-        const normalized =
+        const id =
             String(
-                providerId ??
-                ""
+                providerId === null ||
+                providerId === undefined
+                    ? ""
+                    : providerId
             )
                 .trim()
                 .toLowerCase();
 
 
-        if (
-            !normalized
-        ) {
-
+        if (!id) {
             return null;
-
         }
 
 
-        const local =
+        const found =
             state.providers.find(
                 function (
                     provider
@@ -988,32 +1027,29 @@
                     }
 
 
-                    const values = [
+                    return [
 
                         provider.id,
 
                         provider.provider_id,
 
-                        provider.provider,
-
                         provider.provider_name
 
-                    ];
-
-
-                    return values.some(
+                    ].some(
                         function (
                             value
                         ) {
 
                             return (
                                 String(
-                                    value ??
-                                    ""
+                                    value === null ||
+                                    value === undefined
+                                        ? ""
+                                        : value
                                 )
                                     .trim()
                                     .toLowerCase() ===
-                                normalized
+                                id
                             );
 
                         }
@@ -1024,28 +1060,28 @@
 
 
         if (
-            local
+            found
         ) {
 
-            return local;
+            return found;
 
         }
 
 
-        const providerModule =
+        const provider =
             getModelsProvider();
 
 
         if (
-            providerModule &&
-            typeof providerModule.getProviderById ===
+            provider &&
+            typeof provider.getProviderById ===
                 "function"
         ) {
 
             try {
 
                 return (
-                    providerModule.getProviderById(
+                    provider.getProviderById(
                         providerId
                     ) ||
                     null
@@ -1069,167 +1105,8 @@
 
 
     /* =====================================================
-       MODEL CATALOG
-       -----------------------------------------------------
-       GENZModelsData adalah owner API/catalog.
+       SEARCH
        ===================================================== */
-
-    async function loadModels(
-        options = {}
-    ) {
-
-        const data =
-            getModelsData();
-
-
-        if (
-            !data ||
-            typeof data.loadKieModels !==
-                "function"
-        ) {
-
-            console.warn(
-                "[models-ui] GENZModelsData.loadKieModels() belum tersedia."
-            );
-
-
-            state.models =
-                [];
-
-
-            return [];
-
-        }
-
-
-        state.loading =
-            true;
-
-
-        try {
-
-            const models =
-                await data.loadKieModels(
-                    options
-                );
-
-
-            state.models =
-                Array.isArray(
-                    models
-                )
-                    ? models
-                    : [];
-
-
-            updateStatistics(
-                state.models
-            );
-
-
-            const search =
-                getModelsSearch();
-
-
-            if (
-                search &&
-                typeof search.setModels ===
-                    "function"
-            ) {
-
-                search.setModels(
-                    state.models
-                );
-
-            }
-
-
-            const table =
-                window.GENZModelTable;
-
-
-            if (
-                table &&
-                typeof table.setModels ===
-                    "function"
-            ) {
-
-                table.setModels(
-                    state.models
-                );
-
-            }
-
-
-            return state.models;
-
-        } catch (error) {
-
-            console.error(
-                "[models-ui] Model catalog load error:",
-                error
-            );
-
-
-            state.models =
-                [];
-
-
-            const search =
-                getModelsSearch();
-
-
-            if (
-                search &&
-                typeof search.setModels ===
-                    "function"
-            ) {
-
-                search.setModels(
-                    []
-                );
-
-            }
-
-
-            const table =
-                window.GENZModelTable;
-
-
-            if (
-                table &&
-                typeof table.setModels ===
-                    "function"
-            ) {
-
-                table.setModels(
-                    []
-                );
-
-            }
-
-
-            notify(
-                "Gagal memuat daftar model dari Supabase.",
-                "error"
-            );
-
-
-            return [];
-
-        } finally {
-
-            state.loading =
-                false;
-
-        }
-
-    }
-
-
-    /* =====================================================
-       SEARCH SYNC
-    ===================================================== */
 
     function syncSearchState() {
 
@@ -1238,9 +1115,75 @@
 
 
         if (
-            !search ||
-            typeof search.setModels !==
-                "function"
+            !search
+        ) {
+
+            return false;
+
+        }
+
+
+        const models =
+            state.models;
+
+
+        try {
+
+            if (
+                typeof search.setModels ===
+                    "function"
+            ) {
+
+                search.setModels(
+                    models
+                );
+
+                return true;
+
+            }
+
+
+            if (
+                typeof search.setCatalog ===
+                    "function"
+            ) {
+
+                search.setCatalog(
+                    models
+                );
+
+                return true;
+
+            }
+
+
+        } catch (error) {
+
+            console.warn(
+                "[models-ui] Search sync error:",
+                error
+            );
+
+        }
+
+
+        return false;
+
+    }
+
+
+    /* =====================================================
+       PAGE SEARCH
+       ===================================================== */
+
+    function syncPageSearchState() {
+
+        const pageSearch =
+            getPageSearch();
+
+
+        if (
+            !pageSearch
         ) {
 
             return false;
@@ -1250,42 +1193,60 @@
 
         try {
 
-            search.setModels(
-                state.models
-            );
+            if (
+                typeof pageSearch.setModels ===
+                    "function"
+            ) {
+
+                pageSearch.setModels(
+                    state.models
+                );
+
+                return true;
+
+            }
 
 
-            return true;
+            if (
+                typeof pageSearch.setData ===
+                    "function"
+            ) {
+
+                pageSearch.setData(
+                    state.models
+                );
+
+                return true;
+
+            }
 
         } catch (error) {
 
             console.warn(
-                "[models-ui] Search synchronization error:",
+                "[models-ui] Page search sync error:",
                 error
             );
 
-
-            return false;
-
         }
+
+
+        return false;
 
     }
 
 
     /* =====================================================
-       TABLE SYNC
-    ===================================================== */
+       TABLE
+       ===================================================== */
 
     function syncTableState() {
 
         const table =
-            window.GENZModelTable;
+            getTable();
 
 
         if (
-            !table ||
-            typeof table.setModels !==
-                "function"
+            !table
         ) {
 
             return false;
@@ -1295,191 +1256,51 @@
 
         try {
 
-            table.setModels(
-                state.models
-            );
+            if (
+                typeof table.setModels ===
+                    "function"
+            ) {
 
-
-            return true;
-
-        } catch (error) {
-
-            console.warn(
-                "[models-ui] Table synchronization error:",
-                error
-            );
-
-
-            return false;
-
-        }
-
-    }
-
-
-    /* =====================================================
-       REFRESH
-    ===================================================== */
-
-    async function refreshModels() {
-
-        if (
-            state.loading
-        ) {
-
-            console.warn(
-                "[models-ui] Refresh diabaikan karena load masih berjalan."
-            );
-
-
-            return {
-
-                providers:
-                    [...state.providers],
-
-                models:
-                    [...state.models]
-
-            };
-
-        }
-
-
-        state.loading =
-            true;
-
-
-        try {
-
-            console.info(
-                "[models-ui] Refresh Models..."
-            );
-
-
-            await loadProviders(
-                {
-
-                    force:
-                        true,
-
-                    activeOnly:
-                        false
-
-                }
-            );
-
-
-            await loadModels(
-                {
-
-                    force:
-                        true,
-
-                    activeOnly:
-                        false
-
-                }
-            );
-
-
-            syncProviderState();
-
-            syncSearchState();
-
-            syncTableState();
-
-            updateStatistics(
-                state.models
-            );
-
-
-            bindButtons();
-
-
-            /*
-             * Beri tahu halaman bahwa data model
-             * sudah diperbarui.
-             */
-            try {
-
-                window.dispatchEvent(
-                    new CustomEvent(
-                        "genz-models-refreshed",
-                        {
-                            detail: {
-                                providers:
-                                    [...state.providers],
-
-                                models:
-                                    [...state.models]
-                            }
-                        }
-                    )
-                );
-
-            } catch (eventError) {
-
-                console.warn(
-                    "[models-ui] refresh event error:",
-                    eventError
+                table.setModels(
+                    state.models
                 );
 
             }
 
 
-            console.info(
-                "[models-ui] Refresh selesai.",
-                {
+            if (
+                typeof table.setData ===
+                    "function"
+            ) {
 
-                    providers:
-                        state.providers.length,
+                table.setData(
+                    state.models
+                );
 
-                    models:
-                        state.models.length
-
-                }
-            );
+            }
 
 
-            return {
+            if (
+                typeof table.render ===
+                    "function"
+            ) {
 
-                providers:
-                    [...state.providers],
+                table.render();
 
-                models:
-                    [...state.models]
+            }
 
-            };
+
+            return true;
 
         } catch (error) {
 
-            console.error(
-                "[models-ui] Refresh error:",
+            console.warn(
+                "[models-ui] Table sync error:",
                 error
             );
 
 
-            notify(
-                error?.message ||
-                "Gagal melakukan refresh model.",
-                "error"
-            );
-
-
-            return {
-
-                providers:
-                    [...state.providers],
-
-                models:
-                    [...state.models]
-
-            };
-
-        } finally {
-
-            state.loading =
-                false;
+            return false;
 
         }
 
@@ -1488,7 +1309,7 @@
 
     /* =====================================================
        STATISTICS
-    ===================================================== */
+       ===================================================== */
 
     function updateStatistics(
         models = state.models
@@ -1514,7 +1335,7 @@
 
                     return (
                         String(
-                            model?.status ??
+                            model?.status ||
                             ""
                         )
                             .trim()
@@ -1527,124 +1348,86 @@
 
 
         const inactive =
-            total -
-            active;
-
-
-        const totalEl =
-            $("totalModels") ||
-            $("modelTotal") ||
-            $("modelsTotal");
-
-
-        const activeEl =
-            $("activeModels") ||
-            $("modelActive") ||
-            $("modelsActive");
-
-
-        const inactiveEl =
-            $("inactiveModels") ||
-            $("modelInactive") ||
-            $("modelsInactive");
-
-
-        if (
-            totalEl
-        ) {
-
-            totalEl.textContent =
-                String(
-                    total
-                );
-
-        }
-
-
-        if (
-            activeEl
-        ) {
-
-            activeEl.textContent =
-                String(
-                    active
-                );
-
-        }
-
-
-        if (
-            inactiveEl
-        ) {
-
-            inactiveEl.textContent =
-                String(
-                    inactive
-                );
-
-        }
-
-
-        document
-            .querySelectorAll(
-                "[data-model-stat]"
-            )
-            .forEach(
+            list.filter(
                 function (
-                    element
+                    model
                 ) {
 
-                    const stat =
+                    return (
                         String(
-                            element.getAttribute(
-                                "data-model-stat"
-                            ) ||
+                            model?.status ||
                             ""
                         )
                             .trim()
-                            .toLowerCase();
-
-
-                    if (
-                        stat ===
-                        "total"
-                    ) {
-
-                        element.textContent =
-                            String(
-                                total
-                            );
-
-                    }
-
-
-                    if (
-                        stat ===
+                            .toLowerCase() !==
                         "active"
-                    ) {
-
-                        element.textContent =
-                            String(
-                                active
-                            );
-
-                    }
-
-
-                    if (
-                        stat ===
-                        "inactive"
-                    ) {
-
-                        element.textContent =
-                            String(
-                                inactive
-                            );
-
-                    }
+                    );
 
                 }
-            );
+            ).length;
+
+
+        const selectors = {
+
+            total: [
+                "totalModels",
+                "modelTotal",
+                "totalModel"
+            ],
+
+            active: [
+                "activeModels",
+                "modelActive",
+                "activeModel"
+            ],
+
+            inactive: [
+                "inactiveModels",
+                "modelInactive",
+                "inactiveModel"
+            ]
+
+        };
+
+
+        Object.keys(
+            selectors
+        ).forEach(
+            function (
+                type
+            ) {
+
+                selectors[type].forEach(
+                    function (
+                        id
+                    ) {
+
+                        const element =
+                            $(id);
+
+
+                        if (
+                            element
+                        ) {
+
+                            element.textContent =
+                                String(
+                                    type ===
+                                        "total"
+                                        ? total
+                                        : type ===
+                                            "active"
+                                            ? active
+                                            : inactive
+                                );
+
+                        }
+
+                    }
+                );
+
+            }
+        );
 
 
         return {
@@ -1662,18 +1445,76 @@
 
     /* =====================================================
        MODEL LOOKUP
-    ===================================================== */
+       ===================================================== */
+
+    function findModelById(
+        modelId
+    ) {
+
+        const requested =
+            String(
+                modelId === null ||
+                modelId === undefined
+                    ? ""
+                    : modelId
+            )
+                .trim()
+                .toLowerCase();
+
+
+        if (!requested) {
+            return null;
+        }
+
+
+        return (
+            state.models.find(
+                function (
+                    model
+                ) {
+
+                    return [
+
+                        model?.id,
+
+                        model?.model_id,
+
+                        model?.model_name
+
+                    ].some(
+                        function (
+                            value
+                        ) {
+
+                            return (
+                                String(
+                                    value === null ||
+                                    value === undefined
+                                        ? ""
+                                        : value
+                                )
+                                    .trim()
+                                    .toLowerCase() ===
+                                requested
+                            );
+
+                        }
+                    );
+
+                }
+            ) ||
+            null
+        );
+
+    }
+
 
     function selectModel(
         model
     ) {
 
-        if (
-            !model
-        ) {
-
+        if (!model) {
             return null;
-
         }
 
 
@@ -1695,8 +1536,8 @@
 
             } catch (error) {
 
-                console.error(
-                    "[models-ui] selectModel error:",
+                console.warn(
+                    "[models-ui] chooseModel error:",
                     error
                 );
 
@@ -1710,184 +1551,9 @@
     }
 
 
-    function findModelById(
-        modelId
-    ) {
-
-        const normalized =
-            String(
-                modelId ??
-                ""
-            )
-                .trim()
-                .toLowerCase();
-
-
-        if (
-            !normalized
-        ) {
-
-            return null;
-
-        }
-
-
-        return (
-            state.models.find(
-                function (
-                    model
-                ) {
-
-                    const values = [
-
-                        model?.id,
-
-                        model?.model_id,
-
-                        model?.model_name
-
-                    ];
-
-
-                    return values.some(
-                        function (
-                            value
-                        ) {
-
-                            return (
-                                String(
-                                    value ??
-                                    ""
-                                )
-                                    .trim()
-                                    .toLowerCase() ===
-                                normalized
-                            );
-
-                        }
-                    );
-
-                }
-            ) ||
-            null
-        );
-
-    }
-
-
     /* =====================================================
        PRICE
-    ===================================================== */
-
-    async function initializePrice(
-        options = {}
-    ) {
-
-        const price =
-            getModelsPrice();
-
-
-        if (
-            !price
-        ) {
-
-            state.pricing =
-                [];
-
-
-            return [];
-
-        }
-
-
-        if (
-            typeof price.loadPricing ===
-                "function"
-        ) {
-
-            try {
-
-                const pricing =
-                    await price.loadPricing(
-                        options
-                    );
-
-
-                state.pricing =
-                    Array.isArray(
-                        pricing
-                    )
-                        ? pricing
-                        : [];
-
-
-                return state.pricing;
-
-            } catch (error) {
-
-                console.warn(
-                    "[models-ui] Pricing load warning:",
-                    error
-                );
-
-
-                state.pricing =
-                    [];
-
-
-                return [];
-
-            }
-
-        }
-
-
-        if (
-            typeof price.initialize ===
-                "function"
-        ) {
-
-            try {
-
-                const result =
-                    await price.initialize(
-                        options
-                    );
-
-
-                if (
-                    Array.isArray(
-                        result
-                    )
-                ) {
-
-                    state.pricing =
-                        result;
-
-                }
-
-
-                return state.pricing;
-
-            } catch (error) {
-
-                console.warn(
-                    "[models-ui] Pricing initialization warning:",
-                    error
-                );
-
-
-                return state.pricing;
-
-            }
-
-        }
-
-
-        return state.pricing;
-
-    }
-
+       ===================================================== */
 
     function renderModelPrice(
         model,
@@ -1895,26 +1561,17 @@
     ) {
 
         const price =
-            getModelsPrice();
-
-
-        if (
-            !price
-        ) {
-
-            return false;
-
-        }
+            getPrice();
 
 
         const element =
-            typeof target ===
-                "string"
-                ? $(target)
-                : target;
+            getElement(
+                target
+            );
 
 
         if (
+            !price ||
             !element
         ) {
 
@@ -1923,17 +1580,17 @@
         }
 
 
-        if (
-            typeof price.getModelPrice ===
-                "function"
-        ) {
+        try {
 
-            try {
+            if (
+                typeof price.getModelPrice ===
+                    "function"
+            ) {
 
                 const result =
                     price.getModelPrice(
                         model,
-                        state.pricing
+                        state.models
                     );
 
 
@@ -1950,40 +1607,30 @@
                 } else {
 
                     element.textContent =
-                        result?.usd != null
-                            ? String(
-                                result.usd
-                            )
-                            : "-";
+                        String(
+                            result?.usd ??
+                            result?.credit ??
+                            result ??
+                            "-"
+                        );
 
                 }
 
 
                 return true;
 
-            } catch (error) {
-
-                console.warn(
-                    "[models-ui] getModelPrice error:",
-                    error
-                );
-
             }
 
-        }
 
+            if (
+                typeof price.findPricingForModel ===
+                    "function"
+            ) {
 
-        if (
-            typeof price.findPricingForModel ===
-                "function"
-        ) {
-
-            try {
-
-                const pricing =
+                const result =
                     price.findPricingForModel(
                         model,
-                        state.pricing
+                        state.models
                     );
 
 
@@ -1994,7 +1641,7 @@
 
                     element.innerHTML =
                         price.renderPrice(
-                            pricing
+                            result
                         );
 
                 }
@@ -2002,14 +1649,14 @@
 
                 return true;
 
-            } catch (error) {
-
-                console.warn(
-                    "[models-ui] findPricingForModel error:",
-                    error
-                );
-
             }
+
+        } catch (error) {
+
+            console.warn(
+                "[models-ui] Price render error:",
+                error
+            );
 
         }
 
@@ -2020,168 +1667,734 @@
 
 
     /* =====================================================
-       BUTTONS
-       -----------------------------------------------------
-       UI umum:
-       - Add
-       - Refresh
+       CREATE
+       ===================================================== */
 
-       Row Edit/Delete tetap dimiliki:
-       GENZModelTableEvents
-    ===================================================== */
+    async function openCreateModal() {
 
-    let buttonsBound =
-        false;
+        const create =
+            getFormCreate();
 
 
-    function executeHandler(
-        handler,
-        event
-    ) {
+        if (
+            create
+        ) {
 
-        try {
+            try {
 
-            const result =
-                handler(
-                    event
-                );
+                if (
+                    typeof create.openCreate ===
+                        "function"
+                ) {
 
+                    create.openCreate(
+                        getModal(),
+                        {
+                            providers:
+                                state.providers,
 
-            if (
-                result &&
-                typeof result.then ===
-                    "function"
-            ) {
+                            models:
+                                state.models
+                        }
+                    );
 
-                result.catch(
-                    function (
-                        error
-                    ) {
-
-                        console.error(
-                            "[models-ui] Async button error:",
-                            error
-                        );
+                }
 
 
-                        notify(
-                            error?.message ||
-                            "Terjadi kesalahan saat menjalankan aksi.",
-                            "error"
-                        );
+                if (
+                    typeof create.reset ===
+                        "function"
+                ) {
 
-                    }
+                    create.reset();
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[models-ui] Create form reset/open warning:",
+                    error
                 );
 
             }
 
+        }
+
+
+        const layout =
+            getFormLayout();
+
+
+        if (
+            layout
+        ) {
+
+            try {
+
+                if (
+                    typeof layout.refresh ===
+                        "function"
+                ) {
+
+                    await layout.refresh();
+
+                } else if (
+                    typeof layout.render ===
+                        "function"
+                ) {
+
+                    await layout.render();
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[models-ui] Form layout refresh warning:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        /*
+         * Pastikan provider state terbaru tersedia
+         * untuk form.
+         */
+        syncProviderState();
+
+
+        const modal =
+            getModal();
+
+
+        if (
+            !modal
+        ) {
+
+            notify(
+                "Modal tambah model belum tersedia.",
+                "error"
+            );
+
+            return false;
+
+        }
+
+
+        showModalElement(
+            modal
+        );
+
+
+        const input =
+            $(
+                "modelCodeSearch"
+            );
+
+
+        if (
+            input
+        ) {
+
+            window.setTimeout(
+                function () {
+
+                    try {
+
+                        input.focus();
+
+                    } catch {
+                        /* Ignore focus failure. */
+                    }
+
+                },
+                50
+            );
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
+       EDIT
+       ===================================================== */
+
+    async function openEditModal(
+        model
+    ) {
+
+        if (!model) {
+
+            notify(
+                "Model tidak ditemukan.",
+                "error"
+            );
+
+            return false;
+
+        }
+
+
+        const edit =
+            getFormEdit();
+
+
+        if (
+            !edit
+        ) {
+
+            notify(
+                "Module form edit belum tersedia.",
+                "error"
+            );
+
+            return false;
+
+        }
+
+
+        try {
+
+            let result;
+
+
+            /*
+             * API yang digunakan oleh module baru.
+             */
+            if (
+                typeof edit.openEditModel ===
+                    "function"
+            ) {
+
+                result =
+                    await edit.openEditModel(
+                        model,
+                        {
+                            providers:
+                                state.providers,
+
+                            models:
+                                state.models
+                        }
+                    );
+
+            }
+
+
+            /*
+             * Compatibility API.
+             */
+            else if (
+                typeof edit.open ===
+                    "function"
+            ) {
+
+                result =
+                    await edit.open(
+                        model
+                    );
+
+            }
+
+
+            else if (
+                typeof edit.setEditingModel ===
+                    "function"
+            ) {
+
+                edit.setEditingModel(
+                    model
+                );
+
+                result =
+                    true;
+
+            }
+
+
+            if (
+                result === false
+            ) {
+
+                return false;
+
+            }
+
+
+            const modal =
+                getModal();
+
+
+            if (
+                modal &&
+                !modal.classList.contains(
+                    "show"
+                )
+            ) {
+
+                showModalElement(
+                    modal
+                );
+
+            }
+
+
+            return true;
+
         } catch (error) {
 
             console.error(
-                "[models-ui] Button error:",
+                "[models-ui] Open edit error:",
                 error
             );
 
 
             notify(
-                error?.message ||
-                "Terjadi kesalahan saat menjalankan aksi.",
+                getErrorMessage(
+                    error,
+                    "Gagal membuka form edit model."
+                ),
                 "error"
             );
+
+
+            return false;
 
         }
 
     }
 
 
+    /* =====================================================
+       CLOSE MODAL
+       ===================================================== */
+
+    function closeModal() {
+
+        const events =
+            getFormEvents();
+
+
+        if (
+            events &&
+            typeof events.closeModal ===
+                "function"
+        ) {
+
+            try {
+
+                return events.closeModal();
+
+            } catch (error) {
+
+                console.warn(
+                    "[models-ui] FormEvents.closeModal error:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        const layout =
+            getFormLayout();
+
+
+        if (
+            layout &&
+            typeof layout.close ===
+                "function"
+        ) {
+
+            try {
+
+                const result =
+                    layout.close();
+
+
+                if (
+                    result !== false
+                ) {
+
+                    hideModalElement(
+                        getModal()
+                    );
+
+                    return true;
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[models-ui] FormLayout.close error:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        return hideModalElement(
+            getModal()
+        );
+
+    }
+
+
+    /* =====================================================
+       CREATE / UPDATE / DELETE DELEGATION
+       ===================================================== */
+
+    async function createModel(
+        data,
+        options = {}
+    ) {
+
+        const coordinator =
+            getFormCoordinator();
+
+
+        if (
+            coordinator &&
+            typeof coordinator.create ===
+                "function"
+        ) {
+
+            return coordinator.create(
+                data,
+                options
+            );
+
+        }
+
+
+        const create =
+            getFormCreate();
+
+
+        if (
+            create &&
+            typeof create.create ===
+                "function"
+        ) {
+
+            return create.create(
+                data,
+                {
+                    ...options,
+
+                    providers:
+                        state.providers,
+
+                    models:
+                        state.models
+                }
+            );
+
+        }
+
+
+        throw new Error(
+            "Module create model belum tersedia."
+        );
+
+    }
+
+
+    async function updateModel(
+        data,
+        options = {}
+    ) {
+
+        const coordinator =
+            getFormCoordinator();
+
+
+        if (
+            coordinator &&
+            typeof coordinator.update ===
+                "function"
+        ) {
+
+            return coordinator.update(
+                data,
+                options
+            );
+
+        }
+
+
+        const edit =
+            getFormEdit();
+
+
+        if (
+            edit &&
+            typeof edit.update ===
+                "function"
+        ) {
+
+            return edit.update(
+                data,
+                options
+            );
+
+        }
+
+
+        throw new Error(
+            "Module update model belum tersedia."
+        );
+
+    }
+
+
+    async function deleteModel(
+        model,
+        options = {}
+    ) {
+
+        const coordinator =
+            getFormCoordinator();
+
+
+        if (
+            coordinator &&
+            typeof coordinator.remove ===
+                "function"
+        ) {
+
+            return coordinator.remove(
+                model,
+                options
+            );
+
+        }
+
+
+        const remove =
+            getFormDelete();
+
+
+        if (
+            remove &&
+            typeof remove.remove ===
+                "function"
+        ) {
+
+            return remove.remove(
+                model,
+                {
+                    ...options,
+
+                    models:
+                        state.models
+                }
+            );
+
+        }
+
+
+        throw new Error(
+            "Module delete model belum tersedia."
+        );
+
+    }
+
+
+    /* =====================================================
+       REFRESH AFTER CRUD
+       ===================================================== */
+
+    async function refreshAfterMutation(
+        result,
+        options = {}
+    ) {
+
+        /*
+         * Jika mutation berhasil, reload catalog
+         * dari source sebenarnya.
+         */
+        if (
+            options.refresh === false
+        ) {
+
+            return result;
+
+        }
+
+
+        try {
+
+            await refreshModels(
+                {
+                    activeOnly:
+                        false
+                }
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[models-ui] Refresh after mutation failed:",
+                error
+            );
+
+        }
+
+
+        return result;
+
+    }
+
+
+    /* =====================================================
+       BUTTON HANDLER
+       ===================================================== */
+
     function bindButton(
         ids,
         handler
     ) {
 
-        if (
-            !Array.isArray(
+        const list =
+            Array.isArray(
                 ids
             )
-        ) {
-
-            ids = [
-                ids
-            ];
-
-        }
+                ? ids
+                : [ids];
 
 
         let found =
             false;
 
 
-        for (
-            const id of ids
-        ) {
-
-            const button =
-                $(id);
-
-
-            if (
-                !button
+        list.forEach(
+            function (
+                id
             ) {
 
-                continue;
-
-            }
-
-
-            found =
-                true;
+                const button =
+                    $(id);
 
 
-            /*
-             * Jika listener sudah terpasang,
-             * jangan membuat listener kedua.
-             */
-            if (
-                button.dataset
-                    .genzUiBound ===
-                "true"
-            ) {
-
-                continue;
-
-            }
-
-
-            button.dataset
-                .genzUiBound =
-                "true";
-
-
-            button.dataset
-                .genzUiButtonBound =
-                "true";
-
-
-            button.addEventListener(
-                "click",
-                function (
-                    event
+                if (
+                    !button
                 ) {
 
-                    event.preventDefault();
-
-                    event.stopPropagation();
-
-
-                    executeHandler(
-                        handler,
-                        event
-                    );
+                    return;
 
                 }
-            );
 
-        }
+
+                found =
+                    true;
+
+
+                if (
+                    button.dataset
+                        .genzUiBound ===
+                    "true"
+                ) {
+
+                    return;
+
+                }
+
+
+                button.dataset
+                    .genzUiBound =
+                    "true";
+
+
+                button.dataset
+                    .genzUiButtonBound =
+                    "true";
+
+
+                button.addEventListener(
+                    "click",
+                    function (
+                        event
+                    ) {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
+
+                        try {
+
+                            const result =
+                                handler(
+                                    event
+                                );
+
+
+                            if (
+                                result &&
+                                typeof result.then ===
+                                    "function"
+                            ) {
+
+                                result.catch(
+                                    function (
+                                        error
+                                    ) {
+
+                                        console.error(
+                                            "[models-ui] Button error:",
+                                            error
+                                        );
+
+
+                                        notify(
+                                            getErrorMessage(
+                                                error,
+                                                "Terjadi kesalahan."
+                                            ),
+                                            "error"
+                                        );
+
+                                    }
+                                );
+
+                            }
+
+                        } catch (error) {
+
+                            console.error(
+                                "[models-ui] Button error:",
+                                error
+                            );
+
+
+                            notify(
+                                getErrorMessage(
+                                    error,
+                                    "Terjadi kesalahan."
+                                ),
+                                "error"
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+        );
 
 
         return found;
@@ -2191,91 +2404,64 @@
 
     function bindButtons() {
 
-        let anyBound =
+        let bound =
             false;
 
 
-        /*
-         * ADD MODEL
-         */
-        const addBound =
+        if (
             bindButton(
                 [
-
                     "addModelButton",
-
                     "addModelBtn",
-
                     "createModelButton",
-
                     "addModel",
-
                     "btnAddModel",
-
                     "newModelBtn"
-
                 ],
                 function () {
 
-                    return openModal();
+                    return openCreateModal();
 
                 }
-            );
-
-
-        if (
-            addBound
+            )
         ) {
 
-            anyBound =
+            bound =
                 true;
 
         }
 
 
-        /*
-         * REFRESH
-         */
-        const refreshBound =
+        if (
             bindButton(
                 [
-
                     "refreshBtn",
-
                     "refreshModels",
-
                     "refreshModelsButton",
-
                     "refreshModelButton"
-
                 ],
                 function () {
 
-                    return refreshModels();
+                    return refreshModels(
+                        {
+                            activeOnly:
+                                false
+                        }
+                    );
 
                 }
-            );
-
-
-        if (
-            refreshBound
+            )
         ) {
 
-            anyBound =
+            bound =
                 true;
 
         }
 
 
-        /*
-         * Jangan pernah menyatakan binding berhasil
-         * jika tombol memang belum ada.
-         */
         buttonsBound =
-            anyBound ||
-            document.querySelector(
-                "[data-genz-ui-button-bound='true']"
-            ) !== null;
+            bound ||
+            buttonsBound;
 
 
         return buttonsBound;
@@ -2285,23 +2471,12 @@
 
     /* =====================================================
        INITIALIZE
-       -----------------------------------------------------
-       Lifecycle utama tetap di models-init.js.
-    ===================================================== */
+       ===================================================== */
 
     async function initialize() {
 
         if (
-            initializing
-        ) {
-
-            return initializing;
-
-        }
-
-
-        if (
-            initialized
+            state.initialized
         ) {
 
             bindButtons();
@@ -2311,62 +2486,65 @@
         }
 
 
-        initializing =
+        if (
+            state.initializing
+        ) {
+
+            return state.initializing;
+
+        }
+
+
+        state.initializing =
             (async function () {
 
                 try {
 
-                    console.info(
-                        "[models-ui] Initialization mulai..."
-                    );
-
-
                     /*
-                     * Bind tombol secepat mungkin.
-                     *
-                     * Penting karena models-init dapat
-                     * memulai UI sebelum semua elemen
-                     * DOM selesai tersedia.
+                     * Bind tombol dulu.
+                     * Tidak perlu menunggu module lain.
                      */
                     bindButtons();
 
 
                     /*
-                     * Sinkronisasi Provider.
-                     *
-                     * Tidak mengambil alih Provider loader.
+                     * Provider.
                      */
-                    syncProviderState();
-
-
-                    /*
-                     * Load model catalog.
-                     */
-                    await loadModels(
+                    await loadProviders(
                         {
-
                             force:
                                 false,
 
                             activeOnly:
-                                false
-
+                                true
                         }
                     );
 
 
                     /*
-                     * Pricing catalog.
+                     * Catalog models.
+                     *
+                     * Hanya tabel models.
                      */
-                    await initializePrice();
+                    await loadModels(
+                        {
+                            force:
+                                false,
+
+                            activeOnly:
+                                false
+                        }
+                    );
 
 
                     /*
-                     * Final synchronization.
+                     * Sinkronisasi provider/catalog.
                      */
                     syncProviderState();
 
                     syncSearchState();
+
+                    syncPageSearchState();
 
                     syncTableState();
 
@@ -2376,19 +2554,14 @@
 
 
                     /*
-                     * Tombol dicoba lagi setelah seluruh
-                     * initialization selesai.
+                     * Bind ulang setelah seluruh DOM/module
+                     * tersedia.
                      */
                     bindButtons();
 
 
-                    initialized =
+                    state.initialized =
                         true;
-
-
-                    console.info(
-                        "[GEN-Z.AI] Model Management UI READY"
-                    );
 
 
                     try {
@@ -2399,23 +2572,11 @@
                             )
                         );
 
-                    } catch (
-                        eventError
-                    ) {
-
-                        console.warn(
-                            "[models-ui] UI ready event error:",
-                            eventError
-                        );
-
+                    } catch {
+                        /* Ignore event compatibility failure. */
                     }
 
 
-                    /*
-                     * Event tambahan untuk kompatibilitas
-                     * halaman lama yang mendengarkan
-                     * genz-models-ready.
-                     */
                     try {
 
                         window.dispatchEvent(
@@ -2424,35 +2585,35 @@
                             )
                         );
 
-                    } catch (
-                        eventError
-                    ) {
-
-                        console.warn(
-                            "[models-ui] models-ready event error:",
-                            eventError
-                        );
-
+                    } catch {
+                        /* Ignore event compatibility failure. */
                     }
+
+
+                    console.info(
+                        "[GEN-Z.AI] Models UI ready."
+                    );
 
 
                     return true;
 
                 } catch (error) {
 
-                    initialized =
+                    state.initialized =
                         false;
 
 
                     console.error(
-                        "[models-ui] Initialization error:",
+                        "[GEN-Z.AI] Models UI initialization failed:",
                         error
                     );
 
 
                     notify(
-                        error?.message ||
-                        "Model Management gagal diinisialisasi.",
+                        getErrorMessage(
+                            error,
+                            "Model Management gagal diinisialisasi."
+                        ),
                         "error"
                     );
 
@@ -2469,15 +2630,8 @@
                             )
                         );
 
-                    } catch (
-                        eventError
-                    ) {
-
-                        console.warn(
-                            "[models-ui] UI error event gagal:",
-                            eventError
-                        );
-
+                    } catch {
+                        /* Ignore event compatibility failure. */
                     }
 
 
@@ -2485,7 +2639,7 @@
 
                 } finally {
 
-                    initializing =
+                    state.initializing =
                         null;
 
                 }
@@ -2493,18 +2647,36 @@
             })();
 
 
-        return initializing;
+        return state.initializing;
 
     }
 
 
     /* =====================================================
        RESET
-    ===================================================== */
+       ===================================================== */
 
     function reset() {
 
-        initialized =
+        if (
+            state.initializing
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] UI reset skipped while initialization is running."
+            );
+
+
+            return false;
+
+        }
+
+
+        state.initialized =
+            false;
+
+
+        state.loading =
             false;
 
 
@@ -2516,18 +2688,6 @@
             [];
 
 
-        state.pricing =
-            [];
-
-
-        state.loading =
-            false;
-
-
-        /*
-         * Listener DOM yang sudah terpasang tetap valid.
-         * Dataset sengaja tidak dihapus.
-         */
         buttonsBound =
             false;
 
@@ -2538,8 +2698,48 @@
 
 
     /* =====================================================
+       STATE GETTERS
+       ===================================================== */
+
+    function getModels() {
+
+        return [
+            ...state.models
+        ];
+
+    }
+
+
+    function getProviders() {
+
+        return [
+            ...state.providers
+        ];
+
+    }
+
+
+    function isLoading() {
+
+        return (
+            state.loading
+        );
+
+    }
+
+
+    function isInitialized() {
+
+        return (
+            state.initialized
+        );
+
+    }
+
+
+    /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
 
     window.GENZModelsUI =
         Object.freeze({
@@ -2550,7 +2750,18 @@
 
             notify,
 
-            openModal,
+            showAlert,
+
+            getModal,
+
+            showModalElement,
+
+            hideModalElement,
+
+            openModal:
+                openCreateModal,
+
+            openCreateModal,
 
             openEditModal,
 
@@ -2562,70 +2773,41 @@
 
             loadProviders,
 
-            updateStatistics,
+            syncProviderState,
 
-            selectModel,
+            syncSearchState,
+
+            syncPageSearchState,
+
+            syncTableState,
+
+            updateStatistics,
 
             findModelById,
 
             findProviderById,
 
+            selectModel,
+
             renderModelPrice,
 
-            syncProviderState,
+            createModel,
 
-            syncSearchState,
+            updateModel,
 
-            syncTableState,
+            deleteModel,
 
-            initializePrice,
+            refreshAfterMutation,
 
             bindButtons,
 
-            getModels:
-                function () {
+            getModels,
 
-                    return [
-                        ...state.models
-                    ];
+            getProviders,
 
-                },
+            isLoading,
 
-            getProviders:
-                function () {
-
-                    return [
-                        ...state.providers
-                    ];
-
-                },
-
-            getPricing:
-                function () {
-
-                    return [
-                        ...state.pricing
-                    ];
-
-                },
-
-            isLoading:
-                function () {
-
-                    return (
-                        state.loading
-                    );
-
-                },
-
-            isInitialized:
-                function () {
-
-                    return (
-                        initialized
-                    );
-
-                }
+            isInitialized
 
         });
 
@@ -2633,5 +2815,6 @@
     console.info(
         "[GEN-Z.AI] GENZModelsUI loaded."
     );
+
 
 })();
