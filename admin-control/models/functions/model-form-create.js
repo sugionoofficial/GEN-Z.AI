@@ -1,53 +1,25 @@
 /* =========================================================
    GEN-Z.AI
-   ADMIN MODEL MANAGEMENT
-
+   MODEL FORM CREATE MODULE
+   ---------------------------------------------------------
    File:
    admin-control/models/functions/model-form-create.js
 
-   OWNER:
-   CREATE MODEL
-
    Tanggung jawab:
-   - Mengambil data form untuk CREATE
-   - Memastikan Model ID berasal dari KIE
-   - Mengambil Model Name dari KIE
-   - Mengambil Model Family dari KIE
-   - Mengambil capability dari KIE
-   - Validasi data CREATE
-   - Menyusun payload CREATE
-   - Mengirim POST ke /api/admin-models
-   - Mengambil access token Supabase
-   - Menampilkan status proses
-   - Membersihkan state setelah berhasil
+   - Mode Tambah Model
+   - Collect data form
+   - Validasi data
+   - Normalisasi data
+   - Menyerahkan INSERT kepada caller/API layer
+   - Menjaga provider_id sebagai providers.id
+   - Tidak menggunakan tabel kie_*
 
-   TIDAK bertanggung jawab atas:
-   - Provider dropdown
-   - Model ID dropdown
-   - Search Model
-   - Kalkulasi credit
-   - Discount calculation
-   - Edit Model
-   - Delete Model
-   - Event listener form
-   - Event listener button
+   Tidak bertanggung jawab:
    - Render tabel
-
-   Event owner:
-   model-form-events.js
-
-   Provider owner:
-   models-provider.js
-
-   Model catalog owner:
-   model-form-layout.js
-
-   Credit calculation owner:
-   model-price-calculation.js
-
-   API/Data owner:
-   models-data.js / endpoint /api/admin-models
-
+   - Query Supabase langsung
+   - Delete model
+   - Edit model
+   - CRUD provider
    ========================================================= */
 
 (function () {
@@ -56,70 +28,129 @@
 
 
     /* =====================================================
-       STATE
-    ===================================================== */
+       CONSTANTS
+       ===================================================== */
 
-    let creating = false;
+    const MODEL_FIELDS = [
+        "provider_id",
+        "model_id",
+        "model_name",
+        "description",
+        "credit_cost",
+        "discount_percent",
+        "credit_final",
+        "min_duration",
+        "max_duration",
+        "supported_ratios",
+        "supported_resolutions",
+        "status"
+    ];
+
+    const VALID_STATUS = [
+        "active",
+        "inactive",
+        "maintenance"
+    ];
+
+    const VALID_RATIOS = [
+        "2:3",
+        "3:2",
+        "1:1",
+        "16:9",
+        "9:16"
+    ];
+
+    const VALID_RESOLUTIONS = [
+        "480p",
+        "720p",
+        "1080p"
+    ];
 
 
     /* =====================================================
-       ELEMENT
-    ===================================================== */
+       STATE
+       ===================================================== */
 
-    function getElement(id) {
-
-        return document.getElementById(id);
-
-    }
-
-
-    function firstElement(ids) {
-
-        for (const id of ids) {
-
-            const element =
-                getElement(id);
-
-            if (element) {
-                return element;
-            }
-
-        }
-
-        return null;
-
-    }
+    let state = {
+        active: false,
+        root: null,
+        providers: [],
+        models: []
+    };
 
 
-    function getValue(id) {
+    /* =====================================================
+       HELPERS
+       ===================================================== */
 
-        const element =
-            getElement(id);
-
-        if (!element) {
-            return "";
-        }
+    function normalizeId(value) {
 
         return String(
-            element.value ?? ""
+            value === null ||
+            value === undefined
+                ? ""
+                : value
         ).trim();
 
     }
 
 
-    /* =====================================================
-       NORMALIZE ARRAY
-    ===================================================== */
+    function normalizeText(value) {
 
-    function normalizeArray(value) {
+        return String(
+            value === null ||
+            value === undefined
+                ? ""
+                : value
+        ).trim();
 
-        if (Array.isArray(value)) {
+    }
 
-            return value
-                .map(item =>
-                    String(item ?? "").trim()
+
+    function toNumber(
+        value,
+        fallback = 0
+    ) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return fallback;
+        }
+
+        const number =
+            Number(value);
+
+        return Number.isFinite(
+            number
+        )
+            ? number
+            : fallback;
+
+    }
+
+
+    function normalizeArray(
+        value
+    ) {
+
+        if (
+            Array.isArray(value)
+        ) {
+
+            return [
+                ...new Set(
+                    value
+                        .map(item =>
+                            normalizeText(
+                                item
+                            )
+                        )
+                        .filter(Boolean)
                 )
-                .filter(Boolean);
+            ];
 
         }
 
@@ -135,631 +166,345 @@
         }
 
 
-        return String(value)
-            .split(",")
-            .map(item =>
-                item.trim()
-            )
-            .filter(Boolean);
+        /*
+         * PostgreSQL array:
+         *
+         * {16:9,9:16}
+         */
+        if (
+            typeof value === "string" &&
+            value.startsWith("{") &&
+            value.endsWith("}")
+        ) {
 
-    }
+            const inner =
+                value.slice(
+                    1,
+                    -1
+                );
 
-
-    /* =====================================================
-       UNIQUE ARRAY
-    ===================================================== */
-
-    function uniqueArray(value) {
-
-        const source =
-            normalizeArray(value);
-
-        const seen =
-            new Set();
-
-        const result =
-            [];
-
-        source.forEach(
-            item => {
-
-                const key =
-                    item
-                        .trim()
-                        .toLowerCase();
-
-                if (!key) {
-                    return;
-                }
-
-                if (seen.has(key)) {
-                    return;
-                }
-
-                seen.add(key);
-
-                result.push(item);
-
+            if (!inner.trim()) {
+                return [];
             }
-        );
 
-        return result;
+            return [
+                ...new Set(
+                    inner
+                        .split(",")
+                        .map(item =>
+                            item
+                                .replace(/^"(.*)"$/, "$1")
+                                .trim()
+                        )
+                        .filter(Boolean)
+                )
+            ];
 
-    }
-
-
-    /* =====================================================
-       NOTIFICATION
-    ===================================================== */
-
-    function notify(
-        message,
-        type = "info"
-    ) {
-
-        const existing =
-            getElement(
-                "modelNotification"
-            ) ||
-            getElement(
-                "notification"
-            ) ||
-            getElement(
-                "toast"
-            );
+        }
 
 
-        if (existing) {
+        /*
+         * JSON array.
+         */
+        if (
+            typeof value === "string"
+        ) {
 
-            existing.textContent =
-                message;
+            try {
 
+                const parsed =
+                    JSON.parse(value);
 
-            existing.classList.remove(
-                "success",
-                "error",
-                "warning",
-                "info",
-                "show"
-            );
+                if (
+                    Array.isArray(parsed)
+                ) {
 
-
-            existing.classList.add(
-                type
-            );
-
-
-            window.requestAnimationFrame(
-                () => {
-
-                    existing.classList.add(
-                        "show"
+                    return normalizeArray(
+                        parsed
                     );
 
                 }
-            );
 
-
-            window.clearTimeout(
-                existing.__genzTimer
-            );
-
-
-            existing.__genzTimer =
-                window.setTimeout(
-                    () => {
-
-                        existing.classList.remove(
-                            "show"
-                        );
-
-                    },
-                    3500
-                );
-
-
-            return;
-
-        }
-
-
-        const toast =
-            document.createElement(
-                "div"
-            );
-
-
-        toast.id =
-            "modelNotification";
-
-
-        toast.className =
-            `genz-model-notification ${type}`;
-
-
-        toast.textContent =
-            message;
-
-
-        Object.assign(
-            toast.style,
-            {
-                position: "fixed",
-                right: "24px",
-                bottom: "24px",
-                zIndex: "99999",
-                maxWidth: "420px",
-                padding: "14px 18px",
-                borderRadius: "12px",
-                background: "rgba(17,24,39,.96)",
-                border: "1px solid rgba(255,255,255,.12)",
-                color: "#fff",
-                boxShadow:
-                    "0 14px 40px rgba(0,0,0,.35)",
-                fontSize: "14px",
-                lineHeight: "1.45",
-                pointerEvents: "none"
-            }
-        );
-
-
-        document.body.appendChild(
-            toast
-        );
-
-
-        window.setTimeout(
-            () => {
-
-                toast.style.opacity =
-                    "0";
-
-                toast.style.transform =
-                    "translateY(8px)";
-
-                toast.style.transition =
-                    "opacity .2s ease, transform .2s ease";
-
-
-                window.setTimeout(
-                    () => {
-
-                        toast.remove();
-
-                    },
-                    250
-                );
-
-            },
-            3500
-        );
-
-    }
-
-
-    /* =====================================================
-       FORM LAYOUT
-       -----------------------------------------------------
-       Semua data KIE harus melalui Layout.
-    ===================================================== */
-
-    function getFormLayout() {
-
-        return (
-            window.GENZModelFormLayout ||
-            null
-        );
-
-    }
-
-
-    /* =====================================================
-       CURRENT KIE MODEL
-    ===================================================== */
-
-    function getCurrentKieModel() {
-
-        const layout =
-            getFormLayout();
-
-        if (!layout) {
-            return null;
-        }
-
-
-        const modelId =
-            typeof layout.getCurrentModelId ===
-                "function"
-                ? layout.getCurrentModelId()
-                : getValue("modelCode");
-
-
-        if (!modelId) {
-            return null;
-        }
-
-
-        if (
-            typeof layout.findModel ===
-            "function"
-        ) {
-
-            const model =
-                layout.findModel(
-                    modelId
-                );
-
-            if (model) {
-                return model;
+            } catch {
+                /* Not JSON. */
             }
 
+
+            /*
+             * Comma separated fallback.
+             */
+            return [
+                ...new Set(
+                    value
+                        .split(",")
+                        .map(item =>
+                            normalizeText(
+                                item
+                            )
+                        )
+                        .filter(Boolean)
+                )
+            ];
+
         }
 
 
-        if (
-            typeof layout.findModelById ===
-            "function"
-        ) {
-
-            const model =
-                layout.findModelById(
-                    modelId
-                );
-
-            if (model) {
-                return model;
-            }
-
-        }
-
-
-        return null;
+        return [];
 
     }
 
 
-    /* =====================================================
-       KIE CONFIG
-    ===================================================== */
-
-    function getCurrentKieConfig() {
-
-        const layout =
-            getFormLayout();
-
-        if (
-            !layout ||
-            typeof layout.getCurrentKieConfig !==
-                "function"
-        ) {
-
-            return null;
-
-        }
-
-        try {
-
-            return (
-                layout.getCurrentKieConfig() ||
-                null
-            );
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal membaca KIE config:",
-                error
-            );
-
-            return null;
-
-        }
-
-    }
-
-
-    /* =====================================================
-       KIE PARAMETERS
-    ===================================================== */
-
-    function getCurrentParameters() {
-
-        const layout =
-            getFormLayout();
-
-        if (
-            !layout ||
-            typeof layout.getCurrentParameters !==
-                "function"
-        ) {
-
-            return [];
-
-        }
-
-        try {
-
-            const parameters =
-                layout.getCurrentParameters();
-
-            return Array.isArray(
-                parameters
-            )
-                ? parameters
-                : [];
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal membaca KIE parameters:",
-                error
-            );
-
-            return [];
-
-        }
-
-    }
-
-
-    /* =====================================================
-       KIE PRICING
-    ===================================================== */
-
-    function getCurrentPricing() {
-
-        const layout =
-            getFormLayout();
-
-        if (
-            !layout ||
-            typeof layout.getCurrentPricing !==
-                "function"
-        ) {
-
-            return [];
-
-        }
-
-        try {
-
-            const pricing =
-                layout.getCurrentPricing();
-
-            return Array.isArray(
-                pricing
-            )
-                ? pricing
-                : [];
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI] Gagal membaca KIE pricing:",
-                error
-            );
-
-            return [];
-
-        }
-
-    }
-
-
-    /* =====================================================
-       KIE CAPABILITIES
-       -----------------------------------------------------
-       Capability utama dibaca dari checkbox yang
-       sudah dirender oleh model-form-layout.js.
-
-       Tidak membuat ratio/duration/resolution sendiri.
-    ===================================================== */
-
-    function getCapabilityValues(
-        group
+    function normalizeStatus(
+        value
     ) {
 
-        const result =
-            [];
+        const status =
+            normalizeText(
+                value
+            ).toLowerCase();
+
+        return VALID_STATUS.includes(
+            status
+        )
+            ? status
+            : "active";
+
+    }
 
 
-        document
-            .querySelectorAll(
-                `input[data-kie-capability="${group}"]:checked`
-            )
-            .forEach(
-                checkbox => {
+    /* =====================================================
+       PROVIDER HELPERS
+       ===================================================== */
 
-                    const value =
-                        String(
-                            checkbox.dataset.kieValue ??
-                            ""
-                        ).trim();
+    function findProvider(
+        providers,
+        providerId
+    ) {
 
-                    if (value) {
-                        result.push(
-                            value
-                        );
-                    }
-
-                }
+        const id =
+            normalizeId(
+                providerId
             );
 
+        if (!id) {
+            return null;
+        }
 
-        return uniqueArray(
-            result
+
+        return (
+            providers || []
+        ).find(
+            provider =>
+                normalizeId(
+                    provider.id
+                ) === id
+        ) || null;
+
+    }
+
+
+    function getProviderCode(
+        provider
+    ) {
+
+        if (!provider) {
+            return "";
+        }
+
+        return normalizeText(
+            provider.provider_id
         );
 
     }
 
 
     /* =====================================================
-       SYNC KIE CAPABILITIES
-       -----------------------------------------------------
-       Gunakan API Layout terlebih dahulu.
-       Ini penting agar field legacy tetap sinkron
-       dengan checkbox KIE.
+       MODEL ID DUPLICATE CHECK
+       ===================================================== */
 
-       Tidak dispatch event change secara manual.
-       Hal ini sengaja untuk mencegah recursive event
-       / Maximum call stack size exceeded.
-    ===================================================== */
+    function findDuplicateModel(
+        models,
+        modelId,
+        excludeId = ""
+    ) {
 
-    function syncKieCapabilities() {
+        const normalizedModelId =
+            normalizeText(
+                modelId
+            ).toLowerCase();
 
-        const layout =
-            getFormLayout();
+        const excluded =
+            normalizeId(
+                excludeId
+            );
 
-        if (!layout) {
-            return;
+        if (!normalizedModelId) {
+            return null;
         }
 
 
-        if (
-            typeof layout.syncLegacyCapabilityFields ===
-            "function"
-        ) {
+        return (
+            models || []
+        ).find(
+            model => {
 
-            try {
+                const id =
+                    normalizeId(
+                        model.id
+                    );
 
-                layout.syncLegacyCapabilityFields();
+                if (
+                    excluded &&
+                    id === excluded
+                ) {
+                    return false;
+                }
 
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Gagal sinkronisasi capability legacy:",
-                    error
+                return (
+                    normalizeText(
+                        model.model_id
+                    ).toLowerCase() ===
+                    normalizedModelId
                 );
 
             }
-
-        }
-
-
-        if (
-            typeof layout.syncDurationFields ===
-            "function"
-        ) {
-
-            try {
-
-                layout.syncDurationFields();
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Gagal sinkronisasi duration:",
-                    error
-                );
-
-            }
-
-        }
+        ) || null;
 
     }
 
 
     /* =====================================================
-       FORM DATA
+       CREDIT CALCULATION
        -----------------------------------------------------
-       Form hanya menjadi sumber untuk:
-       - provider
-       - description
-       - credit
-       - discount
-       - status
+       credit_final dihitung dari:
+       
+       credit_cost - discount_percent
+       
+       Jika discount = 0:
+       final = cost
 
-       Model identity dan capability berasal dari KIE.
-    ===================================================== */
+       Contoh:
+       cost 100
+       discount 10%
+       final 90
+       ===================================================== */
 
-    function collectFormData() {
+    function calculateCreditFinal(
+        creditCost,
+        discountPercent
+    ) {
 
-        const kieModel =
-            getCurrentKieModel();
-
-
-        const modelId =
-            String(
-                kieModel?.model_id ??
-                getValue("modelCode") ??
-                ""
-            ).trim();
-
-
-        const modelName =
-            String(
-                kieModel?.model_name ??
-                ""
-            ).trim();
-
-
-        const modelFamily =
-            String(
-                kieModel?.model_family ??
-                ""
-            ).trim();
-
-
-        const ratioValues =
-            getCapabilityValues(
-                "ratio"
+        const cost =
+            Math.max(
+                0,
+                toNumber(
+                    creditCost,
+                    0
+                )
             );
 
-
-        const durationValues =
-            getCapabilityValues(
-                "duration"
-            );
-
-
-        const resolutionValues =
-            getCapabilityValues(
-                "resolution"
-            );
-
-
-        /*
-         * Duration fallback hanya membaca
-         * field yang sudah disinkronkan oleh Layout.
-         *
-         * Tidak membuat angka duration sendiri.
-         */
-
-        const minDuration =
-            getValue(
-                "minDuration"
-            );
-
-
-        const maxDuration =
-            getValue(
-                "maxDuration"
-            );
-
-
-        /*
-         * Ratio/resolution fallback ke field legacy
-         * hanya jika checkbox belum tersedia.
-         *
-         * Nilainya tetap harus berasal dari Layout.
-         */
-
-        const legacyRatios =
-            ratioValues.length
-                ? ratioValues
-                : normalizeArray(
-                    getValue(
-                        "supportedRatios"
+        const discount =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    toNumber(
+                        discountPercent,
+                        0
                     )
-                );
+                )
+            );
+
+        return Number(
+            (
+                cost -
+                (
+                    cost *
+                    discount /
+                    100
+                )
+            ).toFixed(6)
+        );
+
+    }
 
 
-        const legacyResolutions =
-            resolutionValues.length
-                ? resolutionValues
-                : normalizeArray(
-                    getValue(
-                        "supportedResolutions"
+    /* =====================================================
+       NORMALIZE MODEL DATA
+       ===================================================== */
+
+    function normalizeModelData(
+        input,
+        options = {}
+    ) {
+
+        const data =
+            input || {};
+
+        const providers =
+            Array.isArray(
+                options.providers
+            )
+                ? options.providers
+                : state.providers;
+
+
+        const providerId =
+            normalizeId(
+                data.provider_id ||
+                data.providerId
+            );
+
+
+        const provider =
+            findProvider(
+                providers,
+                providerId
+            );
+
+
+        const creditCost =
+            toNumber(
+                data.credit_cost ??
+                data.creditCost,
+                0
+            );
+
+
+        const discountPercent =
+            toNumber(
+                data.discount_percent ??
+                data.discountPercent,
+                0
+            );
+
+
+        const suppliedFinal =
+            data.credit_final ??
+            data.creditFinal;
+
+
+        /*
+         * Jika credit_final tidak diberikan,
+         * hitung dari cost + discount.
+         *
+         * Jika diberikan, tetap gunakan nilai
+         * dari form agar kompatibel dengan UI lama.
+         */
+        const creditFinal =
+            suppliedFinal ===
+                undefined ||
+            suppliedFinal === null ||
+            suppliedFinal === ""
+                ? calculateCreditFinal(
+                    creditCost,
+                    discountPercent
+                )
+                : toNumber(
+                    suppliedFinal,
+                    calculateCreditFinal(
+                        creditCost,
+                        discountPercent
                     )
                 );
 
@@ -767,60 +512,68 @@
         return {
 
             provider_id:
-                getValue(
-                    "providerId"
-                ),
+                provider
+                    ? normalizeId(
+                        provider.id
+                    )
+                    : providerId,
 
             model_id:
-                modelId,
+                normalizeText(
+                    data.model_id ||
+                    data.modelId
+                ),
 
             model_name:
-                modelName,
-
-            model_family:
-                modelFamily,
+                normalizeText(
+                    data.model_name ||
+                    data.modelName
+                ),
 
             description:
-                getValue(
-                    "description"
+                normalizeText(
+                    data.description
                 ),
 
             credit_cost:
-                getValue(
-                    "creditCost"
-                ),
+                creditCost,
 
             discount_percent:
-                getValue(
-                    "discountPercent"
-                ),
+                discountPercent,
 
             credit_final:
-                getValue(
-                    "creditFinal"
-                ),
+                creditFinal,
 
             min_duration:
-                minDuration,
+                toNumber(
+                    data.min_duration ??
+                    data.minDuration,
+                    0
+                ),
 
             max_duration:
-                maxDuration,
+                toNumber(
+                    data.max_duration ??
+                    data.maxDuration,
+                    0
+                ),
 
             supported_ratios:
-                uniqueArray(
-                    legacyRatios
+                normalizeArray(
+                    data.supported_ratios ??
+                    data.supportedRatios
                 ),
 
             supported_resolutions:
-                uniqueArray(
-                    legacyResolutions
+                normalizeArray(
+                    data.supported_resolutions ??
+                    data.supportedResolutions
                 ),
 
             status:
-                getValue(
-                    "modelStatus"
-                ) ||
-                "active"
+                normalizeStatus(
+                    data.status
+                )
 
         };
 
@@ -829,414 +582,733 @@
 
     /* =====================================================
        VALIDATION
-    ===================================================== */
+       ===================================================== */
 
-    function validate(
-        data
+    function validateModelData(
+        data,
+        options = {}
     ) {
+
+        const errors = [];
+
+        const providers =
+            Array.isArray(
+                options.providers
+            )
+                ? options.providers
+                : state.providers;
+
+        const models =
+            Array.isArray(
+                options.models
+            )
+                ? options.models
+                : state.models;
+
 
         if (!data) {
 
-            return "Data model tidak tersedia.";
+            return [
+                "Data model tidak ditemukan."
+            ];
 
         }
 
 
-        /*
-         * Provider
-         */
+        /* Provider */
 
-        if (!data.provider_id) {
+        if (
+            !normalizeId(
+                data.provider_id
+            )
+        ) {
 
-            return "Provider wajib dipilih.";
-
-        }
-
-
-        /*
-         * Model wajib berasal dari KIE.
-         */
-
-        if (!data.model_id) {
-
-            return "Model ID wajib dipilih dari katalog KIE.";
-
-        }
-
-
-        if (!data.model_name) {
-
-            return "Model Name dari konfigurasi KIE tidak tersedia.";
-
-        }
-
-
-        /*
-         * Pastikan model benar-benar ditemukan
-         * dalam catalog KIE.
-         */
-
-        const kieModel =
-            getCurrentKieModel();
-
-        if (!kieModel) {
-
-            return (
-                "Model KIE tidak ditemukan. Pilih Model ID dari daftar yang tersedia."
+            errors.push(
+                "Provider wajib dipilih."
             );
 
-        }
+        } else {
 
+            const provider =
+                findProvider(
+                    providers,
+                    data.provider_id
+                );
 
-        /*
-         * Credit
-         */
+            if (!provider) {
 
-        if (
-            data.credit_cost !==
-                "" &&
-            !Number.isFinite(
-                Number(
-                    data.credit_cost
-                )
-            )
-        ) {
+                errors.push(
+                    "Provider yang dipilih tidak ditemukan."
+                );
 
-            return "Credit normal harus berupa angka.";
+            } else {
 
-        }
+                /*
+                 * Model hanya boleh dibuat untuk
+                 * provider aktif.
+                 */
+                const providerStatus =
+                    normalizeText(
+                        provider.status
+                    ).toLowerCase();
 
+                if (
+                    providerStatus &&
+                    providerStatus !==
+                        "active"
+                ) {
 
-        if (
-            data.credit_cost !==
-                "" &&
-            Number(
-                data.credit_cost
-            ) < 0
-        ) {
+                    errors.push(
+                        "Provider yang dipilih tidak aktif."
+                    );
 
-            return "Credit normal tidak boleh negatif.";
+                }
 
-        }
-
-
-        /*
-         * Discount
-         */
-
-        if (
-            data.discount_percent !==
-                "" &&
-            !Number.isFinite(
-                Number(
-                    data.discount_percent
-                )
-            )
-        ) {
-
-            return "Diskon harus berupa angka.";
+            }
 
         }
 
 
-        if (
-            data.discount_percent !==
-                "" &&
-            (
-                Number(
-                    data.discount_percent
-                ) < 0 ||
-                Number(
-                    data.discount_percent
-                ) > 100
-            )
-        ) {
-
-            return (
-                "Diskon harus antara 0 sampai 100 persen."
-            );
-
-        }
-
-
-        /*
-         * Credit final.
-         */
+        /* Model ID */
 
         if (
-            data.credit_final !==
-                "" &&
-            !Number.isFinite(
-                Number(
-                    data.credit_final
-                )
-            )
+            !data.model_id
         ) {
 
-            return "Credit final harus berupa angka.";
-
-        }
-
-
-        /*
-         * Duration.
-         */
-
-        if (
-            data.min_duration !==
-                "" &&
-            !Number.isFinite(
-                Number(
-                    data.min_duration
-                )
-            )
-        ) {
-
-            return (
-                "Minimum duration harus berupa angka."
+            errors.push(
+                "Model ID wajib diisi."
             );
 
         }
 
 
         if (
-            data.max_duration !==
-                "" &&
-            !Number.isFinite(
-                Number(
-                    data.max_duration
-                )
-            )
+            data.model_id &&
+            data.model_id.length >
+                255
         ) {
 
-            return (
-                "Maximum duration harus berupa angka."
+            errors.push(
+                "Model ID terlalu panjang."
+            );
+
+        }
+
+
+        const duplicate =
+            findDuplicateModel(
+                models,
+                data.model_id
+            );
+
+        if (duplicate) {
+
+            errors.push(
+                "Model ID sudah terdaftar."
+            );
+
+        }
+
+
+        /* Model name */
+
+        if (
+            !data.model_name
+        ) {
+
+            errors.push(
+                "Nama model wajib diisi."
             );
 
         }
 
 
         if (
-            data.min_duration !==
-                "" &&
-            data.max_duration !==
-                "" &&
-            Number(
-                data.min_duration
-            ) >
-            Number(
+            data.model_name &&
+            data.model_name.length >
+                255
+        ) {
+
+            errors.push(
+                "Nama model terlalu panjang."
+            );
+
+        }
+
+
+        /* Credit */
+
+        if (
+            data.credit_cost <
+            0
+        ) {
+
+            errors.push(
+                "Credit cost tidak boleh negatif."
+            );
+
+        }
+
+
+        if (
+            data.discount_percent <
+                0 ||
+            data.discount_percent >
+                100
+        ) {
+
+            errors.push(
+                "Diskon harus berada antara 0 sampai 100 persen."
+            );
+
+        }
+
+
+        /* Duration */
+
+        if (
+            data.min_duration <
+            0
+        ) {
+
+            errors.push(
+                "Durasi minimum tidak boleh negatif."
+            );
+
+        }
+
+
+        if (
+            data.max_duration <
+            0
+        ) {
+
+            errors.push(
+                "Durasi maksimum tidak boleh negatif."
+            );
+
+        }
+
+
+        if (
+            data.max_duration > 0 &&
+            data.min_duration > 0 &&
+            data.min_duration >
                 data.max_duration
-            )
         ) {
 
-            return (
-                "Minimum duration tidak boleh lebih besar dari maximum duration."
+            errors.push(
+                "Durasi minimum tidak boleh lebih besar dari durasi maksimum."
             );
 
         }
 
 
-        /*
-         * Status.
-         */
-
-        const status =
-            String(
-                data.status ||
-                "active"
-            )
-                .trim()
-                .toLowerCase();
-
+        /* Ratio */
 
         if (
-            ![
-                "active",
-                "inactive",
-                "maintenance"
-            ].includes(
-                status
+            !Array.isArray(
+                data.supported_ratios
             )
         ) {
 
-            return "Status model tidak valid.";
+            errors.push(
+                "Rasio harus berupa array."
+            );
+
+        } else {
+
+            const invalidRatios =
+                data.supported_ratios
+                    .filter(
+                        ratio =>
+                            !VALID_RATIOS.includes(
+                                ratio
+                            )
+                    );
+
+            if (
+                invalidRatios.length
+            ) {
+
+                errors.push(
+                    "Terdapat rasio yang tidak didukung: " +
+                    invalidRatios.join(", ")
+                );
+
+            }
 
         }
 
 
-        /*
-         * Capability tidak boleh dibuat
-         * apabila KIE tidak menyediakan konfigurasi.
-         *
-         * Kita tidak memaksa ratio/duration/resolution
-         * harus ada karena beberapa model memang dapat
-         * memiliki parameter tertentu saja.
-         */
+        /* Resolution */
 
-        const kieConfig =
-            getCurrentKieConfig();
+        if (
+            !Array.isArray(
+                data.supported_resolutions
+            )
+        ) {
 
-        if (!kieConfig) {
+            errors.push(
+                "Resolusi harus berupa array."
+            );
 
-            return (
-                "Konfigurasi KIE belum tersedia. Model tidak dapat disimpan."
+        } else {
+
+            const invalidResolutions =
+                data.supported_resolutions
+                    .filter(
+                        resolution =>
+                            !VALID_RESOLUTIONS.includes(
+                                resolution
+                            )
+                    );
+
+            if (
+                invalidResolutions.length
+            ) {
+
+                errors.push(
+                    "Terdapat resolusi yang tidak didukung: " +
+                    invalidResolutions.join(", ")
+                );
+
+            }
+
+        }
+
+
+        /* Status */
+
+        if (
+            !VALID_STATUS.includes(
+                data.status
+            )
+        ) {
+
+            errors.push(
+                "Status model tidak valid."
             );
 
         }
 
 
-        return null;
+        return errors;
 
     }
 
 
     /* =====================================================
-       ACCESS TOKEN
-    ===================================================== */
+       COLLECT FORM
+       ===================================================== */
 
-    async function getAccessToken() {
-
-        const supabase =
-            window.GENZ_SUPABASE ||
-            window.supabaseClient ||
-            null;
-
-
-        if (!supabase) {
-
-            throw new Error(
-                "Supabase client belum tersedia."
-            );
-
-        }
-
-
-        if (
-            !supabase.auth ||
-            typeof supabase.auth.getSession !==
-                "function"
-        ) {
-
-            throw new Error(
-                "Supabase authentication belum tersedia."
-            );
-
-        }
-
-
-        const result =
-            await supabase.auth.getSession();
-
-
-        const session =
-            result?.data?.session ||
-            null;
-
-
-        if (
-            !session ||
-            !session.access_token
-        ) {
-
-            throw new Error(
-                "Session login tidak ditemukan. Silakan login kembali."
-            );
-
-        }
-
-
-        return session.access_token;
-
-    }
-
-
-    /* =====================================================
-       BUILD PAYLOAD
-       -----------------------------------------------------
-       Hanya field yang diterima oleh /api/admin-models.
-
-       Model identity berasal dari KIE.
-       Capability berasal dari KIE.
-
-       kieUnitPrice sengaja TIDAK dikirim ke POST karena
-       endpoint CREATE saat ini tidak membuat record pricing.
-    ===================================================== */
-
-    function buildPayload(
-        data
+    function collectFormData(
+        root
     ) {
 
-        if (!data) {
+        const container =
+            typeof root ===
+                "string"
+                ? document.querySelector(
+                    root
+                )
+                : root;
+
+
+        if (!container) {
+
+            throw new Error(
+                "MODEL_FORM_ROOT_MISSING"
+            );
+
+        }
+
+
+        function get(
+            selectors
+        ) {
+
+            const list =
+                Array.isArray(
+                    selectors
+                )
+                    ? selectors
+                    : [selectors];
+
+
+            for (
+                const selector
+                of list
+            ) {
+
+                const element =
+                    container.querySelector(
+                        selector
+                    );
+
+                if (element) {
+                    return element;
+                }
+
+            }
 
             return null;
 
         }
 
 
-        const payload = {
+        function value(
+            selectors
+        ) {
+
+            const element =
+                get(
+                    selectors
+                );
+
+            return element
+                ? element.value
+                : "";
+
+        }
+
+
+        function checkedValues(
+            selectors
+        ) {
+
+            const elements =
+                container.querySelectorAll(
+                    selectors
+                );
+
+            return Array.from(
+                elements
+            )
+                .filter(
+                    element =>
+                        element.checked
+                )
+                .map(
+                    element =>
+                        normalizeText(
+                            element.value ||
+                            element.dataset.value
+                        )
+                )
+                .filter(Boolean);
+
+        }
+
+
+        const providerElement =
+            get([
+                "[name='provider_id']",
+                "#provider_id",
+                "[data-field='provider_id']"
+            ]);
+
+
+        const ratioElements =
+            container.querySelectorAll(
+                [
+                    "input[name='supported_ratios']",
+                    "input[name='supported_ratios[]']",
+                    "input[data-field='supported_ratios']",
+                    "[data-ratio-option]"
+                ].join(",")
+            );
+
+
+        const resolutionElements =
+            container.querySelectorAll(
+                [
+                    "input[name='supported_resolutions']",
+                    "input[name='supported_resolutions[]']",
+                    "input[data-field='supported_resolutions']",
+                    "[data-resolution-option]"
+                ].join(",")
+            );
+
+
+        let ratios =
+            Array.from(
+                ratioElements
+            )
+                .filter(
+                    element =>
+                        element.checked
+                )
+                .map(
+                    element =>
+                        normalizeText(
+                            element.value ||
+                            element.dataset.value
+                        )
+                )
+                .filter(Boolean);
+
+
+        let resolutions =
+            Array.from(
+                resolutionElements
+            )
+                .filter(
+                    element =>
+                        element.checked
+                )
+                .map(
+                    element =>
+                        normalizeText(
+                            element.value ||
+                            element.dataset.value
+                        )
+                )
+                .filter(Boolean);
+
+
+        /*
+         * Jika form menggunakan select multiple.
+         */
+        if (!ratios.length) {
+
+            const ratioSelect =
+                get([
+                    "[name='supported_ratios']",
+                    "#supported_ratios"
+                ]);
+
+            if (
+                ratioSelect &&
+                ratioSelect.multiple
+            ) {
+
+                ratios =
+                    Array.from(
+                        ratioSelect.selectedOptions
+                    )
+                        .map(
+                            option =>
+                                normalizeText(
+                                    option.value
+                                )
+                        )
+                        .filter(Boolean);
+
+            }
+
+        }
+
+
+        if (!resolutions.length) {
+
+            const resolutionSelect =
+                get([
+                    "[name='supported_resolutions']",
+                    "#supported_resolutions"
+                ]);
+
+            if (
+                resolutionSelect &&
+                resolutionSelect.multiple
+            ) {
+
+                resolutions =
+                    Array.from(
+                        resolutionSelect.selectedOptions
+                    )
+                        .map(
+                            option =>
+                                normalizeText(
+                                    option.value
+                                )
+                        )
+                        .filter(Boolean);
+
+            }
+
+        }
+
+
+        return {
 
             provider_id:
-                data.provider_id,
+                providerElement
+                    ? normalizeId(
+                        providerElement.value
+                    )
+                    : normalizeId(
+                        value([
+                            "[name='provider_id']",
+                            "#provider_id"
+                        ])
+                    ),
 
             model_id:
-                data.model_id,
+                normalizeText(
+                    value([
+                        "[name='model_id']",
+                        "#model_id"
+                    ])
+                ),
 
             model_name:
-                data.model_name,
+                normalizeText(
+                    value([
+                        "[name='model_name']",
+                        "#model_name"
+                    ])
+                ),
 
             description:
-                data.description,
+                normalizeText(
+                    value([
+                        "[name='description']",
+                        "#description"
+                    ])
+                ),
 
             credit_cost:
-                data.credit_cost === ""
-                    ? null
-                    : Number(
-                        data.credit_cost
-                    ),
+                toNumber(
+                    value([
+                        "[name='credit_cost']",
+                        "#credit_cost"
+                    ]),
+                    0
+                ),
 
             discount_percent:
-                data.discount_percent === ""
-                    ? 0
-                    : Number(
-                        data.discount_percent
-                    ),
+                toNumber(
+                    value([
+                        "[name='discount_percent']",
+                        "#discount_percent"
+                    ]),
+                    0
+                ),
 
             credit_final:
-                data.credit_final === ""
-                    ? null
-                    : Number(
-                        data.credit_final
-                    ),
+                value([
+                    "[name='credit_final']",
+                    "#credit_final"
+                ]) !== ""
+                    ? toNumber(
+                        value([
+                            "[name='credit_final']",
+                            "#credit_final"
+                        ]),
+                        0
+                    )
+                    : undefined,
 
             min_duration:
-                data.min_duration === ""
-                    ? null
-                    : Number(
-                        data.min_duration
-                    ),
+                toNumber(
+                    value([
+                        "[name='min_duration']",
+                        "#min_duration"
+                    ]),
+                    0
+                ),
 
             max_duration:
-                data.max_duration === ""
-                    ? null
-                    : Number(
-                        data.max_duration
-                    ),
+                toNumber(
+                    value([
+                        "[name='max_duration']",
+                        "#max_duration"
+                    ]),
+                    0
+                ),
 
             supported_ratios:
-                uniqueArray(
-                    data.supported_ratios
-                ),
+                ratios,
 
             supported_resolutions:
-                uniqueArray(
-                    data.supported_resolutions
-                ),
+                resolutions,
 
             status:
-                data.status ||
-                "active"
+                normalizeStatus(
+                    value([
+                        "[name='status']",
+                        "#status"
+                    ])
+                )
 
         };
+
+    }
+
+
+    /* =====================================================
+       PREPARE SUBMISSION
+       ===================================================== */
+
+    function prepareCreateData(
+        data,
+        options = {}
+    ) {
+
+        const normalized =
+            normalizeModelData(
+                data,
+                options
+            );
+
+
+        const errors =
+            validateModelData(
+                normalized,
+                options
+            );
+
+
+        if (errors.length) {
+
+            const error =
+                new Error(
+                    "MODEL_CREATE_VALIDATION_FAILED"
+                );
+
+            error.code =
+                "MODEL_CREATE_VALIDATION_FAILED";
+
+            error.errors =
+                errors;
+
+            error.data =
+                normalized;
+
+            throw error;
+
+        }
+
+
+        /*
+         * Hanya kirim field yang memang ada
+         * pada tabel models.
+         *
+         * Jangan kirim:
+         * workflow_id
+         * variant_id
+         * provider code sebagai provider_id
+         * kie_*
+         */
+        const payload = {};
+
+        for (
+            const field
+            of MODEL_FIELDS
+        ) {
+
+            if (
+                normalized[field] !==
+                undefined
+            ) {
+
+                payload[field] =
+                    normalized[field];
+
+            }
+
+        }
 
 
         return payload;
@@ -1245,104 +1317,68 @@
 
 
     /* =====================================================
-       API CREATE
-    ===================================================== */
+       SUBMIT
+       -----------------------------------------------------
+       Database operation diserahkan kepada callback.
+       ===================================================== */
 
-    async function create(
-        data
+    async function submit(
+        data,
+        options = {}
     ) {
 
-        const token =
-            await getAccessToken();
-
-
         const payload =
-            buildPayload(
-                data
+            prepareCreateData(
+                data,
+                options
             );
 
 
-        if (!payload) {
+        const handler =
+            typeof options.insert ===
+                "function"
+                ? options.insert
+                : typeof options.onSubmit ===
+                    "function"
+                    ? options.onSubmit
+                    : typeof options.submit ===
+                        "function"
+                        ? options.submit
+                        : null;
 
-            throw new Error(
-                "Payload model tidak tersedia."
-            );
+
+        if (!handler) {
+
+            const error =
+                new Error(
+                    "MODEL_CREATE_SUBMIT_HANDLER_MISSING"
+                );
+
+            error.code =
+                "MODEL_CREATE_SUBMIT_HANDLER_MISSING";
+
+            error.data =
+                payload;
+
+            throw error;
 
         }
 
 
-        const response =
-            await fetch(
-                "/api/admin-models",
+        /*
+         * Panggil callback database tepat satu kali.
+         *
+         * Tidak ada fallback ke coordinator.
+         * Tidak ada recursive submit.
+         */
+        const result =
+            await handler(
+                payload,
                 {
-
-                    method: "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        "Accept":
-                            "application/json",
-
-                        "Authorization":
-                            `Bearer ${token}`
-
-                    },
-
-                    body:
-                        JSON.stringify(
-                            payload
-                        )
-
+                    mode:
+                        "create"
                 }
             );
-
-
-        const responseText =
-            await response.text();
-
-
-        let result =
-            null;
-
-
-        if (responseText) {
-
-            try {
-
-                result =
-                    JSON.parse(
-                        responseText
-                    );
-
-            } catch {
-
-                result = {
-
-                    message:
-                        responseText
-
-                };
-
-            }
-
-        }
-
-
-        if (!response.ok) {
-
-            throw new Error(
-
-                result?.error ||
-                result?.message ||
-                result?.details ||
-                `Gagal menambahkan model (${response.status}).`
-
-            );
-
-        }
 
 
         return result;
@@ -1351,499 +1387,381 @@
 
 
     /* =====================================================
-       CREATE FROM FORM
-    ===================================================== */
+       OPEN CREATE
+       ===================================================== */
 
-    async function createFromForm(
-        event = null
+    function openCreate(
+        root,
+        options = {}
     ) {
 
-        /*
-         * Jangan biarkan submit event kembali
-         * menjalankan handler lain.
-         *
-         * stopImmediatePropagation sengaja hanya
-         * dilakukan pada event submit yang masuk ke
-         * module ini.
-         */
+        state.active =
+            true;
 
-        if (event) {
+        state.root =
+            typeof root ===
+                "string"
+                ? document.querySelector(
+                    root
+                )
+                : root || null;
 
-            try {
+        state.providers =
+            Array.isArray(
+                options.providers
+            )
+                ? options.providers
+                : [];
 
-                event.preventDefault();
+        state.models =
+            Array.isArray(
+                options.models
+            )
+                ? options.models
+                : [];
 
-            } catch {
-                /* ignore */
-            }
+
+        return {
+
+            active:
+                true,
+
+            root:
+                state.root,
+
+            providers:
+                state.providers,
+
+            models:
+                state.models
+
+        };
+
+    }
+
+
+    /* =====================================================
+       CLOSE CREATE
+       ===================================================== */
+
+    function closeCreate() {
+
+        state = {
+            active: false,
+            root: null,
+            providers: [],
+            models: []
+        };
+
+    }
+
+
+    /* =====================================================
+       IS ACTIVE
+       ===================================================== */
+
+    function isActive() {
+
+        return state.active === true;
+
+    }
+
+
+    /* =====================================================
+       SET DATA
+       ===================================================== */
+
+    function setData(
+        options = {}
+    ) {
+
+        if (
+            Array.isArray(
+                options.providers
+            )
+        ) {
+
+            state.providers =
+                options.providers;
 
         }
 
 
-        if (creating) {
+        if (
+            Array.isArray(
+                options.models
+            )
+        ) {
 
-            return null;
+            state.models =
+                options.models;
 
         }
 
 
-        /*
-         * Sinkronisasi KIE capability terlebih dahulu.
-         *
-         * Tidak memicu event change.
-         */
+        if (
+            options.root
+        ) {
 
-        syncKieCapabilities();
+            state.root =
+                typeof options.root ===
+                    "string"
+                    ? document.querySelector(
+                        options.root
+                    )
+                    : options.root;
+
+        }
 
 
-        /*
-         * Ambil data SETELAH capability sync.
-         */
+        return getState();
+
+    }
+
+
+    /* =====================================================
+       GET STATE
+       ===================================================== */
+
+    function getState() {
+
+        return {
+
+            active:
+                state.active,
+
+            root:
+                state.root,
+
+            providers:
+                state.providers,
+
+            models:
+                state.models
+
+        };
+
+    }
+
+
+    /* =====================================================
+       CREATE FROM FORM
+       ===================================================== */
+
+    async function createFromForm(
+        event = null,
+        options = {}
+    ) {
+
+        if (
+            event &&
+            typeof event.preventDefault ===
+                "function"
+        ) {
+
+            event.preventDefault();
+
+        }
+
+
+        const root =
+            options.root ||
+            state.root;
+
+
+        if (!root) {
+
+            throw new Error(
+                "MODEL_FORM_ROOT_MISSING"
+            );
+
+        }
+
 
         const data =
-            collectFormData();
-
-
-        const validationError =
-            validate(
-                data
+            collectFormData(
+                root
             );
 
 
-        if (validationError) {
-
-            notify(
-                validationError,
-                "error"
-            );
-
-            return null;
-
-        }
-
-
-        creating = true;
-
-
-        const button =
-            firstElement(
-                [
-                    "saveModelBtn",
-                    "saveModelButton",
-                    "saveModel"
-                ]
-            );
-
-
-        const originalText =
-            button?.textContent ||
-            "Tambah Model";
-
-
-        if (button) {
-
-            button.disabled =
-                true;
-
-            button.textContent =
-                "Menambahkan...";
-
-        }
-
-
-        try {
-
-            /*
-             * Pricing calculation tetap menjadi
-             * owner terpisah.
-             *
-             * Jangan dispatch input/change secara manual.
-             */
-
-            const calculation =
-                window.GENZModelPriceCalculation;
-
-
-            if (
-                calculation &&
-                typeof calculation.syncForm ===
-                    "function"
-            ) {
-
-                try {
-
-                    calculation.syncForm();
-
-                } catch (error) {
-
-                    console.warn(
-                        "[GEN-Z.AI] Credit calculation sync warning:",
-                        error
-                    );
-
-                }
-
-            }
-
-
-            /*
-             * Ambil ulang form setelah calculation.
-             *
-             * Tidak memanggil setModel().
-             * Tidak memanggil provider change.
-             * Tidak memanggil model change.
-             *
-             * Dengan demikian jalur CREATE tidak
-             * membuat event recursion.
-             */
-
-            syncKieCapabilities();
-
-
-            const finalData =
-                collectFormData();
-
-
-            const finalValidation =
-                validate(
-                    finalData
-                );
-
-
-            if (finalValidation) {
-
-                throw new Error(
-                    finalValidation
-                );
-
-            }
-
-
-            /*
-             * Pastikan Model ID yang dikirim sama
-             * dengan Model ID dari katalog KIE.
-             */
-
-            const kieModel =
-                getCurrentKieModel();
-
-
-            if (!kieModel) {
-
-                throw new Error(
-                    "Model KIE tidak ditemukan. Pilih Model ID dari katalog KIE."
-                );
-
-            }
-
-
-            const kieModelId =
-                String(
-                    kieModel.model_id ??
-                    ""
-                ).trim();
-
-
-            if (
-                !kieModelId ||
-                kieModelId !==
-                    finalData.model_id
-            ) {
-
-                throw new Error(
-                    "Model ID tidak sinkron dengan katalog KIE. Silakan pilih ulang Model ID."
-                );
-
-            }
-
-
-            /*
-             * Model Name harus berasal dari KIE.
-             */
-
-            const kieModelName =
-                String(
-                    kieModel.model_name ??
-                    ""
-                ).trim();
-
-
-            if (
-                !kieModelName ||
-                kieModelName !==
-                    finalData.model_name
-            ) {
-
-                throw new Error(
-                    "Model Name tidak sinkron dengan data KIE. Silakan pilih ulang Model ID."
-                );
-
-            }
-
-
-            /*
-             * Config KIE wajib tersedia.
-             */
-
-            const kieConfig =
-                getCurrentKieConfig();
-
-
-            if (!kieConfig) {
-
-                throw new Error(
-                    "Konfigurasi KIE tidak tersedia. Model tidak disimpan."
-                );
-
-            }
-
-
-            /*
-             * Simpan.
-             */
-
-            const result =
-                await create(
-                    finalData
-                );
-
-
-            notify(
-                "Model berhasil ditambahkan.",
-                "success"
-            );
-
-
-            /*
-             * Bersihkan cache Data module.
-             */
-
-            const dataModule =
-                window.GENZModelsData;
-
-
-            if (
-                dataModule &&
-                typeof dataModule.clearCache ===
-                    "function"
-            ) {
-
-                try {
-
-                    dataModule.clearCache();
-
-                } catch (error) {
-
-                    console.warn(
-                        "[GEN-Z.AI] Gagal membersihkan cache model:",
-                        error
-                    );
-
-                }
-
-            }
-
-
-            /*
-             * Beritahu coordinator/UI.
-             */
-
-            try {
-
-                document.dispatchEvent(
-
-                    new CustomEvent(
-                        "genz-model-created",
-                        {
-                            detail: {
-
-                                result,
-
-                                model:
-                                    finalData,
-
-                                kieModel: {
-                                    ...kieModel
-                                },
-
-                                kieConfig
-
-                            }
-                        }
+        return submit(
+            data,
+            {
+                ...options,
+
+                providers:
+                    Array.isArray(
+                        options.providers
                     )
+                        ? options.providers
+                        : state.providers,
 
-                );
-
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] Event model-created warning:",
-                    error
-                );
-
+                models:
+                    Array.isArray(
+                        options.models
+                    )
+                        ? options.models
+                        : state.models
             }
-
-
-            /*
-             * Tutup modal melalui event owner.
-             */
-
-            const formEvents =
-                window.GENZModelFormEvents;
-
-
-            if (
-                formEvents &&
-                typeof formEvents.closeModal ===
-                    "function"
-            ) {
-
-                try {
-
-                    formEvents.closeModal();
-
-                } catch (error) {
-
-                    console.warn(
-                        "[GEN-Z.AI] Close modal warning:",
-                        error
-                    );
-
-                }
-
-            } else {
-
-                /*
-                 * Fallback minimal apabila event module
-                 * belum termuat.
-                 */
-
-                const modal =
-                    getElement(
-                        "modelModal"
-                    );
-
-
-                if (modal) {
-
-                    modal.classList.remove(
-                        "open",
-                        "show"
-                    );
-
-                    modal.classList.add(
-                        "hidden"
-                    );
-
-                    modal.setAttribute(
-                        "aria-hidden",
-                        "true"
-                    );
-
-                    modal.style.display =
-                        "none";
-
-                    document.body.classList.remove(
-                        "modal-open"
-                    );
-
-                }
-
-            }
-
-
-            return result;
-
-        } catch (error) {
-
-            console.error(
-                "[GEN-Z.AI] Create model error:",
-                error
-            );
-
-
-            notify(
-                error?.message ||
-                "Gagal menambahkan model.",
-                "error"
-            );
-
-
-            throw error;
-
-        } finally {
-
-            creating =
-                false;
-
-
-            if (button) {
-
-                button.disabled =
-                    false;
-
-                button.textContent =
-                    originalText;
-
-            }
-
-        }
-
-    }
-
-
-    /* =====================================================
-       RESET
-    ===================================================== */
-
-    function reset() {
-
-        creating =
-            false;
-
-    }
-
-
-    /* =====================================================
-       STATE
-    ===================================================== */
-
-    function isCreating() {
-
-        return Boolean(
-            creating
         );
 
     }
 
 
     /* =====================================================
+       DIRECT CREATE
+       ===================================================== */
+
+    async function create(
+        data,
+        options = {}
+    ) {
+
+        return submit(
+            data,
+            {
+                ...options,
+
+                providers:
+                    Array.isArray(
+                        options.providers
+                    )
+                        ? options.providers
+                        : state.providers,
+
+                models:
+                    Array.isArray(
+                        options.models
+                    )
+                        ? options.models
+                        : state.models
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       FORM VALIDATION
+       ===================================================== */
+
+    function validateForm(
+        root,
+        options = {}
+    ) {
+
+        const data =
+            collectFormData(
+                root
+            );
+
+
+        const normalized =
+            normalizeModelData(
+                data,
+                {
+                    ...options,
+
+                    providers:
+                        Array.isArray(
+                            options.providers
+                        )
+                            ? options.providers
+                            : state.providers
+                }
+            );
+
+
+        return {
+
+            data:
+                normalized,
+
+            errors:
+                validateModelData(
+                    normalized,
+                    {
+                        ...options,
+
+                        providers:
+                            Array.isArray(
+                                options.providers
+                            )
+                                ? options.providers
+                                : state.providers,
+
+                        models:
+                            Array.isArray(
+                                options.models
+                            )
+                                ? options.models
+                                : state.models
+                    }
+                )
+
+        };
+
+    }
+
+
+    /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
+
+    const ModelFormCreate = {
+
+        MODEL_FIELDS,
+
+        VALID_STATUS,
+
+        VALID_RATIOS,
+
+        VALID_RESOLUTIONS,
+
+        normalizeModelData,
+
+        validateModelData,
+
+        collectFormData,
+
+        prepareCreateData,
+
+        calculateCreditFinal,
+
+        findProvider,
+
+        findDuplicateModel,
+
+        openCreate,
+
+        closeCreate,
+
+        isActive,
+
+        setData,
+
+        getState,
+
+        validateForm,
+
+        create,
+
+        createFromForm,
+
+        submit
+
+    };
+
+
+    /* =====================================================
+       GLOBAL COMPATIBILITY
+       ===================================================== */
 
     window.GENZModelFormCreate =
-        Object.freeze({
-
-            collectFormData,
-
-            validate,
-
-            buildPayload,
-
-            getAccessToken,
-
-            create,
-
-            createFromForm,
-
-            reset,
-
-            isCreating
-
-        });
+        ModelFormCreate;
 
 
-    console.log(
+    console.info(
         "[GEN-Z.AI] GENZModelFormCreate loaded."
     );
 
