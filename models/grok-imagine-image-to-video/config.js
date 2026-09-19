@@ -1,10 +1,3 @@
-```javascript
-// =========================================================
-// GEN-Z.AI
-// GROK IMAGINE IMAGE TO VIDEO
-// MODEL CONFIGURATION
-// =========================================================
-
 const config = {
     id: "grok-imagine/image-to-video",
 
@@ -23,4 +16,3 @@ const config = {
 };
 
 export default config;
-```
