@@ -20,7 +20,7 @@
    - Form CRUD
    - Table rendering
    - Table CRUD
-   - Price calculation
+   - Price calculation logic
    - API / Supabase
 
    CATATAN ARSITEKTUR:
@@ -34,6 +34,16 @@
    - GENZModelPageSearch
        = pencarian utama pada halaman Models
          (#searchInput + #statusFilter)
+
+   PRICE:
+   - GENZModelFormLayout
+       = layout/form UI termasuk converter harga KIE
+
+   - GENZModelPriceCalculation
+       = kalkulasi Credit / Credit Final
+
+   INIT:
+   models-init.js hanya menjalankan lifecycle module.
    ========================================================= */
 
 (function () {
@@ -621,6 +631,127 @@
 
 
     /* =====================================================
+       FORM LAYOUT
+       -----------------------------------------------------
+       Owner:
+       GENZModelFormLayout
+
+       Termasuk:
+       - layout form
+       - binding converter harga KIE
+       - preview USD
+       - preview kurs
+       - preview IDR
+
+       Init hanya menjalankan lifecycle module.
+       ===================================================== */
+
+    async function initializeFormLayout() {
+
+        const layout =
+            window.GENZModelFormLayout;
+
+
+        if (
+            !layout
+        ) {
+
+            throw new Error(
+                "GENZModelFormLayout belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof layout.initialize !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelFormLayout.initialize() tidak tersedia."
+            );
+
+        }
+
+
+        const result =
+            await layout.initialize();
+
+
+        console.info(
+            "[GEN-Z.AI] Model form layout initialized."
+        );
+
+
+        return (
+            result !== false
+        );
+
+    }
+
+
+    /* =====================================================
+       PRICE CALCULATION
+       -----------------------------------------------------
+       Owner:
+       GENZModelPriceCalculation
+
+       Tanggung jawab module:
+       - Credit
+       - Diskon
+       - Credit Final
+       - event kalkulasi harga
+
+       Init hanya menjalankan bind lifecycle.
+       ===================================================== */
+
+    function initializePriceCalculation() {
+
+        const calculation =
+            window.GENZModelPriceCalculation;
+
+
+        if (
+            !calculation
+        ) {
+
+            throw new Error(
+                "GENZModelPriceCalculation belum tersedia."
+            );
+
+        }
+
+
+        if (
+            typeof calculation.bind !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelPriceCalculation.bind() tidak tersedia."
+            );
+
+        }
+
+
+        const result =
+            calculation.bind();
+
+
+        console.info(
+            "[GEN-Z.AI] Model price calculation initialized."
+        );
+
+
+        return (
+            result !== false
+        );
+
+    }
+
+
+    /* =====================================================
        SEARCH
        -----------------------------------------------------
        Search Model ID pada Form Tambah/Edit.
@@ -1159,7 +1290,31 @@
 
 
                     /* =========================================
-                       5. SEARCH CATALOG SYNC
+                       5. FORM LAYOUT
+                       -----------------------------------------
+                       WAJIB dijalankan agar:
+                       - converter USD -> IDR aktif
+                       - preview harga KIE aktif
+                       - event harga KIE terpasang
+                    ========================================= */
+
+                    await initializeFormLayout();
+
+
+                    /* =========================================
+                       6. PRICE CALCULATION
+                       -----------------------------------------
+                       WAJIB bind agar:
+                       - Credit aktif
+                       - Diskon aktif
+                       - Credit Final aktif
+                    ========================================= */
+
+                    initializePriceCalculation();
+
+
+                    /* =========================================
+                       7. SEARCH CATALOG SYNC
                        -----------------------------------------
                        Untuk Search Model ID pada Form.
                     ========================================= */
@@ -1168,42 +1323,42 @@
 
 
                     /* =========================================
-                       6. SEARCH MODEL ID FORM
+                       8. SEARCH MODEL ID FORM
                     ========================================= */
 
                     initializeSearch();
 
 
                     /* =========================================
-                       7. SEARCH EVENTS
+                       9. SEARCH EVENTS
                     ========================================= */
 
                     initializeSearchEvents();
 
 
                     /* =========================================
-                       8. FORM EVENTS
+                       10. FORM EVENTS
                     ========================================= */
 
                     initializeFormEvents();
 
 
                     /* =========================================
-                       9. TABLE
+                       11. TABLE
                     ========================================= */
 
                     syncTableWithModels();
 
 
                     /* =========================================
-                       10. TABLE EVENTS
+                       12. TABLE EVENTS
                     ========================================= */
 
                     initializeTableEvents();
 
 
                     /* =========================================
-                       11. PAGE SEARCH
+                       13. PAGE SEARCH
                        -----------------------------------------
                        Search utama halaman Models.
 
@@ -1218,7 +1373,7 @@
 
 
                     /* =========================================
-                       12. PROVIDER STATE
+                       14. PROVIDER STATE
                        -----------------------------------------
                        Hanya membaca state.
                        Tidak render dropdown ulang.
@@ -1235,7 +1390,7 @@
 
 
                     /* =========================================
-                       13. READY
+                       15. READY
                     ========================================= */
 
                     initialized =
@@ -1492,6 +1647,72 @@
         }
 
 
+        /* ================================================
+           FORM LAYOUT
+           -----------------------------------------------
+           Reset event/layout converter jika module
+           menyediakan lifecycle unbind/destroy.
+        ================================================ */
+
+        const formLayout =
+            window.GENZModelFormLayout;
+
+
+        if (
+            formLayout &&
+            typeof formLayout.unbind ===
+            "function"
+        ) {
+
+            try {
+
+                formLayout.unbind();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Form layout reset gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        /* ================================================
+           PRICE CALCULATION
+           -----------------------------------------------
+           Lepas binding kalkulasi jika module
+           menyediakan unbind().
+        ================================================ */
+
+        const priceCalculation =
+            window.GENZModelPriceCalculation;
+
+
+        if (
+            priceCalculation &&
+            typeof priceCalculation.unbind ===
+            "function"
+        ) {
+
+            try {
+
+                priceCalculation.unbind();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Price calculation reset gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+
         /*
          * Provider tidak dihancurkan.
          *
@@ -1547,6 +1768,10 @@
             initializeProviderDropdown,
 
             initializeUI,
+
+            initializeFormLayout,
+
+            initializePriceCalculation,
 
             initializeSearch,
 
