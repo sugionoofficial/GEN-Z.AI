@@ -412,6 +412,7 @@ const inFilter = (
 // ========================================
 //
 // Status database dibuat fleksibel.
+//
 // Nilai berikut dianggap aktif:
 //
 // active
@@ -420,8 +421,16 @@ const inFilter = (
 // live
 // ready
 //
-// Status kosong juga dipertahankan sebagai
-// kompatibilitas dengan data lama.
+// Status kosong juga dianggap aktif
+// untuk kompatibilitas data lama.
+//
+// Filter dilakukan di JavaScript,
+// bukan menggunakan:
+//
+//   status=eq.ACTIVE
+//
+// agar perbedaan kapitalisasi tidak
+// menghilangkan konfigurasi KIE.
 // ========================================
 
 const normalizeStatus = (
@@ -469,25 +478,10 @@ const isActiveStatus = (
 // LOAD MODELS
 // ========================================
 //
-// PENTING:
+// Tidak menggunakan filter status di URL.
 //
-// Jangan menggunakan:
-//
-//   &status=eq.ACTIVE
-//
-// pada query PostgREST.
-//
-// Status di database bisa berupa:
-//   ACTIVE
-//   active
-//   Active
-//   enabled
-//   published
-//
-// Filter dilakukan setelah data diterima
-// supaya Admin Models tidak kehilangan
-// seluruh katalog hanya karena perbedaan
-// kapitalisasi status.
+// Data diambil terlebih dahulu kemudian
+// status difilter menggunakan isActiveStatus().
 // ========================================
 
 const loadModels = async (
@@ -553,10 +547,6 @@ const loadModels = async (
             : [];
 
 
-    // ====================================
-    // FILTER STATUS DI JAVASCRIPT
-    // ====================================
-
     return rows.filter(
         model =>
             isActiveStatus(
@@ -569,6 +559,26 @@ const loadModels = async (
 
 // ========================================
 // LOAD WORKFLOWS
+// ========================================
+//
+// PENTING:
+//
+// Jangan menggunakan:
+//
+//   &status=eq.ACTIVE
+//
+// karena status database bisa berupa:
+//
+//   ACTIVE
+//   active
+//   Active
+//   enabled
+//   published
+//   live
+//   ready
+//
+// Filter status dilakukan setelah data
+// diterima dari Supabase.
 // ========================================
 
 const loadWorkflows = async (
@@ -593,7 +603,6 @@ const loadWorkflows = async (
         "id,model_id,workflow_key," +
         "workflow_type,operation,variant," +
         "status,metadata,created_at,updated_at" +
-        "&status=eq.ACTIVE" +
         "&order=workflow_key.asc";
 
 
@@ -650,11 +659,24 @@ const loadWorkflows = async (
     }
 
 
-    return Array.isArray(
-        result.data
-    )
-        ? result.data
-        : [];
+    const rows =
+        Array.isArray(
+            result.data
+        )
+            ? result.data
+            : [];
+
+
+    // ====================================
+    // FILTER STATUS DI JAVASCRIPT
+    // ====================================
+
+    return rows.filter(
+        workflow =>
+            isActiveStatus(
+                workflow?.status
+            )
+    );
 
 };
 
@@ -662,12 +684,30 @@ const loadWorkflows = async (
 // ========================================
 // LOAD VARIANTS
 // ========================================
+//
+// Sama seperti workflow:
+//
+// Tidak menggunakan:
+//
+//   &status=eq.ACTIVE
+//
+// Filter status dilakukan di JavaScript.
+// ========================================
 
 const loadVariants = async (
     config,
     workflowIds,
     variantId
 ) => {
+
+    if (
+        !Array.isArray(workflowIds)
+    ) {
+
+        return [];
+
+    }
+
 
     if (
         !workflowIds.length &&
@@ -685,7 +725,6 @@ const loadVariants = async (
         "id,workflow_id,variant_key,label," +
         "status,conditions,metadata," +
         "created_at,updated_at" +
-        "&status=eq.ACTIVE" +
         "&order=variant_key.asc";
 
 
@@ -697,6 +736,7 @@ const loadVariants = async (
 
         const workflowFilter =
             inFilter(workflowIds);
+
 
         if (workflowFilter) {
 
@@ -755,17 +795,50 @@ const loadVariants = async (
     }
 
 
-    return Array.isArray(
-        result.data
-    )
-        ? result.data
-        : [];
+    const rows =
+        Array.isArray(
+            result.data
+        )
+            ? result.data
+            : [];
+
+
+    // ====================================
+    // FILTER STATUS DI JAVASCRIPT
+    // ====================================
+
+    return rows.filter(
+        variant =>
+            isActiveStatus(
+                variant?.status
+            )
+    );
 
 };
 
 
 // ========================================
 // LOAD PARAMETERS
+// ========================================
+//
+// Parameter tidak difilter berdasarkan
+// status karena tabel kie_parameters
+// tidak menggunakan filter status di query.
+//
+// Semua parameter yang berhubungan dengan
+// workflow aktif akan dikembalikan.
+//
+// Termasuk:
+//
+// ratio
+// duration
+// resolution
+// aspect ratio
+// prompt
+// image
+// dan parameter KIE lainnya.
+//
+// enum_values tetap berasal dari Supabase.
 // ========================================
 
 const loadParameters = async (
@@ -775,6 +848,7 @@ const loadParameters = async (
 ) => {
 
     if (
+        !Array.isArray(workflowIds) ||
         !workflowIds.length
     ) {
 
@@ -846,13 +920,28 @@ const loadParameters = async (
             : [];
 
 
+    // ====================================
+    // FILTER VARIANT
+    // ====================================
+    //
+    // Parameter variant_id NULL berlaku
+    // untuk semua variant.
+    //
+    // Parameter variant_id tertentu hanya
+    // berlaku untuk variant tersebut.
+    // ====================================
+
     if (
+        Array.isArray(variantIds) &&
         variantIds.length
     ) {
 
         const variantSet =
             new Set(
-                variantIds
+                variantIds.map(
+                    value =>
+                        String(value)
+                )
             );
 
         parameters =
@@ -860,7 +949,9 @@ const loadParameters = async (
                 parameter => {
 
                     if (
-                        parameter.variant_id === null
+                        parameter.variant_id === null ||
+                        parameter.variant_id === undefined ||
+                        parameter.variant_id === ""
                     ) {
 
                         return true;
@@ -868,7 +959,9 @@ const loadParameters = async (
                     }
 
                     return variantSet.has(
-                        parameter.variant_id
+                        String(
+                            parameter.variant_id
+                        )
                     );
 
                 }
@@ -893,6 +986,7 @@ const loadConstraints = async (
 ) => {
 
     if (
+        !Array.isArray(workflowIds) ||
         !workflowIds.length
     ) {
 
@@ -965,12 +1059,16 @@ const loadConstraints = async (
 
 
     if (
+        Array.isArray(variantIds) &&
         variantIds.length
     ) {
 
         const variantSet =
             new Set(
-                variantIds
+                variantIds.map(
+                    value =>
+                        String(value)
+                )
             );
 
         constraints =
@@ -978,7 +1076,9 @@ const loadConstraints = async (
                 constraint => {
 
                     if (
-                        constraint.variant_id === null
+                        constraint.variant_id === null ||
+                        constraint.variant_id === undefined ||
+                        constraint.variant_id === ""
                     ) {
 
                         return true;
@@ -986,7 +1086,9 @@ const loadConstraints = async (
                     }
 
                     return variantSet.has(
-                        constraint.variant_id
+                        String(
+                            constraint.variant_id
+                        )
                     );
 
                 }
@@ -1011,6 +1113,7 @@ const loadDependencies = async (
 ) => {
 
     if (
+        !Array.isArray(workflowIds) ||
         !workflowIds.length
     ) {
 
@@ -1081,12 +1184,16 @@ const loadDependencies = async (
 
 
     if (
+        Array.isArray(variantIds) &&
         variantIds.length
     ) {
 
         const variantSet =
             new Set(
-                variantIds
+                variantIds.map(
+                    value =>
+                        String(value)
+                )
             );
 
         dependencies =
@@ -1094,7 +1201,9 @@ const loadDependencies = async (
                 dependency => {
 
                     if (
-                        dependency.variant_id === null
+                        dependency.variant_id === null ||
+                        dependency.variant_id === undefined ||
+                        dependency.variant_id === ""
                     ) {
 
                         return true;
@@ -1102,7 +1211,9 @@ const loadDependencies = async (
                     }
 
                     return variantSet.has(
-                        dependency.variant_id
+                        String(
+                            dependency.variant_id
+                        )
                     );
 
                 }
@@ -1134,9 +1245,11 @@ const loadDependencies = async (
 // variant_id tertentu
 //   -> pricing hanya untuk variant tersebut
 //
-// Filter workflow dan variant dilakukan
-// di JavaScript setelah data pricing
-// diambil dari Supabase.
+// Status pricing juga difilter di JavaScript
+// agar kapitalisasi status tidak membuat
+// harga hilang.
+//
+// pricing_status tetap harus VERIFIED.
 // ========================================
 
 const loadPricing = async (
@@ -1146,6 +1259,7 @@ const loadPricing = async (
 ) => {
 
     if (
+        !Array.isArray(workflowIds) ||
         !workflowIds.length
     ) {
 
@@ -1164,7 +1278,6 @@ const loadPricing = async (
         "source_reference,pricing_status," +
         "effective_at,expires_at,status," +
         "created_at,updated_at" +
-        "&status=eq.ACTIVE" +
         "&pricing_status=eq.VERIFIED" +
         "&order=sku_key.asc";
 
@@ -1210,15 +1323,36 @@ const loadPricing = async (
             : [];
 
 
+    // ====================================
+    // FILTER STATUS PRICING
+    // ====================================
+
+    pricing =
+        pricing.filter(
+            item =>
+                isActiveStatus(
+                    item?.status
+                )
+        );
+
+
     const workflowSet =
         new Set(
-            workflowIds
+            workflowIds.map(
+                value =>
+                    String(value)
+            )
         );
 
 
     const variantSet =
         new Set(
-            variantIds
+            Array.isArray(variantIds)
+                ? variantIds.map(
+                    value =>
+                        String(value)
+                )
+                : []
         );
 
 
@@ -1232,8 +1366,12 @@ const loadPricing = async (
 
                 const workflowMatches =
                     item.workflow_id === null ||
+                    item.workflow_id === undefined ||
+                    item.workflow_id === "" ||
                     workflowSet.has(
-                        item.workflow_id
+                        String(
+                            item.workflow_id
+                        )
                     );
 
 
@@ -1250,8 +1388,12 @@ const loadPricing = async (
 
                 const variantMatches =
                     item.variant_id === null ||
+                    item.variant_id === undefined ||
+                    item.variant_id === "" ||
                     variantSet.has(
-                        item.variant_id
+                        String(
+                            item.variant_id
+                        )
                     );
 
 
@@ -1514,10 +1656,12 @@ export default async function handler(
         // =================================
 
         const modelUuids =
-            models.map(
-                model =>
-                    model.id
-            );
+            models
+                .map(
+                    model =>
+                        model.id
+                )
+                .filter(Boolean);
 
 
         const workflows =
@@ -1561,10 +1705,12 @@ export default async function handler(
         // =================================
 
         const workflowIds =
-            workflows.map(
-                workflow =>
-                    workflow.id
-            );
+            workflows
+                .map(
+                    workflow =>
+                        workflow.id
+                )
+                .filter(Boolean);
 
 
         const variants =
@@ -1608,10 +1754,12 @@ export default async function handler(
         // =================================
 
         const variantIds =
-            variants.map(
-                variant =>
-                    variant.id
-            );
+            variants
+                .map(
+                    variant =>
+                        variant.id
+                )
+                .filter(Boolean);
 
 
         // =================================
