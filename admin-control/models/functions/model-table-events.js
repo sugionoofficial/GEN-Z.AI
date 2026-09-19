@@ -8,7 +8,7 @@
    Tanggung jawab:
    - Event tombol Edit
    - Event tombol Delete
-   - Delegasi ke Form / Coordinator / Delete module
+   - Delegasi ke Form Coordinator / Delete module
    - Sinkronisasi hasil operasi dengan Table
 
    Tidak bertanggung jawab:
@@ -19,6 +19,7 @@
    - Search
    - Price calculation
    - Form layout
+   - Legacy GENZModelsForm
    ========================================================= */
 
 (function () {
@@ -86,20 +87,20 @@
     }
 
 
-    function getFormModule() {
+    function getCoordinator() {
 
         return (
-            window.GENZModelsForm ||
+            window.GENZModelFormCoordinator ||
             null
         );
 
     }
 
 
-    function getCoordinator() {
+    function getEditModule() {
 
         return (
-            window.GENZModelFormCoordinator ||
+            window.GENZModelFormEdit ||
             null
         );
 
@@ -326,7 +327,16 @@
 
     /* =====================================================
        OPEN EDIT
-    ===================================================== */
+       -----------------------------------------------------
+       Alur:
+       Table Events
+            ↓
+       Form Coordinator
+            ↓
+       Form Edit
+       
+       Tidak lagi menggunakan GENZModelsForm legacy.
+       ===================================================== */
 
     async function editModel(
         modelId
@@ -356,6 +366,11 @@
             getCoordinator();
 
 
+        /*
+         * Coordinator adalah jalur utama.
+         *
+         * populateEdit() menyiapkan data form.
+         */
         if (
             coordinator &&
             typeof coordinator.populateEdit ===
@@ -370,9 +385,92 @@
                     );
 
 
-                return (
-                    result !== false
+                if (
+                    result === false
+                ) {
+
+                    return false;
+
+                }
+
+                /*
+                 * Coordinator versi sekarang menangani
+                 * population form, sedangkan open() berada
+                 * pada module FormEdit.
+                 *
+                 * Ini menjaga pemisahan fungsi tanpa
+                 * menghidupkan kembali GENZModelsForm.
+                 */
+                const editModule =
+                    getEditModule();
+
+
+                if (
+                    editModule &&
+                    typeof editModule.open ===
+                        "function"
+                ) {
+
+                    /*
+                     * open() juga dapat melakukan populate.
+                     * Namun pemanggilan ini diperlukan untuk
+                     * memastikan modal benar-benar terbuka
+                     * pada implementasi FormEdit saat ini.
+                     */
+                    const opened =
+                        await editModule.open(
+                            model
+                        );
+
+
+                    return (
+                        opened !== false
+                    );
+
+                }
+
+
+                /*
+                 * Jika FormEdit tidak menyediakan open(),
+                 * gunakan modal DOM sebagai fallback minimal.
+                 */
+                const modal =
+                    document.getElementById(
+                        "modelModal"
+                    );
+
+
+                if (
+                    modal
+                ) {
+
+                    modal.style.display =
+                        "flex";
+
+                    modal.classList.add(
+                        "show"
+                    );
+
+                    modal.setAttribute(
+                        "aria-hidden",
+                        "false"
+                    );
+
+                    document.body.classList.add(
+                        "modal-open"
+                    );
+
+                    return true;
+
+                }
+
+
+                notify(
+                    "Modal edit model belum tersedia.",
+                    "error"
                 );
+
+                return false;
 
             } catch (error) {
 
@@ -394,60 +492,22 @@
         }
 
 
-        const form =
-            getFormModule();
-
-
-        if (
-            form &&
-            typeof form.openEditForm ===
-                "function"
-        ) {
-
-            try {
-
-                const result =
-                    form.openEditForm(
-                        model
-                    );
-
-
-                if (
-                    result &&
-                    typeof result.then ===
-                        "function"
-                ) {
-
-                    await result;
-
-                }
-
-
-                return true;
-
-            } catch (error) {
-
-                console.error(
-                    "[model-table-events] form edit error:",
-                    error
-                );
-
-                notify(
-                    error?.message ||
-                    "Gagal membuka form edit model.",
-                    "error"
-                );
-
-                return false;
-
-            }
-
-        }
-
-
+        /*
+         * Tidak ada lagi fallback ke GENZModelsForm.
+         *
+         * Jika coordinator belum termuat, lebih baik
+         * melaporkan dependency error daripada diam-diam
+         * menghidupkan modul legacy dan menciptakan dua
+         * owner untuk Form.
+         */
         notify(
-            "Module form edit belum tersedia.",
+            "Form Coordinator belum tersedia.",
             "error"
+        );
+
+
+        console.error(
+            "[model-table-events] GENZModelFormCoordinator tidak tersedia."
         );
 
 
@@ -633,7 +693,7 @@
 
     /* =====================================================
        REMOVE FROM TABLE
-       ===================================================== */
+    ===================================================== */
 
     function removeFromTable(
         modelId
@@ -674,7 +734,7 @@
 
     /* =====================================================
        CLICK HANDLER
-       ===================================================== */
+    ===================================================== */
 
     function handleClick(
         event
@@ -771,7 +831,6 @@
                 modelId
             );
 
-
             return;
 
         }
@@ -792,7 +851,7 @@
 
     /* =====================================================
        BIND
-       ===================================================== */
+    ===================================================== */
 
     function bind() {
 
@@ -878,7 +937,7 @@
 
     /* =====================================================
        UNBIND
-       ===================================================== */
+    ===================================================== */
 
     function unbind() {
 
@@ -924,7 +983,7 @@
 
     /* =====================================================
        REBIND
-       ===================================================== */
+    ===================================================== */
 
     function rebind() {
 
@@ -937,7 +996,7 @@
 
     /* =====================================================
        INITIALIZE
-       ===================================================== */
+    ===================================================== */
 
     function initialize() {
 
@@ -948,7 +1007,7 @@
 
     /* =====================================================
        PUBLIC API
-       ===================================================== */
+    ===================================================== */
 
     window.GENZModelTableEvents =
         Object.freeze({
