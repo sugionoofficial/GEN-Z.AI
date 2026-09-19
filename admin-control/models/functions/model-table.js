@@ -8,12 +8,12 @@
    Tanggung jawab:
    - Menyimpan catalog model
    - Normalisasi model
-   - Render premium model card
+   - Render model card
    - Render status
    - Render duration
    - Render ratio
    - Render resolution
-   - Render pricing
+   - Render pricing berbasis CREDIT
    - Menyediakan lookup model
    - Menyediakan data-action="edit"
 
@@ -21,7 +21,8 @@
    models/<model-folder>/
 
    MODEL ID:
-   - Tidak pernah diedit dari UI
+   - Berasal dari config.js
+   - Tidak dapat diedit dari UI
    - Tetap menjadi referensi Generate
 
    Tidak bertanggung jawab:
@@ -30,8 +31,8 @@
    - Create model
    - Delete model
    - Update database
-   - Pricing calculation database
    - Provider loading
+   - Pricing database
    ========================================================= */
 
 (function () {
@@ -120,9 +121,7 @@
             }
 
 
-            /*
-             * JSON array
-             */
+            /* JSON array */
 
             if (
                 text.startsWith("[") &&
@@ -131,37 +130,31 @@
 
                 try {
 
-                    const parsed =
-                        JSON.parse(text);
+                    const parsed = JSON.parse(text);
 
-                    if (
-                        Array.isArray(parsed)
-                    ) {
+                    if (Array.isArray(parsed)) {
 
-                        return normalizeArray(
-                            parsed
-                        );
+                        return normalizeArray(parsed);
 
                     }
 
-                } catch {
+                } catch (_) {
+
                     /* fallback */
+
                 }
 
             }
 
 
-            /*
-             * PostgreSQL array
-             */
+            /* PostgreSQL array */
 
             if (
                 text.startsWith("{") &&
                 text.endsWith("}")
             ) {
 
-                const inner =
-                    text.slice(1, -1);
+                const inner = text.slice(1, -1);
 
                 return [
                     ...new Set(
@@ -184,9 +177,7 @@
             }
 
 
-            /*
-             * Comma separated
-             */
+            /* Comma separated */
 
             return [
                 ...new Set(
@@ -202,9 +193,7 @@
         }
 
 
-        if (
-            typeof value === "object"
-        ) {
+        if (typeof value === "object") {
 
             try {
 
@@ -220,7 +209,7 @@
                     )
                 ];
 
-            } catch {
+            } catch (_) {
 
                 return [];
 
@@ -254,9 +243,7 @@
         }
 
 
-        const number =
-            Number(value);
-
+        const number = Number(value);
 
         return Number.isFinite(number)
             ? number
@@ -288,12 +275,22 @@
                 : null;
 
 
+        /*
+         * Database UUID hanya metadata tambahan.
+         *
+         * Jangan gunakan sebagai model_id.
+         */
+
         const databaseId =
             String(
-                model.id ??
-                ""
+                model.id ?? ""
             ).trim();
 
+
+        /*
+         * Model ID harus berasal dari
+         * model registry / config.js.
+         */
 
         const modelId =
             String(
@@ -304,19 +301,19 @@
             ).trim();
 
 
-        /*
-         * Model ID wajib berasal dari
-         * model folder / registry.
-         *
-         * Jangan membuat ID baru.
-         */
-
         if (!modelId) {
 
             return null;
 
         }
 
+
+        /*
+         * Display name.
+         *
+         * Jika admin memiliki override name,
+         * gunakan override tersebut.
+         */
 
         const modelName =
             String(
@@ -327,6 +324,10 @@
             ).trim();
 
 
+        /*
+         * Provider ID database.
+         */
+
         const providerId =
             String(
                 model.provider_id ??
@@ -334,6 +335,10 @@
                 ""
             ).trim();
 
+
+        /*
+         * Provider code / registry provider.
+         */
 
         const providerCode =
             String(
@@ -355,8 +360,7 @@
 
         if (
             !providerName &&
-            typeof model.provider ===
-                "string"
+            typeof model.provider === "string"
         ) {
 
             providerName =
@@ -384,25 +388,52 @@
             ).trim();
 
 
+        /* =====================================================
+           PARAMETERS
+        ===================================================== */
+
+        const parameters =
+            model.parameters &&
+            typeof model.parameters === "object"
+                ? model.parameters
+                : null;
+
+
+        /*
+         * Aspect ratio.
+         *
+         * Prioritas:
+         * 1. model data
+         * 2. parameters.js
+         */
+
         const supportedRatios =
             normalizeArray(
                 model.supported_ratios ??
                 model.supportedRatios ??
                 model.ratios ??
-                model.parameters?.aspect_ratio?.enum ??
-                model.parameters?.aspect_ratio?.values
+                parameters?.aspect_ratio?.enum ??
+                parameters?.aspect_ratio?.values
             );
 
+
+        /*
+         * Resolution.
+         */
 
         const supportedResolutions =
             normalizeArray(
                 model.supported_resolutions ??
                 model.supportedResolutions ??
                 model.resolutions ??
-                model.parameters?.resolution?.enum ??
-                model.parameters?.resolution?.values
+                parameters?.resolution?.enum ??
+                parameters?.resolution?.values
             );
 
+
+        /*
+         * Duration.
+         */
 
         let minDuration =
             model.min_duration ??
@@ -418,24 +449,18 @@
             "";
 
 
-        /*
-         * Support parameters.js object.
-         */
-
         const durationParameter =
-            model.parameters?.duration;
+            parameters?.duration;
 
 
         if (
             durationParameter &&
-            typeof durationParameter ===
-                "object"
+            typeof durationParameter === "object"
         ) {
 
             if (
                 minDuration === "" &&
-                durationParameter.min !==
-                    undefined
+                durationParameter.min !== undefined
             ) {
 
                 minDuration =
@@ -446,8 +471,7 @@
 
             if (
                 maxDuration === "" &&
-                durationParameter.max !==
-                    undefined
+                durationParameter.max !== undefined
             ) {
 
                 maxDuration =
@@ -459,14 +483,69 @@
 
 
         /*
-         * Credit fields.
+         * Jika duration menggunakan enum,
+         * tampilkan nilai terendah dan tertinggi.
+         */
+
+        if (
+            durationParameter &&
+            Array.isArray(durationParameter.enum)
+        ) {
+
+            const durationValues =
+                durationParameter.enum
+                    .map(function (value) {
+                        return Number(value);
+                    })
+                    .filter(function (value) {
+                        return Number.isFinite(value);
+                    });
+
+
+            if (
+                minDuration === "" &&
+                durationValues.length
+            ) {
+
+                minDuration =
+                    Math.min(
+                        ...durationValues
+                    );
+
+            }
+
+
+            if (
+                maxDuration === "" &&
+                durationValues.length
+            ) {
+
+                maxDuration =
+                    Math.max(
+                        ...durationValues
+                    );
+
+            }
+
+        }
+
+
+        /* =====================================================
+           CREDIT PRICING
+        ===================================================== */
+
+        /*
+         * PENTING:
          *
-         * Catatan:
-         * Sistem pricing lama masih memakai
-         * credit_cost / credit_final.
+         * credit_cost adalah CREDIT.
          *
-         * Jangan mengubah maknanya menjadi
-         * USD di renderer ini.
+         * Jangan menganggap field ini sebagai:
+         * - USD
+         * - price_usd
+         * - Rupiah
+         *
+         * Karena schema models saat ini tidak
+         * memiliki field USD yang terverifikasi.
          */
 
         const creditCost =
@@ -492,10 +571,8 @@
 
 
         if (
-            model.credit_final !==
-                undefined &&
-            model.credit_final !==
-                null &&
+            model.credit_final !== undefined &&
+            model.credit_final !== null &&
             model.credit_final !== ""
         ) {
 
@@ -519,8 +596,19 @@
 
 
         /*
-         * Status.
+         * Jangan biarkan nilai negatif.
          */
+
+        creditFinal =
+            Math.max(
+                0,
+                creditFinal
+            );
+
+
+        /* =====================================================
+           STATUS
+        ===================================================== */
 
         const status =
             String(
@@ -529,6 +617,20 @@
             )
                 .trim()
                 .toLowerCase();
+
+
+        /* =====================================================
+           TYPE
+        ===================================================== */
+
+        const type =
+            String(
+                model.type ??
+                model.model_type ??
+                model.modelType ??
+                model.original?.type ??
+                "image-to-video"
+            ).trim();
 
 
         return {
@@ -556,6 +658,8 @@
 
             provider_name:
                 providerName,
+
+            type,
 
             credit_cost:
                 creditCost,
@@ -589,9 +693,7 @@
                 model.folder ||
                 null,
 
-            parameters:
-                model.parameters ||
-                null,
+            parameters,
 
             original:
                 model
@@ -641,9 +743,7 @@
             Number(value);
 
 
-        if (
-            !Number.isFinite(number)
-        ) {
+        if (!Number.isFinite(number)) {
 
             return "0";
 
@@ -670,9 +770,7 @@
             Number(value);
 
 
-        if (
-            !Number.isFinite(number)
-        ) {
+        if (!Number.isFinite(number)) {
 
             return "-";
 
@@ -686,6 +784,31 @@
                 maximumFractionDigits
             }
         ).format(number);
+
+    }
+
+
+    /* =========================================================
+       FORMAT CREDIT
+    ========================================================= */
+
+    function formatCredit(value) {
+
+        const number =
+            Number(value);
+
+
+        if (!Number.isFinite(number)) {
+
+            return "0 Credit";
+
+        }
+
+
+        return (
+            formatNumber(number) +
+            " Credit"
+        );
 
     }
 
@@ -711,9 +834,7 @@
 
 
         return (
-            formatDecimal(
-                discount
-            ) +
+            formatDecimal(discount) +
             "%"
         );
 
@@ -727,12 +848,15 @@
     function formatDuration(model) {
 
         if (!model) {
+
             return "-";
+
         }
 
 
         const min =
             model.min_duration;
+
 
         const max =
             model.max_duration;
@@ -885,8 +1009,7 @@
 
         const value =
             String(
-                status ||
-                "active"
+                status || "active"
             )
                 .trim()
                 .toLowerCase();
@@ -940,45 +1063,63 @@
 
 
     /* =========================================================
-       PRICE
+       RENDER PRICE
     ========================================================= */
 
     function renderPrice(model) {
 
         const original =
             Number(
-                model.credit_cost
+                model?.credit_cost
             );
 
 
         const finalPrice =
             Number(
-                model.credit_final
+                model?.credit_final
             );
 
 
         const discount =
             Number(
-                model.discount_percent
+                model?.discount_percent
             );
+
+
+        const hasOriginal =
+            Number.isFinite(original);
+
+
+        const hasFinal =
+            Number.isFinite(finalPrice);
+
+
+        const hasDiscount =
+            Number.isFinite(discount) &&
+            discount > 0;
 
 
         return (
 
-            '<div class="price-box">' +
+            '<div class="model-pricing">' +
+
+                '<div class="pricing-header">' +
+                    "Pricing" +
+                "</div>" +
+
 
                 '<div class="price-row">' +
 
-                    "<span>Harga dasar</span>" +
+                    "<span>Credit</span>" +
 
                     "<strong>" +
-
                         escapeHtml(
-                            formatNumber(
-                                original
+                            formatCredit(
+                                hasOriginal
+                                    ? original
+                                    : 0
                             )
                         ) +
-
                     "</strong>" +
 
                 "</div>" +
@@ -988,12 +1129,12 @@
 
                     "<span>Diskon</span>" +
 
-                    "<strong class=\"discount-value\">" +
+                    '<strong class="discount-value">' +
 
                         escapeHtml(
-                            formatDiscount(
-                                discount
-                            )
+                            hasDiscount
+                                ? formatDiscount(discount)
+                                : "Tidak ada"
                         ) +
 
                     "</strong>" +
@@ -1003,13 +1144,15 @@
 
                 '<div class="price-row price-final">' +
 
-                    "<span>Harga final</span>" +
+                    "<span>Credit final</span>" +
 
                     "<strong>" +
 
                         escapeHtml(
-                            formatNumber(
-                                finalPrice
+                            formatCredit(
+                                hasFinal
+                                    ? finalPrice
+                                    : 0
                             )
                         ) +
 
@@ -1041,18 +1184,17 @@
         }
 
 
+        /*
+         * Model ID adalah satu-satunya identifier
+         * yang digunakan untuk navigasi Edit.
+         */
+
         const identifier =
             normalized.model_id;
 
 
         const status =
             normalized.status;
-
-
-        const type =
-            normalized.original?.type ||
-            normalized.original?.model_type ||
-            "image-to-video";
 
 
         return (
@@ -1148,7 +1290,9 @@
                         "</div>" +
 
                         '<div class="meta-value">' +
-                            escapeHtml(type) +
+                            escapeHtml(
+                                normalized.type
+                            ) +
                         "</div>" +
 
                     "</div>" +
@@ -1384,18 +1528,22 @@
         }
 
 
-        if (
-            Array.isArray(list)
-        ) {
+        /*
+         * Hanya set state jika list benar-benar
+         * diberikan oleh caller.
+         *
+         * Ini penting agar render() tidak
+         * melakukan recursive state update.
+         */
+
+        if (Array.isArray(list)) {
 
             setModels(list);
 
         }
 
 
-        if (
-            !models.length
-        ) {
+        if (!models.length) {
 
             return renderEmpty();
 
@@ -1421,10 +1569,12 @@
 
 
         /*
-         * Event delegation.
+         * Event delegation ditangani oleh
+         * model-table-events.js.
          *
-         * model-table-events.js menangani
-         * data-action="edit".
+         * Jangan membuat listener Edit di sini.
+         * Jika dibuat dua kali, event dapat
+         * dieksekusi lebih dari satu kali.
          */
 
         try {
@@ -1435,8 +1585,7 @@
 
             if (
                 events &&
-                typeof events.rebind ===
-                    "function"
+                typeof events.rebind === "function"
             ) {
 
                 events.rebind(
@@ -1445,21 +1594,10 @@
 
             } else if (
                 events &&
-                typeof events.bind ===
-                    "function"
+                typeof events.bind === "function"
             ) {
 
                 events.bind(
-                    container
-                );
-
-            } else if (
-                events &&
-                typeof events.initialize ===
-                    "function"
-            ) {
-
-                events.initialize(
                     container
                 );
 
@@ -1487,7 +1625,9 @@
     function findById(id) {
 
         const value =
-            String(id ?? "").trim();
+            String(
+                id ?? ""
+            ).trim();
 
 
         if (!value) {
@@ -1502,8 +1642,7 @@
 
                 return (
                     String(
-                        model.id ??
-                        ""
+                        model.id ?? ""
                     ).trim() === value
                 );
 
@@ -1540,8 +1679,7 @@
 
                 return (
                     String(
-                        model.model_id ??
-                        ""
+                        model.model_id ?? ""
                     ).trim() === value
                 );
 
@@ -1574,8 +1712,8 @@
 
 
         return (
-            findById(value) ||
             findByModelId(value) ||
+            findById(value) ||
             null
         );
 
@@ -1618,20 +1756,18 @@
 
                 const providerMatches =
                     String(
-                        item.provider_id ??
-                        ""
+                        item.provider_id ?? ""
                     ).trim() === provider ||
+
                     String(
-                        item.provider_code ??
-                        ""
+                        item.provider_code ?? ""
                     ).trim() === provider;
 
 
                 return (
                     providerMatches &&
                     String(
-                        item.model_id ??
-                        ""
+                        item.model_id ?? ""
                     ).trim() === model
                 );
 
@@ -1644,6 +1780,9 @@
 
     /* =========================================================
        UPDATE LOCAL MODEL
+       ---------------------------------------------------------
+       Hanya memperbarui state lokal.
+       Tidak melakukan database update.
        ========================================================= */
 
     function updateModel(
@@ -1684,84 +1823,44 @@
 
         if (index === -1) {
 
-            models.push(
-                normalized
-            );
-
-        } else {
-
-            models[index] =
-                normalized;
-
-        }
-
-
-        render();
-
-        return true;
-
-    }
-
-
-    /* =========================================================
-       REMOVE LOCAL MODEL
-       ---------------------------------------------------------
-       Tidak menghapus Supabase.
-       Hanya kompatibilitas internal.
-       ========================================================= */
-
-    function removeById(
-        identifier
-    ) {
-
-        const value =
-            String(
-                identifier ?? ""
-            ).trim();
-
-
-        if (!value) {
+            /*
+             * Jangan menambahkan model baru
+             * melalui UI.
+             *
+             * Model hanya boleh berasal dari
+             * repository registry.
+             */
 
             return false;
 
         }
 
 
-        const previous =
-            models.length;
-
-
-        models =
-            models.filter(
-                function (model) {
-
-                    return (
-                        String(
-                            model.id ??
-                            ""
-                        ).trim() !== value &&
-                        String(
-                            model.model_id ??
-                            ""
-                        ).trim() !== value
-                    );
-
-                }
-            );
-
+        /*
+         * Model ID tetap berasal dari
+         * model registry yang sudah ada.
+         *
+         * Update hanya mengganti metadata
+         * lokal dari model yang sama.
+         */
 
         if (
-            models.length !== previous
+            normalized.model_id !==
+            models[index].model_id
         ) {
 
-            render();
-
-            return true;
+            return false;
 
         }
 
 
-        return false;
+        models[index] =
+            normalized;
+
+
+        render();
+
+        return true;
 
     }
 
@@ -1806,7 +1905,9 @@
                     cached.length
                 ) {
 
-                    setModels(cached);
+                    setModels(
+                        cached
+                    );
 
                     render();
 
@@ -1863,8 +1964,6 @@
 
             updateModel,
 
-            removeById,
-
             clear,
 
             getTableBody:
@@ -1894,6 +1993,8 @@
             formatNumber,
 
             formatDecimal,
+
+            formatCredit,
 
             formatDiscount,
 
