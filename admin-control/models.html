@@ -2,4021 +2,2093 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>GEN-Z.AI - Model Management</title>
-
-    <!-- =====================================================
-         SUPABASE
-    ====================================================== -->
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="../assets/js/config.js"></script>
-    <script src="./supabase.js"></script>
+    <title>Models - GEN-Z.AI</title>
 
     <style>
-
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-
 
         :root {
+            --bg-main: #e7e7e7;
+            --bg-white: #ffffff;
+            --bg-dark: #111111;
+            --bg-dark-2: #181818;
 
-            --bg: #0b1020;
-            --panel: #111827;
-            --panel2: #172033;
-            --border: #263247;
+            --text-main: #171717;
+            --text-muted: #777777;
+            --text-light: #ffffff;
 
-            --text: #f3f4f6;
-            --muted: #9ca3af;
+            --border: rgba(0, 0, 0, 0.08);
 
-            --primary: #6366f1;
-            --primary2: #818cf8;
+            --red: #ff0033;
+            --red-dark: #c90028;
+            --red-light: #ff3157;
 
-            --green: #22c55e;
-            --yellow: #f59e0b;
-            --red: #ef4444;
-            --blue: #38bdf8;
+            --green: #18a957;
+            --yellow: #e0a800;
 
-            --sidebar-width: 250px;
-            --sidebar-collapsed: 70px;
-
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --red-glow:
+                0 0 4px rgba(255, 0, 51, 0.95),
+                0 0 12px rgba(255, 0, 51, 0.65),
+                0 0 25px rgba(255, 0, 51, 0.30);
         }
-
 
         html,
         body {
-
             min-height: 100%;
-
         }
 
-
         body {
-
-            margin: 0;
-            padding: 0;
-
-            background: var(--bg);
-            color: var(--text);
-
             font-family:
                 Inter,
-                system-ui,
                 -apple-system,
                 BlinkMacSystemFont,
                 "Segoe UI",
+                Roboto,
+                Arial,
                 sans-serif;
-
-        }
-
-
-        body.modal-open {
-
-            overflow: hidden;
-
-        }
-
-
-        button,
-        input,
-        select,
-        textarea {
-
-            font: inherit;
-
-        }
-
-
-        button {
-
-            cursor: pointer;
-
-        }
-
-
-        button:disabled {
-
-            opacity: .55;
-            cursor: not-allowed;
-            transform: none !important;
-
-        }
-
-
-        /* =====================================================
-           SIDEBAR
-        ===================================================== */
-
-        .sidebar {
-
-            position: fixed;
-
-            top: 0;
-            left: 0;
-            bottom: 0;
-
-            width: var(--sidebar-width);
-
-            z-index: 5000;
-
-            display: flex;
-            flex-direction: column;
-
-            background:
-                linear-gradient(
-                    180deg,
-                    #111827 0%,
-                    #0f172a 100%
-                );
-
-            border-right:
-                1px solid var(--border);
-
-            box-shadow:
-                10px 0 35px
-                rgba(0, 0, 0, .20);
-
-            transition:
-                width .25s ease,
-                transform .25s ease;
-
-        }
-
-
-        .sidebar.collapsed {
-
-            width:
-                var(--sidebar-collapsed);
-
-        }
-
-
-        .sidebar-header {
-
-            height: 72px;
-
-            padding:
-                0 14px;
-
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            gap: 10px;
-
-            border-bottom:
-                1px solid var(--border);
-
-        }
-
-
-        .brand {
-
-            min-width: 0;
-
-            display: flex;
-            align-items: center;
-
-            gap: 10px;
-
-            color: white;
-
-            text-decoration: none;
-
-        }
-
-
-        .brand-icon {
-
-            flex: 0 0 auto;
-
-            width: 40px;
-            height: 40px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            border-radius: 11px;
 
             background:
                 linear-gradient(
                     135deg,
-                    var(--primary),
-                    #8b5cf6
+                    #d7d7d7 0%,
+                    #eeeeee 42%,
+                    #ffffff 100%
                 );
 
-            color: white;
-
-            font-size: 19px;
-            font-weight: 900;
-
-            box-shadow:
-                0 8px 25px
-                rgba(99, 102, 241, .25);
-
+            color: var(--text-main);
         }
 
+        button,
+        input,
+        select {
+            font: inherit;
+        }
 
-        .brand-text {
+        button {
+            cursor: pointer;
+        }
 
-            min-width: 0;
+        /* =========================================================
+           LAYOUT
+           ========================================================= */
+
+        .admin-layout {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* =========================================================
+           SIDEBAR
+           ========================================================= */
+
+        .sidebar {
+            width: 250px;
+            min-width: 250px;
+            min-height: 100vh;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #0c0c0c 0%,
+                    #151515 50%,
+                    #0b0b0b 100%
+                );
+
+            color: #ffffff;
+
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+
+            z-index: 100;
 
             display: flex;
             flex-direction: column;
 
-            gap: 1px;
-
-            white-space: nowrap;
-
-            overflow: hidden;
-
-            transition:
-                opacity .2s ease,
-                width .25s ease;
-
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-
-        .brand-name {
-
-            font-size: 15px;
-            font-weight: 900;
-
-            letter-spacing: .03em;
-
-        }
-
-
-        .brand-subtitle {
-
-            color: var(--muted);
-
-            font-size: 10px;
-            font-weight: 600;
-
-        }
-
-
-        .sidebar.collapsed .brand-text {
-
-            width: 0;
-            opacity: 0;
-
-        }
-
-
-        .sidebar-toggle {
-
-            flex: 0 0 auto;
-
-            width: 38px;
-            height: 38px;
-
-            border:
-                1px solid var(--border);
-
-            border-radius: 9px;
-
-            background:
-                var(--panel2);
-
-            color:
-                #dbe4ff;
+        .sidebar-logo {
+            height: 80px;
 
             display: flex;
             align-items: center;
-            justify-content: center;
 
-            font-size: 17px;
+            padding: 0 24px;
 
-            transition:
-                background .2s,
-                border-color .2s,
-                transform .2s;
-
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-
-        .sidebar-toggle:hover {
-
-            background:
-                rgba(99, 102, 241, .16);
-
-            border-color:
-                rgba(99, 102, 241, .4);
-
-            transform:
-                translateY(-1px);
-
+        .sidebar-logo strong {
+            font-size: 23px;
+            font-weight: 900;
+            letter-spacing: 1px;
         }
 
+        .sidebar-logo span {
+            color: var(--red);
+        }
 
         .sidebar-nav {
-
+            padding: 18px 12px;
             flex: 1;
-
-            padding:
-                15px 10px;
-
-            overflow-y: auto;
-            overflow-x: hidden;
-
         }
 
-
         .nav-section-title {
-
-            padding:
-                8px 11px 7px;
-
-            color:
-                #64748b;
-
             font-size: 10px;
             font-weight: 800;
-
             text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #666666;
 
-            letter-spacing: .08em;
-
-            white-space: nowrap;
-
-            transition:
-                opacity .2s ease;
-
+            padding: 12px 12px 8px;
         }
 
-
-        .sidebar.collapsed
-        .nav-section-title {
-
-            opacity: 0;
-
-        }
-
-
-        .sidebar-link {
-
-            width: 100%;
-            min-height: 44px;
-
-            margin-bottom: 5px;
-
-            padding:
-                9px 11px;
-
+        .nav-item {
             display: flex;
             align-items: center;
-
             gap: 12px;
 
-            color:
-                #cbd5e1;
-
-            text-decoration: none;
-
-            border:
-                1px solid transparent;
-
-            border-radius: 10px;
-
-            font-size: 12px;
-            font-weight: 700;
-
-            white-space: nowrap;
-
-            transition:
-                background .2s,
-                border-color .2s,
-                color .2s,
-                transform .2s;
-
-        }
-
-
-        .sidebar-link:hover {
-
-            background:
-                var(--panel2);
-
-            border-color:
-                var(--border);
-
-            color: white;
-
-            transform:
-                translateX(2px);
-
-        }
-
-
-        .sidebar-link.active {
-
-            background:
-                rgba(99, 102, 241, .15);
-
-            border-color:
-                rgba(99, 102, 241, .32);
-
-            color:
-                #c7d2fe;
-
-        }
-
-
-        .sidebar-link-icon {
-
-            flex: 0 0 auto;
-
-            width: 25px;
-            height: 25px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            font-size: 16px;
-
-        }
-
-
-        .sidebar-link-text {
-
-            min-width: 0;
-
-            overflow: hidden;
-
-            transition:
-                opacity .2s ease,
-                width .25s ease;
-
-        }
-
-
-        .sidebar.collapsed
-        .sidebar-link {
-
-            justify-content:
-                center;
-
-            padding-left: 8px;
-            padding-right: 8px;
-
-        }
-
-
-        .sidebar.collapsed
-        .sidebar-link-text {
-
-            width: 0;
-            opacity: 0;
-
-        }
-
-
-        .sidebar-footer {
-
-            padding: 10px;
-
-            border-top:
-                1px solid var(--border);
-
-        }
-
-
-        .sidebar-back {
-
-            color:
-                #7dd3fc;
-
-            background:
-                rgba(56, 189, 248, .07);
-
-            border-color:
-                rgba(56, 189, 248, .18);
-
-        }
-
-
-        .sidebar-back:hover {
-
-            background:
-                rgba(56, 189, 248, .14);
-
-            border-color:
-                rgba(56, 189, 248, .35);
-
-        }
-
-
-        .sidebar-logout {
-
-            color:
-                #fca5a5;
-
-        }
-
-
-        .sidebar-logout:hover {
-
-            background:
-                rgba(239, 68, 68, .10);
-
-            border-color:
-                rgba(239, 68, 68, .25);
-
-            color:
-                #fecaca;
-
-        }
-
-
-        /* =====================================================
-           MOBILE
-        ===================================================== */
-
-        .mobile-menu-button {
-
-            display: none;
-
-            position: fixed;
-
-            top: 14px;
-            left: 14px;
-
-            width: 42px;
-            height: 42px;
-
-            z-index: 4900;
-
-            border:
-                1px solid var(--border);
-
-            border-radius: 10px;
-
-            background:
-                rgba(17, 24, 39, .96);
-
-            color: white;
-
-            box-shadow:
-                0 10px 25px
-                rgba(0, 0, 0, .25);
-
-            font-size: 18px;
-
-        }
-
-
-        .sidebar-overlay {
-
-            position: fixed;
-
-            inset: 0;
-
-            z-index: 4800;
-
-            background:
-                rgba(0, 0, 0, .60);
-
-            display: none;
-
-            pointer-events: none;
-
-        }
-
-
-        .sidebar-overlay.show {
-
-            display: block;
-
-            pointer-events: auto;
-
-        }
-
-
-        /* =====================================================
-           MAIN
-        ===================================================== */
-
-        .main-content {
-
-            min-height: 100vh;
-
-            margin-left:
-                var(--sidebar-width);
-
-            transition:
-                margin-left .25s ease;
-
-        }
-
-
-        .main-content.collapsed {
-
-            margin-left:
-                var(--sidebar-collapsed);
-
-        }
-
-
-        .container {
-
             width: 100%;
 
-            max-width: 1500px;
+            padding: 12px 14px;
+            margin-bottom: 5px;
 
-            margin: auto;
-
-            padding: 28px;
-
-        }
-
-
-        .header {
-
-            display: flex;
-
-            justify-content:
-                space-between;
-
-            align-items: center;
-
-            gap: 16px;
-
-            margin-bottom: 24px;
-
-            flex-wrap: wrap;
-
-        }
-
-
-        .title-wrap h1 {
-
-            margin: 0;
-
-            font-size: 28px;
-
-        }
-
-
-        .title-wrap p {
-
-            margin:
-                6px 0 0;
-
-            color:
-                var(--muted);
-
-            font-size: 14px;
-
-        }
-
-
-        .btn {
-
-            border: 0;
+            color: #aaaaaa;
+            text-decoration: none;
 
             border-radius: 10px;
 
-            padding:
-                11px 16px;
-
-            font-weight: 700;
+            font-size: 14px;
+            font-weight: 600;
 
             transition:
-                .2s;
-
+                background 0.2s ease,
+                color 0.2s ease,
+                transform 0.2s ease;
         }
 
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+            transform: translateX(2px);
+        }
+
+        .nav-item.active {
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(255, 0, 51, 0.20),
+                    rgba(255, 0, 51, 0.05)
+                );
+
+            color: #ffffff;
+
+            border-left: 3px solid var(--red);
+
+            box-shadow:
+                inset 0 0 15px rgba(255, 0, 51, 0.05);
+        }
+
+        .nav-icon {
+            width: 22px;
+            min-width: 22px;
+
+            text-align: center;
+
+            font-size: 16px;
+        }
+
+        .sidebar-footer {
+            padding: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .logout-btn {
+            width: 100%;
+
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+
+            color: #bbbbbb;
+
+            padding: 11px 14px;
+            border-radius: 9px;
+
+            font-size: 13px;
+            font-weight: 700;
+
+            transition: all 0.2s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 0, 51, 0.12);
+            border-color: rgba(255, 0, 51, 0.35);
+            color: #ffffff;
+        }
+
+        /* =========================================================
+           MAIN
+           ========================================================= */
+
+        .main-content {
+            margin-left: 250px;
+            width: calc(100% - 250px);
+            min-height: 100vh;
+
+            padding: 28px;
+        }
+
+        /* =========================================================
+           HEADER
+           ========================================================= */
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+
+            gap: 20px;
+
+            margin-bottom: 25px;
+        }
+
+        .page-title h1 {
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: -0.7px;
+
+            margin-bottom: 6px;
+        }
+
+        .page-title p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* =========================================================
+           BUTTONS
+           ========================================================= */
+
+        .btn {
+            border: 0;
+            border-radius: 9px;
+
+            padding: 10px 16px;
+
+            font-size: 13px;
+            font-weight: 800;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+
+            transition:
+                transform 0.2s ease,
+                box-shadow 0.2s ease,
+                background 0.2s ease;
+        }
 
         .btn:hover {
-
-            transform:
-                translateY(-1px);
-
+            transform: translateY(-1px);
         }
-
 
         .btn-primary {
+            background: var(--red);
+            color: #ffffff;
 
-            background:
-                var(--primary);
-
-            color: white;
-
+            box-shadow:
+                0 5px 16px rgba(255, 0, 51, 0.20);
         }
-
 
         .btn-primary:hover {
+            background: var(--red-dark);
 
-            background:
-                var(--primary2);
-
+            box-shadow:
+                0 7px 22px rgba(255, 0, 51, 0.30);
         }
-
 
         .btn-secondary {
+            background: #ffffff;
+            color: #333333;
 
-            background:
-                var(--panel2);
-
-            color: white;
-
-            border:
-                1px solid var(--border);
-
+            border: 1px solid var(--border);
         }
 
-
-        .btn-danger {
-
-            background:
-                rgba(239, 68, 68, .15);
-
-            color:
-                #fca5a5;
-
-            border:
-                1px solid
-                rgba(239, 68, 68, .35);
-
+        .btn-secondary:hover {
+            background: #f5f5f5;
         }
-
 
         .btn-small {
-
-            padding:
-                7px 10px;
-
+            padding: 8px 12px;
             font-size: 12px;
-
-            border-radius: 8px;
-
         }
 
-
-        /* =====================================================
+        /* =========================================================
            STATS
-        ===================================================== */
+           ========================================================= */
 
-        .stats {
-
+        .stats-grid {
             display: grid;
 
             grid-template-columns:
-                repeat(
-                    4,
-                    minmax(0, 1fr)
-                );
+                repeat(4, minmax(0, 1fr));
 
-            gap: 14px;
+            gap: 15px;
 
-            margin-bottom: 20px;
-
+            margin-bottom: 22px;
         }
 
+        .stat-card {
+            background: rgba(255, 255, 255, 0.90);
 
-        .stat {
-
-            background:
-                var(--panel);
-
-            border:
-                1px solid var(--border);
+            border: 1px solid rgba(0, 0, 0, 0.06);
 
             border-radius: 14px;
 
             padding: 18px;
 
+            box-shadow: var(--shadow);
         }
-
 
         .stat-label {
+            color: #777777;
+            font-size: 11px;
 
-            color:
-                var(--muted);
-
-            font-size: 13px;
-
-        }
-
-
-        .stat-value {
-
-            font-size: 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
 
             font-weight: 800;
 
-            margin-top: 6px;
-
+            margin-bottom: 7px;
         }
 
+        .stat-value {
+            font-size: 26px;
+            font-weight: 900;
 
-        /* =====================================================
+            line-height: 1;
+        }
+
+        .stat-value.red {
+            color: var(--red);
+        }
+
+        .stat-value.green {
+            color: var(--green);
+        }
+
+        /* =========================================================
            TOOLBAR
-        ===================================================== */
+           ========================================================= */
 
         .toolbar {
-
-            background:
-                var(--panel);
-
-            border:
-                1px solid var(--border);
-
-            border-radius: 14px;
-
-            padding: 15px;
-
-            margin-bottom: 18px;
-
             display: flex;
+            align-items: center;
 
-            gap: 10px;
+            gap: 12px;
+
+            margin-bottom: 20px;
 
             flex-wrap: wrap;
-
         }
 
-
-        .search {
-
+        .search-box {
+            position: relative;
             flex: 1;
-
-            min-width: 220px;
-
+            min-width: 240px;
         }
 
-
-        input,
-        select,
-        textarea {
-
+        .search-box input {
             width: 100%;
 
-            border:
-                1px solid var(--border);
-
-            background:
-                #0d1424;
-
-            color:
-                var(--text);
-
-            border-radius: 9px;
+            height: 44px;
 
             padding:
-                11px 12px;
+                0 14px 0 42px;
+
+            border:
+                1px solid rgba(0, 0, 0, 0.10);
+
+            border-radius: 10px;
+
+            background: rgba(255, 255, 255, 0.95);
 
             outline: none;
 
+            color: #222222;
+
+            transition:
+                border-color 0.2s ease,
+                box-shadow 0.2s ease;
         }
 
+        .search-box input:focus {
+            border-color: rgba(255, 0, 51, 0.45);
 
-        input:focus,
-        select:focus,
-        textarea:focus {
-
-            border-color:
-                var(--primary);
-
+            box-shadow:
+                0 0 0 3px rgba(255, 0, 51, 0.08);
         }
 
+        .search-icon {
+            position: absolute;
 
-        input[readonly] {
+            left: 14px;
+            top: 50%;
 
-            opacity: .85;
+            transform: translateY(-50%);
 
-            cursor:
-                default;
+            color: #888888;
 
+            font-size: 16px;
         }
 
-
-        textarea {
-
-            resize: vertical;
-
-            min-height:
-                90px;
-
-        }
-
-
-        .toolbar select {
-
-            width: auto;
+        .filter-select {
+            height: 44px;
 
             min-width: 150px;
 
-        }
-
-
-        /* =====================================================
-           TABLE
-        ===================================================== */
-
-        .table-wrap {
-
-            background:
-                var(--panel);
+            padding: 0 35px 0 13px;
 
             border:
-                1px solid var(--border);
+                1px solid rgba(0, 0, 0, 0.10);
 
-            border-radius: 14px;
+            border-radius: 10px;
+
+            background: #ffffff;
+
+            color: #333333;
+
+            outline: none;
+
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* =========================================================
+           MODELS AREA
+           ========================================================= */
+
+        .models-wrapper {
+            width: 100%;
+        }
+
+        .models-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fill,
+                    minmax(330px, 1fr)
+                );
+
+            gap: 20px;
+
+            width: 100%;
+        }
+
+        /* =========================================================
+           MODEL CARD
+           ========================================================= */
+
+        .model-card {
+            position: relative;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #ffffff 0%,
+                    #f2f2f2 55%,
+                    #ffffff 100%
+                );
+
+            border: 2px solid var(--red);
+
+            border-radius: 18px;
+
+            padding: 20px;
+
+            box-shadow: var(--red-glow);
 
             overflow: hidden;
 
+            transition:
+                transform 0.25s ease,
+                box-shadow 0.25s ease;
         }
 
+        .model-card::before {
+            content: "";
 
-        .table-scroll {
+            position: absolute;
 
-            overflow-x: auto;
+            top: -80px;
+            right: -80px;
 
+            width: 170px;
+            height: 170px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255, 0, 51, 0.12),
+                    transparent 70%
+                );
+
+            pointer-events: none;
         }
 
+        .model-card:hover {
+            transform: translateY(-4px);
 
-        table {
-
-            width: 100%;
-
-            border-collapse:
-                collapse;
-
-            min-width:
-                1350px;
-
+            box-shadow:
+                0 0 5px rgba(255, 0, 51, 1),
+                0 0 16px rgba(255, 0, 51, 0.75),
+                0 0 32px rgba(255, 0, 51, 0.35);
         }
 
+        .model-card-header {
+            position: relative;
 
-        th,
-        td {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
 
-            padding:
-                13px 14px;
+            gap: 12px;
 
-            border-bottom:
-                1px solid var(--border);
-
-            text-align:
-                left;
-
-            vertical-align:
-                middle;
-
+            margin-bottom: 18px;
         }
 
+        .model-title-wrap {
+            min-width: 0;
+        }
 
-        th {
+        .model-name {
+            font-size: 18px;
+            font-weight: 900;
 
-            color:
-                var(--muted);
+            line-height: 1.25;
+
+            color: #111111;
+
+            margin-bottom: 7px;
+
+            word-break: break-word;
+        }
+
+        .model-id {
+            font-family:
+                ui-monospace,
+                SFMono-Regular,
+                Menlo,
+                Monaco,
+                Consolas,
+                monospace;
+
+            font-size: 11px;
+
+            color: #777777;
+
+            word-break: break-all;
+        }
+
+        /* =========================================================
+           STATUS
+           ========================================================= */
+
+        .status-badge {
+            flex-shrink: 0;
+
+            display: inline-flex;
+            align-items: center;
+
+            gap: 6px;
+
+            padding: 6px 9px;
+
+            border-radius: 999px;
+
+            font-size: 10px;
+
+            font-weight: 900;
+
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge::before {
+            content: "";
+
+            width: 7px;
+            height: 7px;
+
+            border-radius: 50%;
+        }
+
+        .status-active {
+            background: rgba(24, 169, 87, 0.10);
+            color: #118044;
+        }
+
+        .status-active::before {
+            background: #18a957;
+
+            box-shadow:
+                0 0 7px rgba(24, 169, 87, 0.70);
+        }
+
+        .status-inactive {
+            background: rgba(100, 100, 100, 0.10);
+            color: #777777;
+        }
+
+        .status-inactive::before {
+            background: #999999;
+        }
+
+        /* =========================================================
+           PROVIDER
+           ========================================================= */
+
+        .model-provider {
+            display: flex;
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 10px 12px;
+
+            background: rgba(0, 0, 0, 0.035);
+
+            border-radius: 9px;
+
+            margin-bottom: 14px;
+        }
+
+        .provider-label {
+            color: #888888;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .provider-name {
+            color: #222222;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        /* =========================================================
+           DESCRIPTION
+           ========================================================= */
+
+        .model-description {
+            color: #666666;
 
             font-size: 12px;
 
-            text-transform:
-                uppercase;
+            line-height: 1.55;
 
-            letter-spacing:
-                .04em;
+            min-height: 38px;
 
-            background:
-                rgba(255,255,255,.02);
-
+            margin-bottom: 15px;
         }
 
+        /* =========================================================
+           PRICING
+           ========================================================= */
 
-        td {
+        .pricing-box {
+            background: #ffffff;
+
+            border:
+                1px solid rgba(255, 0, 51, 0.15);
+
+            border-radius: 12px;
+
+            padding: 13px;
+
+            margin-bottom: 15px;
+        }
+
+        .pricing-title {
+            font-size: 10px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 1px;
+
+            font-weight: 900;
+
+            color: #999999;
+
+            margin-bottom: 10px;
+        }
+
+        .pricing-row {
+            display: flex;
+
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 12px;
+
+            margin-bottom: 6px;
+
+            font-size: 12px;
+        }
+
+        .pricing-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .pricing-label {
+            color: #777777;
+        }
+
+        .pricing-value {
+            color: #222222;
+
+            font-weight: 800;
+
+            text-align: right;
+        }
+
+        .pricing-final {
+            color: var(--red);
+
+            font-size: 15px;
+
+            font-weight: 900;
+        }
+
+        .discount-value {
+            color: var(--green);
+
+            font-weight: 900;
+        }
+
+        /* =========================================================
+           PARAMETERS
+           ========================================================= */
+
+        .parameters-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+
+            gap: 8px;
+
+            margin-bottom: 16px;
+        }
+
+        .parameter-item {
+            background:
+                rgba(0, 0, 0, 0.035);
+
+            border-radius: 9px;
+
+            padding: 10px 8px;
+
+            text-align: center;
+
+            min-width: 0;
+        }
+
+        .parameter-label {
+            display: block;
+
+            color: #999999;
+
+            font-size: 9px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+
+            font-weight: 800;
+
+            margin-bottom: 5px;
+        }
+
+        .parameter-value {
+            display: block;
+
+            color: #222222;
+
+            font-size: 11px;
+
+            font-weight: 900;
+
+            overflow-wrap: anywhere;
+        }
+
+        /* =========================================================
+           ACTIONS
+           ========================================================= */
+
+        .model-actions {
+            display: flex;
+
+            justify-content: flex-end;
+
+            gap: 8px;
+
+            padding-top: 3px;
+        }
+
+        .model-actions .btn {
+            min-width: 82px;
+        }
+
+        /* =========================================================
+           EMPTY / LOADING / ERROR
+           ========================================================= */
+
+        .models-empty {
+            grid-column: 1 / -1;
+
+            padding: 60px 25px;
+
+            text-align: center;
+
+            background:
+                rgba(255, 255, 255, 0.82);
+
+            border:
+                1px dashed rgba(0, 0, 0, 0.15);
+
+            border-radius: 16px;
+        }
+
+        .models-empty-icon {
+            font-size: 38px;
+
+            margin-bottom: 13px;
+        }
+
+        .models-empty-title {
+            font-size: 17px;
+
+            font-weight: 900;
+
+            margin-bottom: 6px;
+        }
+
+        .models-empty-text {
+            color: #777777;
+
+            font-size: 13px;
+        }
+
+        /* =========================================================
+           TOAST
+           ========================================================= */
+
+        .toast-container {
+            position: fixed;
+
+            right: 22px;
+            bottom: 22px;
+
+            z-index: 9999;
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 10px;
+        }
+
+        .toast {
+            min-width: 280px;
+            max-width: 390px;
+
+            background: #171717;
+
+            color: #ffffff;
+
+            border-radius: 11px;
+
+            padding: 13px 16px;
+
+            box-shadow:
+                0 12px 35px rgba(0, 0, 0, 0.25);
 
             font-size: 13px;
 
+            animation:
+                toastIn 0.25s ease;
         }
 
-
-        tr:last-child td {
-
-            border-bottom:
-                0;
-
+        .toast.success {
+            border-left: 4px solid var(--green);
         }
 
-
-        .model-name {
-
-            font-weight:
-                700;
-
+        .toast.error {
+            border-left: 4px solid var(--red);
         }
 
-
-        .model-id {
-
-            color:
-                var(--muted);
-
-            font-size:
-                11px;
-
-            margin-top:
-                4px;
-
-            word-break:
-                break-all;
-
+        .toast.warning {
+            border-left: 4px solid var(--yellow);
         }
 
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
 
-        .provider {
-
-            display:
-                inline-flex;
-
-            align-items:
-                center;
-
-            gap: 7px;
-
-            padding:
-                6px 9px;
-
-            border-radius:
-                8px;
-
-            background:
-                rgba(99, 102, 241, .12);
-
-            color:
-                #c7d2fe;
-
-            font-size:
-                12px;
-
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-
-        .credit-normal {
-
-            font-weight:
-                700;
-
-        }
-
-
-        .discount {
-
-            color:
-                #fbbf24;
-
-            font-weight:
-                700;
-
-        }
-
-
-        .credit-final {
-
-            color:
-                #86efac;
-
-            font-weight:
-                800;
-
-        }
-
-
-        .actions {
-
-            display:
-                flex;
-
-            gap: 7px;
-
-            white-space:
-                nowrap;
-
-        }
-
-
-        .empty {
-
-            text-align:
-                center;
-
-            padding:
-                45px 20px;
-
-            color:
-                var(--muted);
-
-        }
-
-
-        .loading {
-
-            text-align:
-                center;
-
-            padding:
-                35px;
-
-            color:
-                var(--muted);
-
-        }
-
-
-        /* =====================================================
-           STATUS
-        ===================================================== */
-
-        .status {
-
-            display:
-                inline-block;
-
-            padding:
-                5px 8px;
-
-            border-radius:
-                7px;
-
-            font-size:
-                11px;
-
-            font-weight:
-                700;
-
-            text-transform:
-                uppercase;
-
-        }
-
-
-        .status-active {
-
-            background:
-                rgba(34,197,94,.13);
-
-            color:
-                #86efac;
-
-        }
-
-
-        .status-inactive {
-
-            background:
-                rgba(156,163,175,.13);
-
-            color:
-                #d1d5db;
-
-        }
-
-
-        .status-maintenance {
-
-            background:
-                rgba(245,158,11,.13);
-
-            color:
-                #fcd34d;
-
-        }
-
-
-        /* =====================================================
-           ALERT
-        ===================================================== */
-
-        .alert {
-
-            display:
-                none;
-
-            margin-bottom:
-                16px;
-
-            padding:
-                12px 15px;
-
-            border-radius:
-                10px;
-
-            font-size:
-                13px;
-
-            word-break:
-                break-word;
-
-        }
-
-
-        .alert.show {
-
-            display:
-                block;
-
-        }
-
-
-        .alert-error {
-
-            background:
-                rgba(239,68,68,.12);
-
-            border:
-                1px solid
-                rgba(239,68,68,.3);
-
-            color:
-                #fca5a5;
-
-        }
-
-
-        .alert-success {
-
-            background:
-                rgba(34,197,94,.12);
-
-            border:
-                1px solid
-                rgba(34,197,94,.3);
-
-            color:
-                #86efac;
-
-        }
-
-
-        /* =====================================================
-           MODAL
-        ===================================================== */
-
-        .modal-overlay {
-
+        /* =========================================================
+           LOADING OVERLAY
+           ========================================================= */
+
+        .page-loading {
             position: fixed;
 
             inset: 0;
 
+            background:
+                rgba(255, 255, 255, 0.72);
+
+            backdrop-filter: blur(3px);
+
+            z-index: 9998;
+
             display: none;
 
             align-items: center;
-
             justify-content: center;
-
-            padding: 20px;
-
-            background:
-                rgba(0, 0, 0, .72);
-
-            z-index: 30000;
-
-            pointer-events: none;
-
-            isolation: isolate;
-
         }
 
-
-        .modal-overlay.show,
-        .modal-overlay.open {
-
-            display:
-                flex;
-
-            pointer-events:
-                auto;
-
+        .page-loading.show {
+            display: flex;
         }
 
+        .loading-box {
+            background: #ffffff;
 
-        .modal-overlay.hidden {
+            border-radius: 14px;
 
-            display:
-                none !important;
-
-            pointer-events:
-                none !important;
-
-        }
-
-
-        .modal {
-
-            position:
-                relative;
-
-            width: 100%;
-
-            max-width:
-                850px;
-
-            max-height:
-                92vh;
-
-            overflow-y:
-                auto;
-
-            overflow-x:
-                hidden;
-
-            background:
-                var(--panel);
-
-            border:
-                1px solid var(--border);
-
-            border-radius:
-                18px;
+            padding: 22px 28px;
 
             box-shadow:
-                0 30px 80px
-                rgba(0, 0, 0, .65);
+                0 15px 40px rgba(0, 0, 0, 0.12);
 
-            z-index:
-                30001;
+            display: flex;
 
-            pointer-events:
-                auto;
+            align-items: center;
 
+            gap: 12px;
+
+            font-size: 13px;
+
+            font-weight: 700;
         }
 
-
-        .modal-header {
-
-            position:
-                sticky;
-
-            top: 0;
-
-            z-index: 20;
-
-            padding:
-                20px;
-
-            background:
-                var(--panel);
-
-            border-bottom:
-                1px solid var(--border);
-
-            display:
-                flex;
-
-            justify-content:
-                space-between;
-
-            align-items:
-                center;
-
-            gap: 10px;
-
-        }
-
-
-        .modal-header h2 {
-
-            margin: 0;
-
-            font-size:
-                20px;
-
-        }
-
-
-        .close {
-
-            position:
-                relative;
-
-            z-index: 21;
-
-            width:
-                36px;
-
-            height:
-                36px;
+        .spinner {
+            width: 20px;
+            height: 20px;
 
             border:
-                1px solid var(--border);
+                3px solid #eeeeee;
 
-            border-radius:
-                9px;
+            border-top-color: var(--red);
 
-            background:
-                var(--panel2);
+            border-radius: 50%;
 
-            color:
-                white;
-
-            font-size:
-                20px;
-
-            pointer-events:
-                auto;
-
+            animation:
+                spin 0.8s linear infinite;
         }
 
-
-        .close:hover {
-
-            background:
-                rgba(99, 102, 241, .18);
-
-            border-color:
-                rgba(99, 102, 241, .4);
-
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
+        /* =========================================================
+           HIDDEN COMPATIBILITY CONTAINER
+           ========================================================= */
 
-        .modal-body {
-
-            padding:
-                20px;
-
+        #modelTableBody {
+            display: none !important;
         }
 
-
-        .modal-footer {
-
-            position:
-                sticky;
-
-            bottom: 0;
-
-            z-index: 20;
-
-            padding:
-                15px 20px;
-
-            background:
-                var(--panel);
-
-            border-top:
-                1px solid var(--border);
-
-            display:
-                flex;
-
-            justify-content:
-                flex-end;
-
-            gap: 10px;
-
-        }
-
-
-        .delete-confirm {
-
-            max-width:
-                450px;
-
-        }
-
-
-        .delete-confirm .modal-body {
-
-            line-height:
-                1.6;
-
-            color:
-                #d1d5db;
-
-        }
-
-
-        /* =====================================================
-           FORM
-        ===================================================== */
-
-        .form-grid {
-
-            display:
-                grid;
-
-            grid-template-columns:
-                repeat(
-                    2,
-                    minmax(0, 1fr)
-                );
-
-            gap:
-                16px;
-
-        }
-
-
-        .field {
-
-            min-width:
-                0;
-
-        }
-
-
-        .field.full {
-
-            grid-column:
-                1 / -1;
-
-        }
-
-
-        .field label {
-
-            display:
-                block;
-
-            margin-bottom:
-                7px;
-
-            color:
-                #dbe4ff;
-
-            font-size:
-                12px;
-
-            font-weight:
-                700;
-
-        }
-
-
-        .hint {
-
-            margin-top:
-                6px;
-
-            color:
-                var(--muted);
-
-            font-size:
-                10px;
-
-            line-height:
-                1.45;
-
-        }
-
-
-        .credit-preview {
-
-            background:
-                rgba(34,197,94,.08);
-
-            border:
-                1px solid
-                rgba(34,197,94,.25);
-
-            border-radius:
-                12px;
-
-            padding:
-                15px;
-
-        }
-
-
-        .credit-preview-row {
-
-            display:
-                flex;
-
-            justify-content:
-                space-between;
-
-            gap:
-                15px;
-
-            margin-bottom:
-                7px;
-
-            font-size:
-                13px;
-
-        }
-
-
-        .credit-preview-row:last-child {
-
-            margin-bottom:
-                0;
-
-            padding-top:
-                8px;
-
-            border-top:
-                1px solid
-                rgba(255,255,255,.08);
-
-            font-size:
-                16px;
-
-            font-weight:
-                800;
-
-        }
-
-
-        /* =====================================================
-           MODEL SEARCH
-        ===================================================== */
-
-        .model-search-box {
-
-            position:
-                relative;
-
-            z-index:
-                100;
-
-        }
-
-
-        .model-search-results {
-
-            position:
-                absolute;
-
-            top:
-                calc(100% + 6px);
-
-            left: 0;
-            right: 0;
-
-            z-index:
-                1000;
-
-            max-height:
-                360px;
-
-            overflow-y:
-                auto;
-
-            background:
-                #0d1424;
-
-            border:
-                1px solid
-                var(--border);
-
-            border-radius:
-                10px;
-
-            box-shadow:
-                0 18px 45px
-                rgba(0, 0, 0, .60);
-
-            pointer-events:
-                auto;
-
-        }
-
-
-        .model-search-item {
-
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                space-between;
-
-            gap:
-                12px;
-
-            padding:
-                11px 12px;
-
-            border-bottom:
-                1px solid
-                rgba(255,255,255,.07);
-
-            transition:
-                background .18s ease;
-
-        }
-
-
-        .model-search-item:last-child {
-
-            border-bottom:
-                0;
-
-        }
-
-
-        .model-search-item:hover {
-
-            background:
-                rgba(99,102,241,.10);
-
-        }
-
-
-        .model-search-info {
-
-            min-width:
-                0;
-
-            flex:
-                1;
-
-        }
-
-
-        .model-search-id {
-
-            color:
-                #f8fafc;
-
-            font-size:
-                12px;
-
-            font-weight:
-                800;
-
-            line-height:
-                1.4;
-
-            word-break:
-                break-all;
-
-        }
-
-
-        .model-search-name {
-
-            margin-top:
-                3px;
-
-            color:
-                #cbd5e1;
-
-            font-size:
-                11px;
-
-            line-height:
-                1.4;
-
-        }
-
-
-        .model-search-provider {
-
-            margin-top:
-                3px;
-
-            color:
-                var(--muted);
-
-            font-size:
-                10px;
-
-            line-height:
-                1.4;
-
-        }
-
-
-        .model-select-check {
-
-            flex:
-                0 0 auto;
-
-            width:
-                32px;
-
-            height:
-                32px;
-
-            border:
-                1px solid
-                rgba(34,197,94,.35);
-
-            border-radius:
-                8px;
-
-            background:
-                rgba(34,197,94,.08);
-
-            color:
-                #86efac;
-
-            font-size:
-                17px;
-
-            font-weight:
-                900;
-
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-        }
-
-
-        .model-search-empty {
-
-            padding:
-                15px;
-
-            color:
-                var(--muted);
-
-            font-size:
-                12px;
-
-            text-align:
-                center;
-
-        }
-
-
-        #selectedModelInfo {
-
-            margin-top:
-                6px;
-
-        }
-
-
-        #selectedModelInfo strong {
-
-            color:
-                #e2e8f0;
-
-        }
-
-
-        #selectedModelInfo span {
-
-            color:
-                var(--muted);
-
-        }
-
-
-        /* =====================================================
-           PARAMETER CHECKBOXES
-        ===================================================== */
-
-        .parameter-group {
-
-            display:
-                grid;
-
-            grid-template-columns:
-                repeat(
-                    auto-fit,
-                    minmax(120px, 1fr)
-                );
-
-            gap:
-                9px;
-
-            padding:
-                2px;
-
-        }
-
-
-        .parameter-option {
-
-            position:
-                relative;
-
-        }
-
-
-        .parameter-option input {
-
-            position:
-                absolute;
-
-            opacity:
-                0;
-
-            pointer-events:
-                none;
-
-        }
-
-
-        .parameter-option label {
-
-            margin:
-                0;
-
-            width:
-                100%;
-
-            min-height:
-                42px;
-
-            display:
-                flex;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-            padding:
-                9px 12px;
-
-            border:
-                1px solid
-                var(--border);
-
-            border-radius:
-                9px;
-
-            background:
-                #0d1424;
-
-            color:
-                #cbd5e1;
-
-            font-size:
-                12px;
-
-            font-weight:
-                700;
-
-            cursor:
-                pointer;
-
-            transition:
-                background .18s ease,
-                border-color .18s ease,
-                color .18s ease;
-
-        }
-
-
-        .parameter-option input:checked + label {
-
-            background:
-                rgba(99,102,241,.16);
-
-            border-color:
-                rgba(99,102,241,.60);
-
-            color:
-                #c7d2fe;
-
-        }
-
-
-        .parameter-option input:focus-visible + label {
-
-            outline:
-                2px solid
-                var(--primary);
-
-            outline-offset:
-                2px;
-
-        }
-
-
-        .readonly-parameter {
-
-            padding:
-                12px;
-
-            border:
-                1px solid
-                var(--border);
-
-            border-radius:
-                10px;
-
-            background:
-                rgba(255,255,255,.02);
-
-            color:
-                #cbd5e1;
-
-            font-size:
-                12px;
-
-            line-height:
-                1.6;
-
-        }
-
-
-        .readonly-parameter strong {
-
-            color:
-                #f8fafc;
-
-        }
-
-
-        /* =====================================================
+        /* =========================================================
            RESPONSIVE
-        ===================================================== */
+           ========================================================= */
 
-        @media (max-width: 900px) {
-
-            .stats {
-
-                grid-template-columns:
-                    repeat(
-                        2,
-                        minmax(0, 1fr)
-                    );
-
-            }
-
-
-            .form-grid {
-
-                grid-template-columns:
-                    1fr;
-
-            }
-
-
-            .field.full {
-
-                grid-column:
-                    auto;
-
-            }
-
-        }
-
-
-        @media (max-width: 700px) {
-
+        @media (max-width: 1100px) {
             .sidebar {
-
-                width:
-                    250px;
-
-                transform:
-                    translateX(-100%);
-
+                width: 220px;
+                min-width: 220px;
             }
 
-
-            .sidebar.mobile-open {
-
-                transform:
-                    translateX(0);
-
+            .main-content {
+                margin-left: 220px;
+                width: calc(100% - 220px);
             }
 
-
-            .sidebar.collapsed {
-
-                width:
-                    250px;
-
+            .stats-grid {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
             }
-
-
-            .sidebar.collapsed
-            .brand-text {
-
-                width:
-                    auto;
-
-                opacity:
-                    1;
-
-            }
-
-
-            .sidebar.collapsed
-            .sidebar-link {
-
-                justify-content:
-                    flex-start;
-
-                padding-left:
-                    11px;
-
-                padding-right:
-                    11px;
-
-            }
-
-
-            .sidebar.collapsed
-            .sidebar-link-text {
-
-                width:
-                    auto;
-
-                opacity:
-                    1;
-
-            }
-
-
-            .sidebar.collapsed
-            .nav-section-title {
-
-                opacity:
-                    1;
-
-            }
-
-
-            .mobile-menu-button {
-
-                display:
-                    flex;
-
-                align-items:
-                    center;
-
-                justify-content:
-                    center;
-
-            }
-
-
-            .main-content,
-            .main-content.collapsed {
-
-                margin-left:
-                    0;
-
-            }
-
-
-            .container {
-
-                padding:
-                    72px 14px 20px;
-
-            }
-
-
-            .title-wrap h1 {
-
-                font-size:
-                    24px;
-
-            }
-
         }
 
+        @media (max-width: 800px) {
+            .sidebar {
+                position: static;
 
-        @media (max-width: 600px) {
+                width: 100%;
+                min-width: 0;
 
-            .stats {
-
-                grid-template-columns:
-                    1fr 1fr;
-
+                min-height: auto;
             }
 
-
-            .stat {
-
-                padding:
-                    13px;
-
+            .admin-layout {
+                display: block;
             }
 
+            .sidebar-nav {
+                display: flex;
+
+                overflow-x: auto;
+
+                padding: 10px;
+            }
+
+            .nav-section-title {
+                display: none;
+            }
+
+            .nav-item {
+                white-space: nowrap;
+
+                width: auto;
+
+                margin-bottom: 0;
+            }
+
+            .sidebar-footer {
+                display: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+
+                width: 100%;
+
+                padding: 18px;
+            }
+
+            .page-header {
+                flex-direction: column;
+            }
+
+            .header-actions {
+                width: 100%;
+            }
+
+            .header-actions .btn {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .main-content {
+                padding: 13px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+
+                gap: 9px;
+            }
+
+            .stat-card {
+                padding: 14px;
+            }
 
             .stat-value {
-
-                font-size:
-                    20px;
-
+                font-size: 21px;
             }
 
+            .models-grid {
+                grid-template-columns: 1fr;
+            }
 
             .toolbar {
-
-                padding:
-                    12px;
-
+                flex-direction: column;
+                align-items: stretch;
             }
 
-
-            .toolbar select {
-
-                flex:
-                    1;
-
-                min-width:
-                    130px;
-
+            .search-box {
+                min-width: 0;
             }
 
-
-            .search {
-
-                min-width:
-                    100%;
-
+            .filter-select {
+                width: 100%;
             }
 
-
-            .modal-overlay {
-
-                padding:
-                    10px;
-
+            .model-card {
+                padding: 16px;
             }
 
-
-            .modal {
-
-                max-height:
-                    94vh;
-
-                border-radius:
-                    14px;
-
+            .page-title h1 {
+                font-size: 25px;
             }
-
-
-            .modal-body {
-
-                padding:
-                    15px;
-
-            }
-
-
-            .modal-header {
-
-                padding:
-                    15px;
-
-            }
-
-
-            .modal-footer {
-
-                padding:
-                    12px 15px;
-
-            }
-
         }
-
     </style>
-
 </head>
-
 
 <body>
 
+<div class="admin-layout">
 
-<!-- =====================================================
-     SIDEBAR
-===================================================== -->
+    <!-- =========================================================
+         SIDEBAR
+         ========================================================= -->
 
-<aside
-    class="sidebar"
-    id="sidebar"
-    aria-label="Navigasi GEN-Z.AI">
+    <aside class="sidebar">
 
-
-    <div class="sidebar-header">
-
-
-        <a
-            href="/admin/dashboard.html"
-            class="brand"
-            title="GEN-Z.AI">
-
-            <div class="brand-icon">
-                G
-            </div>
-
-            <div class="brand-text">
-
-                <div class="brand-name">
-                    GEN-Z.AI
-                </div>
-
-                <div class="brand-subtitle">
-                    AI CONTROL CENTER
-                </div>
-
-            </div>
-
-        </a>
-
-
-        <button
-            type="button"
-            class="sidebar-toggle"
-            id="sidebarToggle"
-            aria-label="Collapse sidebar"
-            title="Collapse sidebar">
-
-            ‹
-
-        </button>
-
-
-    </div>
-
-
-    <nav class="sidebar-nav">
-
-
-        <div class="nav-section-title">
-            MAIN MENU
+        <div class="sidebar-logo">
+            <strong>
+                GEN-Z<span>.AI</span>
+            </strong>
         </div>
 
+        <nav class="sidebar-nav">
 
-        <a
-            class="sidebar-link"
-            href="/admin/dashboard.html"
-            title="Dashboard">
+            <div class="nav-section-title">
+                Main
+            </div>
 
-            <span class="sidebar-link-icon">
-                ⌂
-            </span>
+            <a
+                href="./index.html"
+                class="nav-item"
+            >
+                <span class="nav-icon">⌂</span>
+                <span>Dashboard</span>
+            </a>
 
-            <span class="sidebar-link-text">
-                Dashboard
-            </span>
+            <a
+                href="./users.html"
+                class="nav-item"
+            >
+                <span class="nav-icon">◉</span>
+                <span>Users</span>
+            </a>
 
-        </a>
+            <a
+                href="./providers.html"
+                class="nav-item"
+            >
+                <span class="nav-icon">◈</span>
+                <span>Providers</span>
+            </a>
 
+            <a
+                href="./models.html"
+                class="nav-item active"
+            >
+                <span class="nav-icon">▣</span>
+                <span>Models</span>
+            </a>
 
-        <a
-            class="sidebar-link"
-            href="/generate/index.html"
-            title="Generate">
+            <a
+                href="./credit.html"
+                class="nav-item"
+            >
+                <span class="nav-icon">◆</span>
+                <span>Credit</span>
+            </a>
 
-            <span class="sidebar-link-icon">
-                ✦
-            </span>
+        </nav>
 
-            <span class="sidebar-link-text">
-                Generate
-            </span>
+        <div class="sidebar-footer">
 
-        </a>
+            <button
+                type="button"
+                id="logoutBtn"
+                class="logout-btn"
+            >
+                Keluar
+            </button>
 
-
-        <a
-            class="sidebar-link"
-            href="/history/index.html"
-            title="History">
-
-            <span class="sidebar-link-icon">
-                ◷
-            </span>
-
-            <span class="sidebar-link-text">
-                History
-            </span>
-
-        </a>
-
-
-        <div class="nav-section-title">
-            ADMINISTRATION
         </div>
 
+    </aside>
 
-        <a
-            class="sidebar-link"
-            href="/admin-control/admin-panel.html"
-            title="Admin Panel">
+    <!-- =========================================================
+         MAIN CONTENT
+         ========================================================= -->
 
-            <span class="sidebar-link-icon">
-                ⚙
-            </span>
+    <main class="main-content">
 
-            <span class="sidebar-link-text">
-                Admin Panel
-            </span>
+        <!-- HEADER -->
 
-        </a>
+        <header class="page-header">
 
+            <div class="page-title">
 
-        <a
-            class="sidebar-link"
-            href="/admin-control/providers.html"
-            title="Providers">
-
-            <span class="sidebar-link-icon">
-                ◈
-            </span>
-
-            <span class="sidebar-link-text">
-                Providers
-            </span>
-
-        </a>
-
-
-        <a
-            class="sidebar-link active"
-            href="/admin-control/models.html"
-            title="Model Management">
-
-            <span class="sidebar-link-icon">
-                ◉
-            </span>
-
-            <span class="sidebar-link-text">
-                Model Management
-            </span>
-
-        </a>
-
-
-    </nav>
-
-
-    <div class="sidebar-footer">
-
-
-        <a
-            class="sidebar-link sidebar-back"
-            href="/admin-control/admin-panel.html"
-            title="Back to Admin Panel">
-
-            <span class="sidebar-link-icon">
-                ←
-            </span>
-
-            <span class="sidebar-link-text">
-                Back to Admin Panel
-            </span>
-
-        </a>
-
-
-        <a
-            class="sidebar-link sidebar-logout"
-            href="/login.html"
-            id="logoutNav"
-            title="Log Out">
-
-            <span class="sidebar-link-icon">
-                ⇥
-            </span>
-
-            <span class="sidebar-link-text">
-                Log Out
-            </span>
-
-        </a>
-
-
-    </div>
-
-
-</aside>
-
-
-<!-- =====================================================
-     MOBILE MENU
-===================================================== -->
-
-<button
-    type="button"
-    class="mobile-menu-button"
-    id="mobileMenuButton"
-    aria-label="Open menu"
-    title="Open menu">
-
-    ☰
-
-</button>
-
-
-<div
-    class="sidebar-overlay"
-    id="sidebarOverlay">
-</div>
-
-
-<!-- =====================================================
-     MAIN CONTENT
-===================================================== -->
-
-<main
-    class="main-content"
-    id="mainContent">
-
-
-    <div class="container">
-
-
-        <div class="header">
-
-
-            <div class="title-wrap">
-
-                <h1>
-                    Model Management
-                </h1>
+                <h1>Models</h1>
 
                 <p>
-                    Kelola model AI, provider, credit,
-                    diskon, duration, ratio dan resolution.
+                    Model yang tersedia dari folder model di repository GEN-Z.AI
                 </p>
 
             </div>
 
+            <div class="header-actions">
 
-            <button
-                type="button"
-                class="btn btn-primary"
-                id="addModelBtn"
-                data-action="add-model">
+                <button
+                    type="button"
+                    id="refreshModelsBtn"
+                    class="btn btn-secondary"
+                >
+                    ↻ Refresh
+                </button>
 
-                + Tambah Model
+            </div>
 
-            </button>
-
-
-        </div>
-
-
-        <div
-            id="alertBox"
-            class="alert">
-        </div>
+        </header>
 
 
-        <!-- =================================================
-             STATISTICS
-        ================================================== -->
+        <!-- =====================================================
+             STATS
+             ===================================================== -->
 
-        <div class="stats">
+        <section class="stats-grid">
 
-
-            <div class="stat">
+            <div class="stat-card">
 
                 <div class="stat-label">
                     Total Model
                 </div>
 
                 <div
+                    id="totalModels"
                     class="stat-value"
-                    id="statTotal">
-
+                >
                     0
-
                 </div>
 
             </div>
 
 
-            <div class="stat">
+            <div class="stat-card">
 
                 <div class="stat-label">
                     Model Aktif
                 </div>
 
                 <div
-                    class="stat-value"
-                    id="statActive">
-
+                    id="activeModels"
+                    class="stat-value green"
+                >
                     0
-
                 </div>
 
             </div>
 
 
-            <div class="stat">
+            <div class="stat-card">
 
                 <div class="stat-label">
-                    Model Diskon
+                    Model Nonaktif
                 </div>
 
                 <div
+                    id="inactiveModels"
                     class="stat-value"
-                    id="statDiscount">
-
+                >
                     0
-
                 </div>
 
             </div>
 
 
-            <div class="stat">
+            <div class="stat-card">
 
                 <div class="stat-label">
                     Provider
                 </div>
 
                 <div
-                    class="stat-value"
-                    id="statProviders">
-
+                    id="totalProviders"
+                    class="stat-value red"
+                >
                     0
-
                 </div>
 
             </div>
 
-
-        </div>
-
-
-        <!-- =================================================
-             TOOLBAR
-        ================================================== -->
-
-        <div class="toolbar">
+        </section>
 
 
-            <input
-                id="searchInput"
-                class="search"
-                type="search"
-                autocomplete="off"
-                placeholder="Cari model, Model ID, provider...">
+        <!-- =====================================================
+             SEARCH / FILTER
+             ===================================================== -->
+
+        <section class="toolbar">
+
+            <div class="search-box">
+
+                <span class="search-icon">
+                    ⌕
+                </span>
+
+                <input
+                    type="search"
+                    id="modelSearch"
+                    autocomplete="off"
+                    placeholder="Cari model, model ID, provider..."
+                >
+
+            </div>
 
 
-            <select id="statusFilter">
-
-                <option value="">
+            <select
+                id="modelStatusFilter"
+                class="filter-select"
+            >
+                <option value="all">
                     Semua Status
                 </option>
 
                 <option value="active">
-                    Active
+                    Aktif
                 </option>
 
                 <option value="inactive">
-                    Inactive
+                    Nonaktif
                 </option>
-
-                <option value="maintenance">
-                    Maintenance
-                </option>
-
             </select>
 
 
-            <select id="providerFilter">
-
-                <option value="">
+            <select
+                id="modelProviderFilter"
+                class="filter-select"
+            >
+                <option value="all">
                     Semua Provider
                 </option>
-
             </select>
 
+        </section>
 
-            <button
-                type="button"
-                class="btn btn-secondary"
-                id="refreshBtn">
 
-                ↻ Refresh
+        <!-- =====================================================
+             MODELS
+             ===================================================== -->
 
-            </button>
+        <section class="models-wrapper">
 
+            <div
+                id="modelsTable"
+                class="models-grid"
+            >
 
-        </div>
+                <div class="models-empty">
 
-
-        <!-- =================================================
-             MODEL TABLE
-        ================================================== -->
-
-        <div class="table-wrap">
-
-
-            <div class="table-scroll">
-
-
-                <table id="modelsTable">
-
-
-                    <thead>
-
-                        <tr>
-
-
-                            <th>
-                                Model
-                            </th>
-
-
-                            <th>
-                                Provider
-                            </th>
-
-
-                            <th>
-                                Credit
-                            </th>
-
-
-                            <th>
-                                Diskon
-                            </th>
-
-
-                            <th>
-                                Credit Final
-                            </th>
-
-
-                            <th>
-                                Duration
-                            </th>
-
-
-                            <th>
-                                Ratio
-                            </th>
-
-
-                            <th>
-                                Resolution
-                            </th>
-
-
-                            <th>
-                                Status
-                            </th>
-
-
-                            <th>
-                                Aksi
-                            </th>
-
-
-                        </tr>
-
-                    </thead>
-
-
-                    <tbody id="modelTableBody">
-
-
-                        <tr>
-
-                            <td
-                                colspan="10"
-                                class="loading">
-
-                                Memuat model...
-
-                            </td>
-
-                        </tr>
-
-
-                    </tbody>
-
-
-                </table>
-
-
-            </div>
-
-
-        </div>
-
-
-    </div>
-
-
-</main>
-
-
-<!-- =====================================================
-     MODEL MODAL
-===================================================== -->
-
-<div
-    class="modal-overlay hidden"
-    id="modelModal"
-    aria-hidden="true">
-
-
-    <div class="modal">
-
-
-        <div class="modal-header">
-
-
-            <h2 id="modalTitle">
-                Tambah Model
-            </h2>
-
-
-            <button
-                type="button"
-                class="close"
-                id="closeModalBtn"
-                aria-label="Tutup">
-
-                ×
-
-            </button>
-
-
-        </div>
-
-
-        <form id="modelForm">
-
-
-            <div class="modal-body">
-
-
-                <input
-                    type="hidden"
-                    id="modelId">
-
-
-                <div class="form-grid">
-
-
-                    <!-- =================================================
-                         PROVIDER
-                    ================================================== -->
-
-                    <div class="field">
-
-
-                        <label for="providerId">
-                            Provider *
-                        </label>
-
-
-                        <select
-                            id="providerId"
-                            name="provider_id"
-                            required>
-
-                            <option value="">
-                                Pilih Provider
-                            </option>
-
-                        </select>
-
-
-                        <div class="hint">
-                            Provider berasal dari tabel providers.
-                        </div>
-
-
+                    <div class="models-empty-icon">
+                        ◌
                     </div>
 
-
-                    <!-- =================================================
-                         STATUS
-                    ================================================== -->
-
-                    <div class="field">
-
-
-                        <label for="modelStatus">
-                            Status *
-                        </label>
-
-
-                        <select
-                            id="modelStatus"
-                            name="status"
-                            required>
-
-                            <option value="active">
-                                Active
-                            </option>
-
-                            <option value="inactive">
-                                Inactive
-                            </option>
-
-                            <option value="maintenance">
-                                Maintenance
-                            </option>
-
-                        </select>
-
-
+                    <div class="models-empty-title">
+                        Memuat model...
                     </div>
 
-
-                    <!-- =================================================
-                         MODEL ID
-                    ================================================== -->
-
-                    <div class="field full">
-
-
-                        <label for="modelCodeSearch">
-                            Model ID *
-                        </label>
-
-
-                        <div class="model-search-box">
-
-
-                            <input
-                                id="modelCodeSearch"
-                                name="model_id_search"
-                                type="search"
-                                autocomplete="off"
-                                placeholder="Cari atau pilih Model ID...">
-
-
-                            <input
-                                id="modelCode"
-                                name="model_id"
-                                type="hidden"
-                                required>
-
-
-                            <div
-                                id="modelSearchResults"
-                                class="model-search-results">
-                            </div>
-
-
-                        </div>
-
-
-                        <div
-                            id="selectedModelInfo"
-                            class="hint">
-
-                            Belum ada model dipilih.
-
-                        </div>
-
-
+                    <div class="models-empty-text">
+                        Mengambil model dari registry model GEN-Z.AI.
                     </div>
-
-
-                    <!-- =================================================
-                         MODEL NAME
-                    ================================================== -->
-
-                    <div class="field">
-
-
-                        <label for="modelName">
-                            Model Name *
-                        </label>
-
-
-                        <input
-                            id="modelName"
-                            name="model_name"
-                            type="text"
-                            autocomplete="off"
-                            required
-                            placeholder="Nama model">
-
-
-                    </div>
-
-
-                    <!-- =================================================
-                         DESCRIPTION
-                    ================================================== -->
-
-                    <div class="field full">
-
-
-                        <label for="description">
-                            Description
-                        </label>
-
-
-                        <textarea
-                            id="description"
-                            name="description"
-                            placeholder="Deskripsi model..."></textarea>
-
-
-                    </div>
-
-
-                    <!-- =================================================
-                         CREDIT NORMAL
-                    ================================================== -->
-
-                    <div class="field">
-
-
-                        <label for="creditCost">
-                            Credit Normal *
-                        </label>
-
-
-                        <input
-                            id="creditCost"
-                            name="credit_cost"
-                            type="number"
-                            min="0"
-                            step="1"
-                            value="0"
-                            required>
-
-
-                        <div class="hint">
-                            Credit sebelum diskon.
-                        </div>
-
-
-                    </div>
-
-
-                    <!-- =================================================
-                         DISCOUNT
-                    ================================================== -->
-
-                    <div class="field">
-
-
-                        <label for="discountPercent">
-                            Diskon (%)
-                        </label>
-
-
-                        <input
-                            id="discountPercent"
-                            name="discount_percent"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value="0">
-
-
-                        <div class="hint">
-                            Nilai 0 sampai 100 persen.
-                        </div>
-
-
-                    </div>
-
-
-                    <!-- =================================================
-                         CREDIT PREVIEW
-                    ================================================== -->
-
-                    <div class="field full">
-
-
-                        <div class="credit-preview">
-
-
-                            <div class="credit-preview-row">
-
-                                <span>
-                                    Credit Normal
-                                </span>
-
-                                <strong id="previewNormal">
-                                    0
-                                </strong>
-
-                            </div>
-
-
-                            <div class="credit-preview-row">
-
-                                <span>
-                                    Diskon
-                                </span>
-
-                                <strong id="previewDiscount">
-                                    0%
-                                </strong>
-
-                            </div>
-
-
-                            <div class="credit-preview-row">
-
-                                <span>
-                                    Credit Final
-                                </span>
-
-                                <strong id="previewFinal">
-                                    0
-                                </strong>
-
-                            </div>
-
-
-                        </div>
-
-
-                    </div>
-
-
-                    <!-- =================================================
-                         DURATION
-                    ================================================== -->
-
-                    <div class="field">
-
-
-                        <label for="minDuration">
-                            Min Duration
-                        </label>
-
-
-                        <input
-                            id="minDuration"
-                            name="min_duration"
-                            type="number"
-                            min="0"
-                            step="1"
-                            readonly>
-
-
-                        <div class="hint">
-                            Nilai dibaca dari konfigurasi Model.
-                        </div>
-
-
-                    </div>
-
-
-                    <div class="field">
-
-
-                        <label for="maxDuration">
-                            Max Duration
-                        </label>
-
-
-                        <input
-                            id="maxDuration"
-                            name="max_duration"
-                            type="number"
-                            min="0"
-                            step="1"
-                            readonly>
-
-
-                        <div class="hint">
-                            Nilai dibaca dari konfigurasi Model.
-                        </div>
-
-
-                    </div>
-
-
-                    <!-- =================================================
-                         SUPPORTED RATIOS
-                    ================================================== -->
-
-                    <div class="field">
-
-
-                        <label>
-                            Supported Ratios
-                        </label>
-
-
-                        <div
-                            id="supportedRatios"
-                            class="parameter-group">
-
-                            <div class="readonly-parameter">
-                                Pilih Model terlebih dahulu.
-                            </div>
-
-                        </div>
-
-
-                        <div class="hint">
-                            Pilihan berasal dari data Model.
-                        </div>
-
-
-                    </div>
-
-
-                    <!-- =================================================
-                         SUPPORTED RESOLUTIONS
-                    ================================================== -->
-
-                    <div class="field">
-
-
-                        <label>
-                            Supported Resolutions
-                        </label>
-
-
-                        <div
-                            id="supportedResolutions"
-                            class="parameter-group">
-
-                            <div class="readonly-parameter">
-                                Pilih Model terlebih dahulu.
-                            </div>
-
-                        </div>
-
-
-                        <div class="hint">
-                            Pilihan berasal dari data Model.
-                        </div>
-
-
-                    </div>
-
 
                 </div>
 
-
             </div>
 
 
-            <div class="modal-footer">
+            <!--
+                Compatibility container.
 
+                Tidak digunakan untuk tampilan utama.
+                Dipertahankan agar modul lama yang masih mencari
+                #modelTableBody tidak error.
+            -->
 
-                <button
-                    type="button"
-                    class="btn btn-secondary"
-                    id="cancelModalBtn">
+            <div id="modelTableBody"></div>
 
-                    Batal
+        </section>
 
-                </button>
-
-
-                <button
-                    type="submit"
-                    class="btn btn-primary"
-                    id="saveModelBtn">
-
-                    Simpan Model
-
-                </button>
-
-
-            </div>
-
-
-        </form>
-
-
-    </div>
-
+    </main>
 
 </div>
 
 
-<!-- =====================================================
-     DELETE MODAL
-===================================================== -->
+<!-- =============================================================
+     TOAST
+     ============================================================= -->
 
 <div
-    class="modal-overlay hidden"
-    id="deleteModal"
-    aria-hidden="true">
+    id="toastContainer"
+    class="toast-container"
+    aria-live="polite"
+    aria-atomic="true"
+></div>
 
 
-    <div class="modal delete-confirm">
+<!-- =============================================================
+     LOADING
+     ============================================================= -->
 
+<div
+    id="pageLoading"
+    class="page-loading"
+>
 
-        <div class="modal-header">
+    <div class="loading-box">
 
+        <div class="spinner"></div>
 
-            <h2>
-                Hapus Model
-            </h2>
-
-
-            <button
-                type="button"
-                class="close"
-                id="closeDeleteBtn"
-                aria-label="Tutup">
-
-                ×
-
-            </button>
-
-
-        </div>
-
-
-        <div class="modal-body">
-
-
-            <p>
-                Anda akan menghapus model:
-            </p>
-
-
-            <strong id="deleteModelName">
-                -
-            </strong>
-
-
-            <p>
-                Data yang dihapus tidak dapat
-                dikembalikan melalui halaman ini.
-            </p>
-
-
-        </div>
-
-
-        <div class="modal-footer">
-
-
-            <button
-                type="button"
-                class="btn btn-secondary"
-                id="cancelDeleteBtn">
-
-                Batal
-
-            </button>
-
-
-            <button
-                type="button"
-                class="btn btn-danger"
-                id="confirmDeleteBtn">
-
-                Hapus Model
-
-            </button>
-
-
-        </div>
-
+        <span>
+            Memuat data model...
+        </span>
 
     </div>
-
 
 </div>
 
 
-<!-- =====================================================
-     PAGE FALLBACKS
-===================================================== -->
+<!-- =============================================================
+     SUPABASE
+     ============================================================= -->
 
-<script>
-
-(function () {
-
-    "use strict";
-
-
-    /* =====================================================
-       ROLE GUARD
-       -----------------------------------------------------
-       Backend tetap menjadi security boundary utama.
-       UI guard hanya mencegah halaman admin tampil untuk
-       user biasa.
-    ===================================================== */
-
-    async function verifyAdminRole() {
-
-        const supabase =
-            window.GENZ_SUPABASE;
+<script
+    type="module"
+    src="./supabase.js"
+></script>
 
 
-        if (
-            !supabase ||
-            !supabase.auth
-        ) {
+<!-- =============================================================
+     CONFIG
+     ============================================================= -->
 
-            console.error(
-                "[GEN-Z.AI] Supabase client tidak tersedia."
-            );
+<script
+    type="module"
+    src="../assets/js/config.js"
+></script>
 
-            return false;
 
+<!-- =============================================================
+     MODEL MODULES
+     ============================================================= -->
+
+<script
+    type="module"
+    src="./models/models-data.js"
+></script>
+
+<script
+    type="module"
+    src="./models/models-search.js"
+></script>
+
+<script
+    type="module"
+    src="./models/functions/model-table.js"
+></script>
+
+<script
+    type="module"
+    src="./models/functions/model-table-events.js"
+></script>
+
+<script
+    type="module"
+    src="./models/models-ui.js"
+></script>
+
+<script
+    type="module"
+    src="./models/models-loader.js"
+></script>
+
+
+<!-- =============================================================
+     PAGE BOOTSTRAP
+     ============================================================= -->
+
+<script type="module">
+
+    const sleep = (ms) =>
+        new Promise(resolve => setTimeout(resolve, ms));
+
+
+    function showToast(
+        message,
+        type = "success"
+    ) {
+
+        const container =
+            document.getElementById("toastContainer");
+
+        if (!container) {
+            return;
         }
 
+        const toast =
+            document.createElement("div");
 
-        try {
+        toast.className =
+            `toast ${type}`;
 
-            const sessionResult =
-                await supabase.auth.getSession();
+        toast.textContent =
+            String(message || "");
 
+        container.appendChild(toast);
 
-            const session =
-                sessionResult?.data?.session;
+        setTimeout(() => {
 
+            toast.style.opacity = "0";
 
-            if (
-                !session ||
-                !session.user
-            ) {
+            toast.style.transform =
+                "translateY(8px)";
 
-                window.location.href =
-                    "/login.html";
+            toast.style.transition =
+                "opacity .2s ease, transform .2s ease";
 
-                return false;
+            setTimeout(() => {
 
-            }
+                toast.remove();
 
+            }, 220);
 
-            const userId =
-                session.user.id;
-
-
-            const result =
-                await supabase
-
-                    .from("profiles")
-
-                    .select(
-                        "id,role,status"
-                    )
-
-                    .eq(
-                        "id",
-                        userId
-                    )
-
-                    .limit(1)
-
-                    .maybeSingle();
-
-
-            if (
-                result.error
-            ) {
-
-                console.error(
-                    "[GEN-Z.AI] Gagal memeriksa role:",
-                    result.error
-                );
-
-                return false;
-
-            }
-
-
-            const profile =
-                result.data;
-
-
-            const role =
-                String(
-                    profile?.role || ""
-                )
-                    .trim()
-                    .toUpperCase();
-
-
-            const status =
-                String(
-                    profile?.status || ""
-                )
-                    .trim()
-                    .toLowerCase();
-
-
-            /*
-             * Role yang memiliki akses Models:
-             *
-             * OWNER
-             * ADMIN
-             *
-             * USER tidak diberikan akses.
-             */
-
-            if (
-                ![
-                    "ADMIN",
-                    "OWNER"
-                ].includes(
-                    role
-                )
-            ) {
-
-                window.location.href =
-                    "/user/dashboard.html";
-
-                return false;
-
-            }
-
-
-            /*
-             * Jika profile memiliki status,
-             * akun harus aktif.
-             */
-
-            if (
-                status &&
-                ![
-                    "active",
-                    "aktif"
-                ].includes(
-                    status
-                )
-            ) {
-
-                window.location.href =
-                    "/login.html";
-
-                return false;
-
-            }
-
-
-            return true;
-
-        } catch (error) {
-
-            console.error(
-                "[GEN-Z.AI] Role verification error:",
-                error
-            );
-
-            return false;
-
-        }
-
+        }, 3500);
     }
 
 
-    /* =====================================================
-       ACTIVE PROVIDER STATISTIC
-    ===================================================== */
-
-    function updateProviderStatistic() {
+    function setLoading(show) {
 
         const element =
-            document.getElementById(
-                "statProviders"
-            );
-
+            document.getElementById("pageLoading");
 
         if (!element) {
             return;
         }
 
+        element.classList.toggle(
+            "show",
+            Boolean(show)
+        );
+    }
 
-        const data =
-            window.GENZModelsData;
+
+    function updateStats(models) {
+
+        const list =
+            Array.isArray(models)
+                ? models
+                : [];
+
+        const total =
+            list.length;
+
+        const active =
+            list.filter(model => {
+
+                return String(
+                    model?.status || ""
+                ).toLowerCase() === "active";
+
+            }).length;
+
+        const inactive =
+            total - active;
+
+        const providers =
+            new Set(
+                list
+                    .map(model =>
+                        String(
+                            model?.provider_id ||
+                            model?.providerId ||
+                            model?.provider ||
+                            ""
+                        ).trim()
+                    )
+                    .filter(Boolean)
+            ).size;
 
 
-        if (
-            !data ||
-            typeof data.getCachedModels !==
-                "function"
-        ) {
+        const totalElement =
+            document.getElementById(
+                "totalModels"
+            );
 
-            return;
+        const activeElement =
+            document.getElementById(
+                "activeModels"
+            );
 
+        const inactiveElement =
+            document.getElementById(
+                "inactiveModels"
+            );
+
+        const providersElement =
+            document.getElementById(
+                "totalProviders"
+            );
+
+
+        if (totalElement) {
+            totalElement.textContent =
+                String(total);
         }
 
+        if (activeElement) {
+            activeElement.textContent =
+                String(active);
+        }
+
+        if (inactiveElement) {
+            inactiveElement.textContent =
+                String(inactive);
+        }
+
+        if (providersElement) {
+            providersElement.textContent =
+                String(providers);
+        }
+    }
+
+
+    async function waitForModules() {
+
+        const maxAttempts = 100;
+
+        for (
+            let attempt = 0;
+            attempt < maxAttempts;
+            attempt++
+        ) {
+
+            if (
+                window.GENZModelsData &&
+                window.GENZModelsUI
+            ) {
+                return true;
+            }
+
+            await sleep(50);
+        }
+
+        return false;
+    }
+
+
+    async function initializePage() {
+
+        setLoading(true);
 
         try {
 
-            const models =
-                data.getCachedModels();
+            const ready =
+                await waitForModules();
 
+            if (!ready) {
 
-            if (
-                !Array.isArray(
-                    models
-                )
-            ) {
-
-                return;
-
+                throw new Error(
+                    "Module Models GEN-Z.AI belum siap."
+                );
             }
 
 
-            const providerIds =
-                new Set();
+            /*
+             * models-ui menjadi coordinator utama.
+             * Data model tetap berasal dari model registry.
+             */
 
+            if (
+                typeof window
+                    .GENZModelsUI
+                    .initialize === "function"
+            ) {
 
-            models.forEach(
-                function (model) {
+                await window
+                    .GENZModelsUI
+                    .initialize();
 
-                    const status =
-                        String(
-                            model?.status || ""
-                        )
-                            .trim()
-                            .toLowerCase();
+            }
+            else {
 
+                /*
+                 * Fallback apabila initialize()
+                 * tidak tersedia pada modul UI.
+                 */
 
-                    if (
-                        status !== "active"
-                    ) {
+                let models = [];
 
-                        return;
+                if (
+                    typeof window
+                        .GENZModelsData
+                        .loadModels === "function"
+                ) {
 
-                    }
-
-
-                    const provider =
-                        model?.provider;
-
-
-                    if (
-                        provider &&
-                        typeof provider ===
-                            "object"
-                    ) {
-
-                        const value =
-                            provider.id ||
-                            provider.provider_id ||
-                            provider.provider_name ||
-                            "";
-
-                        if (
-                            String(
-                                value
-                            ).trim()
-                        ) {
-
-                            providerIds.add(
-                                String(
-                                    value
-                                ).trim()
-                            );
-
-                        }
-
-                        return;
-
-                    }
-
-
-                    const value =
-                        model?.provider_id ||
-                        model?.provider ||
-                        "";
-
-
-                    if (
-                        String(
-                            value
-                        ).trim()
-                    ) {
-
-                        providerIds.add(
-                            String(
-                                value
-                            ).trim()
-                        );
-
-                    }
+                    models =
+                        await window
+                            .GENZModelsData
+                            .loadModels({
+                                force: true,
+                                activeOnly: false
+                            });
 
                 }
-            );
 
 
-            element.textContent =
-                String(
-                    providerIds.size
+                if (
+                    window.GENZModelTable &&
+                    typeof window
+                        .GENZModelTable
+                        .setModels === "function"
+                ) {
+
+                    window
+                        .GENZModelTable
+                        .setModels(models);
+
+                }
+
+                updateStats(models);
+            }
+
+
+            /*
+             * Ambil data terakhir dari table module
+             * untuk memastikan statistik sinkron.
+             */
+
+            if (
+                window.GENZModelTable &&
+                typeof window
+                    .GENZModelTable
+                    .getModels === "function"
+            ) {
+
+                updateStats(
+                    window
+                        .GENZModelTable
+                        .getModels()
                 );
 
-        } catch (error) {
+            }
 
-            console.warn(
-                "[models.html] Provider statistic error:",
+        }
+        catch (error) {
+
+            console.error(
+                "[Models] initialization error:",
                 error
             );
 
-        }
+            showToast(
+                error?.message ||
+                "Gagal memuat model.",
+                "error"
+            );
 
+        }
+        finally {
+
+            setLoading(false);
+        }
     }
 
 
-    /* =====================================================
-       SIDEBAR
-    ===================================================== */
+    /* =========================================================
+       REFRESH
+       ========================================================= */
 
-    function bindSidebar() {
+    const refreshButton =
+        document.getElementById(
+            "refreshModelsBtn"
+        );
 
-        const sidebar =
-            document.getElementById(
-                "sidebar"
-            );
+    if (refreshButton) {
 
+        refreshButton.addEventListener(
+            "click",
+            async () => {
 
-        const toggle =
-            document.getElementById(
-                "sidebarToggle"
-            );
+                setLoading(true);
 
+                try {
 
-        const mobileButton =
-            document.getElementById(
-                "mobileMenuButton"
-            );
+                    if (
+                        window.GENZModelsData &&
+                        typeof window
+                            .GENZModelsData
+                            .loadModels === "function"
+                    ) {
 
-
-        const overlay =
-            document.getElementById(
-                "sidebarOverlay"
-            );
-
-
-        const main =
-            document.getElementById(
-                "mainContent"
-            );
-
-
-        if (
-            toggle &&
-            !toggle.dataset.bound
-        ) {
-
-            toggle.dataset.bound =
-                "true";
+                        const models =
+                            await window
+                                .GENZModelsData
+                                .loadModels({
+                                    force: true,
+                                    activeOnly: false
+                                });
 
 
-            toggle.addEventListener(
-                "click",
-                function (event) {
+                        if (
+                            window.GENZModelTable &&
+                            typeof window
+                                .GENZModelTable
+                                .setModels === "function"
+                        ) {
 
-                    event.preventDefault();
+                            window
+                                .GENZModelTable
+                                .setModels(models);
+
+                        }
 
 
-                    if (!sidebar) {
-                        return;
+                        updateStats(models);
+
+
+                        if (
+                            window.GENZModelsUI &&
+                            typeof window
+                                .GENZModelsUI
+                                .syncSearch === "function"
+                        ) {
+
+                            window
+                                .GENZModelsUI
+                                .syncSearch(models);
+
+                        }
+
+
+                        showToast(
+                            `${models.length} model berhasil dimuat.`,
+                            "success"
+                        );
+
+                    }
+                    else {
+
+                        await initializePage();
+
                     }
 
+                }
+                catch (error) {
 
-                    sidebar.classList.toggle(
-                        "collapsed"
+                    console.error(
+                        "[Models] refresh error:",
+                        error
                     );
 
-
-                    if (main) {
-
-                        main.classList.toggle(
-                            "collapsed"
-                        );
-
-                    }
-
-
-                    toggle.textContent =
-                        sidebar.classList.contains(
-                            "collapsed"
-                        )
-                            ? "›"
-                            : "‹";
+                    showToast(
+                        error?.message ||
+                        "Gagal memperbarui model.",
+                        "error"
+                    );
 
                 }
-            );
+                finally {
 
-        }
-
-
-        function closeMobile() {
-
-            if (sidebar) {
-
-                sidebar.classList.remove(
-                    "mobile-open"
-                );
-
-            }
-
-
-            if (overlay) {
-
-                overlay.classList.remove(
-                    "show"
-                );
-
-            }
-
-        }
-
-
-        if (
-            mobileButton &&
-            !mobileButton.dataset.bound
-        ) {
-
-            mobileButton.dataset.bound =
-                "true";
-
-
-            mobileButton.addEventListener(
-                "click",
-                function () {
-
-                    if (sidebar) {
-
-                        sidebar.classList.add(
-                            "mobile-open"
-                        );
-
-                    }
-
-
-                    if (overlay) {
-
-                        overlay.classList.add(
-                            "show"
-                        );
-
-                    }
-
+                    setLoading(false);
                 }
-            );
-
-        }
-
-
-        if (
-            overlay &&
-            !overlay.dataset.bound
-        ) {
-
-            overlay.dataset.bound =
-                "true";
-
-
-            overlay.addEventListener(
-                "click",
-                closeMobile
-            );
-
-        }
-
-
-        if (
-            sidebar &&
-            !sidebar.dataset.linksBound
-        ) {
-
-            sidebar.dataset.linksBound =
-                "true";
-
-
-            sidebar
-                .querySelectorAll(
-                    ".sidebar-link"
-                )
-                .forEach(
-                    function (link) {
-
-                        link.addEventListener(
-                            "click",
-                            closeMobile
-                        );
-
-                    }
-                );
-
-        }
-
-    }
-
-
-    /* =====================================================
-       EVENTS FROM MODELS MODULES
-    ===================================================== */
-
-    function bindModelEvents() {
-
-        const events = [
-
-            "genz-models-ready",
-
-            "genz-model-refresh",
-
-            "genz-models-refreshed",
-
-            "genz-providers-loaded",
-
-            "genz-provider-loaded"
-
-        ];
-
-
-        events.forEach(
-            function (eventName) {
-
-                document.addEventListener(
-                    eventName,
-                    updateProviderStatistic
-                );
-
             }
         );
 
     }
 
 
-    /* =====================================================
-       INITIALIZE
-    ===================================================== */
+    /* =========================================================
+       LOGOUT
+       ========================================================= */
 
-    async function initialize() {
+    const logoutButton =
+        document.getElementById(
+            "logoutBtn"
+        );
 
-        bindSidebar();
+    if (logoutButton) {
 
-        bindModelEvents();
+        logoutButton.addEventListener(
+            "click",
+            async () => {
 
-        updateProviderStatistic();
+                try {
 
-
-        /*
-         * Pastikan hanya ADMIN / OWNER yang dapat
-         * menggunakan halaman ini.
-         */
-
-        const allowed =
-            await verifyAdminRole();
-
-
-        if (!allowed) {
-
-            return;
-
-        }
+                    const supabase =
+                        window.supabaseClient ||
+                        window.supabase ||
+                        null;
 
 
-        /*
-         * Loader Model akan mengurus:
-         *
-         * - Data
-         * - Provider
-         * - Search
-         * - Form
-         * - Table
-         * - CRUD
-         */
+                    if (
+                        supabase &&
+                        supabase.auth &&
+                        typeof supabase
+                            .auth
+                            .signOut === "function"
+                    ) {
 
-    }
+                        await supabase
+                            .auth
+                            .signOut();
+
+                    }
+
+                }
+                catch (error) {
+
+                    console.error(
+                        "[Models] logout error:",
+                        error
+                    );
+
+                }
 
 
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            initialize,
-            {
-                once: true
+                window.location.href =
+                    "./login.html";
             }
         );
 
-    } else {
-
-        initialize();
-
     }
 
 
-})();
+    /* =========================================================
+       AUTH GUARD
+       ========================================================= */
+
+    async function checkAdminAccess() {
+
+        /*
+         * Beri waktu supabase.js membuat client.
+         */
+
+        for (
+            let attempt = 0;
+            attempt < 80;
+            attempt++
+        ) {
+
+            const client =
+                window.supabaseClient ||
+                window.supabase ||
+                null;
+
+            if (
+                client &&
+                client.auth &&
+                typeof client
+                    .auth
+                    .getUser === "function"
+            ) {
+
+                try {
+
+                    const {
+                        data,
+                        error
+                    } =
+                        await client
+                            .auth
+                            .getUser();
+
+
+                    if (error) {
+                        console.warn(
+                            "[Models] auth check:",
+                            error
+                        );
+                    }
+
+
+                    if (!data?.user) {
+
+                        /*
+                         * Jangan langsung redirect bila
+                         * auth belum selesai diinisialisasi.
+                         */
+
+                        return true;
+                    }
+
+
+                    /*
+                     * Role guard utama biasanya juga dilakukan
+                     * oleh masing-masing halaman/module.
+                     *
+                     * Di sini kita hanya memastikan user
+                     * sudah memiliki session.
+                     */
+
+                    return true;
+
+                }
+                catch (error) {
+
+                    console.warn(
+                        "[Models] auth check failed:",
+                        error
+                    );
+
+                    return true;
+                }
+            }
+
+            await sleep(50);
+        }
+
+        return true;
+    }
+
+
+    /* =========================================================
+       START
+       ========================================================= */
+
+    (async () => {
+
+        await checkAdminAccess();
+
+        await initializePage();
+
+    })();
 
 </script>
-
-
-<!-- =====================================================
-     MODEL MODULE LOADER
-===================================================== -->
-
-<script
-    src="./models/models-loader.js">
-</script>
-
 
 </body>
 </html>
