@@ -124,6 +124,12 @@
 
     /* =====================================================
        BOOLEAN HELPER
+       
+       Tetap dipertahankan untuk kompatibilitas
+       data/model lain yang memang membawa boolean.
+       
+       TIDAK digunakan untuk membaca kolom provider
+       yang tidak ada di schema providers.
     ===================================================== */
 
     function normalizeBoolean(
@@ -428,17 +434,11 @@
 
 
         /*
-         * Pertahankan semua field asli
-         * dari Supabase.
+         * Pertahankan semua field yang benar-benar
+         * diberikan oleh sumber data.
          *
-         * Termasuk:
-         * - is_active
-         * - active
-         * - enabled
-         * - status
-         * - is_default
-         *
-         * Tidak dihapus atau ditimpa.
+         * Tidak membuat field is_active,
+         * active, atau enabled.
          */
         return {
 
@@ -602,93 +602,17 @@
 
 
         /*
-         * PENTING:
+         * SCHEMA PROVIDERS SAAT INI:
          *
-         * Jika Supabase menyediakan is_active,
-         * field tersebut menjadi sumber utama.
+         * status adalah sumber status aktif.
          *
-         * Jadi:
+         * Jangan membaca:
+         * - is_active
+         * - active
+         * - enabled
          *
-         * is_active = true
-         *     => aktif
-         *
-         * is_active = false
-         *     => nonaktif
-         *
-         * Tidak boleh ditimpa oleh status.
-         */
-        if (
-            Object.prototype.hasOwnProperty.call(
-                provider,
-                "is_active"
-            )
-        ) {
-
-            const active =
-                normalizeBoolean(
-                    provider.is_active
-                );
-
-
-            if (
-                active !== null
-            ) {
-
-                return active;
-            }
-        }
-
-
-        /*
-         * Kompatibilitas apabila schema lama
-         * menggunakan active / enabled.
-         */
-        if (
-            Object.prototype.hasOwnProperty.call(
-                provider,
-                "active"
-            )
-        ) {
-
-            const active =
-                normalizeBoolean(
-                    provider.active
-                );
-
-
-            if (
-                active !== null
-            ) {
-
-                return active;
-            }
-        }
-
-
-        if (
-            Object.prototype.hasOwnProperty.call(
-                provider,
-                "enabled"
-            )
-        ) {
-
-            const enabled =
-                normalizeBoolean(
-                    provider.enabled
-                );
-
-
-            if (
-                enabled !== null
-            ) {
-
-                return enabled;
-            }
-        }
-
-
-        /*
-         * Fallback terakhir ke status.
+         * karena kolom tersebut tidak tersedia
+         * pada schema providers yang digunakan project.
          */
         return isActiveStatus(
             provider.status
@@ -1510,6 +1434,20 @@
         providerLoadingPromise =
             (async function () {
 
+                /*
+                 * PENTING:
+                 *
+                 * Hanya kolom yang memang ada
+                 * pada tabel providers yang diminta.
+                 *
+                 * Jangan menambahkan:
+                 * is_active
+                 * active
+                 * enabled
+                 *
+                 * karena akan membuat Supabase
+                 * gagal melakukan SELECT.
+                 */
                 const {
                     data,
                     error
@@ -1524,9 +1462,6 @@
                             provider_name,
                             description,
                             status,
-                            is_active,
-                            active,
-                            enabled,
                             is_default,
                             created_at,
                             updated_at
@@ -1579,7 +1514,8 @@
                 /*
                  * Debug informasi Provider.
                  *
-                 * Tidak mengubah data.
+                 * Hanya menampilkan field
+                 * yang memang berasal dari schema.
                  */
                 console.info(
                     "[models-data] Provider status:",
@@ -1596,15 +1532,6 @@
 
                                 provider_name:
                                     provider.provider_name,
-
-                                is_active:
-                                    provider.is_active,
-
-                                active:
-                                    provider.active,
-
-                                enabled:
-                                    provider.enabled,
 
                                 status:
                                     provider.status
