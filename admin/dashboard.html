@@ -19,165 +19,47 @@
             --border: rgba(255,255,255,0.08);
             --text: #f5f7fa;
             --muted: #8d96a5;
-            --accent: #7c5cff;
-            --accent-2: #00d4ff;
+
+            --accent: #ff1744;
+            --accent-2: #ff4567;
+
             --success: #27d17f;
             --warning: #ffb547;
             --danger: #ff5c72;
         }
 
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
         body {
             font-family: Inter, Arial, Helvetica, sans-serif;
             background:
-                radial-gradient(circle at 10% 10%, rgba(124,92,255,.13), transparent 28%),
-                radial-gradient(circle at 90% 20%, rgba(0,212,255,.08), transparent 25%),
-                radial-gradient(circle at 50% 100%, rgba(124,92,255,.06), transparent 35%),
+                radial-gradient(
+                    circle at 10% 10%,
+                    rgba(255,23,68,.10),
+                    transparent 28%
+                ),
+                radial-gradient(
+                    circle at 90% 20%,
+                    rgba(255,69,103,.055),
+                    transparent 25%
+                ),
+                radial-gradient(
+                    circle at 50% 100%,
+                    rgba(255,23,68,.045),
+                    transparent 35%
+                ),
                 var(--bg);
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
         }
 
-        /* =========================
-           SIDEBAR
-        ========================= */
-
-        .menu-button {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            width: 46px;
-            height: 46px;
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: rgba(15,19,27,.88);
-            backdrop-filter: blur(16px);
-            color: white;
-            cursor: pointer;
-            z-index: 1100;
-            font-size: 21px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: .25s ease;
-        }
-
-        .menu-button:hover {
-            transform: translateY(-2px);
-            border-color: rgba(124,92,255,.6);
-            box-shadow: 0 10px 35px rgba(0,0,0,.35);
-        }
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 285px;
-            height: 100vh;
-            background: rgba(10,13,19,.97);
-            border-right: 1px solid var(--border);
-            backdrop-filter: blur(25px);
-            transform: translateX(-100%);
-            transition: transform .3s ease;
-            z-index: 1000;
-            padding: 28px 18px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar.open {
-            transform: translateX(0);
-        }
-
-        .sidebar-brand {
-            padding: 10px 12px 28px;
-        }
-
-        .brand-name {
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: -.5px;
-        }
-
-        .brand-sub {
-            margin-top: 5px;
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .nav {
-            display: flex;
-            flex-direction: column;
-            gap: 7px;
-        }
-
-        .nav a,
-        .logout-button {
-            text-decoration: none;
-            color: #aeb6c4;
-            padding: 14px 15px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border: 1px solid transparent;
-            background: transparent;
-            cursor: pointer;
-            width: 100%;
-            text-align: left;
-        }
-
-        .nav a:hover {
-            color: white;
-            background: rgba(255,255,255,.045);
-            border-color: var(--border);
-        }
-
-        .nav a.active {
-            color: white;
-            background: linear-gradient(
-                135deg,
-                rgba(124,92,255,.18),
-                rgba(0,212,255,.07)
-            );
-            border-color: rgba(124,92,255,.25);
-        }
-
-        .logout-area {
-            margin-top: auto;
-            border-top: 1px solid var(--border);
-            padding-top: 15px;
-        }
-
-        .logout-button {
-            color: #ff8b99;
-        }
-
-        .logout-button:hover {
-            background: rgba(255,92,114,.08);
-        }
-
-        .overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,.55);
-            backdrop-filter: blur(3px);
-            opacity: 0;
-            pointer-events: none;
-            transition: .3s ease;
-            z-index: 900;
-        }
-
-        .overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        /* =========================
+        /* =========================================================
            MAIN
-        ========================= */
+        ========================================================= */
 
         main {
             width: min(1450px, 100%);
@@ -194,7 +76,7 @@
         }
 
         .eyebrow {
-            color: var(--accent-2);
+            color: var(--accent);
             text-transform: uppercase;
             letter-spacing: 2px;
             font-size: 11px;
@@ -215,18 +97,18 @@
         }
 
         .role-badge {
-            border: 1px solid rgba(124,92,255,.3);
-            background: rgba(124,92,255,.1);
-            color: #c8bcff;
+            border: 1px solid rgba(255,23,68,.30);
+            background: rgba(255,23,68,.09);
+            color: #ff9aae;
             padding: 9px 14px;
             border-radius: 100px;
             font-size: 12px;
             font-weight: 800;
         }
 
-        /* =========================
+        /* =========================================================
            HERO STATUS
-        ========================= */
+        ========================================================= */
 
         .hero {
             position: relative;
@@ -234,15 +116,17 @@
             background:
                 linear-gradient(
                     135deg,
-                    rgba(124,92,255,.13),
-                    rgba(0,212,255,.045)
+                    rgba(255,23,68,.11),
+                    rgba(255,69,103,.025)
                 ),
                 var(--card);
             border: 1px solid var(--border);
             border-radius: 24px;
             padding: 27px;
             margin-bottom: 25px;
-            box-shadow: 0 25px 70px rgba(0,0,0,.2);
+            box-shadow:
+                0 25px 70px rgba(0,0,0,.20),
+                inset 0 1px 0 rgba(255,255,255,.025);
         }
 
         .hero::after {
@@ -251,7 +135,7 @@
             width: 280px;
             height: 280px;
             border-radius: 50%;
-            background: rgba(124,92,255,.09);
+            background: rgba(255,23,68,.075);
             filter: blur(70px);
             right: -100px;
             top: -130px;
@@ -288,9 +172,9 @@
             font-size: 12px;
         }
 
-        /* =========================
-           STAT CARDS
-        ========================= */
+        /* =========================================================
+           SECTION TITLE
+        ========================================================= */
 
         .section-title {
             font-size: 13px;
@@ -300,6 +184,10 @@
             margin: 30px 0 14px;
             font-weight: 800;
         }
+
+        /* =========================================================
+           STAT CARDS
+        ========================================================= */
 
         .stats {
             display: grid;
@@ -313,6 +201,21 @@
             border-radius: 19px;
             padding: 21px;
             min-height: 125px;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.02),
+                0 12px 35px rgba(0,0,0,.12);
+            transition:
+                transform .25s ease,
+                border-color .25s ease,
+                box-shadow .25s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255,23,68,.18);
+            box-shadow:
+                0 18px 45px rgba(0,0,0,.18),
+                0 0 25px rgba(255,23,68,.035);
         }
 
         .stat-label {
@@ -333,9 +236,9 @@
             margin-top: 7px;
         }
 
-        /* =========================
+        /* =========================================================
            PROGRESS
-        ========================= */
+        ========================================================= */
 
         .progress-grid {
             display: grid;
@@ -348,6 +251,9 @@
             border: 1px solid var(--border);
             border-radius: 19px;
             padding: 20px;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.02),
+                0 12px 35px rgba(0,0,0,.10);
         }
 
         .module-head {
@@ -376,8 +282,8 @@
         }
 
         .active-status {
-            color: #b8acff;
-            background: rgba(124,92,255,.1);
+            color: #ff8fa4;
+            background: rgba(255,23,68,.08);
         }
 
         .pending {
@@ -402,6 +308,7 @@
                 var(--accent),
                 var(--accent-2)
             );
+            box-shadow: 0 0 12px rgba(255,23,68,.35);
         }
 
         .module-footer {
@@ -412,9 +319,9 @@
             margin-top: 9px;
         }
 
-        /* =========================
+        /* =========================================================
            TWO COLUMN
-        ========================= */
+        ========================================================= */
 
         .columns {
             display: grid;
@@ -427,6 +334,9 @@
             border: 1px solid var(--border);
             border-radius: 20px;
             padding: 22px;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.02),
+                0 12px 35px rgba(0,0,0,.10);
         }
 
         .panel-title {
@@ -462,6 +372,10 @@
             color: var(--success);
         }
 
+        /* =========================================================
+           FOOTER
+        ========================================================= */
+
         .footer {
             text-align: center;
             color: #5e6672;
@@ -469,9 +383,9 @@
             padding-top: 35px;
         }
 
-        /* =========================
+        /* =========================================================
            RESPONSIVE
-        ========================= */
+        ========================================================= */
 
         @media (max-width: 1050px) {
             .stats {
@@ -510,10 +424,15 @@
                 align-items: flex-start;
                 flex-direction: column;
             }
+        }
 
-            .menu-button {
-                top: 14px;
-                left: 14px;
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: .01ms !important;
+                animation-duration: .01ms !important;
             }
         }
     </style>
@@ -521,75 +440,40 @@
 
 <body>
 
-    <!-- MENU BUTTON -->
-    <button
-        class="menu-button"
-        id="menuButton"
-        aria-label="Buka navigasi"
-        aria-expanded="false"
-    >
-        |||
-    </button>
+    <!-- =========================================================
+         SHARED ADMIN NAVIGATION
+         Seluruh CSS + JS navigation berada di admin-nav.js
+    ========================================================== -->
 
-    <!-- OVERLAY -->
-    <div class="overlay" id="overlay"></div>
+    <div id="adminNavigation"></div>
 
-    <!-- SLIDE NAVIGATION -->
-    <aside class="sidebar" id="sidebar">
+    <!-- =========================================================
+         MAIN
+    ========================================================== -->
 
-        <div class="sidebar-brand">
-            <div class="brand-name">GEN-Z.AI</div>
-            <div class="brand-sub">ADMIN / OWNER CONTROL</div>
-        </div>
-
-        <nav class="nav">
-
-            <a href="../generate/index.html">
-                <span>◉</span>
-                <span>Generate</span>
-            </a>
-
-            <a href="../history/index.html">
-                <span>◷</span>
-                <span>History</span>
-            </a>
-
-            <a href="../admin-control/admin-panel.html">
-                <span>◆</span>
-                <span>Admin Panel</span>
-            </a>
-
-        </nav>
-
-        <div class="logout-area">
-            <button
-                class="logout-button"
-                id="logoutButton"
-            >
-                <span>↪</span>
-                <span>Log Out</span>
-            </button>
-        </div>
-
-    </aside>
-
-    <!-- MAIN -->
     <main>
 
         <!-- HEADER -->
         <section class="header">
 
             <div>
-                <div class="eyebrow">Control Center</div>
+                <div class="eyebrow">
+                    Control Center
+                </div>
 
-                <h1>Dashboard</h1>
+                <h1>
+                    Dashboard
+                </h1>
 
                 <div class="subtitle">
                     Monitoring seluruh progres aplikasi GEN-Z.AI
                 </div>
             </div>
 
-            <div class="role-badge" id="roleBadge">
+            <div
+                class="role-badge"
+                id="roleBadge"
+            >
                 ADMIN / OWNER
             </div>
 
@@ -602,7 +486,9 @@
 
                 <div class="system-status">
                     <span class="status-dot"></span>
-                    <span>All core systems operational</span>
+                    <span>
+                        All core systems operational
+                    </span>
                 </div>
 
                 <div class="version">
@@ -621,27 +507,71 @@
         <section class="stats">
 
             <div class="stat-card">
-                <div class="stat-label">Total Users</div>
-                <div class="stat-value" id="totalUsers">—</div>
-                <div class="stat-note">Registered accounts</div>
+                <div class="stat-label">
+                    Total Users
+                </div>
+
+                <div
+                    class="stat-value"
+                    id="totalUsers"
+                >
+                    —
+                </div>
+
+                <div class="stat-note">
+                    Registered accounts
+                </div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-label">Active Users</div>
-                <div class="stat-value" id="activeUsers">—</div>
-                <div class="stat-note">Currently active</div>
+                <div class="stat-label">
+                    Active Users
+                </div>
+
+                <div
+                    class="stat-value"
+                    id="activeUsers"
+                >
+                    —
+                </div>
+
+                <div class="stat-note">
+                    Currently active
+                </div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-label">Video Generations</div>
-                <div class="stat-value" id="totalGenerations">—</div>
-                <div class="stat-note">Total generation history</div>
+                <div class="stat-label">
+                    Video Generations
+                </div>
+
+                <div
+                    class="stat-value"
+                    id="totalGenerations"
+                >
+                    —
+                </div>
+
+                <div class="stat-note">
+                    Total generation history
+                </div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-label">Credits Issued</div>
-                <div class="stat-value" id="totalCredits">—</div>
-                <div class="stat-note">System credit balance</div>
+                <div class="stat-label">
+                    Credits Issued
+                </div>
+
+                <div
+                    class="stat-value"
+                    id="totalCredits"
+                >
+                    —
+                </div>
+
+                <div class="stat-note">
+                    System credit balance
+                </div>
             </div>
 
         </section>
@@ -655,8 +585,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Authentication</div>
-                    <div class="module-status ready">Ready</div>
+                    <div class="module-name">
+                        Authentication
+                    </div>
+
+                    <div class="module-status ready">
+                        Ready
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -671,8 +606,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Generate Video</div>
-                    <div class="module-status active-status">Active</div>
+                    <div class="module-name">
+                        Generate Video
+                    </div>
+
+                    <div class="module-status active-status">
+                        Active
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -687,8 +627,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Generation History</div>
-                    <div class="module-status ready">Ready</div>
+                    <div class="module-name">
+                        Generation History
+                    </div>
+
+                    <div class="module-status ready">
+                        Ready
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -703,8 +648,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Provider System</div>
-                    <div class="module-status ready">Ready</div>
+                    <div class="module-name">
+                        Provider System
+                    </div>
+
+                    <div class="module-status ready">
+                        Ready
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -719,8 +669,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Model System</div>
-                    <div class="module-status active-status">Active</div>
+                    <div class="module-name">
+                        Model System
+                    </div>
+
+                    <div class="module-status active-status">
+                        Active
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -735,8 +690,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Credit System</div>
-                    <div class="module-status ready">Ready</div>
+                    <div class="module-name">
+                        Credit System
+                    </div>
+
+                    <div class="module-status ready">
+                        Ready
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -751,8 +711,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Top Up System</div>
-                    <div class="module-status active-status">Active</div>
+                    <div class="module-name">
+                        Top Up System
+                    </div>
+
+                    <div class="module-status active-status">
+                        Active
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -767,8 +732,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Admin Control</div>
-                    <div class="module-status active-status">Active</div>
+                    <div class="module-name">
+                        Admin Control
+                    </div>
+
+                    <div class="module-status active-status">
+                        Active
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -783,8 +753,13 @@
 
             <div class="module">
                 <div class="module-head">
-                    <div class="module-name">Database</div>
-                    <div class="module-status ready">Ready</div>
+                    <div class="module-name">
+                        Database
+                    </div>
+
+                    <div class="module-status ready">
+                        Ready
+                    </div>
                 </div>
 
                 <div class="bar">
@@ -799,7 +774,7 @@
 
         </section>
 
-        <!-- DETAILS -->
+        <!-- SYSTEM INFORMATION -->
         <div class="section-title">
             System Information
         </div>
@@ -813,33 +788,63 @@
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Authentication</span>
-                    <span class="info-value online">Operational</span>
+                    <span class="info-label">
+                        Authentication
+                    </span>
+
+                    <span class="info-value online">
+                        Operational
+                    </span>
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Supabase Database</span>
-                    <span class="info-value online">Connected</span>
+                    <span class="info-label">
+                        Supabase Database
+                    </span>
+
+                    <span class="info-value online">
+                        Connected
+                    </span>
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Provider Registry</span>
-                    <span class="info-value online">Available</span>
+                    <span class="info-label">
+                        Provider Registry
+                    </span>
+
+                    <span class="info-value online">
+                        Available
+                    </span>
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Model Registry</span>
-                    <span class="info-value online">Available</span>
+                    <span class="info-label">
+                        Model Registry
+                    </span>
+
+                    <span class="info-value online">
+                        Available
+                    </span>
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Credit System</span>
-                    <span class="info-value online">Operational</span>
+                    <span class="info-label">
+                        Credit System
+                    </span>
+
+                    <span class="info-value online">
+                        Operational
+                    </span>
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">History System</span>
-                    <span class="info-value online">Operational</span>
+                    <span class="info-label">
+                        History System
+                    </span>
+
+                    <span class="info-value online">
+                        Operational
+                    </span>
                 </div>
 
             </div>
@@ -851,23 +856,55 @@
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Name</span>
-                    <span class="info-value" id="accountName">—</span>
+                    <span class="info-label">
+                        Name
+                    </span>
+
+                    <span
+                        class="info-value"
+                        id="accountName"
+                    >
+                        —
+                    </span>
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Email</span>
-                    <span class="info-value" id="accountEmail">—</span>
+                    <span class="info-label">
+                        Email
+                    </span>
+
+                    <span
+                        class="info-value"
+                        id="accountEmail"
+                    >
+                        —
+                    </span>
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Role</span>
-                    <span class="info-value" id="accountRole">—</span>
+                    <span class="info-label">
+                        Role
+                    </span>
+
+                    <span
+                        class="info-value"
+                        id="accountRole"
+                    >
+                        —
+                    </span>
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Status</span>
-                    <span class="info-value online" id="accountStatus">Active</span>
+                    <span class="info-label">
+                        Status
+                    </span>
+
+                    <span
+                        class="info-value online"
+                        id="accountStatus"
+                    >
+                        Active
+                    </span>
                 </div>
 
             </div>
@@ -880,192 +917,376 @@
 
     </main>
 
-    <!-- SUPABASE -->
+    <!-- =========================================================
+         SUPABASE
+    ========================================================== -->
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- CONFIG -->
+    <!-- =========================================================
+         CONFIG
+    ========================================================== -->
+
     <script src="../assets/js/config.js"></script>
 
+    <!-- =========================================================
+         SHARED ADMIN NAVIGATION
+    ========================================================== -->
+
+    <script src="./admin-nav.js"></script>
+
+    <!-- =========================================================
+         DASHBOARD LOGIC
+         Tidak berisi CSS / HTML navigation.
+    ========================================================== -->
+
     <script>
-        const supabaseClient = window.supabase.createClient(
-            GENZ_CONFIG.SUPABASE_URL,
-            GENZ_CONFIG.SUPABASE_KEY
-        );
+        (() => {
+            "use strict";
 
-        const menuButton = document.getElementById("menuButton");
-        const sidebar = document.getElementById("sidebar");
-        const overlay = document.getElementById("overlay");
+            /*
+             * -----------------------------------------------------
+             * SUPABASE CLIENT
+             * -----------------------------------------------------
+             */
 
-        function openMenu() {
-            sidebar.classList.add("open");
-            overlay.classList.add("show");
-            menuButton.setAttribute("aria-expanded", "true");
-        }
+            const supabaseClient =
+                window.GENZ_SUPABASE ||
+                window.supabaseClient ||
+                (
+                    window.supabase &&
+                    window.GENZ_CONFIG
+                        ? window.supabase.createClient(
+                            window.GENZ_CONFIG.SUPABASE_URL,
+                            window.GENZ_CONFIG.SUPABASE_KEY
+                        )
+                        : null
+                );
 
-        function closeMenu() {
-            sidebar.classList.remove("open");
-            overlay.classList.remove("show");
-            menuButton.setAttribute("aria-expanded", "false");
-        }
-
-        menuButton.addEventListener("click", () => {
-            if (sidebar.classList.contains("open")) {
-                closeMenu();
-            } else {
-                openMenu();
+            if (!supabaseClient) {
+                console.error(
+                    "GEN-Z.AI: Supabase client tidak tersedia."
+                );
+                return;
             }
-        });
 
-        overlay.addEventListener("click", closeMenu);
+            /*
+             * -----------------------------------------------------
+             * DASHBOARD
+             * -----------------------------------------------------
+             */
 
-        document.querySelectorAll(".nav a").forEach(link => {
-            link.addEventListener("click", closeMenu);
-        });
-
-        async function loadDashboard() {
-
-            try {
-
-                const {
-                    data: { session },
-                    error: sessionError
-                } = await supabaseClient.auth.getSession();
-
-                if (sessionError || !session) {
-                    window.location.href = "../login.html";
-                    return;
-                }
-
-                const user = session.user;
-
-                const {
-                    data: profile,
-                    error: profileError
-                } = await supabaseClient
-                    .from("profiles")
-                    .select("*")
-                    .eq("id", user.id)
-                    .single();
-
-                if (profileError || !profile) {
-                    console.error(profileError);
-                    return;
-                }
-
-                const role = String(profile.role || "").toUpperCase();
-
-                if (role !== "ADMIN" && role !== "OWNER") {
-                    window.location.href = "../user/dashboard.html";
-                    return;
-                }
-
-                document.getElementById("roleBadge").textContent = role;
-
-                document.getElementById("accountName").textContent =
-                    profile.name || "—";
-
-                document.getElementById("accountEmail").textContent =
-                    profile.email || user.email || "—";
-
-                document.getElementById("accountRole").textContent =
-                    role;
-
-                document.getElementById("accountStatus").textContent =
-                    profile.status || "active";
-
-                /*
-                 * Statistik dibuat aman.
-                 * Jika RLS belum mengizinkan akses global,
-                 * dashboard tetap tampil tanpa merusak halaman.
-                 */
+            async function loadDashboard() {
 
                 try {
-                    const { count } = await supabaseClient
-                        .from("profiles")
-                        .select("id", {
-                            count: "exact",
-                            head: true
-                        });
 
-                    if (typeof count === "number") {
-                        document.getElementById("totalUsers").textContent =
-                            count.toLocaleString("id-ID");
+                    const {
+                        data: { session },
+                        error: sessionError
+                    } = await supabaseClient.auth.getSession();
+
+                    if (sessionError || !session) {
+                        window.location.href = "../login.html";
+                        return;
                     }
-                } catch (e) {
-                    console.warn("Total users tidak tersedia.");
-                }
 
-                try {
-                    const { count } = await supabaseClient
+                    const user = session.user;
+
+                    /*
+                     * -------------------------------------------------
+                     * PROFILE
+                     * -------------------------------------------------
+                     */
+
+                    const {
+                        data: profile,
+                        error: profileError
+                    } = await supabaseClient
                         .from("profiles")
-                        .select("id", {
-                            count: "exact",
-                            head: true
-                        })
-                        .eq("status", "active");
+                        .select("*")
+                        .eq("id", user.id)
+                        .single();
 
-                    if (typeof count === "number") {
-                        document.getElementById("activeUsers").textContent =
-                            count.toLocaleString("id-ID");
+                    if (profileError || !profile) {
+                        console.error(
+                            "Profile tidak dapat dimuat:",
+                            profileError
+                        );
+                        return;
                     }
-                } catch (e) {
-                    console.warn("Active users tidak tersedia.");
-                }
 
-                try {
-                    const { count } = await supabaseClient
-                        .from("generation_history")
-                        .select("id", {
-                            count: "exact",
-                            head: true
-                        });
+                    const role =
+                        String(profile.role || "")
+                            .trim()
+                            .toUpperCase();
 
-                    if (typeof count === "number") {
-                        document.getElementById("totalGenerations").textContent =
-                            count.toLocaleString("id-ID");
+                    /*
+                     * -------------------------------------------------
+                     * ADMIN ACCESS
+                     * -------------------------------------------------
+                     */
+
+                    if (
+                        role !== "ADMIN" &&
+                        role !== "OWNER"
+                    ) {
+                        window.location.href =
+                            "../user/dashboard.html";
+                        return;
                     }
-                } catch (e) {
-                    console.warn("Generation statistics tidak tersedia.");
-                }
 
-                try {
-                    const { data } = await supabaseClient
-                        .from("profiles")
-                        .select("credits");
+                    /*
+                     * -------------------------------------------------
+                     * ACCOUNT INFORMATION
+                     * -------------------------------------------------
+                     */
 
-                    if (data) {
-                        const totalCredits = data.reduce(
-                            (sum, row) => sum + (Number(row.credits) || 0),
-                            0
+                    const roleBadge =
+                        document.getElementById("roleBadge");
+
+                    const accountName =
+                        document.getElementById("accountName");
+
+                    const accountEmail =
+                        document.getElementById("accountEmail");
+
+                    const accountRole =
+                        document.getElementById("accountRole");
+
+                    const accountStatus =
+                        document.getElementById("accountStatus");
+
+                    if (roleBadge) {
+                        roleBadge.textContent = role;
+                    }
+
+                    if (accountName) {
+                        accountName.textContent =
+                            profile.name || "—";
+                    }
+
+                    if (accountEmail) {
+                        accountEmail.textContent =
+                            profile.email ||
+                            user.email ||
+                            "—";
+                    }
+
+                    if (accountRole) {
+                        accountRole.textContent = role;
+                    }
+
+                    if (accountStatus) {
+                        accountStatus.textContent =
+                            profile.status || "active";
+                    }
+
+                    /*
+                     * -------------------------------------------------
+                     * TOTAL USERS
+                     * -------------------------------------------------
+                     */
+
+                    try {
+
+                        const {
+                            count,
+                            error
+                        } = await supabaseClient
+                            .from("profiles")
+                            .select("id", {
+                                count: "exact",
+                                head: true
+                            });
+
+                        if (
+                            !error &&
+                            typeof count === "number"
+                        ) {
+                            const element =
+                                document.getElementById(
+                                    "totalUsers"
+                                );
+
+                            if (element) {
+                                element.textContent =
+                                    count.toLocaleString(
+                                        "id-ID"
+                                    );
+                            }
+                        }
+
+                    } catch (error) {
+
+                        console.warn(
+                            "Total users tidak tersedia.",
+                            error
                         );
 
-                        document.getElementById("totalCredits").textContent =
-                            totalCredits.toLocaleString("id-ID");
                     }
-                } catch (e) {
-                    console.warn("Credit statistics tidak tersedia.");
-                }
 
-            } catch (error) {
-                console.error(
-                    "Dashboard error:",
-                    error
-                );
+                    /*
+                     * -------------------------------------------------
+                     * ACTIVE USERS
+                     * -------------------------------------------------
+                     */
+
+                    try {
+
+                        const {
+                            count,
+                            error
+                        } = await supabaseClient
+                            .from("profiles")
+                            .select("id", {
+                                count: "exact",
+                                head: true
+                            })
+                            .eq("status", "active");
+
+                        if (
+                            !error &&
+                            typeof count === "number"
+                        ) {
+                            const element =
+                                document.getElementById(
+                                    "activeUsers"
+                                );
+
+                            if (element) {
+                                element.textContent =
+                                    count.toLocaleString(
+                                        "id-ID"
+                                    );
+                            }
+                        }
+
+                    } catch (error) {
+
+                        console.warn(
+                            "Active users tidak tersedia.",
+                            error
+                        );
+
+                    }
+
+                    /*
+                     * -------------------------------------------------
+                     * GENERATION HISTORY
+                     * -------------------------------------------------
+                     */
+
+                    try {
+
+                        const {
+                            count,
+                            error
+                        } = await supabaseClient
+                            .from("generation_history")
+                            .select("id", {
+                                count: "exact",
+                                head: true
+                            });
+
+                        if (
+                            !error &&
+                            typeof count === "number"
+                        ) {
+                            const element =
+                                document.getElementById(
+                                    "totalGenerations"
+                                );
+
+                            if (element) {
+                                element.textContent =
+                                    count.toLocaleString(
+                                        "id-ID"
+                                    );
+                            }
+                        }
+
+                    } catch (error) {
+
+                        console.warn(
+                            "Generation statistics tidak tersedia.",
+                            error
+                        );
+
+                    }
+
+                    /*
+                     * -------------------------------------------------
+                     * TOTAL CREDITS
+                     * -------------------------------------------------
+                     */
+
+                    try {
+
+                        const {
+                            data,
+                            error
+                        } = await supabaseClient
+                            .from("profiles")
+                            .select("credits");
+
+                        if (
+                            !error &&
+                            Array.isArray(data)
+                        ) {
+
+                            const totalCredits =
+                                data.reduce(
+                                    (sum, row) =>
+                                        sum +
+                                        (
+                                            Number(
+                                                row.credits
+                                            ) || 0
+                                        ),
+                                    0
+                                );
+
+                            const element =
+                                document.getElementById(
+                                    "totalCredits"
+                                );
+
+                            if (element) {
+                                element.textContent =
+                                    totalCredits.toLocaleString(
+                                        "id-ID"
+                                    );
+                            }
+                        }
+
+                    } catch (error) {
+
+                        console.warn(
+                            "Credit statistics tidak tersedia.",
+                            error
+                        );
+
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "Dashboard error:",
+                        error
+                    );
+
+                }
             }
-        }
 
-        document.getElementById("logoutButton")
-            .addEventListener("click", async () => {
+            /*
+             * -----------------------------------------------------
+             * START
+             * -----------------------------------------------------
+             */
 
-                try {
-                    await supabaseClient.auth.signOut();
-                } finally {
-                    window.location.href = "../login.html";
-                }
+            loadDashboard();
 
-            });
-
-        loadDashboard();
+        })();
     </script>
 
 </body>
