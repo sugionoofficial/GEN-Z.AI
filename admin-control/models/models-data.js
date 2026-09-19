@@ -7,38 +7,37 @@
    admin-control/models/models-data.js
 
    OWNER:
-   - Supabase data access
-   - Model catalog cache
-   - Provider catalog cache
+   - Model catalog data access
+   - Provider catalog data access
+   - Model cache
+   - Provider cache
    - Data normalization
    - Basic data lookup
 
    BUKAN OWNER:
-   - Model search UI
-   - Dropdown
+   - Model dropdown UI
+   - Search UI
    - Search rendering
    - Form
    - Table
    - Pricing UI
 
-   COMPATIBILITY:
-   Public API lama tetap dipertahankan:
-   - loadKieModels()
-   - searchKieModels()
-   - findModelById()
-   - loadProviders()
-   - findProviderById()
-   - searchProviders()
-   - clearCache()
-   - getCachedModels()
-   - getCachedProviders()
-   - getDebugInfo()
+   DATA FLOW MODEL:
+   
+   PRIMARY:
+   /api/kie-config
+          ↓
+      models[]
 
-   CATATAN DATABASE:
+   FALLBACK:
+   Supabase
+      ↓
+   kie_models
+
+   CATATAN:
    - public.kie_models menggunakan kolom "provider"
    - public.providers menggunakan "provider_id"
    - provider.id adalah UUID database
-   - kie_models tidak diasumsikan mempunyai provider_id
 ========================================================= */
 
 (function () {
@@ -56,6 +55,9 @@
     const PROVIDER_TABLE =
         "providers";
 
+    const KIE_CONFIG_ENDPOINT =
+        "/api/kie-config";
+
 
     /* =====================================================
        CACHE
@@ -66,17 +68,6 @@
     let providerCache = [];
 
 
-    /*
-     * Status cache dipisahkan dari panjang array.
-     *
-     * Ini penting karena:
-     *
-     * [] setelah query berhasil
-     *
-     * berbeda dengan:
-     *
-     * [] karena belum pernah query.
-     */
     let modelCacheLoaded =
         false;
 
@@ -84,10 +75,6 @@
         false;
 
 
-    /*
-     * Promise terpisah mencegah dua module melakukan
-     * query yang sama secara bersamaan.
-     */
     let modelLoadingPromise =
         null;
 
@@ -156,24 +143,11 @@
         }
 
 
-        /*
-         * Struktur aktual kie_models:
-         *
-         * provider
-         * model_family
-         * model_id
-         * model_name
-         * status
-         * documentation_url
-         * metadata
-         *
-         * Jangan menghapus field lain yang mungkin
-         * ditambahkan database.
-         */
-
         const providerValue =
             String(
                 model.provider ??
+                model.provider_id ??
+                model.provider_code ??
                 ""
             ).trim();
 
@@ -182,6 +156,7 @@
             String(
                 model.model_id ??
                 model.modelId ??
+                model.id ??
                 ""
             ).trim();
 
@@ -191,6 +166,7 @@
                 model.model_name ??
                 model.modelName ??
                 model.name ??
+                modelId ??
                 ""
             ).trim();
 
@@ -204,11 +180,6 @@
             ).trim();
 
 
-        /*
-         * provider_id hanya alias kompatibilitas.
-         *
-         * Jangan mengubah field database "provider".
-         */
         return {
 
             ...model,
@@ -230,6 +201,7 @@
 
             model_family:
                 modelFamily
+
         };
     }
 
@@ -273,9 +245,6 @@
         }
 
 
-        /*
-         * UUID database.
-         */
         const databaseId =
             String(
                 provider.id ??
@@ -283,9 +252,6 @@
             ).trim();
 
 
-        /*
-         * Kode Provider.
-         */
         const providerCode =
             String(
                 provider.provider_id ??
@@ -294,9 +260,6 @@
             ).trim();
 
 
-        /*
-         * Nama Provider.
-         */
         const providerName =
             String(
                 provider.provider_name ??
@@ -330,6 +293,7 @@
 
             provider_name:
                 providerName
+
         };
     }
 
@@ -361,14 +325,11 @@
 
 
                 if (!provider) {
+
                     return;
                 }
 
 
-                /*
-                 * Gunakan UUID sebagai identitas utama
-                 * jika tersedia.
-                 */
                 const key =
                     normalizeString(
                         provider.id ||
@@ -377,6 +338,7 @@
 
 
                 if (!key) {
+
                     return;
                 }
 
@@ -384,6 +346,7 @@
                 if (
                     seen.has(key)
                 ) {
+
                     return;
                 }
 
@@ -393,6 +356,7 @@
                 result.push(
                     provider
                 );
+
             }
         );
 
@@ -409,11 +373,32 @@
         value
     ) {
 
-        return (
+        const status =
             normalizeString(
                 value
-            ) ===
-            "active"
+            );
+
+
+        /*
+         * Data lama kadang menggunakan status kosong.
+         * Status kosong tidak kita buang supaya katalog
+         * tidak tiba-tiba menjadi 0.
+         */
+
+        if (!status) {
+
+            return true;
+        }
+
+
+        return (
+
+            status === "active" ||
+            status === "enabled" ||
+            status === "published" ||
+            status === "live" ||
+            status === "ready"
+
         );
     }
 
@@ -439,6 +424,308 @@
 
 
     /* =====================================================
+       SESSION ACCESS TOKEN
+    ===================================================== */
+
+    async function getAccessToken() {
+
+        try {
+
+            const supabase =
+                getSupabase();
+
+
+            if (
+                !supabase?.auth ||
+                typeof supabase.auth.getSession !== "function"
+            ) {
+
+                return "";
+            }
+
+
+            const result =
+                await supabase.auth.getSession();
+
+
+            const session =
+                result?.data?.session;
+
+
+            return (
+                session?.access_token ||
+                ""
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[models-data] Tidak dapat mengambil access token:",
+                error
+            );
+
+            return "";
+        }
+    }
+
+
+    /* =====================================================
+       API RESPONSE NORMALIZATION
+    ===================================================== */
+
+    function extractModelsFromApiResponse(
+        data
+    ) {
+
+        if (
+            Array.isArray(data)
+        ) {
+
+            return normalizeModels(
+                data
+            );
+        }
+
+
+        if (
+            Array.isArray(
+                data?.models
+            )
+        ) {
+
+            return normalizeModels(
+                data.models
+            );
+        }
+
+
+        if (
+            Array.isArray(
+                data?.data?.models
+            )
+        ) {
+
+            return normalizeModels(
+                data.data.models
+            );
+        }
+
+
+        if (
+            Array.isArray(
+                data?.data
+            )
+        ) {
+
+            return normalizeModels(
+                data.data
+            );
+        }
+
+
+        return [];
+    }
+
+
+    /* =====================================================
+       LOAD MODELS FROM API
+    ===================================================== */
+
+    async function loadModelsFromApi(
+        options = {}
+    ) {
+
+        const {
+            modelId = ""
+        } = options;
+
+
+        const token =
+            await getAccessToken();
+
+
+        if (!token) {
+
+            throw new Error(
+                "Session Supabase tidak tersedia untuk API KIE."
+            );
+        }
+
+
+        let url =
+            KIE_CONFIG_ENDPOINT;
+
+
+        if (modelId) {
+
+            url +=
+                `?model_id=${encodeURIComponent(
+                    modelId
+                )}`;
+
+        }
+
+
+        console.info(
+            "[models-data] Mengambil katalog model dari:",
+            url
+        );
+
+
+        const response =
+            await fetch(
+                url,
+                {
+
+                    method: "GET",
+
+                    headers: {
+
+                        "Accept":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${token}`
+
+                    },
+
+                    credentials:
+                        "same-origin"
+
+                }
+            );
+
+
+        const text =
+            await response.text();
+
+
+        let data =
+            null;
+
+
+        if (text) {
+
+            try {
+
+                data =
+                    JSON.parse(
+                        text
+                    );
+
+            } catch {
+
+                data = {
+
+                    raw:
+                        text
+
+                };
+
+            }
+
+        }
+
+
+        if (
+            !response.ok
+        ) {
+
+            const message =
+                data?.error ||
+                data?.message ||
+                `API KIE gagal (${response.status})`;
+
+
+            throw new Error(
+                message
+            );
+        }
+
+
+        const models =
+            extractModelsFromApiResponse(
+                data
+            );
+
+
+        console.info(
+            "[models-data] API KIE mengembalikan:",
+            models.length,
+            "model"
+        );
+
+
+        return models;
+    }
+
+
+    /* =====================================================
+       LOAD MODELS DIRECT SUPABASE
+       FALLBACK
+    ===================================================== */
+
+    async function loadModelsFromSupabase() {
+
+        const supabase =
+            getSupabase();
+
+
+        console.warn(
+            "[models-data] Fallback: membaca kie_models langsung dari Supabase."
+        );
+
+
+        const {
+            data,
+            error
+        } =
+            await supabase
+                .from(
+                    MODEL_TABLE
+                )
+                .select(`
+                    id,
+                    provider,
+                    model_family,
+                    model_id,
+                    model_name,
+                    status,
+                    documentation_url,
+                    metadata,
+                    created_at,
+                    updated_at
+                `)
+                .order(
+                    "model_name",
+                    {
+                        ascending:
+                            true
+                    }
+                );
+
+
+        if (
+            error
+        ) {
+
+            console.error(
+                "[models-data] Gagal mengambil kie_models:",
+                error
+            );
+
+
+            throw error;
+        }
+
+
+        return normalizeModels(
+            data
+        );
+    }
+
+
+    /* =====================================================
        LOAD MODELS
     ===================================================== */
 
@@ -452,9 +739,10 @@
         } = options;
 
 
-        /*
-         * Cache tersedia.
-         */
+        /* =================================================
+           CACHE
+        ================================================= */
+
         if (
             !force &&
             modelCacheLoaded
@@ -480,10 +768,10 @@
         }
 
 
-        /*
-         * Jika request sedang berjalan dan bukan force,
-         * ikut request yang sama.
-         */
+        /* =================================================
+           REQUEST YANG SEDANG BERJALAN
+        ================================================= */
+
         if (
             modelLoadingPromise &&
             !force
@@ -509,81 +797,156 @@
         }
 
 
-        const supabase =
-            getSupabase();
-
+        /* =================================================
+           PRIMARY API
+        ================================================= */
 
         modelLoadingPromise =
             (async function () {
 
-                const {
-                    data,
-                    error
-                } =
-                    await supabase
-                        .from(
-                            MODEL_TABLE
-                        )
-                        .select(`
-                            id,
-                            provider,
-                            model_family,
-                            model_id,
-                            model_name,
-                            status,
-                            documentation_url,
-                            metadata,
-                            created_at,
-                            updated_at
-                        `)
-                        .order(
-                            "model_name",
-                            {
-                                ascending:
-                                    true
-                            }
-                        );
+                let models = [];
 
-
-                if (
-                    error
-                ) {
-
-                    console.error(
-                        "[models-data] Gagal mengambil kie_models:",
-                        error
-                    );
-
-                    throw error;
-                }
-
-
-                const normalized =
-                    normalizeModels(
-                        data
-                    );
+                let apiError =
+                    null;
 
 
                 /*
-                 * Cache SELALU menyimpan seluruh Model.
+                 * STEP 1
                  *
-                 * activeOnly hanya berlaku pada hasil return.
-                 *
-                 * Ini penting agar:
-                 *
-                 * loadKieModels({
-                 *     activeOnly: true
-                 * })
-                 *
-                 * tidak menghancurkan katalog Model
-                 * yang inactive.
+                 * Gunakan /api/kie-config.
                  */
+
+                try {
+
+                    models =
+                        await loadModelsFromApi();
+
+
+                    /*
+                     * API berhasil tetapi mengembalikan
+                     * array kosong.
+                     *
+                     * Jangan langsung menganggap API rusak.
+                     * Namun untuk Admin Model dropdown,
+                     * fallback Supabase tetap dicoba agar
+                     * katalog tidak kosong karena masalah
+                     * konfigurasi API.
+                     */
+
+                    if (
+                        !models.length
+                    ) {
+
+                        console.warn(
+                            "[models-data] API KIE berhasil tetapi models[] kosong."
+                        );
+
+                    }
+
+                } catch (error) {
+
+                    apiError =
+                        error;
+
+
+                    console.error(
+                        "[models-data] API KIE gagal:",
+                        error
+                    );
+
+                }
+
+
+                /*
+                 * STEP 2
+                 *
+                 * Fallback ke Supabase langsung jika API
+                 * gagal atau tidak memberikan model.
+                 */
+
+                if (
+                    !models.length
+                ) {
+
+                    try {
+
+                        models =
+                            await loadModelsFromSupabase();
+
+                    } catch (fallbackError) {
+
+                        console.error(
+                            "[models-data] Fallback Supabase juga gagal:",
+                            fallbackError
+                        );
+
+
+                        /*
+                         * Kalau API dan fallback sama-sama
+                         * gagal, lempar error yang paling
+                         * informatif.
+                         */
+
+                        throw (
+                            fallbackError ||
+                            apiError ||
+                            new Error(
+                                "Gagal mengambil katalog Model."
+                            )
+                        );
+                    }
+
+                }
+
+
+                /* =================================================
+                   NORMALISASI FINAL
+                ================================================= */
+
+                models =
+                    normalizeModels(
+                        models
+                    );
+
+
+                /* =================================================
+                   CACHE
+                ================================================= */
+
                 modelCache =
-                    normalized;
+                    models;
 
 
                 modelCacheLoaded =
                     true;
+
+
+                console.info(
+                    "[models-data] Model catalog loaded:",
+                    modelCache.length
+                );
+
+
+                /*
+                 * Debug detail.
+                 */
+
+                if (
+                    modelCache.length
+                ) {
+
+                    console.info(
+                        "[models-data] Model pertama:",
+                        modelCache[0]
+                    );
+
+                } else {
+
+                    console.warn(
+                        "[models-data] KATALOG MODEL MASIH KOSONG."
+                    );
+
+                }
 
 
                 return [
@@ -623,14 +986,7 @@
 
     /* =====================================================
        SEARCH MODELS
-       
-       COMPATIBILITY API ONLY.
-       
-       Search UI utama dimiliki:
-       GENZModelsSearch
-       
-       Fungsi ini tetap tersedia karena kemungkinan
-       dipanggil module lama / external compatibility.
+       COMPATIBILITY API
     ===================================================== */
 
     async function searchKieModels(
@@ -646,8 +1002,11 @@
 
         const models =
             await loadKieModels({
+
                 activeOnly,
+
                 force
+
             });
 
 
@@ -710,7 +1069,9 @@
                     provider.includes(
                         term
                     )
+
                 );
+
             }
         );
     }
@@ -731,22 +1092,29 @@
 
 
         if (!id) {
+
             return null;
         }
 
 
         return (
+
             modelCache.find(
                 function (model) {
 
                     return (
+
                         normalizeString(
                             model.model_id
                         ) === id
+
                     );
+
                 }
             ) ||
+
             null
+
         );
     }
 
@@ -765,9 +1133,10 @@
         } = options;
 
 
-        /*
-         * Cache sudah pernah berhasil dimuat.
-         */
+        /* =================================================
+           CACHE
+        ================================================= */
+
         if (
             !force &&
             providerCacheLoaded
@@ -793,9 +1162,10 @@
         }
 
 
-        /*
-         * Request sedang berjalan.
-         */
+        /* =================================================
+           REQUEST SEDANG BERJALAN
+        ================================================= */
+
         if (
             providerLoadingPromise &&
             !force
@@ -864,6 +1234,7 @@
                         error
                     );
 
+
                     throw error;
                 }
 
@@ -874,18 +1245,18 @@
                     );
 
 
-                /*
-                 * Cache seluruh Provider.
-                 *
-                 * Filter active hanya dilakukan pada
-                 * hasil return.
-                 */
                 providerCache =
                     normalized;
 
 
                 providerCacheLoaded =
                     true;
+
+
+                console.info(
+                    "[models-data] Provider catalog loaded:",
+                    providerCache.length
+                );
 
 
                 return [
@@ -925,12 +1296,6 @@
 
     /* =====================================================
        PROVIDER MATCH
-       
-       Support:
-       - UUID database
-       - provider_id
-       - provider
-       - provider_name
     ===================================================== */
 
     function providerMatchesValue(
@@ -999,6 +1364,7 @@
 
 
         if (!target) {
+
             return null;
         }
 
@@ -1029,6 +1395,7 @@
                     return isActiveProvider(
                         provider
                     );
+
                 }
             );
 
@@ -1039,11 +1406,6 @@
 
     /* =====================================================
        SEARCH PROVIDERS
-       
-       COMPATIBILITY API ONLY.
-       
-       Provider lifecycle tetap dimiliki:
-       GENZModelsProvider
     ===================================================== */
 
     async function searchProviders(
@@ -1059,8 +1421,11 @@
 
         const providers =
             await loadProviders({
+
                 activeOnly,
+
                 force
+
             });
 
 
@@ -1112,7 +1477,9 @@
                     description.includes(
                         term
                     )
+
                 );
+
             }
         );
     }
@@ -1202,6 +1569,9 @@
             providerTable:
                 PROVIDER_TABLE,
 
+            kieConfigEndpoint:
+                KIE_CONFIG_ENDPOINT,
+
             modelCacheLoaded:
                 modelCacheLoaded,
 
@@ -1233,6 +1603,7 @@
                 [
                     ...providerCache
                 ]
+
         };
     }
 
@@ -1244,27 +1615,32 @@
     window.GENZModelsData =
         Object.freeze({
 
-            /*
-             * Model
-             */
+            /* ---------------------------------------------
+               Model
+            --------------------------------------------- */
+
             loadKieModels,
 
             searchKieModels,
 
             findModelById,
 
-            /*
-             * Provider
-             */
+
+            /* ---------------------------------------------
+               Provider
+            --------------------------------------------- */
+
             loadProviders,
 
             findProviderById,
 
             searchProviders,
 
-            /*
-             * Cache
-             */
+
+            /* ---------------------------------------------
+               Cache
+            --------------------------------------------- */
+
             clearCache,
 
             getCachedModels,
@@ -1275,9 +1651,11 @@
 
             isProviderCacheLoaded,
 
-            /*
-             * Debug
-             */
+
+            /* ---------------------------------------------
+               Debug
+            --------------------------------------------- */
+
             getDebugInfo
 
         });
