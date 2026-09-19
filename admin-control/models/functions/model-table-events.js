@@ -8,7 +8,7 @@
    Tanggung jawab:
    - Event tombol Edit
    - Event tombol Delete
-   - Delegasi ke Form Coordinator / Delete module
+   - Delegasi ke UI / Form Edit / Delete module
    - Sinkronisasi hasil operasi dengan Table
 
    Tidak bertanggung jawab:
@@ -190,18 +190,38 @@
 
 
     /* =====================================================
-       FIND MODEL
+       NORMALIZE ID
     ===================================================== */
+
+    function normalizeId(
+        value
+    ) {
+
+        return String(
+            value ??
+            ""
+        )
+            .trim();
+
+    }
+
+
+    /* =====================================================
+       FIND MODEL
+       -----------------------------------------------------
+       Mendukung:
+       - database UUID / id
+       - model_id KIE
+       ===================================================== */
 
     function findModel(
         modelId
     ) {
 
         const normalized =
-            String(
-                modelId ??
-                ""
-            ).trim();
+            normalizeId(
+                modelId
+            );
 
 
         if (
@@ -213,43 +233,127 @@
         }
 
 
+        /* =================================================
+           1. TABLE MODULE
+           ================================================= */
+
         const table =
             getTableModule();
 
 
         if (
-            table &&
-            typeof table.findById ===
-                "function"
+            table
         ) {
 
-            try {
+            if (
+                typeof table.findById ===
+                    "function"
+            ) {
 
-                const model =
-                    table.findById(
-                        normalized
+                try {
+
+                    const model =
+                        table.findById(
+                            normalized
+                        );
+
+
+                    if (
+                        model
+                    ) {
+
+                        return model;
+
+                    }
+
+                } catch (error) {
+
+                    console.warn(
+                        "[model-table-events] table.findById error:",
+                        error
                     );
-
-
-                if (
-                    model
-                ) {
-
-                    return model;
 
                 }
 
-            } catch (error) {
+            }
 
-                console.warn(
-                    "[model-table-events] table.findById error:",
-                    error
-                );
+
+            /*
+             * Beberapa implementasi table menyimpan
+             * data model dalam getModels().
+             */
+            if (
+                typeof table.getModels ===
+                    "function"
+            ) {
+
+                try {
+
+                    const models =
+                        table.getModels();
+
+
+                    if (
+                        Array.isArray(
+                            models
+                        )
+                    ) {
+
+                        const found =
+                            models.find(
+                                function (model) {
+
+                                    if (
+                                        !model
+                                    ) {
+
+                                        return false;
+
+                                    }
+
+                                    return (
+
+                                        normalizeId(
+                                            model.id
+                                        ) === normalized ||
+
+                                        normalizeId(
+                                            model.model_id
+                                        ) === normalized
+
+                                    );
+
+                                }
+                            );
+
+
+                        if (
+                            found
+                        ) {
+
+                            return found;
+
+                        }
+
+                    }
+
+                } catch (error) {
+
+                    console.warn(
+                        "[model-table-events] table.getModels error:",
+                        error
+                    );
+
+                }
 
             }
 
         }
 
+
+        /* =================================================
+           2. UI MODULE
+           ================================================= */
 
         const ui =
             getUI();
@@ -289,6 +393,124 @@
         }
 
 
+        /* =================================================
+           3. DATA MODULE
+           -------------------------------------------------
+           Digunakan sebagai fallback terakhir.
+           Tidak membuat model baru.
+           ================================================= */
+
+        const data =
+            window.GENZModelsData ||
+            null;
+
+
+        if (
+            data
+        ) {
+
+            if (
+                typeof data.findModelById ===
+                    "function"
+            ) {
+
+                try {
+
+                    const model =
+                        data.findModelById(
+                            normalized
+                        );
+
+
+                    if (
+                        model
+                    ) {
+
+                        return model;
+
+                    }
+
+                } catch (error) {
+
+                    console.warn(
+                        "[model-table-events] data.findModelById error:",
+                        error
+                    );
+
+                }
+
+            }
+
+
+            if (
+                typeof data.getCachedModels ===
+                    "function"
+            ) {
+
+                try {
+
+                    const models =
+                        data.getCachedModels();
+
+
+                    if (
+                        Array.isArray(
+                            models
+                        )
+                    ) {
+
+                        const found =
+                            models.find(
+                                function (model) {
+
+                                    if (
+                                        !model
+                                    ) {
+
+                                        return false;
+
+                                    }
+
+                                    return (
+
+                                        normalizeId(
+                                            model.id
+                                        ) === normalized ||
+
+                                        normalizeId(
+                                            model.model_id
+                                        ) === normalized
+
+                                    );
+
+                                }
+                            );
+
+
+                        if (
+                            found
+                        ) {
+
+                            return found;
+
+                        }
+
+                    }
+
+                } catch (error) {
+
+                    console.warn(
+                        "[model-table-events] data.getCachedModels error:",
+                        error
+                    );
+
+                }
+
+            }
+
+        }
+
+
         return null;
 
     }
@@ -296,7 +518,13 @@
 
     /* =====================================================
        GET MODEL ID FROM TARGET
-    ===================================================== */
+       -----------------------------------------------------
+       Prioritas:
+       1. data-model-id
+       2. data-id
+       3. data-model-code
+       4. data-model
+       ===================================================== */
 
     function getModelIdFromTarget(
         target
@@ -311,16 +539,94 @@
         }
 
 
-        const value =
-            target.getAttribute(
-                "data-model-id"
+        const attributes = [
+
+            "data-model-id",
+
+            "data-id",
+
+            "data-model-code",
+
+            "data-model"
+
+        ];
+
+
+        for (
+            let i = 0;
+            i < attributes.length;
+            i++
+        ) {
+
+            const value =
+                target.getAttribute(
+                    attributes[i]
+                );
+
+
+            const normalized =
+                normalizeId(
+                    value
+                );
+
+
+            if (
+                normalized
+            ) {
+
+                return normalized;
+
+            }
+
+        }
+
+
+        /*
+         * Jika tombol berada di dalam row,
+         * ambil data dari row sebagai fallback.
+         */
+        const row =
+            target.closest(
+                "tr"
             );
 
 
-        return String(
-            value ??
-            ""
-        ).trim();
+        if (
+            row
+        ) {
+
+            for (
+                let i = 0;
+                i < attributes.length;
+                i++
+            ) {
+
+                const value =
+                    row.getAttribute(
+                        attributes[i]
+                    );
+
+
+                const normalized =
+                    normalizeId(
+                        value
+                    );
+
+
+                if (
+                    normalized
+                ) {
+
+                    return normalized;
+
+                }
+
+            }
+
+        }
+
+
+        return "";
 
     }
 
@@ -328,29 +634,62 @@
     /* =====================================================
        OPEN EDIT
        -----------------------------------------------------
-       Alur:
+       Jalur utama:
+
        Table Events
             ↓
-       Form Coordinator
+       GENZModelsUI.openEditModal()
             ↓
-       Form Edit
-       
-       Tidak lagi menggunakan GENZModelsForm legacy.
+       GENZModelFormEdit.open()
+            ↓
+       FormEdit.populate()
+            ↓
+       Modal
+
+       Tidak menggunakan:
+       - populateEdit()
+       - GENZModelsForm legacy
        ===================================================== */
 
     async function editModel(
         modelId
     ) {
 
+        const normalizedId =
+            normalizeId(
+                modelId
+            );
+
+
+        if (
+            !normalizedId
+        ) {
+
+            notify(
+                "ID Model tidak ditemukan.",
+                "error"
+            );
+
+            return false;
+
+        }
+
+
         const model =
             findModel(
-                modelId
+                normalizedId
             );
 
 
         if (
             !model
         ) {
+
+            console.error(
+                "[model-table-events] Model tidak ditemukan:",
+                normalizedId
+            );
+
 
             notify(
                 "Model tidak ditemukan.",
@@ -362,128 +701,52 @@
         }
 
 
-        const coordinator =
-            getCoordinator();
+        /* =================================================
+           JALUR UTAMA
+           ================================================= */
+
+        const ui =
+            getUI();
 
 
-        /*
-         * Coordinator adalah jalur utama.
-         *
-         * populateEdit() menyiapkan data form.
-         */
         if (
-            coordinator &&
-            typeof coordinator.populateEdit ===
+            ui &&
+            typeof ui.openEditModal ===
                 "function"
         ) {
 
             try {
 
+                console.info(
+                    "[model-table-events] Membuka edit melalui GENZModelsUI:",
+                    model
+                );
+
+
                 const result =
-                    await coordinator.populateEdit(
+                    await ui.openEditModal(
                         model
                     );
 
 
-                if (
-                    result === false
-                ) {
-
-                    return false;
-
-                }
-
-                /*
-                 * Coordinator versi sekarang menangani
-                 * population form, sedangkan open() berada
-                 * pada module FormEdit.
-                 *
-                 * Ini menjaga pemisahan fungsi tanpa
-                 * menghidupkan kembali GENZModelsForm.
-                 */
-                const editModule =
-                    getEditModule();
-
-
-                if (
-                    editModule &&
-                    typeof editModule.open ===
-                        "function"
-                ) {
-
-                    /*
-                     * open() juga dapat melakukan populate.
-                     * Namun pemanggilan ini diperlukan untuk
-                     * memastikan modal benar-benar terbuka
-                     * pada implementasi FormEdit saat ini.
-                     */
-                    const opened =
-                        await editModule.open(
-                            model
-                        );
-
-
-                    return (
-                        opened !== false
-                    );
-
-                }
-
-
-                /*
-                 * Jika FormEdit tidak menyediakan open(),
-                 * gunakan modal DOM sebagai fallback minimal.
-                 */
-                const modal =
-                    document.getElementById(
-                        "modelModal"
-                    );
-
-
-                if (
-                    modal
-                ) {
-
-                    modal.style.display =
-                        "flex";
-
-                    modal.classList.add(
-                        "show"
-                    );
-
-                    modal.setAttribute(
-                        "aria-hidden",
-                        "false"
-                    );
-
-                    document.body.classList.add(
-                        "modal-open"
-                    );
-
-                    return true;
-
-                }
-
-
-                notify(
-                    "Modal edit model belum tersedia.",
-                    "error"
+                return (
+                    result !== false
                 );
-
-                return false;
 
             } catch (error) {
 
                 console.error(
-                    "[model-table-events] coordinator edit error:",
+                    "[model-table-events] UI edit error:",
                     error
                 );
+
 
                 notify(
                     error?.message ||
                     "Gagal membuka form edit model.",
                     "error"
                 );
+
 
                 return false;
 
@@ -492,22 +755,113 @@
         }
 
 
-        /*
-         * Tidak ada lagi fallback ke GENZModelsForm.
-         *
-         * Jika coordinator belum termuat, lebih baik
-         * melaporkan dependency error daripada diam-diam
-         * menghidupkan modul legacy dan menciptakan dua
-         * owner untuk Form.
-         */
+        /* =================================================
+           FALLBACK FORM EDIT
+           -------------------------------------------------
+           Digunakan hanya jika UI module belum tersedia.
+           ================================================= */
+
+        const editModule =
+            getEditModule();
+
+
+        if (
+            editModule &&
+            typeof editModule.open ===
+                "function"
+        ) {
+
+            try {
+
+                console.info(
+                    "[model-table-events] Membuka edit melalui GENZModelFormEdit."
+                );
+
+
+                const result =
+                    await editModule.open(
+                        model
+                    );
+
+
+                return (
+                    result !== false
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[model-table-events] FormEdit.open error:",
+                    error
+                );
+
+
+                notify(
+                    error?.message ||
+                    "Gagal membuka form edit model.",
+                    "error"
+                );
+
+
+                return false;
+
+            }
+
+        }
+
+
+        /* =================================================
+           FALLBACK MODAL DOM
+           -------------------------------------------------
+           Hanya untuk kondisi module UI/FormEdit belum
+           tersedia tetapi modal sudah ada.
+           ================================================= */
+
+        const modal =
+            document.getElementById(
+                "modelModal"
+            );
+
+
+        if (
+            modal
+        ) {
+
+            modal.style.display =
+                "flex";
+
+            modal.classList.add(
+                "show"
+            );
+
+            modal.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+            document.body.classList.add(
+                "modal-open"
+            );
+
+
+            console.warn(
+                "[model-table-events] Modal dibuka melalui fallback DOM. FormEdit belum tersedia."
+            );
+
+
+            return true;
+
+        }
+
+
         notify(
-            "Form Coordinator belum tersedia.",
+            "Module form edit belum tersedia.",
             "error"
         );
 
 
         console.error(
-            "[model-table-events] GENZModelFormCoordinator tidak tersedia."
+            "[model-table-events] GENZModelsUI dan GENZModelFormEdit tidak tersedia."
         );
 
 
@@ -633,7 +987,8 @@
 
 
             removeFromTable(
-                model.id
+                model.id ||
+                model.model_id
             );
 
 
@@ -734,7 +1089,7 @@
 
     /* =====================================================
        CLICK HANDLER
-    ===================================================== */
+       ===================================================== */
 
     function handleClick(
         event
@@ -827,8 +1182,29 @@
             action === "edit"
         ) {
 
+            /*
+             * Promise sengaja tidak dibiarkan tanpa
+             * penanganan. Error sudah ditangani di
+             * editModel(), tetapi catch tambahan menjaga
+             * event handler tetap aman.
+             */
             editModel(
                 modelId
+            ).catch(
+                function (error) {
+
+                    console.error(
+                        "[model-table-events] unhandled edit error:",
+                        error
+                    );
+
+                    notify(
+                        error?.message ||
+                        "Gagal membuka form edit model.",
+                        "error"
+                    );
+
+                }
             );
 
             return;
@@ -842,6 +1218,21 @@
 
             deleteModel(
                 modelId
+            ).catch(
+                function (error) {
+
+                    console.error(
+                        "[model-table-events] unhandled delete error:",
+                        error
+                    );
+
+                    notify(
+                        error?.message ||
+                        "Gagal menghapus model.",
+                        "error"
+                    );
+
+                }
             );
 
         }
