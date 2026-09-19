@@ -1,1115 +1,823 @@
-/* =========================================================
-   GEN-Z.AI
-   MODEL TABLE EVENTS MODULE
-   ---------------------------------------------------------
-   File:
-   admin-control/models/functions/model-table-events.js
+/**
+ * =========================================================
+ * GEN-Z.AI
+ * MODEL TABLE EVENTS
+ * ---------------------------------------------------------
+ * File:
+ * admin-control/models/functions/model-table-events.js
+ *
+ * Tanggung jawab:
+ * - Event Edit
+ * - Event Delete
+ * - Event delegation pada tabel Models
+ * - Delegasi operasi ke Models UI / Form Coordinator
+ *
+ * Tidak bertanggung jawab:
+ * - Query Supabase
+ * - Render tabel
+ * - Render form
+ * - Delete langsung ke database
+ * - Update langsung ke database
+ * =========================================================
+ */
 
-   Tanggung jawab:
-   - Event tombol Edit
-   - Event tombol Delete
-   - Delegasi ke Form Coordinator / Delete module
-   - Sinkronisasi hasil operasi dengan Table
+(function () {
+    "use strict";
 
-   Tidak bertanggung jawab:
-   - Render tabel
-   - Query Supabase
-   - Create / Update database
-   - Delete database langsung
-   - Form layout
-   - Model data loading
-   - kie_* tables
+    let initialized = false;
+    let boundContainer = null;
+    let boundClickHandler = null;
 
-   Catatan penting:
-   - Event handler tidak boleh memanggil dirinya sendiri.
-   - Tidak ada recursive dispatch.
-   - Tidak ada query Supabase di file ini.
-   - Semua operasi database didelegasikan.
-   ========================================================= */
-
-
-/* =========================================================
-   STATE
-   ========================================================= */
-
-let tableEventsState = {
-    attached: false,
-    root: null,
-    coordinator: null,
-    deleteHandler: null,
-    editHandler: null,
-    refreshHandler: null
-};
+    let operationLocked = false;
 
 
-/* =========================================================
-   SAFE HELPERS
-   ========================================================= */
+    /* =====================================================
+     * UTILITIES
+     * ===================================================== */
 
-function normalizeId(value) {
-    return String(
-        value === null ||
-        value === undefined
-            ? ""
-            : value
-    ).trim();
-}
+    function getContainer(container) {
 
+        if (container instanceof Element) {
+            return container;
+        }
 
-function getElement(root, selector) {
-    if (!root) {
-        return null;
-    }
-
-    if (
-        typeof root.querySelector !== "function"
-    ) {
-        return null;
-    }
-
-    return root.querySelector(
-        selector
-    );
-}
-
-
-function closestElement(
-    element,
-    selector
-) {
-    if (
-        !element ||
-        typeof element.closest !== "function"
-    ) {
-        return null;
-    }
-
-    return element.closest(
-        selector
-    );
-}
-
-
-function getRowFromEvent(
-    event
-) {
-    if (!event) {
-        return null;
-    }
-
-    const target =
-        event.target;
-
-    if (!target) {
-        return null;
-    }
-
-    return (
-        closestElement(
-            target,
-            "[data-model-row]"
-        ) ||
-        closestElement(
-            target,
-            "tr[data-model-id]"
-        ) ||
-        closestElement(
-            target,
-            "[data-model-id]"
-        )
-    );
-}
-
-
-function getModelIdFromRow(
-    row
-) {
-    if (!row) {
-        return "";
-    }
-
-    const id =
-        row.dataset
-            ? (
-                row.dataset.modelId ||
-                row.dataset.id ||
-                ""
-            )
-            : "";
-
-    if (id) {
-        return normalizeId(id);
-    }
-
-    const element =
-        getElement(
-            row,
-            "[data-model-id]"
-        );
-
-    if (element) {
-        return normalizeId(
-            element.dataset
-                ? element.dataset.modelId
-                : ""
-        );
-    }
-
-    return "";
-}
-
-
-/* =========================================================
-   MODEL EXTRACTION
-   ========================================================= */
-
-function getModelFromRow(
-    row
-) {
-    if (!row) {
-        return null;
-    }
-
-    /*
-     * Coordinator/table boleh menaruh object model
-     * dalam property DOM. Ini hanya fallback.
-     */
-    if (row._modelData) {
-        return row._modelData;
-    }
-
-    if (
-        row.dataset &&
-        row.dataset.modelJson
-    ) {
-        try {
-            return JSON.parse(
-                row.dataset.modelJson
+        if (
+            typeof container === "string" &&
+            container.trim()
+        ) {
+            return document.querySelector(
+                container
             );
-        } catch {
+        }
+
+        /*
+         * Coba beberapa selector umum.
+         */
+        const selectors = [
+            "#models-table",
+            "#modelsTable",
+            "[data-models-table]",
+            ".models-table",
+            "table"
+        ];
+
+        for (const selector of selectors) {
+
+            const element =
+                document.querySelector(
+                    selector
+                );
+
+            if (element) {
+                return element;
+            }
+        }
+
+        return null;
+    }
+
+
+    function getModelsUI() {
+
+        return (
+            window.GENZModelsUI ||
+            null
+        );
+    }
+
+
+    function getFormCoordinator() {
+
+        return (
+            window.GENZModelFormCoordinator ||
+            null
+        );
+    }
+
+
+    function getModelData() {
+
+        return (
+            window.GENZModelsData ||
+            null
+        );
+    }
+
+
+    function getModelIdFromElement(element) {
+
+        if (!element) {
             return null;
         }
+
+        /*
+         * Prioritas:
+         * data-model-id
+         * data-id
+         * data-model
+         */
+        const modelId =
+            element.dataset?.modelId ||
+            element.dataset?.id ||
+            element.dataset?.model;
+
+        if (modelId) {
+            return modelId;
+        }
+
+        /*
+         * Cari parent row.
+         */
+        const row =
+            element.closest(
+                "tr"
+            );
+
+        if (!row) {
+            return null;
+        }
+
+        return (
+            row.dataset?.modelId ||
+            row.dataset?.id ||
+            row.dataset?.model ||
+            row.querySelector(
+                "[data-model-id]"
+            )?.dataset?.modelId ||
+            row.querySelector(
+                "[data-id]"
+            )?.dataset?.id ||
+            null
+        );
     }
 
-    return null;
-}
 
+    async function resolveModel(modelId) {
 
-/* =========================================================
-   CALLBACK RESOLUTION
-   ========================================================= */
-
-function resolveFunction(
-    options,
-    names
-) {
-    if (!options) {
-        return null;
-    }
-
-    for (
-        const name
-        of names
-    ) {
         if (
-            typeof options[name] ===
+            modelId === null ||
+            modelId === undefined ||
+            modelId === ""
+        ) {
+            return null;
+        }
+
+        const data =
+            getModelData();
+
+        if (!data) {
+            return null;
+        }
+
+        /*
+         * Database UUID.
+         */
+        if (
+            typeof data.getModelById ===
             "function"
         ) {
-            return options[name];
+
+            const byId =
+                await data.getModelById(
+                    modelId
+                );
+
+            if (byId) {
+                return byId;
+            }
         }
-    }
 
-    return null;
-}
+        /*
+         * Model ID seperti:
+         * grok-imagine/image-to-video
+         */
+        if (
+            typeof data.getModelByModelId ===
+            "function"
+        ) {
 
+            const byModelId =
+                await data.getModelByModelId(
+                    modelId
+                );
 
-/* =========================================================
-   EDIT EVENT
-   ========================================================= */
-
-async function executeEdit(
-    event,
-    options
-) {
-    const row =
-        getRowFromEvent(
-            event
-        );
-
-    if (!row) {
-        return;
-    }
-
-    const modelId =
-        getModelIdFromRow(
-            row
-        );
-
-    if (!modelId) {
-        console.error(
-            "[MODEL TABLE] Model ID untuk Edit tidak ditemukan."
-        );
-
-        return;
-    }
-
-    const model =
-        getModelFromRow(
-            row
-        );
-
-    const handler =
-        tableEventsState.editHandler ||
-        resolveFunction(
-            options,
-            [
-                "onEdit",
-                "editModel",
-                "openEditModel",
-                "handleEdit"
-            ]
-        );
-
-    if (!handler) {
-        console.error(
-            "[MODEL TABLE] Edit handler belum tersedia."
-        );
-
-        return;
-    }
-
-    /*
-     * PENTING:
-     *
-     * Handler hanya dipanggil SATU KALI.
-     *
-     * Jangan dispatch event edit lagi dari sini.
-     */
-    return await handler(
-        model || modelId,
-        {
-            event,
-            row,
-            modelId,
-            source: "model-table"
+            if (byModelId) {
+                return byModelId;
+            }
         }
-    );
-}
 
+        /*
+         * Fallback ke cache.
+         */
+        if (
+            typeof data.getCachedModels ===
+            "function"
+        ) {
 
-/* =========================================================
-   DELETE EVENT
-   ========================================================= */
+            const models =
+                data.getCachedModels();
 
-async function executeDelete(
-    event,
-    options
-) {
-    const row =
-        getRowFromEvent(
-            event
-        );
-
-    if (!row) {
-        return;
-    }
-
-    const modelId =
-        getModelIdFromRow(
-            row
-        );
-
-    if (!modelId) {
-        console.error(
-            "[MODEL TABLE] Model ID untuk Delete tidak ditemukan."
-        );
-
-        return;
-    }
-
-    const model =
-        getModelFromRow(
-            row
-        );
-
-    const handler =
-        tableEventsState.deleteHandler ||
-        resolveFunction(
-            options,
-            [
-                "onDelete",
-                "deleteModel",
-                "handleDelete"
-            ]
-        );
-
-    if (!handler) {
-        console.error(
-            "[MODEL TABLE] Delete handler belum tersedia."
-        );
-
-        return;
-    }
-
-    /*
-     * Delete diserahkan ke module/coordinator.
-     * File ini tidak menyentuh Supabase.
-     */
-    return await handler(
-        model || modelId,
-        {
-            event,
-            row,
-            modelId,
-            source: "model-table"
+            return (
+                models.find(
+                    model =>
+                        String(model.id) ===
+                            String(modelId) ||
+                        String(model.model_id) ===
+                            String(modelId)
+                ) ||
+                null
+            );
         }
-    );
-}
 
-
-/* =========================================================
-   CLICK HANDLER
-   ========================================================= */
-
-async function handleTableClick(
-    event,
-    options = {}
-) {
-    if (!event) {
-        return;
+        return null;
     }
 
-    const target =
-        event.target;
 
-    if (!target) {
-        return;
+    function lockOperation() {
+
+        if (operationLocked) {
+            return false;
+        }
+
+        operationLocked = true;
+
+        return true;
     }
 
-    /*
+
+    function unlockOperation() {
+
+        operationLocked = false;
+    }
+
+
+    /* =====================================================
      * EDIT
-     */
-    const editButton =
-        closestElement(
-            target,
-            [
-                "[data-model-edit]",
-                "[data-action='edit-model']",
-                "[data-action='edit']",
-                ".model-edit-btn",
-                ".btn-edit-model"
-            ].join(",")
-        );
+     * ===================================================== */
 
-    if (editButton) {
-        event.preventDefault();
-        event.stopPropagation();
+    async function triggerEdit(modelId, element = null) {
 
-        try {
-            await executeEdit(
-                event,
-                options
-            );
-        } catch (error) {
-            console.error(
-                "[MODEL TABLE] Edit gagal:",
-                error
-            );
-
-            emitOperationError(
-                "edit",
-                error,
-                event
-            );
+        if (
+            modelId === null ||
+            modelId === undefined ||
+            modelId === ""
+        ) {
+            return false;
         }
 
-        return;
+        if (!lockOperation()) {
+            return false;
+        }
+
+        try {
+
+            const model =
+                await resolveModel(
+                    modelId
+                );
+
+            if (!model) {
+                throw new Error(
+                    `Model tidak ditemukan: ${modelId}`
+                );
+            }
+
+            const ui =
+                getModelsUI();
+
+            if (
+                ui &&
+                typeof ui.openEditModel ===
+                "function"
+            ) {
+
+                await ui.openEditModel(
+                    model
+                );
+
+                return true;
+            }
+
+            if (
+                ui &&
+                typeof ui.openEdit ===
+                "function"
+            ) {
+
+                await ui.openEdit(
+                    model
+                );
+
+                return true;
+            }
+
+            const coordinator =
+                getFormCoordinator();
+
+            if (
+                coordinator &&
+                typeof coordinator.openEdit ===
+                "function"
+            ) {
+
+                await coordinator.openEdit(
+                    model
+                );
+
+                return true;
+            }
+
+            if (
+                coordinator &&
+                typeof coordinator.openEditModel ===
+                "function"
+            ) {
+
+                await coordinator.openEditModel(
+                    model
+                );
+
+                return true;
+            }
+
+            throw new Error(
+                "Module Edit Model tidak tersedia."
+            );
+
+        } finally {
+
+            unlockOperation();
+        }
     }
 
 
-    /*
+    /* =====================================================
      * DELETE
-     */
-    const deleteButton =
-        closestElement(
-            target,
-            [
-                "[data-model-delete]",
-                "[data-action='delete-model']",
-                "[data-action='delete']",
-                ".model-delete-btn",
-                ".btn-delete-model"
-            ].join(",")
-        );
+     * ===================================================== */
 
-    if (deleteButton) {
-        event.preventDefault();
-        event.stopPropagation();
+    async function triggerDelete(modelId, element = null) {
+
+        if (
+            modelId === null ||
+            modelId === undefined ||
+            modelId === ""
+        ) {
+            return false;
+        }
+
+        if (!lockOperation()) {
+            return false;
+        }
 
         try {
-            await executeDelete(
-                event,
-                options
-            );
-        } catch (error) {
-            console.error(
-                "[MODEL TABLE] Delete gagal:",
-                error
+
+            const model =
+                await resolveModel(
+                    modelId
+                );
+
+            if (!model) {
+                throw new Error(
+                    `Model tidak ditemukan: ${modelId}`
+                );
+            }
+
+            const ui =
+                getModelsUI();
+
+            if (
+                ui &&
+                typeof ui.openDeleteModel ===
+                "function"
+            ) {
+
+                await ui.openDeleteModel(
+                    model
+                );
+
+                return true;
+            }
+
+            if (
+                ui &&
+                typeof ui.openDelete ===
+                "function"
+            ) {
+
+                await ui.openDelete(
+                    model
+                );
+
+                return true;
+            }
+
+            const coordinator =
+                getFormCoordinator();
+
+            if (
+                coordinator &&
+                typeof coordinator.remove ===
+                "function"
+            ) {
+
+                await coordinator.remove(
+                    model
+                );
+
+                return true;
+            }
+
+            if (
+                coordinator &&
+                typeof coordinator.removeById ===
+                "function"
+            ) {
+
+                await coordinator.removeById(
+                    model.id
+                );
+
+                return true;
+            }
+
+            /*
+             * Fallback ke delete module.
+             */
+            const deleteModule =
+                window.GENZModelFormDelete;
+
+            if (
+                deleteModule &&
+                typeof deleteModule.openDelete ===
+                "function"
+            ) {
+
+                await deleteModule.openDelete(
+                    model
+                );
+
+                return true;
+            }
+
+            throw new Error(
+                "Module Delete Model tidak tersedia."
             );
 
-            emitOperationError(
-                "delete",
-                error,
-                event
-            );
+        } finally {
+
+            unlockOperation();
+        }
+    }
+
+
+    /* =====================================================
+     * CLICK HANDLER
+     * ===================================================== */
+
+    async function handleClick(event) {
+
+        if (!event) {
+            return;
         }
 
-        return;
-    }
-}
+        const target =
+            event.target instanceof Element
+                ? event.target
+                : null;
 
+        if (!target) {
+            return;
+        }
 
-/* =========================================================
-   DOUBLE CLICK GUARD
-   ========================================================= */
-
-let operationLock = false;
-
-function lockOperation() {
-    if (operationLock) {
-        return false;
-    }
-
-    operationLock = true;
-
-    return true;
-}
-
-
-function unlockOperation() {
-    operationLock = false;
-}
-
-
-/* =========================================================
-   OPERATION WRAPPER
-   ========================================================= */
-
-async function executeLocked(
-    operation,
-    ...args
-) {
-    if (
-        typeof operation !==
-        "function"
-    ) {
-        return null;
-    }
-
-    if (!lockOperation()) {
-        return null;
-    }
-
-    try {
-        return await operation(
-            ...args
-        );
-    } finally {
-        unlockOperation();
-    }
-}
-
-
-/* =========================================================
-   SAFE EDIT EXECUTOR
-   ========================================================= */
-
-async function executeEditLocked(
-    event,
-    options
-) {
-    return executeLocked(
-        executeEdit,
-        event,
-        options
-    );
-}
-
-
-/* =========================================================
-   SAFE DELETE EXECUTOR
-   ========================================================= */
-
-async function executeDeleteLocked(
-    event,
-    options
-) {
-    return executeLocked(
-        executeDelete,
-        event,
-        options
-    );
-}
-
-
-/* =========================================================
-   ERROR EVENT
-   ========================================================= */
-
-function emitOperationError(
-    operation,
-    error,
-    originalEvent
-) {
-    if (
-        typeof document ===
-        "undefined"
-    ) {
-        return;
-    }
-
-    try {
-        document.dispatchEvent(
-            new CustomEvent(
-                "genz:model-operation-error",
-                {
-                    detail: {
-                        operation,
-                        error,
-                        originalEvent
-                    }
-                }
-            )
-        );
-    } catch {
         /*
-         * Error reporting tidak boleh
-         * menyebabkan error kedua.
+         * Edit
          */
-    }
-}
-
-
-/* =========================================================
-   SUCCESS EVENT
-   ========================================================= */
-
-export function emitOperationSuccess(
-    operation,
-    data = {}
-) {
-    if (
-        typeof document ===
-        "undefined"
-    ) {
-        return;
-    }
-
-    try {
-        document.dispatchEvent(
-            new CustomEvent(
-                "genz:model-operation-success",
-                {
-                    detail: {
-                        operation,
-                        ...data
-                    }
-                }
-            )
-        );
-    } catch {
-        /*
-         * Ignore event dispatch errors.
-         */
-    }
-}
-
-
-/* =========================================================
-   REFRESH TABLE
-   ========================================================= */
-
-export async function refreshModelTable(
-    options = {}
-) {
-    const handler =
-        tableEventsState.refreshHandler ||
-        resolveFunction(
-            options,
-            [
-                "refreshTable",
-                "reloadTable",
-                "loadTable",
-                "onRefresh"
-            ]
-        );
-
-    if (
-        typeof handler !==
-        "function"
-    ) {
-        return null;
-    }
-
-    /*
-     * Refresh dipanggil langsung.
-     *
-     * Tidak dispatch event yang kemudian
-     * memanggil refresh lagi.
-     */
-    return await handler({
-        source: "model-table-events"
-    });
-}
-
-
-/* =========================================================
-   ATTACH EVENTS
-   ========================================================= */
-
-export function attachModelTableEvents(
-    root,
-    options = {}
-) {
-    if (!root) {
-        throw new Error(
-            "MODEL_TABLE_ROOT_MISSING"
-        );
-    }
-
-    /*
-     * Jika sudah terpasang pada root yang sama,
-     * jangan menambahkan listener kedua.
-     *
-     * Ini penting karena render ulang tabel
-     * sering terjadi.
-     */
-    if (
-        tableEventsState.attached &&
-        tableEventsState.root === root
-    ) {
-        updateModelTableEventHandlers(
-            options
-        );
-
-        return root;
-    }
-
-    /*
-     * Jika sebelumnya terpasang di root lain,
-     * lepaskan terlebih dahulu.
-     */
-    if (
-        tableEventsState.attached
-    ) {
-        detachModelTableEvents();
-    }
-
-    tableEventsState.root =
-        root;
-
-    tableEventsState.coordinator =
-        options.coordinator ||
-        null;
-
-    tableEventsState.editHandler =
-        resolveFunction(
-            options,
-            [
-                "onEdit",
-                "editModel",
-                "openEditModel",
-                "handleEdit"
-            ]
-        );
-
-    tableEventsState.deleteHandler =
-        resolveFunction(
-            options,
-            [
-                "onDelete",
-                "deleteModel",
-                "handleDelete"
-            ]
-        );
-
-    tableEventsState.refreshHandler =
-        resolveFunction(
-            options,
-            [
-                "refreshTable",
-                "reloadTable",
-                "loadTable",
-                "onRefresh"
-            ]
-        );
-
-    /*
-     * Gunakan satu listener delegasi.
-     *
-     * Tidak ada listener per tombol.
-     * Tidak ada listener yang ditambahkan
-     * setiap kali tabel dirender ulang.
-     */
-    tableEventsState.clickHandler =
-        event => {
-            handleTableClick(
-                event,
-                options
+        const editButton =
+            target.closest(
+                [
+                    "[data-action='edit-model']",
+                    "[data-action='edit']",
+                    "[data-model-action='edit']",
+                    ".btn-edit-model",
+                    ".edit-model",
+                    "[data-edit-model]"
+                ].join(",")
             );
-        };
 
-    root.addEventListener(
-        "click",
-        tableEventsState.clickHandler
-    );
+        if (editButton) {
 
-    tableEventsState.attached =
-        true;
+            event.preventDefault();
+            event.stopPropagation();
 
-    if (root.dataset) {
-        root.dataset.modelTableEvents =
-            "attached";
+            const modelId =
+                getModelIdFromElement(
+                    editButton
+                );
+
+            if (!modelId) {
+                console.warn(
+                    "[GEN-Z.AI Models] " +
+                    "Model ID untuk Edit tidak ditemukan."
+                );
+
+                return;
+            }
+
+            try {
+
+                await triggerEdit(
+                    modelId,
+                    editButton
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI Models] " +
+                    "Edit gagal:",
+                    error
+                );
+
+                showError(
+                    error
+                );
+            }
+
+            return;
+        }
+
+
+        /*
+         * Delete
+         */
+        const deleteButton =
+            target.closest(
+                [
+                    "[data-action='delete-model']",
+                    "[data-action='delete']",
+                    "[data-model-action='delete']",
+                    ".btn-delete-model",
+                    ".delete-model",
+                    "[data-delete-model]"
+                ].join(",")
+            );
+
+        if (deleteButton) {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const modelId =
+                getModelIdFromElement(
+                    deleteButton
+                );
+
+            if (!modelId) {
+                console.warn(
+                    "[GEN-Z.AI Models] " +
+                    "Model ID untuk Delete tidak ditemukan."
+                );
+
+                return;
+            }
+
+            try {
+
+                await triggerDelete(
+                    modelId,
+                    deleteButton
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI Models] " +
+                    "Delete gagal:",
+                    error
+                );
+
+                showError(
+                    error
+                );
+            }
+        }
     }
 
-    return root;
-}
 
+    function showError(error) {
 
-/* =========================================================
-   UPDATE HANDLERS
-   ========================================================= */
+        const message =
+            error?.message ||
+            "Operasi Model gagal.";
 
-export function updateModelTableEventHandlers(
-    options = {}
-) {
-    if (
-        options.coordinator
-    ) {
-        tableEventsState.coordinator =
-            options.coordinator;
-    }
+        const ui =
+            getModelsUI();
 
-    const editHandler =
-        resolveFunction(
-            options,
-            [
-                "onEdit",
-                "editModel",
-                "openEditModel",
-                "handleEdit"
-            ]
+        if (
+            ui &&
+            typeof ui.showAlert ===
+            "function"
+        ) {
+
+            ui.showAlert(
+                message,
+                "error"
+            );
+
+            return;
+        }
+
+        console.error(
+            "[GEN-Z.AI Models]",
+            message
         );
-
-    if (editHandler) {
-        tableEventsState.editHandler =
-            editHandler;
     }
 
-    const deleteHandler =
-        resolveFunction(
-            options,
-            [
-                "onDelete",
-                "deleteModel",
-                "handleDelete"
-            ]
-        );
 
-    if (deleteHandler) {
-        tableEventsState.deleteHandler =
-            deleteHandler;
-    }
+    /* =====================================================
+     * BIND
+     * ===================================================== */
 
-    const refreshHandler =
-        resolveFunction(
-            options,
-            [
-                "refreshTable",
-                "reloadTable",
-                "loadTable",
-                "onRefresh"
-            ]
-        );
+    function bind(container = null) {
 
-    if (refreshHandler) {
-        tableEventsState.refreshHandler =
-            refreshHandler;
-    }
+        /*
+         * Jika sudah terpasang pada container yang sama,
+         * tidak perlu memasang listener kedua.
+         */
+        const resolvedContainer =
+            getContainer(
+                container
+            );
 
-    return getModelTableEventState();
-}
+        if (!resolvedContainer) {
 
+            /*
+             * Tabel mungkin belum dirender.
+             * Jangan dianggap fatal.
+             */
+            return false;
+        }
 
-/* =========================================================
-   DETACH EVENTS
-   ========================================================= */
+        if (
+            boundContainer ===
+            resolvedContainer &&
+            boundClickHandler
+        ) {
+            initialized = true;
+            return true;
+        }
 
-export function detachModelTableEvents() {
-    const root =
-        tableEventsState.root;
+        unbind();
 
-    if (
-        root &&
-        tableEventsState.clickHandler
-    ) {
-        root.removeEventListener(
+        boundContainer =
+            resolvedContainer;
+
+        boundClickHandler =
+            handleClick;
+
+        boundContainer.addEventListener(
             "click",
-            tableEventsState.clickHandler
+            boundClickHandler
         );
+
+        initialized = true;
+
+        return true;
     }
 
-    if (
-        root &&
-        root.dataset
-    ) {
-        delete root.dataset
-            .modelTableEvents;
-    }
 
-    tableEventsState = {
-        attached: false,
-        root: null,
-        coordinator: null,
-        deleteHandler: null,
-        editHandler: null,
-        refreshHandler: null
-    };
+    /* =====================================================
+     * UNBIND
+     * ===================================================== */
 
-    operationLock = false;
-}
+    function unbind() {
 
+        if (
+            boundContainer &&
+            boundClickHandler
+        ) {
 
-/* =========================================================
-   EVENT STATE
-   ========================================================= */
-
-export function getModelTableEventState() {
-    return {
-        attached:
-            tableEventsState.attached,
-
-        hasEditHandler:
-            typeof
-                tableEventsState.editHandler ===
-            "function",
-
-        hasDeleteHandler:
-            typeof
-                tableEventsState.deleteHandler ===
-            "function",
-
-        hasRefreshHandler:
-            typeof
-                tableEventsState.refreshHandler ===
-            "function",
-
-        hasCoordinator:
-            Boolean(
-                tableEventsState.coordinator
-            ),
-
-        operationLocked:
-            operationLock
-    };
-}
-
-
-/* =========================================================
-   DIRECT EVENT METHODS
-   ---------------------------------------------------------
-   Berguna untuk coordinator yang ingin menjalankan
-   operasi tanpa mensimulasikan click event.
-   ========================================================= */
-
-export async function triggerEdit(
-    modelOrId,
-    options = {}
-) {
-    const handler =
-        tableEventsState.editHandler ||
-        resolveFunction(
-            options,
-            [
-                "onEdit",
-                "editModel",
-                "openEditModel",
-                "handleEdit"
-            ]
-        );
-
-    if (
-        typeof handler !==
-        "function"
-    ) {
-        throw new Error(
-            "MODEL_EDIT_HANDLER_MISSING"
-        );
-    }
-
-    return executeLocked(
-        handler,
-        modelOrId,
-        {
-            source:
-                "model-table-direct"
-        }
-    );
-}
-
-
-export async function triggerDelete(
-    modelOrId,
-    options = {}
-) {
-    const handler =
-        tableEventsState.deleteHandler ||
-        resolveFunction(
-            options,
-            [
-                "onDelete",
-                "deleteModel",
-                "handleDelete"
-            ]
-        );
-
-    if (
-        typeof handler !==
-        "function"
-    ) {
-        throw new Error(
-            "MODEL_DELETE_HANDLER_MISSING"
-        );
-    }
-
-    return executeLocked(
-        handler,
-        modelOrId,
-        {
-            source:
-                "model-table-direct"
-        }
-    );
-}
-
-
-/* =========================================================
-   FIND ACTION BUTTON
-   ========================================================= */
-
-export function findEditButton(
-    row
-) {
-    return closestElement(
-        row,
-        "[data-model-edit]"
-    ) ||
-    getElement(
-        row,
-        [
-            "[data-model-edit]",
-            "[data-action='edit-model']",
-            "[data-action='edit']",
-            ".model-edit-btn",
-            ".btn-edit-model"
-        ].join(",")
-    );
-}
-
-
-export function findDeleteButton(
-    row
-) {
-    return closestElement(
-        row,
-        "[data-model-delete]"
-    ) ||
-    getElement(
-        row,
-        [
-            "[data-model-delete]",
-            "[data-action='delete-model']",
-            "[data-action='delete']",
-            ".model-delete-btn",
-            ".btn-delete-model"
-        ].join(",")
-    );
-}
-
-
-/* =========================================================
-   DATA ATTRIBUTES
-   ========================================================= */
-
-export function setRowModelData(
-    row,
-    model
-) {
-    if (!row || !model) {
-        return row;
-    }
-
-    const modelId =
-        normalizeId(
-            model.id
-        );
-
-    if (row.dataset) {
-        row.dataset.modelId =
-            modelId;
-
-        row.dataset.modelIdApi =
-            normalizeId(
-                model.model_id
+            boundContainer.removeEventListener(
+                "click",
+                boundClickHandler
             );
+        }
+
+        boundContainer = null;
+        boundClickHandler = null;
+
+        initialized = false;
+
+        return true;
+    }
+
+
+    /* =====================================================
+     * INITIALIZE
+     * ===================================================== */
+
+    function initialize(container = null) {
 
         /*
-         * Simpan object secara internal.
-         * Tidak dimasukkan ke HTML sebagai JSON,
-         * sehingga tidak ada masalah escaping.
+         * initialize() wajib tersedia karena
+         * models-init.js dapat memanggilnya.
          */
-        row._modelData = model;
+        return bind(
+            container
+        );
     }
 
-    return row;
-}
+
+    /* =====================================================
+     * REBIND
+     * ===================================================== */
+
+    function rebind(container = null) {
+
+        unbind();
+
+        return bind(
+            container
+        );
+    }
 
 
-/* =========================================================
-   DEFAULT EXPORT
-   ========================================================= */
+    /* =====================================================
+     * DESTROY
+     * ===================================================== */
 
-const ModelTableEvents = {
-    attachModelTableEvents,
-    updateModelTableEventHandlers,
-    detachModelTableEvents,
+    function destroy() {
 
-    getModelTableEventState,
+        unbind();
 
-    triggerEdit,
-    triggerDelete,
+        operationLocked = false;
 
-    refreshModelTable,
-
-    emitOperationSuccess,
-
-    setRowModelData,
-
-    findEditButton,
-    findDeleteButton
-};
+        return true;
+    }
 
 
-/* =========================================================
-   GLOBAL COMPATIBILITY
-   ========================================================= */
+    /* =====================================================
+     * STATE
+     * ===================================================== */
 
-if (
-    typeof window !== "undefined"
-) {
+    function isInitialized() {
+
+        return initialized;
+    }
+
+
+    function isBusy() {
+
+        return operationLocked;
+    }
+
+
+    function getContainerElement() {
+
+        return boundContainer;
+    }
+
+
+    /* =====================================================
+     * PUBLIC API
+     * ===================================================== */
+
+    const ModelTableEvents = {
+
+        /*
+         * Primary lifecycle API
+         */
+        initialize,
+        bind,
+        unbind,
+        rebind,
+        destroy,
+
+        /*
+         * State
+         */
+        isInitialized,
+        isBusy,
+        getContainerElement,
+
+        /*
+         * Actions
+         */
+        triggerEdit,
+        triggerDelete,
+
+        /*
+         * Event handler
+         */
+        handleClick
+    };
+
+
+    /*
+     * Browser global.
+     */
     window.GENZModelTableEvents =
         ModelTableEvents;
-}
 
 
-export default ModelTableEvents;
+})();
