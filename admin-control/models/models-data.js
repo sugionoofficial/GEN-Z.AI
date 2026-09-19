@@ -6,7 +6,7 @@
  * File:
  * admin-control/models/models-data.js
  *
- * Arsitektur:
+ * ARSITEKTUR
  *
  * MODEL SOURCE OF TRUTH
  *   models/<model-folder>/
@@ -20,12 +20,29 @@
  *          |
  *          +-- provider connection/status
  *
- * Optional:
  *   models
  *          |
- *          +-- data admin/persisted jika tersedia
+ *          +-- admin configuration
+ *          +-- display name
+ *          +-- description
+ *          +-- status
+ *          +-- discount
+ *          +-- credit configuration
  *
- * Tidak menggunakan:
+ * IDENTITAS MODEL
+ *   model_id
+ *      |
+ *      +-- SELALU berasal dari config.js
+ *      +-- TIDAK BOLEH diedit admin
+ *
+ * PARAMETER MODEL
+ *   duration
+ *   aspect_ratio
+ *   resolution
+ *      |
+ *      +-- SELALU berasal dari parameters.js
+ *
+ * TIDAK MENGGUNAKAN:
  *   kie_models
  *   kie_workflows
  *   kie_workflow_variants
@@ -35,19 +52,20 @@
  *   kie_pricing
  *
  * Tanggung jawab:
- * - Membaca model dari model registry/folder
+ * - Membaca model dari registry/folder
  * - Membaca provider dari Supabase
- * - Menggabungkan konfigurasi admin jika tersedia
+ * - Membaca konfigurasi admin dari Supabase
+ * - Menggabungkan data
  * - Normalisasi data
- * - Cache data
- * - Lookup model/provider
+ * - Cache
+ * - Lookup
  *
  * Tidak bertanggung jawab:
  * - Render UI
  * - Event DOM
  * - Form
  * - Modal
- * - Query KIE
+ * - Generate task
  * =========================================================
  */
 
@@ -70,22 +88,29 @@ const PROVIDER_TABLE = "providers";
 /* =========================================================
  * MODEL REGISTRY
  * ---------------------------------------------------------
- * Untuk sekarang hanya ada SATU model.
+ * Untuk sekarang hanya satu model.
  *
- * Jika nanti ingin menambah model:
+ * Model berikutnya cukup ditambahkan ke registry.
  *
- * 1. buat folder model baru
- * 2. buat config.js
- * 3. buat parameters.js
- * 4. tambahkan entry registry di sini
+ * Jangan membuat definisi model ulang di:
+ * - models.html
+ * - model-edit.html
+ * - generate
+ * - API
  *
- * Jangan membuat ulang model di banyak tempat.
+ * Registry adalah sumber model yang tersedia.
  * ========================================================= */
 
 const MODEL_REGISTRY = [
     {
-        config: grokConfig,
-        parameters: grokParameters
+        folder:
+            "models/grok-imagine-image-to-video",
+
+        config:
+            grokConfig,
+
+        parameters:
+            grokParameters
     }
 ];
 
@@ -118,56 +143,80 @@ function getSupabaseClient() {
         window.GENZ_SUPABASE &&
         typeof window.GENZ_SUPABASE.from === "function"
     ) {
+
         return window.GENZ_SUPABASE;
     }
+
 
     if (
         typeof window !== "undefined" &&
         window.supabaseClient &&
         typeof window.supabaseClient.from === "function"
     ) {
+
         return window.supabaseClient;
     }
 
+
+    if (
+        typeof window !== "undefined" &&
+        window.supabase &&
+        typeof window.supabase.from === "function"
+    ) {
+
+        return window.supabase;
+    }
+
+
     throw new Error(
         "Supabase client belum tersedia. " +
-        "Pastikan config.js dan supabase.js dimuat " +
-        "sebelum Models module."
+        "Pastikan supabase.js sudah dimuat sebelum " +
+        "Models Data Module."
     );
 }
 
 
 /* =========================================================
- * NORMALIZATION
+ * NORMALIZE ARRAY
  * ========================================================= */
 
 function normalizeArray(value) {
 
     if (Array.isArray(value)) {
+
         return value.slice();
     }
+
 
     if (
         value === null ||
         value === undefined
     ) {
+
         return [];
     }
 
-    if (typeof value === "string") {
+
+    if (
+        typeof value === "string"
+    ) {
 
         const trimmed =
             value.trim();
 
+
         if (!trimmed) {
+
             return [];
         }
 
+
         /*
-         * PostgreSQL array:
+         * PostgreSQL ARRAY
          *
          * {16:9,9:16}
          */
+
         if (
             trimmed.startsWith("{") &&
             trimmed.endsWith("}")
@@ -180,32 +229,44 @@ function normalizeArray(value) {
                     item =>
                         item
                             .trim()
-                            .replace(/^"(.*)"$/, "$1")
+                            .replace(
+                                /^"(.*)"$/,
+                                "$1"
+                            )
                 )
                 .filter(Boolean);
         }
 
+
         /*
-         * JSON array
+         * JSON ARRAY
          */
+
         try {
 
             const parsed =
                 JSON.parse(trimmed);
 
-            if (Array.isArray(parsed)) {
+
+            if (
+                Array.isArray(parsed)
+            ) {
+
                 return parsed;
             }
 
         } catch (_) {
+
             /*
              * Bukan JSON.
              */
         }
 
+
         /*
          * CSV
          */
+
         if (
             trimmed.includes(",")
         ) {
@@ -219,10 +280,12 @@ function normalizeArray(value) {
                 .filter(Boolean);
         }
 
+
         return [
             trimmed
         ];
     }
+
 
     return [
         value
@@ -231,18 +294,15 @@ function normalizeArray(value) {
 
 
 /*
- * Compatibility export.
- *
- * Modul lain menggunakan:
- *
- * normalizeArrayValue()
+ * Compatibility alias.
  */
+
 const normalizeArrayValue =
     normalizeArray;
 
 
 /* =========================================================
- * NUMBER
+ * NORMALIZE NUMBER
  * ========================================================= */
 
 function normalizeNumber(
@@ -255,11 +315,14 @@ function normalizeNumber(
         value === undefined ||
         value === ""
     ) {
+
         return fallback;
     }
 
+
     const number =
         Number(value);
+
 
     return Number.isFinite(number)
         ? number
@@ -306,21 +369,7 @@ function clearCache() {
 
 
 /* =========================================================
- * PROVIDERS
- * ---------------------------------------------------------
- * Provider tetap berasal dari Supabase.
- *
- * Ini penting karena:
- *
- * providers.id
- *     |
- *     +-- models.provider_id
- *
- * sedangkan credential:
- *
- * providers.provider_id
- *     |
- *     +-- provider_credentials.provider_id
+ * LOAD PROVIDERS
  * ========================================================= */
 
 async function loadProviders(
@@ -332,24 +381,30 @@ async function loadProviders(
         includeInactive = true
     } = options;
 
+
     if (
         providersLoaded &&
         !force
     ) {
+
         return providerCache.slice();
     }
+
 
     if (
         providersLoadingPromise
     ) {
+
         return providersLoadingPromise;
     }
+
 
     providersLoadingPromise =
         (async function () {
 
             const supabase =
                 getSupabaseClient();
+
 
             let query =
                 supabase
@@ -364,6 +419,7 @@ async function loadProviders(
                         }
                     );
 
+
             if (
                 !includeInactive
             ) {
@@ -375,10 +431,12 @@ async function loadProviders(
                     );
             }
 
+
             const {
                 data,
                 error
             } = await query;
+
 
             if (error) {
 
@@ -387,17 +445,21 @@ async function loadProviders(
                 );
             }
 
+
             providerCache =
                 Array.isArray(data)
                     ? data.slice()
                     : [];
 
+
             providersLoaded =
                 true;
+
 
             return providerCache.slice();
 
         })();
+
 
     try {
 
@@ -425,11 +487,14 @@ async function getProviderById(
         providerId === undefined ||
         providerId === ""
     ) {
+
         return null;
     }
 
+
     const providers =
         await loadProviders();
+
 
     return (
         providers.find(
@@ -454,11 +519,14 @@ async function getProviderByCode(
         providerCode === undefined ||
         providerCode === ""
     ) {
+
         return null;
     }
 
+
     const providers =
         await loadProviders();
+
 
     return (
         providers.find(
@@ -475,7 +543,7 @@ async function getProviderByCode(
 
 
 /* =========================================================
- * MODEL PARAMETER HELPERS
+ * PARAMETER HELPERS
  * ========================================================= */
 
 function getParameterDefinition(
@@ -487,8 +555,10 @@ function getParameterDefinition(
         !parameters ||
         typeof parameters !== "object"
     ) {
+
         return null;
     }
+
 
     return (
         parameters[key] ||
@@ -508,14 +578,17 @@ function getParameterEnum(
             key
         );
 
+
     if (
         !definition ||
         !Array.isArray(
             definition.enum
         )
     ) {
+
         return [];
     }
+
 
     return definition.enum.slice();
 }
@@ -532,23 +605,71 @@ function getParameterDefault(
             key
         );
 
+
     if (
         !definition
     ) {
+
         return undefined;
     }
+
 
     return definition.default;
 }
 
 
 /* =========================================================
- * MODEL NORMALIZATION
+ * PARAMETER RANGE
+ * ========================================================= */
+
+function getDurationRange(
+    parameters
+) {
+
+    const definition =
+        getParameterDefinition(
+            parameters,
+            "duration"
+        );
+
+
+    if (!definition) {
+
+        return {
+            min: 0,
+            max: 0
+        };
+    }
+
+
+    const min =
+        normalizeNumber(
+            definition.min,
+            0
+        );
+
+
+    const max =
+        normalizeNumber(
+            definition.max,
+            min
+        );
+
+
+    return {
+        min,
+        max
+    };
+}
+
+
+/* =========================================================
+ * NORMALIZE REGISTRY MODEL
  * ========================================================= */
 
 function normalizeRegistryModel(
     registryEntry,
-    providerMap = providerCache,
+    providerMap = [],
     persistedModel = null
 ) {
 
@@ -556,73 +677,77 @@ function normalizeRegistryModel(
         !registryEntry ||
         !registryEntry.config
     ) {
+
         return null;
     }
+
 
     const config =
         registryEntry.config;
 
+
     const parameters =
         registryEntry.parameters || {};
+
+
+    /*
+     * =====================================================
+     * MODEL ID
+     * =====================================================
+     *
+     * Ini adalah IDENTITAS UTAMA model.
+     *
+     * Selalu berasal dari config.js.
+     *
+     * Tidak pernah diambil dari input admin.
+     */
 
     const modelId =
         String(
             config.id || ""
         ).trim();
 
+
     if (!modelId) {
+
         return null;
     }
 
+
     /*
-     * Provider code berasal dari config model.
-     *
-     * Contoh:
-     *
-     * kie_ai
+     * =====================================================
+     * PROVIDER
+     * =====================================================
      */
+
     const providerCode =
         String(
             config.providerId || ""
         ).trim();
 
-    /*
-     * Cari provider berdasarkan:
-     *
-     * providers.provider_id
-     *
-     * BUKAN providers.id.
-     */
+
     const provider =
         providerMap.find(
             item =>
                 String(
-                    item.provider_id
+                    item?.provider_id || ""
                 ) ===
                 providerCode
         ) || null;
 
+
     /*
-     * Parameter model adalah sumber
-     * kebenaran untuk ratio/resolution.
+     * =====================================================
+     * PARAMETERS.JS
+     * =====================================================
+     *
+     * Parameter teknis model TIDAK berasal
+     * dari Supabase models.
+     *
+     * Sumber:
+     *
+     * models/<folder>/parameters.js
      */
-    const aspectRatioParameter =
-        getParameterDefinition(
-            parameters,
-            "aspect_ratio"
-        );
-
-    const resolutionParameter =
-        getParameterDefinition(
-            parameters,
-            "resolution"
-        );
-
-    const durationParameter =
-        getParameterDefinition(
-            parameters,
-            "duration"
-        );
 
     const supportedRatios =
         getParameterEnum(
@@ -630,212 +755,276 @@ function normalizeRegistryModel(
             "aspect_ratio"
         );
 
+
     const supportedResolutions =
         getParameterEnum(
             parameters,
             "resolution"
         );
 
-    const parameterMinDuration =
-        normalizeNumber(
-            durationParameter?.min,
-            0
+
+    const durationRange =
+        getDurationRange(
+            parameters
         );
 
-    const parameterMaxDuration =
-        normalizeNumber(
-            durationParameter?.max,
-            parameterMinDuration
-        );
 
     /*
-     * Jika ada data persisted di Supabase,
-     * gunakan sebagai data admin tambahan.
-     *
-     * Tetapi identitas model tetap berasal
-     * dari config.js.
+     * =====================================================
+     * PERSISTED ADMIN DATA
+     * =====================================================
      */
+
     const persisted =
         persistedModel || null;
+
+
+    /*
+     * =====================================================
+     * MODEL NAME
+     * =====================================================
+     *
+     * Prioritas:
+     *
+     * 1. Nama admin di Supabase
+     * 2. Nama config.js
+     * 3. model_id
+     *
+     * Jadi perubahan nama melalui Edit Model
+     * benar-benar terlihat di Models page.
+     */
+
+    const modelName =
+        String(
+            persisted?.model_name ||
+            config.name ||
+            modelId
+        ).trim();
+
+
+    /*
+     * =====================================================
+     * DESCRIPTION
+     * =====================================================
+     */
+
+    const description =
+        persisted?.description ??
+        config.description ??
+        "";
+
+
+    /*
+     * =====================================================
+     * STATUS
+     * =====================================================
+     *
+     * Status adalah konfigurasi admin.
+     */
+
+    const status =
+        String(
+            persisted?.status ||
+            "active"
+        ).trim().toLowerCase();
+
+
+    /*
+     * =====================================================
+     * CREDIT
+     * =====================================================
+     *
+     * PENTING:
+     *
+     * credit_cost tetap diperlakukan sebagai
+     * credit system.
+     *
+     * Tidak dianggap sebagai USD.
+     *
+     * Pricing USD/IDR akan dipisahkan
+     * setelah schema pricing resmi tersedia.
+     */
 
     const creditCost =
         persisted &&
         persisted.credit_cost !== null &&
         persisted.credit_cost !== undefined
+
             ? normalizeNumber(
                 persisted.credit_cost,
                 0
             )
+
             : 0;
+
 
     const discountPercent =
         persisted &&
         persisted.discount_percent !== null &&
         persisted.discount_percent !== undefined
+
             ? normalizeNumber(
                 persisted.discount_percent,
                 0
             )
+
             : 0;
 
-    const calculatedFinal =
-        creditCost -
-        (
-            creditCost *
-            discountPercent /
-            100
+
+    const safeDiscount =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                discountPercent
+            )
         );
+
+
+    const calculatedCreditFinal =
+        creditCost *
+        (
+            1 -
+            safeDiscount / 100
+        );
+
 
     const creditFinal =
         persisted &&
         persisted.credit_final !== null &&
         persisted.credit_final !== undefined
+
             ? normalizeNumber(
                 persisted.credit_final,
-                calculatedFinal
+                calculatedCreditFinal
             )
-            : calculatedFinal;
+
+            : calculatedCreditFinal;
+
 
     /*
-     * Persisted duration hanya digunakan
-     * bila tersedia.
-     *
-     * Jika tidak ada:
-     * gunakan parameter model.
+     * =====================================================
+     * PROVIDER OBJECT
+     * =====================================================
      */
-    const minDuration =
-        persisted &&
-        persisted.min_duration !== null &&
-        persisted.min_duration !== undefined
-            ? normalizeNumber(
-                persisted.min_duration,
-                parameterMinDuration
-            )
-            : parameterMinDuration;
 
-    const maxDuration =
-        persisted &&
-        persisted.max_duration !== null &&
-        persisted.max_duration !== undefined
-            ? normalizeNumber(
-                persisted.max_duration,
-                parameterMaxDuration
-            )
-            : parameterMaxDuration;
+    const providerData =
+        provider
+            ? {
+                id:
+                    provider.id,
+
+                provider_id:
+                    provider.provider_id,
+
+                provider_name:
+                    provider.provider_name ||
+                    config.providerName ||
+                    providerCode,
+
+                status:
+                    provider.status
+            }
+
+            : {
+
+                id:
+                    null,
+
+                provider_id:
+                    providerCode,
+
+                provider_name:
+                    config.providerName ||
+                    providerCode,
+
+                status:
+                    "unknown"
+            };
+
 
     /*
-     * Ratio/resolution:
-     *
-     * PRIORITAS:
-     * 1. parameters.js
-     * 2. persisted hanya sebagai fallback
-     *
-     * Dengan demikian UI tidak dapat
-     * mengarang ratio/resolution.
-     */
-    const persistedRatios =
-        normalizeArray(
-            persisted?.supported_ratios
-        );
-
-    const persistedResolutions =
-        normalizeArray(
-            persisted?.supported_resolutions
-        );
-
-    const finalRatios =
-        supportedRatios.length > 0
-            ? supportedRatios
-            : persistedRatios;
-
-    const finalResolutions =
-        supportedResolutions.length > 0
-            ? supportedResolutions
-            : persistedResolutions;
-
-    /*
-     * Status.
-     *
-     * Model folder tidak mempunyai status
-     * operasional.
-     *
-     * Jika ada row Supabase gunakan statusnya.
-     * Jika belum ada row, gunakan active
-     * agar model folder dapat ditampilkan
-     * dan diuji.
-     */
-    const status =
-        persisted?.status ||
-        "active";
+     * =====================================================
+     * FINAL MODEL OBJECT
+     * ===================================================== */
 
     return {
 
         /*
-         * Database ID hanya ada jika
-         * terdapat persisted row.
+         * Supabase UUID.
+         *
+         * Boleh null jika row belum ada.
          */
+
         id:
             persisted?.id ??
             null,
 
+
         /*
-         * SOURCE OF TRUTH
+         * MODEL ID
+         *
+         * IMMUTABLE
          */
+
         model_id:
             modelId,
 
+
+        /*
+         * DISPLAY NAME
+         *
+         * Editable melalui admin.
+         */
+
         model_name:
-            config.name ||
-            modelId,
+            modelName,
+
 
         description:
-            persisted?.description ||
-            config.description ||
-            "",
+
+
+            description,
+
+
+        /*
+         * Provider UUID dari Supabase.
+         */
 
         provider_id:
             provider?.id ??
             persisted?.provider_id ??
             null,
 
+
+        /*
+         * Provider code dari config.
+         */
+
         provider_code:
             providerCode,
 
+
+        /*
+         * Provider lengkap.
+         */
+
         provider:
-            provider
-                ? {
-                    id:
-                        provider.id,
+            providerData,
 
-                    provider_id:
-                        provider.provider_id,
 
-                    provider_name:
-                        provider.provider_name ||
-                        config.providerName ||
-                        providerCode,
-
-                    status:
-                        provider.status
-                }
-                : {
-                    id:
-                        null,
-
-                    provider_id:
-                        providerCode,
-
-                    provider_name:
-                        config.providerName ||
-                        providerCode,
-
-                    status:
-                        "unknown"
-                },
+        /*
+         * Model type dari config.
+         */
 
         type:
             config.type ||
             "",
+
+
+        /*
+         * API configuration dari config.
+         */
 
         api:
             config.api
@@ -844,50 +1033,81 @@ function normalizeRegistryModel(
                 }
                 : {},
 
-        /*
-         * Model parameter schema.
-         *
-         * Jangan hilangkan.
-         */
-        parameters,
 
         /*
-         * Convenience fields untuk UI.
+         * parameters.js lengkap.
          */
+
+        parameters:
+            parameters,
+
+
+        /*
+         * =================================================
+         * TECHNICAL PARAMETERS
+         * =================================================
+         *
+         * SEMUANYA dari parameters.js.
+         */
+
         supported_ratios:
-            finalRatios,
+            supportedRatios,
+
 
         supported_resolutions:
-            finalResolutions,
+            supportedResolutions,
+
 
         min_duration:
-            minDuration,
+            durationRange.min,
+
 
         max_duration:
-            maxDuration,
+            durationRange.max,
+
 
         /*
-         * Pricing dari Supabase jika tersedia.
+         * =================================================
+         * CREDIT
+         * =================================================
          */
+
         credit_cost:
             creditCost,
 
+
         discount_percent:
-            discountPercent,
+            safeDiscount,
+
 
         credit_final:
             creditFinal,
 
-        status,
 
         /*
-         * Penanda internal.
+         * =================================================
+         * STATUS
+         * =================================================
          */
+
+        status:
+            status,
+
+
+        /*
+         * =================================================
+         * SOURCE METADATA
+         * =================================================
+         */
+
         source:
             "model-folder",
 
+
         source_folder:
-            "models/grok-imagine-image-to-video",
+            registryEntry.folder ||
+            "",
+
 
         registry:
             true
@@ -896,21 +1116,14 @@ function normalizeRegistryModel(
 
 
 /* =========================================================
- * LOAD PERSISTED MODEL CONFIG
- * ---------------------------------------------------------
- * Supabase models TIDAK wajib berisi model.
- *
- * Jika kosong:
- * model tetap berasal dari folder.
- *
- * Jika ada row:
- * row tersebut hanya menjadi konfigurasi admin.
+ * LOAD PERSISTED MODELS
  * ========================================================= */
 
 async function loadPersistedModels() {
 
     const supabase =
         getSupabaseClient();
+
 
     const {
         data,
@@ -921,27 +1134,28 @@ async function loadPersistedModels() {
         )
         .select("*");
 
+
     if (error) {
 
         /*
-         * Jangan membuat Models page gagal
-         * hanya karena tabel models kosong
-         * atau belum siap.
-         *
-         * Tetapi error jaringan/schema yang
-         * nyata tetap tidak boleh disamarkan.
+         * Jika tabel belum tersedia,
+         * registry model tetap dapat digunakan.
          */
+
         if (
             error.code === "42P01" ||
             error.code === "PGRST205"
         ) {
+
             return [];
         }
+
 
         throw new Error(
             `Gagal membaca konfigurasi models: ${error.message}`
         );
     }
+
 
     return Array.isArray(data)
         ? data
@@ -950,7 +1164,7 @@ async function loadPersistedModels() {
 
 
 /* =========================================================
- * MODELS
+ * LOAD MODELS
  * ========================================================= */
 
 async function loadModels(
@@ -963,45 +1177,84 @@ async function loadModels(
         activeProviderOnly = false
     } = options;
 
+
     if (
         modelsLoaded &&
         !force
     ) {
-        return modelCache.slice();
+
+        let result =
+            modelCache.slice();
+
+
+        if (
+            !includeInactive
+        ) {
+
+            result =
+                result.filter(
+                    model =>
+                        model.status ===
+                        "active"
+                );
+        }
+
+
+        if (
+            activeProviderOnly
+        ) {
+
+            result =
+                result.filter(
+                    model =>
+                        model.provider?.status ===
+                        "active"
+                );
+        }
+
+
+        return result;
     }
+
 
     if (
         modelsLoadingPromise
     ) {
+
         return modelsLoadingPromise;
     }
+
 
     modelsLoadingPromise =
         (async function () {
 
             /*
-             * Provider tetap dibaca dari
-             * Supabase karena credential/
-             * provider connection bersifat
-             * admin data.
+             * Provider berasal dari Supabase.
              */
+
             const providers =
                 await loadProviders({
                     force,
                     includeInactive: true
                 });
 
+
             /*
-             * Row models bersifat optional.
+             * models table bersifat konfigurasi
+             * tambahan, bukan registry model.
              */
+
             const persistedModels =
                 await loadPersistedModels();
 
+
             /*
-             * Buat lookup berdasarkan model_id.
+             * Lookup berdasarkan model_id.
              */
+
             const persistedMap =
                 new Map();
+
 
             for (
                 const persisted
@@ -1014,6 +1267,7 @@ async function loadModels(
                         ""
                     ).trim();
 
+
                 if (key) {
 
                     persistedMap.set(
@@ -1023,12 +1277,12 @@ async function loadModels(
                 }
             }
 
+
             /*
-             * MODEL REGISTRY
-             *
-             * Hanya model yang benar-benar
-             * ada di folder yang akan muncul.
+             * Hanya model yang ada di registry
+             * yang boleh muncul.
              */
+
             let models =
                 MODEL_REGISTRY
                     .map(
@@ -1042,6 +1296,7 @@ async function loadModels(
                                     ""
                                 ).trim();
 
+
                             return normalizeRegistryModel(
                                 registryEntry,
                                 providers,
@@ -1053,9 +1308,23 @@ async function loadModels(
                     )
                     .filter(Boolean);
 
+
             /*
-             * Filter inactive jika diminta.
+             * Simpan cache lengkap terlebih dahulu.
              */
+
+            modelCache =
+                models.slice();
+
+
+            modelsLoaded =
+                true;
+
+
+            /*
+             * Filter hasil.
+             */
+
             if (
                 !includeInactive
             ) {
@@ -1068,9 +1337,7 @@ async function loadModels(
                     );
             }
 
-            /*
-             * Filter provider aktif.
-             */
+
             if (
                 activeProviderOnly
             ) {
@@ -1078,21 +1345,16 @@ async function loadModels(
                 models =
                     models.filter(
                         model =>
-                            model.provider &&
-                            model.provider.status ===
+                            model.provider?.status ===
                             "active"
                     );
             }
 
-            modelCache =
-                models.slice();
 
-            modelsLoaded =
-                true;
-
-            return modelCache.slice();
+            return models.slice();
 
         })();
+
 
     try {
 
@@ -1108,7 +1370,7 @@ async function loadModels(
 
 
 /* =========================================================
- * MODEL LOOKUP
+ * MODEL LOOKUP BY UUID
  * ========================================================= */
 
 async function getModelById(
@@ -1120,11 +1382,14 @@ async function getModelById(
         id === undefined ||
         id === ""
     ) {
+
         return null;
     }
 
+
     const models =
         await loadModels();
+
 
     return (
         models.find(
@@ -1138,6 +1403,10 @@ async function getModelById(
 }
 
 
+/* =========================================================
+ * MODEL LOOKUP BY MODEL ID
+ * ========================================================= */
+
 async function getModelByModelId(
     modelId
 ) {
@@ -1147,11 +1416,14 @@ async function getModelByModelId(
         modelId === undefined ||
         modelId === ""
     ) {
+
         return null;
     }
 
+
     const models =
         await loadModels();
+
 
     return (
         models.find(
@@ -1166,7 +1438,7 @@ async function getModelByModelId(
 
 
 /* =========================================================
- * FILTER
+ * FILTER MODELS
  * ========================================================= */
 
 function filterModels(
@@ -1179,12 +1451,14 @@ function filterModels(
             ? models
             : [];
 
+
     const {
         providerId,
         providerCode,
         status,
         search
     } = filters;
+
 
     const normalizedSearch =
         typeof search === "string"
@@ -1193,39 +1467,82 @@ function filterModels(
                 .toLowerCase()
             : "";
 
+
     return source.filter(
         model => {
+
+            /*
+             * Provider UUID
+             */
 
             if (
                 providerId !== undefined &&
                 providerId !== null &&
-                String(
-                    model.provider_id
-                ) !==
-                String(providerId)
+                providerId !== ""
             ) {
-                return false;
+
+                if (
+                    String(
+                        model.provider_id
+                    ) !==
+                    String(
+                        providerId
+                    )
+                ) {
+
+                    return false;
+                }
             }
 
+
+            /*
+             * Provider code
+             */
+
             if (
-                providerCode &&
-                String(
-                    model.provider_code
-                ) !==
-                String(providerCode)
+                providerCode
             ) {
-                return false;
+
+                if (
+                    String(
+                        model.provider_code
+                    ) !==
+                    String(
+                        providerCode
+                    )
+                ) {
+
+                    return false;
+                }
             }
+
+
+            /*
+             * Status
+             */
 
             if (
                 status &&
-                String(
-                    model.status
-                ) !==
-                String(status)
+                status !== "all"
             ) {
-                return false;
+
+                if (
+                    String(
+                        model.status
+                    ) !==
+                    String(
+                        status
+                    )
+                ) {
+
+                    return false;
+                }
             }
+
+
+            /*
+             * Search
+             */
 
             if (
                 normalizedSearch
@@ -1234,24 +1551,34 @@ function filterModels(
                 const haystack =
                     [
                         model.model_id,
+
                         model.model_name,
+
                         model.description,
+
                         model.provider_code,
+
                         model.provider?.provider_id,
-                        model.provider?.provider_name
+
+                        model.provider?.provider_name,
+
+                        model.type
                     ]
                         .filter(Boolean)
                         .join(" ")
                         .toLowerCase();
+
 
                 if (
                     !haystack.includes(
                         normalizedSearch
                     )
                 ) {
+
                     return false;
                 }
             }
+
 
             return true;
         }
@@ -1260,7 +1587,7 @@ function filterModels(
 
 
 /* =========================================================
- * FORMATTERS
+ * FORMAT DURATION
  * ========================================================= */
 
 function formatDuration(
@@ -1268,8 +1595,10 @@ function formatDuration(
 ) {
 
     if (!model) {
+
         return "";
     }
+
 
     const min =
         normalizeNumber(
@@ -1277,21 +1606,29 @@ function formatDuration(
             0
         );
 
+
     const max =
         normalizeNumber(
             model.max_duration,
             min
         );
 
+
     if (
         min === max
     ) {
+
         return `${min}s`;
     }
+
 
     return `${min}s - ${max}s`;
 }
 
+
+/* =========================================================
+ * FORMAT CREDIT
+ * ========================================================= */
 
 function formatCredit(
     value
@@ -1303,11 +1640,16 @@ function formatCredit(
             0
         );
 
+
     return number.toLocaleString(
         "id-ID"
     );
 }
 
+
+/* =========================================================
+ * FORMAT DISCOUNT
+ * ========================================================= */
 
 function formatDiscount(
     value
@@ -1319,12 +1661,13 @@ function formatDiscount(
             0
         );
 
+
     return `${number}%`;
 }
 
 
 /* =========================================================
- * STATUS / USABILITY
+ * STATUS
  * ========================================================= */
 
 function isActiveModel(
@@ -1333,20 +1676,31 @@ function isActiveModel(
 
     return Boolean(
         model &&
-        model.status === "active"
+        model.status ===
+        "active"
     );
 }
 
+
+/* =========================================================
+ * USABLE MODEL
+ * ========================================================= */
 
 function isUsableModel(
     model
 ) {
 
     return Boolean(
+
         model &&
-        model.status === "active" &&
+
+        model.status ===
+        "active" &&
+
         model.provider &&
-        model.provider.status === "active"
+
+        model.provider.status ===
+        "active"
     );
 }
 
@@ -1377,6 +1731,10 @@ function getModelRegistry() {
 }
 
 
+/* =========================================================
+ * GET MODEL CONFIG
+ * ========================================================= */
+
 function getModelConfig(
     modelId
 ) {
@@ -1386,9 +1744,12 @@ function getModelConfig(
             modelId || ""
         ).trim();
 
+
     if (!id) {
+
         return null;
     }
+
 
     const entry =
         MODEL_REGISTRY.find(
@@ -1396,18 +1757,26 @@ function getModelConfig(
                 String(
                     item?.config?.id ||
                     ""
-                ).trim() === id
+                ).trim() ===
+                id
         );
 
+
     if (!entry) {
+
         return null;
     }
+
 
     return {
         ...entry.config
     };
 }
 
+
+/* =========================================================
+ * GET MODEL PARAMETERS
+ * ========================================================= */
 
 function getModelParameters(
     modelId
@@ -1418,9 +1787,12 @@ function getModelParameters(
             modelId || ""
         ).trim();
 
+
     if (!id) {
+
         return null;
     }
+
 
     const entry =
         MODEL_REGISTRY.find(
@@ -1428,12 +1800,16 @@ function getModelParameters(
                 String(
                     item?.config?.id ||
                     ""
-                ).trim() === id
+                ).trim() ===
+                id
         );
 
+
     if (!entry) {
+
         return null;
     }
+
 
     return {
         ...(entry.parameters || {})
@@ -1453,7 +1829,9 @@ const ModelData = {
 
     MODEL_REGISTRY,
 
+
     getSupabaseClient,
+
 
     normalizeArray,
 
@@ -1461,7 +1839,9 @@ const ModelData = {
 
     normalizeNumber,
 
+
     normalizeRegistryModel,
+
 
     clearProviderCache,
 
@@ -1469,11 +1849,13 @@ const ModelData = {
 
     clearCache,
 
+
     loadProviders,
 
     getProviderById,
 
     getProviderByCode,
+
 
     loadModels,
 
@@ -1481,7 +1863,9 @@ const ModelData = {
 
     getModelByModelId,
 
+
     filterModels,
+
 
     formatDuration,
 
@@ -1489,19 +1873,23 @@ const ModelData = {
 
     formatDiscount,
 
+
     isActiveModel,
 
     isUsableModel,
 
+
     getCachedModels,
 
     getCachedProviders,
+
 
     getModelRegistry,
 
     getModelConfig,
 
     getModelParameters,
+
 
     getParameterDefinition,
 
@@ -1525,11 +1913,13 @@ export {
 
     normalizeRegistryModel,
 
+
     clearProviderCache,
 
     clearModelCache,
 
     clearCache,
+
 
     loadProviders,
 
@@ -1537,13 +1927,16 @@ export {
 
     getProviderByCode,
 
+
     loadModels,
 
     getModelById,
 
     getModelByModelId,
 
+
     filterModels,
+
 
     formatDuration,
 
@@ -1551,13 +1944,16 @@ export {
 
     formatDiscount,
 
+
     isActiveModel,
 
     isUsableModel,
 
+
     getCachedModels,
 
     getCachedProviders,
+
 
     getModelRegistry,
 
@@ -1565,11 +1961,13 @@ export {
 
     getModelParameters,
 
+
     getParameterDefinition,
 
     getParameterEnum,
 
     getParameterDefault,
+
 
     getSupabaseClient
 };
