@@ -3,25 +3,28 @@
    File:
    admin-control/models/models-provider.js
 
-   Tugas:
-   - Memuat daftar provider untuk halaman Models
-   - Mengisi dropdown #providerId
-   - Menyediakan provider ke module lain
-   - Mendukung provider.id (UUID)
-   - Mendukung provider.provider_id (kode provider)
-   - Tidak mengambil alih fungsi Models UI
-   - Tidak melakukan auto-initialize
-   - Tidak memasang event listener global
+   OWNER:
+   - Provider lifecycle
+   - Provider state
+   - Provider lookup
+   - Provider select synchronization
 
-   ARSITEKTUR:
-   - models-data.js        = sumber data
-   - models-provider.js    = lifecycle + lookup Provider
-   - model-provider-dropdown.js = kontrol dropdown
-   - models-form.js        = penggunaan Provider pada Form
+   BUKAN OWNER:
+   - Supabase / database      -> GENZModelsData
+   - Search Model             -> GENZModelsSearch
+   - Form CRUD                -> GENZModelForm*
+   - UI orchestration         -> GENZModelsUI
+
+   COMPATIBILITY:
+   - provider.id              -> UUID database
+   - provider.provider_id     -> kode provider
+   - provider.provider        -> legacy provider code
+   - provider.provider_name   -> nama provider
    ========================================================= */
 
 (function () {
     "use strict";
+
 
     /* =====================================================
        STATE
@@ -29,6 +32,7 @@
 
     let providers = [];
     let initialized = false;
+    let loadingPromise = null;
 
 
     /* =====================================================
@@ -48,8 +52,7 @@
         try {
             if (
                 window.GENZModelsUI &&
-                typeof window.GENZModelsUI.showAlert ===
-                    "function"
+                typeof window.GENZModelsUI.showAlert === "function"
             ) {
                 window.GENZModelsUI.showAlert(
                     type,
@@ -89,27 +92,6 @@
 
     /* =====================================================
        NORMALIZE PROVIDER
-       
-       PENTING:
-       Jangan kehilangan provider.id.
-
-       Struktur Provider bisa berupa:
-
-       {
-           id: UUID,
-           provider_id: "bytedance",
-           provider_name: "ByteDance"
-       }
-
-       atau legacy:
-
-       {
-           provider_id: "bytedance"
-       }
-
-       Form Edit bisa menerima UUID dari models.provider_id,
-       sedangkan dropdown tetap memakai provider_id sebagai
-       value.
     ===================================================== */
 
     function normalizeProvider(provider) {
@@ -123,8 +105,7 @@
 
         const databaseId =
             String(
-                provider.id ??
-                ""
+                provider.id ?? ""
             ).trim();
 
         const providerCode =
@@ -134,14 +115,6 @@
                 ""
             ).trim();
 
-        /*
-         * ID utama untuk kebutuhan internal.
-         *
-         * Jika provider_id tersedia, gunakan itu sebagai
-         * value dropdown.
-         *
-         * Jika tidak tersedia, fallback ke id.
-         */
         const normalizedProviderId =
             providerCode ||
             databaseId;
@@ -160,18 +133,11 @@
         return {
             ...provider,
 
-            /*
-             * Pertahankan UUID database.
-             */
             id:
                 databaseId ||
                 provider.id ||
                 null,
 
-            /*
-             * provider_id adalah kode provider jika
-             * tersedia. Jika tidak, fallback ke id.
-             */
             provider_id:
                 normalizedProviderId,
 
@@ -203,17 +169,11 @@
                 return;
             }
 
-            /*
-             * Deduplicate berdasarkan seluruh identifier
-             * yang dikenal.
-             *
-             * Ini mencegah satu Provider muncul dua kali
-             * apabila data memiliki variasi identifier.
-             */
             const keys = [
                 provider.id,
                 provider.provider_id,
-                provider.provider
+                provider.provider,
+                provider.provider_name
             ]
                 .map(function (value) {
                     return String(
@@ -271,10 +231,6 @@
         return [...list].sort(
             function (a, b) {
 
-                /*
-                 * Default provider selalu di atas.
-                 */
-
                 const aDefault =
                     a.is_default === true
                         ? 0
@@ -322,15 +278,8 @@
 
 
     /* =====================================================
-       FIND PROVIDER MATCH
-       
-       Satu fungsi pusat untuk seluruh pencarian Provider.
-
-       Dapat menerima:
-       - providers.id
-       - providers.provider_id
-       - provider.provider
-       ===================================================== */
+       PROVIDER MATCH
+    ===================================================== */
 
     function matchesProvider(
         provider,
@@ -343,8 +292,7 @@
 
         const normalized =
             String(
-                identifier ??
-                ""
+                identifier ?? ""
             )
                 .trim()
                 .toLowerCase();
@@ -356,7 +304,8 @@
         const candidates = [
             provider.id,
             provider.provider_id,
-            provider.provider
+            provider.provider,
+            provider.provider_name
         ];
 
         return candidates.some(
@@ -364,8 +313,7 @@
 
                 return (
                     String(
-                        candidate ??
-                        ""
+                        candidate ?? ""
                     )
                         .trim()
                         .toLowerCase() ===
@@ -378,13 +326,14 @@
 
     /* =====================================================
        POPULATE PROVIDER SELECT
+
        #providerId
 
-       Owner:
-       GENZModelsProvider
+       Value dropdown:
+           provider_id
 
-       Dropdown menerima provider_id sebagai value,
-       tetapi lookup tetap mendukung UUID provider.id.
+       Metadata:
+           data-provider-uuid
     ===================================================== */
 
     function populateSelect(
@@ -396,19 +345,12 @@
             getProviderSelect();
 
         if (!select) {
-            console.warn(
-                "[GEN-Z.AI] #providerId tidak ditemukan."
-            );
-
             return false;
         }
 
         const activeOnly =
             options.activeOnly !== false;
 
-        /*
-         * Simpan value yang sedang dipilih.
-         */
         const currentValue =
             String(
                 options.value ??
@@ -460,16 +402,10 @@
         source.forEach(
             function (provider) {
 
-                /*
-                 * Dropdown menggunakan provider_id.
-                 *
-                 * Ini penting agar data Model baru tetap
-                 * konsisten dengan API yang memakai
-                 * provider_id sebagai kode provider.
-                 */
                 const providerValue =
                     String(
                         provider.provider_id ??
+                        provider.provider ??
                         provider.id ??
                         ""
                     ).trim();
@@ -498,13 +434,6 @@
                           providerValue +
                           ")";
 
-                /*
-                 * Simpan UUID sebagai metadata option.
-                 * Tidak mengubah value dropdown.
-                 *
-                 * Ini berguna apabila module lain perlu
-                 * mengetahui providers.id.
-                 */
                 if (provider.id) {
                     option.dataset.providerUuid =
                         String(
@@ -530,12 +459,6 @@
 
         /* -------------------------------------------------
            RESTORE VALUE
-           
-           Pertama coba cocokkan langsung.
-
-           Jika currentValue adalah UUID, cari Provider
-           berdasarkan UUID lalu gunakan provider_id
-           sebagai value dropdown.
         ------------------------------------------------- */
 
         if (currentValue) {
@@ -548,8 +471,7 @@
 
                         return (
                             String(
-                                option.value ??
-                                ""
+                                option.value ?? ""
                             )
                                 .trim()
                                 .toLowerCase() ===
@@ -568,6 +490,7 @@
                 const matchedProvider =
                     source.find(
                         function (provider) {
+
                             return matchesProvider(
                                 provider,
                                 currentValue
@@ -588,16 +511,93 @@
 
 
     /* =====================================================
-       LOAD PROVIDERS
-       
-       Sumber data:
-       GENZModelsData
+       DISPATCH PROVIDER EVENTS
 
-       Module ini bertanggung jawab atas:
-       - mengambil Provider
-       - normalize
-       - menyimpan state
-       - populate dropdown
+       Dipertahankan beberapa event compatibility
+       karena halaman Models lama dan modul baru
+       menggunakan nama event berbeda.
+    ===================================================== */
+
+    function dispatchProviderEvents() {
+
+        const detail = {
+            providers:
+                getProviders(),
+            activeProviders:
+                providers.filter(isActive)
+        };
+
+
+        /* Event utama module */
+
+        try {
+            document.dispatchEvent(
+                new CustomEvent(
+                    "genz-models-providers-loaded",
+                    {
+                        detail
+                    }
+                )
+            );
+        } catch (error) {
+            console.warn(
+                "[GEN-Z.AI] Provider event error:",
+                error
+            );
+        }
+
+
+        /* Compatibility event */
+
+        try {
+            document.dispatchEvent(
+                new CustomEvent(
+                    "genz-providers-loaded",
+                    {
+                        detail
+                    }
+                )
+            );
+        } catch (error) {
+            console.warn(
+                "[GEN-Z.AI] Provider compatibility event error:",
+                error
+            );
+        }
+
+
+        /* Compatibility untuk listener lama */
+
+        try {
+            document.dispatchEvent(
+                new CustomEvent(
+                    "genz-provider-loaded",
+                    {
+                        detail
+                    }
+                )
+            );
+        } catch (error) {
+            console.warn(
+                "[GEN-Z.AI] Provider legacy event error:",
+                error
+            );
+        }
+    }
+
+
+    /* =====================================================
+       LOAD PROVIDERS
+
+       DATA OWNER:
+           GENZModelsData
+
+       Provider module hanya:
+           - meminta data
+           - normalize
+           - menyimpan state
+           - populate dropdown
+           - dispatch event
     ===================================================== */
 
     async function loadProviders(
@@ -625,65 +625,94 @@
 
 
         /* -------------------------------------------------
-           LOAD FROM DATA MODULE
+           CEGAH REQUEST GANDA
+
+           Jika beberapa module meminta Provider
+           pada waktu hampir bersamaan, gunakan
+           Promise yang sama.
         ------------------------------------------------- */
 
-        const loaded =
-            await data.loadProviders({
-                force,
-                activeOnly
-            });
+        if (
+            loadingPromise &&
+            !force
+        ) {
+            return loadingPromise;
+        }
 
 
-        /* -------------------------------------------------
-           NORMALIZE
-        ------------------------------------------------- */
+        loadingPromise =
+            (async function () {
 
-        providers =
-            normalizeProviders(
-                loaded
+                const loaded =
+                    await data.loadProviders({
+                        force,
+                        activeOnly
+                    });
+
+
+                /* -----------------------------------------
+                   NORMALIZE
+                ----------------------------------------- */
+
+                providers =
+                    normalizeProviders(
+                        loaded
+                    );
+
+
+                /* -----------------------------------------
+                   POPULATE SELECT
+
+                   Jangan filter dua kali karena Data module
+                   sudah mengikuti activeOnly.
+                ----------------------------------------- */
+
+                populateSelect(
+                    providers,
+                    {
+                        activeOnly: false,
+                        value:
+                            options.value
+                    }
+                );
+
+
+                /* -----------------------------------------
+                   EVENTS
+                ----------------------------------------- */
+
+                dispatchProviderEvents();
+
+
+                return getProviders();
+
+            })();
+
+
+        try {
+
+            return await loadingPromise;
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] Gagal memuat Provider:",
+                error
             );
 
+            notify(
+                "error",
+                error?.message ||
+                "Gagal memuat Provider."
+            );
 
-        /* -------------------------------------------------
-           POPULATE SELECT
-           
-           Data module sudah melakukan filter activeOnly.
+            throw error;
 
-           Jadi Provider module tidak melakukan filter
-           kedua kali.
-        ------------------------------------------------- */
+        } finally {
 
-        populateSelect(
-            providers,
-            {
-                activeOnly: false,
-
-                value:
-                    options.value
-            }
-        );
-
-
-        /* -------------------------------------------------
-           EVENT
-        ------------------------------------------------- */
-
-        document.dispatchEvent(
-            new CustomEvent(
-                "genz-models-providers-loaded",
-                {
-                    detail: {
-                        providers:
-                            [...providers]
-                    }
-                }
-            )
-        );
-
-        return [
-            ...providers
-        ];
+            loadingPromise =
+                null;
+        }
     }
 
 
@@ -694,11 +723,6 @@
     async function initialize(
         options = {}
     ) {
-
-        /*
-         * Jangan load ulang jika sudah initialized,
-         * kecuali force=true.
-         */
 
         if (
             initialized &&
@@ -723,9 +747,7 @@
                 );
             }
 
-            return [
-                ...providers
-            ];
+            return getProviders();
         }
 
 
@@ -749,11 +771,13 @@
         options = {}
     ) {
 
-        return initialize({
-            ...options,
+        const result =
+            await initialize({
+                ...options,
+                force: true
+            });
 
-            force: true
-        });
+        return result;
     }
 
 
@@ -770,14 +794,25 @@
 
 
     /* =====================================================
-       GET PROVIDER BY ID
-       
-       Menerima:
-       - providers.id
-       - providers.provider_id
-       - providers.provider
+       GET ACTIVE PROVIDERS
+    ===================================================== */
 
-       Ini adalah bagian penting untuk Edit Model.
+    function getActiveProviders() {
+
+        return providers.filter(
+            isActive
+        );
+    }
+
+
+    /* =====================================================
+       GET PROVIDER BY ID
+
+       Mendukung:
+           UUID
+           provider_id
+           provider
+           provider_name
     ===================================================== */
 
     function getProviderById(
@@ -786,8 +821,7 @@
 
         const id =
             String(
-                providerId ??
-                ""
+                providerId ?? ""
             )
                 .trim()
                 .toLowerCase();
@@ -813,9 +847,10 @@
 
     /* =====================================================
        GET PROVIDER VALUE
-       
-       Mengubah identifier apa pun menjadi provider_id
-       yang digunakan oleh dropdown/API Model.
+
+       UUID / provider code / provider name
+       ->
+       provider_id
     ===================================================== */
 
     function getProviderValue(
@@ -842,17 +877,17 @@
 
     /* =====================================================
        SET SELECT VALUE
-       
-       Mendukung UUID maupun provider_id.
-       
+
        Contoh:
-       
-       setValue("bytedance")
-       setValue("UUID-PROVIDER-123")
-       
-       Keduanya akan memilih:
-       
-       ByteDance (bytedance)
+
+       setValue("kie")
+
+       atau:
+
+       setValue(UUID)
+
+       Keduanya akan memilih Provider
+       yang sesuai.
     ===================================================== */
 
     function setValue(
@@ -868,8 +903,7 @@
 
         const value =
             String(
-                providerId ??
-                ""
+                providerId ?? ""
             ).trim();
 
         if (!value) {
@@ -880,9 +914,11 @@
             return true;
         }
 
-        /*
-         * 1. Coba langsung berdasarkan option.value.
-         */
+
+        /* -------------------------------------------------
+           1. DIRECT MATCH
+        ------------------------------------------------- */
+
         const directOption =
             Array.from(
                 select.options
@@ -891,8 +927,7 @@
 
                     return (
                         String(
-                            option.value ??
-                            ""
+                            option.value ?? ""
                         )
                             .trim()
                             .toLowerCase() ===
@@ -909,12 +944,11 @@
             return true;
         }
 
-        /*
-         * 2. Cari Provider berdasarkan:
-         *    - id
-         *    - provider_id
-         *    - provider
-         */
+
+        /* -------------------------------------------------
+           2. PROVIDER LOOKUP
+        ------------------------------------------------- */
+
         const provider =
             getProviderById(
                 value
@@ -924,9 +958,11 @@
             return false;
         }
 
-        /*
-         * 3. Gunakan provider_id sebagai value dropdown.
-         */
+
+        /* -------------------------------------------------
+           3. NORMALIZED VALUE
+        ------------------------------------------------- */
+
         const providerValue =
             String(
                 provider.provider_id ??
@@ -939,6 +975,11 @@
             return false;
         }
 
+
+        /* -------------------------------------------------
+           4. FIND OPTION
+        ------------------------------------------------- */
+
         const option =
             Array.from(
                 select.options
@@ -947,8 +988,7 @@
 
                     return (
                         String(
-                            item.value ??
-                            ""
+                            item.value ?? ""
                         )
                             .trim()
                             .toLowerCase() ===
@@ -969,6 +1009,30 @@
 
 
     /* =====================================================
+       SYNC SELECT
+
+       Berguna ketika Provider state sudah tersedia
+       tetapi dropdown baru dibuat oleh HTML/modal.
+    ===================================================== */
+
+    function syncSelect(
+        options = {}
+    ) {
+
+        return populateSelect(
+            providers,
+            {
+                activeOnly:
+                    options.activeOnly !== false,
+
+                value:
+                    options.value
+            }
+        );
+    }
+
+
+    /* =====================================================
        CLEAR SELECT
     ===================================================== */
 
@@ -978,7 +1042,6 @@
             getProviderSelect();
 
         if (select) {
-
             select.value =
                 "";
         }
@@ -986,7 +1049,19 @@
 
 
     /* =====================================================
+       IS INITIALIZED
+    ===================================================== */
+
+    function isInitialized() {
+        return initialized;
+    }
+
+
+    /* =====================================================
        DESTROY
+
+       Tidak menghapus DOM event karena module ini
+       memang tidak memasang global event listener.
     ===================================================== */
 
     function destroy() {
@@ -996,6 +1071,9 @@
 
         initialized =
             false;
+
+        loadingPromise =
+            null;
     }
 
 
@@ -1014,7 +1092,11 @@
 
             populateSelect,
 
+            syncSelect,
+
             getProviders,
+
+            getActiveProviders,
 
             getProviderById,
 
@@ -1023,6 +1105,8 @@
             setValue,
 
             clear,
+
+            isInitialized,
 
             destroy
         });
