@@ -7,7 +7,7 @@
 
    Tanggung jawab:
    - Lifecycle halaman Models
-   - Menunggu seluruh module
+   - Menunggu module yang diperlukan
    - Initialize module sesuai dependency
    - Bind event modules
    - Sinkronisasi catalog
@@ -22,6 +22,10 @@
    - Table CRUD
    - Price calculation
    - API / Supabase
+
+   CATATAN ARSITEKTUR:
+   GENZModelsForm legacy TIDAK lagi menjadi dependency
+   wajib lifecycle.
    ========================================================= */
 
 (function () {
@@ -66,9 +70,16 @@
                 window.GENZModelSearchEvents ||
                 null,
 
-            form:
-                window.GENZModelsForm ||
-                null,
+            /*
+             * Form legacy sengaja TIDAK digunakan.
+             *
+             * Module form baru:
+             * - formCreate
+             * - formEdit
+             * - formLayout
+             * - formEvents
+             * - formCoordinator
+             */
 
             formEvents:
                 window.GENZModelFormEvents ||
@@ -132,6 +143,8 @@
         /*
          * Module inti yang memang diperlukan
          * oleh halaman Models.
+         *
+         * GENZModelsForm legacy TIDAK termasuk.
          */
 
         return (
@@ -146,11 +159,17 @@
 
             !!modules.searchEvents &&
 
-            !!modules.form &&
-
             !!modules.formEvents &&
 
             !!modules.formCoordinator &&
+
+            !!modules.formLayout &&
+
+            !!modules.formCreate &&
+
+            !!modules.formEdit &&
+
+            !!modules.formDelete &&
 
             !!modules.price &&
 
@@ -207,11 +226,6 @@
             ],
 
             [
-                "form",
-                "GENZModelsForm"
-            ],
-
-            [
                 "formEvents",
                 "GENZModelFormEvents"
             ],
@@ -219,6 +233,26 @@
             [
                 "formCoordinator",
                 "GENZModelFormCoordinator"
+            ],
+
+            [
+                "formLayout",
+                "GENZModelFormLayout"
+            ],
+
+            [
+                "formCreate",
+                "GENZModelFormCreate"
+            ],
+
+            [
+                "formEdit",
+                "GENZModelFormEdit"
+            ],
+
+            [
+                "formDelete",
+                "GENZModelFormDelete"
             ],
 
             [
@@ -825,7 +859,14 @@
             );
 
 
-            table.render();
+            if (
+                typeof table.render ===
+                "function"
+            ) {
+
+                table.render();
+
+            }
 
 
             console.info(
@@ -985,7 +1026,9 @@
                 try {
 
                     /* =========================================
-                       1. WAIT ALL MODULES
+                       1. WAIT REQUIRED MODULES
+                       -----------------------------------------
+                       GENZModelsForm legacy tidak diperlukan.
                     ========================================= */
 
                     await waitForModules();
@@ -1007,9 +1050,6 @@
 
                     /* =========================================
                        4. UI
-                       -----------------------------------------
-                       UI dapat melakukan load catalog,
-                       pricing, statistics, dll.
                     ========================================= */
 
                     await initializeUI();
@@ -1058,10 +1098,10 @@
 
 
                     /* =========================================
-                       11. PROVIDER STATE ONLY
+                       11. PROVIDER STATE
                        -----------------------------------------
-                       Tidak memanggil setProviders().
-                       Tidak render dropdown kedua kali.
+                       Hanya membaca state.
+                       Tidak render dropdown ulang.
                     ========================================= */
 
                     const providers =
@@ -1149,7 +1189,8 @@
                             new CustomEvent(
                                 "genz-models-error",
                                 {
-                                    detail: error
+                                    detail:
+                                        error
                                 }
                             )
                         );
@@ -1301,8 +1342,8 @@
          * Provider tidak dihancurkan.
          *
          * Provider adalah state owner.
-         * Reset lifecycle tidak berarti
-         * menghapus data Provider.
+         * Reset lifecycle tidak berarti menghapus
+         * data Provider.
          */
 
 
