@@ -16,7 +16,7 @@
    - Format duration
    - Format ratio
    - Format resolution
-   - Menyediakan lookup Model berdasarkan ID
+   - Lookup Model berdasarkan database ID / model_id
 
    TIDAK bertanggung jawab:
    - Search
@@ -31,7 +31,7 @@
    - kie_* table
 
    =========================================================
-   URUTAN KOLOM WAJIB SAMA DENGAN models.html:
+   URUTAN KOLOM:
 
    1. Model
    2. Provider
@@ -52,14 +52,14 @@
 
     /* =====================================================
        STATE
-    ===================================================== */
+       ===================================================== */
 
     let models = [];
 
 
     /* =====================================================
        TABLE BODY
-    ===================================================== */
+       ===================================================== */
 
     function getTableBody() {
 
@@ -88,34 +88,29 @@
 
     /* =====================================================
        HTML ESCAPE
-    ===================================================== */
+       ===================================================== */
 
     function escapeHtml(value) {
 
         return String(
             value ?? ""
         )
-
             .replace(
                 /&/g,
                 "&amp;"
             )
-
             .replace(
                 /</g,
                 "&lt;"
             )
-
             .replace(
                 />/g,
                 "&gt;"
             )
-
             .replace(
                 /"/g,
                 "&quot;"
             )
-
             .replace(
                 /'/g,
                 "&#039;"
@@ -126,21 +121,24 @@
 
     /* =====================================================
        NORMALIZE ARRAY
-    ===================================================== */
+       ===================================================== */
 
     function normalizeArray(value) {
 
         if (Array.isArray(value)) {
 
-            return value
-                .map(function (item) {
-
-                    return String(
-                        item ?? ""
-                    ).trim();
-
-                })
-                .filter(Boolean);
+            return [
+                ...new Set(
+                    value
+                        .map(
+                            item =>
+                                String(
+                                    item ?? ""
+                                ).trim()
+                        )
+                        .filter(Boolean)
+                )
+            ];
 
         }
 
@@ -156,10 +154,13 @@
         }
 
 
-        if (typeof value === "string") {
+        if (
+            typeof value === "string"
+        ) {
 
             const text =
                 value.trim();
+
 
             if (!text) {
                 return [];
@@ -167,11 +168,14 @@
 
 
             /*
-             * Supabase dapat mengembalikan:
+             * Supabase/Postgres array
+             * dapat datang sebagai:
              *
              * ["9:16","16:9"]
              *
-             * sebagai JSON string.
+             * atau:
+             *
+             * {"9:16","16:9"}
              */
 
             if (
@@ -188,7 +192,10 @@
                 try {
 
                     const parsed =
-                        JSON.parse(text);
+                        JSON.parse(
+                            text
+                        );
+
 
                     if (
                         Array.isArray(
@@ -203,27 +210,64 @@
                     }
 
                 } catch {
-
                     /*
-                     * Lanjutkan sebagai
-                     * comma-separated value.
+                     * PostgreSQL array
+                     * dapat menggunakan format
+                     * {"9:16","16:9"} yang bukan
+                     * JSON valid.
                      */
+                }
+
+
+                if (
+                    text.startsWith("{") &&
+                    text.endsWith("}")
+                ) {
+
+                    const inner =
+                        text.slice(
+                            1,
+                            -1
+                        );
+
+
+                    return [
+                        ...new Set(
+                            inner
+                                .split(",")
+                                .map(
+                                    item =>
+                                        String(
+                                            item
+                                        )
+                                            .trim()
+                                            .replace(
+                                                /^"(.*)"$/,
+                                                "$1"
+                                            )
+                                )
+                                .filter(Boolean)
+                        )
+                    ];
 
                 }
 
             }
 
 
-            return text
-                .split(",")
-                .map(function (item) {
-
-                    return String(
-                        item
-                    ).trim();
-
-                })
-                .filter(Boolean);
+            return [
+                ...new Set(
+                    text
+                        .split(",")
+                        .map(
+                            item =>
+                                String(
+                                    item
+                                ).trim()
+                        )
+                        .filter(Boolean)
+                )
+            ];
 
         }
 
@@ -234,17 +278,21 @@
 
             try {
 
-                return Object.values(
-                    value
-                )
-                    .map(function (item) {
-
-                        return String(
-                            item ?? ""
-                        ).trim();
-
-                    })
-                    .filter(Boolean);
+                return [
+                    ...new Set(
+                        Object.values(
+                            value
+                        )
+                            .map(
+                                item =>
+                                    String(
+                                        item ??
+                                            ""
+                                    ).trim()
+                            )
+                            .filter(Boolean)
+                    )
+                ];
 
             } catch {
 
@@ -256,6 +304,41 @@
 
 
         return [];
+
+    }
+
+
+    /* =====================================================
+       NUMBER
+       ===================================================== */
+
+    function normalizeNumber(
+        value,
+        fallback = 0
+    ) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+
+            return fallback;
+
+        }
+
+
+        const number =
+            Number(
+                value
+            );
+
+
+        return Number.isFinite(
+            number
+        )
+            ? number
+            : fallback;
 
     }
 
@@ -278,12 +361,18 @@
 
         const provider =
             model.provider &&
-            typeof model.provider === "object"
+            typeof model.provider ===
+                "object"
 
                 ? model.provider
 
                 : null;
 
+
+        /*
+         * models.provider_id
+         * adalah FK ke providers.id.
+         */
 
         const providerId =
             String(
@@ -292,6 +381,11 @@
                 ""
             ).trim();
 
+
+        /*
+         * providers.provider_id
+         * adalah kode provider.
+         */
 
         const providerCode =
             String(
@@ -307,7 +401,12 @@
                 provider?.provider_name ??
                 model.provider_name ??
                 model.providerName ??
-                model.provider ??
+                (
+                    typeof model.provider ===
+                    "string"
+                        ? model.provider
+                        : ""
+                ) ??
                 providerCode ??
                 providerId ??
                 ""
@@ -332,7 +431,9 @@
 
         return {
 
-            /* Database row ID */
+            /*
+             * Database primary key
+             */
 
             id:
                 String(
@@ -341,7 +442,9 @@
                 ).trim(),
 
 
-            /* Provider */
+            /*
+             * Provider
+             */
 
             provider_id:
                 providerId,
@@ -353,7 +456,9 @@
                 providerName,
 
 
-            /* Model */
+            /*
+             * Model
+             */
 
             model_id:
                 String(
@@ -370,16 +475,10 @@
                     ""
                 ).trim(),
 
-            model_family:
-                String(
-                    model.model_family ??
-                    model.modelFamily ??
-                    model.family ??
-                    ""
-                ).trim(),
 
-
-            /* Description */
+            /*
+             * Description
+             */
 
             description:
                 String(
@@ -388,25 +487,38 @@
                 ).trim(),
 
 
-            /* Credit */
+            /*
+             * Credit
+             */
 
             credit_cost:
-                model.credit_cost ??
-                model.credit ??
-                0,
+                normalizeNumber(
+                    model.credit_cost ??
+                    model.credit ??
+                    0,
+                    0
+                ),
 
             discount_percent:
-                model.discount_percent ??
-                model.discountPercent ??
-                0,
+                normalizeNumber(
+                    model.discount_percent ??
+                    model.discountPercent ??
+                    0,
+                    0
+                ),
 
             credit_final:
-                model.credit_final ??
-                model.creditFinal ??
-                0,
+                normalizeNumber(
+                    model.credit_final ??
+                    model.creditFinal ??
+                    0,
+                    0
+                ),
 
 
-            /* Duration */
+            /*
+             * Duration
+             */
 
             min_duration:
                 model.min_duration ??
@@ -418,12 +530,10 @@
                 model.maxDuration ??
                 "",
 
-            duration:
-                model.duration ??
-                "",
 
-
-            /* Supported parameters */
+            /*
+             * Supported parameters
+             */
 
             supported_ratios:
                 supportedRatios,
@@ -432,16 +542,22 @@
                 supportedResolutions,
 
 
-            /* Status */
+            /*
+             * Status
+             */
 
             status:
                 String(
                     model.status ??
-                    "active"
-                ).trim(),
+                    "inactive"
+                )
+                    .trim()
+                    .toLowerCase(),
 
 
-            /* Original data */
+            /*
+             * Original database record
+             */
 
             original:
                 model
@@ -597,23 +713,33 @@
 
     function formatDuration(model) {
 
+        if (!model) {
+            return "-";
+        }
+
+
         const min =
             model.min_duration;
+
 
         const max =
             model.max_duration;
 
 
         const hasMin =
-            min !== "" &&
             min !== null &&
-            min !== undefined;
+            min !== undefined &&
+            String(
+                min
+            ).trim() !== "";
 
 
         const hasMax =
-            max !== "" &&
             max !== null &&
-            max !== undefined;
+            max !== undefined &&
+            String(
+                max
+            ).trim() !== "";
 
 
         if (
@@ -628,7 +754,8 @@
                 " - " +
                 escapeHtml(
                     max
-                )
+                ) +
+                "s"
             );
 
         }
@@ -636,8 +763,11 @@
 
         if (hasMin) {
 
-            return escapeHtml(
-                min
+            return (
+                escapeHtml(
+                    min
+                ) +
+                "s"
             );
 
         }
@@ -645,21 +775,11 @@
 
         if (hasMax) {
 
-            return escapeHtml(
-                max
-            );
-
-        }
-
-
-        if (
-            model.duration !== "" &&
-            model.duration !== null &&
-            model.duration !== undefined
-        ) {
-
-            return escapeHtml(
-                model.duration
+            return (
+                escapeHtml(
+                    max
+                ) +
+                "s"
             );
 
         }
@@ -682,7 +802,9 @@
             );
 
 
-        if (!items.length) {
+        if (
+            !items.length
+        ) {
 
             return "-";
 
@@ -705,7 +827,7 @@
     function formatRatio(model) {
 
         return formatArray(
-            model.supported_ratios
+            model?.supported_ratios
         );
 
     }
@@ -718,7 +840,7 @@
     function formatResolution(model) {
 
         return formatArray(
-            model.supported_resolutions
+            model?.supported_resolutions
         );
 
     }
@@ -733,41 +855,55 @@
         const value =
             String(
                 status ??
-                "active"
+                "inactive"
             )
                 .trim()
                 .toLowerCase();
 
 
         let label =
-            status ||
-            "-";
+            "Inactive";
 
 
         let className =
             "status-inactive";
 
 
-        if (
-            value === "active"
-        ) {
+        switch (value) {
 
-            label = "Active";
-            className = "status-active";
+            case "active":
 
-        } else if (
-            value === "inactive"
-        ) {
+                label =
+                    "Active";
 
-            label = "Inactive";
-            className = "status-inactive";
+                className =
+                    "status-active";
 
-        } else if (
-            value === "maintenance"
-        ) {
+                break;
 
-            label = "Maintenance";
-            className = "status-maintenance";
+
+            case "maintenance":
+
+                label =
+                    "Maintenance";
+
+                className =
+                    "status-maintenance";
+
+                break;
+
+
+            case "inactive":
+
+            default:
+
+                label =
+                    "Inactive";
+
+                className =
+                    "status-inactive";
+
+                break;
 
         }
 
@@ -805,11 +941,6 @@
             "-";
 
 
-        const family =
-            model.model_family ||
-            "";
-
-
         return (
 
             '<div class="model-name">' +
@@ -826,25 +957,7 @@
                     modelId
                 ) +
 
-            "</div>" +
-
-            (
-                family
-
-                    ? (
-
-                        '<div class="model-id">' +
-
-                            escapeHtml(
-                                family
-                            ) +
-
-                        "</div>"
-
-                    )
-
-                    : ""
-            )
+            "</div>"
 
         );
 
@@ -864,15 +977,31 @@
             "-";
 
 
+        const providerCode =
+            model.provider_code;
+
+
         return (
 
-            '<span class="provider">' +
+            '<div class="provider">' +
 
                 escapeHtml(
                     providerName
                 ) +
 
-            "</span>"
+            "</div>" +
+
+            (
+                providerCode
+                    ? (
+                        '<div class="model-id">' +
+                            escapeHtml(
+                                providerCode
+                            ) +
+                        "</div>"
+                    )
+                    : ""
+            )
 
         );
 
@@ -881,18 +1010,6 @@
 
     /* =====================================================
        RENDER ROW
-       -----------------------------------------------------
-       10 kolom:
-       1 Model
-       2 Provider
-       3 Credit
-       4 Diskon
-       5 Credit Final
-       6 Duration
-       7 Ratio
-       8 Resolution
-       9 Status
-       10 Aksi
        ===================================================== */
 
     function renderRow(model) {
@@ -912,7 +1029,13 @@
         }
 
 
-        const id =
+        /*
+         * Untuk Edit/Hapus,
+         * identifier utama adalah
+         * models.id.
+         */
+
+        const databaseId =
             normalized.id;
 
 
@@ -956,13 +1079,25 @@
 
             "<tr" +
 
-            ' data-model-id="' +
+                ' data-model-id="' +
+                    escapeHtml(
+                        databaseId
+                    ) +
+                '"' +
 
-                escapeHtml(
-                    id
-                ) +
+                ' data-model-db-id="' +
+                    escapeHtml(
+                        databaseId
+                    ) +
+                '"' +
 
-            '">' +
+                ' data-model-code="' +
+                    escapeHtml(
+                        normalized.model_id
+                    ) +
+                '"' +
+
+            ">" +
 
 
             /* =============================================
@@ -1093,12 +1228,18 @@
                         ' data-action="edit"' +
 
                         ' data-model-id="' +
-
                             escapeHtml(
-                                id
+                                databaseId
                             ) +
+                        '"' +
 
-                        '">' +
+                        ' data-model-db-id="' +
+                            escapeHtml(
+                                databaseId
+                            ) +
+                        '"' +
+
+                    ">" +
 
                         "Edit" +
 
@@ -1114,12 +1255,18 @@
                         ' data-action="delete"' +
 
                         ' data-model-id="' +
-
                             escapeHtml(
-                                id
+                                databaseId
                             ) +
+                        '"' +
 
-                        '">' +
+                        ' data-model-db-id="' +
+                            escapeHtml(
+                                databaseId
+                            ) +
+                        '"' +
+
+                    ">" +
 
                         "Hapus" +
 
@@ -1147,9 +1294,7 @@
             getTableBody();
 
 
-        if (
-            !body
-        ) {
+        if (!body) {
 
             return false;
 
@@ -1184,12 +1329,10 @@
             getTableBody();
 
 
-        if (
-            !body
-        ) {
+        if (!body) {
 
             console.warn(
-                "[model-table] #modelTableBody tidak ditemukan."
+                "[GEN-Z.AI] Model table body tidak ditemukan."
             );
 
             return false;
@@ -1198,9 +1341,7 @@
 
 
         if (
-            Array.isArray(
-                list
-            )
+            Array.isArray(list)
         ) {
 
             setModels(
@@ -1219,14 +1360,24 @@
         }
 
 
-        body.innerHTML =
+        const rows =
             models
                 .map(
                     renderRow
                 )
-                .join(
-                    ""
-                );
+                .filter(Boolean)
+                .join("");
+
+
+        if (!rows) {
+
+            return renderEmpty();
+
+        }
+
+
+        body.innerHTML =
+            rows;
 
 
         return true;
@@ -1235,7 +1386,7 @@
 
 
     /* =====================================================
-       FIND MODEL BY DATABASE ID
+       FIND BY DATABASE ID
        ===================================================== */
 
     function findById(id) {
@@ -1246,9 +1397,7 @@
             ).trim();
 
 
-        if (
-            !value
-        ) {
+        if (!value) {
 
             return null;
 
@@ -1256,30 +1405,27 @@
 
 
         return (
-
             models.find(
-                function (model) {
-
-                    return (
-                        model.id ===
-                        value
-                    );
-
-                }
+                model =>
+                    String(
+                        model.id ??
+                            ""
+                    ).trim() ===
+                    value
             ) ||
-
             null
-
         );
 
     }
 
 
     /* =====================================================
-       FIND MODEL BY MODEL ID
+       FIND BY MODEL ID
        ===================================================== */
 
-    function findByModelId(modelId) {
+    function findByModelId(
+        modelId
+    ) {
 
         const value =
             String(
@@ -1287,8 +1433,52 @@
             ).trim();
 
 
+        if (!value) {
+
+            return null;
+
+        }
+
+
+        return (
+            models.find(
+                model =>
+                    String(
+                        model.model_id ??
+                            ""
+                    ).trim() ===
+                    value
+            ) ||
+            null
+        );
+
+    }
+
+
+    /* =====================================================
+       FIND BY PROVIDER + MODEL ID
+       ===================================================== */
+
+    function findByProviderAndModelId(
+        providerId,
+        modelId
+    ) {
+
+        const provider =
+            String(
+                providerId ?? ""
+            ).trim();
+
+
+        const model =
+            String(
+                modelId ?? ""
+            ).trim();
+
+
         if (
-            !value
+            !provider ||
+            !model
         ) {
 
             return null;
@@ -1297,20 +1487,22 @@
 
 
         return (
-
             models.find(
-                function (model) {
+                item =>
 
-                    return (
-                        model.model_id ===
-                        value
-                    );
+                    String(
+                        item.provider_id ??
+                            ""
+                    ).trim() ===
+                        provider &&
 
-                }
+                    String(
+                        item.model_id ??
+                            ""
+                    ).trim() ===
+                        model
             ) ||
-
             null
-
         );
 
     }
@@ -1319,7 +1511,7 @@
     /* =====================================================
        REMOVE LOCAL MODEL
        -----------------------------------------------------
-       BUKAN DELETE API.
+       BUKAN DELETE DATABASE.
        ===================================================== */
 
     function removeById(id) {
@@ -1330,9 +1522,7 @@
             ).trim();
 
 
-        if (
-            !value
-        ) {
+        if (!value) {
 
             return false;
 
@@ -1345,14 +1535,12 @@
 
         models =
             models.filter(
-                function (model) {
-
-                    return (
-                        model.id !==
-                        value
-                    );
-
-                }
+                model =>
+                    String(
+                        model.id ??
+                            ""
+                    ).trim() !==
+                    value
             );
 
 
@@ -1376,7 +1564,7 @@
     /* =====================================================
        UPDATE LOCAL MODEL
        -----------------------------------------------------
-       BUKAN UPDATE API.
+       BUKAN UPDATE DATABASE.
        ===================================================== */
 
     function updateModel(model) {
@@ -1399,19 +1587,19 @@
 
         const index =
             models.findIndex(
-                function (item) {
-
-                    return (
-                        item.id ===
+                item =>
+                    String(
+                        item.id ??
+                            ""
+                    ).trim() ===
+                    String(
                         normalized.id
-                    );
-
-                }
+                    ).trim()
             );
 
 
         if (
-            index < 0
+            index === -1
         ) {
 
             models.push(
@@ -1451,6 +1639,13 @@
        ===================================================== */
 
     function initialize() {
+
+        /*
+         * Ambil cache dari Models Data jika
+         * tersedia.
+         *
+         * Tidak melakukan query Supabase.
+         */
 
         const data =
             window.GENZModelsData;
@@ -1509,6 +1704,8 @@
 
             findByModelId,
 
+            findByProviderAndModelId,
+
             removeById,
 
             updateModel,
@@ -1518,6 +1715,8 @@
             escapeHtml,
 
             normalizeArray,
+
+            normalizeNumber,
 
             normalizeModel,
 
@@ -1543,7 +1742,7 @@
 
 
     console.info(
-        "[GEN-Z.AI] GENZModelTable loaded. 10-column models renderer active."
+        "[GEN-Z.AI] GENZModelTable loaded."
     );
 
 
