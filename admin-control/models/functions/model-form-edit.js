@@ -9,28 +9,76 @@
    OWNER:
    EDIT MODEL
 
-   Tanggung jawab:
-   - Mode Edit Model
-   - Populate data model ke form
-   - Validasi data edit
-   - Build payload update
-   - Update model melalui coordinator
-   - Sinkronisasi Model ID dengan Model Form Layout
-   - Tidak mengambil alih Provider
-   - Tidak mengambil alih Pricing
-   - Tidak melakukan query Supabase langsung
-
    ARSITEKTUR:
-   - Provider  -> GENZModelsProvider / GENZModelProviderDropdown
-   - Model ID  -> GENZModelFormLayout
-   - Pricing   -> GENZModelPriceCalculation
-   - CRUD      -> GENZModelFormCoordinator
-   - Modal     -> GENZModelFormEvents
+   ---------------------------------------------------------
+   Provider
+       -> GENZModelsProvider / GENZModelProviderDropdown
 
-   PENTING:
-   File ini TIDAK lagi bergantung kepada:
-       window.GENZModelsForm
-========================================================= */
+   Model Catalog
+       -> GENZModelFormLayout
+       -> Supabase / KIE
+
+   KIE Configuration
+       -> kie_models
+       -> kie_parameters
+       -> kie_pricing
+
+   CRUD
+       -> GENZModelFormCoordinator
+
+   Events
+       -> GENZModelFormEvents
+
+   =========================================================
+
+   SOURCE OF TRUTH:
+   ---------------------------------------------------------
+   Model ID
+       -> KIE
+
+   Model Name
+       -> KIE
+
+   Model Family
+       -> KIE
+
+   Ratio
+       -> KIE parameters
+
+   Duration
+       -> KIE parameters
+
+   Resolution
+       -> KIE parameters
+
+   KIE Price
+       -> KIE pricing
+
+   =========================================================
+
+   EDITABLE:
+   ---------------------------------------------------------
+   Description
+   Credit Cost
+   Discount
+   Status
+
+   Capability KIE:
+   READONLY / mengikuti KIE
+
+   =========================================================
+
+   IMPORTANT:
+   ---------------------------------------------------------
+   Tidak melakukan query Supabase langsung.
+   Tidak membuat capability sendiri.
+   Tidak membuat Model ID sendiri.
+   Tidak membuat Model Name sendiri.
+   Tidak membuat harga KIE sendiri.
+   Tidak membuat ratio/duration/resolution sendiri.
+
+   =========================================================
+*/
 
 (function () {
 
@@ -42,7 +90,9 @@
     ===================================================== */
 
     let editingModel = null;
+
     let initialized = false;
+
     let saving = false;
 
 
@@ -88,7 +138,9 @@
 
         }
 
-        return element.value ?? "";
+        return String(
+            element.value ?? ""
+        ).trim();
 
     }
 
@@ -133,8 +185,11 @@
         if (Array.isArray(input)) {
 
             return input
-                .map(item =>
-                    String(item).trim()
+                .map(
+                    item =>
+                        String(
+                            item ?? ""
+                        ).trim()
                 )
                 .filter(Boolean);
 
@@ -154,10 +209,54 @@
 
         return String(input)
             .split(",")
-            .map(item =>
-                item.trim()
+            .map(
+                item =>
+                    item.trim()
             )
             .filter(Boolean);
+
+    }
+
+
+    /* =====================================================
+       UNIQUE ARRAY
+    ===================================================== */
+
+    function uniqueArray(input) {
+
+        const values =
+            normalizeArray(
+                input
+            );
+
+        const seen =
+            new Set();
+
+        const result =
+            [];
+
+        values.forEach(
+            value => {
+
+                const key =
+                    value.toLowerCase();
+
+                if (seen.has(key)) {
+
+                    return;
+
+                }
+
+                seen.add(key);
+
+                result.push(
+                    value
+                );
+
+            }
+        );
+
+        return result;
 
     }
 
@@ -166,7 +265,9 @@
        NUMBER
     ===================================================== */
 
-    function toNumber(value) {
+    function toNumber(
+        value
+    ) {
 
         if (
             value === null ||
@@ -180,10 +281,16 @@
 
 
         const number =
-            Number(value);
+            Number(
+                String(value)
+                    .trim()
+                    .replace(/,/g, "")
+            );
 
 
-        return Number.isFinite(number)
+        return Number.isFinite(
+            number
+        )
             ? number
             : null;
 
@@ -231,7 +338,7 @@
             );
 
 
-            requestAnimationFrame(
+            window.requestAnimationFrame(
                 () => {
 
                     existing.classList.add(
@@ -340,7 +447,7 @@
 
 
     /* =====================================================
-       FORM LAYOUT
+       MODULE ACCESS
     ===================================================== */
 
     function getFormLayout() {
@@ -353,10 +460,6 @@
     }
 
 
-    /* =====================================================
-       PRICE CALCULATION
-    ===================================================== */
-
     function getPriceCalculation() {
 
         return (
@@ -366,10 +469,6 @@
 
     }
 
-
-    /* =====================================================
-       PROVIDER MODULE
-    ===================================================== */
 
     function getProviderModule() {
 
@@ -391,16 +490,259 @@
     }
 
 
-    /* =====================================================
-       FORM EVENTS
-    ===================================================== */
-
     function getFormEvents() {
 
         return (
             window.GENZModelFormEvents ||
             null
         );
+
+    }
+
+
+    /* =====================================================
+       CURRENT KIE MODEL
+    ===================================================== */
+
+    function getCurrentKieModel() {
+
+        const layout =
+            getFormLayout();
+
+        if (!layout) {
+
+            return null;
+
+        }
+
+
+        let modelId = "";
+
+        if (
+            typeof layout.getCurrentModelId ===
+            "function"
+        ) {
+
+            try {
+
+                modelId =
+                    String(
+                        layout.getCurrentModelId() ||
+                        ""
+                    ).trim();
+
+            } catch {
+                modelId = "";
+            }
+
+        }
+
+
+        if (!modelId) {
+
+            modelId =
+                getValue(
+                    "modelCode"
+                );
+
+        }
+
+
+        if (!modelId) {
+
+            modelId =
+                getValue(
+                    "modelCodeSearch"
+                );
+
+        }
+
+
+        if (!modelId) {
+
+            return null;
+
+        }
+
+
+        if (
+            typeof layout.findModel ===
+            "function"
+        ) {
+
+            try {
+
+                const model =
+                    layout.findModel(
+                        modelId
+                    );
+
+                if (model) {
+
+                    return model;
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] KIE model lookup error:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        if (
+            typeof layout.findModelById ===
+            "function"
+        ) {
+
+            try {
+
+                return (
+                    layout.findModelById(
+                        modelId
+                    ) ||
+                    null
+                );
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] KIE model lookup error:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        return null;
+
+    }
+
+
+    /* =====================================================
+       KIE CONFIG
+    ===================================================== */
+
+    function getCurrentKieConfig() {
+
+        const layout =
+            getFormLayout();
+
+        if (
+            !layout ||
+            typeof layout.getCurrentKieConfig !==
+            "function"
+        ) {
+
+            return null;
+
+        }
+
+
+        try {
+
+            return (
+                layout.getCurrentKieConfig() ||
+                null
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] KIE config lookup error:",
+                error
+            );
+
+            return null;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       KIE PARAMETERS
+    ===================================================== */
+
+    function getCurrentParameters() {
+
+        const layout =
+            getFormLayout();
+
+        if (
+            !layout ||
+            typeof layout.getCurrentParameters !==
+            "function"
+        ) {
+
+            return [];
+
+        }
+
+
+        try {
+
+            const result =
+                layout.getCurrentParameters();
+
+            return Array.isArray(
+                result
+            )
+                ? result
+                : [];
+
+        } catch {
+
+            return [];
+
+        }
+
+    }
+
+
+    /* =====================================================
+       KIE PRICING
+    ===================================================== */
+
+    function getCurrentPricing() {
+
+        const layout =
+            getFormLayout();
+
+        if (
+            !layout ||
+            typeof layout.getCurrentPricing !==
+            "function"
+        ) {
+
+            return [];
+
+        }
+
+
+        try {
+
+            const result =
+                layout.getCurrentPricing();
+
+            return Array.isArray(
+                result
+            )
+                ? result
+                : [];
+
+        } catch {
+
+            return [];
+
+        }
 
     }
 
@@ -433,18 +775,16 @@
         if (
             dropdown &&
             typeof dropdown.setValue ===
-                "function"
+            "function"
         ) {
 
             try {
 
-                const result =
+                return (
                     await dropdown.setValue(
                         value
-                    );
-
-
-                return result || value;
+                    )
+                ) || value;
 
             } catch (error) {
 
@@ -465,7 +805,7 @@
         if (
             providerModule &&
             typeof providerModule.getProviderById ===
-                "function"
+            "function"
         ) {
 
             try {
@@ -518,29 +858,26 @@
             const option =
                 Array.from(
                     select.options || []
-                ).find(option => {
+                ).find(
+                    option => {
 
-                    const optionValue =
-                        String(
-                            option.value || ""
-                        )
-                            .trim()
-                            .toLowerCase();
+                        return (
+                            String(
+                                option.value || ""
+                            )
+                                .trim()
+                                .toLowerCase() ===
+                            value.toLowerCase()
+                        );
 
-
-                    return (
-                        optionValue ===
-                        value.toLowerCase()
-                    );
-
-                });
+                    }
+                );
 
 
             if (option) {
 
                 select.value =
                     option.value;
-
 
                 return option.value;
 
@@ -555,14 +892,10 @@
 
 
     /* =====================================================
-       MODEL ID
-    =====================================================
-
-       modelCodeSearch dikelola oleh
-       GENZModelFormLayout.
-
-       File Edit tidak boleh mengambil alih
-       option Model ID.
+       SET MODEL
+       -----------------------------------------------------
+       Selalu melalui Layout.
+       Tidak memanipulasi KIE state secara manual.
     ===================================================== */
 
     async function setModel(
@@ -575,64 +908,6 @@
 
         }
 
-
-        const layout =
-            getFormLayout();
-
-
-        if (
-            layout &&
-            typeof layout.setModel ===
-                "function"
-        ) {
-
-            try {
-
-                const result =
-                    await layout.setModel(
-                        model
-                    );
-
-
-                const modelId =
-                    String(
-                        model.model_id ||
-                        model.modelId ||
-                        ""
-                    ).trim();
-
-
-                if (modelId) {
-
-                    setValue(
-                        "modelCode",
-                        modelId
-                    );
-
-                }
-
-
-                return (
-                    result ||
-                    model
-                );
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-edit] Layout setModel error:",
-                    error
-                );
-
-            }
-
-        }
-
-
-        /*
-         * Fallback kompatibilitas jika
-         * Model Form Layout belum tersedia.
-         */
 
         const modelId =
             String(
@@ -649,68 +924,157 @@
         }
 
 
+        const layout =
+            getFormLayout();
+
+
+        if (
+            !layout ||
+            typeof layout.findModel !==
+            "function" ||
+            typeof layout.setModel !==
+            "function"
+        ) {
+
+            throw new Error(
+                "GENZModelFormLayout belum siap."
+            );
+
+        }
+
+
+        const kieModel =
+            layout.findModel(
+                modelId
+            );
+
+
+        if (!kieModel) {
+
+            throw new Error(
+                `Model ID "${modelId}" tidak ditemukan di katalog KIE.`
+            );
+
+        }
+
+
+        /*
+         * Hanya satu panggilan setModel().
+         *
+         * Jangan memicu change event manual.
+         */
+
+        await layout.setModel(
+            kieModel
+        );
+
+
+        /*
+         * Layout menjadi source of truth.
+         */
+
         setValue(
             "modelCode",
             modelId
         );
 
 
-        const search =
+        /*
+         * Model Name.
+         */
+
+        const modelName =
+            String(
+                kieModel.model_name ||
+                ""
+            ).trim();
+
+
+        setValue(
+            "modelName",
+            modelName
+        );
+
+
+        /*
+         * Model Family.
+         */
+
+        const modelFamily =
+            String(
+                kieModel.model_family ||
+                ""
+            ).trim();
+
+
+        setValue(
+            "modelFamily",
+            modelFamily
+        );
+
+
+        /*
+         * Field KIE identity readonly.
+         */
+
+        const modelNameElement =
             getElement(
-                "modelCodeSearch"
+                "modelName"
             );
 
 
-        if (search) {
+        if (modelNameElement) {
 
-            /*
-             * SELECT.
-             */
-
-            if (
-                search.tagName ===
-                "SELECT"
-            ) {
-
-                const option =
-                    Array.from(
-                        search.options || []
-                    ).find(option =>
-                        String(
-                            option.value || ""
-                        ).trim() ===
-                        modelId
-                    );
-
-
-                if (option) {
-
-                    search.value =
-                        option.value;
-
-                }
-
-            } else {
-
-                /*
-                 * Legacy INPUT.
-                 */
-
-                search.value =
-                    modelId;
-
-            }
+            modelNameElement.readOnly =
+                true;
 
         }
 
 
-        return model;
+        const modelFamilyElement =
+            getElement(
+                "modelFamily"
+            );
+
+
+        if (modelFamilyElement) {
+
+            modelFamilyElement.readOnly =
+                true;
+
+        }
+
+
+        /*
+         * KIE Unit Price readonly.
+         */
+
+        const kieUnitPrice =
+            getElement(
+                "kieUnitPrice"
+            );
+
+
+        if (kieUnitPrice) {
+
+            kieUnitPrice.readOnly =
+                true;
+
+        }
+
+
+        updateSelectedModelInfo(
+            kieModel
+        );
+
+
+        return kieModel;
 
     }
 
 
     /* =====================================================
-       WAIT MODEL SELECT
+       WAIT FOR LAYOUT
     ===================================================== */
 
     async function waitForModelLayout() {
@@ -721,47 +1085,27 @@
 
         if (!layout) {
 
-            return;
+            return false;
 
         }
-
-
-        await new Promise(
-            resolve => {
-
-                window.setTimeout(
-                    resolve,
-                    0
-                );
-
-            }
-        );
 
 
         /*
-         * Layout menyelesaikan refresh
-         * internalnya sendiri.
+         * Beri kesempatan event Provider
+         * selesai tanpa membuat recursive
+         * change event.
          */
 
-        if (
-            typeof layout.refresh ===
-            "function"
-        ) {
+        await new Promise(
+            resolve =>
+                window.setTimeout(
+                    resolve,
+                    0
+                )
+        );
 
-            try {
 
-                await layout.refresh();
-
-            } catch (error) {
-
-                console.warn(
-                    "[model-form-edit] Layout refresh warning:",
-                    error
-                );
-
-            }
-
-        }
+        return true;
 
     }
 
@@ -808,99 +1152,100 @@
             "-";
 
 
-        info.innerHTML = `
-            <strong>Model dipilih:</strong>
-            ${escapeHtml(name)}
-            <br>
-            <span>
-                ${escapeHtml(id)}
-            </span>
-        `;
+        info.textContent =
+            `Model dipilih: ${name} (${id})`;
 
     }
 
 
     /* =====================================================
-       ESCAPE HTML
+       SYNC KIE CAPABILITIES
     ===================================================== */
 
-    function escapeHtml(
-        value
-    ) {
+    function syncKieCapabilities() {
 
-        return String(
-            value ?? ""
-        )
-            .replace(
-                /&/g,
-                "&amp;"
-            )
-            .replace(
-                /</g,
-                "&lt;"
-            )
-            .replace(
-                />/g,
-                "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#039;"
-            );
-
-    }
+        const layout =
+            getFormLayout();
 
 
-    /* =====================================================
-       COLLECT DATA
-    ===================================================== */
+        if (!layout) {
 
-    function collectData() {
-
-        let modelId =
-            String(
-                getValue(
-                    "modelCode"
-                )
-            ).trim();
-
-
-        /*
-         * Fallback jika hidden Model Code
-         * belum tersinkron.
-         */
-
-        if (!modelId) {
-
-            modelId =
-                String(
-                    getValue(
-                        "modelCodeSearch"
-                    )
-                ).trim();
+            return;
 
         }
 
 
-        const creditCost =
-            getValue(
-                "creditCost"
-            ).trim();
+        /*
+         * Tidak dispatch change/input.
+         * Layout langsung menyinkronkan field.
+         */
+
+        if (
+            typeof layout.syncLegacyCapabilityFields ===
+            "function"
+        ) {
+
+            try {
+
+                layout.syncLegacyCapabilityFields();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Capability sync warning:",
+                    error
+                );
+
+            }
+
+        }
 
 
-        const discountPercent =
-            getValue(
-                "discountPercent"
-            ).trim();
+        if (
+            typeof layout.syncDurationFields ===
+            "function"
+        ) {
+
+            try {
+
+                layout.syncDurationFields();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Duration sync warning:",
+                    error
+                );
+
+            }
+
+        }
+
+    }
 
 
-        const creditFinal =
-            getValue(
-                "creditFinal"
+    /* =====================================================
+       COLLECT EDITABLE DATA
+       -----------------------------------------------------
+       Identity dan capability TIDAK diambil sebagai
+       sumber utama dari form.
+
+       Semuanya diverifikasi kembali terhadap KIE.
+    ===================================================== */
+
+    function collectData() {
+
+        const kieModel =
+            getCurrentKieModel();
+
+
+        const modelId =
+            String(
+                kieModel?.model_id ||
+                getValue(
+                    "modelCode"
+                ) ||
+                ""
             ).trim();
 
 
@@ -909,44 +1254,63 @@
             id:
                 getValue(
                     "modelRecordId"
-                ).trim(),
+                ),
 
             provider_id:
                 getValue(
                     "providerId"
-                ).trim(),
+                ),
 
             model_id:
                 modelId,
 
             model_name:
-                getValue(
-                    "modelName"
+                String(
+                    kieModel?.model_name ||
+                    getValue(
+                        "modelName"
+                    ) ||
+                    ""
+                ).trim(),
+
+            model_family:
+                String(
+                    kieModel?.model_family ||
+                    getValue(
+                        "modelFamily"
+                    ) ||
+                    ""
                 ).trim(),
 
             description:
                 getValue(
                     "description"
-                ).trim(),
+                ),
 
             credit_cost:
-                creditCost,
+                getValue(
+                    "creditCost"
+                ),
 
             discount_percent:
-                discountPercent,
+                getValue(
+                    "discountPercent"
+                ),
 
             credit_final:
-                creditFinal,
+                getValue(
+                    "creditFinal"
+                ),
 
             min_duration:
                 getValue(
                     "minDuration"
-                ).trim(),
+                ),
 
             max_duration:
                 getValue(
                     "maxDuration"
-                ).trim(),
+                ),
 
             supported_ratios:
                 normalizeArray(
@@ -963,11 +1327,193 @@
                 ),
 
             status:
+                (
+                    getValue(
+                        "modelStatus"
+                    ) ||
+                    "active"
+                ).toLowerCase()
+
+        };
+
+    }
+
+
+    /* =====================================================
+       BUILD KIE-SAFE DATA
+       ----------------------------------------------------- */
+
+    function buildKieData(
+        data
+    ) {
+
+        const layout =
+            getFormLayout();
+
+
+        const kieModel =
+            getCurrentKieModel();
+
+
+        if (!layout) {
+
+            throw new Error(
+                "GENZModelFormLayout belum tersedia."
+            );
+
+        }
+
+
+        if (!kieModel) {
+
+            throw new Error(
+                "Model KIE belum dipilih."
+            );
+
+        }
+
+
+        const modelId =
+            String(
+                kieModel.model_id ||
+                ""
+            ).trim();
+
+
+        const modelName =
+            String(
+                kieModel.model_name ||
+                ""
+            ).trim();
+
+
+        const modelFamily =
+            String(
+                kieModel.model_family ||
+                ""
+            ).trim();
+
+
+        if (!modelId) {
+
+            throw new Error(
+                "Model ID dari KIE tidak tersedia."
+            );
+
+        }
+
+
+        if (!modelName) {
+
+            throw new Error(
+                "Model Name dari KIE tidak tersedia."
+            );
+
+        }
+
+
+        /*
+         * Capability harus berasal dari state KIE.
+         */
+
+        let ratios =
+            [];
+
+        let resolutions =
+            [];
+
+        let minDuration =
+            "";
+
+        let maxDuration =
+            "";
+
+
+        /*
+         * Sinkronisasi langsung melalui Layout.
+         */
+
+        syncKieCapabilities();
+
+
+        ratios =
+            normalizeArray(
                 getValue(
-                    "modelStatus"
+                    "supportedRatios"
                 )
-                    .trim()
-                    .toLowerCase()
+            );
+
+
+        resolutions =
+            normalizeArray(
+                getValue(
+                    "supportedResolutions"
+                )
+            );
+
+
+        minDuration =
+            getValue(
+                "minDuration"
+            );
+
+
+        maxDuration =
+            getValue(
+                "maxDuration"
+            );
+
+
+        /*
+         * Jika Layout menyediakan current
+         * capability state, gunakan itu sebagai
+         * validasi tambahan.
+         */
+
+        const kieConfig =
+            typeof layout.getCurrentKieConfig ===
+            "function"
+                ? layout.getCurrentKieConfig()
+                : null;
+
+
+        if (!kieConfig) {
+
+            throw new Error(
+                "Konfigurasi KIE belum tersedia. Model tidak dapat disimpan."
+            );
+
+        }
+
+
+        return {
+
+            ...data,
+
+            model_id:
+                modelId,
+
+            model_name:
+                modelName,
+
+            model_family:
+                modelFamily,
+
+            min_duration:
+                minDuration,
+
+            max_duration:
+                maxDuration,
+
+            supported_ratios:
+                uniqueArray(
+                    ratios
+                ),
+
+            supported_resolutions:
+                uniqueArray(
+                    resolutions
+                )
 
         };
 
@@ -989,30 +1535,86 @@
         }
 
 
+        if (!data.id) {
+
+            return (
+                "ID record model tidak tersedia."
+            );
+
+        }
+
+
         if (!data.provider_id) {
 
-            return "Provider wajib dipilih.";
+            return (
+                "Provider wajib dipilih."
+            );
 
         }
 
 
         if (!data.model_id) {
 
-            return "Model ID wajib dipilih.";
+            return (
+                "Model ID wajib berasal dari katalog KIE."
+            );
 
         }
 
 
         if (!data.model_name) {
 
-            return "Model Name wajib diisi.";
+            return (
+                "Model Name dari KIE tidak tersedia."
+            );
 
         }
 
 
+        /*
+         * Pastikan model benar-benar ada
+         * dalam katalog KIE.
+         */
+
+        const kieModel =
+            getCurrentKieModel();
+
+
+        if (!kieModel) {
+
+            return (
+                "Model KIE tidak ditemukan."
+            );
+
+        }
+
+
+        const kieModelId =
+            String(
+                kieModel.model_id ||
+                ""
+            ).trim();
+
+
+        if (
+            kieModelId !==
+            data.model_id
+        ) {
+
+            return (
+                "Model ID tidak sinkron dengan katalog KIE."
+            );
+
+        }
+
+
+        /*
+         * Credit.
+         */
+
         if (
             data.credit_cost !==
-                "" &&
+            "" &&
             toNumber(
                 data.credit_cost
             ) === null
@@ -1025,12 +1627,38 @@
         }
 
 
+        const creditCost =
+            toNumber(
+                data.credit_cost
+            );
+
+
         if (
-            data.discount_percent !==
-                "" &&
+            creditCost !== null &&
+            creditCost < 0
+        ) {
+
+            return (
+                "Credit Cost tidak boleh negatif."
+            );
+
+        }
+
+
+        /*
+         * Discount.
+         */
+
+        const discount =
             toNumber(
                 data.discount_percent
-            ) === null
+            );
+
+
+        if (
+            data.discount_percent !==
+            "" &&
+            discount === null
         ) {
 
             return (
@@ -1038,12 +1666,6 @@
             );
 
         }
-
-
-        const discount =
-            toNumber(
-                data.discount_percent
-            );
 
 
         if (
@@ -1061,9 +1683,13 @@
         }
 
 
+        /*
+         * Credit Final.
+         */
+
         if (
             data.credit_final !==
-                "" &&
+            "" &&
             toNumber(
                 data.credit_final
             ) === null
@@ -1076,35 +1702,9 @@
         }
 
 
-        if (
-            data.min_duration !==
-                "" &&
-            toNumber(
-                data.min_duration
-            ) === null
-        ) {
-
-            return (
-                "Minimum Duration harus berupa angka."
-            );
-
-        }
-
-
-        if (
-            data.max_duration !==
-                "" &&
-            toNumber(
-                data.max_duration
-            ) === null
-        ) {
-
-            return (
-                "Maximum Duration harus berupa angka."
-            );
-
-        }
-
+        /*
+         * Duration.
+         */
 
         const min =
             toNumber(
@@ -1119,6 +1719,32 @@
 
 
         if (
+            data.min_duration !==
+            "" &&
+            min === null
+        ) {
+
+            return (
+                "Minimum Duration harus berupa angka."
+            );
+
+        }
+
+
+        if (
+            data.max_duration !==
+            "" &&
+            max === null
+        ) {
+
+            return (
+                "Maximum Duration harus berupa angka."
+            );
+
+        }
+
+
+        if (
             min !== null &&
             max !== null &&
             min > max
@@ -1130,6 +1756,10 @@
 
         }
 
+
+        /*
+         * Status.
+         */
 
         if (
             data.status &&
@@ -1149,6 +1779,23 @@
         }
 
 
+        /*
+         * KIE config wajib tersedia.
+         */
+
+        const kieConfig =
+            getCurrentKieConfig();
+
+
+        if (!kieConfig) {
+
+            return (
+                "Konfigurasi KIE belum tersedia."
+            );
+
+        }
+
+
         return null;
 
     }
@@ -1156,7 +1803,7 @@
 
     /* =====================================================
        BUILD PAYLOAD
-    ===================================================== */
+       ===================================================== */
 
     function buildPayload(
         data
@@ -1169,7 +1816,18 @@
         }
 
 
+        /*
+         * Payload mempertahankan struktur
+         * API lama.
+         *
+         * Model identity sudah diverifikasi
+         * dari KIE sebelum fungsi ini dipanggil.
+         */
+
         const payload = {
+
+            id:
+                data.id,
 
             provider_id:
                 data.provider_id,
@@ -1184,49 +1842,70 @@
                 data.description,
 
             credit_cost:
-                data.credit_cost,
+                data.credit_cost === ""
+                    ? null
+                    : Number(
+                        data.credit_cost
+                    ),
 
             discount_percent:
-                data.discount_percent,
+                data.discount_percent === ""
+                    ? 0
+                    : Number(
+                        data.discount_percent
+                    ),
 
             credit_final:
-                data.credit_final,
+                data.credit_final === ""
+                    ? null
+                    : Number(
+                        data.credit_final
+                    ),
 
             min_duration:
-                data.min_duration,
+                data.min_duration === ""
+                    ? null
+                    : Number(
+                        data.min_duration
+                    ),
 
             max_duration:
-                data.max_duration,
+                data.max_duration === ""
+                    ? null
+                    : Number(
+                        data.max_duration
+                    ),
 
             supported_ratios:
-                data.supported_ratios,
+                uniqueArray(
+                    data.supported_ratios
+                ),
 
             supported_resolutions:
-                data.supported_resolutions,
+                uniqueArray(
+                    data.supported_resolutions
+                ),
 
             status:
-                data.status
+                data.status ||
+                "active"
 
         };
 
 
         /*
-         * UUID record database.
+         * Model Family dikirim jika API/backend
+         * mendukung field tersebut.
+         *
+         * Tidak memaksa field lain.
          */
 
         if (
-            editingModel?.id
+            data.model_family
         ) {
 
-            payload.id =
-                editingModel.id;
-
-        } else if (
-            data.id
-        ) {
-
-            payload.id =
-                data.id;
+            payload.model_family =
+                data.model_family;
 
         }
 
@@ -1238,7 +1917,7 @@
 
     /* =====================================================
        UPDATE
-    ===================================================== */
+       ===================================================== */
 
     async function update(
         model = null
@@ -1258,8 +1937,30 @@
         }
 
 
-        const data =
+        /*
+         * Sinkronkan capability KIE tanpa
+         * men-trigger event DOM.
+         */
+
+        syncKieCapabilities();
+
+
+        /*
+         * Ambil form.
+         */
+
+        let data =
             collectData();
+
+
+        /*
+         * Rebuild berdasarkan KIE.
+         */
+
+        data =
+            buildKieData(
+                data
+            );
 
 
         const validationError =
@@ -1275,7 +1976,6 @@
                 "error"
             );
 
-
             throw new Error(
                 validationError
             );
@@ -1290,8 +1990,7 @@
 
 
         /*
-         * Coordinator adalah satu-satunya
-         * pintu CRUD.
+         * Coordinator menjadi satu pintu CRUD.
          */
 
         const coordinator =
@@ -1299,20 +1998,20 @@
 
 
         if (
-            coordinator &&
-            typeof coordinator.update ===
-                "function"
+            !coordinator ||
+            typeof coordinator.update !==
+            "function"
         ) {
 
-            return coordinator.update(
-                payload
+            throw new Error(
+                "GENZModelFormCoordinator belum tersedia."
             );
 
         }
 
 
-        throw new Error(
-            "Module GENZModelFormCoordinator belum tersedia."
+        return coordinator.update(
+            payload
         );
 
     }
@@ -1320,7 +2019,7 @@
 
     /* =====================================================
        UPDATE FROM FORM
-    ===================================================== */
+       ===================================================== */
 
     async function updateFromForm(
         event = null
@@ -1329,6 +2028,12 @@
         if (event) {
 
             event.preventDefault();
+
+            /*
+             * stopPropagation hanya satu tingkat.
+             *
+             * Jangan dispatch submit lagi.
+             */
 
             event.stopPropagation();
 
@@ -1342,7 +2047,8 @@
         }
 
 
-        saving = true;
+        saving =
+            true;
 
 
         try {
@@ -1358,8 +2064,7 @@
 
 
             /*
-             * Bersihkan cache Data module
-             * setelah update berhasil.
+             * Clear cache model.
              */
 
             const dataModule =
@@ -1369,10 +2074,21 @@
             if (
                 dataModule &&
                 typeof dataModule.clearCache ===
-                    "function"
+                "function"
             ) {
 
-                dataModule.clearCache();
+                try {
+
+                    dataModule.clearCache();
+
+                } catch (error) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Cache clear warning:",
+                        error
+                    );
+
+                }
 
             }
 
@@ -1381,27 +2097,31 @@
              * Informasikan UI.
              */
 
-            document.dispatchEvent(
+            try {
 
-                new CustomEvent(
-                    "genz-model-updated",
-                    {
-                        detail: {
+                document.dispatchEvent(
+                    new CustomEvent(
+                        "genz-model-updated",
+                        {
+                            detail: {
 
-                            result,
+                                result,
 
-                            model:
-                                collectData()
+                                model:
+                                    collectData()
 
+                            }
                         }
-                    }
-                )
+                    )
+                );
 
-            );
+            } catch {
+                /* ignore */
+            }
 
 
             /*
-             * Tutup modal melalui owner event.
+             * Tutup modal melalui owner.
              */
 
             const formEvents =
@@ -1411,10 +2131,21 @@
             if (
                 formEvents &&
                 typeof formEvents.closeModal ===
-                    "function"
+                "function"
             ) {
 
-                formEvents.closeModal();
+                try {
+
+                    formEvents.closeModal();
+
+                } catch (error) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Close modal warning:",
+                        error
+                    );
+
+                }
 
             }
 
@@ -1424,42 +2155,24 @@
         } catch (error) {
 
             console.error(
-                "[model-form-edit] Update error:",
+                "[GEN-Z.AI] Update model error:",
                 error
             );
 
 
-            /*
-             * Jika error sudah diberi
-             * notifikasi oleh update(),
-             * tetap tampilkan pesan final
-             * untuk error API lainnya.
-             */
-
-            if (
-                error?.message
-            ) {
-
-                notify(
-                    error.message,
-                    "error"
-                );
-
-            } else {
-
-                notify(
-                    "Gagal memperbarui model.",
-                    "error"
-                );
-
-            }
+            notify(
+                error?.message ||
+                "Gagal memperbarui model.",
+                "error"
+            );
 
 
             throw error;
 
         } finally {
 
-            saving = false;
+            saving =
+                false;
 
         }
 
@@ -1468,6 +2181,16 @@
 
     /* =====================================================
        POPULATE
+       -----------------------------------------------------
+       Urutan sangat penting:
+
+       1. Record ID
+       2. Provider
+       3. Refresh katalog KIE
+       4. Model ID
+       5. Layout mengambil KIE config
+       6. Identity/capability dari KIE
+       7. Editable fields dari database
     ===================================================== */
 
     async function populate(
@@ -1481,14 +2204,10 @@
         }
 
 
-        /*
-         * Simpan referensi model yang sedang
-         * diedit.
-         */
-
-        editingModel = {
-            ...model
-        };
+        editingModel =
+            {
+                ...model
+            };
 
 
         /*
@@ -1503,9 +2222,6 @@
 
         /*
          * Provider.
-         *
-         * Provider harus dipilih terlebih dahulu
-         * karena Model ID dropdown mengikuti Provider.
          */
 
         const providerIdentifier =
@@ -1525,49 +2241,168 @@
         }
 
 
-        /*
-         * Beri kesempatan Provider event
-         * menyelesaikan refresh Model ID.
-         */
-
         await waitForModelLayout();
 
 
         /*
-         * Model ID.
+         * Refresh KIE model catalog untuk
+         * provider yang dipilih.
          *
-         * WAJIB melalui Layout.
+         * selectedModelId hanya digunakan untuk
+         * memilih model yang SUDAH ADA.
+         */
+
+        const layout =
+            getFormLayout();
+
+
+        if (!layout) {
+
+            throw new Error(
+                "GENZModelFormLayout belum tersedia."
+            );
+
+        }
+
+
+        const existingModelId =
+            String(
+                model.model_id ||
+                ""
+            ).trim();
+
+
+        if (!existingModelId) {
+
+            throw new Error(
+                "Record model tidak memiliki Model ID."
+            );
+
+        }
+
+
+        if (
+            typeof layout.refresh ===
+            "function"
+        ) {
+
+            await layout.refresh(
+                {
+                    providerId:
+                        providerIdentifier,
+
+                    selectedModelId:
+                        existingModelId
+                }
+            );
+
+        }
+
+
+        /*
+         * Cari model dari katalog KIE.
+         */
+
+        const kieModel =
+            layout.findModel(
+                existingModelId
+            );
+
+
+        if (!kieModel) {
+
+            /*
+             * Jangan mengisi identity lama
+             * sebagai pengganti KIE.
+             */
+
+            throw new Error(
+                `Model "${existingModelId}" tidak ditemukan dalam katalog KIE.`
+            );
+
+        }
+
+
+        /*
+         * SET MODEL SEKALI.
+         *
+         * Layout akan:
+         * - mengambil kie_config
+         * - mengambil pricing
+         * - mengambil parameters
+         * - render capabilities
+         * - mengisi Model Name
+         * - mengisi Model Family
          */
 
         await setModel(
-            model
+            kieModel
         );
 
 
         /*
-         * Model Name dari database harus
-         * dipertahankan.
+         * Pastikan field identity readonly.
+         */
+
+        const modelName =
+            getElement(
+                "modelName"
+            );
+
+
+        if (modelName) {
+
+            modelName.readOnly =
+                true;
+
+        }
+
+
+        const modelFamily =
+            getElement(
+                "modelFamily"
+            );
+
+
+        if (modelFamily) {
+
+            modelFamily.readOnly =
+                true;
+
+        }
+
+
+        const kieUnitPrice =
+            getElement(
+                "kieUnitPrice"
+            );
+
+
+        if (kieUnitPrice) {
+
+            kieUnitPrice.readOnly =
+                true;
+
+        }
+
+
+        /*
+         * =================================================
+         * EDITABLE DATABASE FIELDS
+         * =================================================
          */
 
         setValue(
-            "modelName",
-            model.model_name || ""
+            "modelRecordId",
+            model.id || ""
         );
 
-
-        /*
-         * Description.
-         */
 
         setValue(
             "description",
             model.description || ""
         );
 
-
-        /*
-         * Credit.
-         */
 
         setValue(
             "creditCost",
@@ -1581,60 +2416,11 @@
         );
 
 
-        /*
-         * Credit Final menggunakan nilai
-         * database saat Edit dibuka.
-         */
-
         setValue(
             "creditFinal",
             model.credit_final ?? ""
         );
 
-
-        /*
-         * Duration.
-         */
-
-        setValue(
-            "minDuration",
-            model.min_duration ?? ""
-        );
-
-
-        setValue(
-            "maxDuration",
-            model.max_duration ?? ""
-        );
-
-
-        /*
-         * Ratio.
-         */
-
-        setValue(
-            "supportedRatios",
-            normalizeArray(
-                model.supported_ratios
-            )
-        );
-
-
-        /*
-         * Resolution.
-         */
-
-        setValue(
-            "supportedResolutions",
-            normalizeArray(
-                model.supported_resolutions
-            )
-        );
-
-
-        /*
-         * Status.
-         */
 
         setValue(
             "modelStatus",
@@ -1644,16 +2430,24 @@
 
 
         /*
-         * Selected Model Info.
+         * =================================================
+         * CAPABILITY
+         * =================================================
+         *
+         * JANGAN mengambil ratio/resolution/duration
+         * dari database lama sebagai source of truth.
+         *
+         * Layout sudah merender data KIE.
+         *
+         * Sync hanya untuk menjaga field legacy
+         * tetap sesuai KIE.
          */
 
-        updateSelectedModelInfo(
-            model
-        );
+        syncKieCapabilities();
 
 
         /*
-         * Preview Credit.
+         * Pricing preview.
          */
 
         const priceCalculation =
@@ -1663,7 +2457,7 @@
         if (
             priceCalculation &&
             typeof priceCalculation.updatePreview ===
-                "function"
+            "function"
         ) {
 
             try {
@@ -1673,7 +2467,7 @@
             } catch (error) {
 
                 console.warn(
-                    "[model-form-edit] Credit preview warning:",
+                    "[GEN-Z.AI] Credit preview warning:",
                     error
                 );
 
@@ -1683,17 +2477,12 @@
 
 
         /*
-         * Preview USD/IDR.
+         * USD preview.
          */
 
-        const layout =
-            getFormLayout();
-
-
         if (
-            layout &&
             typeof layout.updateUsdPreview ===
-                "function"
+            "function"
         ) {
 
             try {
@@ -1703,7 +2492,7 @@
             } catch (error) {
 
                 console.warn(
-                    "[model-form-edit] USD preview warning:",
+                    "[GEN-Z.AI] USD preview warning:",
                     error
                 );
 
@@ -1712,22 +2501,53 @@
         }
 
 
-        document.dispatchEvent(
-
-            new CustomEvent(
-                "genz-model-edit-populated",
-                {
-                    detail: {
-
-                        model: {
-                            ...model
-                        }
-
-                    }
-                }
-            )
-
+        updateSelectedModelInfo(
+            kieModel
         );
+
+
+        /*
+         * Event hanya sebagai notifikasi.
+         *
+         * Tidak ada listener di sini yang
+         * memanggil populate() kembali.
+         */
+
+        try {
+
+            document.dispatchEvent(
+                new CustomEvent(
+                    "genz-model-edit-populated",
+                    {
+                        detail: {
+
+                            model:
+                                {
+                                    ...model
+                                },
+
+                            kieModel:
+                                {
+                                    ...kieModel
+                                },
+
+                            kieConfig:
+                                getCurrentKieConfig(),
+
+                            parameters:
+                                getCurrentParameters(),
+
+                            pricing:
+                                getCurrentPricing()
+
+                        }
+                    }
+                )
+            );
+
+        } catch {
+            /* ignore */
+        }
 
 
         return true;
@@ -1737,18 +2557,7 @@
 
     /* =====================================================
        OPEN
-    =====================================================
-
-       Modal lifecycle tidak lagi menggunakan
-       GENZModelsForm.
-
-       Populate tetap menjadi tanggung jawab
-       Edit module.
-
-       Pembukaan modal dilakukan langsung di sini
-       hanya sebagai lifecycle UI minimal jika
-       models-ui belum menangani modal.
-    ===================================================== */
+       ===================================================== */
 
     async function open(
         model
@@ -1765,17 +2574,10 @@
         }
 
 
-        editingModel = {
-            ...model
-        };
-
-
         try {
 
             /*
-             * Populate terlebih dahulu supaya
-             * Provider dan Model ID siap ketika
-             * modal ditampilkan.
+             * Populate SEBELUM modal dibuka.
              */
 
             await populate(
@@ -1784,7 +2586,8 @@
 
 
             /*
-             * Modal owner utama.
+             * Form Events hanya mengatur
+             * lifecycle modal.
              */
 
             const formEvents =
@@ -1794,21 +2597,23 @@
             if (
                 formEvents &&
                 typeof formEvents.openModal ===
-                    "function"
+                "function"
             ) {
 
-                return (
+                const result =
                     await formEvents.openModal(
                         "edit",
                         model
-                    )
-                ) !== false;
+                    );
+
+
+                return result !== false;
 
             }
 
 
             /*
-             * Fallback langsung ke DOM.
+             * Fallback DOM.
              */
 
             const modal =
@@ -1869,6 +2674,13 @@
             );
 
 
+            notify(
+                error?.message ||
+                "Gagal membuka model untuk diedit.",
+                "error"
+            );
+
+
             return false;
 
         }
@@ -1877,8 +2689,8 @@
 
 
     /* =====================================================
-       CLEAR STATE
-    ===================================================== */
+       CLEAR
+       ===================================================== */
 
     function clear() {
 
@@ -1888,12 +2700,14 @@
         saving =
             false;
 
+        return true;
+
     }
 
 
     /* =====================================================
        STATE
-    ===================================================== */
+       ===================================================== */
 
     function getEditingModel() {
 
@@ -1913,14 +2727,16 @@
 
     function isSaving() {
 
-        return saving;
+        return Boolean(
+            saving
+        );
 
     }
 
 
     /* =====================================================
        INITIALIZE
-    ===================================================== */
+       ===================================================== */
 
     function initialize() {
 
@@ -1935,7 +2751,53 @@
             true;
 
 
-        console.log(
+        /*
+         * Identity KIE readonly.
+         */
+
+        const modelName =
+            getElement(
+                "modelName"
+            );
+
+
+        if (modelName) {
+
+            modelName.readOnly =
+                true;
+
+        }
+
+
+        const modelFamily =
+            getElement(
+                "modelFamily"
+            );
+
+
+        if (modelFamily) {
+
+            modelFamily.readOnly =
+                true;
+
+        }
+
+
+        const kieUnitPrice =
+            getElement(
+                "kieUnitPrice"
+            );
+
+
+        if (kieUnitPrice) {
+
+            kieUnitPrice.readOnly =
+                true;
+
+        }
+
+
+        console.info(
             "[GEN-Z.AI] GENZModelFormEdit initialized."
         );
 
@@ -1980,7 +2842,15 @@
 
             isEditing,
 
-            isSaving
+            isSaving,
+
+            getCurrentKieModel,
+
+            getCurrentKieConfig,
+
+            getCurrentParameters,
+
+            getCurrentPricing
 
         });
 
