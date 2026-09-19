@@ -2,7 +2,10 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Models - GEN-Z.AI</title>
 
@@ -32,7 +35,9 @@
             --green: #18a957;
             --yellow: #e0a800;
 
-            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --shadow:
+                0 10px 30px rgba(0, 0, 0, 0.08);
+
             --red-glow:
                 0 0 4px rgba(255, 0, 51, 0.95),
                 0 0 12px rgba(255, 0, 51, 0.65),
@@ -113,7 +118,8 @@
             display: flex;
             flex-direction: column;
 
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            border-right:
+                1px solid rgba(255, 255, 255, 0.05);
         }
 
         .sidebar-logo {
@@ -124,7 +130,8 @@
 
             padding: 0 24px;
 
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom:
+                1px solid rgba(255, 255, 255, 0.08);
         }
 
         .sidebar-logo strong {
@@ -147,6 +154,7 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 1.5px;
+
             color: #666666;
 
             padding: 12px 12px 8px;
@@ -177,9 +185,13 @@
         }
 
         .nav-item:hover {
-            background: rgba(255, 255, 255, 0.06);
+            background:
+                rgba(255, 255, 255, 0.06);
+
             color: #ffffff;
-            transform: translateX(2px);
+
+            transform:
+                translateX(2px);
         }
 
         .nav-item.active {
@@ -192,10 +204,12 @@
 
             color: #ffffff;
 
-            border-left: 3px solid var(--red);
+            border-left:
+                3px solid var(--red);
 
             box-shadow:
-                inset 0 0 15px rgba(255, 0, 51, 0.05);
+                inset 0 0 15px
+                rgba(255, 0, 51, 0.05);
         }
 
         .nav-icon {
@@ -209,29 +223,40 @@
 
         .sidebar-footer {
             padding: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+            border-top:
+                1px solid rgba(255, 255, 255, 0.08);
         }
 
         .logout-btn {
             width: 100%;
 
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.04);
+            border:
+                1px solid rgba(255, 255, 255, 0.08);
+
+            background:
+                rgba(255, 255, 255, 0.04);
 
             color: #bbbbbb;
 
             padding: 11px 14px;
+
             border-radius: 9px;
 
             font-size: 13px;
             font-weight: 700;
 
-            transition: all 0.2s ease;
+            transition:
+                all 0.2s ease;
         }
 
         .logout-btn:hover {
-            background: rgba(255, 0, 51, 0.12);
-            border-color: rgba(255, 0, 51, 0.35);
+            background:
+                rgba(255, 0, 51, 0.12);
+
+            border-color:
+                rgba(255, 0, 51, 0.35);
+
             color: #ffffff;
         }
 
@@ -241,7 +266,10 @@
 
         .main-content {
             margin-left: 250px;
-            width: calc(100% - 250px);
+
+            width:
+                calc(100% - 250px);
+
             min-height: 100vh;
 
             padding: 28px;
@@ -253,6 +281,7 @@
 
         .page-header {
             display: flex;
+
             align-items: flex-start;
             justify-content: space-between;
 
@@ -264,6 +293,7 @@
         .page-title h1 {
             font-size: 30px;
             font-weight: 900;
+
             letter-spacing: -0.7px;
 
             margin-bottom: 6px;
@@ -271,12 +301,15 @@
 
         .page-title p {
             color: var(--text-muted);
+
             font-size: 14px;
         }
 
         .header-actions {
             display: flex;
+
             gap: 10px;
+
             align-items: center;
         }
 
@@ -286,6 +319,7 @@
 
         .btn {
             border: 0;
+
             border-radius: 9px;
 
             padding: 10px 16px;
@@ -294,8 +328,10 @@
             font-weight: 800;
 
             display: inline-flex;
+
             align-items: center;
             justify-content: center;
+
             gap: 7px;
 
             transition:
@@ -305,33 +341,43 @@
         }
 
         .btn:hover {
-            transform: translateY(-1px);
+            transform:
+                translateY(-1px);
         }
 
         .btn-primary {
-            background: var(--red);
+            background:
+                var(--red);
+
             color: #ffffff;
 
             box-shadow:
-                0 5px 16px rgba(255, 0, 51, 0.20);
+                0 5px 16px
+                rgba(255, 0, 51, 0.20);
         }
 
         .btn-primary:hover {
-            background: var(--red-dark);
+            background:
+                var(--red-dark);
 
             box-shadow:
-                0 7px 22px rgba(255, 0, 51, 0.30);
+                0 7px 22px
+                rgba(255, 0, 51, 0.30);
         }
 
         .btn-secondary {
-            background: #ffffff;
+            background:
+                #ffffff;
+
             color: #333333;
 
-            border: 1px solid var(--border);
+            border:
+                1px solid var(--border);
         }
 
         .btn-secondary:hover {
-            background: #f5f5f5;
+            background:
+                #f5f5f5;
         }
 
         .btn-small {
@@ -355,22 +401,33 @@
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.90);
+            background:
+                linear-gradient(
+                    145deg,
+                    #ffffff 0%,
+                    #f1f1f1 60%,
+                    #ffffff 100%
+                );
 
-            border: 1px solid rgba(0, 0, 0, 0.06);
+            border:
+                1px solid rgba(255, 0, 51, 0.18);
 
             border-radius: 14px;
 
             padding: 18px;
 
-            box-shadow: var(--shadow);
+            box-shadow:
+                var(--shadow);
         }
 
         .stat-label {
             color: #777777;
+
             font-size: 11px;
 
-            text-transform: uppercase;
+            text-transform:
+                uppercase;
+
             letter-spacing: 1px;
 
             font-weight: 800;
@@ -380,6 +437,7 @@
 
         .stat-value {
             font-size: 26px;
+
             font-weight: 900;
 
             line-height: 1;
@@ -399,6 +457,7 @@
 
         .toolbar {
             display: flex;
+
             align-items: center;
 
             gap: 12px;
@@ -410,7 +469,9 @@
 
         .search-box {
             position: relative;
+
             flex: 1;
+
             min-width: 240px;
         }
 
@@ -427,7 +488,8 @@
 
             border-radius: 10px;
 
-            background: rgba(255, 255, 255, 0.95);
+            background:
+                rgba(255, 255, 255, 0.95);
 
             outline: none;
 
@@ -439,10 +501,12 @@
         }
 
         .search-box input:focus {
-            border-color: rgba(255, 0, 51, 0.45);
+            border-color:
+                rgba(255, 0, 51, 0.45);
 
             box-shadow:
-                0 0 0 3px rgba(255, 0, 51, 0.08);
+                0 0 0 3px
+                rgba(255, 0, 51, 0.08);
         }
 
         .search-icon {
@@ -451,7 +515,8 @@
             left: 14px;
             top: 50%;
 
-            transform: translateY(-50%);
+            transform:
+                translateY(-50%);
 
             color: #888888;
 
@@ -463,14 +528,16 @@
 
             min-width: 150px;
 
-            padding: 0 35px 0 13px;
+            padding:
+                0 35px 0 13px;
 
             border:
                 1px solid rgba(0, 0, 0, 0.10);
 
             border-radius: 10px;
 
-            background: #ffffff;
+            background:
+                #ffffff;
 
             color: #333333;
 
@@ -478,6 +545,15 @@
 
             font-size: 13px;
             font-weight: 600;
+        }
+
+        .filter-select:focus {
+            border-color:
+                rgba(255, 0, 51, 0.45);
+
+            box-shadow:
+                0 0 0 3px
+                rgba(255, 0, 51, 0.08);
         }
 
         /* =========================================================
@@ -517,13 +593,15 @@
                     #ffffff 100%
                 );
 
-            border: 2px solid var(--red);
+            border:
+                2px solid var(--red);
 
             border-radius: 18px;
 
             padding: 20px;
 
-            box-shadow: var(--red-glow);
+            box-shadow:
+                var(--red-glow);
 
             overflow: hidden;
 
@@ -556,32 +634,73 @@
         }
 
         .model-card:hover {
-            transform: translateY(-4px);
+            transform:
+                translateY(-4px);
 
             box-shadow:
-                0 0 5px rgba(255, 0, 51, 1),
-                0 0 16px rgba(255, 0, 51, 0.75),
-                0 0 32px rgba(255, 0, 51, 0.35);
+                0 0 5px
+                rgba(255, 0, 51, 1),
+
+                0 0 16px
+                rgba(255, 0, 51, 0.75),
+
+                0 0 32px
+                rgba(255, 0, 51, 0.35);
         }
 
-        .model-card-header {
+        .model-top {
             position: relative;
 
             display: flex;
+
             align-items: flex-start;
-            justify-content: space-between;
 
             gap: 12px;
 
             margin-bottom: 18px;
         }
 
-        .model-title-wrap {
+        .model-icon {
+            width: 44px;
+            height: 44px;
+
+            min-width: 44px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 12px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #111111,
+                    #2b2b2b
+                );
+
+            color: var(--red);
+
+            border:
+                1px solid
+                rgba(255, 0, 51, 0.35);
+
+            box-shadow:
+                0 0 12px
+                rgba(255, 0, 51, 0.20);
+
+            font-size: 17px;
+        }
+
+        .model-title {
             min-width: 0;
+            flex: 1;
         }
 
         .model-name {
             font-size: 18px;
+
             font-weight: 900;
 
             line-height: 1.25;
@@ -610,88 +729,44 @@
         }
 
         /* =========================================================
-           STATUS
+           PREMIUM
            ========================================================= */
 
-        .status-badge {
-            flex-shrink: 0;
+        .premium-badge {
+            position: absolute;
 
-            display: inline-flex;
-            align-items: center;
+            top: 12px;
+            right: 12px;
 
-            gap: 6px;
+            z-index: 2;
 
-            padding: 6px 9px;
+            padding:
+                5px 9px;
 
             border-radius: 999px;
 
-            font-size: 10px;
+            background:
+                rgba(255, 0, 51, 0.08);
+
+            color:
+                var(--red);
+
+            border:
+                1px solid
+                rgba(255, 0, 51, 0.35);
+
+            font-size: 9px;
 
             font-weight: 900;
 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+            letter-spacing: 0.8px;
 
-        .status-badge::before {
-            content: "";
-
-            width: 7px;
-            height: 7px;
-
-            border-radius: 50%;
-        }
-
-        .status-active {
-            background: rgba(24, 169, 87, 0.10);
-            color: #118044;
-        }
-
-        .status-active::before {
-            background: #18a957;
+            text-transform:
+                uppercase;
 
             box-shadow:
-                0 0 7px rgba(24, 169, 87, 0.70);
-        }
-
-        .status-inactive {
-            background: rgba(100, 100, 100, 0.10);
-            color: #777777;
-        }
-
-        .status-inactive::before {
-            background: #999999;
-        }
-
-        /* =========================================================
-           PROVIDER
-           ========================================================= */
-
-        .model-provider {
-            display: flex;
-            align-items: center;
-
-            gap: 8px;
-
-            padding: 10px 12px;
-
-            background: rgba(0, 0, 0, 0.035);
-
-            border-radius: 9px;
-
-            margin-bottom: 14px;
-        }
-
-        .provider-label {
-            color: #888888;
-            font-size: 11px;
-            font-weight: 700;
-        }
-
-        .provider-name {
-            color: #222222;
-            font-size: 12px;
-            font-weight: 900;
+                0 0 9px
+                rgba(255, 0, 51, 0.15);
         }
 
         /* =========================================================
@@ -711,14 +786,65 @@
         }
 
         /* =========================================================
+           META
+           ========================================================= */
+
+        .model-meta {
+            display: grid;
+
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
+            gap: 8px;
+
+            margin-bottom: 15px;
+        }
+
+        .meta-item {
+            background:
+                rgba(0, 0, 0, 0.035);
+
+            border-radius: 9px;
+
+            padding: 10px;
+        }
+
+        .meta-label {
+            color: #999999;
+
+            font-size: 9px;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing: 0.6px;
+
+            font-weight: 800;
+
+            margin-bottom: 4px;
+        }
+
+        .meta-value {
+            color: #222222;
+
+            font-size: 11px;
+
+            font-weight: 900;
+
+            overflow-wrap: anywhere;
+        }
+
+        /* =========================================================
            PRICING
            ========================================================= */
 
         .pricing-box {
-            background: #ffffff;
+            background:
+                #ffffff;
 
             border:
-                1px solid rgba(255, 0, 51, 0.15);
+                1px solid
+                rgba(255, 0, 51, 0.15);
 
             border-radius: 12px;
 
@@ -730,7 +856,8 @@
         .pricing-title {
             font-size: 10px;
 
-            text-transform: uppercase;
+            text-transform:
+                uppercase;
 
             letter-spacing: 1px;
 
@@ -741,7 +868,7 @@
             margin-bottom: 10px;
         }
 
-        .pricing-row {
+        .price-row {
             display: flex;
 
             align-items: center;
@@ -754,90 +881,199 @@
             font-size: 12px;
         }
 
-        .pricing-row:last-child {
+        .price-row:last-child {
             margin-bottom: 0;
         }
 
-        .pricing-label {
+        .price-row span {
             color: #777777;
         }
 
-        .pricing-value {
+        .price-row strong {
             color: #222222;
 
-            font-weight: 800;
+            font-weight: 900;
 
             text-align: right;
         }
 
-        .pricing-final {
+        .price-final {
+            padding-top: 8px;
+
+            margin-top: 8px;
+
+            border-top:
+                1px solid
+                rgba(0, 0, 0, 0.06);
+        }
+
+        .price-final span {
+            color: #555555;
+
+            font-weight: 800;
+        }
+
+        .price-final strong {
             color: var(--red);
 
             font-size: 15px;
-
-            font-weight: 900;
         }
 
         .discount-value {
-            color: var(--green);
-
-            font-weight: 900;
+            color:
+                var(--green) !important;
         }
 
         /* =========================================================
            PARAMETERS
            ========================================================= */
 
-        .parameters-grid {
-            display: grid;
-
-            grid-template-columns:
-                repeat(3, minmax(0, 1fr));
-
-            gap: 8px;
-
-            margin-bottom: 16px;
+        .parameter-section {
+            margin-bottom: 13px;
         }
 
-        .parameter-item {
-            background:
-                rgba(0, 0, 0, 0.035);
+        .parameter-title {
+            font-size: 10px;
 
-            border-radius: 9px;
+            text-transform:
+                uppercase;
 
-            padding: 10px 8px;
-
-            text-align: center;
-
-            min-width: 0;
-        }
-
-        .parameter-label {
-            display: block;
+            letter-spacing: 0.8px;
 
             color: #999999;
 
-            font-size: 9px;
+            font-weight: 900;
 
-            text-transform: uppercase;
-
-            letter-spacing: 0.5px;
-
-            font-weight: 800;
-
-            margin-bottom: 5px;
+            margin-bottom: 7px;
         }
 
-        .parameter-value {
-            display: block;
+        .chips {
+            display: flex;
 
-            color: #222222;
+            flex-wrap: wrap;
 
-            font-size: 11px;
+            gap: 6px;
+        }
+
+        .chip {
+            display: inline-flex;
+
+            align-items: center;
+            justify-content: center;
+
+            min-height: 25px;
+
+            padding:
+                5px 8px;
+
+            border-radius: 7px;
+
+            background:
+                rgba(0, 0, 0, 0.045);
+
+            border:
+                1px solid
+                rgba(0, 0, 0, 0.07);
+
+            color: #333333;
+
+            font-size: 10px;
+
+            font-weight: 800;
+        }
+
+        /* =========================================================
+           STATUS
+           ========================================================= */
+
+        .status-row {
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 8px;
+
+            margin-top: 5px;
+
+            margin-bottom: 15px;
+
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+            padding:
+                6px 9px;
+
+            border-radius: 999px;
+
+            font-size: 10px;
 
             font-weight: 900;
 
-            overflow-wrap: anywhere;
+            text-transform:
+                uppercase;
+
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge::before {
+            content: "";
+
+            width: 7px;
+            height: 7px;
+
+            border-radius: 50%;
+        }
+
+        .status-active {
+            background:
+                rgba(24, 169, 87, 0.10);
+
+            color:
+                #118044;
+        }
+
+        .status-active::before {
+            background:
+                #18a957;
+
+            box-shadow:
+                0 0 7px
+                rgba(24, 169, 87, 0.70);
+        }
+
+        .status-inactive {
+            background:
+                rgba(100, 100, 100, 0.10);
+
+            color:
+                #777777;
+        }
+
+        .status-inactive::before {
+            background:
+                #999999;
+        }
+
+        .status-maintenance {
+            background:
+                rgba(224, 168, 0, 0.10);
+
+            color:
+                #9a7200;
+        }
+
+        .status-maintenance::before {
+            background:
+                #e0a800;
         }
 
         /* =========================================================
@@ -855,14 +1091,14 @@
         }
 
         .model-actions .btn {
-            min-width: 82px;
+            min-width: 100px;
         }
 
         /* =========================================================
-           EMPTY / LOADING / ERROR
+           EMPTY / ERROR
            ========================================================= */
 
-        .models-empty {
+        .state-panel {
             grid-column: 1 / -1;
 
             padding: 60px 25px;
@@ -870,21 +1106,53 @@
             text-align: center;
 
             background:
-                rgba(255, 255, 255, 0.82);
+                linear-gradient(
+                    145deg,
+                    rgba(255, 255, 255, 0.95),
+                    rgba(235, 235, 235, 0.95)
+                );
 
             border:
-                1px dashed rgba(0, 0, 0, 0.15);
+                2px solid
+                rgba(255, 0, 51, 0.35);
 
             border-radius: 16px;
+
+            box-shadow:
+                0 0 15px
+                rgba(255, 0, 51, 0.10);
         }
 
-        .models-empty-icon {
-            font-size: 38px;
+        .state-icon {
+            width: 50px;
+            height: 50px;
 
-            margin-bottom: 13px;
+            margin:
+                0 auto 14px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 50%;
+
+            background:
+                rgba(255, 0, 51, 0.06);
+
+            color:
+                var(--red);
+
+            border:
+                1px solid
+                rgba(255, 0, 51, 0.25);
+
+            font-size: 24px;
+
+            font-weight: 900;
         }
 
-        .models-empty-title {
+        .state-title {
             font-size: 17px;
 
             font-weight: 900;
@@ -892,10 +1160,12 @@
             margin-bottom: 6px;
         }
 
-        .models-empty-text {
+        .state-description {
             color: #777777;
 
             font-size: 13px;
+
+            line-height: 1.5;
         }
 
         /* =========================================================
@@ -921,16 +1191,20 @@
             min-width: 280px;
             max-width: 390px;
 
-            background: #171717;
+            background:
+                #171717;
 
-            color: #ffffff;
+            color:
+                #ffffff;
 
             border-radius: 11px;
 
-            padding: 13px 16px;
+            padding:
+                13px 16px;
 
             box-shadow:
-                0 12px 35px rgba(0, 0, 0, 0.25);
+                0 12px 35px
+                rgba(0, 0, 0, 0.25);
 
             font-size: 13px;
 
@@ -939,31 +1213,38 @@
         }
 
         .toast.success {
-            border-left: 4px solid var(--green);
+            border-left:
+                4px solid var(--green);
         }
 
         .toast.error {
-            border-left: 4px solid var(--red);
+            border-left:
+                4px solid var(--red);
         }
 
         .toast.warning {
-            border-left: 4px solid var(--yellow);
+            border-left:
+                4px solid var(--yellow);
         }
 
         @keyframes toastIn {
             from {
                 opacity: 0;
-                transform: translateY(12px);
+
+                transform:
+                    translateY(12px);
             }
 
             to {
                 opacity: 1;
-                transform: translateY(0);
+
+                transform:
+                    translateY(0);
             }
         }
 
         /* =========================================================
-           LOADING OVERLAY
+           LOADING
            ========================================================= */
 
         .page-loading {
@@ -974,7 +1255,8 @@
             background:
                 rgba(255, 255, 255, 0.72);
 
-            backdrop-filter: blur(3px);
+            backdrop-filter:
+                blur(3px);
 
             z-index: 9998;
 
@@ -989,14 +1271,17 @@
         }
 
         .loading-box {
-            background: #ffffff;
+            background:
+                #ffffff;
 
             border-radius: 14px;
 
-            padding: 22px 28px;
+            padding:
+                22px 28px;
 
             box-shadow:
-                0 15px 40px rgba(0, 0, 0, 0.12);
+                0 15px 40px
+                rgba(0, 0, 0, 0.12);
 
             display: flex;
 
@@ -1016,7 +1301,8 @@
             border:
                 3px solid #eeeeee;
 
-            border-top-color: var(--red);
+            border-top-color:
+                var(--red);
 
             border-radius: 50%;
 
@@ -1026,12 +1312,13 @@
 
         @keyframes spin {
             to {
-                transform: rotate(360deg);
+                transform:
+                    rotate(360deg);
             }
         }
 
         /* =========================================================
-           HIDDEN COMPATIBILITY CONTAINER
+           COMPATIBILITY
            ========================================================= */
 
         #modelTableBody {
@@ -1043,6 +1330,7 @@
            ========================================================= */
 
         @media (max-width: 1100px) {
+
             .sidebar {
                 width: 220px;
                 min-width: 220px;
@@ -1050,7 +1338,9 @@
 
             .main-content {
                 margin-left: 220px;
-                width: calc(100% - 220px);
+
+                width:
+                    calc(100% - 220px);
             }
 
             .stats-grid {
@@ -1060,6 +1350,7 @@
         }
 
         @media (max-width: 800px) {
+
             .sidebar {
                 position: static;
 
@@ -1119,12 +1410,14 @@
         }
 
         @media (max-width: 560px) {
+
             .main-content {
                 padding: 13px;
             }
 
             .stats-grid {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns:
+                    1fr 1fr;
 
                 gap: 9px;
             }
@@ -1143,6 +1436,7 @@
 
             .toolbar {
                 flex-direction: column;
+
                 align-items: stretch;
             }
 
@@ -1160,6 +1454,10 @@
 
             .page-title h1 {
                 font-size: 25px;
+            }
+
+            .model-meta {
+                grid-template-columns: 1fr 1fr;
             }
         }
     </style>
@@ -1243,13 +1541,12 @@
 
     </aside>
 
+
     <!-- =========================================================
-         MAIN CONTENT
+         MAIN
          ========================================================= -->
 
     <main class="main-content">
-
-        <!-- HEADER -->
 
         <header class="page-header">
 
@@ -1258,7 +1555,8 @@
                 <h1>Models</h1>
 
                 <p>
-                    Model yang tersedia dari folder model di repository GEN-Z.AI
+                    Model tersedia otomatis dari folder model
+                    di repository GEN-Z.AI
                 </p>
 
             </div>
@@ -1299,7 +1597,6 @@
 
             </div>
 
-
             <div class="stat-card">
 
                 <div class="stat-label">
@@ -1315,7 +1612,6 @@
 
             </div>
 
-
             <div class="stat-card">
 
                 <div class="stat-label">
@@ -1330,7 +1626,6 @@
                 </div>
 
             </div>
-
 
             <div class="stat-card">
 
@@ -1371,7 +1666,6 @@
 
             </div>
 
-
             <select
                 id="modelStatusFilter"
                 class="filter-select"
@@ -1389,7 +1683,6 @@
                 </option>
             </select>
 
-
             <select
                 id="modelProviderFilter"
                 class="filter-select"
@@ -1403,7 +1696,7 @@
 
 
         <!-- =====================================================
-             MODELS
+             MODEL GRID
              ===================================================== -->
 
         <section class="models-wrapper">
@@ -1413,31 +1706,27 @@
                 class="models-grid"
             >
 
-                <div class="models-empty">
+                <div class="state-panel">
 
-                    <div class="models-empty-icon">
+                    <div class="state-icon">
                         ◌
                     </div>
 
-                    <div class="models-empty-title">
+                    <div class="state-title">
                         Memuat model...
                     </div>
 
-                    <div class="models-empty-text">
-                        Mengambil model dari registry model GEN-Z.AI.
+                    <div class="state-description">
+                        Membaca model dari registry repository GEN-Z.AI.
                     </div>
 
                 </div>
 
             </div>
 
-
             <!--
                 Compatibility container.
-
-                Tidak digunakan untuk tampilan utama.
-                Dipertahankan agar modul lama yang masih mencari
-                #modelTableBody tidak error.
+                Tidak digunakan sebagai UI utama.
             -->
 
             <div id="modelTableBody"></div>
@@ -1484,12 +1773,11 @@
 
 
 <!-- =============================================================
-     SUPABASE
+     EXTERNAL SUPABASE
      ============================================================= -->
 
 <script
-    type="module"
-    src="./supabase.js"
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
 ></script>
 
 
@@ -1500,6 +1788,16 @@
 <script
     type="module"
     src="../assets/js/config.js"
+></script>
+
+
+<!-- =============================================================
+     SHARED SUPABASE
+     ============================================================= -->
+
+<script
+    type="module"
+    src="./supabase.js"
 ></script>
 
 
@@ -1548,13 +1846,19 @@
         new Promise(resolve => setTimeout(resolve, ms));
 
 
+    /* =========================================================
+       TOAST
+       ========================================================= */
+
     function showToast(
         message,
         type = "success"
     ) {
 
         const container =
-            document.getElementById("toastContainer");
+            document.getElementById(
+                "toastContainer"
+            );
 
         if (!container) {
             return;
@@ -1591,10 +1895,16 @@
     }
 
 
+    /* =========================================================
+       LOADING
+       ========================================================= */
+
     function setLoading(show) {
 
         const element =
-            document.getElementById("pageLoading");
+            document.getElementById(
+                "pageLoading"
+            );
 
         if (!element) {
             return;
@@ -1606,6 +1916,10 @@
         );
     }
 
+
+    /* =========================================================
+       STATS
+       ========================================================= */
 
     function updateStats(models) {
 
@@ -1622,26 +1936,52 @@
 
                 return String(
                     model?.status || ""
-                ).toLowerCase() === "active";
+                )
+                    .trim()
+                    .toLowerCase() === "active";
 
             }).length;
 
         const inactive =
-            total - active;
+            list.filter(model => {
 
-        const providers =
-            new Set(
-                list
-                    .map(model =>
-                        String(
-                            model?.provider_id ||
-                            model?.providerId ||
-                            model?.provider ||
-                            ""
-                        ).trim()
+                const status =
+                    String(
+                        model?.status || ""
                     )
-                    .filter(Boolean)
-            ).size;
+                        .trim()
+                        .toLowerCase();
+
+                return (
+                    status === "inactive" ||
+                    status === "disabled" ||
+                    status === "nonaktif"
+                );
+
+            }).length;
+
+        const providerSet =
+            new Set();
+
+        list.forEach(model => {
+
+            const provider =
+                String(
+                    model?.provider_id ||
+                    model?.providerId ||
+                    model?.provider_code ||
+                    model?.provider ||
+                    ""
+                ).trim();
+
+            if (provider) {
+                providerSet.add(provider);
+            }
+
+        });
+
+        const providerCount =
+            providerSet.size;
 
 
         const totalElement =
@@ -1682,14 +2022,57 @@
 
         if (providersElement) {
             providersElement.textContent =
-                String(providers);
+                String(providerCount);
         }
     }
 
 
+    /* =========================================================
+       GET MODEL DATA MODULE
+       ========================================================= */
+
+    function getModelsData() {
+
+        return (
+            window.GENZModelsData ||
+            null
+        );
+    }
+
+
+    /* =========================================================
+       GET TABLE MODULE
+       ========================================================= */
+
+    function getModelTable() {
+
+        return (
+            window.GENZModelTable ||
+            null
+        );
+    }
+
+
+    /* =========================================================
+       GET UI MODULE
+       ========================================================= */
+
+    function getModelsUI() {
+
+        return (
+            window.GENZModelsUI ||
+            null
+        );
+    }
+
+
+    /* =========================================================
+       WAIT FOR MODULES
+       ========================================================= */
+
     async function waitForModules() {
 
-        const maxAttempts = 100;
+        const maxAttempts = 160;
 
         for (
             let attempt = 0;
@@ -1697,10 +2080,46 @@
             attempt++
         ) {
 
+            const data =
+                getModelsData();
+
+            const table =
+                getModelTable();
+
+            const ui =
+                getModelsUI();
+
+
+            /*
+             * models-data dan table wajib.
+             *
+             * UI boleh belum siap karena beberapa
+             * implementasi lama melakukan bootstrap
+             * sedikit setelah module dimuat.
+             */
+
             if (
-                window.GENZModelsData &&
-                window.GENZModelsUI
+                data &&
+                typeof data.loadModels ===
+                    "function" &&
+                table
             ) {
+
+                return true;
+            }
+
+            /*
+             * Jika ModelsUI sudah ada,
+             * berarti seluruh coordinator biasanya
+             * sudah tersedia.
+             */
+
+            if (
+                data &&
+                table &&
+                ui
+            ) {
+
                 return true;
             }
 
@@ -1711,6 +2130,130 @@
     }
 
 
+    /* =========================================================
+       LOAD ALL MODELS
+       ========================================================= */
+
+    async function loadAllModels(
+        force = false
+    ) {
+
+        const data =
+            getModelsData();
+
+        if (
+            !data ||
+            typeof data.loadModels !==
+                "function"
+        ) {
+
+            throw new Error(
+                "GENZModelsData.loadModels() tidak tersedia."
+            );
+        }
+
+
+        /*
+         * PENTING:
+         *
+         * models-data.js menggunakan:
+         *
+         * includeInactive
+         *
+         * bukan activeOnly.
+         *
+         * Semua model dari registry harus
+         * dimuat agar filter Aktif / Nonaktif
+         * bekerja.
+         */
+
+        const result =
+            await data.loadModels({
+                force: Boolean(force),
+                includeInactive: true
+            });
+
+
+        return Array.isArray(result)
+            ? result
+            : [];
+    }
+
+
+    /* =========================================================
+       APPLY MODELS
+       ========================================================= */
+
+    function applyModels(
+        models
+    ) {
+
+        const list =
+            Array.isArray(models)
+                ? models
+                : [];
+
+
+        const table =
+            getModelTable();
+
+
+        if (
+            table &&
+            typeof table.setModels ===
+                "function"
+        ) {
+
+            table.setModels(list);
+
+            table.render();
+        }
+        else {
+
+            throw new Error(
+                "GENZModelTable belum tersedia."
+            );
+        }
+
+
+        updateStats(list);
+
+
+        const ui =
+            getModelsUI();
+
+
+        if (
+            ui &&
+            typeof ui.syncSearch ===
+                "function"
+        ) {
+
+            try {
+
+                ui.syncSearch(list);
+
+            }
+            catch (error) {
+
+                console.warn(
+                    "[Models] syncSearch warning:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        return list;
+    }
+
+
+    /* =========================================================
+       INITIALIZE
+       ========================================================= */
+
     async function initializePage() {
 
         setLoading(true);
@@ -1720,6 +2263,7 @@
             const ready =
                 await waitForModules();
 
+
             if (!ready) {
 
                 throw new Error(
@@ -1728,84 +2272,57 @@
             }
 
 
+            const ui =
+                getModelsUI();
+
+
             /*
-             * models-ui menjadi coordinator utama.
-             * Data model tetap berasal dari model registry.
+             * Jika coordinator UI mempunyai
+             * initialize(), gunakan coordinator.
              */
 
             if (
-                typeof window
-                    .GENZModelsUI
-                    .initialize === "function"
+                ui &&
+                typeof ui.initialize ===
+                    "function"
             ) {
 
-                await window
-                    .GENZModelsUI
-                    .initialize();
+                await ui.initialize();
 
-            }
-            else {
 
                 /*
-                 * Fallback apabila initialize()
-                 * tidak tersedia pada modul UI.
+                 * Setelah coordinator selesai,
+                 * ambil data terakhir dari table.
                  */
 
-                let models = [];
-
-                if (
-                    typeof window
-                        .GENZModelsData
-                        .loadModels === "function"
-                ) {
-
-                    models =
-                        await window
-                            .GENZModelsData
-                            .loadModels({
-                                force: true,
-                                activeOnly: false
-                            });
-
-                }
+                const table =
+                    getModelTable();
 
 
                 if (
-                    window.GENZModelTable &&
-                    typeof window
-                        .GENZModelTable
-                        .setModels === "function"
+                    table &&
+                    typeof table.getModels ===
+                        "function"
                 ) {
 
-                    window
-                        .GENZModelTable
-                        .setModels(models);
+                    const current =
+                        table.getModels();
 
+                    updateStats(current);
+
+                    return;
                 }
-
-                updateStats(models);
             }
 
 
             /*
-             * Ambil data terakhir dari table module
-             * untuk memastikan statistik sinkron.
+             * Fallback langsung.
              */
 
-            if (
-                window.GENZModelTable &&
-                typeof window
-                    .GENZModelTable
-                    .getModels === "function"
-            ) {
+            const models =
+                await loadAllModels(false);
 
-                updateStats(
-                    window
-                        .GENZModelTable
-                        .getModels()
-                );
-
-            }
+            applyModels(models);
 
         }
         catch (error) {
@@ -1814,6 +2331,25 @@
                 "[Models] initialization error:",
                 error
             );
+
+
+            const table =
+                getModelTable();
+
+
+            if (
+                table &&
+                typeof table.renderError ===
+                    "function"
+            ) {
+
+                table.renderError(
+                    error?.message ||
+                    "Gagal memuat model."
+                );
+
+            }
+
 
             showToast(
                 error?.message ||
@@ -1838,74 +2374,39 @@
             "refreshModelsBtn"
         );
 
+
     if (refreshButton) {
 
         refreshButton.addEventListener(
             "click",
             async () => {
 
+                if (
+                    refreshButton.disabled
+                ) {
+                    return;
+                }
+
+
+                refreshButton.disabled =
+                    true;
+
                 setLoading(true);
+
 
                 try {
 
-                    if (
-                        window.GENZModelsData &&
-                        typeof window
-                            .GENZModelsData
-                            .loadModels === "function"
-                    ) {
-
-                        const models =
-                            await window
-                                .GENZModelsData
-                                .loadModels({
-                                    force: true,
-                                    activeOnly: false
-                                });
+                    const models =
+                        await loadAllModels(true);
 
 
-                        if (
-                            window.GENZModelTable &&
-                            typeof window
-                                .GENZModelTable
-                                .setModels === "function"
-                        ) {
-
-                            window
-                                .GENZModelTable
-                                .setModels(models);
-
-                        }
+                    applyModels(models);
 
 
-                        updateStats(models);
-
-
-                        if (
-                            window.GENZModelsUI &&
-                            typeof window
-                                .GENZModelsUI
-                                .syncSearch === "function"
-                        ) {
-
-                            window
-                                .GENZModelsUI
-                                .syncSearch(models);
-
-                        }
-
-
-                        showToast(
-                            `${models.length} model berhasil dimuat.`,
-                            "success"
-                        );
-
-                    }
-                    else {
-
-                        await initializePage();
-
-                    }
+                    showToast(
+                        `${models.length} model berhasil dimuat dari registry.`,
+                        "success"
+                    );
 
                 }
                 catch (error) {
@@ -1914,6 +2415,7 @@
                         "[Models] refresh error:",
                         error
                     );
+
 
                     showToast(
                         error?.message ||
@@ -1925,6 +2427,9 @@
                 finally {
 
                     setLoading(false);
+
+                    refreshButton.disabled =
+                        false;
                 }
             }
         );
@@ -1941,17 +2446,22 @@
             "logoutBtn"
         );
 
+
     if (logoutButton) {
 
         logoutButton.addEventListener(
             "click",
             async () => {
 
+                logoutButton.disabled =
+                    true;
+
+
                 try {
 
                     const supabase =
+                        window.GENZ_SUPABASE ||
                         window.supabaseClient ||
-                        window.supabase ||
                         null;
 
 
@@ -1960,7 +2470,8 @@
                         supabase.auth &&
                         typeof supabase
                             .auth
-                            .signOut === "function"
+                            .signOut ===
+                            "function"
                     ) {
 
                         await supabase
@@ -1978,10 +2489,23 @@
                     );
 
                 }
+                finally {
 
+                    /*
+                     * models.html berada di:
+                     *
+                     * admin-control/models.html
+                     *
+                     * login.html berada di:
+                     *
+                     * login.html
+                     *
+                     * Jadi harus naik satu folder.
+                     */
 
-                window.location.href =
-                    "./login.html";
+                    window.location.href =
+                        "../login.html";
+                }
             }
         );
 
@@ -1989,32 +2513,35 @@
 
 
     /* =========================================================
-       AUTH GUARD
+       AUTH CHECK
        ========================================================= */
 
     async function checkAdminAccess() {
 
         /*
-         * Beri waktu supabase.js membuat client.
+         * Supabase client berasal dari
+         * admin-control/supabase.js.
          */
 
         for (
             let attempt = 0;
-            attempt < 80;
+            attempt < 100;
             attempt++
         ) {
 
             const client =
+                window.GENZ_SUPABASE ||
                 window.supabaseClient ||
-                window.supabase ||
                 null;
+
 
             if (
                 client &&
                 client.auth &&
                 typeof client
                     .auth
-                    .getUser === "function"
+                    .getUser ===
+                    "function"
             ) {
 
                 try {
@@ -2029,31 +2556,27 @@
 
 
                     if (error) {
+
                         console.warn(
                             "[Models] auth check:",
                             error
                         );
-                    }
 
-
-                    if (!data?.user) {
-
-                        /*
-                         * Jangan langsung redirect bila
-                         * auth belum selesai diinisialisasi.
-                         */
-
-                        return true;
                     }
 
 
                     /*
-                     * Role guard utama biasanya juga dilakukan
-                     * oleh masing-masing halaman/module.
+                     * Jangan melakukan redirect
+                     * di sini.
                      *
-                     * Di sini kita hanya memastikan user
-                     * sudah memiliki session.
+                     * Halaman login / auth guard
+                     * yang menangani akses.
                      */
+
+                    if (!data?.user) {
+                        return true;
+                    }
+
 
                     return true;
 
@@ -2069,22 +2592,49 @@
                 }
             }
 
+
             await sleep(50);
         }
+
+
+        /*
+         * Jangan memblokir halaman hanya karena
+         * client Supabase belum tersedia.
+         */
 
         return true;
     }
 
 
     /* =========================================================
-       START
+       START PAGE
        ========================================================= */
 
     (async () => {
 
-        await checkAdminAccess();
+        try {
 
-        await initializePage();
+            await checkAdminAccess();
+
+            await initializePage();
+
+        }
+        catch (error) {
+
+            console.error(
+                "[Models] page startup error:",
+                error
+            );
+
+            setLoading(false);
+
+            showToast(
+                error?.message ||
+                "Gagal menjalankan halaman Models.",
+                "error"
+            );
+
+        }
 
     })();
 
