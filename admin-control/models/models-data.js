@@ -10,7 +10,7 @@
  * - Load data model dari Supabase
  * - Load provider dari Supabase
  * - Normalisasi data model
- * - Menjadi sumber data untuk Model Table
+ * - Menjadi sumber data untuk seluruh module Models
  *
  * Database:
  * - models
@@ -24,7 +24,6 @@
  * - kie_constraints
  * - kie_dependencies
  * - kie_pricing
- *
  * =========================================================
  */
 
@@ -39,10 +38,11 @@ let modelCache = [];
 let providerCache = [];
 
 /* =========================================================
-   HELPERS
+   SUPABASE CLIENT
 ========================================================= */
 
 function getSupabaseClient() {
+
     if (
         typeof window !== "undefined" &&
         window.supabaseClient
@@ -68,6 +68,7 @@ function getSupabaseClient() {
 ========================================================= */
 
 function normalizeArray(value) {
+
     if (Array.isArray(value)) {
         return value;
     }
@@ -81,7 +82,9 @@ function normalizeArray(value) {
     }
 
     if (typeof value === "string") {
-        const text = value.trim();
+
+        const text =
+            value.trim();
 
         if (!text) {
             return [];
@@ -89,14 +92,18 @@ function normalizeArray(value) {
 
         /*
          * PostgreSQL array:
+         *
          * {"2:3","9:16"}
          */
         if (
             text.startsWith("{") &&
             text.endsWith("}")
         ) {
+
             const content =
-                text.slice(1, -1).trim();
+                text
+                    .slice(1, -1)
+                    .trim();
 
             if (!content) {
                 return [];
@@ -104,12 +111,17 @@ function normalizeArray(value) {
 
             return content
                 .split(",")
-                .map(item =>
-                    item
-                        .trim()
-                        .replace(/^"(.*)"$/, "$1")
+                .map(
+                    item =>
+                        item
+                            .trim()
+                            .replace(
+                                /^"(.*)"$/,
+                                "$1"
+                            )
                 )
                 .filter(Boolean);
+
         }
 
         /*
@@ -119,16 +131,27 @@ function normalizeArray(value) {
             text.startsWith("[") &&
             text.endsWith("]")
         ) {
+
             try {
+
                 const parsed =
                     JSON.parse(text);
 
-                if (Array.isArray(parsed)) {
+                if (
+                    Array.isArray(
+                        parsed
+                    )
+                ) {
                     return parsed;
                 }
+
             } catch {
-                // lanjut ke comma separated
+                /*
+                 * Bukan JSON.
+                 * Lanjut sebagai comma separated.
+                 */
             }
+
         }
 
         /*
@@ -136,18 +159,35 @@ function normalizeArray(value) {
          */
         return text
             .split(",")
-            .map(item => item.trim())
+            .map(
+                item =>
+                    item.trim()
+            )
             .filter(Boolean);
+
     }
 
     return [];
+
 }
+
+/*
+ * Compatibility export.
+ *
+ * Beberapa module form menggunakan nama
+ * normalizeArrayValue.
+ *
+ * Sumber logika tetap satu.
+ */
+export const normalizeArrayValue =
+    normalizeArray;
 
 /* =========================================================
    NUMBER NORMALIZER
 ========================================================= */
 
 function normalizeNumber(value) {
+
     if (
         value === null ||
         value === undefined ||
@@ -156,7 +196,8 @@ function normalizeNumber(value) {
         return null;
     }
 
-    const number = Number(value);
+    const number =
+        Number(value);
 
     return Number.isFinite(number)
         ? number
@@ -164,15 +205,19 @@ function normalizeNumber(value) {
 }
 
 /* =========================================================
-   PROVIDER CACHE
+   CACHE CONTROL
 ========================================================= */
 
 export function clearProviderCache() {
+
     providerCache = [];
+
 }
 
 export function clearModelCache() {
+
     modelCache = [];
+
 }
 
 /* =========================================================
@@ -182,6 +227,7 @@ export function clearModelCache() {
 export async function loadProviders(
     options = {}
 ) {
+
     const {
         force = false,
         includeInactive = true
@@ -191,7 +237,11 @@ export async function loadProviders(
         !force &&
         providerCache.length > 0
     ) {
-        return [...providerCache];
+
+        return [
+            ...providerCache
+        ];
+
     }
 
     const supabase =
@@ -199,7 +249,9 @@ export async function loadProviders(
 
     let query =
         supabase
-            .from(PROVIDER_TABLE)
+            .from(
+                PROVIDER_TABLE
+            )
             .select("*")
             .order(
                 "provider_name",
@@ -209,17 +261,20 @@ export async function loadProviders(
             );
 
     if (!includeInactive) {
+
         query =
             query.eq(
                 "status",
                 "active"
             );
+
     }
 
     const {
         data,
         error
-    } = await query;
+    } =
+        await query;
 
     if (error) {
         throw error;
@@ -230,16 +285,20 @@ export async function loadProviders(
             ? data
             : [];
 
-    return [...providerCache];
+    return [
+        ...providerCache
+    ];
+
 }
 
 /* =========================================================
-   GET PROVIDER
+   PROVIDER LOOKUP
 ========================================================= */
 
 export async function getProviderById(
     providerId
 ) {
+
     if (!providerId) {
         return null;
     }
@@ -250,15 +309,21 @@ export async function getProviderById(
     return (
         providers.find(
             provider =>
-                String(provider.id) ===
-                String(providerId)
+                String(
+                    provider.id
+                ) ===
+                String(
+                    providerId
+                )
         ) || null
     );
+
 }
 
 export async function getProviderByCode(
     providerCode
 ) {
+
     if (!providerCode) {
         return null;
     }
@@ -270,13 +335,15 @@ export async function getProviderByCode(
         providers.find(
             provider =>
                 String(
-                    provider.provider_id || ""
+                    provider.provider_id ||
+                    ""
                 ).toLowerCase() ===
                 String(
                     providerCode
                 ).toLowerCase()
         ) || null
     );
+
 }
 
 /* =========================================================
@@ -287,6 +354,7 @@ export function normalizeModel(
     model,
     providers = providerCache
 ) {
+
     if (!model) {
         return null;
     }
@@ -294,8 +362,12 @@ export function normalizeModel(
     const provider =
         providers.find(
             item =>
-                String(item.id) ===
-                String(model.provider_id)
+                String(
+                    item.id
+                ) ===
+                String(
+                    model.provider_id
+                )
         ) || null;
 
     const creditCost =
@@ -324,21 +396,28 @@ export function normalizeModel(
         );
 
     return {
+
         ...model,
 
-        id: model.id || null,
+        id:
+            model.id ||
+            null,
 
         provider_id:
-            model.provider_id || null,
+            model.provider_id ||
+            null,
 
         model_id:
-            model.model_id || "",
+            model.model_id ||
+            "",
 
         model_name:
-            model.model_name || "",
+            model.model_name ||
+            "",
 
         description:
-            model.description || "",
+            model.description ||
+            "",
 
         credit_cost:
             creditCost,
@@ -366,27 +445,34 @@ export function normalizeModel(
             ),
 
         status:
-            model.status || "inactive",
+            model.status ||
+            "inactive",
 
-        provider: provider
-            ? {
-                  id: provider.id,
+        provider:
+            provider
+                ? {
 
-                  provider_id:
-                      provider.provider_id ||
-                      "",
+                    id:
+                        provider.id,
 
-                  provider_name:
-                      provider.provider_name ||
-                      provider.name ||
-                      "",
+                    provider_id:
+                        provider.provider_id ||
+                        "",
 
-                  status:
-                      provider.status ||
-                      ""
-              }
-            : null
+                    provider_name:
+                        provider.provider_name ||
+                        provider.name ||
+                        "",
+
+                    status:
+                        provider.status ||
+                        ""
+
+                }
+                : null
+
     };
+
 }
 
 /* =========================================================
@@ -396,6 +482,7 @@ export function normalizeModel(
 export async function loadModels(
     options = {}
 ) {
+
     const {
         force = false,
         includeInactive = true,
@@ -406,15 +493,16 @@ export async function loadModels(
         !force &&
         modelCache.length > 0
     ) {
-        return [...modelCache];
+
+        return [
+            ...modelCache
+        ];
+
     }
 
     const supabase =
         getSupabaseClient();
 
-    /*
-     * Load provider terlebih dahulu.
-     */
     const providers =
         await loadProviders({
             force,
@@ -423,7 +511,9 @@ export async function loadModels(
 
     let query =
         supabase
-            .from(MODEL_TABLE)
+            .from(
+                MODEL_TABLE
+            )
             .select("*")
             .order(
                 "created_at",
@@ -433,17 +523,20 @@ export async function loadModels(
             );
 
     if (!includeInactive) {
+
         query =
             query.eq(
                 "status",
                 "active"
             );
+
     }
 
     const {
         data,
         error
-    } = await query;
+    } =
+        await query;
 
     if (error) {
         throw error;
@@ -462,11 +555,8 @@ export async function loadModels(
                 .filter(Boolean)
             : [];
 
-    /*
-     * Hanya model yang provider-nya
-     * masih aktif.
-     */
     if (activeProviderOnly) {
+
         models =
             models.filter(
                 model =>
@@ -477,21 +567,26 @@ export async function loadModels(
                     ).toLowerCase() ===
                     "active"
             );
+
     }
 
     modelCache =
         models;
 
-    return [...modelCache];
+    return [
+        ...modelCache
+    ];
+
 }
 
 /* =========================================================
-   GET MODEL BY DATABASE ID
+   MODEL LOOKUP
 ========================================================= */
 
 export async function getModelById(
     id
 ) {
+
     if (!id) {
         return null;
     }
@@ -502,19 +597,19 @@ export async function getModelById(
     return (
         models.find(
             model =>
-                String(model.id) ===
+                String(
+                    model.id
+                ) ===
                 String(id)
         ) || null
     );
-}
 
-/* =========================================================
-   GET MODEL BY MODEL ID
-========================================================= */
+}
 
 export async function getModelByModelId(
     modelId
 ) {
+
     if (!modelId) {
         return null;
     }
@@ -531,6 +626,7 @@ export async function getModelByModelId(
                 String(modelId)
         ) || null
     );
+
 }
 
 /* =========================================================
@@ -541,6 +637,7 @@ export function filterModels(
     models,
     filters = {}
 ) {
+
     if (!Array.isArray(models)) {
         return [];
     }
@@ -560,9 +657,8 @@ export function filterModels(
     return models.filter(
         model => {
 
-            if (
-                searchText
-            ) {
+            if (searchText) {
+
                 const haystack =
                     [
                         model.model_id,
@@ -582,6 +678,7 @@ export function filterModels(
                 ) {
                     return false;
                 }
+
             }
 
             if (
@@ -589,7 +686,9 @@ export function filterModels(
                 String(
                     model.provider_id
                 ) !==
-                    String(providerId)
+                String(
+                    providerId
+                )
             ) {
                 return false;
             }
@@ -600,9 +699,9 @@ export function filterModels(
                     model.provider?.provider_id ||
                     ""
                 ).toLowerCase() !==
-                    String(
-                        providerCode
-                    ).toLowerCase()
+                String(
+                    providerCode
+                ).toLowerCase()
             ) {
                 return false;
             }
@@ -610,68 +709,83 @@ export function filterModels(
             if (
                 status &&
                 String(
-                    model.status || ""
+                    model.status ||
+                    ""
                 ).toLowerCase() !==
-                    String(status)
-                        .toLowerCase()
+                String(
+                    status
+                ).toLowerCase()
             ) {
                 return false;
             }
 
             return true;
+
         }
     );
+
 }
 
 /* =========================================================
-   FORMAT CREDIT
+   FORMAT HELPERS
 ========================================================= */
 
 export function formatCredit(
     value
 ) {
-    const number =
-        normalizeNumber(value);
 
-    if (number === null) {
+    const number =
+        normalizeNumber(
+            value
+        );
+
+    if (
+        number === null
+    ) {
         return "-";
     }
 
     return new Intl.NumberFormat(
         "id-ID"
-    ).format(number);
-}
+    ).format(
+        number
+    );
 
-/* =========================================================
-   FORMAT PERCENT
-========================================================= */
+}
 
 export function formatPercent(
     value
 ) {
-    const number =
-        normalizeNumber(value);
 
-    if (number === null) {
+    const number =
+        normalizeNumber(
+            value
+        );
+
+    if (
+        number === null
+    ) {
         return "-";
     }
 
     return `${number}%`;
-}
 
-/* =========================================================
-   FORMAT DURATION
-========================================================= */
+}
 
 export function formatDuration(
     min,
     max
 ) {
+
     const minimum =
-        normalizeNumber(min);
+        normalizeNumber(
+            min
+        );
 
     const maximum =
-        normalizeNumber(max);
+        normalizeNumber(
+            max
+        );
 
     if (
         minimum === null &&
@@ -694,17 +808,17 @@ export function formatDuration(
     }
 
     return `-${maximum}s`;
-}
 
-/* =========================================================
-   FORMAT ARRAY
-========================================================= */
+}
 
 export function formatList(
     value
 ) {
+
     const items =
-        normalizeArray(value);
+        normalizeArray(
+            value
+        );
 
     if (
         items.length === 0
@@ -712,7 +826,10 @@ export function formatList(
         return "-";
     }
 
-    return items.join(", ");
+    return items.join(
+        ", "
+    );
+
 }
 
 /* =========================================================
@@ -722,17 +839,21 @@ export function formatList(
 export function isModelActive(
     model
 ) {
+
     return (
         String(
-            model?.status || ""
+            model?.status ||
+            ""
         ).toLowerCase() ===
         "active"
     );
+
 }
 
 export function isProviderActive(
     model
 ) {
+
     return (
         String(
             model?.provider?.status ||
@@ -740,27 +861,56 @@ export function isProviderActive(
         ).toLowerCase() ===
         "active"
     );
+
 }
 
 export function isModelUsable(
     model
 ) {
+
     return (
         isModelActive(model) &&
         isProviderActive(model)
     );
+
 }
 
 /* =========================================================
-   EXPORT SNAPSHOT
+   CACHE SNAPSHOT
 ========================================================= */
 
 export function getModelCache() {
-    return [...modelCache];
+
+    return [
+        ...modelCache
+    ];
+
 }
 
 export function getProviderCache() {
-    return [...providerCache];
+
+    return [
+        ...providerCache
+    ];
+
+}
+
+/*
+ * Compatibility aliases.
+ *
+ * Beberapa module lama mungkin masih memanggil
+ * nama cached yang berbeda.
+ */
+export function getCachedModels() {
+
+    return getModelCache();
+
+}
+
+export function getCachedProviders() {
+
+    return getProviderCache();
+
 }
 
 /* =========================================================
@@ -768,6 +918,7 @@ export function getProviderCache() {
 ========================================================= */
 
 const ModelData = {
+
     MODEL_TABLE,
     PROVIDER_TABLE,
 
@@ -781,6 +932,8 @@ const ModelData = {
     getProviderByCode,
 
     normalizeModel,
+    normalizeArray,
+    normalizeArrayValue,
 
     filterModels,
 
@@ -797,7 +950,11 @@ const ModelData = {
     clearProviderCache,
 
     getModelCache,
-    getProviderCache
+    getProviderCache,
+
+    getCachedModels,
+    getCachedProviders
+
 };
 
 export default ModelData;
