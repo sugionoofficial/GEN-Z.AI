@@ -52,7 +52,6 @@
 
         body {
             min-height: 100vh;
-
             color: var(--gray-900);
 
             background:
@@ -96,20 +95,20 @@
         ===================================================== */
 
         .app {
-            display: flex;
             min-height: 100vh;
         }
 
 
         /* =====================================================
-           NAV TOGGLE
+           TOP NAVIGATION
+           SLIDE DOWN
         ===================================================== */
 
         .nav-toggle {
             position: fixed;
             top: 16px;
             left: 16px;
-            z-index: 300;
+            z-index: 500;
 
             width: 44px;
             height: 44px;
@@ -117,11 +116,13 @@
             display: grid;
             place-items: center;
 
+            padding: 0;
+
             border: 1px solid rgba(255,255,255,.18);
             border-radius: 11px;
 
             color: #fff;
-            background: rgba(20,20,20,.95);
+            background: rgba(20,20,20,.96);
 
             box-shadow:
                 0 6px 18px rgba(0,0,0,.25),
@@ -158,47 +159,85 @@
 
 
         /* =====================================================
-           SIDEBAR
+           NAV PANEL
         ===================================================== */
 
         .sidebar {
             position: fixed;
-            inset: 0 auto 0 0;
 
-            width: 245px;
+            top: 0;
+            left: 0;
+            right: 0;
 
-            padding: 22px 16px;
+            width: 100%;
+            height: auto;
+
+            max-height: min(82vh, 620px);
+
+            overflow-y: auto;
+
+            padding:
+                76px 18px 22px;
 
             background:
                 linear-gradient(
                     180deg,
-                    rgba(20,20,20,.99),
-                    rgba(40,40,40,.99)
+                    rgba(20,20,20,.995),
+                    rgba(38,38,38,.995)
                 );
 
-            border-right:
+            border-bottom:
                 1px solid rgba(255,255,255,.12);
 
-            z-index: 200;
+            z-index: 400;
+
+            transform:
+                translateY(-105%);
+
+            opacity: 0;
+
+            visibility: hidden;
+
+            box-shadow:
+                0 14px 40px rgba(0,0,0,.35),
+                0 0 30px rgba(255,23,68,.10);
 
             transition:
-                transform .22s ease,
-                box-shadow .22s ease;
+                transform .28s ease,
+                opacity .22s ease,
+                visibility .28s ease;
         }
 
-        .app.sidebar-collapsed .sidebar {
-            transform: translateX(-100%);
+        .app.nav-open .sidebar {
+            transform:
+                translateY(0);
+
+            opacity: 1;
+
+            visibility: visible;
         }
+
+
+        /* =====================================================
+           BRAND
+        ===================================================== */
 
         .brand {
             display: flex;
             align-items: center;
+
             gap: 11px;
 
+            width: min(1100px, 100%);
+            margin: 0 auto 20px;
+
             padding:
-                4px 10px 25px;
+                0 4px 18px;
 
             color: #fff;
+
+            border-bottom:
+                1px solid rgba(255,255,255,.08);
         }
 
         .brand-logo {
@@ -207,6 +246,8 @@
 
             display: grid;
             place-items: center;
+
+            flex-shrink: 0;
 
             border-radius: 11px;
 
@@ -236,9 +277,17 @@
             letter-spacing: 1.4px;
         }
 
+
+        /* =====================================================
+           NAV
+        ===================================================== */
+
         .nav-title {
+            width: min(1100px, 100%);
+            margin: 0 auto 9px;
+
             padding:
-                0 11px 9px;
+                0 4px;
 
             color: #777;
 
@@ -250,35 +299,55 @@
         }
 
         .nav {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            width: min(1100px, 100%);
+            margin: 0 auto;
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(5, minmax(0, 1fr));
+
+            gap: 7px;
         }
 
         .nav a {
+            min-height: 48px;
+
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: center;
 
-            min-height: 44px;
+            gap: 9px;
 
-            padding: 0 13px;
+            padding: 0 12px;
 
             color: #bdbdbd;
 
             text-decoration: none;
 
+            border:
+                1px solid rgba(255,255,255,.06);
+
             border-radius: 10px;
+
+            background:
+                rgba(255,255,255,.025);
 
             transition:
                 color .2s ease,
                 background .2s ease,
+                border-color .2s ease,
                 box-shadow .2s ease;
         }
 
         .nav a:hover {
             color: #fff;
-            background: rgba(255,255,255,.08);
+
+            background:
+                rgba(255,255,255,.08);
+
+            border-color:
+                rgba(255,255,255,.12);
         }
 
         .nav a.active {
@@ -287,9 +356,12 @@
             background:
                 linear-gradient(
                     90deg,
-                    rgba(255,23,68,.22),
-                    rgba(255,23,68,.07)
+                    rgba(255,23,68,.28),
+                    rgba(255,23,68,.08)
                 );
+
+            border-color:
+                rgba(255,23,68,.45);
 
             box-shadow:
                 inset 3px 0 0 var(--neon-red),
@@ -309,12 +381,14 @@
             font-weight: 700;
         }
 
-        .sidebar-bottom {
-            position: absolute;
 
-            left: 16px;
-            right: 16px;
-            bottom: 20px;
+        /* =====================================================
+           LOGOUT
+        ===================================================== */
+
+        .sidebar-bottom {
+            width: min(1100px, 100%);
+            margin: 15px auto 0;
         }
 
         .logout {
@@ -327,7 +401,8 @@
             border-radius: 10px;
 
             color: #ccc;
-            background: rgba(255,255,255,.04);
+            background:
+                rgba(255,255,255,.04);
 
             transition: .2s ease;
         }
@@ -342,16 +417,34 @@
                 rgba(255,23,68,.12);
         }
 
-        .sidebar-overlay {
-            display: none;
 
+        /* =====================================================
+           NAV OVERLAY
+        ===================================================== */
+
+        .sidebar-overlay {
             position: fixed;
             inset: 0;
 
-            z-index: 150;
+            z-index: 350;
 
             background:
-                rgba(0,0,0,.38);
+                rgba(0,0,0,.42);
+
+            opacity: 0;
+            visibility: hidden;
+
+            pointer-events: none;
+
+            transition:
+                opacity .25s ease,
+                visibility .25s ease;
+        }
+
+        .app.nav-open .sidebar-overlay {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
         }
 
 
@@ -362,16 +455,8 @@
         .main {
             width: 100%;
 
-            margin-left: 245px;
-
-            padding: 28px;
-
-            transition:
-                margin-left .22s ease;
-        }
-
-        .app.sidebar-collapsed .main {
-            margin-left: 0;
+            padding:
+                28px 18px 40px;
         }
 
         .content {
@@ -393,7 +478,8 @@
 
             margin-bottom: 24px;
 
-            padding-left: 48px;
+            padding:
+                0 0 0 56px;
         }
 
         .eyebrow {
@@ -894,7 +980,7 @@
 
 
         /* =====================================================
-           CREDIT PRICING
+           CREDIT
         ===================================================== */
 
         .credit-input-wrap {
@@ -1223,78 +1309,14 @@
 
 
         /* =====================================================
-           MOBILE
+           TABLET
         ===================================================== */
 
-        @media (max-width: 900px) {
+        @media (max-width: 800px) {
 
-            .sidebar {
-                width: 210px;
-            }
-
-            .main {
-                margin-left: 210px;
-                padding: 20px;
-            }
-
-            .credit-preview {
+            .nav {
                 grid-template-columns:
-                    1fr;
-            }
-        }
-
-
-        @media (max-width: 720px) {
-
-            .sidebar {
-                position: fixed;
-
-                top: 0;
-                left: 0;
-                bottom: 0;
-
-                width:
-                    min(245px,82vw);
-
-                height: 100vh;
-
-                transform:
-                    translateX(-100%);
-
-                overflow-y: auto;
-            }
-
-            .app {
-                display: block;
-            }
-
-            .app:not(.sidebar-collapsed)
-            .sidebar {
-                transform:
-                    translateX(0);
-
-                box-shadow:
-                    12px 0 35px rgba(0,0,0,.35);
-            }
-
-            .app:not(.sidebar-collapsed)
-            .sidebar-overlay {
-                display: block;
-            }
-
-            .main {
-                margin-left: 0;
-                padding: 15px;
-            }
-
-            .page-header {
-                flex-direction: column;
-
-                padding-left: 52px;
-            }
-
-            .back-button {
-                width: 100%;
+                    repeat(3,minmax(0,1fr));
             }
 
             .form-grid {
@@ -1308,11 +1330,79 @@
 
             .parameter-grid {
                 grid-template-columns:
+                    repeat(2,minmax(0,1fr));
+            }
+
+            .credit-preview {
+                grid-template-columns:
+                    repeat(3,minmax(0,1fr));
+            }
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ===================================================== */
+
+        @media (max-width: 600px) {
+
+            .nav-toggle {
+                top: 12px;
+                left: 12px;
+            }
+
+            .sidebar {
+                padding:
+                    68px 14px 16px;
+
+                max-height:
+                    90vh;
+            }
+
+            .nav {
+                grid-template-columns:
+                    1fr;
+            }
+
+            .nav a {
+                justify-content: flex-start;
+
+                min-height: 46px;
+            }
+
+            .main {
+                padding:
+                    18px 12px 30px;
+            }
+
+            .page-header {
+                flex-direction: column;
+
+                gap: 14px;
+
+                padding-left: 54px;
+            }
+
+            .back-button {
+                width: 100%;
+            }
+
+            .credit-preview {
+                grid-template-columns:
+                    1fr;
+            }
+
+            .parameter-grid {
+                grid-template-columns:
                     1fr;
             }
 
             .model-hero-top {
                 flex-direction: column;
+            }
+
+            .premium-badge {
+                align-self: flex-start;
             }
 
             .actions {
@@ -1343,16 +1433,16 @@
 <body>
 
     <!-- =====================================================
-         NAVIGATION BUTTON
+         NAVIGATION TOGGLE
     ===================================================== -->
 
     <button
         type="button"
         class="nav-toggle"
         id="navToggle"
-        aria-label="Tutup navigasi"
+        aria-label="Buka navigasi"
         aria-controls="adminSidebar"
-        aria-expanded="true"
+        aria-expanded="false"
     >
         ☰
     </button>
@@ -1364,7 +1454,7 @@
     >
 
         <!-- =================================================
-             SIDEBAR
+             SLIDE-DOWN NAVIGATION
         ================================================= -->
 
         <aside
@@ -1471,7 +1561,9 @@
 
             <div class="content">
 
-                <!-- HEADER -->
+                <!-- =================================================
+                     HEADER
+                ================================================= -->
 
                 <header class="page-header">
 
@@ -1589,8 +1681,6 @@
 
                         <div class="form-grid">
 
-                            <!-- NAME -->
-
                             <div class="field">
 
                                 <label for="modelName">
@@ -1610,8 +1700,6 @@
 
                             </div>
 
-
-                            <!-- MODEL ID -->
 
                             <div class="field">
 
@@ -1634,8 +1722,6 @@
                             </div>
 
 
-                            <!-- PROVIDER -->
-
                             <div class="field">
 
                                 <label>
@@ -1652,8 +1738,6 @@
                             </div>
 
 
-                            <!-- TYPE -->
-
                             <div class="field">
 
                                 <label>
@@ -1669,8 +1753,6 @@
 
                             </div>
 
-
-                            <!-- STATUS -->
 
                             <div class="field full">
 
@@ -1710,8 +1792,6 @@
 
                             </div>
 
-
-                            <!-- DESCRIPTION -->
 
                             <div class="field full">
 
@@ -1753,8 +1833,6 @@
 
                         <div class="form-grid">
 
-                            <!-- CREDIT COST -->
-
                             <div class="field">
 
                                 <label for="creditCost">
@@ -1784,8 +1862,6 @@
 
                             </div>
 
-
-                            <!-- DISCOUNT -->
 
                             <div class="field">
 
@@ -1824,8 +1900,6 @@
                             </div>
 
 
-                            <!-- FINAL CREDIT -->
-
                             <div class="field">
 
                                 <label>
@@ -1848,8 +1922,6 @@
 
                         </div>
 
-
-                        <!-- CREDIT PREVIEW -->
 
                         <div class="credit-preview">
 
@@ -2052,149 +2124,91 @@
         ===================================================== */
 
         const appShell =
-            document.getElementById(
-                "appShell"
-            );
+            document.getElementById("appShell");
 
         const navToggle =
-            document.getElementById(
-                "navToggle"
-            );
+            document.getElementById("navToggle");
 
         const sidebarOverlay =
-            document.getElementById(
-                "sidebarOverlay"
-            );
+            document.getElementById("sidebarOverlay");
 
         const adminSidebar =
-            document.getElementById(
-                "adminSidebar"
-            );
+            document.getElementById("adminSidebar");
 
         const backButton =
-            document.getElementById(
-                "backButton"
-            );
+            document.getElementById("backButton");
 
         const cancelButton =
-            document.getElementById(
-                "cancelButton"
-            );
+            document.getElementById("cancelButton");
 
         const saveButton =
-            document.getElementById(
-                "saveButton"
-            );
+            document.getElementById("saveButton");
 
         const logoutButton =
-            document.getElementById(
-                "logoutButton"
-            );
+            document.getElementById("logoutButton");
 
         const alertBox =
-            document.getElementById(
-                "alertBox"
-            );
+            document.getElementById("alertBox");
 
         const loadingBox =
-            document.getElementById(
-                "loadingBox"
-            );
+            document.getElementById("loadingBox");
 
         const editContent =
-            document.getElementById(
-                "editContent"
-            );
+            document.getElementById("editContent");
 
         const heroModelName =
-            document.getElementById(
-                "heroModelName"
-            );
+            document.getElementById("heroModelName");
 
         const heroModelId =
-            document.getElementById(
-                "heroModelId"
-            );
+            document.getElementById("heroModelId");
 
         const modelName =
-            document.getElementById(
-                "modelName"
-            );
+            document.getElementById("modelName");
 
         const modelId =
-            document.getElementById(
-                "modelId"
-            );
+            document.getElementById("modelId");
 
         const providerName =
-            document.getElementById(
-                "providerName"
-            );
+            document.getElementById("providerName");
 
         const modelType =
-            document.getElementById(
-                "modelType"
-            );
+            document.getElementById("modelType");
 
         const description =
-            document.getElementById(
-                "description"
-            );
+            document.getElementById("description");
 
         const statusToggle =
-            document.getElementById(
-                "statusToggle"
-            );
+            document.getElementById("statusToggle");
 
         const statusText =
-            document.getElementById(
-                "statusText"
-            );
+            document.getElementById("statusText");
 
         const creditCost =
-            document.getElementById(
-                "creditCost"
-            );
+            document.getElementById("creditCost");
 
         const discount =
-            document.getElementById(
-                "discount"
-            );
+            document.getElementById("discount");
 
         const creditFinalValue =
-            document.getElementById(
-                "creditFinalValue"
-            );
+            document.getElementById("creditFinalValue");
 
         const previewNormal =
-            document.getElementById(
-                "previewNormal"
-            );
+            document.getElementById("previewNormal");
 
         const previewDiscount =
-            document.getElementById(
-                "previewDiscount"
-            );
+            document.getElementById("previewDiscount");
 
         const previewFinal =
-            document.getElementById(
-                "previewFinal"
-            );
+            document.getElementById("previewFinal");
 
         const durationValue =
-            document.getElementById(
-                "durationValue"
-            );
+            document.getElementById("durationValue");
 
         const ratioValue =
-            document.getElementById(
-                "ratioValue"
-            );
+            document.getElementById("ratioValue");
 
         const resolutionValue =
-            document.getElementById(
-                "resolutionValue"
-            );
+            document.getElementById("resolutionValue");
 
 
         /* =====================================================
@@ -2210,20 +2224,19 @@
 
         /* =====================================================
            NAVIGATION
+           SLIDE DOWN
         ===================================================== */
 
-        function setNavigation(
-            open
-        ) {
+        function setNavigation(open) {
 
             appShell.classList.toggle(
-                "sidebar-collapsed",
-                !open
+                "nav-open",
+                Boolean(open)
             );
 
             navToggle.setAttribute(
                 "aria-expanded",
-                String(open)
+                String(Boolean(open))
             );
 
             navToggle.setAttribute(
@@ -2232,14 +2245,24 @@
                     ? "Tutup navigasi"
                     : "Buka navigasi"
             );
+
+            navToggle.textContent =
+                open
+                    ? "×"
+                    : "☰";
+
+            sidebarOverlay.setAttribute(
+                "aria-hidden",
+                String(!open)
+            );
         }
 
 
         function toggleNavigation() {
 
             const isOpen =
-                !appShell.classList.contains(
-                    "sidebar-collapsed"
+                appShell.classList.contains(
+                    "nav-open"
                 );
 
             setNavigation(
@@ -2270,22 +2293,27 @@
                     link.addEventListener(
                         "click",
                         () => {
-
-                            if (
-                                window.innerWidth <= 720
-                            ) {
-
-                                setNavigation(
-                                    false
-                                );
-
-                            }
-
+                            setNavigation(false);
                         }
                     );
 
                 }
             );
+
+
+        document.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Escape"
+                ) {
+
+                    setNavigation(false);
+                }
+
+            }
+        );
 
 
         /* =====================================================
@@ -2327,7 +2355,9 @@
             loading
         ) {
 
-            if (loading) {
+            if (
+                loading
+            ) {
 
                 loadingBox.classList.remove(
                     "hidden"
@@ -2346,7 +2376,6 @@
                 editContent.classList.remove(
                     "hidden"
                 );
-
             }
         }
 
@@ -2441,7 +2470,7 @@
 
 
         /* =====================================================
-           ARRAY NORMALIZER
+           ARRAY
         ===================================================== */
 
         function normalizeArray(
@@ -2468,9 +2497,7 @@
                         );
 
                     if (
-                        Array.isArray(
-                            parsed
-                        )
+                        Array.isArray(parsed)
                     ) {
 
                         return parsed;
@@ -2509,12 +2536,8 @@
                 );
 
             return (
-                params.get(
-                    "model_id"
-                ) ||
-                params.get(
-                    "id"
-                ) ||
+                params.get("model_id") ||
+                params.get("id") ||
                 ""
             ).trim();
         }
@@ -2557,7 +2580,7 @@
 
 
         /* =====================================================
-           CREDIT CALCULATION
+           CREDIT
         ===================================================== */
 
         function calculateCredit() {
@@ -2615,9 +2638,7 @@
                     maximumFractionDigits: 6
                 }
             ).format(
-                nonNegative(
-                    value
-                )
+                nonNegative(value)
             );
         }
 
@@ -2643,8 +2664,7 @@
                     }
                 ).format(
                     result.discount_percent
-                ) +
-                "%";
+                ) + "%";
 
 
             previewFinal.textContent =
@@ -2686,9 +2706,7 @@
         ) {
 
             const parameters =
-                getParameterObject(
-                    model
-                );
+                getParameterObject(model);
 
             return (
                 parameters?.[key] ||
@@ -2747,11 +2765,8 @@
 
 
             return {
-                min:
-                    minimum,
-
-                max:
-                    maximum
+                min: minimum,
+                max: maximum
             };
         }
 
@@ -2761,9 +2776,7 @@
         ) {
 
             const duration =
-                getDurationRange(
-                    model
-                );
+                getDurationRange(model);
 
 
             if (
@@ -2845,7 +2858,7 @@
 
 
         /* =====================================================
-           MODEL NORMALIZATION
+           MODEL HELPERS
         ===================================================== */
 
         function getModelName(
@@ -2904,7 +2917,7 @@
 
 
         /* =====================================================
-           RENDER
+           RENDER MODEL
         ===================================================== */
 
         function renderModel(
@@ -2926,9 +2939,7 @@
 
 
             currentModelId =
-                getModelId(
-                    model
-                );
+                getModelId(model);
 
 
             if (
@@ -2942,19 +2953,13 @@
 
 
             const name =
-                getModelName(
-                    model
-                );
+                getModelName(model);
 
             const provider =
-                getProviderName(
-                    model
-                );
+                getProviderName(model);
 
             const type =
-                getModelType(
-                    model
-                );
+                getModelType(model);
 
 
             heroModelName.textContent =
@@ -2962,7 +2967,6 @@
 
             heroModelId.textContent =
                 currentModelId;
-
 
             modelName.value =
                 name;
@@ -2976,26 +2980,19 @@
             modelType.textContent =
                 type;
 
-
             description.value =
-                model?.description ||
-                "";
+                model?.description || "";
 
 
             statusToggle.checked =
                 String(
-                    model?.status ||
-                    ""
+                    model?.status || ""
                 ).toLowerCase() ===
                 "active";
 
 
             updateStatusText();
 
-
-            /* =================================================
-               CREDIT
-            ================================================= */
 
             creditCost.value =
                 nonNegative(
@@ -3016,10 +3013,6 @@
             updateCreditPreview();
 
 
-            /* =================================================
-               TECHNICAL PARAMETERS
-            ================================================= */
-
             renderParameters(
                 model
             );
@@ -3033,15 +3026,6 @@
         async function loadRepositoryModel(
             requestedId
         ) {
-
-            /*
-             * Sumber utama:
-             *
-             * models/<folder>/config.js
-             * models/<folder>/parameters.js
-             *
-             * Supabase tidak menentukan keberadaan model.
-             */
 
             try {
 
@@ -3066,11 +3050,6 @@
                 );
             }
 
-
-            /*
-             * Fallback ke getModelByModelId.
-             * Ini tetap menggunakan registry model.
-             */
 
             try {
 
@@ -3108,9 +3087,7 @@
 
             hideAlert();
 
-            setLoading(
-                true
-            );
+            setLoading(true);
 
 
             const requestedId =
@@ -3121,9 +3098,7 @@
                 !requestedId
             ) {
 
-                setLoading(
-                    false
-                );
+                setLoading(false);
 
                 showAlert(
                     "Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...",
@@ -3137,9 +3112,7 @@
             try {
 
                 /*
-                 * STEP 1
-                 * Ambil model langsung dari
-                 * registry repository.
+                 * Repository adalah sumber utama.
                  */
 
                 const repositoryModel =
@@ -3159,12 +3132,11 @@
 
 
                 /*
-                 * STEP 2
-                 * Ambil konfigurasi admin dari
-                 * Supabase jika tersedia.
+                 * Supabase hanya konfigurasi admin.
                  *
-                 * Supabase TIDAK menggantikan
-                 * model repository.
+                 * Row boleh belum ada.
+                 * Jika belum ada, model repository
+                 * tetap ditampilkan.
                  */
 
                 let mergedModel = {
@@ -3220,18 +3192,11 @@
 
                             mergedModel = {
                                 ...repositoryModel,
-
                                 ...data,
-
-                                /*
-                                 * Model ID tetap berasal
-                                 * dari repository.
-                                 */
 
                                 model_id:
                                     requestedId
                             };
-
                         }
 
                     } catch (
@@ -3243,7 +3208,6 @@
                             configError
                         );
                     }
-
                 }
 
 
@@ -3252,9 +3216,7 @@
                 );
 
 
-                setLoading(
-                    false
-                );
+                setLoading(false);
 
             } catch (
                 error
@@ -3266,9 +3228,7 @@
                 );
 
 
-                setLoading(
-                    false
-                );
+                setLoading(false);
 
 
                 showAlert(
@@ -3282,6 +3242,7 @@
 
         /* =====================================================
            SAVE MODEL
+           UPDATE ATAU INSERT
         ===================================================== */
 
         async function saveModel() {
@@ -3364,10 +3325,8 @@
 
 
             /*
-             * Jangan pernah mengubah model_id.
-             *
-             * Jangan pernah memasukkan USD ke
-             * credit_cost.
+             * credit_cost tetap CREDIT.
+             * Tidak ada konversi USD.
              */
 
             const payload = {
@@ -3390,14 +3349,12 @@
                         : "inactive",
 
                 updated_at:
-                    new Date()
-                        .toISOString()
+                    new Date().toISOString()
             };
 
 
             saving =
                 true;
-
 
             saveButton.disabled =
                 true;
@@ -3409,108 +3366,236 @@
             try {
 
                 /*
-                 * Coba gunakan UUID database jika
-                 * sudah tersedia dari hasil load.
+                 * -------------------------------------------------
+                 * STEP 1
+                 * Cek apakah row sudah ada.
+                 * -------------------------------------------------
                  */
 
-                let query =
-                    supabase
-                        .from("models")
-                        .update(
-                            payload
-                        );
-
-
-                if (
-                    currentModel.id
-                ) {
-
-                    query =
-                        query.eq(
-                            "id",
-                            currentModel.id
-                        );
-
-                } else {
-
-                    query =
-                        query.eq(
-                            "model_id",
-                            modelIdValue
-                        );
-
-                }
-
-
                 const {
-                    data,
-                    error
+                    data: existingRows,
+                    error: lookupError
                 } =
-                    await query
+                    await supabase
+                        .from("models")
                         .select(
                             [
                                 "id",
-                                "model_id",
-                                "model_name",
-                                "description",
-                                "credit_cost",
-                                "discount_percent",
-                                "credit_final",
-                                "status",
-                                "updated_at"
+                                "provider_id",
+                                "model_id"
                             ].join(",")
-                        );
+                        )
+                        .eq(
+                            "model_id",
+                            modelIdValue
+                        )
+                        .limit(1);
 
 
                 if (
-                    error
+                    lookupError
                 ) {
 
-                    throw error;
+                    throw lookupError;
+                }
+
+
+                const existingRow =
+                    Array.isArray(existingRows) &&
+                    existingRows.length > 0
+                        ? existingRows[0]
+                        : null;
+
+
+                /*
+                 * -------------------------------------------------
+                 * STEP 2
+                 * UPDATE
+                 * -------------------------------------------------
+                 */
+
+                if (
+                    existingRow &&
+                    existingRow.id
+                ) {
+
+                    const {
+                        data,
+                        error
+                    } =
+                        await supabase
+                            .from("models")
+                            .update(
+                                payload
+                            )
+                            .eq(
+                                "id",
+                                existingRow.id
+                            )
+                            .select(
+                                [
+                                    "id",
+                                    "provider_id",
+                                    "model_id",
+                                    "model_name",
+                                    "description",
+                                    "credit_cost",
+                                    "discount_percent",
+                                    "credit_final",
+                                    "status",
+                                    "updated_at"
+                                ].join(",")
+                            );
+
+
+                    if (
+                        error
+                    ) {
+
+                        throw error;
+                    }
+
+
+                    if (
+                        !Array.isArray(data) ||
+                        data.length === 0
+                    ) {
+
+                        throw new Error(
+                            "Konfigurasi model gagal diperbarui di Supabase."
+                        );
+                    }
+
+
+                    const savedModel =
+                        data[0];
+
+
+                    currentModel = {
+
+                        ...currentModel,
+
+                        ...savedModel,
+
+                        model_id:
+                            modelIdValue
+                    };
+
+
+                    showAlert(
+                        "Perubahan model berhasil disimpan.",
+                        "success"
+                    );
+
                 }
 
 
                 /*
-                 * UPDATE tanpa row tidak boleh
-                 * dianggap sukses.
+                 * -------------------------------------------------
+                 * STEP 3
+                 * INSERT
                  *
-                 * Ini penting karena Supabase dapat
-                 * mengembalikan tidak ada error
-                 * walaupun filter tidak menemukan row.
+                 * Jika model belum memiliki row Supabase,
+                 * buat konfigurasi admin baru.
+                 * -------------------------------------------------
                  */
 
-                if (
-                    !Array.isArray(data) ||
-                    data.length === 0
-                ) {
+                else {
 
-                    throw new Error(
-                        `Konfigurasi model "${modelIdValue}" belum memiliki row pada tabel models. Model ada di repository, tetapi belum ada konfigurasi admin di Supabase.`
+                    const insertPayload = {
+
+                        ...payload,
+
+                        model_id:
+                            modelIdValue
+                    };
+
+
+                    /*
+                     * Gunakan provider_id jika repository/
+                     * registry sudah menyediakan UUID provider.
+                     *
+                     * Jika tidak tersedia, jangan mengarang UUID.
+                     */
+
+                    if (
+                        currentModel.provider_id
+                    ) {
+
+                        insertPayload.provider_id =
+                            currentModel.provider_id;
+                    }
+
+
+                    const {
+                        data,
+                        error
+                    } =
+                        await supabase
+                            .from("models")
+                            .insert(
+                                insertPayload
+                            )
+                            .select(
+                                [
+                                    "id",
+                                    "provider_id",
+                                    "model_id",
+                                    "model_name",
+                                    "description",
+                                    "credit_cost",
+                                    "discount_percent",
+                                    "credit_final",
+                                    "status",
+                                    "updated_at"
+                                ].join(",")
+                            );
+
+
+                    if (
+                        error
+                    ) {
+
+                        throw error;
+                    }
+
+
+                    if (
+                        !Array.isArray(data) ||
+                        data.length === 0
+                    ) {
+
+                        throw new Error(
+                            "Konfigurasi model gagal dibuat di Supabase."
+                        );
+                    }
+
+
+                    const savedModel =
+                        data[0];
+
+
+                    currentModel = {
+
+                        ...currentModel,
+
+                        ...savedModel,
+
+                        model_id:
+                            modelIdValue
+                    };
+
+
+                    showAlert(
+                        "Konfigurasi admin model berhasil dibuat.",
+                        "success"
                     );
                 }
 
 
-                const savedModel =
-                    data[0];
-
-
-                currentModel = {
-                    ...currentModel,
-                    ...savedModel,
-
-                    /*
-                     * Tetap pertahankan metadata
-                     * repository.
-                     */
-
-                    model_id:
-                        modelIdValue
-                };
-
-
-                heroModelName.textContent =
-                    name;
-
+                /*
+                 * Update tampilan credit final.
+                 */
 
                 creditFinalValue.textContent =
                     formatCredit(
@@ -3518,11 +3603,10 @@
                     );
 
 
-                showAlert(
-                    "Perubahan model berhasil disimpan.",
-                    "success"
-                );
-
+                /*
+                 * Kembali ke halaman Models
+                 * setelah penyimpanan berhasil.
+                 */
 
                 setTimeout(
                     () => {
@@ -3533,6 +3617,7 @@
                     },
                     900
                 );
+
 
             } catch (
                 error
@@ -3549,6 +3634,7 @@
                     "Gagal menyimpan perubahan model.",
                     "error"
                 );
+
 
             } finally {
 
@@ -3645,13 +3731,9 @@
            INITIALIZE
         ===================================================== */
 
-        setNavigation(
-            window.innerWidth > 720
-        );
-
+        setNavigation(false);
 
         updateCreditPreview();
-
 
         loadModel();
 
