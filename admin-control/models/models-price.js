@@ -6,20 +6,27 @@
    File:
    admin-control/models/models-price.js
 
-   Tanggung jawab:
-   - Membaca pricing dari tabel `models`
+   TANGGUNG JAWAB:
+   - Membaca pricing dari GENZModelsData
    - Cache pricing model
    - Mencari pricing berdasarkan model
    - Kalkulasi credit
-   - Format harga / credit
-   - Menyediakan compatibility API untuk Models UI
+   - Format credit
+   - Menyediakan compatibility API
 
-   Sumber data:
+   SUMBER DATA:
        models.credit_cost
        models.discount_percent
        models.credit_final
 
-   TIDAK menggunakan:
+   RELASI:
+       models
+          ↓
+       GENZModelsData
+          ↓
+       GENZModelsPrice
+
+   TIDAK MENGGUNAKAN:
        kie_pricing
        kie_models
        kie_workflows
@@ -28,13 +35,15 @@
        kie_constraints
        kie_dependencies
 
-   Tidak menangani:
+   TIDAK MENANGANI:
    - Provider CRUD
    - Model CRUD
-   - Model Search
-   - Save model
-   - Update model
-   - Delete model
+   - Search
+   - Save
+   - Update
+   - Delete
+   - API KIE
+   - Supabase query langsung
 ========================================================= */
 
 (function () {
@@ -57,13 +66,8 @@
        CONFIG
     ===================================================== */
 
-    const MODEL_TABLE =
-        "models";
-
-
     /*
-     * Dipertahankan hanya untuk compatibility
-     * dengan fungsi konversi harga lama.
+     * Dipertahankan untuk compatibility API lama.
      *
      * Credit model TIDAK menggunakan kurs ini.
      */
@@ -73,14 +77,13 @@
 
 
     /* =====================================================
-       SUPABASE
-    ===================================================== */
+       MODEL DATA MODULE
+       ===================================================== */
 
-    function getSupabase() {
+    function getModelsData() {
 
         return (
-            window.GENZ_SUPABASE ||
-            window.supabaseClient ||
+            window.GENZModelsData ||
             null
         );
 
@@ -89,7 +92,7 @@
 
     /* =====================================================
        UTILITY
-    ===================================================== */
+       ===================================================== */
 
     function escapeHtml(
         value
@@ -137,16 +140,23 @@
         }
 
 
-        const number =
+        const parsed =
             Number(
-                value
+                String(
+                    value
+                )
+                    .replace(
+                        /,/g,
+                        ""
+                    )
+                    .trim()
             );
 
 
         return Number.isFinite(
-            number
+            parsed
         )
-            ? number
+            ? parsed
             : null;
 
     }
@@ -198,11 +208,26 @@
             "string"
         ) {
 
+            const text =
+                value.trim();
+
+
+            if (!text) {
+
+                return [];
+
+            }
+
+
+            /*
+             * JSON array.
+             */
+
             try {
 
                 const parsed =
                     JSON.parse(
-                        value
+                        text
                     );
 
 
@@ -220,12 +245,53 @@
                 error
             ) {
 
-                /* Bukan JSON, lanjutkan. */
+                /* Bukan JSON. */
 
             }
 
 
-            return value
+            /*
+             * PostgreSQL array:
+             *
+             * {16:9,9:16}
+             */
+
+            if (
+                text.startsWith(
+                    "{"
+                ) &&
+                text.endsWith(
+                    "}"
+                )
+            ) {
+
+                return text
+                    .slice(
+                        1,
+                        -1
+                    )
+                    .split(",")
+                    .map(
+                        item =>
+                            item
+                                .trim()
+                                .replace(
+                                    /^"(.*)"$/,
+                                    "$1"
+                                )
+                    )
+                    .filter(
+                        Boolean
+                    );
+
+            }
+
+
+            /*
+             * Comma separated.
+             */
+
+            return text
                 .split(",")
                 .map(
                     item =>
@@ -245,7 +311,7 @@
 
     /* =====================================================
        CREDIT CALCULATION
-    ===================================================== */
+       ===================================================== */
 
     function calculateCreditFinal(
         creditCost,
@@ -273,6 +339,13 @@
         }
 
 
+        const safeCost =
+            Math.max(
+                0,
+                cost
+            );
+
+
         const safeDiscount =
             discount === null
                 ? 0
@@ -286,7 +359,7 @@
 
 
         const result =
-            cost *
+            safeCost *
             (
                 1 -
                 (
@@ -331,6 +404,13 @@
         }
 
 
+        const safeCost =
+            Math.max(
+                0,
+                cost
+            );
+
+
         const safeDiscount =
             discount === null
                 ? 0
@@ -345,7 +425,7 @@
 
         return Number(
             (
-                cost *
+                safeCost *
                 (
                     safeDiscount /
                     100
@@ -361,7 +441,7 @@
     /* =====================================================
        NORMALIZE MODEL PRICING
        -----------------------------------------------------
-       Model menjadi satu-satunya sumber data.
+       Satu record models = satu sumber pricing.
     ===================================================== */
 
     function normalizeModelPricing(
@@ -385,10 +465,22 @@
             );
 
 
-        const discountPercent =
+        const discountPercentRaw =
             toNumber(
                 model.discount_percent
             );
+
+
+        const discountPercent =
+            discountPercentRaw === null
+                ? 0
+                : Math.min(
+                    100,
+                    Math.max(
+                        0,
+                        discountPercentRaw
+                    )
+                );
 
 
         const calculatedFinal =
@@ -398,18 +490,18 @@
             );
 
 
+        /*
+         * Jika database memiliki credit_final,
+         * gunakan nilai database.
+         *
+         * Jika NULL/kosong, gunakan hasil kalkulasi.
+         */
+
         const storedFinal =
             toNumber(
                 model.credit_final
             );
 
-
-        /*
-         * Jika credit_final tersedia di database,
-         * gunakan nilai database.
-         *
-         * Jika kosong, hitung dari cost + discount.
-         */
 
         const creditFinal =
             storedFinal !== null
@@ -431,6 +523,10 @@
                 model.model_name ??
                 "",
 
+            description:
+                model.description ??
+                "",
+
             provider_id:
                 model.provider_id ??
                 null,
@@ -439,9 +535,7 @@
                 creditCost,
 
             discount_percent:
-                discountPercent === null
-                    ? 0
-                    : discountPercent,
+                discountPercent,
 
             credit_final:
                 creditFinal,
@@ -496,9 +590,41 @@
 
 
     /* =====================================================
+       NORMALIZE MODEL LIST
+       ===================================================== */
+
+    function normalizeModelList(
+        models
+    ) {
+
+        if (
+            !Array.isArray(
+                models
+            )
+        ) {
+
+            return [];
+
+        }
+
+
+        return models
+            .map(
+                normalizeModelPricing
+            )
+            .filter(
+                Boolean
+            );
+
+    }
+
+
+    /* =====================================================
        LOAD PRICING
        -----------------------------------------------------
-       Sumber langsung tabel models.
+       TIDAK QUERY SUPABASE.
+
+       Data diambil dari GENZModelsData.
     ===================================================== */
 
     async function loadPricing(
@@ -559,16 +685,16 @@
         }
 
 
-        const supabase =
-            getSupabase();
+        const modelsData =
+            getModelsData();
 
 
         if (
-            !supabase
+            !modelsData
         ) {
 
             throw new Error(
-                "Supabase client belum tersedia."
+                "GENZModelsData belum tersedia."
             );
 
         }
@@ -577,68 +703,66 @@
         loadingPromise =
             (async function () {
 
-                const {
-                    data,
-                    error
-                } =
-                    await supabase
-                        .from(
-                            MODEL_TABLE
-                        )
-                        .select(`
-                            id,
-                            provider_id,
-                            model_id,
-                            model_name,
-                            credit_cost,
-                            discount_percent,
-                            credit_final,
-                            min_duration,
-                            max_duration,
-                            supported_ratios,
-                            supported_resolutions,
-                            status,
-                            created_at,
-                            updated_at
-                        `)
-                        .order(
-                            "created_at",
-                            {
-                                ascending:
-                                    false
-                            }
-                        );
+                let models = [];
 
+
+                /*
+                 * PRIORITAS:
+                 * getCachedModels()
+                 */
 
                 if (
-                    error
+                    !force &&
+                    typeof modelsData.getCachedModels ===
+                    "function"
                 ) {
 
-                    console.error(
-                        "[models-price] Gagal memuat pricing model:",
-                        error
-                    );
+                    models =
+                        modelsData.getCachedModels();
+
+                }
 
 
-                    throw error;
+                /*
+                 * Jika cache kosong atau force,
+                 * gunakan loadModels().
+                 */
+
+                if (
+                    force ||
+                    !Array.isArray(
+                        models
+                    ) ||
+                    models.length === 0
+                ) {
+
+                    if (
+                        typeof modelsData.loadModels !==
+                        "function"
+                    ) {
+
+                        throw new Error(
+                            "GENZModelsData.loadModels() tidak tersedia."
+                        );
+
+                    }
+
+
+                    models =
+                        await modelsData.loadModels(
+                            {
+                                force:
+                                    force
+                            }
+                        );
 
                 }
 
 
                 pricingCache =
-                    (
-                        Array.isArray(
-                            data
-                        )
-                            ? data
-                            : []
-                    )
-                        .map(
-                            normalizeModelPricing
-                        )
-                        .filter(
-                            Boolean
-                        );
+                    normalizeModelList(
+                        models
+                    );
 
 
                 return [
@@ -675,7 +799,7 @@
 
     /* =====================================================
        FILTER PRICING
-    ===================================================== */
+       ===================================================== */
 
     function filterPricing(
         pricing,
@@ -701,44 +825,61 @@
 
 
         const normalizedModelId =
-            modelId !== null
-                ? normalizeString(
+            modelId !== null &&
+            modelId !== undefined
+
+                ?
+
+                normalizeString(
                     modelId
                 )
-                : null;
+
+                :
+
+                null;
 
 
         const normalizedProviderId =
-            providerId !== null
-                ? normalizeString(
+            providerId !== null &&
+            providerId !== undefined
+
+                ?
+
+                normalizeString(
                     providerId
                 )
-                : null;
+
+                :
+
+                null;
 
 
         const normalizedStatus =
-            status !== null
-                ? normalizeString(
+            status !== null &&
+            status !== undefined
+
+                ?
+
+                normalizeString(
                     status
                 )
-                : null;
+
+                :
+
+                null;
 
 
         return pricing.filter(
-            item => {
+            function (item) {
 
                 if (
                     normalizedModelId
                 ) {
 
-                    const itemModelId =
+                    if (
                         normalizeString(
                             item.model_id
-                        );
-
-
-                    if (
-                        itemModelId !==
+                        ) !==
                         normalizedModelId
                     ) {
 
@@ -753,14 +894,10 @@
                     normalizedProviderId
                 ) {
 
-                    const itemProviderId =
+                    if (
                         normalizeString(
                             item.provider_id
-                        );
-
-
-                    if (
-                        itemProviderId !==
+                        ) !==
                         normalizedProviderId
                     ) {
 
@@ -775,14 +912,10 @@
                     normalizedStatus
                 ) {
 
-                    const itemStatus =
+                    if (
                         normalizeString(
                             item.status
-                        );
-
-
-                    if (
-                        itemStatus !==
+                        ) !==
                         normalizedStatus
                     ) {
 
@@ -803,7 +936,7 @@
 
     /* =====================================================
        FIND PRICING FOR MODEL
-    ===================================================== */
+       ===================================================== */
 
     function findPricingForModel(
         model,
@@ -811,15 +944,7 @@
     ) {
 
         if (
-            !model
-        ) {
-
-            return [];
-
-        }
-
-
-        if (
+            !model ||
             !Array.isArray(
                 pricing
             )
@@ -853,7 +978,7 @@
 
 
         return pricing.filter(
-            item => {
+            function (item) {
 
                 const itemModelId =
                     normalizeString(
@@ -890,8 +1015,8 @@
 
 
     /* =====================================================
-       FIND BY MODEL ID
-    ===================================================== */
+       GET MODEL PRICING BY MODEL ID
+       ===================================================== */
 
     function getModelPricingById(
         modelId,
@@ -917,14 +1042,71 @@
 
 
         return (
+
             pricing.find(
-                item =>
-                    normalizeString(
-                        item.model_id
-                    ) ===
-                    normalized
+                function (item) {
+
+                    return (
+                        normalizeString(
+                            item.model_id
+                        ) ===
+                        normalized
+                    );
+
+                }
             ) ||
+
             null
+
+        );
+
+    }
+
+
+    /* =====================================================
+       GET MODEL PRICING BY DATABASE ID
+       ===================================================== */
+
+    function getModelPricingByDbId(
+        databaseId,
+        pricing = pricingCache
+    ) {
+
+        const normalized =
+            normalizeString(
+                databaseId
+            );
+
+
+        if (
+            !normalized ||
+            !Array.isArray(
+                pricing
+            )
+        ) {
+
+            return null;
+
+        }
+
+
+        return (
+
+            pricing.find(
+                function (item) {
+
+                    return (
+                        normalizeString(
+                            item.id
+                        ) ===
+                        normalized
+                    );
+
+                }
+            ) ||
+
+            null
+
         );
 
     }
@@ -932,11 +1114,7 @@
 
     /* =====================================================
        LOWEST PRICE
-       -----------------------------------------------------
-       Compatibility API.
-       Untuk model baru hanya ada satu record pricing
-       per model, tetapi fungsi tetap dipertahankan.
-    ===================================================== */
+       ===================================================== */
 
     function getLowestPrice(
         pricing
@@ -959,7 +1137,7 @@
 
 
         pricing.forEach(
-            item => {
+            function (item) {
 
                 const value =
                     toNumber(
@@ -979,12 +1157,27 @@
 
 
                 if (
-                    lowest === null ||
-                    value <
-                    Number(
+                    lowest === null
+                ) {
+
+                    lowest =
+                        item;
+
+                    return;
+
+                }
+
+
+                const lowestValue =
+                    toNumber(
                         lowest.credit_final ??
                         lowest.credit_cost
-                    )
+                    );
+
+
+                if (
+                    lowestValue === null ||
+                    value < lowestValue
                 ) {
 
                     lowest =
@@ -1003,7 +1196,7 @@
 
     /* =====================================================
        HIGHEST PRICE
-    ===================================================== */
+       ===================================================== */
 
     function getHighestPrice(
         pricing
@@ -1026,7 +1219,7 @@
 
 
         pricing.forEach(
-            item => {
+            function (item) {
 
                 const value =
                     toNumber(
@@ -1046,12 +1239,27 @@
 
 
                 if (
-                    highest === null ||
-                    value >
-                    Number(
+                    highest === null
+                ) {
+
+                    highest =
+                        item;
+
+                    return;
+
+                }
+
+
+                const highestValue =
+                    toNumber(
                         highest.credit_final ??
                         highest.credit_cost
-                    )
+                    );
+
+
+                if (
+                    highestValue === null ||
+                    value > highestValue
                 ) {
 
                     highest =
@@ -1070,7 +1278,7 @@
 
     /* =====================================================
        AVERAGE PRICE
-    ===================================================== */
+       ===================================================== */
 
     function getAveragePrice(
         pricing
@@ -1091,16 +1299,24 @@
         const values =
             pricing
                 .map(
-                    item =>
-                        toNumber(
+                    function (item) {
+
+                        return toNumber(
                             item.credit_final ??
                             item.credit_cost
-                        )
+                        );
+
+                    }
                 )
                 .filter(
-                    value =>
-                        value !== null &&
-                        value >= 0
+                    function (value) {
+
+                        return (
+                            value !== null &&
+                            value >= 0
+                        );
+
+                    }
                 );
 
 
@@ -1115,11 +1331,17 @@
 
         const total =
             values.reduce(
-                (
+                function (
                     sum,
                     value
-                ) =>
-                    sum + value,
+                ) {
+
+                    return (
+                        sum +
+                        value
+                    );
+
+                },
                 0
             );
 
@@ -1134,32 +1356,34 @@
 
     /* =====================================================
        GET MODEL PRICE
-    ===================================================== */
+       ===================================================== */
 
     function getModelPrice(
         model,
         pricing = pricingCache
     ) {
 
+        if (!model) {
+
+            return null;
+
+        }
+
+
         /*
-         * Jika model belum ada di cache,
-         * gunakan langsung record model.
+         * Model sudah membawa pricing.
          *
-         * Ini penting supaya form tidak tergantung
-         * pada request pricing tambahan.
+         * Gunakan langsung.
          */
 
         if (
-            model &&
-            (
-                Object.prototype.hasOwnProperty.call(
-                    model,
-                    "credit_cost"
-                ) ||
-                Object.prototype.hasOwnProperty.call(
-                    model,
-                    "credit_final"
-                )
+            Object.prototype.hasOwnProperty.call(
+                model,
+                "credit_cost"
+            ) ||
+            Object.prototype.hasOwnProperty.call(
+                model,
+                "credit_final"
             )
         ) {
 
@@ -1201,6 +1425,10 @@
 
         }
 
+
+        /*
+         * Fallback ke cache.
+         */
 
         const matches =
             findPricingForModel(
@@ -1258,7 +1486,7 @@
 
     /* =====================================================
        CREDIT SUMMARY
-    ===================================================== */
+       ===================================================== */
 
     function getCreditSummary(
         model
@@ -1342,7 +1570,7 @@
        CALCULATE COST
        -----------------------------------------------------
        Compatibility utility.
-    ===================================================== */
+       ===================================================== */
 
     function calculateCost(
         unitPrice,
@@ -1383,7 +1611,10 @@
 
 
     /* =====================================================
-       USD / IDR COMPATIBILITY
+       USD / IDR
+       -----------------------------------------------------
+       Compatibility only.
+       Tidak berhubungan dengan credit model.
        ===================================================== */
 
     function getUsdToIdrRate() {
@@ -1453,7 +1684,7 @@
         rate
     ) {
 
-        const number =
+        const numeric =
             Number(
                 rate
             );
@@ -1461,9 +1692,9 @@
 
         if (
             !Number.isFinite(
-                number
+                numeric
             ) ||
-            number <= 0
+            numeric <= 0
         ) {
 
             return false;
@@ -1472,7 +1703,7 @@
 
 
         window.GENZ_USD_IDR_RATE =
-            number;
+            numeric;
 
 
         try {
@@ -1480,7 +1711,7 @@
             localStorage.setItem(
                 "GENZ_USD_IDR_RATE",
                 String(
-                    number
+                    numeric
                 )
             );
 
@@ -1489,7 +1720,7 @@
         ) {
 
             console.warn(
-                "[models-price] Tidak dapat menyimpan kurs:",
+                "[GEN-Z.AI] Tidak dapat menyimpan kurs:",
                 error
             );
 
@@ -1523,8 +1754,14 @@
 
         const exchangeRate =
             rate === null
-                ? getUsdToIdrRate()
-                : toNumber(
+
+                ?
+
+                getUsdToIdrRate()
+
+                :
+
+                toNumber(
                     rate
                 );
 
@@ -1569,8 +1806,14 @@
 
         const exchangeRate =
             rate === null
-                ? getUsdToIdrRate()
-                : toNumber(
+
+                ?
+
+                getUsdToIdrRate()
+
+                :
+
+                toNumber(
                     rate
                 );
 
@@ -1595,20 +1838,20 @@
 
     /* =====================================================
        FORMAT CREDIT
-    ===================================================== */
+       ===================================================== */
 
     function formatCredit(
         value
     ) {
 
-        const number =
+        const numeric =
             toNumber(
                 value
             );
 
 
         if (
-            number === null
+            numeric === null
         ) {
 
             return "-";
@@ -1626,7 +1869,7 @@
                     6
             }
         ).format(
-            number
+            numeric
         );
 
     }
@@ -1634,22 +1877,20 @@
 
     /* =====================================================
        FORMAT USD
-       -----------------------------------------------------
-       Compatibility API.
-    ===================================================== */
+       ===================================================== */
 
     function formatUsd(
         value
     ) {
 
-        const number =
+        const numeric =
             toNumber(
                 value
             );
 
 
         if (
-            number === null
+            numeric === null
         ) {
 
             return "-";
@@ -1674,7 +1915,7 @@
 
             }
         ).format(
-            number
+            numeric
         );
 
     }
@@ -1682,20 +1923,20 @@
 
     /* =====================================================
        FORMAT IDR
-    ===================================================== */
+       ===================================================== */
 
     function formatIdr(
         value
     ) {
 
-        const number =
+        const numeric =
             toNumber(
                 value
             );
 
 
         if (
-            number === null
+            numeric === null
         ) {
 
             return "-";
@@ -1721,7 +1962,7 @@
             }
         ).format(
             Math.round(
-                number
+                numeric
             )
         );
 
@@ -1730,7 +1971,7 @@
 
     /* =====================================================
        PRICE SUMMARY
-    ===================================================== */
+       ===================================================== */
 
     function getPriceSummary(
         pricing
@@ -1762,34 +2003,25 @@
         }
 
 
-        const lowest =
-            getLowestPrice(
-                pricing
-            );
-
-
-        const highest =
-            getHighestPrice(
-                pricing
-            );
-
-
-        const average =
-            getAveragePrice(
-                pricing
-            );
-
-
         return {
 
             count:
                 pricing.length,
 
-            lowest,
+            lowest:
+                getLowestPrice(
+                    pricing
+                ),
 
-            highest,
+            highest:
+                getHighestPrice(
+                    pricing
+                ),
 
-            average
+            average:
+                getAveragePrice(
+                    pricing
+                )
 
         };
 
@@ -1797,8 +2029,8 @@
 
 
     /* =====================================================
-       RENDER MODEL CREDIT
-    ===================================================== */
+       RENDER MODEL PRICE
+       ===================================================== */
 
     function renderPrice(
         pricing
@@ -1865,6 +2097,7 @@
             <div class="model-price">
 
                 <div class="model-credit-cost">
+
                     Credit:
                     <strong>
                         ${escapeHtml(
@@ -1873,12 +2106,14 @@
                             )
                         )}
                     </strong>
+
                 </div>
 
                 ${
                     discount > 0
                         ? `
                             <div class="model-credit-discount">
+
                                 Diskon:
                                 <strong>
                                     ${escapeHtml(
@@ -1887,12 +2122,14 @@
                                         )
                                     )}%
                                 </strong>
+
                             </div>
                         `
                         : ""
                 }
 
                 <div class="model-credit-final">
+
                     Credit Final:
                     <strong>
                         ${escapeHtml(
@@ -1901,6 +2138,7 @@
                             )
                         )}
                     </strong>
+
                 </div>
 
             </div>
@@ -1911,7 +2149,7 @@
 
     /* =====================================================
        RENDER PRICE PREVIEW
-    ===================================================== */
+       ===================================================== */
 
     function renderPricePreview(
         pricing
@@ -1926,9 +2164,11 @@
 
             return `
                 <div class="model-price-preview">
+
                     <div class="model-price-empty">
                         Belum ada data credit model.
                     </div>
+
                 </div>
             `;
 
@@ -1942,7 +2182,7 @@
                     20
                 )
                 .map(
-                    item => {
+                    function (item) {
 
                         const cost =
                             toNumber(
@@ -2040,7 +2280,7 @@
 
     /* =====================================================
        RENDER SUMMARY
-    ===================================================== */
+       ===================================================== */
 
     function renderPriceSummary(
         pricing
@@ -2065,14 +2305,11 @@
         }
 
 
-        const lowest =
-            summary.lowest;
-
-
         return `
             <div class="model-price-summary">
 
                 <div class="model-price-summary-row">
+
                     <span>
                         Jumlah Model
                     </span>
@@ -2080,9 +2317,11 @@
                     <strong>
                         ${summary.count}
                     </strong>
+
                 </div>
 
                 <div class="model-price-summary-row">
+
                     <span>
                         Credit Terendah
                     </span>
@@ -2090,14 +2329,16 @@
                     <strong>
                         ${escapeHtml(
                             formatCredit(
-                                lowest?.credit_final ??
-                                lowest?.credit_cost
+                                summary.lowest?.credit_final ??
+                                summary.lowest?.credit_cost
                             )
                         )}
                     </strong>
+
                 </div>
 
                 <div class="model-price-summary-row">
+
                     <span>
                         Credit Tertinggi
                     </span>
@@ -2110,6 +2351,7 @@
                             )
                         )}
                     </strong>
+
                 </div>
 
             </div>
@@ -2120,7 +2362,7 @@
 
     /* =====================================================
        CACHE
-    ===================================================== */
+       ===================================================== */
 
     function clearCache() {
 
@@ -2153,14 +2395,25 @@
 
 
     /* =====================================================
-       INITIALIZE
-    ===================================================== */
+       SYNC FROM MODEL DATA
+       -----------------------------------------------------
+       Dipakai setelah ModelData berubah.
+       ===================================================== */
 
-    async function initialize() {
+    function syncFromModels(
+        models
+    ) {
 
         if (
-            initialized
+            Array.isArray(
+                models
+            )
         ) {
+
+            pricingCache =
+                normalizeModelList(
+                    models
+                );
 
             return [
                 ...pricingCache
@@ -2169,20 +2422,98 @@
         }
 
 
-        /*
-         * Pricing model berasal dari tabel models.
-         *
-         * Jika gagal dimuat, jangan membuat seluruh
-         * halaman Models gagal.
-         */
+        const modelsData =
+            getModelsData();
+
+
+        if (
+            modelsData &&
+            typeof modelsData.getCachedModels ===
+            "function"
+        ) {
+
+            pricingCache =
+                normalizeModelList(
+                    modelsData.getCachedModels()
+                );
+
+        } else {
+
+            pricingCache =
+                [];
+
+        }
+
+
+        return [
+            ...pricingCache
+        ];
+
+    }
+
+
+    /* =====================================================
+       INITIALIZE
+       ===================================================== */
+
+    async function initialize() {
+
+        if (
+            initialized
+        ) {
+
+            /*
+             * Sinkronisasi ringan dengan cache
+             * ModelData jika tersedia.
+             */
+
+            const modelsData =
+                getModelsData();
+
+
+            if (
+                modelsData &&
+                typeof modelsData.getCachedModels ===
+                "function"
+            ) {
+
+                const cachedModels =
+                    modelsData.getCachedModels();
+
+
+                if (
+                    Array.isArray(
+                        cachedModels
+                    ) &&
+                    cachedModels.length > 0
+                ) {
+
+                    pricingCache =
+                        normalizeModelList(
+                            cachedModels
+                        );
+
+                }
+
+            }
+
+
+            return [
+                ...pricingCache
+            ];
+
+        }
+
 
         try {
 
             const result =
-                await loadPricing({
-                    force:
-                        false
-                });
+                await loadPricing(
+                    {
+                        force:
+                            false
+                    }
+                );
 
 
             initialized =
@@ -2200,6 +2531,11 @@
         } catch (
             error
         ) {
+
+            /*
+             * Pricing bukan alasan halaman Models
+             * harus gagal total.
+             */
 
             console.warn(
                 "[GEN-Z.AI] Model pricing initialization dilewati:",
@@ -2224,12 +2560,13 @@
 
     /* =====================================================
        RESET
-    ===================================================== */
+       ===================================================== */
 
     function reset() {
 
         initialized =
             false;
+
 
         clearCache();
 
@@ -2238,7 +2575,7 @@
 
     /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
 
     window.GENZModelsPrice =
         Object.freeze({
@@ -2255,11 +2592,15 @@
 
             getModelPricingById,
 
+            getModelPricingByDbId,
+
             getModelPrice,
 
             getCreditSummary,
 
             normalizeModelPricing,
+
+            normalizeModelList,
 
             getLowestPrice,
 
@@ -2295,6 +2636,8 @@
 
             renderPriceSummary,
 
+            syncFromModels,
+
             clearCache,
 
             getCachedPricing,
@@ -2304,9 +2647,8 @@
         });
 
 
-    console.log(
+    console.info(
         "[GEN-Z.AI] GENZModelsPrice loaded."
     );
-
 
 })();
