@@ -23,21 +23,35 @@
    - Pricing UI
 
    DATA FLOW MODEL:
-   
+
    PRIMARY:
    /api/kie-config
           ↓
       models[]
+          ↓
+   KIE provider identity
+          ↓
+   provider_id   = kie_ai
+   provider_name = KIE.AI
 
    FALLBACK:
    Supabase
       ↓
    kie_models
 
-   CATATAN:
-   - public.kie_models menggunakan kolom "provider"
-   - public.providers menggunakan "provider_id"
-   - provider.id adalah UUID database
+   IMPORTANT:
+   -----------------------------------------------
+   Field "provider" pada kie_models TIDAK boleh
+   langsung dianggap sebagai provider UI.
+
+   Untuk katalog KIE, Provider UI harus berasal
+   dari identitas provider KIE:
+
+       provider_id   = kie_ai
+       provider_name = KIE.AI
+
+   Model ID dan Model Name tetap berasal dari
+   record model masing-masing.
 ========================================================= */
 
 (function () {
@@ -57,6 +71,25 @@
 
     const KIE_CONFIG_ENDPOINT =
         "/api/kie-config";
+
+
+    /*
+     * Identitas Provider KIE.
+     *
+     * Jangan mengambil nilai ini dari:
+     *
+     *   model.provider
+     *   model.model_name
+     *   model.model_family
+     *
+     * Karena semuanya adalah data Model.
+     */
+
+    const KIE_PROVIDER_ID =
+        "kie_ai";
+
+    const KIE_PROVIDER_NAME =
+        "KIE.AI";
 
 
     /* =====================================================
@@ -127,10 +160,13 @@
 
 
     /* =====================================================
-       MODEL NORMALIZATION
+       KIE PROVIDER IDENTITY
+       -----------------------------------------------------
+       Semua model yang berasal dari katalog KIE harus
+       mendapatkan identitas Provider yang konsisten.
     ===================================================== */
 
-    function normalizeModel(
+    function applyKieProvider(
         model
     ) {
 
@@ -143,14 +179,69 @@
         }
 
 
-        const providerValue =
-            String(
-                model.provider ??
-                model.provider_id ??
-                model.provider_code ??
-                ""
-            ).trim();
+        return {
 
+            ...model,
+
+            /*
+             * Provider internal.
+             */
+
+            provider:
+                KIE_PROVIDER_ID,
+
+
+            /*
+             * Provider identifier yang dipakai
+             * untuk relasi dan engine.
+             */
+
+            provider_id:
+                KIE_PROVIDER_ID,
+
+
+            /*
+             * Provider display name.
+             */
+
+            provider_name:
+                KIE_PROVIDER_NAME
+
+        };
+    }
+
+
+    /* =====================================================
+       MODEL NORMALIZATION
+    ===================================================== */
+
+    function normalizeModel(
+        model,
+        options = {}
+    ) {
+
+        if (
+            !model ||
+            typeof model !== "object"
+        ) {
+
+            return null;
+        }
+
+
+        const {
+            forceKieProvider = false
+        } = options;
+
+
+        /*
+         * MODEL ID
+         *
+         * Prioritas:
+         * model_id
+         * modelId
+         * id
+         */
 
         const modelId =
             String(
@@ -160,6 +251,13 @@
                 ""
             ).trim();
 
+
+        /*
+         * MODEL NAME
+         *
+         * Jangan menggunakan provider sebagai
+         * fallback nama model.
+         */
 
         const modelName =
             String(
@@ -171,6 +269,10 @@
             ).trim();
 
 
+        /*
+         * MODEL FAMILY
+         */
+
         const modelFamily =
             String(
                 model.model_family ??
@@ -180,18 +282,34 @@
             ).trim();
 
 
-        return {
+        /*
+         * Provider hanya dibaca sebagai fallback
+         * untuk data non-KIE.
+         *
+         * Untuk katalog KIE, bagian ini akan
+         * digantikan oleh applyKieProvider().
+         */
+
+        const providerValue =
+            String(
+                model.provider_id ??
+                model.provider_code ??
+                model.provider ??
+                ""
+            ).trim();
+
+
+        const providerName =
+            String(
+                model.provider_name ??
+                model.providerName ??
+                ""
+            ).trim();
+
+
+        const normalized = {
 
             ...model,
-
-            provider:
-                providerValue,
-
-            provider_id:
-                String(
-                    model.provider_id ??
-                    providerValue
-                ).trim(),
 
             model_id:
                 modelId,
@@ -200,14 +318,46 @@
                 modelName,
 
             model_family:
-                modelFamily
+                modelFamily,
+
+            provider:
+                providerValue,
+
+            provider_id:
+                providerValue,
+
+            provider_name:
+                providerName
 
         };
+
+
+        /*
+         * Jika sumbernya KIE, provider wajib
+         * dikunci ke KIE.AI.
+         */
+
+        if (
+            forceKieProvider
+        ) {
+
+            return applyKieProvider(
+                normalized
+            );
+        }
+
+
+        return normalized;
     }
 
 
+    /* =====================================================
+       NORMALIZE MODELS
+    ===================================================== */
+
     function normalizeModels(
-        data
+        data,
+        options = {}
     ) {
 
         if (
@@ -220,7 +370,11 @@
 
         return data
             .map(
-                normalizeModel
+                model =>
+                    normalizeModel(
+                        model,
+                        options
+                    )
             )
             .filter(
                 Boolean
@@ -298,6 +452,10 @@
     }
 
 
+    /* =====================================================
+       NORMALIZE PROVIDERS
+    ===================================================== */
+
     function normalizeProviders(
         data
     ) {
@@ -324,7 +482,9 @@
                     );
 
 
-                if (!provider) {
+                if (
+                    !provider
+                ) {
 
                     return;
                 }
@@ -337,7 +497,9 @@
                     );
 
 
-                if (!key) {
+                if (
+                    !key
+                ) {
 
                     return;
                 }
@@ -381,11 +543,12 @@
 
         /*
          * Data lama kadang menggunakan status kosong.
-         * Status kosong tidak kita buang supaya katalog
-         * tidak tiba-tiba menjadi 0.
+         * Status kosong tetap dipertahankan.
          */
 
-        if (!status) {
+        if (
+            !status
+        ) {
 
             return true;
         }
@@ -470,10 +633,10 @@
 
 
     /* =====================================================
-       API RESPONSE NORMALIZATION
+       API RESPONSE EXTRACTION
     ===================================================== */
 
-    function extractModelsFromApiResponse(
+    function extractRawModelsFromApiResponse(
         data
     ) {
 
@@ -481,9 +644,7 @@
             Array.isArray(data)
         ) {
 
-            return normalizeModels(
-                data
-            );
+            return data;
         }
 
 
@@ -493,9 +654,7 @@
             )
         ) {
 
-            return normalizeModels(
-                data.models
-            );
+            return data.models;
         }
 
 
@@ -505,9 +664,7 @@
             )
         ) {
 
-            return normalizeModels(
-                data.data.models
-            );
+            return data.data.models;
         }
 
 
@@ -517,9 +674,7 @@
             )
         ) {
 
-            return normalizeModels(
-                data.data
-            );
+            return data.data;
         }
 
 
@@ -544,7 +699,9 @@
             await getAccessToken();
 
 
-        if (!token) {
+        if (
+            !token
+        ) {
 
             throw new Error(
                 "Session Supabase tidak tersedia untuk API KIE."
@@ -556,7 +713,9 @@
             KIE_CONFIG_ENDPOINT;
 
 
-        if (modelId) {
+        if (
+            modelId
+        ) {
 
             url +=
                 `?model_id=${encodeURIComponent(
@@ -604,7 +763,9 @@
             null;
 
 
-        if (text) {
+        if (
+            text
+        ) {
 
             try {
 
@@ -643,9 +804,38 @@
         }
 
 
-        const models =
-            extractModelsFromApiResponse(
+        /*
+         * Ambil record Model mentah.
+         */
+
+        const rawModels =
+            extractRawModelsFromApiResponse(
                 data
+            );
+
+
+        /*
+         * PENTING:
+         *
+         * Semua record yang keluar dari
+         * /api/kie-config adalah katalog KIE.
+         *
+         * Karena itu Provider TIDAK boleh
+         * diambil dari model.provider.
+         *
+         * Kita tetapkan:
+         *
+         * provider_id   = kie_ai
+         * provider_name = KIE.AI
+         */
+
+        const models =
+            normalizeModels(
+                rawModels,
+                {
+                    forceKieProvider:
+                        true
+                }
             );
 
 
@@ -654,6 +844,35 @@
             models.length,
             "model"
         );
+
+
+        /*
+         * Debug provider supaya mudah diverifikasi
+         * dari browser console.
+         */
+
+        if (
+            models.length
+        ) {
+
+            console.info(
+                "[models-data] Provider KIE:",
+                {
+                    provider_id:
+                        models[0].provider_id,
+
+                    provider_name:
+                        models[0].provider_name,
+
+                    model_id:
+                        models[0].model_id,
+
+                    model_name:
+                        models[0].model_name
+                }
+            );
+
+        }
 
 
         return models;
@@ -719,8 +938,21 @@
         }
 
 
+        /*
+         * Fallback ini tetap merupakan katalog
+         * KIE karena sumber tabelnya adalah
+         * kie_models.
+         *
+         * Jangan gunakan field "provider" mentah
+         * sebagai Provider UI.
+         */
+
         return normalizeModels(
-            data
+            data,
+            {
+                forceKieProvider:
+                    true
+            }
         );
     }
 
@@ -822,17 +1054,6 @@
                         await loadModelsFromApi();
 
 
-                    /*
-                     * API berhasil tetapi mengembalikan
-                     * array kosong.
-                     *
-                     * Jangan langsung menganggap API rusak.
-                     * Namun untuk Admin Model dropdown,
-                     * fallback Supabase tetap dicoba agar
-                     * katalog tidak kosong karena masalah
-                     * konfigurasi API.
-                     */
-
                     if (
                         !models.length
                     ) {
@@ -860,8 +1081,7 @@
                 /*
                  * STEP 2
                  *
-                 * Fallback ke Supabase langsung jika API
-                 * gagal atau tidak memberikan model.
+                 * Fallback ke Supabase langsung.
                  */
 
                 if (
@@ -881,12 +1101,6 @@
                         );
 
 
-                        /*
-                         * Kalau API dan fallback sama-sama
-                         * gagal, lempar error yang paling
-                         * informatif.
-                         */
-
                         throw (
                             fallbackError ||
                             apiError ||
@@ -903,9 +1117,25 @@
                    NORMALISASI FINAL
                 ================================================= */
 
+                /*
+                 * Paksa lagi identitas KIE pada tahap
+                 * terakhir sebagai pengaman.
+                 *
+                 * Dengan demikian tidak ada modul
+                 * setelah ini yang menerima:
+                 *
+                 * provider = "grok imagine image to video"
+                 *
+                 * untuk model KIE.
+                 */
+
                 models =
                     normalizeModels(
-                        models
+                        models,
+                        {
+                            forceKieProvider:
+                                true
+                        }
                     );
 
 
@@ -1016,7 +1246,9 @@
             );
 
 
-        if (!term) {
+        if (
+            !term
+        ) {
 
             return [
                 ...models
@@ -1045,10 +1277,15 @@
                     );
 
 
-                const provider =
+                const providerId =
                     normalizeString(
-                        model.provider_id ||
-                        model.provider
+                        model.provider_id
+                    );
+
+
+                const providerName =
+                    normalizeString(
+                        model.provider_name
                     );
 
 
@@ -1066,7 +1303,11 @@
                         term
                     ) ||
 
-                    provider.includes(
+                    providerId.includes(
+                        term
+                    ) ||
+
+                    providerName.includes(
                         term
                     )
 
@@ -1091,7 +1332,9 @@
             );
 
 
-        if (!id) {
+        if (
+            !id
+        ) {
 
             return null;
         }
@@ -1363,7 +1606,9 @@
             );
 
 
-        if (!target) {
+        if (
+            !target
+        ) {
 
             return null;
         }
@@ -1435,7 +1680,9 @@
             );
 
 
-        if (!term) {
+        if (
+            !term
+        ) {
 
             return [
                 ...providers
@@ -1571,6 +1818,12 @@
 
             kieConfigEndpoint:
                 KIE_CONFIG_ENDPOINT,
+
+            kieProviderId:
+                KIE_PROVIDER_ID,
+
+            kieProviderName:
+                KIE_PROVIDER_NAME,
 
             modelCacheLoaded:
                 modelCacheLoaded,
