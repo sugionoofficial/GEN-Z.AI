@@ -201,11 +201,6 @@
 
     /* =====================================================
        EVENT REGISTRY
-    =====================================================
-
-       Semua listener dicatat agar bind()
-       tidak menghasilkan duplicate listener.
-
     ===================================================== */
 
     function addListener(
@@ -285,18 +280,6 @@
 
     /* =====================================================
        MODAL
-    =====================================================
-
-       Modal sekarang ditangani langsung oleh
-       Model Form Events.
-
-       Tidak lagi bergantung kepada:
-
-           window.GENZModelsForm
-
-       Ini penting agar models-form.js nantinya
-       dapat dilepas tanpa mematikan event Form.
-
     ===================================================== */
 
     function closeModal() {
@@ -309,10 +292,18 @@
 
         if (!modal) {
 
+            console.warn(
+                "[model-form-events] #modelModal tidak ditemukan."
+            );
+
             return false;
 
         }
 
+
+        /* =================================================
+           HENTIKAN EVENT YANG MUNGKIN MASIH BERJALAN
+        ================================================= */
 
         modal.classList.remove(
             "open",
@@ -331,19 +322,36 @@
         );
 
 
+        /*
+         * Pastikan display benar-benar tertutup.
+         */
         modal.style.display =
             "none";
 
 
+        /*
+         * Bersihkan kemungkinan inline visibility.
+         */
+        modal.style.visibility =
+            "hidden";
+
+
+        /*
+         * Pulihkan body.
+         */
         document.body.classList.remove(
             "modal-open"
         );
 
 
-        /*
-         * Tutup Model Search dropdown
-         * jika module tersedia.
-         */
+        document.body.style.removeProperty(
+            "overflow"
+        );
+
+
+        /* =================================================
+           TUTUP MODEL SEARCH DROPDOWN
+        ================================================= */
 
         const search =
             window.GENZModelsSearch;
@@ -371,10 +379,9 @@
         }
 
 
-        /*
-         * Fallback langsung ke dropdown
-         * search module baru.
-         */
+        /* =================================================
+           FALLBACK SEARCH DROPDOWN
+        ================================================= */
 
         const searchDropdown =
             window.GENZModelSearchDropdown;
@@ -400,6 +407,39 @@
             }
 
         }
+
+
+        /* =================================================
+           EVENT NOTIFICATION
+        ================================================= */
+
+        try {
+
+            document.dispatchEvent(
+                new CustomEvent(
+                    "genz-model-modal-closed",
+                    {
+                        detail: {
+                            source:
+                                "model-form-events"
+                        }
+                    }
+                )
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "[model-form-events] Close event gagal:",
+                error
+            );
+
+        }
+
+
+        console.info(
+            "[GEN-Z.AI] Model modal closed."
+        );
 
 
         return true;
@@ -462,11 +502,6 @@
         }
 
 
-        /*
-         * Coordinator adalah owner utama
-         * operasi CRUD.
-         */
-
         const coordinator =
             getCoordinator();
 
@@ -484,15 +519,6 @@
         ) {
 
             try {
-
-                /*
-                 * Mode Edit sekarang diambil
-                 * langsung dari Form Edit module.
-                 *
-                 * Tidak lagi menggunakan:
-                 *
-                 * window.GENZModelsForm
-                 */
 
                 const edit =
                     getEditModule();
@@ -531,7 +557,6 @@
                     "[model-form-events] Coordinator submit error:",
                     error
                 );
-
 
                 throw error;
 
@@ -631,13 +656,6 @@
 
     /* =====================================================
        PROVIDER CHANGE
-    =====================================================
-
-       Event Provider hanya memberi tahu module
-       yang memang memiliki tanggung jawab.
-
-       Tidak mengambil alih filtering Model.
-
     ===================================================== */
 
     async function handleProviderChange(
@@ -663,11 +681,6 @@
                 select.value || ""
             ).trim();
 
-
-        /*
-         * Provider kosong:
-         * Model ID harus dikosongkan oleh Layout.
-         */
 
         const layout =
             getLayout();
@@ -705,11 +718,6 @@
         }
 
 
-        /*
-         * Layout menjadi owner refresh
-         * Model ID berdasarkan Provider.
-         */
-
         if (
 
             layout &&
@@ -734,11 +742,6 @@
 
         }
 
-
-        /*
-         * Beritahu module lain bahwa Provider
-         * berubah.
-         */
 
         document.dispatchEvent(
 
@@ -793,12 +796,6 @@
             getLayout();
 
 
-        /*
-         * Model ID selection dimiliki Layout.
-         *
-         * Jangan menulis ulang option.
-         */
-
         if (
 
             layout &&
@@ -820,10 +817,6 @@
 
                 if (model) {
 
-                    /*
-                     * Hidden modelCode.
-                     */
-
                     const hidden =
                         getElement(
                             "modelCode"
@@ -837,14 +830,6 @@
 
                     }
 
-
-                    /*
-                     * Model Name.
-                     *
-                     * Hanya isi apabila kosong.
-                     * Ini mencegah edit menimpa
-                     * nama custom dari database.
-                     */
 
                     const modelName =
                         getElement(
@@ -868,10 +853,6 @@
 
                     }
 
-
-                    /*
-                     * Informasi Model.
-                     */
 
                     document.dispatchEvent(
 
@@ -909,13 +890,6 @@
 
     /* =====================================================
        PRICE INPUT
-    =====================================================
-
-       Price calculation owner menangani
-       kalkulasi sebenarnya.
-
-       Event module hanya meneruskan perubahan.
-
     ===================================================== */
 
     function handlePriceInput(
@@ -1028,9 +1002,7 @@
 
         /*
          * Hanya klik langsung pada backdrop.
-         *
-         * Klik di dalam modal tidak boleh
-         * menutup modal.
+         * Klik isi modal tidak menutup modal.
          */
 
         if (
@@ -1076,6 +1048,8 @@
 
 
         event.preventDefault();
+
+        event.stopPropagation();
 
 
         closeModal();
@@ -1178,13 +1152,6 @@
         }
 
 
-        /*
-         * Model Code Search sekarang dapat berupa
-         * SELECT maupun INPUT legacy.
-         *
-         * Event tetap kompatibel.
-         */
-
         return addListener(
             model,
             "change",
@@ -1254,13 +1221,30 @@
 
 
     /* =====================================================
-       BIND CLOSE
+       BIND CLOSE BUTTONS
+       -----------------------------------------------------
+       ID AKTUAL DARI models.html:
+
+           #closeModalBtn
+           #cancelModalBtn
+
+       Keduanya sengaja didaftarkan secara eksplisit.
     ===================================================== */
 
     function bindCloseButtons() {
 
         const selectors = [
 
+            /*
+             * ID AKTUAL
+             */
+            "closeModalBtn",
+
+            "cancelModalBtn",
+
+            /*
+             * Compatibility ID lama
+             */
             "closeModelModal",
 
             "closeModelBtn",
@@ -1293,8 +1277,8 @@
 
 
             /*
-             * Tombol cancel/close tidak boleh
-             * submit form.
+             * Close dan Cancel tidak boleh
+             * menjadi submit button.
              */
 
             if (
@@ -1308,14 +1292,36 @@
             }
 
 
+            /*
+             * Tombol Cancel memakai handler
+             * khusus Cancel.
+             *
+             * Tombol lainnya memakai handler Close.
+             */
+            const handler =
+                id === "cancelModalBtn" ||
+                id === "cancelModelBtn" ||
+                id === "cancelModelButton"
+
+                    ? handleCancel
+
+                    : handleCloseClick;
+
+
             addListener(
                 element,
                 "click",
-                handleCloseClick
+                handler
             );
 
 
             count += 1;
+
+
+            console.info(
+                "[GEN-Z.AI] Model modal button bound:",
+                id
+            );
 
         }
 
@@ -1326,7 +1332,10 @@
 
 
     /* =====================================================
-       BIND CANCEL
+       BIND CANCEL DATA ATTRIBUTE
+       -----------------------------------------------------
+       Tetap mendukung tombol yang menggunakan:
+           data-model-cancel
     ===================================================== */
 
     function bindCancel() {
@@ -1342,6 +1351,25 @@
 
         buttons.forEach(
             button => {
+
+                /*
+                 * Hindari duplicate binding jika
+                 * tombol tersebut juga memiliki
+                 * ID cancelModalBtn.
+                 */
+                if (
+                    button.id ===
+                        "cancelModalBtn" ||
+                    button.id ===
+                        "cancelModelBtn" ||
+                    button.id ===
+                        "cancelModelButton"
+                ) {
+
+                    return;
+
+                }
+
 
                 if (
                     button.tagName ===
@@ -1422,9 +1450,7 @@
     function bind() {
 
         /*
-         * Sangat penting:
-         *
-         * Jika bind dipanggil berkali-kali,
+         * Jika bind dipanggil ulang,
          * listener lama dibuang terlebih dahulu.
          */
 
@@ -1435,58 +1461,58 @@
         }
 
 
-        /*
-         * Submit.
-         */
+        /* ================================================
+           SUBMIT
+        ================================================ */
 
         bindSubmit();
 
 
-        /*
-         * Provider.
-         */
+        /* ================================================
+           PROVIDER
+        ================================================ */
 
         bindProvider();
 
 
-        /*
-         * Model ID.
-         */
+        /* ================================================
+           MODEL ID
+        ================================================ */
 
         bindModel();
 
 
-        /*
-         * Credit / Discount.
-         */
+        /* ================================================
+           CREDIT / DISCOUNT
+        ================================================ */
 
         bindPrice();
 
 
-        /*
-         * Close.
-         */
+        /* ================================================
+           CLOSE + CANCEL
+        ================================================ */
 
         bindCloseButtons();
 
 
-        /*
-         * Cancel.
-         */
+        /* ================================================
+           DATA ATTRIBUTE CANCEL
+        ================================================ */
 
         bindCancel();
 
 
-        /*
-         * Backdrop.
-         */
+        /* ================================================
+           BACKDROP
+        ================================================ */
 
         bindBackdrop();
 
 
-        /*
-         * Escape.
-         */
+        /* ================================================
+           ESCAPE
+        ================================================ */
 
         bindEscape();
 
@@ -1494,7 +1520,7 @@
         initialized = true;
 
 
-        console.log(
+        console.info(
             "[GEN-Z.AI] GENZModelFormEvents bound."
         );
 
