@@ -5,7 +5,7 @@
    File:
    admin-control/models/functions/model-table.js
 
-   OWNER:
+   Tanggung jawab:
    - Menyimpan data Models untuk tampilan tabel
    - Normalisasi data tabel
    - Render tabel
@@ -13,30 +13,34 @@
    - Render empty state
    - Format angka
    - Format status
-   - Format Harga KIE
+   - Format duration
+   - Format ratio
+   - Format resolution
    - Menyediakan lookup Model berdasarkan ID
 
-   TIDAK BERTANGGUNG JAWAB:
+   TIDAK bertanggung jawab:
    - Search
    - Provider loading
    - Form Create/Edit
    - CRUD API
    - Price calculation
-   - Event Listener
+   - Event listener
    - Delete confirmation
    - Edit action
+   - KIE pricing
+   - kie_* table
 
    =========================================================
    URUTAN KOLOM WAJIB SAMA DENGAN models.html:
 
    1. Model
    2. Provider
-   3. Harga KIE
-   4. Credit
-   5. Diskon
-   6. Credit Final
-   7. Duration
-   8. Ratio
+   3. Credit
+   4. Diskon
+   5. Credit Final
+   6. Duration
+   7. Ratio
+   8. Resolution
    9. Status
    10. Aksi
    ========================================================= */
@@ -86,9 +90,7 @@
        HTML ESCAPE
     ===================================================== */
 
-    function escapeHtml(
-        value
-    ) {
+    function escapeHtml(value) {
 
         return String(
             value ?? ""
@@ -123,12 +125,146 @@
 
 
     /* =====================================================
-       NORMALIZE MODEL
+       NORMALIZE ARRAY
     ===================================================== */
 
-    function normalizeModel(
-        model
-    ) {
+    function normalizeArray(value) {
+
+        if (Array.isArray(value)) {
+
+            return value
+                .map(function (item) {
+
+                    return String(
+                        item ?? ""
+                    ).trim();
+
+                })
+                .filter(Boolean);
+
+        }
+
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+
+            return [];
+
+        }
+
+
+        if (typeof value === "string") {
+
+            const text =
+                value.trim();
+
+            if (!text) {
+                return [];
+            }
+
+
+            /*
+             * Supabase dapat mengembalikan:
+             *
+             * ["9:16","16:9"]
+             *
+             * sebagai JSON string.
+             */
+
+            if (
+                (
+                    text.startsWith("[") &&
+                    text.endsWith("]")
+                ) ||
+                (
+                    text.startsWith("{") &&
+                    text.endsWith("}")
+                )
+            ) {
+
+                try {
+
+                    const parsed =
+                        JSON.parse(text);
+
+                    if (
+                        Array.isArray(
+                            parsed
+                        )
+                    ) {
+
+                        return normalizeArray(
+                            parsed
+                        );
+
+                    }
+
+                } catch {
+
+                    /*
+                     * Lanjutkan sebagai
+                     * comma-separated value.
+                     */
+
+                }
+
+            }
+
+
+            return text
+                .split(",")
+                .map(function (item) {
+
+                    return String(
+                        item
+                    ).trim();
+
+                })
+                .filter(Boolean);
+
+        }
+
+
+        if (
+            typeof value === "object"
+        ) {
+
+            try {
+
+                return Object.values(
+                    value
+                )
+                    .map(function (item) {
+
+                        return String(
+                            item ?? ""
+                        ).trim();
+
+                    })
+                    .filter(Boolean);
+
+            } catch {
+
+                return [];
+
+            }
+
+        }
+
+
+        return [];
+
+    }
+
+
+    /* =====================================================
+       NORMALIZE MODEL
+       ===================================================== */
+
+    function normalizeModel(model) {
 
         if (
             !model ||
@@ -140,66 +276,63 @@
         }
 
 
-        /*
-         * -------------------------------------------------
-         * PRICE KIE
-         *
-         * Jangan mengambil harga KIE dari credit_cost.
-         *
-         * Harga KIE dan Credit adalah dua data berbeda.
-         *
-         * Kita menerima beberapa nama field agar tetap
-         * kompatibel dengan berbagai bentuk pricing API.
-         * -------------------------------------------------
-         */
+        const provider =
+            model.provider &&
+            typeof model.provider === "object"
 
-        const kieUnitPrice =
-            model.kie_unit_price ??
-            model.kieUnitPrice ??
-            model.unit_price ??
-            model.unitPrice ??
-            model.kie_price ??
-            model.kiePrice ??
-            model.price_usd ??
-            model.priceUsd ??
-            model.usd_price ??
-            model.usdPrice ??
-            null;
+                ? model.provider
+
+                : null;
 
 
-        const kieCurrency =
-            model.kie_currency ??
-            model.kieCurrency ??
-            model.currency ??
-            "USD";
+        const providerId =
+            String(
+                model.provider_id ??
+                provider?.id ??
+                ""
+            ).trim();
 
 
-        const kieUnit =
-            model.kie_unit ??
-            model.kieUnit ??
-            model.unit ??
-            "unit";
+        const providerCode =
+            String(
+                provider?.provider_id ??
+                model.provider_code ??
+                model.providerId ??
+                ""
+            ).trim();
 
 
-        const kiePriceIdr =
-            model.kie_price_idr ??
-            model.kiePriceIdr ??
-            model.price_idr ??
-            model.priceIdr ??
-            null;
+        const providerName =
+            String(
+                provider?.provider_name ??
+                model.provider_name ??
+                model.providerName ??
+                model.provider ??
+                providerCode ??
+                providerId ??
+                ""
+            ).trim();
 
 
-        /*
-         * -------------------------------------------------
-         * MODEL DATA
-         * -------------------------------------------------
-         */
+        const supportedRatios =
+            normalizeArray(
+                model.supported_ratios ??
+                model.supportedRatios ??
+                model.ratios
+            );
+
+
+        const supportedResolutions =
+            normalizeArray(
+                model.supported_resolutions ??
+                model.supportedResolutions ??
+                model.resolutions
+            );
+
 
         return {
 
-            /*
-             * Database row ID
-             */
+            /* Database row ID */
 
             id:
                 String(
@@ -208,30 +341,19 @@
                 ).trim(),
 
 
-            /*
-             * Provider
-             */
+            /* Provider */
 
             provider_id:
-                String(
-                    model.provider_id ??
-                    model.provider ??
-                    model.provider_code ??
-                    ""
-                ).trim(),
+                providerId,
 
+            provider_code:
+                providerCode,
 
             provider_name:
-                String(
-                    model.provider_name ??
-                    model.providerName ??
-                    ""
-                ).trim(),
+                providerName,
 
 
-            /*
-             * Model
-             */
+            /* Model */
 
             model_id:
                 String(
@@ -240,7 +362,6 @@
                     ""
                 ).trim(),
 
-
             model_name:
                 String(
                     model.model_name ??
@@ -248,7 +369,6 @@
                     model.name ??
                     ""
                 ).trim(),
-
 
             model_family:
                 String(
@@ -259,9 +379,60 @@
                 ).trim(),
 
 
-            /*
-             * Status
-             */
+            /* Description */
+
+            description:
+                String(
+                    model.description ??
+                    ""
+                ).trim(),
+
+
+            /* Credit */
+
+            credit_cost:
+                model.credit_cost ??
+                model.credit ??
+                0,
+
+            discount_percent:
+                model.discount_percent ??
+                model.discountPercent ??
+                0,
+
+            credit_final:
+                model.credit_final ??
+                model.creditFinal ??
+                0,
+
+
+            /* Duration */
+
+            min_duration:
+                model.min_duration ??
+                model.minDuration ??
+                "",
+
+            max_duration:
+                model.max_duration ??
+                model.maxDuration ??
+                "",
+
+            duration:
+                model.duration ??
+                "",
+
+
+            /* Supported parameters */
+
+            supported_ratios:
+                supportedRatios,
+
+            supported_resolutions:
+                supportedResolutions,
+
+
+            /* Status */
 
             status:
                 String(
@@ -270,107 +441,7 @@
                 ).trim(),
 
 
-            /*
-             * Credit
-             */
-
-            credit_cost:
-                model.credit_cost ??
-                model.credit ??
-                0,
-
-
-            discount_percent:
-                model.discount_percent ??
-                model.discountPercent ??
-                0,
-
-
-            credit_final:
-                model.credit_final ??
-                model.creditFinal ??
-                0,
-
-
-            /*
-             * Duration
-             */
-
-            min_duration:
-                model.min_duration ??
-                model.minDuration ??
-                "",
-
-
-            max_duration:
-                model.max_duration ??
-                model.maxDuration ??
-                "",
-
-
-            duration:
-                model.duration ??
-                "",
-
-
-            /*
-             * Ratio
-             */
-
-            supported_ratios:
-                model.supported_ratios ??
-                model.supportedRatios ??
-                model.ratios ??
-                "",
-
-
-            ratios:
-                model.ratios ??
-                model.supported_ratios ??
-                model.supportedRatios ??
-                "",
-
-
-            /*
-             * Resolution tetap dipertahankan
-             * untuk kompatibilitas data.
-             */
-
-            supported_resolutions:
-                model.supported_resolutions ??
-                model.supportedResolutions ??
-                model.resolutions ??
-                "",
-
-
-            resolutions:
-                model.resolutions ??
-                model.supported_resolutions ??
-                model.supportedResolutions ??
-                "",
-
-
-            /*
-             * Harga KIE
-             */
-
-            kie_unit_price:
-                kieUnitPrice,
-
-            kie_currency:
-                kieCurrency,
-
-            kie_unit:
-                kieUnit,
-
-            kie_price_idr:
-                kiePriceIdr,
-
-
-            /*
-             * Simpan object asli jika modul lain
-             * membutuhkan field tambahan.
-             */
+            /* Original data */
 
             original:
                 model
@@ -382,11 +453,9 @@
 
     /* =====================================================
        SET MODELS
-    ===================================================== */
+       ===================================================== */
 
-    function setModels(
-        list
-    ) {
+    function setModels(list) {
 
         models =
             Array.isArray(list)
@@ -395,9 +464,7 @@
                     .map(
                         normalizeModel
                     )
-                    .filter(
-                        Boolean
-                    )
+                    .filter(Boolean)
 
                 : [];
 
@@ -409,7 +476,7 @@
 
     /* =====================================================
        GET MODELS
-    ===================================================== */
+       ===================================================== */
 
     function getModels() {
 
@@ -420,11 +487,9 @@
 
     /* =====================================================
        FORMAT NUMBER
-    ===================================================== */
+       ===================================================== */
 
-    function formatNumber(
-        value
-    ) {
+    function formatNumber(value) {
 
         const number =
             Number(
@@ -454,7 +519,7 @@
 
     /* =====================================================
        FORMAT DECIMAL
-    ===================================================== */
+       ===================================================== */
 
     function formatDecimal(
         value,
@@ -492,169 +557,10 @@
 
 
     /* =====================================================
-       FORMAT USD
-    ===================================================== */
-
-    function formatUsd(
-        value
-    ) {
-
-        const number =
-            Number(
-                value
-            );
-
-
-        if (
-            !Number.isFinite(
-                number
-            )
-        ) {
-
-            return "-";
-
-        }
-
-
-        return (
-            "$" +
-            formatDecimal(
-                number,
-                6
-            )
-        );
-
-    }
-
-
-    /* =====================================================
-       FORMAT IDR
-    ===================================================== */
-
-    function formatIdr(
-        value
-    ) {
-
-        const number =
-            Number(
-                value
-            );
-
-
-        if (
-            !Number.isFinite(
-                number
-            )
-        ) {
-
-            return "-";
-
-        }
-
-
-        return (
-            "Rp" +
-            formatNumber(
-                Math.round(
-                    number
-                )
-            )
-        );
-
-    }
-
-
-    /* =====================================================
-       FORMAT STATUS
-    ===================================================== */
-
-    function formatStatus(
-        status
-    ) {
-
-        const value =
-            String(
-                status ??
-                "active"
-            )
-                .trim()
-                .toLowerCase();
-
-
-        let label =
-            status ||
-            "-";
-
-
-        if (
-            value === "active"
-        ) {
-
-            label =
-                "Active";
-
-        } else if (
-            value === "inactive"
-        ) {
-
-            label =
-                "Inactive";
-
-        } else if (
-            value === "maintenance"
-        ) {
-
-            label =
-                "Maintenance";
-
-        }
-
-
-        let className =
-            "status-inactive";
-
-
-        if (
-            value === "active"
-        ) {
-
-            className =
-                "status-active";
-
-        } else if (
-            value === "maintenance"
-        ) {
-
-            className =
-                "status-maintenance";
-
-        }
-
-
-        return (
-
-            '<span class="status ' +
-            className +
-            '">' +
-
-            escapeHtml(
-                label
-            ) +
-
-            "</span>"
-
-        );
-
-    }
-
-
-    /* =====================================================
        FORMAT DISCOUNT
-    ===================================================== */
+       ===================================================== */
 
-    function formatDiscount(
-        value
-    ) {
+    function formatDiscount(value) {
 
         const discount =
             Number(
@@ -675,14 +581,11 @@
 
 
         return (
-
             formatDecimal(
                 discount,
                 2
             ) +
-
             "%"
-
         );
 
     }
@@ -690,11 +593,9 @@
 
     /* =====================================================
        FORMAT DURATION
-    ===================================================== */
+       ===================================================== */
 
-    function formatDuration(
-        model
-    ) {
+    function formatDuration(model) {
 
         const min =
             model.min_duration;
@@ -703,38 +604,37 @@
             model.max_duration;
 
 
-        if (
+        const hasMin =
             min !== "" &&
             min !== null &&
-            min !== undefined &&
+            min !== undefined;
 
+
+        const hasMax =
             max !== "" &&
             max !== null &&
-            max !== undefined
+            max !== undefined;
+
+
+        if (
+            hasMin &&
+            hasMax
         ) {
 
             return (
-
                 escapeHtml(
                     min
                 ) +
-
                 " - " +
-
                 escapeHtml(
                     max
                 )
-
             );
 
         }
 
 
-        if (
-            min !== "" &&
-            min !== null &&
-            min !== undefined
-        ) {
+        if (hasMin) {
 
             return escapeHtml(
                 min
@@ -743,11 +643,7 @@
         }
 
 
-        if (
-            max !== "" &&
-            max !== null &&
-            max !== undefined
-        ) {
+        if (hasMax) {
 
             return escapeHtml(
                 max
@@ -775,76 +671,18 @@
 
 
     /* =====================================================
-       FORMAT RATIO
-    ===================================================== */
+       FORMAT ARRAY
+       ===================================================== */
 
-    function formatRatio(
-        model
-    ) {
+    function formatArray(value) {
 
-        const value =
-            model.supported_ratios ||
-            model.ratios ||
-            "";
-
-
-        if (
-            Array.isArray(
+        const items =
+            normalizeArray(
                 value
-            )
-        ) {
-
-            if (
-                !value.length
-            ) {
-
-                return "-";
-
-            }
-
-
-            return escapeHtml(
-                value.join(
-                    ", "
-                )
             );
 
-        }
 
-
-        if (
-            typeof value === "object" &&
-            value !== null
-        ) {
-
-            try {
-
-                return escapeHtml(
-                    Object.keys(
-                        value
-                    ).join(
-                        ", "
-                    )
-                );
-
-            } catch {
-
-                return "-";
-
-            }
-
-        }
-
-
-        const text =
-            String(
-                value
-            ).trim();
-
-
-        if (
-            !text
-        ) {
+        if (!items.length) {
 
             return "-";
 
@@ -852,116 +690,99 @@
 
 
         return escapeHtml(
-            text
+            items.join(
+                ", "
+            )
         );
 
     }
 
 
     /* =====================================================
-       FORMAT KIE PRICE
-       -----------------------------------------------------
-       Harga KIE adalah kolom tersendiri.
-       TIDAK boleh masuk ke kolom Credit.
+       FORMAT RATIO
        ===================================================== */
 
-    function renderKiePrice(
-        model
-    ) {
+    function formatRatio(model) {
 
-        const price =
-            model.kie_unit_price;
+        return formatArray(
+            model.supported_ratios
+        );
 
-
-        const priceIdr =
-            model.kie_price_idr;
+    }
 
 
-        /*
-         * Jika tidak ada data pricing,
-         * tampilkan "-" secara eksplisit.
-         */
+    /* =====================================================
+       FORMAT RESOLUTION
+       ===================================================== */
+
+    function formatResolution(model) {
+
+        return formatArray(
+            model.supported_resolutions
+        );
+
+    }
+
+
+    /* =====================================================
+       FORMAT STATUS
+       ===================================================== */
+
+    function formatStatus(status) {
+
+        const value =
+            String(
+                status ??
+                "active"
+            )
+                .trim()
+                .toLowerCase();
+
+
+        let label =
+            status ||
+            "-";
+
+
+        let className =
+            "status-inactive";
+
 
         if (
-            price === null ||
-            price === undefined ||
-            price === ""
+            value === "active"
         ) {
 
-            return (
+            label = "Active";
+            className = "status-active";
 
-                '<div class="kie-price">' +
+        } else if (
+            value === "inactive"
+        ) {
 
-                '<div class="kie-price-empty">' +
-                "-" +
-                "</div>" +
+            label = "Inactive";
+            className = "status-inactive";
 
-                "</div>"
+        } else if (
+            value === "maintenance"
+        ) {
 
-            );
+            label = "Maintenance";
+            className = "status-maintenance";
 
         }
 
 
-        const usd =
-            formatUsd(
-                price
-            );
-
-
-        const idr =
-            (
-                priceIdr !== null &&
-                priceIdr !== undefined &&
-                priceIdr !== ""
-            )
-
-                ? formatIdr(
-                    priceIdr
-                )
-
-                : "";
-
-
-        const unit =
-            String(
-                model.kie_unit ||
-                "unit"
-            );
-
-
         return (
 
-            '<div class="kie-price">' +
+            '<span class="status ' +
+            className +
+            '">' +
 
-                '<div class="kie-price-usd">' +
-                    escapeHtml(
-                        usd
-                    ) +
-                "</div>" +
-
-                (
-                    idr
-
-                        ? (
-                            '<div class="kie-price-idr">' +
-                                escapeHtml(
-                                    idr
-                                ) +
-                            "</div>"
-                        )
-
-                        : ""
+                escapeHtml(
+                    label
                 ) +
 
-                '<div class="kie-price-unit">' +
-                    "per " +
-                    escapeHtml(
-                        unit
-                    ) +
-                "</div>" +
-
-            "</div>"
+            "</span>"
 
         );
 
@@ -970,15 +791,9 @@
 
     /* =====================================================
        RENDER MODEL CELL
-       -----------------------------------------------------
-       Header "Model" hanya satu kolom.
-       Model ID + Name + Family ditempatkan di dalam
-       kolom yang sama.
        ===================================================== */
 
-    function renderModelCell(
-        model
-    ) {
+    function renderModelCell(model) {
 
         const modelId =
             model.model_id ||
@@ -1017,11 +832,15 @@
                 family
 
                     ? (
+
                         '<div class="model-id">' +
+
                             escapeHtml(
                                 family
                             ) +
+
                         "</div>"
+
                     )
 
                     : ""
@@ -1036,28 +855,12 @@
        RENDER PROVIDER CELL
        ===================================================== */
 
-    function renderProviderCell(
-        model
-    ) {
-
-        /*
-         * Provider display harus memakai
-         * provider_name terlebih dahulu.
-         *
-         * Contoh:
-         *
-         * provider_id   = kie_ai
-         * provider_name = KIE.AI
-         *
-         * Yang tampil:
-         *
-         * KIE.AI
-         */
+    function renderProviderCell(model) {
 
         const providerName =
             model.provider_name ||
+            model.provider_code ||
             model.provider_id ||
-            model.provider ||
             "-";
 
 
@@ -1079,13 +882,20 @@
     /* =====================================================
        RENDER ROW
        -----------------------------------------------------
-       PENTING:
-       Urutan TD HARUS 100% sama dengan TH di models.html.
+       10 kolom:
+       1 Model
+       2 Provider
+       3 Credit
+       4 Diskon
+       5 Credit Final
+       6 Duration
+       7 Ratio
+       8 Resolution
+       9 Status
+       10 Aksi
        ===================================================== */
 
-    function renderRow(
-        model
-    ) {
+    function renderRow(model) {
 
         const normalized =
             normalizeModel(
@@ -1136,11 +946,11 @@
             );
 
 
-        /*
-         * =================================================
-         * 10 KOLOM
-         * =================================================
-         */
+        const resolution =
+            formatResolution(
+                normalized
+            );
+
 
         return (
 
@@ -1148,9 +958,9 @@
 
             ' data-model-id="' +
 
-            escapeHtml(
-                id
-            ) +
+                escapeHtml(
+                    id
+                ) +
 
             '">' +
 
@@ -1182,20 +992,7 @@
 
 
             /* =============================================
-               3. HARGA KIE
-               ============================================= */
-
-            "<td>" +
-
-                renderKiePrice(
-                    normalized
-                ) +
-
-            "</td>" +
-
-
-            /* =============================================
-               4. CREDIT
+               3. CREDIT
                ============================================= */
 
             '<td class="credit-normal">' +
@@ -1208,7 +1005,7 @@
 
 
             /* =============================================
-               5. DISKON
+               4. DISKON
                ============================================= */
 
             '<td class="discount">' +
@@ -1221,7 +1018,7 @@
 
 
             /* =============================================
-               6. CREDIT FINAL
+               5. CREDIT FINAL
                ============================================= */
 
             '<td class="credit-final">' +
@@ -1234,7 +1031,7 @@
 
 
             /* =============================================
-               7. DURATION
+               6. DURATION
                ============================================= */
 
             "<td>" +
@@ -1245,12 +1042,23 @@
 
 
             /* =============================================
-               8. RATIO
+               7. RATIO
                ============================================= */
 
             "<td>" +
 
                 ratio +
+
+            "</td>" +
+
+
+            /* =============================================
+               8. RESOLUTION
+               ============================================= */
+
+            "<td>" +
+
+                resolution +
 
             "</td>" +
 
@@ -1286,9 +1094,9 @@
 
                         ' data-model-id="' +
 
-                        escapeHtml(
-                            id
-                        ) +
+                            escapeHtml(
+                                id
+                            ) +
 
                         '">' +
 
@@ -1307,9 +1115,9 @@
 
                         ' data-model-id="' +
 
-                        escapeHtml(
-                            id
-                        ) +
+                            escapeHtml(
+                                id
+                            ) +
 
                         '">' +
 
@@ -1370,9 +1178,7 @@
        RENDER TABLE
        ===================================================== */
 
-    function render(
-        list
-    ) {
+    function render(list) {
 
         const body =
             getTableBody();
@@ -1391,11 +1197,6 @@
         }
 
 
-        /*
-         * Jika diberikan list,
-         * gunakan list tersebut sebagai state.
-         */
-
         if (
             Array.isArray(
                 list
@@ -1409,10 +1210,6 @@
         }
 
 
-        /*
-         * Empty state.
-         */
-
         if (
             !models.length
         ) {
@@ -1421,10 +1218,6 @@
 
         }
 
-
-        /*
-         * Render tepat 10 TD untuk setiap row.
-         */
 
         body.innerHTML =
             models
@@ -1442,12 +1235,10 @@
 
 
     /* =====================================================
-       FIND MODEL
+       FIND MODEL BY DATABASE ID
        ===================================================== */
 
-    function findById(
-        id
-    ) {
+    function findById(id) {
 
         const value =
             String(
@@ -1467,9 +1258,7 @@
         return (
 
             models.find(
-                function (
-                    model
-                ) {
+                function (model) {
 
                     return (
                         model.id ===
@@ -1487,14 +1276,53 @@
 
 
     /* =====================================================
-       REMOVE FROM LOCAL TABLE STATE
+       FIND MODEL BY MODEL ID
+       ===================================================== */
+
+    function findByModelId(modelId) {
+
+        const value =
+            String(
+                modelId ?? ""
+            ).trim();
+
+
+        if (
+            !value
+        ) {
+
+            return null;
+
+        }
+
+
+        return (
+
+            models.find(
+                function (model) {
+
+                    return (
+                        model.model_id ===
+                        value
+                    );
+
+                }
+            ) ||
+
+            null
+
+        );
+
+    }
+
+
+    /* =====================================================
+       REMOVE LOCAL MODEL
        -----------------------------------------------------
        BUKAN DELETE API.
        ===================================================== */
 
-    function removeById(
-        id
-    ) {
+    function removeById(id) {
 
         const value =
             String(
@@ -1517,9 +1345,7 @@
 
         models =
             models.filter(
-                function (
-                    model
-                ) {
+                function (model) {
 
                     return (
                         model.id !==
@@ -1548,14 +1374,12 @@
 
 
     /* =====================================================
-       UPDATE LOCAL TABLE STATE
+       UPDATE LOCAL MODEL
        -----------------------------------------------------
        BUKAN UPDATE API.
        ===================================================== */
 
-    function updateModel(
-        model
-    ) {
+    function updateModel(model) {
 
         const normalized =
             normalizeModel(
@@ -1575,9 +1399,7 @@
 
         const index =
             models.findIndex(
-                function (
-                    item
-                ) {
+                function (item) {
 
                     return (
                         item.id ===
@@ -1685,6 +1507,8 @@
 
             findById,
 
+            findByModelId,
+
             removeById,
 
             updateModel,
@@ -1693,9 +1517,13 @@
 
             escapeHtml,
 
+            normalizeArray,
+
+            normalizeModel,
+
             formatNumber,
 
-            formatStatus,
+            formatDecimal,
 
             formatDiscount,
 
@@ -1703,13 +1531,19 @@
 
             formatRatio,
 
-            renderKiePrice
+            formatResolution,
+
+            formatStatus,
+
+            renderModelCell,
+
+            renderProviderCell
 
         });
 
 
     console.info(
-        "[GEN-Z.AI] GENZModelTable loaded. 10-column renderer active."
+        "[GEN-Z.AI] GENZModelTable loaded. 10-column models renderer active."
     );
 
 
