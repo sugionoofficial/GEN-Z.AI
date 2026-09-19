@@ -1,27 +1,122 @@
-```javascript
-// =========================================================
-// GEN-Z.AI
-// GROK IMAGINE IMAGE TO VIDEO
-// QUERY TASK
-// =========================================================
-
 import {
     getTask
 } from "../../provider/kie/client.js";
 
 
-// =========================================================
-// QUERY
-// =========================================================
+/* =========================================================
+   PARSE RESULT JSON
+   ========================================================= */
+
+function parseResultJson(
+    value
+) {
+
+    if (
+        !value
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        typeof value === "object"
+    ) {
+
+        return value;
+
+    }
+
+
+    if (
+        typeof value !== "string"
+    ) {
+
+        return null;
+
+    }
+
+
+    try {
+
+        return JSON.parse(
+            value
+        );
+
+    } catch {
+
+        return null;
+
+    }
+
+}
+
+
+/* =========================================================
+   EXTRACT RESULT URLS
+   ========================================================= */
+
+function extractResultUrls(
+    task
+) {
+
+    const result =
+        parseResultJson(
+            task?.resultJson
+        );
+
+
+    if (
+        Array.isArray(
+            result?.resultUrls
+        )
+    ) {
+
+        return result.resultUrls
+            .filter(
+                url =>
+                    typeof url === "string" &&
+                    url.trim()
+            );
+
+    }
+
+
+    /*
+     * Beberapa response bisa
+     * mengembalikan nested result.
+     */
+
+    if (
+        Array.isArray(
+            result?.result_urls
+        )
+    ) {
+
+        return result.result_urls
+            .filter(
+                url =>
+                    typeof url === "string" &&
+                    url.trim()
+            );
+
+    }
+
+
+    return [];
+
+}
+
+
+/* =========================================================
+   QUERY
+   ========================================================= */
 
 async function query(
     taskId,
     apiKey = null
 ) {
-
-    // -----------------------------------------------------
-    // VALIDATE TASK ID
-    // -----------------------------------------------------
 
     const id =
         String(
@@ -46,20 +141,12 @@ async function query(
     }
 
 
-    // -----------------------------------------------------
-    // QUERY KIE
-    // -----------------------------------------------------
-
     const response =
         await getTask(
             id,
             apiKey
         );
 
-
-    // -----------------------------------------------------
-    // NORMALIZE TASK OBJECT
-    // -----------------------------------------------------
 
     const task =
         response?.task ||
@@ -68,62 +155,26 @@ async function query(
         {};
 
 
-    // -----------------------------------------------------
-    // PARSE RESULT JSON
-    // -----------------------------------------------------
-
-    let result =
-        task.resultJson;
-
-
-    if (
-        typeof result === "string"
-    ) {
-
-        try {
-
-            result =
-                JSON.parse(
-                    result
-                );
-
-        } catch {
-
-            result =
-                null;
-
-        }
-
-    }
-
-
-    // -----------------------------------------------------
-    // RESULT URLS
-    // -----------------------------------------------------
-
-    const resultUrls =
-        Array.isArray(
-            result?.resultUrls
-        )
-            ? result.resultUrls
-            : [];
-
-
-    // -----------------------------------------------------
-    // STATE
-    // -----------------------------------------------------
-
     const state =
         String(
-            task.state || ""
+            task.state ||
+            ""
         )
         .trim()
         .toLowerCase();
 
 
-    // -----------------------------------------------------
-    // RESULT
-    // -----------------------------------------------------
+    const resultJson =
+        parseResultJson(
+            task.resultJson
+        );
+
+
+    const resultUrls =
+        extractResultUrls(
+            task
+        );
+
 
     return {
 
@@ -131,24 +182,36 @@ async function query(
 
         task,
 
+        taskId:
+            task.taskId ||
+            task.task_id ||
+            id,
+
         state,
 
-        resultUrls
+        resultJson,
+
+        resultUrls,
+
+        success:
+            state === "success",
+
+        failed:
+            state === "fail",
+
+        waiting:
+            state === "waiting"
 
     };
 
 }
 
 
-// =========================================================
-// EXPORT
-// =========================================================
-
 export {
-
-    query
-
+    query,
+    parseResultJson,
+    extractResultUrls
 };
 
+
 export default query;
-```
