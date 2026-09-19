@@ -1,25 +1,20 @@
-```javascript
-// =========================================================
-// GEN-Z.AI
-// GROK IMAGINE IMAGE TO VIDEO
-// CREATE TASK
-// =========================================================
-
 import {
     createTask as createKieTask
 } from "../../provider/kie/client.js";
 
+
 import config
     from "./config.js";
+
 
 import {
     validate
 } from "./parameters.js";
 
 
-// =========================================================
-// BUILD INPUT
-// =========================================================
+/* =========================================================
+   BUILD INPUT
+   ========================================================= */
 
 function buildInput(
     input = {}
@@ -27,32 +22,22 @@ function buildInput(
 
     const result = {};
 
+
     const allowed = [
-
         "image_urls",
-
         "task_id",
-
         "index",
-
         "prompt",
-
         "mode",
-
         "aspect_ratio",
-
         "duration",
-
         "resolution",
-
         "nsfw_checker"
-
     ];
 
 
     for (
-        const key
-        of allowed
+        const key of allowed
     ) {
 
         if (
@@ -67,14 +52,38 @@ function buildInput(
     }
 
 
+    /*
+     * KIE.AI:
+     *
+     * external image tidak mendukung
+     * spicy.
+     *
+     * Jika image_urls digunakan,
+     * normalisasi mode ke normal.
+     */
+
+    if (
+        Array.isArray(
+            result.image_urls
+        ) &&
+        result.image_urls.length > 0 &&
+        result.mode === "spicy"
+    ) {
+
+        result.mode =
+            "normal";
+
+    }
+
+
     return result;
 
 }
 
 
-// =========================================================
-// BUILD KIE PAYLOAD
-// =========================================================
+/* =========================================================
+   BUILD PAYLOAD
+   ========================================================= */
 
 function buildPayload(
     input = {}
@@ -93,18 +102,14 @@ function buildPayload(
 }
 
 
-// =========================================================
-// CREATE
-// =========================================================
+/* =========================================================
+   CREATE
+   ========================================================= */
 
 async function create(
     input = {},
     apiKey = null
 ) {
-
-    // -----------------------------------------------------
-    // VALIDATE
-    // -----------------------------------------------------
 
     const validation =
         validate(input);
@@ -130,17 +135,11 @@ async function create(
     }
 
 
-    // -----------------------------------------------------
-    // BUILD PAYLOAD
-    // -----------------------------------------------------
-
     const payload =
-        buildPayload(input);
+        buildPayload(
+            input
+        );
 
-
-    // -----------------------------------------------------
-    // SEND TO KIE
-    // -----------------------------------------------------
 
     const response =
         await createKieTask(
@@ -149,47 +148,53 @@ async function create(
         );
 
 
-    // -----------------------------------------------------
-    // NORMALIZE TASK ID
-    // -----------------------------------------------------
-
     const taskId =
-
         response?.data?.taskId ||
-
         response?.data?.task_id ||
-
         response?.taskId ||
-
         response?.task_id ||
-
         null;
+
+
+    if (
+        !taskId
+    ) {
+
+        const error =
+            new Error(
+                "KIE.AI tidak mengembalikan taskId."
+            );
+
+        error.code =
+            "KIE_TASK_ID_MISSING";
+
+        error.response =
+            response;
+
+        throw error;
+
+    }
 
 
     return {
 
         ...response,
 
-        taskId
+        taskId,
+
+        task_id:
+            taskId
 
     };
 
 }
 
 
-// =========================================================
-// EXPORT
-// =========================================================
-
 export {
-
     buildInput,
-
     buildPayload,
-
     create
-
 };
 
+
 export default create;
-```
