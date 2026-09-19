@@ -9,12 +9,13 @@
    TANGGUNG JAWAB:
    - UI state
    - Notification
-   - Modal delegation
+   - Modal orchestration
    - Load/sinkronisasi catalog
    - Sinkronisasi Provider state
    - Statistics
    - Pricing state
    - Refresh
+   - Tombol UI umum Add / Refresh
 
    BUKAN OWNER:
    - Provider CRUD / dropdown
@@ -32,8 +33,10 @@
    Provider       -> GENZModelsProvider
    Catalog        -> GENZModelsData
    Search         -> GENZModelsSearch
-   Form           -> GENZModelsForm
+   Form Create    -> GENZModelFormCreate
+   Form Edit      -> GENZModelFormEdit
    Form Events    -> GENZModelFormEvents
+   Form Layout    -> GENZModelFormLayout
    Table          -> GENZModelTable
    Table Events   -> GENZModelTableEvents
    Pricing        -> GENZModelsPrice
@@ -42,7 +45,10 @@
    PRINSIP:
    Satu fungsi = satu owner.
    models-ui hanya mengorkestrasi state dan tampilan.
-========================================================= */
+
+   CATATAN:
+   GENZModelsForm legacy tidak digunakan lagi oleh UI.
+   ========================================================= */
 
 (function () {
 
@@ -115,10 +121,40 @@
     }
 
 
-    function getModelsForm() {
+    function getFormCreate() {
 
         return (
-            window.GENZModelsForm ||
+            window.GENZModelFormCreate ||
+            null
+        );
+
+    }
+
+
+    function getFormEdit() {
+
+        return (
+            window.GENZModelFormEdit ||
+            null
+        );
+
+    }
+
+
+    function getFormEvents() {
+
+        return (
+            window.GENZModelFormEvents ||
+            null
+        );
+
+    }
+
+
+    function getFormLayout() {
+
+        return (
+            window.GENZModelFormLayout ||
             null
         );
 
@@ -337,10 +373,13 @@
 
 
     /* =====================================================
-       MODAL
+       MODAL DOM
        -----------------------------------------------------
-       Form tetap menjadi owner modal lifecycle.
-       UI hanya melakukan delegation.
+       UI memiliki helper DOM modal saja.
+       Lifecycle form tetap didelegasikan ke:
+       - GENZModelFormCreate
+       - GENZModelFormEdit
+       - GENZModelFormEvents
     ===================================================== */
 
     function getModal() {
@@ -484,26 +523,37 @@
     }
 
 
-    function openModal() {
+    /* =====================================================
+       CREATE MODAL
+       -----------------------------------------------------
+       Add Model:
+       UI
+        -> FormCreate.reset()
+        -> FormLayout.refresh()
+        -> Modal DOM
+        -> FormEvents menangani submit
+    ===================================================== */
 
-        const form =
-            getModelsForm();
+    async function openModal() {
+
+        const create =
+            getFormCreate();
 
 
         if (
-            form &&
-            typeof form.openCreateForm ===
+            create &&
+            typeof create.reset ===
                 "function"
         ) {
 
             try {
 
-                return form.openCreateForm();
+                create.reset();
 
             } catch (error) {
 
-                console.error(
-                    "[models-ui] openCreateForm:",
+                console.warn(
+                    "[models-ui] FormCreate.reset error:",
                     error
                 );
 
@@ -512,14 +562,106 @@
         }
 
 
-        return showModalElement(
-            getModal()
-        );
+        const layout =
+            getFormLayout();
+
+
+        if (
+            layout &&
+            typeof layout.refresh ===
+                "function"
+        ) {
+
+            try {
+
+                await layout.refresh();
+
+            } catch (error) {
+
+                console.warn(
+                    "[models-ui] FormLayout.refresh error:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        const modal =
+            getModal();
+
+
+        if (
+            !modal
+        ) {
+
+            notify(
+                "Modal tambah model belum tersedia.",
+                "error"
+            );
+
+            return false;
+
+        }
+
+
+        const opened =
+            showModalElement(
+                modal
+            );
+
+
+        if (
+            opened
+        ) {
+
+            const searchInput =
+                $("modelCodeSearch");
+
+
+            if (
+                searchInput
+            ) {
+
+                window.setTimeout(
+                    function () {
+
+                        try {
+
+                            searchInput.focus();
+
+                        } catch (error) {
+
+                            console.warn(
+                                "[models-ui] modelCodeSearch focus error:",
+                                error
+                            );
+
+                        }
+
+                    },
+                    50
+                );
+
+            }
+
+        }
+
+
+        return opened;
 
     }
 
 
-    function openEditModal(
+    /* =====================================================
+       EDIT MODAL
+       -----------------------------------------------------
+       Edit owner:
+       GENZModelFormEdit
+    ===================================================== */
+
+    async function openEditModal(
         model
     ) {
 
@@ -527,66 +669,126 @@
             !model
         ) {
 
+            notify(
+                "Model tidak ditemukan.",
+                "error"
+            );
+
             return false;
 
         }
 
 
-        const form =
-            getModelsForm();
+        const edit =
+            getFormEdit();
 
 
         if (
-            form &&
-            typeof form.openEditForm ===
+            !edit ||
+            typeof edit.open !==
                 "function"
         ) {
 
-            try {
+            notify(
+                "Module form edit belum tersedia.",
+                "error"
+            );
 
-                return form.openEditForm(
-                    model
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "[models-ui] openEditForm:",
-                    error
-                );
-
-            }
+            return false;
 
         }
 
 
-        return showModalElement(
-            getModal()
-        );
+        try {
+
+            const result =
+                await edit.open(
+                    model
+                );
+
+
+            if (
+                result === false
+            ) {
+
+                return false;
+
+            }
+
+
+            /*
+             * FormEdit saat ini dapat membuka modal
+             * sendiri. Jika implementasi tersebut tidak
+             * membuka DOM modal, pastikan modal terlihat.
+             */
+            const modal =
+                getModal();
+
+
+            if (
+                modal &&
+                !modal.classList.contains(
+                    "show"
+                )
+            ) {
+
+                showModalElement(
+                    modal
+                );
+
+            }
+
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "[models-ui] openEditModal error:",
+                error
+            );
+
+
+            notify(
+                error?.message ||
+                "Gagal membuka form edit model.",
+                "error"
+            );
+
+
+            return false;
+
+        }
 
     }
 
 
+    /* =====================================================
+       CLOSE MODAL
+       -----------------------------------------------------
+       FormEvents menjadi owner close event.
+    ===================================================== */
+
     function closeModal() {
 
-        const form =
-            getModelsForm();
+        const events =
+            getFormEvents();
 
 
         if (
-            form &&
-            typeof form.closeModal ===
+            events &&
+            typeof events.closeModal ===
                 "function"
         ) {
 
             try {
 
-                return form.closeModal();
+                return events.closeModal();
 
             } catch (error) {
 
                 console.error(
-                    "[models-ui] closeModal:",
+                    "[models-ui] FormEvents.closeModal error:",
                     error
                 );
 
@@ -870,8 +1072,7 @@
        MODEL CATALOG
        -----------------------------------------------------
        GENZModelsData adalah owner API/catalog.
-       UI hanya meminta data dan sinkronisasi module.
-    ===================================================== */
+       ===================================================== */
 
     async function loadModels(
         options = {}
@@ -1157,22 +1358,26 @@
 
             await loadProviders(
                 {
+
                     force:
                         true,
 
                     activeOnly:
                         false
+
                 }
             );
 
 
             await loadModels(
                 {
+
                     force:
                         true,
 
                     activeOnly:
                         false
+
                 }
             );
 
@@ -1188,11 +1393,38 @@
             );
 
 
-            /*
-             * Jika lifecycle pernah berjalan sebelum
-             * tombol tersedia, coba binding lagi.
-             */
             bindButtons();
+
+
+            /*
+             * Beri tahu halaman bahwa data model
+             * sudah diperbarui.
+             */
+            try {
+
+                window.dispatchEvent(
+                    new CustomEvent(
+                        "genz-models-refreshed",
+                        {
+                            detail: {
+                                providers:
+                                    [...state.providers],
+
+                                models:
+                                    [...state.models]
+                            }
+                        }
+                    )
+                );
+
+            } catch (eventError) {
+
+                console.warn(
+                    "[models-ui] refresh event error:",
+                    eventError
+                );
+
+            }
 
 
             console.info(
@@ -1206,6 +1438,31 @@
                         state.models.length
 
                 }
+            );
+
+
+            return {
+
+                providers:
+                    [...state.providers],
+
+                models:
+                    [...state.models]
+
+            };
+
+        } catch (error) {
+
+            console.error(
+                "[models-ui] Refresh error:",
+                error
+            );
+
+
+            notify(
+                error?.message ||
+                "Gagal melakukan refresh model.",
+                "error"
             );
 
 
@@ -1481,14 +1738,33 @@
                     model
                 ) {
 
-                    return (
-                        String(
-                            model?.model_id ??
-                            ""
-                        )
-                            .trim()
-                            .toLowerCase() ===
-                        normalized
+                    const values = [
+
+                        model?.id,
+
+                        model?.model_id,
+
+                        model?.model_name
+
+                    ];
+
+
+                    return values.some(
+                        function (
+                            value
+                        ) {
+
+                            return (
+                                String(
+                                    value ??
+                                    ""
+                                )
+                                    .trim()
+                                    .toLowerCase() ===
+                                normalized
+                            );
+
+                        }
                     );
 
                 }
@@ -1746,11 +2022,12 @@
     /* =====================================================
        BUTTONS
        -----------------------------------------------------
-       models-init -> lifecycle.
-       models-ui hanya memiliki tombol UI umum:
-       Add dan Refresh.
+       UI umum:
+       - Add
+       - Refresh
 
-       Row Edit/Delete bukan milik UI.
+       Row Edit/Delete tetap dimiliki:
+       GENZModelTableEvents
     ===================================================== */
 
     let buttonsBound =
@@ -1788,6 +2065,7 @@
 
 
                         notify(
+                            error?.message ||
                             "Terjadi kesalahan saat menjalankan aksi.",
                             "error"
                         );
@@ -1806,6 +2084,7 @@
 
 
             notify(
+                error?.message ||
                 "Terjadi kesalahan saat menjalankan aksi.",
                 "error"
             );
@@ -1833,7 +2112,7 @@
         }
 
 
-        let bound =
+        let found =
             false;
 
 
@@ -1854,18 +2133,19 @@
             }
 
 
+            found =
+                true;
+
+
             /*
-             * Jika tombol sudah dibind, jangan
-             * memasang listener kedua.
+             * Jika listener sudah terpasang,
+             * jangan membuat listener kedua.
              */
             if (
                 button.dataset
                     .genzUiBound ===
                 "true"
             ) {
-
-                bound =
-                    true;
 
                 continue;
 
@@ -1901,56 +2181,15 @@
                 }
             );
 
-
-            bound =
-                true;
-
         }
 
 
-        return bound;
+        return found;
 
     }
 
 
     function bindButtons() {
-
-        /*
-         * Jangan mengunci buttonsBound hanya karena
-         * bindButtons() sudah pernah dipanggil.
-         *
-         * models-init dapat menjalankan lifecycle ketika
-         * elemen tombol belum tersedia.
-         */
-
-        if (
-            buttonsBound
-        ) {
-
-            /*
-             * Verifikasi bahwa tombol yang sebelumnya
-             * berhasil dibind masih benar-benar ada.
-             */
-            const existingBoundButton =
-                document.querySelector(
-                    "[data-genz-ui-button-bound='true']"
-                );
-
-
-            if (
-                existingBoundButton
-            ) {
-
-                return true;
-
-            }
-
-
-            buttonsBound =
-                false;
-
-        }
-
 
         let anyBound =
             false;
@@ -1959,7 +2198,6 @@
         /*
          * ADD MODEL
          */
-
         const addBound =
             bindButton(
                 [
@@ -1998,7 +2236,6 @@
         /*
          * REFRESH
          */
-
         const refreshBound =
             bindButton(
                 [
@@ -2031,11 +2268,14 @@
 
 
         /*
-         * Hanya true apabila minimal satu
-         * tombol benar-benar ditemukan.
+         * Jangan pernah menyatakan binding berhasil
+         * jika tombol memang belum ada.
          */
         buttonsBound =
-            anyBound;
+            anyBound ||
+            document.querySelector(
+                "[data-genz-ui-button-bound='true']"
+            ) !== null;
 
 
         return buttonsBound;
@@ -2047,11 +2287,6 @@
        INITIALIZE
        -----------------------------------------------------
        Lifecycle utama tetap di models-init.js.
-       UI tidak lagi melakukan:
-       - bind Form events
-       - bind Search events
-       - bind Table events
-       - Provider dropdown rendering
     ===================================================== */
 
     async function initialize() {
@@ -2069,14 +2304,7 @@
             initialized
         ) {
 
-            /*
-             * Tetap coba binding tombol.
-             *
-             * Ini aman karena bindButton() mencegah
-             * duplicate listener.
-             */
             bindButtons();
-
 
             return true;
 
@@ -2094,25 +2322,26 @@
 
 
                     /*
-                     * Tombol UI umum.
+                     * Bind tombol secepat mungkin.
+                     *
+                     * Penting karena models-init dapat
+                     * memulai UI sebelum semua elemen
+                     * DOM selesai tersedia.
                      */
-
                     bindButtons();
 
 
                     /*
-                     * Provider state.
+                     * Sinkronisasi Provider.
                      *
-                     * Tidak render dropdown.
+                     * Tidak mengambil alih Provider loader.
                      */
-
                     syncProviderState();
 
 
                     /*
-                     * Model catalog.
+                     * Load model catalog.
                      */
-
                     await loadModels(
                         {
 
@@ -2129,14 +2358,12 @@
                     /*
                      * Pricing catalog.
                      */
-
                     await initializePrice();
 
 
                     /*
-                     * Final state synchronization.
+                     * Final synchronization.
                      */
-
                     syncProviderState();
 
                     syncSearchState();
@@ -2149,20 +2376,14 @@
 
 
                     /*
-                     * Lifecycle selesai.
-                     */
-                    initialized =
-                        true;
-
-
-                    /*
-                     * Coba sekali lagi setelah seluruh
+                     * Tombol dicoba lagi setelah seluruh
                      * initialization selesai.
-                     *
-                     * Ini mengatasi kasus DOM tombol baru
-                     * tersedia setelah module UI mulai.
                      */
                     bindButtons();
+
+
+                    initialized =
+                        true;
 
 
                     console.info(
@@ -2190,6 +2411,31 @@
                     }
 
 
+                    /*
+                     * Event tambahan untuk kompatibilitas
+                     * halaman lama yang mendengarkan
+                     * genz-models-ready.
+                     */
+                    try {
+
+                        window.dispatchEvent(
+                            new CustomEvent(
+                                "genz-models-ready"
+                            )
+                        );
+
+                    } catch (
+                        eventError
+                    ) {
+
+                        console.warn(
+                            "[models-ui] models-ready event error:",
+                            eventError
+                        );
+
+                    }
+
+
                     return true;
 
                 } catch (error) {
@@ -2205,6 +2451,7 @@
 
 
                     notify(
+                        error?.message ||
                         "Model Management gagal diinisialisasi.",
                         "error"
                     );
@@ -2278,12 +2525,8 @@
 
 
         /*
-         * Izinkan bind ulang pada lifecycle berikutnya.
-         *
-         * Dataset pada tombol tidak dihapus karena
-         * listener yang sudah terpasang masih valid.
-         * bindButton() akan mendeteksi listener tersebut
-         * dan tidak membuat duplicate listener.
+         * Listener DOM yang sudah terpasang tetap valid.
+         * Dataset sengaja tidak dihapus.
          */
         buttonsBound =
             false;
@@ -2336,6 +2579,8 @@
             syncTableState,
 
             initializePrice,
+
+            bindButtons,
 
             getModels:
                 function () {
