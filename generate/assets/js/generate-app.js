@@ -1,25 +1,25 @@
- /* =========================================================
-    GEN-Z.AI
-    GENERATE APP MODULE
-    ---------------------------------------------------------
-    File:
-    generate/assets/js/generate-app.js
+/* =========================================================
+   GEN-Z.AI
+   GENERATE APP MODULE
+   ---------------------------------------------------------
+   File:
+   generate/assets/js/generate-app.js
 
-    Tanggung jawab:
-    - Bootstrap halaman Generate
-    - Inisialisasi modul
-    - Menghubungkan event UI
-    - Menjalankan flow generate
-    - Menjalankan reset
-    - Sinkronisasi model -> form -> request -> result
+   Tanggung jawab:
+   - Bootstrap halaman Generate
+   - Inisialisasi modul
+   - Menghubungkan event UI
+   - Menjalankan flow generate
+   - Menjalankan reset
+   - Sinkronisasi model -> form -> request -> result
 
-    Tidak bertanggung jawab:
-    - Query Supabase langsung
-    - Menyimpan API key
-    - Menentukan provider
-    - Menentukan harga/model capability
-    - Menulis CSS
- ========================================================= */
+   Tidak bertanggung jawab:
+   - Query Supabase langsung
+   - Menyimpan API key
+   - Menentukan provider
+   - Menentukan harga/model capability
+   - Menulis CSS
+========================================================= */
 
 import {
     initializeGenerateElements,
@@ -78,7 +78,7 @@ import {
 
 /* =========================================================
    APP STATE
- ========================================================= */
+========================================================= */
 
 const appState = {
     initialized:
@@ -94,7 +94,7 @@ const appState = {
 
 /* =========================================================
    ELEMENTS
- ========================================================= */
+========================================================= */
 
 function getElements() {
 
@@ -104,7 +104,7 @@ function getElements() {
 
 /* =========================================================
    MODEL READY
- ========================================================= */
+========================================================= */
 
 function refreshGenerateAvailability() {
 
@@ -123,7 +123,7 @@ function refreshGenerateAvailability() {
 
 /* =========================================================
    SELECT MODEL
- ========================================================= */
+========================================================= */
 
 async function handleModelChange(
     event
@@ -165,6 +165,17 @@ async function handleModelChange(
             );
         }
 
+        /*
+         * Model yang diterima dari selectModel()
+         * adalah konfigurasi model sebenarnya.
+         *
+         * Di dalamnya termasuk:
+         *
+         * model.parameters
+         *
+         * yang berasal dari adapter model.
+         */
+
         renderModelHeader(
             model
         );
@@ -198,7 +209,7 @@ async function handleModelChange(
 
 /* =========================================================
    COLLECT PARAMETERS
- ========================================================= */
+========================================================= */
 
 function collectParameters() {
 
@@ -208,7 +219,7 @@ function collectParameters() {
 
 /* =========================================================
    VALIDATE FORM
- ========================================================= */
+========================================================= */
 
 function validateBeforeSubmit(
     parameters
@@ -243,7 +254,7 @@ function validateBeforeSubmit(
 
 /* =========================================================
    GENERATE SUBMIT
- ========================================================= */
+========================================================= */
 
 async function handleGenerateSubmit(
     event
@@ -368,7 +379,7 @@ async function handleGenerateSubmit(
 
 /* =========================================================
    RESET FORM
- ========================================================= */
+========================================================= */
 
 function resetForm() {
 
@@ -420,7 +431,7 @@ function resetForm() {
 
 /* =========================================================
    INPUT HANDLER
- ========================================================= */
+========================================================= */
 
 function handleInput(
     event
@@ -462,7 +473,7 @@ function handleInput(
 
 /* =========================================================
    CHANGE HANDLER
- ========================================================= */
+========================================================= */
 
 function handleChange(
     event
@@ -511,7 +522,7 @@ function handleChange(
 
 /* =========================================================
    BIND EVENTS
- ========================================================= */
+========================================================= */
 
 function bindEvents() {
 
@@ -589,7 +600,7 @@ function bindEvents() {
 
 /* =========================================================
    AUTH INITIALIZATION
- ========================================================= */
+========================================================= */
 
 async function initializeAuth() {
 
@@ -632,24 +643,86 @@ async function initializeAuth() {
 
 /* =========================================================
    MODEL INITIALIZATION
- ========================================================= */
+========================================================= */
 
 async function initializeModel() {
 
-    const model =
+    /*
+     * PENTING:
+     *
+     * resolveInitialModel() tidak mengembalikan
+     * model secara langsung.
+     *
+     * Bentuk return:
+     *
+     * {
+     *     model,
+     *     models,
+     *     executable,
+     *     selectedModelId
+     * }
+     *
+     * Jadi kita harus mengambil:
+     *
+     *     resolved.model
+     *
+     * BUKAN:
+     *
+     *     resolved
+     *
+     * Sebelumnya object wrapper dikirim langsung
+     * ke renderDynamicFields().
+     *
+     * Akibatnya generate-form.js mencari:
+     *
+     *     resolved.parameters
+     *
+     * yang tidak ada.
+     *
+     * Parameter sebenarnya berada di:
+     *
+     *     resolved.model.parameters
+     *
+     * Inilah penyebab:
+     *
+     *     "Model ini tidak memiliki parameter tambahan."
+     */
+
+    const resolved =
         await resolveInitialModel();
+
+    const model =
+        resolved?.model ||
+        null;
 
     if (!model) {
 
         throw new Error(
-            "Tidak ada model yang tersedia."
+            "Tidak ada model executable yang tersedia."
         );
     }
 
+    /*
+     * Render model sebenarnya.
+     */
     renderModelHeader(
         model
     );
 
+    /*
+     * Render parameter dari model sebenarnya.
+     *
+     * Sumber parameter:
+     *
+     * models/<model-folder>/parameters.js
+     *
+     * -> model adapter
+     * -> /api/model-config
+     * -> model.parameters
+     * -> generate-form.js
+     *
+     * Tidak ada parameter hardcoded di sini.
+     */
     renderDynamicFields(
         model
     );
@@ -662,7 +735,7 @@ async function initializeModel() {
 
 /* =========================================================
    APP INITIALIZATION
- ========================================================= */
+========================================================= */
 
 export async function initializeGenerateApp() {
 
@@ -749,7 +822,7 @@ export async function initializeGenerateApp() {
 
 /* =========================================================
    PUBLIC APP API
- ========================================================= */
+========================================================= */
 
 export const generateApp =
     Object.freeze({
@@ -778,7 +851,7 @@ export const generateApp =
 
 /* =========================================================
    AUTO BOOTSTRAP
- ========================================================= */
+========================================================= */
 
 if (
     document.readyState ===
@@ -806,7 +879,7 @@ if (
    GLOBAL COMPATIBILITY
    ---------------------------------------------------------
    Hanya expose API app, bukan API key atau provider.
- ========================================================= */
+========================================================= */
 
 window.GENZGenerateApp =
     generateApp;
