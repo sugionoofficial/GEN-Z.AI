@@ -9,7 +9,8 @@
    - Menjalankan module dashboard dalam urutan yang benar
    - Cache DOM
    - Memastikan dependency tersedia
-   - Menunggu shared navigation/auth state
+   - Menunggu shared navigation/auth state tanpa
+     menjadikannya dependency wajib untuk loading video
    - Initialize modal
    - Initialize upload
    - Initialize events
@@ -79,9 +80,7 @@
 
     function getErrorMessage(error) {
 
-        if (
-            !error
-        ) {
+        if (!error) {
 
             return "Dashboard gagal dimuat.";
         }
@@ -347,10 +346,15 @@
 
 
     /* =====================================================
-       CHECK SHARED NAVIGATION STATE
+       SHARED NAVIGATION STATE
     ===================================================== */
 
     function hasSharedNavigationState() {
+
+        /*
+         * Navigation state hanya dianggap tersedia jika
+         * user + profile + role semuanya sudah siap.
+         */
 
         return !!(
             window.GENZ_NAVIGATION_USER &&
@@ -363,23 +367,31 @@
     /* =====================================================
        WAIT FOR SHARED NAVIGATION
        -----------------------------------------------------
-       navigation/navigation.js berjalan lebih dahulu,
-       tetapi proses auth/profile bersifat async.
+       Navigation adalah shared UI/auth layer.
+       Dashboard tidak boleh menggantung hanya karena
+       navigation belum selesai render.
 
-       Kita tunggu state navigation sebentar agar dashboard
-       tidak langsung melakukan query profile kedua.
+       Auth dashboard tetap melakukan fallback ke Supabase
+       melalui dashboard-auth.js.
     ===================================================== */
 
     async function waitForNavigationState(
         timeout
     ) {
 
+        const numericTimeout =
+            Number(timeout);
+
+
         const maxWait =
             Number.isFinite(
-                Number(timeout)
+                numericTimeout
             )
-                ? Number(timeout)
-                : 3000;
+                ? Math.max(
+                    0,
+                    numericTimeout
+                )
+                : 1500;
 
 
         const interval =
@@ -391,7 +403,7 @@
 
 
         /*
-         * Jika state sudah tersedia, langsung lanjut.
+         * State sudah tersedia.
          */
 
         if (
@@ -403,8 +415,8 @@
 
 
         /*
-         * Jika navigation menyediakan Promise ready,
-         * gunakan terlebih dahulu.
+         * Gunakan Promise ready bila navigation.js
+         * menyediakannya.
          */
 
         if (
@@ -433,8 +445,16 @@
 
             } catch (error) {
 
+                /*
+                 * Navigation gagal bukan berarti dashboard
+                 * harus ikut gagal.
+                 *
+                 * dashboard-auth.js masih mempunyai fallback
+                 * authentication melalui Supabase.
+                 */
+
                 logError(
-                    "Shared navigation promise error:",
+                    "Navigation ready promise error:",
                     error
                 );
             }
@@ -450,8 +470,7 @@
 
 
         /*
-         * Fallback untuk navigation.js versi yang
-         * menggunakan global state tanpa Promise.
+         * Fallback polling.
          */
 
         while (
@@ -468,11 +487,6 @@
             }
 
 
-            /*
-             * Beri kesempatan navigation.js menyelesaikan
-             * request Supabase.
-             */
-
             await new Promise(
                 function (resolve) {
 
@@ -485,6 +499,15 @@
         }
 
 
+        /*
+         * Tidak ada navigation state.
+         *
+         * Jangan throw error.
+         *
+         * Dashboard-auth.js akan melakukan fallback
+         * authentication menggunakan Supabase.
+         */
+
         return hasSharedNavigationState();
     }
 
@@ -494,6 +517,14 @@
     ===================================================== */
 
     function syncNavigationState() {
+
+        if (
+            !hasSharedNavigationState()
+        ) {
+
+            return false;
+        }
+
 
         const user =
             window.GENZ_NAVIGATION_USER;
@@ -543,11 +574,7 @@
         }
 
 
-        return !!(
-            user &&
-            profile &&
-            role
-        );
+        return true;
     }
 
 
@@ -558,22 +585,14 @@
     async function waitForSharedNavigation() {
 
         /*
-         * Jangan langsung menjalankan dashboard auth.
+         * Navigation bukan auth gate kedua.
          *
-         * navigation.js sudah bertanggung jawab terhadap:
-         *
-         * - session
-         * - profile
-         * - role
-         * - status account
-         * - redirect login
-         *
-         * Dashboard hanya mengambil state yang sudah tersedia.
+         * Kita hanya mengambil state jika tersedia.
          */
 
         const navigationReady =
             await waitForNavigationState(
-                3000
+                1500
             );
 
 
@@ -582,18 +601,27 @@
         ) {
 
             syncNavigationState();
+
+            log(
+                "Shared navigation state synchronized."
+            );
+
+        } else {
+
+            log(
+                "Shared navigation state belum tersedia. " +
+                "Dashboard menggunakan auth fallback."
+            );
         }
 
 
         /*
-         * initializeAuth() tetap dipanggil karena dashboard
-         * membutuhkan state internalnya sendiri.
+         * Auth dashboard tetap dijalankan.
          *
-         * dashboard-auth.js akan:
+         * dashboard-auth.js:
          *
-         * 1. memakai state navigation jika tersedia
-         * 2. fallback ke Supabase hanya jika state navigation
-         *    belum tersedia
+         * 1. menggunakan navigation state jika tersedia
+         * 2. fallback ke Supabase jika belum tersedia
          */
 
         if (
@@ -611,14 +639,48 @@
             await dashboard.initializeAuth();
 
 
+        /*
+         * initializeAuth() dapat mengembalikan:
+         *
+         * true
+         * false
+         * object { success: true }
+         * object { success: false, redirected: true }
+         *
+         * Normalisasi hasil agar init tidak salah
+         * menganggap object gagal sebagai sukses.
+         */
+
         if (
             result === false
         ) {
 
+            log(
+                "Dashboard authentication tidak berhasil."
+            );
+
+            return false;
+        }
+
+
+        if (
+            result &&
+            typeof result === "object" &&
+            result.success === false
+        ) {
+
             /*
-             * Biasanya terjadi ketika auth module
-             * sedang melakukan redirect.
+             * Auth module sudah menangani redirect bila
+             * diperlukan.
+             *
+             * Jangan lanjut query video dalam kondisi
+             * authentication gagal.
              */
+
+            log(
+                "Dashboard authentication gagal:",
+                result.reason || "UNKNOWN"
+            );
 
             return false;
         }
@@ -664,8 +726,7 @@
 
         /*
          * Dashboard tidak boleh otomatis membuka Add/Edit
-         * modal hanya karena user adalah ADMIN/OWNER
-         * atau karena ?edit=1.
+         * modal hanya karena role ADMIN/OWNER atau URL.
          */
 
         if (
@@ -673,14 +734,24 @@
             "function"
         ) {
 
-            dashboard.forceCloseModal();
+            try {
 
-            return;
+                dashboard.forceCloseModal();
+
+                return;
+
+            } catch (error) {
+
+                logError(
+                    "forceCloseModal error:",
+                    error
+                );
+            }
         }
 
 
         /*
-         * Fallback jika API forceCloseModal belum tersedia.
+         * Fallback API.
          */
 
         if (
@@ -701,6 +772,10 @@
             }
         }
 
+
+        /*
+         * DOM fallback.
+         */
 
         const modal =
             dashboard.elements &&
@@ -726,6 +801,10 @@
             );
         }
 
+
+        /*
+         * Sinkronisasi state modal.
+         */
 
         if (
             typeof dashboard.setModalState ===
@@ -786,7 +865,12 @@
             typeof dashboard.hasManagementAccess ===
             "function"
                 ? dashboard.hasManagementAccess() === true
-                : false;
+                : (
+                    typeof dashboard.isAdmin ===
+                    "function"
+                        ? dashboard.isAdmin() === true
+                        : false
+                );
 
 
         if (
@@ -802,12 +886,24 @@
         log(
             "Loading dashboard videos:",
             {
-                editMode,
-                managementAccess,
-                includeInactive
+                editMode:
+                    editMode,
+
+                managementAccess:
+                    managementAccess,
+
+                includeInactive:
+                    includeInactive
             }
         );
 
+
+        /*
+         * dashboard-data.js adalah satu-satunya module
+         * yang mengatur state hasil query video.
+         *
+         * Jangan memanggil setVideos() lagi di sini.
+         */
 
         const videos =
             await dashboard.loadVideos({
@@ -818,7 +914,19 @@
             });
 
 
-        return videos || [];
+        const normalizedVideos =
+            Array.isArray(videos)
+                ? videos
+                : [];
+
+
+        log(
+            "Dashboard videos loaded:",
+            normalizedVideos.length
+        );
+
+
+        return normalizedVideos;
     }
 
 
@@ -889,10 +997,15 @@
         }
 
 
-        document.body.setAttribute(
-            "data-dashboard-ready",
-            "true"
-        );
+        if (
+            document.body
+        ) {
+
+            document.body.setAttribute(
+                "data-dashboard-ready",
+                "true"
+            );
+        }
     }
 
 
@@ -928,7 +1041,7 @@
 
 
         /*
-         * Tetap gunakan renderer agar error state
+         * Tetap gunakan renderer supaya error state
          * mengikuti UI dashboard.
          */
 
@@ -1023,16 +1136,28 @@
 
 
             /* ---------------------------------------------
-               5. SHARED NAVIGATION + AUTH
+               5. AUTH + SHARED NAVIGATION
             --------------------------------------------- */
 
             const authenticated =
                 await waitForSharedNavigation();
 
 
+            /*
+             * Jangan melakukan query video jika auth benar-benar
+             * gagal. Navigation/auth module bertanggung jawab
+             * melakukan redirect jika diperlukan.
+             */
+
             if (
                 authenticated === false
             ) {
+
+                log(
+                    "Dashboard initialization dihentikan " +
+                    "karena authentication belum valid."
+                );
+
 
                 return false;
             }
@@ -1056,7 +1181,25 @@
                8. LOAD VIDEOS
             --------------------------------------------- */
 
-            await loadDashboardVideos();
+            const videos =
+                await loadDashboardVideos();
+
+
+            /*
+             * Jangan setVideos() di sini.
+             *
+             * dashboard-data.js sudah melakukan:
+             *
+             * dashboard.setVideos(videos)
+             *
+             * Jika init juga melakukan hal yang sama,
+             * dua layer dapat saling menimpa state.
+             */
+
+            log(
+                "Video state synchronized:",
+                videos.length
+            );
 
 
             /* ---------------------------------------------
@@ -1071,8 +1214,8 @@
             --------------------------------------------- */
 
             /*
-             * Render tidak seharusnya membuka modal.
-             * Tetap dipastikan tertutup sebagai guard terakhir.
+             * Render tidak boleh membuka modal.
+             * Tetap tutup sebagai guard terakhir.
              */
 
             forceCloseModal();
