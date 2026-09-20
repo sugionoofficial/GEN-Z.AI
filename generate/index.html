@@ -41,7 +41,7 @@
 
 
     <!-- =====================================================
-         PREMIUM CSS
+         GLOBAL CSS
     ====================================================== -->
 
     <link
@@ -52,31 +52,29 @@
 
     <!-- =====================================================
          GENERATE PAGE STYLE
-         -----------------------------------------------------
-         Khusus layout Generate:
-         - Satu blok neon merah
-         - Checkbox-style parameter
-         - Duration slider
-         - Credit pada tombol
     ====================================================== -->
 
     <style>
+
+        /* =====================================================
+           ONE GENERATE BLOCK
+        ====================================================== */
 
         .generate-neon-block {
             position: relative;
             margin-top: 24px;
             padding: 24px;
-            border: 1px solid rgba(255, 35, 70, 0.85);
+            border: 1px solid rgba(255, 35, 70, 0.90);
             border-radius: 20px;
             background:
                 linear-gradient(
                     145deg,
                     rgba(255, 20, 55, 0.055),
-                    rgba(8, 8, 14, 0.94)
+                    rgba(8, 8, 14, 0.96)
                 );
             box-shadow:
-                0 0 8px rgba(255, 25, 60, 0.28),
-                0 0 28px rgba(255, 25, 60, 0.12),
+                0 0 8px rgba(255, 25, 60, 0.30),
+                0 0 28px rgba(255, 25, 60, 0.13),
                 inset 0 0 24px rgba(255, 25, 60, 0.035);
         }
 
@@ -93,7 +91,8 @@
 
 
         .generate-neon-header {
-            margin-bottom: 22px;
+            position: relative;
+            margin-bottom: 24px;
         }
 
 
@@ -114,11 +113,20 @@
 
 
         /* =====================================================
-           MODEL
+           MODEL SELECTOR
+           -----------------------------------------------------
+           WAJIB ADA.
+
+           generate-state.js mewajibkan:
+           #modelSelector
+           #modelSelect
+
+           Selector berada di dalam blok neon yang sama.
         ====================================================== */
 
         .generate-model-field {
-            margin-bottom: 22px;
+            position: relative;
+            margin-bottom: 24px;
         }
 
 
@@ -143,6 +151,7 @@
         ====================================================== */
 
         #dynamicFields {
+            position: relative;
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -157,10 +166,10 @@
 
 
         /* =====================================================
-           CHECKBOX-STYLE OPTION
+           CHECKBOX STYLE
            -----------------------------------------------------
-           Logic tetap single-select.
-           Visual menggunakan checkbox/card.
+           Visual checkbox.
+           Logic single-select dilakukan module form.
         ====================================================== */
 
         .generate-option-group {
@@ -180,6 +189,8 @@
 
         .generate-option input {
             position: absolute;
+            width: 1px;
+            height: 1px;
             opacity: 0;
             pointer-events: none;
         }
@@ -226,7 +237,7 @@
 
 
         /* =====================================================
-           DURATION SLIDER
+           DURATION
         ====================================================== */
 
         .generate-duration-field {
@@ -310,22 +321,21 @@
 
 
         /* =====================================================
-           CREDIT
+           CREDIT PADA BUTTON
         ====================================================== */
 
         .generate-button-credit {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            margin-left: 5px;
+            gap: 6px;
+            margin-left: 7px;
             padding: 4px 8px;
             border: 1px solid rgba(255, 255, 255, 0.16);
             border-radius: 7px;
             background: rgba(255, 255, 255, 0.055);
-            color: rgba(255, 255, 255, 0.82);
+            color: rgba(255, 255, 255, 0.84);
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.02em;
             white-space: nowrap;
         }
 
@@ -358,10 +368,10 @@
 
 
         /* =====================================================
-           HIDDEN COMPATIBILITY ELEMENTS
+           COMPATIBILITY ELEMENTS
            -----------------------------------------------------
-           Dipertahankan agar modul lama tidak error saat transisi.
-           Tidak tampil kepada user.
+           Tidak ditampilkan tetapi tetap tersedia karena
+           generate-state.js dan module lain masih mengenalnya.
         ====================================================== */
 
         .generate-compat-hidden {
@@ -437,8 +447,12 @@
 
         <main class="main">
 
+
             <!-- =================================================
                  TOPBAR
+                 -------------------------------------------------
+                 OWNER + CREDIT TETAP DITAMPILKAN.
+                 generate-auth.js mengisinya dari profiles.
             ================================================== -->
 
             <header class="topbar generate-topbar">
@@ -518,6 +532,10 @@
                 </div>
 
 
+                <!-- =============================================
+                     AUTH BADGES
+                     ============================================= -->
+
                 <div class="topbar-actions">
 
                     <div
@@ -563,7 +581,7 @@
 
 
             <!-- =================================================
-                 MAIN CONTENT
+                 CONTENT
             ================================================== -->
 
             <section class="content">
@@ -620,8 +638,6 @@
 
                 <!-- =================================================
                      ONE GENERATE BLOCK
-                     -------------------------------------------------
-                     Seluruh kontrol utama Generate berada di sini.
                 ================================================== -->
 
                 <section
@@ -629,6 +645,7 @@
                     class="generate-neon-block"
                     aria-labelledby="generateCardTitle"
                 >
+
 
                     <!-- =============================================
                          HEADER
@@ -658,17 +675,32 @@
 
 
                     <!-- =============================================
-                         MODEL
+                         MODEL SELECTOR
+                         ------------------------------------------------
+                         JANGAN DIHAPUS.
+
+                         generate-state.js mewajibkan:
+                         #modelSelector
+                         #modelSelect
                     ============================================== -->
 
-                    <div class="generate-model-field">
+                    <section
+                        id="modelSelector"
+                        class="generate-model-field"
+                        aria-labelledby="modelSelectorTitle"
+                    >
 
-                        <label
+                        <span class="section-eyebrow">
+                            MODEL ENGINE
+                        </span>
+
+
+                        <h3
+                            id="modelSelectorTitle"
                             class="generate-field-label"
-                            for="modelSelect"
                         >
                             Model
-                        </label>
+                        </h3>
 
 
                         <select
@@ -684,11 +716,11 @@
 
                         </select>
 
-                    </div>
+                    </section>
 
 
                     <!-- =============================================
-                         FORM
+                         GENERATE FORM
                     ============================================== -->
 
                     <form
@@ -699,13 +731,17 @@
 
                         <!-- =========================================
                              DYNAMIC PARAMETERS
-                             -----------------------------------------
-                             generate-form.js akan merender:
-                             - image_urls
-                             - prompt
-                             - aspect_ratio
-                             - resolution
-                             - duration
+
+                             generate-form.js akan mengambil
+                             parameter dari model:
+
+                             image_urls
+                             prompt
+                             aspect_ratio
+                             resolution
+                             duration
+
+                             task_id tidak boleh ditampilkan.
                         ========================================== -->
 
                         <div
@@ -723,10 +759,6 @@
                             id="generateActions"
                         >
 
-                            <!-- =====================================
-                                 RESET
-                            ====================================== -->
-
                             <div class="actions-left">
 
                                 <button
@@ -741,15 +773,7 @@
                             </div>
 
 
-                            <!-- =====================================
-                                 RIGHT
-                            ====================================== -->
-
                             <div class="generate-actions-right">
-
-                                <!-- =================================
-                                     LOADING
-                                ================================== -->
 
                                 <div
                                     id="loading"
@@ -771,10 +795,6 @@
 
                                 </div>
 
-
-                                <!-- =================================
-                                     GENERATE BUTTON
-                                ================================== -->
 
                                 <button
                                     type="submit"
@@ -832,10 +852,8 @@
                 <!-- =================================================
                      MODEL HEADER COMPATIBILITY
                      -------------------------------------------------
+                     Module lama masih membutuhkan element ini.
                      Tidak ditampilkan.
-                     Dipertahankan agar state/module transisi tidak
-                     langsung gagal sebelum generate-state.js
-                     diperbarui.
                 ================================================== -->
 
                 <section
@@ -848,13 +866,16 @@
                         -
                     </h2>
 
+
                     <p id="modelDescription">
                         -
                     </p>
 
+
                     <div id="providerName">
                         -
                     </div>
+
 
                     <div id="modelMeta"></div>
 
@@ -864,8 +885,8 @@
                 <!-- =================================================
                      RESULT COMPATIBILITY
                      -------------------------------------------------
-                     Hasil generate TIDAK ditampilkan di halaman ini.
-                     Hasil akan ditangani History.
+                     Hasil tidak ditampilkan di Generate.
+                     History akan menjadi tempat hasil.
                 ================================================== -->
 
                 <section
@@ -879,16 +900,17 @@
                         -
                     </div>
 
+
                     <div id="resultProvider">
                         -
                     </div>
+
 
                     <div id="resultTaskId">
                         -
                     </div>
 
                 </section>
-
 
             </section>
 
