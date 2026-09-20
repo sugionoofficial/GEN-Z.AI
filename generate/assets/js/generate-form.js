@@ -6,24 +6,19 @@
    generate/assets/js/generate-form.js
 
    Tanggung jawab:
-   - Render parameter berdasarkan currentModel.parameters
-   - Tidak membuat parameter hardcoded
-   - Image URL / upload
-   - Enum option
-   - Boolean checkbox
-   - Number input
+   - Render parameter model secara dinamis
+   - Source parameter dari konfigurasi model
+   - Mendukung object / array / JSON Schema
+   - Image URL / Upload
+   - Enum
+   - Boolean
+   - Number / Integer
    - Duration range
    - Collect parameter
    - Reset form
-
-   SOURCE OF TRUTH:
-   currentModel.parameters
-
-   PENTING:
+   - Tidak membuat parameter model baru
    - task_id tidak ditampilkan
    - task_id tidak dikirim
-   - image_urls tetap array
-   - semua parameter dari model dirender
 ========================================================= */
 
 "use strict";
@@ -45,20 +40,22 @@ import {
    CONSTANTS
 ========================================================= */
 
-const INTERNAL_PARAMETERS = new Set([
-    "task_id"
-]);
+const INTERNAL_PARAMETERS =
+    new Set([
+        "task_id"
+    ]);
 
 
 const STORAGE_BUCKET =
     "dashboard-videos";
 
 
-const ALLOWED_IMAGE_TYPES = new Set([
-    "image/jpeg",
-    "image/png",
-    "image/webp"
-]);
+const ALLOWED_IMAGE_TYPES =
+    new Set([
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+    ]);
 
 
 const MAX_IMAGE_SIZE =
@@ -66,9 +63,14 @@ const MAX_IMAGE_SIZE =
 
 
 /*
- * Ini hanya urutan visual.
- * Bukan whitelist.
+ * Hanya menentukan urutan visual.
+ *
+ * BUKAN whitelist.
+ *
+ * Parameter lain yang diberikan model
+ * tetap akan dirender.
  */
+
 const PARAMETER_ORDER = [
     "image_urls",
     "image_url",
@@ -83,13 +85,14 @@ const PARAMETER_ORDER = [
 
 
 /* =========================================================
-   DOM CONTAINER
+   DOM
 ========================================================= */
 
 function getContainer() {
 
     const elements =
         getGenerateElements();
+
 
     return (
         elements?.dynamicFields ||
@@ -103,28 +106,78 @@ function getContainer() {
 
 
 /* =========================================================
-   PARAMETER SOURCE
+   MODEL
 ========================================================= */
 
-function getParameterDefinitions() {
+function resolveModel(
+    modelArgument = null
+) {
 
-    const model =
+    if (
+        modelArgument &&
+        typeof modelArgument ===
+        "object"
+    ) {
+
+        return modelArgument;
+
+    }
+
+
+    const currentModel =
         getCurrentModel();
 
 
     if (
-        !model ||
-        typeof model !== "object"
+        currentModel &&
+        typeof currentModel ===
+        "object"
+    ) {
+
+        return currentModel;
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   PARAMETER SOURCE
+========================================================= */
+
+function getParameterDefinitions(
+    modelArgument = null
+) {
+
+    const model =
+        resolveModel(
+            modelArgument
+        );
+
+
+    if (
+        !model
     ) {
 
         console.warn(
-            "[GEN-Z.AI][Generate Form] Current model tidak tersedia."
+            "[GEN-Z.AI][Generate Form] Model tidak tersedia."
         );
+
 
         return {};
 
     }
 
+
+    /*
+     * Semua kemungkinan struktur parameter
+     * yang dapat berasal dari model-config.
+     *
+     * Tidak membuat parameter sendiri.
+     */
 
     const candidates = [
 
@@ -134,17 +187,47 @@ function getParameterDefinitions() {
 
         model.parameterSchema,
 
+        model.input_schema,
+
+        model.inputSchema,
+
+        model.schema,
+
         model.config?.parameters,
-
-        model.repository?.parameters,
-
-        model.model?.parameters,
 
         model.config?.parameter_schema,
 
+        model.config?.parameterSchema,
+
+        model.config?.input_schema,
+
+        model.config?.inputSchema,
+
+        model.config?.schema,
+
+        model.repository?.parameters,
+
         model.repository?.parameter_schema,
 
-        model.model?.parameter_schema
+        model.repository?.parameterSchema,
+
+        model.repository?.input_schema,
+
+        model.repository?.inputSchema,
+
+        model.repository?.schema,
+
+        model.model?.parameters,
+
+        model.model?.parameter_schema,
+
+        model.model?.parameterSchema,
+
+        model.model?.input_schema,
+
+        model.model?.inputSchema,
+
+        model.model?.schema
 
     ];
 
@@ -170,7 +253,9 @@ function getParameterDefinitions() {
                 "[GEN-Z.AI][Generate Form] Parameter source ditemukan:",
                 {
                     model:
-                        model.model_id,
+                        model.model_id ||
+                        model.id ||
+                        "-",
 
                     keys:
                         Object.keys(
@@ -187,8 +272,70 @@ function getParameterDefinitions() {
     }
 
 
+    /*
+     * Beberapa API mengembalikan:
+     *
+     * {
+     *   data: {
+     *      parameters: {...}
+     *   }
+     * }
+     */
+
+    const nestedCandidates = [
+
+        model.data?.parameters,
+
+        model.data?.parameter_schema,
+
+        model.data?.parameterSchema,
+
+        model.data?.input_schema,
+
+        model.data?.inputSchema,
+
+        model.data?.schema
+
+    ];
+
+
+    for (
+        const candidate
+        of nestedCandidates
+    ) {
+
+        const normalized =
+            normalizeParameterDefinitions(
+                candidate
+            );
+
+
+        if (
+            Object.keys(
+                normalized
+            ).length > 0
+        ) {
+
+            return normalized;
+
+        }
+
+    }
+
+
     console.warn(
-        "[GEN-Z.AI][Generate Form] Model tidak memiliki parameter."
+        "[GEN-Z.AI][Generate Form] Parameter model tidak ditemukan:",
+        {
+            modelId:
+                model.model_id ||
+                model.id ||
+                "-",
+
+            modelKeys:
+                Object.keys(
+                    model
+                )
+        }
     );
 
 
@@ -215,7 +362,50 @@ function normalizeParameterDefinitions(
 
 
     /*
-     * Array:
+     * JSON string compatibility.
+     */
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        const text =
+            value.trim();
+
+
+        if (
+            !text
+        ) {
+
+            return {};
+
+        }
+
+
+        try {
+
+            const parsed =
+                JSON.parse(
+                    text
+                );
+
+
+            return normalizeParameterDefinitions(
+                parsed
+            );
+
+        } catch {
+
+            return {};
+
+        }
+
+    }
+
+
+    /*
+     * ARRAY
      *
      * [
      *   {
@@ -229,7 +419,8 @@ function normalizeParameterDefinitions(
         Array.isArray(value)
     ) {
 
-        const result = {};
+        const result =
+            {};
 
 
         value.forEach(
@@ -251,6 +442,7 @@ function normalizeParameterDefinitions(
                         item.name ??
                         item.key ??
                         item.id ??
+                        item.parameter ??
                         ""
                     ).trim();
 
@@ -265,13 +457,16 @@ function normalizeParameterDefinitions(
 
 
                 const definition = {
+
                     ...item
+
                 };
 
 
                 delete definition.name;
                 delete definition.key;
                 delete definition.id;
+                delete definition.parameter;
 
 
                 result[name] =
@@ -286,6 +481,10 @@ function normalizeParameterDefinitions(
     }
 
 
+    /*
+     * OBJECT
+     */
+
     if (
         typeof value !==
         "object"
@@ -297,36 +496,34 @@ function normalizeParameterDefinitions(
 
 
     /*
-     * Nested:
-     *
-     * {
-     *   parameters: {
-     *      prompt: {...}
-     *   }
-     * }
+     * Nested parameters.
      */
 
     if (
-        value.parameters &&
-        typeof value.parameters ===
-        "object"
+        value.parameters
     ) {
 
-        return normalizeParameterDefinitions(
-            value.parameters
-        );
+        const nested =
+            normalizeParameterDefinitions(
+                value.parameters
+            );
+
+
+        if (
+            Object.keys(
+                nested
+            ).length
+        ) {
+
+            return nested;
+
+        }
 
     }
 
 
     /*
-     * JSON schema:
-     *
-     * {
-     *   properties: {
-     *      prompt: {...}
-     *   }
-     * }
+     * JSON Schema properties.
      */
 
     if (
@@ -335,53 +532,175 @@ function normalizeParameterDefinitions(
         "object"
     ) {
 
-        return normalizeParameterDefinitions(
-            value.properties
-        );
+        const properties =
+            normalizeParameterDefinitions(
+                value.properties
+            );
+
+
+        if (
+            Object.keys(
+                properties
+            ).length
+        ) {
+
+            return properties;
+
+        }
 
     }
 
 
-    const result = {};
+    /*
+     * input_schema.properties
+     */
+
+    if (
+        value.input_schema
+    ) {
+
+        const nested =
+            normalizeParameterDefinitions(
+                value.input_schema
+            );
 
 
-    Object.entries(value)
-        .forEach(
-            (
-                [
-                    key,
-                    definition
-                ]
-            ) => {
+        if (
+            Object.keys(
+                nested
+            ).length
+        ) {
 
-                if (
-                    !key ||
-                    definition ===
-                    undefined ||
-                    definition ===
-                    null
-                ) {
+            return nested;
 
-                    return;
+        }
 
-                }
+    }
 
 
-                if (
-                    typeof definition !==
-                    "object"
-                ) {
+    /*
+     * schema.properties
+     */
 
-                    return;
+    if (
+        value.schema
+    ) {
 
-                }
+        const nested =
+            normalizeParameterDefinitions(
+                value.schema
+            );
 
+
+        if (
+            Object.keys(
+                nested
+            ).length
+        ) {
+
+            return nested;
+
+        }
+
+    }
+
+
+    /*
+     * Plain parameter object.
+     */
+
+    const result =
+        {};
+
+
+    Object.entries(
+        value
+    ).forEach(
+        (
+            [
+                key,
+                definition
+            ]
+        ) => {
+
+            if (
+                !key ||
+                definition ===
+                null ||
+                definition ===
+                undefined
+            ) {
+
+                return;
+
+            }
+
+
+            /*
+             * Metadata bukan parameter.
+             */
+
+            if (
+                key ===
+                    "required" ||
+                key ===
+                    "title" ||
+                key ===
+                    "description" ||
+                key ===
+                    "type" ||
+                key ===
+                    "additionalProperties"
+            ) {
+
+                return;
+
+            }
+
+
+            if (
+                typeof definition ===
+                "object"
+            ) {
 
                 result[key] =
                     definition;
 
+                return;
+
             }
-        );
+
+
+            /*
+             * Primitive definition.
+             *
+             * Hanya dipertahankan sebagai
+             * definisi sederhana.
+             */
+
+            if (
+                typeof definition ===
+                    "string" ||
+                typeof definition ===
+                    "number" ||
+                typeof definition ===
+                    "boolean"
+            ) {
+
+                result[key] = {
+
+                    type:
+                        typeof definition,
+
+                    default:
+                        definition
+
+                };
+
+            }
+
+        }
+    );
 
 
     return result;
@@ -390,7 +709,7 @@ function normalizeParameterDefinitions(
 
 
 /* =========================================================
-   PARAMETER LABEL
+   LABEL
 ========================================================= */
 
 function getParameterLabel(
@@ -399,13 +718,23 @@ function getParameterLabel(
 ) {
 
     if (
-        definition &&
-        typeof definition.label ===
+        typeof definition?.label ===
         "string" &&
         definition.label.trim()
     ) {
 
         return definition.label.trim();
+
+    }
+
+
+    if (
+        typeof definition?.title ===
+        "string" &&
+        definition.title.trim()
+    ) {
+
+        return definition.title.trim();
 
     }
 
@@ -451,7 +780,9 @@ function getParameterLabel(
     }
 
 
-    return String(name)
+    return String(
+        name
+    )
         .replace(
             /[_-]+/g,
             " "
@@ -466,7 +797,7 @@ function getParameterLabel(
 
 
 /* =========================================================
-   PARAMETER DESCRIPTION
+   DESCRIPTION
 ========================================================= */
 
 function getParameterDescription(
@@ -482,7 +813,7 @@ function getParameterDescription(
 
 
 /* =========================================================
-   INTERNAL PARAMETER
+   INTERNAL
 ========================================================= */
 
 function isInternalParameter(
@@ -491,7 +822,8 @@ function isInternalParameter(
 
     return INTERNAL_PARAMETERS.has(
         String(
-            name || ""
+            name ||
+            ""
         ).trim()
     );
 
@@ -499,7 +831,7 @@ function isInternalParameter(
 
 
 /* =========================================================
-   RENDERABLE PARAMETER
+   RENDERABLE
 ========================================================= */
 
 function isRenderableParameter(
@@ -508,8 +840,18 @@ function isRenderableParameter(
 ) {
 
     if (
-        !name ||
-        isInternalParameter(name)
+        !name
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        isInternalParameter(
+            name
+        )
     ) {
 
         return false;
@@ -543,7 +885,8 @@ function getOrderedParameterNames(
 
     const names =
         Object.keys(
-            definitions || {}
+            definitions ||
+            {}
         )
         .filter(
             name =>
@@ -554,7 +897,8 @@ function getOrderedParameterNames(
         );
 
 
-    const ordered = [];
+    const ordered =
+        [];
 
 
     PARAMETER_ORDER.forEach(
@@ -580,10 +924,14 @@ function getOrderedParameterNames(
         name => {
 
             if (
-                !ordered.includes(name)
+                !ordered.includes(
+                    name
+                )
             ) {
 
-                ordered.push(name);
+                ordered.push(
+                    name
+                );
 
             }
 
@@ -597,7 +945,7 @@ function getOrderedParameterNames(
 
 
 /* =========================================================
-   FIELD WRAPPER
+   FIELD
 ========================================================= */
 
 function createField(
@@ -621,6 +969,14 @@ function createField(
 
     wrapper.style.width =
         "100%";
+
+
+    wrapper.style.visibility =
+        "visible";
+
+
+    wrapper.style.opacity =
+        "1";
 
 
     const label =
@@ -651,7 +1007,7 @@ function createField(
 
 
 /* =========================================================
-   FIELD DESCRIPTION
+   DESCRIPTION
 ========================================================= */
 
 function appendDescription(
@@ -714,13 +1070,17 @@ function getDefaultValue(
     }
 
 
-    return definition.default;
+    return (
+        definition.default ??
+        definition.default_value ??
+        definition.value
+    );
 
 }
 
 
 /* =========================================================
-   ARRAY NORMALIZER
+   ARRAY
 ========================================================= */
 
 function normalizeArray(
@@ -735,7 +1095,8 @@ function normalizeArray(
             .map(
                 item =>
                     String(
-                        item ?? ""
+                        item ??
+                        ""
                     ).trim()
             )
             .filter(Boolean);
@@ -744,8 +1105,10 @@ function normalizeArray(
 
 
     if (
-        value === null ||
-        value === undefined
+        value ===
+            null ||
+        value ===
+            undefined
     ) {
 
         return [];
@@ -767,7 +1130,9 @@ function normalizeArray(
         value.trim();
 
 
-    if (!text) {
+    if (
+        !text
+    ) {
 
         return [];
 
@@ -775,7 +1140,7 @@ function normalizeArray(
 
 
     /*
-     * JSON array
+     * JSON array.
      */
 
     if (
@@ -792,7 +1157,9 @@ function normalizeArray(
 
 
             if (
-                Array.isArray(parsed)
+                Array.isArray(
+                    parsed
+                )
             ) {
 
                 return normalizeArray(
@@ -811,7 +1178,7 @@ function normalizeArray(
 
 
     /*
-     * PostgreSQL array
+     * PostgreSQL array.
      */
 
     if (
@@ -820,7 +1187,10 @@ function normalizeArray(
     ) {
 
         return text
-            .slice(1, -1)
+            .slice(
+                1,
+                -1
+            )
             .split(",")
             .map(
                 item =>
@@ -837,7 +1207,7 @@ function normalizeArray(
 
 
     /*
-     * CSV
+     * CSV.
      */
 
     return text
@@ -861,7 +1231,9 @@ function createFieldId(
 
     return (
         "generate-field-" +
-        String(name)
+        String(
+            name
+        )
             .replace(
                 /[^a-zA-Z0-9_-]/g,
                 "-"
@@ -898,6 +1270,14 @@ function createImageField(
         "100%";
 
 
+    wrapper.style.visibility =
+        "visible";
+
+
+    wrapper.style.opacity =
+        "1";
+
+
     let mode =
         "url";
 
@@ -909,6 +1289,10 @@ function createImageField(
     let uploadedUrl =
         "";
 
+
+    /*
+     * MODE BUTTONS
+     */
 
     const modeGroup =
         document.createElement(
@@ -972,7 +1356,7 @@ function createImageField(
 
 
     /*
-     * URL
+     * URL PANEL
      */
 
     const urlPanel =
@@ -996,7 +1380,9 @@ function createImageField(
 
 
     urlInput.id =
-        createFieldId(name);
+        createFieldId(
+            name
+        );
 
 
     urlInput.name =
@@ -1044,7 +1430,7 @@ function createImageField(
 
 
     /*
-     * UPLOAD
+     * UPLOAD PANEL
      */
 
     const uploadPanel =
@@ -1280,7 +1666,9 @@ function createImageField(
                 event.target.files?.[0];
 
 
-            if (!file) {
+            if (
+                !file
+            ) {
 
                 return;
 
@@ -1290,7 +1678,8 @@ function createImageField(
             if (
                 !ALLOWED_IMAGE_TYPES.has(
                     String(
-                        file.type || ""
+                        file.type ||
+                        ""
                     ).toLowerCase()
                 )
             ) {
@@ -1298,8 +1687,10 @@ function createImageField(
                 status.textContent =
                     "Format gambar harus JPG, PNG, atau WebP.";
 
+
                 fileInput.value =
                     "";
+
 
                 return;
 
@@ -1307,15 +1698,19 @@ function createImageField(
 
 
             if (
-                Number(file.size) >
+                Number(
+                    file.size
+                ) >
                 MAX_IMAGE_SIZE
             ) {
 
                 status.textContent =
                     "Ukuran gambar maksimal 10 MB.";
 
+
                 fileInput.value =
                     "";
+
 
                 return;
 
@@ -1338,6 +1733,7 @@ function createImageField(
                 status.textContent =
                     "Storage belum tersedia.";
 
+
                 return;
 
             }
@@ -1349,6 +1745,7 @@ function createImageField(
 
                 status.textContent =
                     "Session user belum tersedia.";
+
 
                 return;
 
@@ -1423,6 +1820,7 @@ function createImageField(
                             path,
                             file,
                             {
+
                                 cacheControl:
                                     "3600",
 
@@ -1431,6 +1829,7 @@ function createImageField(
 
                                 contentType:
                                     file.type
+
                             }
                         );
 
@@ -1492,7 +1891,10 @@ function createImageField(
                 status.textContent =
                     "Gambar berhasil diunggah.";
 
-            } catch (error) {
+
+            } catch (
+                error
+            ) {
 
                 console.error(
                     "[GEN-Z.AI][Generate Form] Upload error:",
@@ -1504,10 +1906,12 @@ function createImageField(
                     error?.message ||
                     "Upload gambar gagal.";
 
+
             } finally {
 
                 chooseButton.disabled =
                     false;
+
 
                 fileInput.value =
                     "";
@@ -1585,7 +1989,9 @@ function createImageField(
                         path
                     ]);
 
-            } catch (error) {
+            } catch (
+                error
+            ) {
 
                 console.warn(
                     "[GEN-Z.AI][Generate Form] Gagal menghapus upload:",
@@ -1599,7 +2005,7 @@ function createImageField(
 
 
     /*
-     * PUBLIC METHODS
+     * PUBLIC HELPERS
      */
 
     wrapper.getInputMode =
@@ -1620,7 +2026,7 @@ function createImageField(
     wrapper.clearUploadedFile =
         async () => {
 
-            removeButton.click();
+            await removeButton.click();
 
         };
 
@@ -1650,7 +2056,7 @@ function createImageField(
 
 
 /* =========================================================
-   ENUM OPTIONS
+   ENUM
 ========================================================= */
 
 function createEnumField(
@@ -1672,8 +2078,16 @@ function createEnumField(
         Array.isArray(
             definition?.enum
         )
+
             ? definition.enum
-            : [];
+
+            : (
+                Array.isArray(
+                    definition?.options
+                )
+                    ? definition.options
+                    : []
+            );
 
 
     let defaultValue =
@@ -1696,8 +2110,7 @@ function createEnumField(
 
     enumValues.forEach(
         (
-            value,
-            index
+            value
         ) => {
 
             const option =
@@ -1725,7 +2138,9 @@ function createEnumField(
 
 
             input.value =
-                String(value);
+                String(
+                    value
+                );
 
 
             input.dataset.parameter =
@@ -1743,12 +2158,18 @@ function createEnumField(
 
 
             optionLabel.textContent =
-                String(value);
+                String(
+                    value
+                );
 
 
             if (
-                String(value) ===
-                String(defaultValue)
+                String(
+                    value
+                ) ===
+                String(
+                    defaultValue
+                )
             ) {
 
                 input.checked =
@@ -1808,10 +2229,6 @@ function createEnumField(
     );
 
 
-    /*
-     * Active class untuk default.
-     */
-
     const checked =
         wrapper.querySelector(
             "input:checked"
@@ -1822,19 +2239,11 @@ function createEnumField(
         checked
     ) {
 
-        const label =
-            checked.nextElementSibling;
-
-
-        if (
-            label
-        ) {
-
-            label.classList.add(
+        checked
+            .nextElementSibling
+            ?.classList.add(
                 "active"
             );
-
-        }
 
     }
 
@@ -1938,7 +2347,9 @@ function createNumberField(
 
 
     input.id =
-        createFieldId(name);
+        createFieldId(
+            name
+        );
 
 
     input.name =
@@ -1955,48 +2366,60 @@ function createNumberField(
 
     const min =
         Number(
-            definition?.min
+            definition?.min ??
+            definition?.minimum
         );
 
 
     const max =
         Number(
-            definition?.max
+            definition?.max ??
+            definition?.maximum
         );
 
 
     if (
-        Number.isFinite(min)
+        Number.isFinite(
+            min
+        )
     ) {
 
         input.min =
-            String(min);
+            String(
+                min
+            );
 
     }
 
 
     if (
-        Number.isFinite(max)
+        Number.isFinite(
+            max
+        )
     ) {
 
         input.max =
-            String(max);
+            String(
+                max
+            );
 
     }
 
 
-    const step =
-        name === "index" ||
-        definition?.type ===
-            "integer"
+    input.step =
+        (
+            String(
+                definition?.type ||
+                ""
+            ).toLowerCase() ===
+            "integer" ||
+            name ===
+            "index"
+        )
 
             ? "1"
 
             : "any";
-
-
-    input.step =
-        step;
 
 
     const defaultValue =
@@ -2024,7 +2447,7 @@ function createNumberField(
 
 
 /* =========================================================
-   DURATION RANGE
+   DURATION
 ========================================================= */
 
 function createDurationField(
@@ -2052,6 +2475,19 @@ function createDurationField(
         "generate-duration-top";
 
 
+    const title =
+        document.createElement(
+            "span"
+        );
+
+
+    title.textContent =
+        getParameterLabel(
+            name,
+            definition
+        );
+
+
     const valueLabel =
         document.createElement(
             "span"
@@ -2073,7 +2509,9 @@ function createDurationField(
 
 
     range.id =
-        createFieldId(name);
+        createFieldId(
+            name
+        );
 
 
     range.name =
@@ -2090,18 +2528,22 @@ function createDurationField(
 
     let min =
         Number(
-            definition?.min
+            definition?.min ??
+            definition?.minimum
         );
 
 
     let max =
         Number(
-            definition?.max
+            definition?.max ??
+            definition?.maximum
         );
 
 
     if (
-        !Number.isFinite(min)
+        !Number.isFinite(
+            min
+        )
     ) {
 
         min =
@@ -2111,7 +2553,9 @@ function createDurationField(
 
 
     if (
-        !Number.isFinite(max)
+        !Number.isFinite(
+            max
+        )
     ) {
 
         max =
@@ -2120,19 +2564,23 @@ function createDurationField(
     }
 
 
-    const defaultValue =
+    const rawDefault =
+        getDefaultValue(
+            definition
+        );
+
+
+    const parsedDefault =
         Number(
-            getDefaultValue(
-                definition
-            )
+            rawDefault
         );
 
 
     let value =
         Number.isFinite(
-            defaultValue
+            parsedDefault
         )
-            ? defaultValue
+            ? parsedDefault
             : min;
 
 
@@ -2147,11 +2595,15 @@ function createDurationField(
 
 
     range.min =
-        String(min);
+        String(
+            min
+        );
 
 
     range.max =
-        String(max);
+        String(
+            max
+        );
 
 
     range.step =
@@ -2159,7 +2611,9 @@ function createDurationField(
 
 
     range.value =
-        String(value);
+        String(
+            value
+        );
 
 
     valueLabel.textContent =
@@ -2167,17 +2621,8 @@ function createDurationField(
 
 
     top.appendChild(
-        document.createElement(
-            "span"
-        )
+        title
     );
-
-
-    top.firstElementChild.textContent =
-        getParameterLabel(
-            name,
-            definition
-        );
 
 
     top.appendChild(
@@ -2272,7 +2717,9 @@ function createTextareaField(
 
 
     textarea.id =
-        createFieldId(name);
+        createFieldId(
+            name
+        );
 
 
     textarea.name =
@@ -2292,12 +2739,14 @@ function createTextareaField(
 
 
     textarea.placeholder =
+        definition?.placeholder ||
         "Masukkan prompt...";
 
 
     const maxLength =
         Number(
-            definition?.maxLength
+            definition?.maxLength ??
+            definition?.max_length
         );
 
 
@@ -2357,7 +2806,9 @@ function createTextField(
 
 
     input.id =
-        createFieldId(name);
+        createFieldId(
+            name
+        );
 
 
     input.name =
@@ -2372,9 +2823,15 @@ function createTextField(
         name;
 
 
+    input.placeholder =
+        definition?.placeholder ||
+        "";
+
+
     const maxLength =
         Number(
-            definition?.maxLength
+            definition?.maxLength ??
+            definition?.max_length
         );
 
 
@@ -2415,6 +2872,129 @@ function createTextField(
 
 
 /* =========================================================
+   SELECT
+========================================================= */
+
+function createSelectField(
+    definition,
+    name
+) {
+
+    const select =
+        document.createElement(
+            "select"
+        );
+
+
+    select.id =
+        createFieldId(
+            name
+        );
+
+
+    select.name =
+        name;
+
+
+    select.className =
+        "form-control";
+
+
+    select.dataset.parameter =
+        name;
+
+
+    const options =
+        Array.isArray(
+            definition?.options
+        )
+
+            ? definition.options
+
+            : [];
+
+
+    options.forEach(
+        optionValue => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+
+            if (
+                optionValue &&
+                typeof optionValue ===
+                "object"
+            ) {
+
+                option.value =
+                    String(
+                        optionValue.value ??
+                        optionValue.id ??
+                        ""
+                    );
+
+
+                option.textContent =
+                    String(
+                        optionValue.label ??
+                        optionValue.name ??
+                        option.value
+                    );
+
+            }
+
+            else {
+
+                option.value =
+                    String(
+                        optionValue
+                    );
+
+
+                option.textContent =
+                    String(
+                        optionValue
+                    );
+
+            }
+
+
+            select.appendChild(
+                option
+            );
+
+        }
+    );
+
+
+    const defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue !==
+        undefined
+    ) {
+
+        select.value =
+            String(
+                defaultValue
+            );
+
+    }
+
+
+    return select;
+
+}
+
+
+/* =========================================================
    CREATE INPUT
 ========================================================= */
 
@@ -2433,12 +3013,14 @@ function createFieldInput(
 
 
     /*
-     * ARRAY IMAGE
+     * IMAGE
      */
 
     if (
-        name === "image_urls" ||
-        name === "image_url"
+        name ===
+            "image_urls" ||
+        name ===
+            "image_url"
     ) {
 
         return createImageField(
@@ -2469,11 +3051,31 @@ function createFieldInput(
 
 
     /*
+     * OPTIONS
+     */
+
+    if (
+        Array.isArray(
+            definition?.options
+        ) &&
+        definition.options.length
+    ) {
+
+        return createSelectField(
+            definition,
+            name
+        );
+
+    }
+
+
+    /*
      * BOOLEAN
      */
 
     if (
-        type === "boolean"
+        type ===
+        "boolean"
     ) {
 
         return createBooleanField(
@@ -2489,10 +3091,13 @@ function createFieldInput(
      */
 
     if (
-        name === "duration" &&
+        name ===
+            "duration" &&
         (
-            type === "number" ||
-            type === "integer"
+            type ===
+                "number" ||
+            type ===
+                "integer"
         )
     ) {
 
@@ -2509,8 +3114,10 @@ function createFieldInput(
      */
 
     if (
-        type === "number" ||
-        type === "integer"
+        type ===
+            "number" ||
+        type ===
+            "integer"
     ) {
 
         return createNumberField(
@@ -2522,22 +3129,29 @@ function createFieldInput(
 
 
     /*
-     * LONG STRING
+     * TEXTAREA
      */
 
     const maxLength =
         Number(
-            definition?.maxLength
+            definition?.maxLength ??
+            definition?.max_length
         );
 
 
     if (
-        name === "prompt" ||
+        name ===
+            "prompt" ||
+        name ===
+            "description" ||
+        name ===
+            "negative_prompt" ||
         (
             Number.isFinite(
                 maxLength
             ) &&
-            maxLength > 500
+            maxLength >
+                500
         )
     ) {
 
@@ -2550,7 +3164,7 @@ function createFieldInput(
 
 
     /*
-     * STRING
+     * DEFAULT TEXT
      */
 
     return createTextField(
@@ -2562,7 +3176,7 @@ function createFieldInput(
 
 
 /* =========================================================
-   RENDER ONE PARAMETER
+   RENDER PARAMETER
 ========================================================= */
 
 function renderParameter(
@@ -2596,13 +3210,13 @@ function renderParameter(
 
 
     /*
-     * Jangan tambahkan label kedua
-     * untuk duration karena duration
-     * sudah memiliki header sendiri.
+     * Duration sudah mempunyai
+     * title sendiri.
      */
 
     if (
-        name !== "duration"
+        name !==
+        "duration"
     ) {
 
         appendDescription(
@@ -2622,7 +3236,9 @@ function renderParameter(
    RENDER FORM
 ========================================================= */
 
-export function renderGenerateForm() {
+export function renderGenerateForm(
+    modelArgument = null
+) {
 
     const container =
         getContainer();
@@ -2636,38 +3252,56 @@ export function renderGenerateForm() {
             "[GEN-Z.AI][Generate Form] #dynamicFields tidak ditemukan."
         );
 
+
         return false;
 
     }
 
 
     /*
-     * Bersihkan render sebelumnya.
+     * MODEL SOURCE
+     *
+     * Prioritas:
+     * 1. argument dari generate-app
+     * 2. currentModel sebagai fallback
      */
 
-    container.innerHTML =
-        "";
-
-
     const model =
-        getCurrentModel();
+        resolveModel(
+            modelArgument
+        );
 
 
     if (
         !model
     ) {
 
-        console.warn(
-            "[GEN-Z.AI][Generate Form] Current model belum tersedia."
+        console.error(
+            "[GEN-Z.AI][Generate Form] Model tidak tersedia."
         );
+
 
         return false;
 
     }
 
 
+    /*
+     * CLEAR
+     */
+
+    container.innerHTML =
+        "";
+
+
+    /*
+     * PARAMETERS
+     */
+
     const definitions =
-        getParameterDefinitions();
+        getParameterDefinitions(
+            model
+        );
 
 
     const names =
@@ -2678,13 +3312,9 @@ export function renderGenerateForm() {
 
     console.log(
         "[GEN-Z.AI][Generate Form] MODEL:",
-        model.model_id
-    );
-
-
-    console.log(
-        "[GEN-Z.AI][Generate Form] PARAMETERS:",
-        definitions
+        model.model_id ||
+        model.id ||
+        "-"
     );
 
 
@@ -2693,6 +3323,12 @@ export function renderGenerateForm() {
         names
     );
 
+
+    /*
+     * =====================================================
+     * EMPTY PARAMETERS
+     * =====================================================
+     */
 
     if (
         names.length ===
@@ -2718,12 +3354,9 @@ export function renderGenerateForm() {
         );
 
 
-        container.hidden =
-            false;
-
-
-        container.style.display =
-            "flex";
+        forceContainerVisible(
+            container
+        );
 
 
         return false;
@@ -2731,22 +3364,50 @@ export function renderGenerateForm() {
     }
 
 
+    /*
+     * =====================================================
+     * RENDER
+     * =====================================================
+     */
+
+    let renderedCount =
+        0;
+
+
     names.forEach(
         name => {
 
-            const field =
-                renderParameter(
-                    name,
-                    definitions[name]
-                );
+            try {
+
+                const field =
+                    renderParameter(
+                        name,
+                        definitions[name]
+                    );
 
 
-            if (
-                field
+                if (
+                    field
+                ) {
+
+                    container.appendChild(
+                        field
+                    );
+
+
+                    renderedCount +=
+                        1;
+
+                }
+
+            } catch (
+                error
             ) {
 
-                container.appendChild(
-                    field
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Parameter gagal dirender:",
+                    name,
+                    error
                 );
 
             }
@@ -2756,10 +3417,57 @@ export function renderGenerateForm() {
 
 
     /*
-     * FORCE VISIBLE.
-     *
-     * Supaya tidak kalah oleh CSS global.
+     * =====================================================
+     * FORCE VISIBLE
+     * =====================================================
      */
+
+    forceContainerVisible(
+        container
+    );
+
+
+    console.log(
+        "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
+        {
+
+            model:
+                model.model_id ||
+                model.id ||
+                "-",
+
+            fields:
+                renderedCount,
+
+            parameters:
+                names
+
+        }
+    );
+
+
+    return renderedCount >
+        0;
+
+}
+
+
+/* =========================================================
+   FORCE CONTAINER VISIBLE
+========================================================= */
+
+function forceContainerVisible(
+    container
+) {
+
+    if (
+        !container
+    ) {
+
+        return;
+
+    }
+
 
     container.hidden =
         false;
@@ -2772,7 +3480,7 @@ export function renderGenerateForm() {
 
     container.style.setProperty(
         "display",
-        "flex",
+        "grid",
         "important"
     );
 
@@ -2805,22 +3513,11 @@ export function renderGenerateForm() {
     );
 
 
-    console.log(
-        "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
-        {
-            model:
-                model.model_id,
-
-            fields:
-                container.children.length,
-
-            parameters:
-                names
-        }
+    container.style.setProperty(
+        "overflow",
+        "visible",
+        "important"
     );
-
-
-    return true;
 
 }
 
@@ -2846,9 +3543,28 @@ function findField(
     }
 
 
+    const escaped =
+        typeof CSS !==
+            "undefined" &&
+        typeof CSS.escape ===
+            "function"
+
+            ? CSS.escape(
+                name
+            )
+
+            : String(
+                name
+            )
+                .replace(
+                    /"/g,
+                    '\\"'
+                );
+
+
     return (
         container.querySelector(
-            `[data-parameter="${CSS.escape(name)}"]`
+            `[data-parameter="${escaped}"]`
         ) ||
         null
     );
@@ -2897,15 +3613,18 @@ function readFieldValue(
 
 
         if (
-            mode === "upload"
+            mode ===
+            "upload"
         ) {
 
-            return typeof imageInput.getUploadedUrl ===
+            return (
+                typeof imageInput.getUploadedUrl ===
                 "function"
 
                     ? imageInput.getUploadedUrl()
 
-                    : "";
+                    : ""
+            );
 
         }
 
@@ -3010,9 +3729,15 @@ function normalizeParameterValue(
             .toLowerCase();
 
 
+    /*
+     * IMAGE
+     */
+
     if (
-        name === "image_urls" ||
-        name === "image_url"
+        name ===
+            "image_urls" ||
+        name ===
+            "image_url"
     ) {
 
         return normalizeArray(
@@ -3022,8 +3747,13 @@ function normalizeParameterValue(
     }
 
 
+    /*
+     * BOOLEAN
+     */
+
     if (
-        type === "boolean"
+        type ===
+        "boolean"
     ) {
 
         return Boolean(
@@ -3033,13 +3763,21 @@ function normalizeParameterValue(
     }
 
 
+    /*
+     * NUMBER
+     */
+
     if (
-        type === "number" ||
-        type === "integer"
+        type ===
+            "number" ||
+        type ===
+            "integer"
     ) {
 
         const number =
-            Number(value);
+            Number(
+                value
+            );
 
 
         if (
@@ -3053,10 +3791,14 @@ function normalizeParameterValue(
         }
 
 
-        return type ===
+        return (
+            type ===
             "integer"
+        )
 
-            ? Math.round(number)
+            ? Math.round(
+                number
+            )
 
             : number;
 
@@ -3072,10 +3814,14 @@ function normalizeParameterValue(
    GET FORM PARAMETERS
 ========================================================= */
 
-export function getFormParameters() {
+export function getFormParameters(
+    modelArgument = null
+) {
 
     const definitions =
-        getParameterDefinitions();
+        getParameterDefinitions(
+            modelArgument
+        );
 
 
     const names =
@@ -3106,7 +3852,7 @@ export function getFormParameters() {
             }
 
 
-            let value =
+            const value =
                 readFieldValue(
                     field
                 );
@@ -3121,8 +3867,10 @@ export function getFormParameters() {
              */
 
             if (
-                name === "image_urls" ||
-                name === "image_url"
+                name ===
+                    "image_urls" ||
+                name ===
+                    "image_url"
             ) {
 
                 const images =
@@ -3135,8 +3883,10 @@ export function getFormParameters() {
                     Math.max(
                         1,
                         Number(
-                            definition?.maxItems
-                        ) || 1
+                            definition?.maxItems ??
+                            definition?.max_items
+                        ) ||
+                        1
                     );
 
 
@@ -3163,7 +3913,10 @@ export function getFormParameters() {
              */
 
             if (
-                definition?.type ===
+                String(
+                    definition?.type ||
+                    ""
+                ).toLowerCase() ===
                 "boolean"
             ) {
 
@@ -3171,6 +3924,7 @@ export function getFormParameters() {
                     Boolean(
                         value
                     );
+
 
                 return;
 
@@ -3207,7 +3961,7 @@ export function getFormParameters() {
 
 
     /*
-     * task_id tidak boleh masuk.
+     * Internal parameter.
      */
 
     delete parameters.task_id;
@@ -3228,9 +3982,13 @@ export function getFormParameters() {
    GET FORM DATA
 ========================================================= */
 
-export function getFormData() {
+export function getFormData(
+    modelArgument = null
+) {
 
-    return getFormParameters();
+    return getFormParameters(
+        modelArgument
+    );
 
 }
 
@@ -3264,8 +4022,10 @@ export function setFieldValue(
      */
 
     if (
-        name === "image_urls" ||
-        name === "image_url"
+        name ===
+            "image_urls" ||
+        name ===
+            "image_url"
     ) {
 
         const imageInput =
@@ -3333,27 +4093,21 @@ export function setFieldValue(
                     String(
                         radio.value
                     ) ===
-                    String(value);
+                    String(
+                        value
+                    );
 
 
                 radio.checked =
                     active;
 
 
-                const label =
-                    radio.nextElementSibling;
-
-
-                if (
-                    label
-                ) {
-
-                    label.classList.toggle(
+                radio
+                    .nextElementSibling
+                    ?.classList.toggle(
                         "active",
                         active
                     );
-
-                }
 
 
                 if (
@@ -3400,7 +4154,7 @@ export function setFieldValue(
 
 
     /*
-     * NORMAL
+     * SELECT / INPUT / TEXTAREA
      */
 
     const input =
@@ -3432,7 +4186,9 @@ export function setFieldValue(
    RESET
 ========================================================= */
 
-export async function resetDynamicFields() {
+export async function resetDynamicFields(
+    modelArgument = null
+) {
 
     const container =
         getContainer();
@@ -3487,7 +4243,9 @@ export async function resetDynamicFields() {
     }
 
 
-    renderGenerateForm();
+    renderGenerateForm(
+        modelArgument
+    );
 
 }
 
@@ -3535,10 +4293,14 @@ export function setFormDisabled(
    MEDIA PARAMETERS
 ========================================================= */
 
-export function getMediaParameters() {
+export function getMediaParameters(
+    modelArgument = null
+) {
 
     const data =
-        getFormParameters();
+        getFormParameters(
+            modelArgument
+        );
 
 
     return {
@@ -3560,11 +4322,14 @@ export function getMediaParameters() {
 ========================================================= */
 
 export function getParameterDefinition(
-    name
+    name,
+    modelArgument = null
 ) {
 
     const definitions =
-        getParameterDefinitions();
+        getParameterDefinitions(
+            modelArgument
+        );
 
 
     return (
@@ -3579,9 +4344,13 @@ export function getParameterDefinition(
    INIT
 ========================================================= */
 
-export function initGenerateForm() {
+export function initGenerateForm(
+    modelArgument = null
+) {
 
-    return renderGenerateForm();
+    return renderGenerateForm(
+        modelArgument
+    );
 
 }
 
