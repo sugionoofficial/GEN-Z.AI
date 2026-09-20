@@ -5,26 +5,24 @@
    File:
    generate/assets/js/generate-form.js
 
-   Tanggung jawab:
-   - Render dynamic parameter form
-   - Membaca parameter dari currentModel
-   - Menjaga nama/key parameter
-   - Mengambil nilai form
+   TANGGUNG JAWAB:
+   - Render parameter Generate dari model.parameters
+   - Image input
+   - Prompt
+   - Aspect ratio
+   - Resolution
+   - Duration slider
+   - Membaca nilai form
    - Reset form
-   - Sinkronisasi field
-
-   SUMBER PARAMETER:
-   - model.parameters
+   - Disable / enable form
 
    SOURCE OF TRUTH:
-   - models/<model>/parameters.js
-   - dikirim melalui /api/model-config
+   models/<model>/parameters.js
+   melalui /api/model-config
 
-   INTERNAL PARAMETERS:
-   - task_id tidak pernah dirender sebagai input user
-   - task_id hanya digunakan oleh backend/query task
-
-   Tidak ada parameter model yang di-hardcode.
+   INTERNAL:
+   task_id tidak pernah ditampilkan atau dikirim sebagai
+   parameter generation.
 ========================================================= */
 
 import {
@@ -35,26 +33,39 @@ import {
 
 /* =========================================================
    INTERNAL PARAMETERS
-   ---------------------------------------------------------
-   Parameter internal backend tidak boleh muncul
-   sebagai input user dan tidak boleh ikut payload
-   generation.
 ========================================================= */
 
-const INTERNAL_PARAMETERS =
-    new Set([
-        "task_id"
-    ]);
+const INTERNAL_PARAMETERS = new Set([
+    "task_id"
+]);
 
 
 /* =========================================================
-   LOCAL HELPERS
+   PARAMETER YANG DITAMPILKAN
+   ---------------------------------------------------------
+   Ini BUKAN source of truth konfigurasi.
+
+   Daftar ini hanya menentukan parameter mana yang relevan
+   untuk halaman Generate.
+
+   Definisi nilai tetap berasal dari model.parameters.
 ========================================================= */
 
-function safeString(
-    value,
-    fallback = ""
-) {
+const GENERATE_PARAMETER_ORDER = [
+    "image_urls",
+    "image_url",
+    "prompt",
+    "aspect_ratio",
+    "resolution",
+    "duration"
+];
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function safeString(value, fallback = "") {
 
     if (
         value === null ||
@@ -63,20 +74,17 @@ function safeString(
         return fallback;
     }
 
-    const result =
-        String(value).trim();
+    const result = String(value).trim();
 
     return result || fallback;
 }
 
 
 /* =========================================================
-   NORMALIZE ARRAY
+   ARRAY NORMALIZER
 ========================================================= */
 
-function normalizeArray(
-    value
-) {
+function normalizeArray(value) {
 
     if (Array.isArray(value)) {
 
@@ -101,9 +109,9 @@ function normalizeArray(
 
     if (
         value === null ||
-        value === undefined
+        value === undefined ||
+        value === ""
     ) {
-
         return [];
     }
 
@@ -112,17 +120,15 @@ function normalizeArray(
         typeof value === "string"
     ) {
 
-        const text =
-            value.trim();
+        const text = value.trim();
 
         if (!text) {
             return [];
         }
 
 
-        /*
-         * JSON array.
-         */
+        /* JSON array */
+
         if (
             text.startsWith("[") &&
             text.endsWith("]")
@@ -148,11 +154,8 @@ function normalizeArray(
         }
 
 
-        /*
-         * PostgreSQL array.
-         *
-         * {"2:3","9:16"}
-         */
+        /* PostgreSQL array */
+
         if (
             text.startsWith("{") &&
             text.endsWith("}")
@@ -182,9 +185,8 @@ function normalizeArray(
         }
 
 
-        /*
-         * CSV.
-         */
+        /* CSV */
+
         return text
             .split(",")
             .map(
@@ -192,24 +194,6 @@ function normalizeArray(
                     item.trim()
             )
             .filter(Boolean);
-    }
-
-
-    /*
-     * Object values.
-     */
-    if (
-        typeof value === "object"
-    ) {
-
-        return Object.values(
-            value
-        )
-            .filter(
-                item =>
-                    item !== null &&
-                    item !== undefined
-            );
     }
 
 
@@ -231,7 +215,6 @@ function toBoolean(
         value === undefined ||
         value === ""
     ) {
-
         return fallback;
     }
 
@@ -239,7 +222,6 @@ function toBoolean(
     if (
         typeof value === "boolean"
     ) {
-
         return value;
     }
 
@@ -247,7 +229,6 @@ function toBoolean(
     if (
         typeof value === "number"
     ) {
-
         return value !== 0;
     }
 
@@ -267,11 +248,8 @@ function toBoolean(
             "on",
             "enabled",
             "active"
-        ].includes(
-            normalized
-        )
+        ].includes(normalized)
     ) {
-
         return true;
     }
 
@@ -285,11 +263,8 @@ function toBoolean(
             "off",
             "disabled",
             "inactive"
-        ].includes(
-            normalized
-        )
+        ].includes(normalized)
     ) {
-
         return false;
     }
 
@@ -311,31 +286,16 @@ function getDynamicFieldsElement() {
         return null;
     }
 
-    return elements.dynamicFields;
+    return elements.dynamicFields || null;
 }
 
 
 /* =========================================================
    PARAMETER SOURCE
-   ---------------------------------------------------------
-   SINGLE SOURCE OF TRUTH:
-
-       model.parameters
-
-   model.parameters berasal dari:
-
-       models/<model>/parameters.js
-
-   melalui:
-
-       /api/model-config
-
-   Tidak ada fallback legacy agar frontend tidak
-   mengambil schema dari sumber yang berbeda.
 ========================================================= */
 
 function resolveParameterSource(
-    model
+    model = getCurrentModel()
 ) {
 
     if (!model) {
@@ -347,7 +307,6 @@ function resolveParameterSource(
         !model.parameters ||
         typeof model.parameters !== "object"
     ) {
-
         return null;
     }
 
@@ -357,31 +316,7 @@ function resolveParameterSource(
 
 
 /* =========================================================
-   NORMALIZE PARAMETER DEFINITIONS
-   ---------------------------------------------------------
-   Mendukung:
-
-   1. Array
-   [
-       {
-           name: "prompt",
-           type: "string"
-       }
-   ]
-
-   2. Object keyed
-   {
-       prompt: {
-           type: "string"
-       }
-   }
-
-   3. Wrapper
-   {
-       parameters: {...}
-   }
-
-   Semua bentuk akhirnya dinormalisasi menjadi array.
+   NORMALIZE DEFINITIONS
 ========================================================= */
 
 function normalizeParameterDefinitions(
@@ -393,9 +328,6 @@ function normalizeParameterDefinitions(
     }
 
 
-    /*
-     * Array.
-     */
     if (
         Array.isArray(source)
     ) {
@@ -411,12 +343,6 @@ function normalizeParameterDefinitions(
     }
 
 
-    /*
-     * Wrapper.
-     *
-     * Tetap didukung karena model.parameters
-     * dapat dibungkus oleh adapter.
-     */
     if (
         source.parameters &&
         typeof source.parameters === "object"
@@ -428,16 +354,11 @@ function normalizeParameterDefinitions(
     }
 
 
-    /*
-     * Object keyed by parameter name.
-     */
     if (
         typeof source === "object"
     ) {
 
-        return Object.entries(
-            source
-        )
+        return Object.entries(source)
             .map(
                 ([key, definition]) =>
                     normalizeParameterDefinition(
@@ -454,7 +375,7 @@ function normalizeParameterDefinitions(
 
 
 /* =========================================================
-   NORMALIZE SINGLE DEFINITION
+   NORMALIZE DEFINITION
 ========================================================= */
 
 function normalizeParameterDefinition(
@@ -462,9 +383,6 @@ function normalizeParameterDefinition(
     fallbackName = ""
 ) {
 
-    /*
-     * Primitive definition.
-     */
     if (
         definition === null ||
         definition === undefined
@@ -477,7 +395,7 @@ function normalizeParameterDefinition(
         return {
             name: fallbackName,
             key: fallbackName,
-            type: "text"
+            type: "string"
         };
     }
 
@@ -513,21 +431,6 @@ function normalizeParameterDefinition(
     }
 
 
-    /*
-     * Jangan menghilangkan properti asli.
-     *
-     * Contoh:
-     * - min
-     * - max
-     * - step
-     * - enum
-     * - default
-     * - required
-     * - maxLength
-     * - maxItems
-     * - description
-     * - placeholder
-     */
     return {
         ...definition,
 
@@ -569,16 +472,46 @@ function getModelParameters(
                         definition
                     );
 
-                /*
-                 * Parameter internal tidak boleh
-                 * masuk ke UI.
-                 */
-                return (
-                    name &&
-                    !INTERNAL_PARAMETERS.has(
+                if (!name) {
+                    return false;
+                }
+
+
+                if (
+                    INTERNAL_PARAMETERS.has(
                         name
                     )
-                );
+                ) {
+                    return false;
+                }
+
+
+                /*
+                 * Hanya parameter yang digunakan
+                 * halaman Generate.
+                 */
+                return GENERATE_PARAMETER_ORDER
+                    .includes(name);
+            }
+        )
+        .sort(
+            (a, b) => {
+
+                const aName =
+                    getParameterName(a);
+
+                const bName =
+                    getParameterName(b);
+
+                const aIndex =
+                    GENERATE_PARAMETER_ORDER
+                        .indexOf(aName);
+
+                const bIndex =
+                    GENERATE_PARAMETER_ORDER
+                        .indexOf(bName);
+
+                return aIndex - bIndex;
             }
         );
 }
@@ -595,7 +528,6 @@ function getParameterName(
     if (!definition) {
         return "";
     }
-
 
     return safeString(
         definition.name ||
@@ -615,92 +547,14 @@ function getParameterType(
     definition
 ) {
 
-    const raw =
-        String(
-            definition?.type ||
-            definition?.input_type ||
-            definition?.inputType ||
-            "text"
-        )
-            .trim()
-            .toLowerCase();
-
-
-    const aliases = {
-
-        string:
-            "text",
-
-        text:
-            "text",
-
-        textarea:
-            "textarea",
-
-        multiline:
-            "textarea",
-
-        number:
-            "number",
-
-        integer:
-            "number",
-
-        float:
-            "number",
-
-        decimal:
-            "number",
-
-        boolean:
-            "checkbox",
-
-        bool:
-            "checkbox",
-
-        checkbox:
-            "checkbox",
-
-        select:
-            "select",
-
-        dropdown:
-            "select",
-
-        enum:
-            "select",
-
-        radio:
-            "radio",
-
-        url:
-            "url",
-
-        image:
-            "url",
-
-        image_url:
-            "url",
-
-        video_url:
-            "url",
-
-        /*
-         * Array tetap menggunakan input text
-         * sebagai representasi UI.
-         *
-         * Nilainya akan dinormalisasi menjadi array
-         * ketika dibaca dari form.
-         */
-        array:
-            "text"
-    };
-
-
-    return (
-        aliases[raw] ||
-        "text"
-    );
+    return String(
+        definition?.type ||
+        definition?.input_type ||
+        definition?.inputType ||
+        "string"
+    )
+        .trim()
+        .toLowerCase();
 }
 
 
@@ -713,7 +567,30 @@ function getParameterLabel(
     name
 ) {
 
+    const labels = {
+
+        image_urls:
+            "Input Gambar",
+
+        image_url:
+            "Input Gambar",
+
+        prompt:
+            "Prompt",
+
+        aspect_ratio:
+            "Rasio",
+
+        resolution:
+            "Resolusi",
+
+        duration:
+            "Durasi"
+    };
+
+
     return safeString(
+        labels[name] ||
         definition?.label ||
         definition?.title ||
         definition?.display_name ||
@@ -736,7 +613,6 @@ function getParameterDescription(
         definition?.description ||
         definition?.help ||
         definition?.hint ||
-        "",
         ""
     );
 }
@@ -747,12 +623,26 @@ function getParameterDescription(
 ========================================================= */
 
 function getParameterPlaceholder(
-    definition
+    definition,
+    name
 ) {
+
+    const defaults = {
+
+        image_urls:
+            "Tempel URL gambar...",
+
+        image_url:
+            "Tempel URL gambar...",
+
+        prompt:
+            "Tulis prompt video..."
+    };
+
 
     return safeString(
         definition?.placeholder ||
-        "",
+        defaults[name] ||
         ""
     );
 }
@@ -791,7 +681,6 @@ function getOptions(
         source === undefined ||
         source === null
     ) {
-
         source =
             definition?.values;
     }
@@ -801,7 +690,6 @@ function getOptions(
         source === undefined ||
         source === null
     ) {
-
         source =
             definition?.choices;
     }
@@ -811,7 +699,6 @@ function getOptions(
         source === undefined ||
         source === null
     ) {
-
         source =
             definition?.enum;
     }
@@ -821,14 +708,10 @@ function getOptions(
         source === undefined ||
         source === null
     ) {
-
         return [];
     }
 
 
-    /*
-     * Array.
-     */
     if (
         Array.isArray(source)
     ) {
@@ -839,8 +722,7 @@ function getOptions(
 
                     if (
                         option &&
-                        typeof option ===
-                            "object"
+                        typeof option === "object"
                     ) {
 
                         const value =
@@ -861,9 +743,7 @@ function getOptions(
 
                         return {
                             value:
-                                String(
-                                    value
-                                ),
+                                String(value),
 
                             label:
                                 safeString(
@@ -876,37 +756,27 @@ function getOptions(
 
                     return {
                         value:
-                            String(
-                                option
-                            ),
+                            String(option),
 
                         label:
-                            String(
-                                option
-                            )
+                            String(option)
                     };
                 }
             )
             .filter(
                 option =>
-                    option.value
+                    option.value !== ""
             );
     }
 
 
-    /*
-     * Object.
-     */
     if (
         typeof source === "object"
     ) {
 
-        return Object.entries(
-            source
-        )
+        return Object.entries(source)
             .map(
                 ([value, label]) => ({
-
                     value:
                         String(value),
 
@@ -915,32 +785,21 @@ function getOptions(
                             label,
                             value
                         )
-
                 })
-            )
-            .filter(
-                option =>
-                    option.value
             );
     }
 
 
-    /*
-     * String / CSV / JSON.
-     */
-    return normalizeArray(
-        source
-    ).map(
-        value => ({
+    return normalizeArray(source)
+        .map(
+            value => ({
+                value:
+                    String(value),
 
-            value:
-                String(value),
-
-            label:
-                String(value)
-
-        })
-    );
+                label:
+                    String(value)
+            })
+        );
 }
 
 
@@ -958,7 +817,6 @@ function getDefaultValue(
             "default"
         )
     ) {
-
         return definition.default;
     }
 
@@ -969,7 +827,6 @@ function getDefaultValue(
             "default_value"
         )
     ) {
-
         return definition.default_value;
     }
 
@@ -980,7 +837,6 @@ function getDefaultValue(
             "defaultValue"
         )
     ) {
-
         return definition.defaultValue;
     }
 
@@ -1010,13 +866,45 @@ function createFieldId(
 
 
 /* =========================================================
-   LABEL ELEMENT
+   REQUIRED MARK
+========================================================= */
+
+function appendRequiredMark(
+    label,
+    definition
+) {
+
+    if (
+        !isRequired(
+            definition
+        )
+    ) {
+        return;
+    }
+
+
+    const mark =
+        document.createElement(
+            "span"
+        );
+
+    mark.className =
+        "required";
+
+    mark.textContent =
+        " *";
+
+    label.appendChild(mark);
+}
+
+
+/* =========================================================
+   CREATE STANDARD LABEL
 ========================================================= */
 
 function createLabel(
-    labelText,
-    fieldId,
-    required = false
+    definition,
+    name
 ) {
 
     const label =
@@ -1024,208 +912,24 @@ function createLabel(
             "label"
         );
 
-    label.htmlFor =
-        fieldId;
-
     label.className =
         "generate-field-label";
 
+    label.htmlFor =
+        createFieldId(name);
+
     label.textContent =
-        labelText;
-
-
-    if (required) {
-
-        const requiredMark =
-            document.createElement(
-                "span"
-            );
-
-        requiredMark.className =
-            "required";
-
-        requiredMark.textContent =
-            " *";
-
-        label.appendChild(
-            requiredMark
-        );
-    }
-
-
-    return label;
-}
-
-
-/* =========================================================
-   COMMON ATTRIBUTES
-========================================================= */
-
-function applyCommonAttributes(
-    element,
-    definition,
-    name
-) {
-
-    element.name =
-        name;
-
-    element.id =
-        createFieldId(
+        getParameterLabel(
+            definition,
             name
         );
 
+    appendRequiredMark(
+        label,
+        definition
+    );
 
-    const placeholder =
-        getParameterPlaceholder(
-            definition
-        );
-
-
-    if (
-        placeholder &&
-        "placeholder" in element
-    ) {
-
-        element.placeholder =
-            placeholder;
-    }
-
-
-    if (
-        isRequired(
-            definition
-        )
-    ) {
-
-        element.required =
-            true;
-    }
-
-
-    if (
-        definition?.disabled === true
-    ) {
-
-        element.disabled =
-            true;
-    }
-
-
-    if (
-        definition?.readonly === true ||
-        definition?.readOnly === true
-    ) {
-
-        element.readOnly =
-            true;
-    }
-
-
-    /*
-     * Numeric constraints.
-     */
-    if (
-        definition?.min !== undefined &&
-        definition?.min !== null &&
-        "min" in element
-    ) {
-
-        element.min =
-            String(
-                definition.min
-            );
-    }
-
-
-    if (
-        definition?.max !== undefined &&
-        definition?.max !== null &&
-        "max" in element
-    ) {
-
-        element.max =
-            String(
-                definition.max
-            );
-    }
-
-
-    if (
-        definition?.step !== undefined &&
-        definition?.step !== null &&
-        "step" in element
-    ) {
-
-        element.step =
-            String(
-                definition.step
-            );
-    }
-
-
-    /*
-     * maxlength.
-     */
-    if (
-        definition?.maxLength !== undefined &&
-        definition?.maxLength !== null &&
-        "maxLength" in element
-    ) {
-
-        element.maxLength =
-            Number(
-                definition.maxLength
-            );
-    }
-
-
-    /*
-     * minlength.
-     */
-    if (
-        definition?.minLength !== undefined &&
-        definition?.minLength !== null &&
-        "minLength" in element
-    ) {
-
-        element.minLength =
-            Number(
-                definition.minLength
-            );
-    }
-
-
-    /*
-     * maxItems disimpan sebagai data attribute
-     * karena HTML input biasa tidak mempunyai
-     * maxItems.
-     */
-    if (
-        definition?.maxItems !== undefined &&
-        definition?.maxItems !== null
-    ) {
-
-        element.dataset.maxItems =
-            String(
-                definition.maxItems
-            );
-    }
-
-
-    /*
-     * minItems.
-     */
-    if (
-        definition?.minItems !== undefined &&
-        definition?.minItems !== null
-    ) {
-
-        element.dataset.minItems =
-            String(
-                definition.minItems
-            );
-    }
+    return label;
 }
 
 
@@ -1243,18 +947,26 @@ function createTextInput(
             "input"
         );
 
-
     input.type =
-        getParameterType(
-            definition
+        "text";
+
+    input.id =
+        createFieldId(name);
+
+    input.name =
+        name;
+
+    input.autocomplete =
+        "off";
+
+    input.className =
+        "form-control";
+
+    input.placeholder =
+        getParameterPlaceholder(
+            definition,
+            name
         );
-
-
-    applyCommonAttributes(
-        input,
-        definition,
-        name
-    );
 
 
     const defaultValue =
@@ -1262,34 +974,47 @@ function createTextInput(
             definition
         );
 
-
     if (
+        defaultValue !== "" &&
         defaultValue !== null &&
         defaultValue !== undefined
     ) {
 
-        /*
-         * Array default dikonversi menjadi
-         * CSV hanya untuk tampilan input.
-         */
-        if (
-            Array.isArray(
-                defaultValue
-            )
-        ) {
+        input.value =
+            Array.isArray(defaultValue)
+                ? defaultValue.join(", ")
+                : String(defaultValue);
+    }
 
-            input.value =
-                defaultValue.join(
-                    ", "
-                );
 
-        } else {
+    if (
+        definition?.maxLength !== undefined
+    ) {
 
-            input.value =
-                String(
-                    defaultValue
-                );
-        }
+        input.maxLength =
+            Number(
+                definition.maxLength
+            );
+    }
+
+
+    if (
+        definition?.minLength !== undefined
+    ) {
+
+        input.minLength =
+            Number(
+                definition.minLength
+            );
+    }
+
+
+    if (
+        definition?.disabled === true
+    ) {
+
+        input.disabled =
+            true;
     }
 
 
@@ -1298,10 +1023,68 @@ function createTextInput(
 
 
 /* =========================================================
+   IMAGE INPUT
+   ---------------------------------------------------------
+   image_urls adalah ARRAY pada backend.
+
+   UI menggunakan satu URL karena parameters.js
+   saat ini menetapkan maxItems: 1.
+
+   Saat dibaca, nilainya dikembalikan sebagai array.
+========================================================= */
+
+function createImageInput(
+    definition,
+    name
+) {
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
+
+    wrapper.className =
+        "generate-image-input";
+
+
+    const input =
+        createTextInput(
+            {
+                ...definition,
+
+                placeholder:
+                    getParameterPlaceholder(
+                        definition,
+                        name
+                    )
+            },
+            name
+        );
+
+    input.type =
+        "url";
+
+    input.inputMode =
+        "url";
+
+    input.accept =
+        "image/*";
+
+
+    wrapper.appendChild(
+        input
+    );
+
+
+    return wrapper;
+}
+
+
+/* =========================================================
    TEXTAREA
 ========================================================= */
 
-function createTextarea(
+function createPromptInput(
     definition,
     name
 ) {
@@ -1311,32 +1094,32 @@ function createTextarea(
             "textarea"
         );
 
+    textarea.id =
+        createFieldId(name);
 
-    applyCommonAttributes(
-        textarea,
-        definition,
-        name
-    );
+    textarea.name =
+        name;
 
-
-    const rows =
-        Number(
-            definition?.rows
-        );
-
+    textarea.className =
+        "form-control";
 
     textarea.rows =
-        Number.isFinite(rows) &&
-        rows > 0
-            ? rows
-            : 5;
+        5;
+
+    textarea.autocomplete =
+        "off";
+
+    textarea.placeholder =
+        getParameterPlaceholder(
+            definition,
+            name
+        );
 
 
     const defaultValue =
         getDefaultValue(
             definition
         );
-
 
     if (
         defaultValue !== null &&
@@ -1350,12 +1133,34 @@ function createTextarea(
     }
 
 
+    if (
+        definition?.maxLength !== undefined
+    ) {
+
+        textarea.maxLength =
+            Number(
+                definition.maxLength
+            );
+    }
+
+
+    if (
+        definition?.minLength !== undefined
+    ) {
+
+        textarea.minLength =
+            Number(
+                definition.minLength
+            );
+    }
+
+
     return textarea;
 }
 
 
 /* =========================================================
-   NUMBER
+   NUMBER INPUT
 ========================================================= */
 
 function createNumberInput(
@@ -1368,16 +1173,50 @@ function createNumberInput(
             "input"
         );
 
-
     input.type =
         "number";
 
+    input.id =
+        createFieldId(name);
 
-    applyCommonAttributes(
-        input,
-        definition,
-        name
-    );
+    input.name =
+        name;
+
+    input.className =
+        "form-control";
+
+
+    if (
+        definition?.min !== undefined
+    ) {
+
+        input.min =
+            String(
+                definition.min
+            );
+    }
+
+
+    if (
+        definition?.max !== undefined
+    ) {
+
+        input.max =
+            String(
+                definition.max
+            );
+    }
+
+
+    if (
+        definition?.step !== undefined
+    ) {
+
+        input.step =
+            String(
+                definition.step
+            );
+    }
 
 
     const defaultValue =
@@ -1385,11 +1224,10 @@ function createNumberInput(
             definition
         );
 
-
     if (
+        defaultValue !== "" &&
         defaultValue !== null &&
-        defaultValue !== undefined &&
-        defaultValue !== ""
+        defaultValue !== undefined
     ) {
 
         input.value =
@@ -1404,190 +1242,15 @@ function createNumberInput(
 
 
 /* =========================================================
-   CHECKBOX
+   DURATION SLIDER
+   ---------------------------------------------------------
+   min/max/default/step semuanya berasal dari
+   parameters.js.
+
+   Tidak ada angka durasi yang di-hardcode.
 ========================================================= */
 
-function createCheckbox(
-    definition,
-    name
-) {
-
-    const wrapper =
-        document.createElement(
-            "label"
-        );
-
-
-    wrapper.className =
-        "generate-checkbox";
-
-
-    const input =
-        document.createElement(
-            "input"
-        );
-
-
-    input.type =
-        "checkbox";
-
-
-    applyCommonAttributes(
-        input,
-        definition,
-        name
-    );
-
-
-    input.checked =
-        toBoolean(
-            getDefaultValue(
-                definition
-            ),
-            false
-        );
-
-
-    const text =
-        document.createElement(
-            "span"
-        );
-
-
-    text.textContent =
-        getParameterLabel(
-            definition,
-            name
-        );
-
-
-    wrapper.appendChild(
-        input
-    );
-
-    wrapper.appendChild(
-        text
-    );
-
-
-    return wrapper;
-}
-
-
-/* =========================================================
-   SELECT
-========================================================= */
-
-function createSelect(
-    definition,
-    name
-) {
-
-    const select =
-        document.createElement(
-            "select"
-        );
-
-
-    applyCommonAttributes(
-        select,
-        definition,
-        name
-    );
-
-
-    const options =
-        getOptions(
-            definition
-        );
-
-
-    const defaultValue =
-        String(
-            getDefaultValue(
-                definition
-            ) ?? ""
-        );
-
-
-    options.forEach(
-        optionData => {
-
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-
-            option.value =
-                optionData.value;
-
-
-            option.textContent =
-                optionData.label;
-
-
-            if (
-                optionData.value ===
-                defaultValue
-            ) {
-
-                option.selected =
-                    true;
-            }
-
-
-            select.appendChild(
-                option
-            );
-        }
-    );
-
-
-    /*
-     * Jangan membuat pilihan palsu.
-     */
-    if (
-        options.length === 0
-    ) {
-
-        const emptyOption =
-            document.createElement(
-                "option"
-            );
-
-
-        emptyOption.value =
-            "";
-
-
-        emptyOption.textContent =
-            "Tidak ada pilihan";
-
-
-        emptyOption.disabled =
-            true;
-
-
-        emptyOption.selected =
-            true;
-
-
-        select.appendChild(
-            emptyOption
-        );
-    }
-
-
-    return select;
-}
-
-
-/* =========================================================
-   RADIO
-========================================================= */
-
-function createRadioGroup(
+function createDurationInput(
     definition,
     name
 ) {
@@ -1597,9 +1260,285 @@ function createRadioGroup(
             "div"
         );
 
+    wrapper.className =
+        "generate-duration-field";
+
+
+    const top =
+        document.createElement(
+            "div"
+        );
+
+    top.className =
+        "generate-duration-top";
+
+
+    const value =
+        document.createElement(
+            "span"
+        );
+
+    value.className =
+        "generate-duration-value";
+
+
+    const range =
+        document.createElement(
+            "input"
+        );
+
+    range.type =
+        "range";
+
+    range.id =
+        createFieldId(name);
+
+    range.name =
+        name;
+
+    range.className =
+        "generate-duration-range";
+
+
+    const min =
+        definition?.min !== undefined
+            ? Number(definition.min)
+            : 0;
+
+    const max =
+        definition?.max !== undefined
+            ? Number(definition.max)
+            : 100;
+
+    const step =
+        definition?.step !== undefined
+            ? Number(definition.step)
+            : 1;
+
+
+    range.min =
+        String(min);
+
+    range.max =
+        String(max);
+
+    range.step =
+        String(step);
+
+
+    let defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue === "" ||
+        defaultValue === null ||
+        defaultValue === undefined
+    ) {
+
+        defaultValue =
+            min;
+    }
+
+
+    let numericDefault =
+        Number(
+            defaultValue
+        );
+
+
+    if (
+        !Number.isFinite(
+            numericDefault
+        )
+    ) {
+
+        numericDefault =
+            min;
+    }
+
+
+    numericDefault =
+        Math.min(
+            max,
+            Math.max(
+                min,
+                numericDefault
+            )
+        );
+
+
+    range.value =
+        String(
+            numericDefault
+        );
+
+
+    value.textContent =
+        `${numericDefault} detik`;
+
+
+    const updateValue =
+        () => {
+
+            value.textContent =
+                `${range.value} detik`;
+        };
+
+
+    range.addEventListener(
+        "input",
+        updateValue
+    );
+
+
+    range.addEventListener(
+        "change",
+        updateValue
+    );
+
+
+    top.appendChild(
+        createDurationLabel(
+            definition,
+            name
+        )
+    );
+
+    top.appendChild(
+        value
+    );
+
+
+    wrapper.appendChild(
+        top
+    );
+
+    wrapper.appendChild(
+        range
+    );
+
+
+    const scale =
+        document.createElement(
+            "div"
+        );
+
+    scale.className =
+        "generate-duration-scale";
+
+
+    const minLabel =
+        document.createElement(
+            "span"
+        );
+
+    minLabel.textContent =
+        `${min} detik`;
+
+
+    const maxLabel =
+        document.createElement(
+            "span"
+        );
+
+    maxLabel.textContent =
+        `${max} detik`;
+
+
+    scale.appendChild(
+        minLabel
+    );
+
+    scale.appendChild(
+        maxLabel
+    );
+
+
+    wrapper.appendChild(
+        scale
+    );
+
+
+    return wrapper;
+}
+
+
+/* =========================================================
+   DURATION LABEL
+========================================================= */
+
+function createDurationLabel(
+    definition,
+    name
+) {
+
+    const label =
+        document.createElement(
+            "span"
+        );
+
+    label.className =
+        "generate-field-label";
+
+    label.textContent =
+        getParameterLabel(
+            definition,
+            name
+        );
+
+
+    if (
+        isRequired(
+            definition
+        )
+    ) {
+
+        const mark =
+            document.createElement(
+                "span"
+            );
+
+        mark.className =
+            "required";
+
+        mark.textContent =
+            " *";
+
+        label.appendChild(
+            mark
+        );
+    }
+
+
+    return label;
+}
+
+
+/* =========================================================
+   CHECKBOX-STYLE SINGLE SELECT
+   ---------------------------------------------------------
+   Ratio dan resolution tetap menggunakan satu nilai.
+
+   Visualnya checkbox/card.
+   Secara HTML menggunakan radio agar hanya satu
+   pilihan yang aktif.
+========================================================= */
+
+function createOptionGroup(
+    definition,
+    name
+) {
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
 
     wrapper.className =
-        "generate-radio-group";
+        "generate-option-group";
 
 
     const options =
@@ -1608,17 +1547,31 @@ function createRadioGroup(
         );
 
 
-    const defaultValue =
+    let defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue === null ||
+        defaultValue === undefined
+    ) {
+
+        defaultValue =
+            "";
+    }
+
+
+    defaultValue =
         String(
-            getDefaultValue(
-                definition
-            ) ?? ""
+            defaultValue
         );
 
 
     options.forEach(
         (
-            optionData,
+            option,
             index
         ) => {
 
@@ -1627,9 +1580,8 @@ function createRadioGroup(
                     "label"
                 );
 
-
             label.className =
-                "generate-radio-option";
+                "generate-option";
 
 
             const input =
@@ -1637,27 +1589,23 @@ function createRadioGroup(
                     "input"
                 );
 
-
             input.type =
                 "radio";
 
-
             input.name =
                 name;
-
 
             input.id =
                 `${createFieldId(
                     name
                 )}-${index}`;
 
-
             input.value =
-                optionData.value;
+                option.value;
 
 
             input.checked =
-                optionData.value ===
+                option.value ===
                 defaultValue;
 
 
@@ -1666,9 +1614,11 @@ function createRadioGroup(
                     "span"
                 );
 
+            text.className =
+                "generate-option-label";
 
             text.textContent =
-                optionData.label;
+                option.label;
 
 
             label.appendChild(
@@ -1692,86 +1642,6 @@ function createRadioGroup(
 
 
 /* =========================================================
-   INPUT DISPATCH
-========================================================= */
-
-function createInput(
-    definition,
-    name
-) {
-
-    const type =
-        getParameterType(
-            definition
-        );
-
-
-    switch (type) {
-
-        case "textarea":
-
-            return createTextarea(
-                definition,
-                name
-            );
-
-
-        case "number":
-
-            return createNumberInput(
-                definition,
-                name
-            );
-
-
-        case "checkbox":
-
-            return createCheckbox(
-                definition,
-                name
-            );
-
-
-        case "select":
-
-            return createSelect(
-                definition,
-                name
-            );
-
-
-        case "radio":
-
-            return createRadioGroup(
-                definition,
-                name
-            );
-
-
-        case "url":
-
-            return createTextInput(
-                {
-                    ...definition,
-                    type: "url"
-                },
-                name
-            );
-
-
-        case "text":
-
-        default:
-
-            return createTextInput(
-                definition,
-                name
-            );
-    }
-}
-
-
-/* =========================================================
    DESCRIPTION
 ========================================================= */
 
@@ -1779,13 +1649,12 @@ function createDescription(
     definition
 ) {
 
-    const description =
+    const text =
         getParameterDescription(
             definition
         );
 
-
-    if (!description) {
+    if (!text) {
         return null;
     }
 
@@ -1795,21 +1664,18 @@ function createDescription(
             "small"
         );
 
-
     element.className =
         "generate-field-description";
 
-
     element.textContent =
-        description;
-
+        text;
 
     return element;
 }
 
 
 /* =========================================================
-   FIELD
+   CREATE FIELD
 ========================================================= */
 
 function createField(
@@ -1827,15 +1693,11 @@ function createField(
     }
 
 
-    /*
-     * Internal parameter guard.
-     */
     if (
         INTERNAL_PARAMETERS.has(
             name
         )
     ) {
-
         return null;
     }
 
@@ -1845,10 +1707,8 @@ function createField(
             "div"
         );
 
-
     field.className =
         "generate-field";
-
 
     field.dataset.parameter =
         name;
@@ -1860,84 +1720,175 @@ function createField(
         );
 
 
-    /*
-     * Simpan informasi type asli.
-     *
-     * Ini berguna untuk array karena UI
-     * menggunakan text input.
-     */
+    field.dataset.parameterType =
+        type;
+
+
+    /* =====================================================
+       IMAGE
+    ====================================================== */
+
     if (
-        definition?.type
-    ) {
-
-        field.dataset.parameterType =
-            String(
-                definition.type
-            )
-                .trim()
-                .toLowerCase();
-    }
-
-
-    /*
-     * Checkbox dan radio memiliki label sendiri.
-     */
-    if (
-        type !== "checkbox" &&
-        type !== "radio"
+        name === "image_urls" ||
+        name === "image_url"
     ) {
 
         field.appendChild(
             createLabel(
-                getParameterLabel(
-                    definition,
-                    name
-                ),
-
-                createFieldId(
-                    name
-                ),
-
-                isRequired(
-                    definition
-                )
+                definition,
+                name
             )
         );
-    }
 
-
-    const input =
-        createInput(
-            definition,
-            name
-        );
-
-
-    if (!input) {
-        return null;
-    }
-
-
-    field.appendChild(
-        input
-    );
-
-
-    const description =
-        createDescription(
-            definition
-        );
-
-
-    if (description) {
 
         field.appendChild(
-            description
+            createImageInput(
+                definition,
+                name
+            )
         );
+
+
+        const description =
+            createDescription(
+                definition
+            );
+
+        if (description) {
+
+            field.appendChild(
+                description
+            );
+        }
+
+
+        return field;
     }
 
 
-    return field;
+    /* =====================================================
+       PROMPT
+    ====================================================== */
+
+    if (
+        name === "prompt"
+    ) {
+
+        field.appendChild(
+            createLabel(
+                definition,
+                name
+            )
+        );
+
+
+        field.appendChild(
+            createPromptInput(
+                definition,
+                name
+            )
+        );
+
+
+        const description =
+            createDescription(
+                definition
+            );
+
+        if (description) {
+
+            field.appendChild(
+                description
+            );
+        }
+
+
+        return field;
+    }
+
+
+    /* =====================================================
+       RATIO
+    ====================================================== */
+
+    if (
+        name === "aspect_ratio"
+    ) {
+
+        field.appendChild(
+            createLabel(
+                definition,
+                name
+            )
+        );
+
+
+        field.appendChild(
+            createOptionGroup(
+                definition,
+                name
+            )
+        );
+
+
+        return field;
+    }
+
+
+    /* =====================================================
+       RESOLUTION
+    ====================================================== */
+
+    if (
+        name === "resolution"
+    ) {
+
+        field.appendChild(
+            createLabel(
+                definition,
+                name
+            )
+        );
+
+
+        field.appendChild(
+            createOptionGroup(
+                definition,
+                name
+            )
+        );
+
+
+        return field;
+    }
+
+
+    /* =====================================================
+       DURATION
+    ====================================================== */
+
+    if (
+        name === "duration"
+    ) {
+
+        field.appendChild(
+            createDurationInput(
+                definition,
+                name
+            )
+        );
+
+
+        return field;
+    }
+
+
+    /*
+     * Parameter yang tidak termasuk UI Generate
+     * tidak dirender.
+     */
+
+    return null;
 }
 
 
@@ -1966,7 +1917,6 @@ export function renderDynamicFields(
 
 
     if (!model) {
-
         return [];
     }
 
@@ -1977,10 +1927,6 @@ export function renderDynamicFields(
         );
 
 
-    /*
-     * Debug konfigurasi yang benar-benar
-     * diterima frontend.
-     */
     console.debug(
         "[GEN-Z.AI][Generate Form] Model:",
         model?.model_id ||
@@ -1993,33 +1939,6 @@ export function renderDynamicFields(
         "[GEN-Z.AI][Generate Form] Parameters:",
         parameters
     );
-
-
-    if (
-        parameters.length === 0
-    ) {
-
-        const message =
-            document.createElement(
-                "div"
-            );
-
-
-        message.className =
-            "generate-empty-fields";
-
-
-        message.textContent =
-            "Model ini tidak memiliki parameter tambahan.";
-
-
-        container.appendChild(
-            message
-        );
-
-
-        return [];
-    }
 
 
     const renderedFields =
@@ -2050,6 +1969,27 @@ export function renderDynamicFields(
             );
         }
     );
+
+
+    if (
+        renderedFields.length === 0
+    ) {
+
+        const message =
+            document.createElement(
+                "div"
+            );
+
+        message.className =
+            "generate-empty-fields";
+
+        message.textContent =
+            "Model ini tidak memiliki parameter Generate yang tersedia.";
+
+        container.appendChild(
+            message
+        );
+    }
 
 
     return renderedFields;
@@ -2084,42 +2024,29 @@ export function findField(
     }
 
 
-    if (
-        typeof CSS === "undefined" ||
-        typeof CSS.escape !== "function"
+    const fields =
+        container.querySelectorAll(
+            "[name]"
+        );
+
+
+    for (
+        const field of fields
     ) {
 
-        const fields =
-            container.querySelectorAll(
-                "[name]"
-            );
-
-
-        for (
-            const field of fields
+        if (
+            String(
+                field.name || ""
+            ).trim() ===
+            normalizedName
         ) {
 
-            if (
-                String(
-                    field.name || ""
-                ).trim() ===
-                normalizedName
-            ) {
-
-                return field;
-            }
+            return field;
         }
-
-
-        return null;
     }
 
 
-    return container.querySelector(
-        `[name="${CSS.escape(
-            normalizedName
-        )}"]`
-    );
+    return null;
 }
 
 
@@ -2136,29 +2063,20 @@ function readFieldValue(
     }
 
 
-    /*
-     * Radio.
-     */
     if (
-        field.type ===
-        "radio"
+        field.type === "radio"
     ) {
 
         if (!field.checked) {
             return undefined;
         }
 
-
         return field.value;
     }
 
 
-    /*
-     * Checkbox.
-     */
     if (
-        field.type ===
-        "checkbox"
+        field.type === "checkbox"
     ) {
 
         return Boolean(
@@ -2167,32 +2085,28 @@ function readFieldValue(
     }
 
 
-    /*
-     * Number.
-     */
     if (
-        field.type ===
-        "number"
+        field.type === "range" ||
+        field.type === "number"
     ) {
 
         if (
             field.value === ""
         ) {
-
             return "";
         }
 
 
-        const value =
+        const number =
             Number(
                 field.value
             );
 
 
         return Number.isFinite(
-            value
+            number
         )
-            ? value
+            ? number
             : field.value;
     }
 
@@ -2240,29 +2154,19 @@ export function getFormParameters() {
             }
 
 
-            /*
-             * task_id adalah parameter internal.
-             */
             if (
                 INTERNAL_PARAMETERS.has(
                     name
                 )
             ) {
-
                 return;
             }
 
 
-            /*
-             * Radio yang tidak aktif
-             * tidak boleh menimpa radio aktif.
-             */
             if (
-                field.type ===
-                "radio" &&
+                field.type === "radio" &&
                 !field.checked
             ) {
-
                 return;
             }
 
@@ -2276,14 +2180,10 @@ export function getFormParameters() {
             if (
                 value === undefined
             ) {
-
                 return;
             }
 
 
-            /*
-             * Cek definisi parameter.
-             */
             const definition =
                 parameterDefinition(
                     name
@@ -2300,21 +2200,12 @@ export function getFormParameters() {
 
 
             /*
-             * Parameter array.
-             *
-             * Contoh:
-             *
-             * image_urls:
-             * {
-             *     type: "array"
-             * }
-             *
-             * UI menggunakan text input,
-             * tetapi payload menggunakan array.
+             * image_urls harus ARRAY.
              */
+
             if (
-                originalType ===
-                    "array"
+                name === "image_urls" ||
+                originalType === "array"
             ) {
 
                 parameters[name] =
@@ -2330,6 +2221,14 @@ export function getFormParameters() {
                 value;
         }
     );
+
+
+    /*
+     * Jika model menggunakan image_url singular,
+     * backend tetap menerima image_url sesuai definisi.
+     *
+     * Tidak membuat key image_urls palsu.
+     */
 
 
     return parameters;
@@ -2360,72 +2259,11 @@ export function getFormData() {
     }
 
 
-    const data =
-        getFormParameters();
+    /*
+     * Dynamic parameters adalah source utama.
+     */
 
-
-    const formData =
-        new FormData(
-            form
-        );
-
-
-    for (
-        const [
-            key,
-            value
-        ]
-        of formData.entries()
-    ) {
-
-        /*
-         * Internal parameter tidak boleh ikut.
-         */
-        if (
-            INTERNAL_PARAMETERS.has(
-                key
-            )
-        ) {
-
-            continue;
-        }
-
-
-        /*
-         * Parameter dynamic sudah dibaca
-         * dengan tipe yang benar.
-         */
-        if (
-            Object.prototype.hasOwnProperty.call(
-                data,
-                key
-            )
-        ) {
-
-            continue;
-        }
-
-
-        /*
-         * File ditangani oleh module upload,
-         * bukan sebagai parameter biasa.
-         */
-        if (
-            typeof File !==
-                "undefined" &&
-            value instanceof File
-        ) {
-
-            continue;
-        }
-
-
-        data[key] =
-            value;
-    }
-
-
-    return data;
+    return getFormParameters();
 }
 
 
@@ -2463,29 +2301,36 @@ export function setFieldValue(
             normalizedName
         )
     ) {
-
         return false;
     }
 
 
     const fields =
         container.querySelectorAll(
-            `[name="${CSS.escape(
-                normalizedName
-            )}"]`
+            "[name]"
         );
 
 
-    if (
-        fields.length === 0
-    ) {
-
-        return false;
-    }
+    let found =
+        false;
 
 
     fields.forEach(
         field => {
+
+            if (
+                String(
+                    field.name || ""
+                ).trim() !==
+                normalizedName
+            ) {
+                return;
+            }
+
+
+            found =
+                true;
+
 
             if (
                 field.type ===
@@ -2519,14 +2364,8 @@ export function setFieldValue(
             }
 
 
-            /*
-             * Array ditampilkan sebagai CSV
-             * di input text.
-             */
             if (
-                Array.isArray(
-                    value
-                )
+                Array.isArray(value)
             ) {
 
                 field.value =
@@ -2542,14 +2381,12 @@ export function setFieldValue(
                 value === null ||
                 value === undefined
                     ? ""
-                    : String(
-                        value
-                    );
+                    : String(value);
         }
     );
 
 
-    return true;
+    return found;
 }
 
 
@@ -2558,15 +2395,6 @@ export function setFieldValue(
 ========================================================= */
 
 export function resetDynamicFields() {
-
-    const container =
-        getDynamicFieldsElement();
-
-
-    if (!container) {
-        return;
-    }
-
 
     const model =
         getCurrentModel();
@@ -2579,7 +2407,7 @@ export function resetDynamicFields() {
 
 
 /* =========================================================
-   DISABLE
+   DISABLE / ENABLE
 ========================================================= */
 
 export function setFormDisabled(
@@ -2601,35 +2429,13 @@ export function setFormDisabled(
         );
 
 
-    const definitions =
-        getModelParameters();
-
-
     fields.forEach(
         field => {
 
-            if (disabled) {
-
-                field.disabled =
-                    true;
-
-                return;
-            }
-
-
-            const definition =
-                definitions.find(
-                    item =>
-                        getParameterName(
-                            item
-                        ) ===
-                        field.name
-                );
-
-
             field.disabled =
-                definition?.disabled ===
-                true;
+                Boolean(
+                    disabled
+                );
         }
     );
 }
@@ -2658,7 +2464,6 @@ export function getMediaParameters(
                     key
                 )
             ) {
-
                 return;
             }
 
@@ -2705,7 +2510,6 @@ export function parameterDefinition(
             normalizedName
         )
     ) {
-
         return null;
     }
 
