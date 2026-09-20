@@ -41,6 +41,7 @@
    - Credit Generate berasal dari profiles Supabase
    - Navigation profile hanya cache/sinkronisasi
    - Navigation tidak boleh menjadi source of truth
+   - TIDAK bergantung pada generate-utils.js
 ========================================================= */
 
 import {
@@ -52,10 +53,6 @@ import {
     setCurrentProfile,
     getCurrentProfile
 } from "./generate-state.js";
-
-import {
-    formatNumber
-} from "./generate-utils.js";
 
 
 /* =========================================================
@@ -71,7 +68,45 @@ const VALID_ROLES = Object.freeze([
     "OWNER"
 ]);
 
-const ACTIVE_STATUS = "active";
+const ACTIVE_STATUS =
+    "active";
+
+
+/* =========================================================
+   LOCAL FORMAT NUMBER
+   ---------------------------------------------------------
+   generate-utils.js tidak digunakan karena file tersebut
+   tidak tersedia pada Generate module.
+========================================================= */
+
+function formatNumber(
+    value
+) {
+
+    const numeric =
+        Number(
+            value
+        );
+
+    if (
+        !Number.isFinite(
+            numeric
+        )
+    ) {
+
+        return String(
+            value ?? ""
+        );
+
+    }
+
+    return new Intl.NumberFormat(
+        "id-ID"
+    ).format(
+        numeric
+    );
+
+}
 
 
 /* =========================================================
@@ -84,37 +119,46 @@ function getSupabaseConfig() {
         typeof window === "undefined" ||
         !window.GENZ_CONFIG
     ) {
+
         throw new Error(
             "Konfigurasi GEN-Z.AI tidak ditemukan."
         );
+
     }
 
     const url =
         String(
-            window.GENZ_CONFIG.SUPABASE_URL || ""
+            window.GENZ_CONFIG.SUPABASE_URL ||
+            ""
         ).trim();
 
     const key =
         String(
-            window.GENZ_CONFIG.SUPABASE_KEY || ""
+            window.GENZ_CONFIG.SUPABASE_KEY ||
+            ""
         ).trim();
 
     if (!url) {
+
         throw new Error(
             "SUPABASE_URL tidak ditemukan."
         );
+
     }
 
     if (!key) {
+
         throw new Error(
             "SUPABASE_KEY tidak ditemukan."
         );
+
     }
 
     return {
         url,
         key
     };
+
 }
 
 
@@ -125,24 +169,31 @@ function getSupabaseConfig() {
 function loadSupabaseScript() {
 
     return new Promise(
-        (resolve, reject) => {
+        (
+            resolve,
+            reject
+        ) => {
 
             if (
                 window.supabase &&
                 typeof window.supabase.createClient ===
                     "function"
             ) {
+
                 resolve(
                     window.supabase
                 );
 
                 return;
+
             }
+
 
             const existingScript =
                 document.querySelector(
                     `script[src="${SUPABASE_CDN}"]`
                 );
+
 
             if (existingScript) {
 
@@ -151,6 +202,7 @@ function loadSupabaseScript() {
 
                 const timeout =
                     15000;
+
 
                 const check =
                     () => {
@@ -167,7 +219,9 @@ function loadSupabaseScript() {
                             );
 
                             return;
+
                         }
+
 
                         if (
                             Date.now() -
@@ -182,28 +236,37 @@ function loadSupabaseScript() {
                             );
 
                             return;
+
                         }
+
 
                         window.setTimeout(
                             check,
                             50
                         );
+
                     };
+
 
                 check();
 
                 return;
+
             }
+
 
             const script =
                 document.createElement(
                     "script"
                 );
 
+
             script.src =
                 SUPABASE_CDN;
 
-            script.async = true;
+            script.async =
+                true;
+
 
             script.onload =
                 () => {
@@ -220,14 +283,18 @@ function loadSupabaseScript() {
                         );
 
                         return;
+
                     }
+
 
                     reject(
                         new Error(
                             "Supabase JS dimuat tetapi API createClient tidak tersedia."
                         )
                     );
+
                 };
+
 
             script.onerror =
                 () => {
@@ -237,13 +304,17 @@ function loadSupabaseScript() {
                             "Gagal memuat Supabase JS."
                         )
                     );
+
                 };
+
 
             document.head.appendChild(
                 script
             );
+
         }
     );
+
 }
 
 
@@ -259,6 +330,7 @@ function createSupabaseClient() {
     } =
         getSupabaseConfig();
 
+
     if (
         !window.supabase ||
         typeof window.supabase.createClient !==
@@ -268,19 +340,27 @@ function createSupabaseClient() {
         throw new Error(
             "Supabase JS belum tersedia."
         );
+
     }
+
 
     return window.supabase.createClient(
         url,
         key,
         {
             auth: {
-                persistSession: true,
-                autoRefreshToken: true,
-                detectSessionInUrl: true
+                persistSession:
+                    true,
+
+                autoRefreshToken:
+                    true,
+
+                detectSessionInUrl:
+                    true
             }
         }
     );
+
 }
 
 
@@ -298,6 +378,7 @@ function isValidSupabaseClient(
         typeof client.auth.getSession ===
             "function"
     );
+
 }
 
 
@@ -310,6 +391,7 @@ export async function loadSupabase() {
     const existingClient =
         getSupabaseClient();
 
+
     if (
         isValidSupabaseClient(
             existingClient
@@ -317,12 +399,15 @@ export async function loadSupabase() {
     ) {
 
         return existingClient;
+
     }
 
+
     /*
-     * Prioritaskan client global yang sudah
-     * dibuat navigation atau modul lain.
+     * Gunakan shared client jika sudah
+     * dibuat navigation atau module lain.
      */
+
     if (
         isValidSupabaseClient(
             window.GENZ_SUPABASE
@@ -337,7 +422,9 @@ export async function loadSupabase() {
             window.GENZ_SUPABASE;
 
         return window.GENZ_SUPABASE;
+
     }
+
 
     if (
         isValidSupabaseClient(
@@ -353,12 +440,15 @@ export async function loadSupabase() {
             window.supabaseClient;
 
         return window.supabaseClient;
+
     }
+
 
     /*
      * window.supabase biasanya adalah
-     * library Supabase, BUKAN client.
+     * library, bukan client.
      */
+
     if (
         !window.supabase ||
         typeof window.supabase.createClient !==
@@ -366,17 +456,18 @@ export async function loadSupabase() {
     ) {
 
         await loadSupabaseScript();
+
     }
+
 
     const client =
         createSupabaseClient();
 
-    /*
-     * Simpan satu client global.
-     */
+
     setSupabaseClient(
         client
     );
+
 
     window.GENZ_SUPABASE =
         client;
@@ -384,7 +475,9 @@ export async function loadSupabase() {
     window.supabaseClient =
         client;
 
+
     return client;
+
 }
 
 
@@ -397,6 +490,7 @@ async function getCurrentSession() {
     const client =
         getSupabaseClient();
 
+
     if (
         !isValidSupabaseClient(
             client
@@ -406,7 +500,9 @@ async function getCurrentSession() {
         throw new Error(
             "Supabase client belum tersedia."
         );
+
     }
+
 
     const {
         data,
@@ -414,13 +510,16 @@ async function getCurrentSession() {
     } =
         await client.auth.getSession();
 
+
     if (error) {
 
         throw new Error(
             "Gagal membaca session Supabase: " +
             error.message
         );
+
     }
+
 
     if (
         !data ||
@@ -430,9 +529,12 @@ async function getCurrentSession() {
         throw new Error(
             "Session tidak ditemukan. Silakan login kembali."
         );
+
     }
 
+
     return data.session;
+
 }
 
 
@@ -445,6 +547,7 @@ export async function loadCurrentUser() {
     const client =
         getSupabaseClient();
 
+
     if (
         !isValidSupabaseClient(
             client
@@ -454,10 +557,13 @@ export async function loadCurrentUser() {
         throw new Error(
             "Supabase client belum tersedia."
         );
+
     }
+
 
     const session =
         await getCurrentSession();
+
 
     const {
         data,
@@ -467,13 +573,16 @@ export async function loadCurrentUser() {
             session.access_token
         );
 
+
     if (error) {
 
         throw new Error(
             "Session user tidak valid: " +
             error.message
         );
+
     }
+
 
     if (
         !data ||
@@ -483,7 +592,9 @@ export async function loadCurrentUser() {
         throw new Error(
             "User tidak ditemukan."
         );
+
     }
+
 
     if (
         data.user.id !==
@@ -495,22 +606,28 @@ export async function loadCurrentUser() {
         throw new Error(
             "User ID session tidak sesuai."
         );
+
     }
+
 
     setCurrentUser(
         data.user
     );
 
+
     /*
-     * Sinkronkan user global.
+     * Sinkronisasi global user.
      */
+
     window.GENZ_CURRENT_USER =
         data.user;
 
     window.GENZ_NAVIGATION_USER =
         data.user;
 
+
     return data.user;
+
 }
 
 
@@ -518,13 +635,16 @@ export async function loadCurrentUser() {
    NORMALIZE ROLE
 ========================================================= */
 
-function normalizeRole(role) {
+function normalizeRole(
+    role
+) {
 
     return String(
         role || ""
     )
         .trim()
         .toUpperCase();
+
 }
 
 
@@ -532,13 +652,16 @@ function normalizeRole(role) {
    NORMALIZE STATUS
 ========================================================= */
 
-function normalizeStatus(status) {
+function normalizeStatus(
+    status
+) {
 
     return String(
         status || ""
     )
         .trim()
         .toLowerCase();
+
 }
 
 
@@ -560,18 +683,25 @@ function validateProfile(
         throw new Error(
             "Profile akun belum ditemukan."
         );
+
     }
 
-    if (!user?.id) {
+
+    if (
+        !user?.id
+    ) {
 
         throw new Error(
             "User Auth tidak valid."
         );
+
     }
 
+
     /*
-     * Profile WAJIB milik user Auth yang sedang login.
+     * Profile wajib milik user Auth.
      */
+
     if (
         String(
             profile.id || ""
@@ -584,15 +714,15 @@ function validateProfile(
         throw new Error(
             "ID profile tidak sesuai dengan user."
         );
+
     }
 
+
     /*
-     * Jika status memang tersedia,
-     * akun harus active.
-     *
-     * Jika status tidak tersedia pada schema,
-     * validasi status dilewati.
+     * Validasi status hanya jika kolom
+     * status memang tersedia.
      */
+
     if (
         profile.status !== undefined &&
         profile.status !== null &&
@@ -611,13 +741,17 @@ function validateProfile(
             throw new Error(
                 "Akun tidak aktif."
             );
+
         }
+
     }
+
 
     const role =
         normalizeRole(
             profile.role
         );
+
 
     if (
         !VALID_ROLES.includes(
@@ -628,12 +762,15 @@ function validateProfile(
         throw new Error(
             "Role akun tidak valid."
         );
+
     }
+
 
     return {
         ...profile,
         role
     };
+
 }
 
 
@@ -648,43 +785,65 @@ function updateAuthBadges(
     const elements =
         getGenerateElements();
 
+
     if (!elements) {
         return;
     }
 
+
     const {
         roleBadge,
         creditBadge
-    } = elements;
+    } =
+        elements;
 
-    /*
-     * ROLE
-     */
-    if (roleBadge) {
+
+    /* =====================================================
+       ROLE
+    ===================================================== */
+
+    if (
+        roleBadge
+    ) {
 
         const role =
             normalizeRole(
                 profile?.role
             );
 
+
+        /*
+         * Jangan mengambil USER dari fallback
+         * navigation atau HTML.
+         */
+
         roleBadge.textContent =
-            role || "USER";
+            role || "-";
+
     }
 
-    /*
-     * CREDIT
-     */
-    if (!creditBadge) {
+
+    /* =====================================================
+       CREDIT
+    ===================================================== */
+
+    if (
+        !creditBadge
+    ) {
         return;
     }
+
 
     const credits =
         profile?.credits;
 
+
     /*
-     * NULL / undefined / empty:
-     * jangan mengubah menjadi 0.
+     * NULL / undefined berarti data tidak tersedia.
+     *
+     * Bukan berarti 0.
      */
+
     if (
         credits === null ||
         credits === undefined ||
@@ -695,20 +854,20 @@ function updateAuthBadges(
             "Credit: -";
 
         return;
+
     }
 
-    /*
-     * Supabase dapat mengembalikan
-     * numeric sebagai string.
-     */
+
     const numericCredits =
         Number(
             credits
         );
 
+
     /*
-     * 0 adalah nilai VALID.
+     * 0 tetap valid.
      */
+
     if (
         Number.isFinite(
             numericCredits
@@ -721,15 +880,15 @@ function updateAuthBadges(
             )}`;
 
         return;
+
     }
 
-    /*
-     * Fallback jika nilai bukan angka.
-     */
+
     creditBadge.textContent =
         `Credit: ${String(
             credits
         )}`;
+
 }
 
 
@@ -747,6 +906,7 @@ function getProfileSelectColumns() {
         "credits",
         "status"
     ];
+
 }
 
 
@@ -769,6 +929,7 @@ async function queryProfileWithStatus(
             user.id
         )
         .maybeSingle();
+
 }
 
 
@@ -791,6 +952,7 @@ async function queryProfileWithoutStatus(
             user.id
         )
         .maybeSingle();
+
 }
 
 
@@ -806,11 +968,13 @@ function isMissingStatusColumnError(
         return false;
     }
 
+
     const message =
         String(
             error.message ||
             ""
         ).toLowerCase();
+
 
     const details =
         String(
@@ -818,14 +982,17 @@ function isMissingStatusColumnError(
             ""
         ).toLowerCase();
 
+
     const hint =
         String(
             error.hint ||
             ""
         ).toLowerCase();
 
+
     const combined =
         `${message} ${details} ${hint}`;
+
 
     return (
         combined.includes(
@@ -848,6 +1015,7 @@ function isMissingStatusColumnError(
             )
         )
     );
+
 }
 
 
@@ -857,19 +1025,15 @@ function isMissingStatusColumnError(
    SOURCE OF TRUTH:
    Supabase profiles
 
-   JANGAN:
-   - memakai navigation profile terlebih dahulu
-   - memakai cache sebagai role utama
-   - memakai cache sebagai credit utama
-
-   Navigation profile hanya diperbarui setelah
-   query Supabase berhasil.
+   Tidak menggunakan navigation profile
+   sebagai source of truth.
 ========================================================= */
 
 export async function loadProfile() {
 
     const client =
         getSupabaseClient();
+
 
     if (
         !isValidSupabaseClient(
@@ -880,10 +1044,13 @@ export async function loadProfile() {
         throw new Error(
             "Supabase client belum tersedia."
         );
+
     }
+
 
     const user =
         getCurrentUser();
+
 
     if (
         !user ||
@@ -893,20 +1060,12 @@ export async function loadProfile() {
         throw new Error(
             "User belum terautentikasi."
         );
+
     }
 
+
     /*
-     * =====================================================
-     * JANGAN menggunakan:
-     *
-     * window.GENZ_NAVIGATION_PROFILE
-     *
-     * sebagai source of truth.
-     *
-     * Profile harus selalu dibaca langsung
-     * dari Supabase agar role dan credit
-     * merupakan data terbaru.
-     * =====================================================
+     * Query profile terbaru langsung dari Supabase.
      */
 
     let result =
@@ -915,10 +1074,12 @@ export async function loadProfile() {
             user
         );
 
+
     /*
-     * Jika kolom status tidak tersedia,
-     * ulangi query tanpa status.
+     * Jika schema tidak memiliki status,
+     * query ulang tanpa status.
      */
+
     if (
         result.error &&
         isMissingStatusColumnError(
@@ -931,61 +1092,70 @@ export async function loadProfile() {
                 client,
                 user
             );
+
     }
 
-    /*
-     * Error database lainnya tidak boleh
-     * ditutup dengan cache navigation.
-     */
-    if (result.error) {
+
+    if (
+        result.error
+    ) {
 
         throw new Error(
             "Gagal mengambil profile: " +
             result.error.message
         );
+
     }
 
-    /*
-     * Profile tidak ditemukan.
-     */
-    if (!result.data) {
+
+    if (
+        !result.data
+    ) {
 
         await safeSignOut();
 
         throw new Error(
             "Profile belum ditemukan untuk akun ini."
         );
+
     }
 
+
     /*
-     * Validasi terhadap Auth user.
+     * Validasi profile terhadap Auth user.
      */
+
     const profile =
         validateProfile(
             result.data,
             user
         );
 
+
     /*
-     * Simpan profile terbaru.
+     * Simpan ke state.
      */
+
     setCurrentProfile(
         profile
     );
 
+
     /*
-     * Update badge menggunakan hasil
+     * Update badge berdasarkan hasil
      * query Supabase terbaru.
      */
+
     updateAuthBadges(
         profile
     );
 
+
     /*
-     * Setelah Supabase berhasil menjadi
-     * source of truth, baru sinkronkan
-     * global navigation/cache.
+     * Sinkronisasi cache navigation
+     * SETELAH query Supabase berhasil.
      */
+
     window.GENZ_NAVIGATION_PROFILE =
         profile;
 
@@ -998,7 +1168,9 @@ export async function loadProfile() {
     window.GENZ_CURRENT_ROLE =
         profile.role;
 
+
     return profile;
+
 }
 
 
@@ -1011,6 +1183,7 @@ export async function getAccessToken() {
     const client =
         getSupabaseClient();
 
+
     if (
         !isValidSupabaseClient(
             client
@@ -1020,10 +1193,13 @@ export async function getAccessToken() {
         throw new Error(
             "Supabase client belum tersedia."
         );
+
     }
+
 
     const session =
         await getCurrentSession();
+
 
     const token =
         String(
@@ -1031,43 +1207,42 @@ export async function getAccessToken() {
             ""
         ).trim();
 
+
     if (!token) {
 
         throw new Error(
             "Access token tidak tersedia. Silakan login kembali."
         );
+
     }
 
+
     return token;
+
 }
 
 
 /* =========================================================
    ENSURE AUTHENTICATED
-   ---------------------------------------------------------
-   PENTING:
-   - User boleh menggunakan navigation user
-     sebagai cache untuk menghindari query Auth
-     yang tidak perlu.
-   - Profile TIDAK menggunakan navigation cache
-     sebagai source of truth.
 ========================================================= */
 
 export async function ensureAuthenticated() {
 
     /*
-     * Pastikan shared client tersedia.
+     * Pastikan client tersedia.
      */
+
     await loadSupabase();
+
 
     let user =
         getCurrentUser();
 
+
     /*
-     * Jika state lokal kosong tetapi navigation
-     * sudah membaca user, gunakan user tersebut
-     * sebagai cache Auth.
+     * Cache user boleh digunakan.
      */
+
     if (
         !user &&
         window.GENZ_NAVIGATION_USER
@@ -1076,52 +1251,56 @@ export async function ensureAuthenticated() {
         user =
             window.GENZ_NAVIGATION_USER;
 
+
         setCurrentUser(
             user
         );
+
     }
 
+
     /*
-     * Jika tetap belum ada, baca langsung
-     * dari Supabase Auth.
+     * Jika tidak ada user,
+     * baca langsung dari Supabase Auth.
      */
+
     if (!user) {
 
         user =
             await loadCurrentUser();
+
     }
 
+
     /*
-     * =====================================================
-     * PROFILE SELALU REFRESH DARI SUPABASE
-     * =====================================================
+     * PROFILE SELALU dibaca ulang dari
+     * Supabase.
      *
-     * Jangan menggunakan:
+     * Jangan gunakan:
      *
      * getCurrentProfile()
      *
-     * sebagai alasan untuk melewati
-     * loadProfile().
-     *
-     * Kalau profile sudah berubah di Supabase,
-     * Generate harus melihat perubahan tersebut.
+     * untuk melewati query.
      */
 
     const profile =
         await loadProfile();
 
+
     /*
-     * Pastikan badge menggunakan profile
-     * hasil query Supabase.
+     * Pastikan badge memakai profile terbaru.
      */
+
     updateAuthBadges(
         profile
     );
+
 
     return {
         user,
         profile
     };
+
 }
 
 
@@ -1134,6 +1313,7 @@ export async function safeSignOut() {
     const client =
         getSupabaseClient();
 
+
     if (
         !isValidSupabaseClient(
             client
@@ -1141,7 +1321,9 @@ export async function safeSignOut() {
     ) {
 
         return;
+
     }
+
 
     try {
 
@@ -1153,12 +1335,14 @@ export async function safeSignOut() {
             "GEN-Z.AI signOut error:",
             error
         );
+
     }
+
 }
 
 
 /* =========================================================
-   GET ROLE
+   GET CURRENT ROLE
 ========================================================= */
 
 export function getCurrentRole() {
@@ -1166,13 +1350,18 @@ export function getCurrentRole() {
     const profile =
         getCurrentProfile();
 
+
     if (!profile) {
+
         return null;
+
     }
+
 
     return normalizeRole(
         profile.role
     );
+
 }
 
 
@@ -1187,9 +1376,13 @@ export function hasRole(
     const currentRole =
         getCurrentRole();
 
+
     if (!currentRole) {
+
         return false;
+
     }
+
 
     return roles
         .map(
@@ -1198,6 +1391,7 @@ export function hasRole(
         .includes(
             currentRole
         );
+
 }
 
 
