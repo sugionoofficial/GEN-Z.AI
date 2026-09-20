@@ -9,41 +9,64 @@
  * ARSITEKTUR
  *
  * MODEL SOURCE OF TRUTH
+ *   Admin Models
+ *        |
+ *        +-- Supabase: models
+ *        |
+ *        +-- model_id
+ *        +-- model_name
+ *        +-- provider_id
+ *        +-- description
+ *        +-- status
+ *        +-- credit configuration
+ *        +-- duration
+ *        +-- ratios
+ *        +-- resolutions
+ *
+ * MODEL REGISTRY
  *   models/<model-folder>/
- *          |
- *          +-- config.js
- *          +-- parameters.js
- *          +-- index.js
+ *        |
+ *        +-- config.js
+ *        +-- parameters.js
+ *        +-- index.js
+ *
+ *   Registry TIDAK menentukan model yang tersedia.
+ *
+ *   Registry hanya menyediakan:
+ *        - adapter/API metadata
+ *        - parameter fallback
+ *        - folder mapping
  *
  * SUPABASE
  *   providers
- *          |
- *          +-- provider connection/status
+ *        |
+ *        +-- provider connection/status
  *
  *   models
- *          |
- *          +-- optional admin configuration
- *          +-- display name
- *          +-- description
- *          +-- status
- *          +-- discount
- *          +-- credit configuration
+ *        |
+ *        +-- HASIL KONFIGURASI ADMIN MODELS
  *
  * =========================================================
  *
  * PENTING
  *
  * model_id:
- *   SELALU berasal dari config.js
- *   IMMUTABLE
+ *   berasal dari konfigurasi Admin Models.
  *
- * parameter teknis:
- *   SELALU berasal dari parameters.js
+ *   Registry hanya digunakan untuk mencari adapter
+ *   berdasarkan model_id yang sudah dipilih admin.
  *
- * Supabase TIDAK menentukan apakah model tersedia.
+ * Model tersedia:
+ *   ditentukan oleh row pada tabel models.
  *
- * Model hanya dianggap tersedia jika model tersebut
- * terdaftar di MODEL_REGISTRY.
+ * Model aktif:
+ *   ditentukan oleh models.status = active.
+ *
+ * Provider:
+ *   ditentukan oleh providers.status.
+ *
+ * API KEY:
+ *   TIDAK PERNAH dibaca oleh module ini.
  *
  * =========================================================
  */
@@ -67,9 +90,13 @@ const PROVIDER_TABLE = "providers";
 /* =========================================================
    MODEL REGISTRY
    ---------------------------------------------------------
-   Sumber utama model yang tersedia di GEN-Z.AI.
+   Registry BUKAN source of truth model.
 
-   Untuk menambahkan model berikutnya:
+   Registry hanya menyediakan metadata teknis / adapter
+   yang dapat digunakan untuk model yang sudah terdaftar
+   pada Admin Models.
+
+   Untuk menambahkan adapter model baru:
 
    1. Buat folder:
       models/nama-model/
@@ -83,7 +110,8 @@ const PROVIDER_TABLE = "providers";
 
    4. Tambahkan ke MODEL_REGISTRY.
 
-   Tidak perlu membuat model dari Supabase.
+   Model tetap harus dibuat/diaktifkan melalui
+   Admin Models.
 ========================================================= */
 
 const MODEL_REGISTRY = [
@@ -159,6 +187,7 @@ function getSupabaseClient() {
 
 
     return null;
+
 }
 
 
@@ -426,12 +455,10 @@ async function loadProviders(
 
 
     /*
-     * Provider bukan source of truth model.
+     * Provider merupakan dependency Admin Models.
      *
-     * Jika Supabase belum tersedia,
-     * kembalikan array kosong.
-     *
-     * Model tetap dapat dimuat dari registry.
+     * Jika Supabase belum tersedia, tidak ada
+     * provider yang dapat dianggap aktif.
      */
 
     if (!supabase) {
@@ -482,11 +509,6 @@ async function loadProviders(
 
 
             if (error) {
-
-                /*
-                 * Provider gagal dibaca tidak boleh
-                 * membuat registry model hilang.
-                 */
 
                 console.warn(
                     "GEN-Z.AI: gagal membaca providers:",
@@ -733,6 +755,13 @@ function getDurationRange(
 
 /* =========================================================
    REGISTRY MODEL NORMALIZER
+   ---------------------------------------------------------
+   Digunakan untuk membaca model dari registry saja.
+ *
+ *   PENTING:
+ *   Fungsi ini TIDAK menentukan model yang tersedia.
+ *
+ *   Model registry hanya merupakan metadata teknis.
 ========================================================= */
 
 function normalizeRegistryModel(
@@ -759,13 +788,6 @@ function normalizeRegistryModel(
         registryEntry.parameters || {};
 
 
-    /* =====================================================
-       MODEL ID
-       -----------------------------------------------------
-       WAJIB berasal dari config.js.
-       Tidak boleh diganti dari Supabase.
-    ===================================================== */
-
     const modelId =
         String(
             config.id || ""
@@ -778,10 +800,6 @@ function normalizeRegistryModel(
 
     }
 
-
-    /* =====================================================
-       PROVIDER
-    ===================================================== */
 
     const providerCode =
         String(
@@ -798,12 +816,6 @@ function normalizeRegistryModel(
                 providerCode
         ) || null;
 
-
-    /* =====================================================
-       TECHNICAL PARAMETERS
-       -----------------------------------------------------
-       SEMUANYA berasal dari parameters.js.
-    ===================================================== */
 
     const supportedRatios =
         getParameterEnum(
@@ -825,20 +837,9 @@ function normalizeRegistryModel(
         );
 
 
-    /* =====================================================
-       OPTIONAL SUPABASE CONFIG
-    ===================================================== */
-
     const persisted =
         persistedModel || null;
 
-
-    /* =====================================================
-       DISPLAY NAME
-       -----------------------------------------------------
-       Supabase boleh override nama tampilan.
-       Jika belum ada, gunakan config.js.
-    ===================================================== */
 
     const modelName =
         String(
@@ -848,21 +849,11 @@ function normalizeRegistryModel(
         ).trim();
 
 
-    /* =====================================================
-       DESCRIPTION
-    ===================================================== */
-
     const description =
         persisted?.description ??
         config.description ??
         "";
 
-
-    /* =====================================================
-       STATUS
-       -----------------------------------------------------
-       Default active jika belum ada konfigurasi admin.
-    ===================================================== */
 
     const status =
         String(
@@ -872,14 +863,6 @@ function normalizeRegistryModel(
             .trim()
             .toLowerCase();
 
-
-    /* =====================================================
-       CREDIT SYSTEM
-       -----------------------------------------------------
-       credit_cost TETAP credit.
-
-       JANGAN dianggap USD.
-    ===================================================== */
 
     const creditCost =
         persisted &&
@@ -938,10 +921,6 @@ function normalizeRegistryModel(
             : calculatedCreditFinal;
 
 
-    /* =====================================================
-       PROVIDER OBJECT
-    ===================================================== */
-
     const providerData =
         provider
 
@@ -966,6 +945,7 @@ function normalizeRegistryModel(
             : {
 
                 id:
+                    persisted?.provider_id ??
                     null,
 
                 provider_id:
@@ -981,86 +961,35 @@ function normalizeRegistryModel(
             };
 
 
-    /* =====================================================
-       FINAL MODEL
-    ===================================================== */
-
     return {
-
-        /*
-         * Supabase UUID.
-         * Boleh null jika belum ada row.
-         */
 
         id:
             persisted?.id ??
             null,
 
-
-        /*
-         * MODEL ID
-         *
-         * IMMUTABLE
-         */
-
         model_id:
             modelId,
-
-
-        /*
-         * DISPLAY NAME
-         */
 
         model_name:
             modelName,
 
-
-        /*
-         * DESCRIPTION
-         */
-
         description:
             description,
-
-
-        /*
-         * PROVIDER UUID
-         */
 
         provider_id:
             provider?.id ??
             persisted?.provider_id ??
             null,
 
-
-        /*
-         * PROVIDER CODE
-         */
-
         provider_code:
             providerCode,
-
-
-        /*
-         * PROVIDER OBJECT
-         */
 
         provider:
             providerData,
 
-
-        /*
-         * MODEL TYPE
-         */
-
         type:
             config.type ||
             "",
-
-
-        /*
-         * API
-         */
 
         api:
             config.api
@@ -1069,21 +998,8 @@ function normalizeRegistryModel(
                 }
                 : {},
 
-
-        /*
-         * FULL PARAMETERS
-         */
-
         parameters:
             parameters,
-
-
-        /*
-         * TECHNICAL PARAMETERS
-         *
-         * SOURCE:
-         * parameters.js
-         */
 
         supported_ratios:
             supportedRatios,
@@ -1097,11 +1013,6 @@ function normalizeRegistryModel(
         max_duration:
             durationRange.max,
 
-
-        /*
-         * CREDIT
-         */
-
         credit_cost:
             creditCost,
 
@@ -1111,18 +1022,8 @@ function normalizeRegistryModel(
         credit_final:
             creditFinal,
 
-
-        /*
-         * STATUS
-         */
-
         status:
             status,
-
-
-        /*
-         * SOURCE
-         */
 
         source:
             "model-folder",
@@ -1131,6 +1032,9 @@ function normalizeRegistryModel(
             registryEntry.folder || "",
 
         registry:
+            true,
+
+        adapter_available:
             true
 
     };
@@ -1139,12 +1043,15 @@ function normalizeRegistryModel(
 
 
 /* =========================================================
-   LOAD PERSISTED ADMIN CONFIG
+   LOAD PERSISTED ADMIN MODELS
    ---------------------------------------------------------
-   Ini hanya konfigurasi tambahan.
-
-   Jika gagal:
-   registry tetap berjalan.
+   INI ADALAH SOURCE OF TRUTH MODEL.
+   ---------------------------------------------------------
+   Data di sini adalah hasil konfigurasi dari halaman
+   Admin Models yang tersimpan di database.
+ *
+ *   Registry TIDAK menentukan apakah row ini boleh
+ *   ditampilkan.
 ========================================================= */
 
 async function loadPersistedModels() {
@@ -1169,13 +1076,19 @@ async function loadPersistedModels() {
             .from(
                 MODEL_TABLE
             )
-            .select("*");
+            .select("*")
+            .order(
+                "created_at",
+                {
+                    ascending: true
+                }
+            );
 
 
         if (error) {
 
             console.warn(
-                "GEN-Z.AI: konfigurasi models tidak dapat dibaca:",
+                "GEN-Z.AI: konfigurasi Admin Models tidak dapat dibaca:",
                 error.message
             );
 
@@ -1191,7 +1104,7 @@ async function loadPersistedModels() {
     } catch (error) {
 
         console.warn(
-            "GEN-Z.AI: error membaca konfigurasi models:",
+            "GEN-Z.AI: error membaca Admin Models:",
             error
         );
 
@@ -1203,12 +1116,570 @@ async function loadPersistedModels() {
 
 
 /* =========================================================
+   FIND REGISTRY ENTRY
+   ---------------------------------------------------------
+   Registry hanya dicari berdasarkan model_id.
+========================================================= */
+
+function getRegistryEntryByModelId(
+    modelId
+) {
+
+    const id =
+        String(
+            modelId || ""
+        ).trim();
+
+
+    if (!id) {
+
+        return null;
+
+    }
+
+
+    return (
+        MODEL_REGISTRY.find(
+            entry =>
+                String(
+                    entry?.config?.id || ""
+                ).trim() ===
+                id
+        ) || null
+    );
+
+}
+
+
+/* =========================================================
+   PERSISTED ADMIN MODEL NORMALIZER
+   ---------------------------------------------------------
+   SOURCE OF TRUTH:
+ *
+ *   persistedModel = hasil Admin Models
+ *
+ * Registry hanya digunakan sebagai adapter/technical
+ * metadata jika tersedia.
+========================================================= */
+
+function normalizePersistedModel(
+    persistedModel,
+    providerMap = []
+) {
+
+    if (
+        !persistedModel ||
+        typeof persistedModel !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const modelId =
+        String(
+            persistedModel.model_id || ""
+        ).trim();
+
+
+    if (!modelId) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Provider ditentukan oleh provider_id dari
+     * Admin Models.
+     */
+
+    const persistedProviderId =
+        persistedModel.provider_id ??
+        null;
+
+
+    const provider =
+        providerMap.find(
+            item =>
+                String(
+                    item?.id || ""
+                ) ===
+                String(
+                    persistedProviderId || ""
+                )
+        ) || null;
+
+
+    /*
+     * Registry OPTIONAL.
+     *
+     * Tidak adanya registry entry tidak menghapus
+     * model dari daftar Admin Models.
+     */
+
+    const registryEntry =
+        getRegistryEntryByModelId(
+            modelId
+        );
+
+
+    const registryConfig =
+        registryEntry?.config ||
+        null;
+
+
+    const registryParameters =
+        registryEntry?.parameters ||
+        null;
+
+
+    /*
+     * Technical parameters dari Admin Models
+     * diprioritaskan.
+     *
+     * Registry hanya fallback jika kolom Admin Models
+     * memang kosong/tidak tersedia.
+     */
+
+    const persistedRatios =
+        normalizeArray(
+            persistedModel.supported_ratios
+        );
+
+
+    const persistedResolutions =
+        normalizeArray(
+            persistedModel.supported_resolutions
+        );
+
+
+    const registryRatios =
+        registryParameters
+            ? getParameterEnum(
+                registryParameters,
+                "aspect_ratio"
+            )
+            : [];
+
+
+    const registryResolutions =
+        registryParameters
+            ? getParameterEnum(
+                registryParameters,
+                "resolution"
+            )
+            : [];
+
+
+    const registryDuration =
+        registryParameters
+            ? getDurationRange(
+                registryParameters
+            )
+            : {
+                min: 0,
+                max: 0
+            };
+
+
+    const hasMinDuration =
+        persistedModel.min_duration !== null &&
+        persistedModel.min_duration !== undefined &&
+        persistedModel.min_duration !== "";
+
+
+    const hasMaxDuration =
+        persistedModel.max_duration !== null &&
+        persistedModel.max_duration !== undefined &&
+        persistedModel.max_duration !== "";
+
+
+    const minDuration =
+        hasMinDuration
+            ? normalizeNumber(
+                persistedModel.min_duration,
+                0
+            )
+            : registryDuration.min;
+
+
+    const maxDuration =
+        hasMaxDuration
+            ? normalizeNumber(
+                persistedModel.max_duration,
+                minDuration
+            )
+            : registryDuration.max;
+
+
+    const supportedRatios =
+        persistedRatios.length
+            ? persistedRatios
+            : registryRatios;
+
+
+    const supportedResolutions =
+        persistedResolutions.length
+            ? persistedResolutions
+            : registryResolutions;
+
+
+    /*
+     * CREDIT
+     */
+
+    const creditCost =
+        normalizeNumber(
+            persistedModel.credit_cost,
+            0
+        );
+
+
+    const discountPercent =
+        normalizeNumber(
+            persistedModel.discount_percent,
+            0
+        );
+
+
+    const safeDiscount =
+        Math.min(
+            100,
+            Math.max(
+                0,
+                discountPercent
+            )
+        );
+
+
+    const calculatedCreditFinal =
+        creditCost *
+        (
+            1 -
+            safeDiscount / 100
+        );
+
+
+    const creditFinal =
+        persistedModel.credit_final !== null &&
+        persistedModel.credit_final !== undefined &&
+        persistedModel.credit_final !== ""
+            ? normalizeNumber(
+                persistedModel.credit_final,
+                calculatedCreditFinal
+            )
+            : calculatedCreditFinal;
+
+
+    /*
+     * PROVIDER CODE
+     *
+     * Prioritas:
+     *
+     * 1. providers.provider_id
+     * 2. data persisted provider
+     * 3. registry config
+     */
+
+    const providerCode =
+        String(
+            provider?.provider_id ||
+            persistedModel.provider_code ||
+            registryConfig?.providerId ||
+            ""
+        ).trim();
+
+
+    const providerName =
+        String(
+            provider?.provider_name ||
+            persistedModel.provider_name ||
+            registryConfig?.providerName ||
+            providerCode ||
+            ""
+        ).trim();
+
+
+    const providerStatus =
+        String(
+            provider?.status ||
+            "unknown"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    const providerData =
+        provider
+
+            ? {
+
+                id:
+                    provider.id,
+
+                provider_id:
+                    provider.provider_id,
+
+                provider_name:
+                    provider.provider_name ||
+                    providerCode,
+
+                status:
+                    provider.status
+
+            }
+
+            : {
+
+                id:
+                    persistedProviderId,
+
+                provider_id:
+                    providerCode,
+
+                provider_name:
+                    providerName,
+
+                status:
+                    providerStatus
+
+            };
+
+
+    /*
+     * STATUS
+     *
+     * Status Admin Models adalah sumber utama.
+     */
+
+    const status =
+        String(
+            persistedModel.status ||
+            "inactive"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    /*
+     * MODEL TYPE
+     *
+     * Tidak mengubah model_id.
+     */
+
+    const modelType =
+        String(
+            persistedModel.type ||
+            persistedModel.model_type ||
+            registryConfig?.type ||
+            ""
+        ).trim();
+
+
+    /*
+     * FINAL NORMALIZED MODEL
+     */
+
+    return {
+
+        /*
+         * Supabase UUID.
+         */
+
+        id:
+            persistedModel.id ??
+            null,
+
+
+        /*
+         * MODEL ID
+         *
+         * SOURCE:
+         * Admin Models
+         */
+
+        model_id:
+            modelId,
+
+
+        /*
+         * MODEL NAME
+         *
+         * SOURCE:
+         * Admin Models
+         */
+
+        model_name:
+            String(
+                persistedModel.model_name ||
+                registryConfig?.name ||
+                modelId
+            ).trim(),
+
+
+        /*
+         * DESCRIPTION
+         */
+
+        description:
+            persistedModel.description ??
+            registryConfig?.description ??
+            "",
+
+
+        /*
+         * PROVIDER UUID
+         */
+
+        provider_id:
+            persistedProviderId,
+
+
+        /*
+         * PROVIDER CODE
+         */
+
+        provider_code:
+            providerCode,
+
+
+        /*
+         * PROVIDER OBJECT
+         */
+
+        provider:
+            providerData,
+
+
+        /*
+         * MODEL TYPE
+         */
+
+        type:
+            modelType,
+
+
+        /*
+         * API / ADAPTER CONFIG
+         *
+         * Hanya diisi jika model_id mempunyai
+         * registry entry.
+         */
+
+        api:
+            registryConfig?.api
+                ? {
+                    ...registryConfig.api
+                }
+                : {},
+
+
+        /*
+         * TECHNICAL PARAMETERS
+         */
+
+        parameters:
+            registryParameters
+                ? {
+                    ...registryParameters
+                }
+                : {},
+
+
+        supported_ratios:
+            supportedRatios,
+
+
+        supported_resolutions:
+            supportedResolutions,
+
+
+        min_duration:
+            minDuration,
+
+
+        max_duration:
+            maxDuration,
+
+
+        /*
+         * CREDIT
+         */
+
+        credit_cost:
+            creditCost,
+
+
+        discount_percent:
+            safeDiscount,
+
+
+        credit_final:
+            creditFinal,
+
+
+        /*
+         * STATUS ADMIN MODEL
+         */
+
+        status:
+            status,
+
+
+        /*
+         * SOURCE
+         *
+         * Model berasal dari Admin Models.
+         */
+
+        source:
+            "admin-model",
+
+
+        /*
+         * Registry folder hanya metadata adapter.
+         */
+
+        source_folder:
+            registryEntry?.folder ||
+            "",
+
+
+        /*
+         * Apakah model mempunyai entry registry.
+         */
+
+        registry:
+            Boolean(
+                registryEntry
+            ),
+
+
+        /*
+         * Apakah adapter teknis tersedia.
+         */
+
+        adapter_available:
+            Boolean(
+                registryEntry
+            )
+
+    };
+
+}
+
+
+/* =========================================================
    LOAD REGISTRY MODELS
    ---------------------------------------------------------
-   FUNGSI INI TIDAK MEMBUTUHKAN SUPABASE.
-
-   Ini yang digunakan halaman Edit Model jika
-   hanya membutuhkan model dari repository.
+   Compatibility API.
+ *
+ * Fungsi ini tetap mengembalikan model yang terdaftar
+ * di registry.
+ *
+ * Namun fungsi ini BUKAN source of truth Admin Models.
 ========================================================= */
 
 function loadRegistryModels() {
@@ -1253,12 +1724,8 @@ function getRegistryModel(
 
 
     const entry =
-        MODEL_REGISTRY.find(
-            item =>
-                String(
-                    item?.config?.id || ""
-                ).trim() ===
-                id
+        getRegistryEntryByModelId(
+            id
         );
 
 
@@ -1281,9 +1748,26 @@ function getRegistryModel(
 /* =========================================================
    LOAD MODELS
    ---------------------------------------------------------
-   Model selalu berasal dari MODEL_REGISTRY.
-
-   Supabase hanya melakukan merge konfigurasi admin.
+   SOURCE OF TRUTH:
+ *
+ *   Admin Models / persisted models table.
+ *
+ * Registry TIDAK lagi menentukan daftar model.
+ *
+ * Alur:
+ *
+ *   Admin Models
+ *       |
+ *       v
+ *   models table
+ *       |
+ *       v
+ *   normalizePersistedModel()
+ *       |
+ *       +---- registry adapter jika tersedia
+ *       |
+ *       v
+ *   modelCache
 ========================================================= */
 
 async function loadModels(
@@ -1296,6 +1780,10 @@ async function loadModels(
         activeProviderOnly = false
     } = options;
 
+
+    /*
+     * CACHE
+     */
 
     if (
         modelsLoaded &&
@@ -1313,7 +1801,9 @@ async function loadModels(
             result =
                 result.filter(
                     model =>
-                        model.status ===
+                        String(
+                            model?.status || ""
+                        ).toLowerCase() ===
                         "active"
                 );
 
@@ -1327,7 +1817,9 @@ async function loadModels(
             result =
                 result.filter(
                     model =>
-                        model.provider?.status ===
+                        String(
+                            model?.provider?.status || ""
+                        ).toLowerCase() ===
                         "active"
                 );
 
@@ -1338,6 +1830,10 @@ async function loadModels(
 
     }
 
+
+    /*
+     * Hindari duplicate request.
+     */
 
     if (
         modelsLoadingPromise
@@ -1352,7 +1848,7 @@ async function loadModels(
         (async function () {
 
             /*
-             * Provider adalah optional metadata.
+             * Provider berasal dari Supabase.
              */
 
             const providers =
@@ -1363,7 +1859,7 @@ async function loadModels(
 
 
             /*
-             * Supabase admin configuration.
+             * Model berasal dari hasil Admin Models.
              */
 
             const persistedModels =
@@ -1371,74 +1867,25 @@ async function loadModels(
 
 
             /*
-             * Map berdasarkan model_id.
-             */
-
-            const persistedMap =
-                new Map();
-
-
-            for (
-                const persisted
-                of persistedModels
-            ) {
-
-                const key =
-                    String(
-                        persisted?.model_id || ""
-                    ).trim();
-
-
-                if (key) {
-
-                    persistedMap.set(
-                        key,
-                        persisted
-                    );
-
-                }
-
-            }
-
-
-            /*
-             * =================================================
-             * IMPORTANT
+             * NORMALIZE SEMUA MODEL ADMIN.
              *
-             * HANYA MODEL DI MODEL_REGISTRY
-             * YANG BOLEH MASUK.
-             * =================================================
+             * Tidak ada filter registry di sini.
              */
 
             let models =
-                MODEL_REGISTRY
+                persistedModels
                     .map(
-                        registryEntry => {
-
-                            const modelId =
-                                String(
-                                    registryEntry
-                                        ?.config
-                                        ?.id ||
-                                    ""
-                                ).trim();
-
-
-                            return normalizeRegistryModel(
-                                registryEntry,
-                                providers,
-                                persistedMap.get(
-                                    modelId
-                                ) || null
-                            );
-
-                        }
+                        persistedModel =>
+                            normalizePersistedModel(
+                                persistedModel,
+                                providers
+                            )
                     )
                     .filter(Boolean);
 
 
             /*
-             * Cache lengkap.
+             * Cache model lengkap.
              */
 
             modelCache =
@@ -1449,7 +1896,7 @@ async function loadModels(
 
 
             /*
-             * Filter status.
+             * Filter status Admin Models.
              */
 
             if (
@@ -1459,7 +1906,9 @@ async function loadModels(
                 models =
                     models.filter(
                         model =>
-                            model.status ===
+                            String(
+                                model?.status || ""
+                            ).toLowerCase() ===
                             "active"
                     );
 
@@ -1477,7 +1926,9 @@ async function loadModels(
                 models =
                     models.filter(
                         model =>
-                            model.provider?.status ===
+                            String(
+                                model?.provider?.status || ""
+                            ).toLowerCase() ===
                             "active"
                     );
 
@@ -1531,7 +1982,7 @@ async function getModelById(
         models.find(
             model =>
                 String(
-                    model.id
+                    model?.id || ""
                 ) ===
                 String(id)
         ) || null
@@ -1542,6 +1993,11 @@ async function getModelById(
 
 /* =========================================================
    MODEL LOOKUP BY MODEL ID
+   ---------------------------------------------------------
+   SOURCE UTAMA:
+   Admin Models.
+ *
+ * Registry hanya menjadi metadata adapter.
 ========================================================= */
 
 async function getModelByModelId(
@@ -1565,40 +2021,40 @@ async function getModelByModelId(
         ).trim();
 
 
-    /*
-     * Gunakan registry sebagai fallback utama.
-     */
+    if (!id) {
 
-    const registryModel =
-        getRegistryModel(id);
-
-
-    if (registryModel) {
-
-        /*
-         * Jika membutuhkan konfigurasi admin,
-         * loadModels() akan melakukan merge.
-         */
-
-        const models =
-            await loadModels();
-
-
-        return (
-            models.find(
-                model =>
-                    String(
-                        model.model_id
-                    ) ===
-                    id
-            ) ||
-            registryModel
-        );
+        return null;
 
     }
 
 
-    return null;
+    /*
+     * Cari dari Admin Models.
+     */
+
+    const models =
+        await loadModels();
+
+
+    const model =
+        models.find(
+            item =>
+                String(
+                    item?.model_id || ""
+                ).trim() ===
+                id
+        );
+
+
+    /*
+     * JANGAN membuat model palsu dari registry.
+     *
+     * Jika tidak ada pada Admin Models,
+     * berarti model memang belum dikonfigurasi
+     * melalui halaman Models.
+     */
+
+    return model || null;
 
 }
 
@@ -1649,7 +2105,7 @@ function filterModels(
 
                 if (
                     String(
-                        model.provider_id
+                        model?.provider_id || ""
                     ) !==
                     String(
                         providerId
@@ -1673,7 +2129,7 @@ function filterModels(
 
                 if (
                     String(
-                        model.provider_code
+                        model?.provider_code || ""
                     ) !==
                     String(
                         providerCode
@@ -1698,7 +2154,7 @@ function filterModels(
 
                 if (
                     String(
-                        model.status
+                        model?.status || ""
                     ) !==
                     String(
                         status
@@ -1723,19 +2179,19 @@ function filterModels(
                 const haystack =
                     [
 
-                        model.model_id,
+                        model?.model_id,
 
-                        model.model_name,
+                        model?.model_name,
 
-                        model.description,
+                        model?.description,
 
-                        model.provider_code,
+                        model?.provider_code,
 
-                        model.provider?.provider_id,
+                        model?.provider?.provider_id,
 
-                        model.provider?.provider_name,
+                        model?.provider?.provider_name,
 
-                        model.type
+                        model?.type
 
                     ]
                         .filter(Boolean)
@@ -1858,9 +2314,14 @@ function isActiveModel(
 ) {
 
     return Boolean(
+
         model &&
-        model.status ===
+
+        String(
+            model.status || ""
+        ).toLowerCase() ===
         "active"
+
     );
 
 }
@@ -1868,6 +2329,17 @@ function isActiveModel(
 
 /* =========================================================
    USABLE MODEL
+   ---------------------------------------------------------
+   Model harus:
+ *
+ *   1. aktif
+ *   2. provider aktif
+ *
+ * Adapter tidak dijadikan syarat di sini karena
+ * module data hanya menentukan model configuration.
+ *
+ * Execution layer yang bertanggung jawab memastikan
+ * adapter tersedia sebelum menjalankan task.
 ========================================================= */
 
 function isUsableModel(
@@ -1878,12 +2350,16 @@ function isUsableModel(
 
         model &&
 
-        model.status ===
+        String(
+            model.status || ""
+        ).toLowerCase() ===
         "active" &&
 
         model.provider &&
 
-        model.provider.status ===
+        String(
+            model.provider.status || ""
+        ).toLowerCase() ===
         "active"
 
     );
@@ -1922,6 +2398,12 @@ function getModelRegistry() {
 
 /* =========================================================
    MODEL CONFIG
+   ---------------------------------------------------------
+   Compatibility API.
+ *
+ * Mengambil config adapter berdasarkan model_id.
+ *
+ * Tidak membuat model baru.
 ========================================================= */
 
 function getModelConfig(
@@ -1942,12 +2424,8 @@ function getModelConfig(
 
 
     const entry =
-        MODEL_REGISTRY.find(
-            item =>
-                String(
-                    item?.config?.id || ""
-                ).trim() ===
-                id
+        getRegistryEntryByModelId(
+            id
         );
 
 
@@ -1967,6 +2445,12 @@ function getModelConfig(
 
 /* =========================================================
    MODEL PARAMETERS
+   ---------------------------------------------------------
+   Compatibility API.
+ *
+ * Registry parameters hanya merupakan metadata teknis.
+ *
+ * Model availability tetap berasal dari Admin Models.
 ========================================================= */
 
 function getModelParameters(
@@ -1987,12 +2471,8 @@ function getModelParameters(
 
 
     const entry =
-        MODEL_REGISTRY.find(
-            item =>
-                String(
-                    item?.config?.id || ""
-                ).trim() ===
-                id
+        getRegistryEntryByModelId(
+            id
         );
 
 
@@ -2035,6 +2515,8 @@ const ModelData = {
 
     normalizeRegistryModel,
 
+    normalizePersistedModel,
+
 
     clearProviderCache,
 
@@ -2060,7 +2542,7 @@ const ModelData = {
 
 
     /*
-     * MERGED MODEL DATA
+     * ADMIN MODELS
      */
 
     loadModels,
@@ -2120,6 +2602,8 @@ export {
 
     normalizeRegistryModel,
 
+    normalizePersistedModel,
+
 
     clearProviderCache,
 
@@ -2145,7 +2629,7 @@ export {
 
 
     /*
-     * MODELS
+     * ADMIN MODELS
      */
 
     loadModels,
