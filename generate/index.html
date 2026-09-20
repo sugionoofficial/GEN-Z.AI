@@ -1123,6 +1123,110 @@
 
     </script>
 
+
+    <!-- =====================================================
+         GENERATE UI SAFETY BRIDGE
+         - Loading hanya boleh tampil setelah form disubmit.
+         - Membersihkan label mentah seperti "Index 0".
+         ====================================================== -->
+    <script>
+    (function () {
+        "use strict";
+
+        let generationStarted = false;
+
+        function getLoading() {
+            return document.getElementById("loading");
+        }
+
+        function forceLoadingHidden() {
+            const loading = getLoading();
+            if (!loading || generationStarted) return;
+
+            loading.hidden = true;
+            loading.setAttribute("aria-hidden", "true");
+            loading.style.setProperty("display", "none", "important");
+            loading.style.setProperty("visibility", "hidden", "important");
+            loading.style.setProperty("opacity", "0", "important");
+        }
+
+        function allowLoadingAfterSubmit() {
+            generationStarted = true;
+            const loading = getLoading();
+            if (!loading) return;
+
+            loading.style.removeProperty("display");
+            loading.style.removeProperty("visibility");
+            loading.style.removeProperty("opacity");
+            loading.removeAttribute("aria-hidden");
+        }
+
+        function removeLeakedIndexLabels(root) {
+            if (!root || !root.querySelectorAll) return;
+
+            root.querySelectorAll(
+                "label,span,div,p,strong,b,h1,h2,h3,h4,h5,h6"
+            ).forEach(function (element) {
+                if (!element || element.children.length > 0) return;
+
+                const text = String(element.textContent || "").trim();
+
+                if (/^Index\s+\d+$/i.test(text)) {
+                    element.remove();
+                }
+            });
+        }
+
+        function boot() {
+            forceLoadingHidden();
+            removeLeakedIndexLabels(document);
+
+            const form = document.getElementById("generateForm");
+
+            if (form) {
+                form.addEventListener(
+                    "submit",
+                    function () {
+                        allowLoadingAfterSubmit();
+                    },
+                    true
+                );
+            }
+
+            const observer = new MutationObserver(function () {
+                removeLeakedIndexLabels(document);
+
+                const loading = getLoading();
+
+                if (!generationStarted) {
+                    forceLoadingHidden();
+                } else if (loading && loading.hidden) {
+                    generationStarted = false;
+                    forceLoadingHidden();
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: [
+                    "hidden",
+                    "style",
+                    "class",
+                    "aria-hidden"
+                ]
+            });
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", boot, { once: true });
+        } else {
+            boot();
+        }
+    })();
+    </script>
+
 </head>
 
 
