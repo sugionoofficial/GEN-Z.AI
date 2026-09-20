@@ -30,7 +30,15 @@
    - profiles.role
    - profiles.status
 
-   Tidak bergantung pada CSS halaman.
+   CATATAN AUTH:
+   - Tidak pernah menggunakan window.supabase
+     sebagai Supabase client secara langsung.
+   - window.supabase dari CDN adalah library.
+   - Shared client disimpan di:
+       window.GENZ_SUPABASE
+       window.supabaseClient
+   - Jika shared client belum ada, client dibuat
+     menggunakan GENZ_CONFIG.
    ========================================================= */
 
 (() => {
@@ -144,6 +152,13 @@
     let currentProfile = null;
 
     let currentRole = null;
+
+
+    /* =====================================================
+       SUPABASE CLIENT CACHE
+       ===================================================== */
+
+    let cachedSupabaseClient = null;
 
 
     /* =====================================================
@@ -1318,12 +1333,126 @@
 
     function getSupabaseClient() {
 
-        return (
-            window.GENZ_SUPABASE ||
-            window.supabaseClient ||
-            window.supabase ||
-            null
+        /*
+         * -------------------------------------------------
+         * 1. Gunakan cached client
+         * -------------------------------------------------
+         */
+
+        if (
+            cachedSupabaseClient &&
+            cachedSupabaseClient.auth
+        ) {
+
+            return cachedSupabaseClient;
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * 2. Shared GENZ_SUPABASE
+         * -------------------------------------------------
+         */
+
+        if (
+            window.GENZ_SUPABASE &&
+            window.GENZ_SUPABASE.auth
+        ) {
+
+            cachedSupabaseClient =
+                window.GENZ_SUPABASE;
+
+            return cachedSupabaseClient;
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * 3. Shared supabaseClient
+         * -------------------------------------------------
+         */
+
+        if (
+            window.supabaseClient &&
+            window.supabaseClient.auth
+        ) {
+
+            cachedSupabaseClient =
+                window.supabaseClient;
+
+            window.GENZ_SUPABASE =
+                cachedSupabaseClient;
+
+            return cachedSupabaseClient;
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * 4. Buat client dari konfigurasi resmi
+         * -------------------------------------------------
+         *
+         * window.supabase dari CDN TIDAK digunakan
+         * sebagai client.
+         *
+         * Ia hanya menyediakan createClient().
+         * -------------------------------------------------
+         */
+
+        const library =
+            window.supabase;
+
+
+        const config =
+            window.GENZ_CONFIG;
+
+
+        if (
+            library &&
+            typeof library.createClient ===
+                "function" &&
+            config &&
+            config.SUPABASE_URL &&
+            config.SUPABASE_KEY
+        ) {
+
+            try {
+
+                cachedSupabaseClient =
+                    library.createClient(
+                        config.SUPABASE_URL,
+                        config.SUPABASE_KEY
+                    );
+
+
+                window.GENZ_SUPABASE =
+                    cachedSupabaseClient;
+
+
+                window.supabaseClient =
+                    cachedSupabaseClient;
+
+
+                return cachedSupabaseClient;
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Gagal membuat Supabase client:",
+                    error
+                );
+
+                return null;
+            }
+        }
+
+
+        console.error(
+            "[GEN-Z.AI] Supabase client belum tersedia."
         );
+
+
+        return null;
     }
 
 
@@ -1339,11 +1468,13 @@
 
         if (
             !supabase ||
-            !supabase.auth
+            !supabase.auth ||
+            typeof supabase.auth.getSession !==
+                "function"
         ) {
 
             console.error(
-                "[GEN-Z.AI] Supabase client tidak ditemukan."
+                "[GEN-Z.AI] Supabase Auth client tidak ditemukan."
             );
 
             return null;
@@ -1356,8 +1487,7 @@
                 data,
                 error
             } =
-                await supabase.auth
-                    .getSession();
+                await supabase.auth.getSession();
 
 
             if (error) {
@@ -1460,6 +1590,91 @@
 
 
     /* =====================================================
+       PROFILE STATUS
+       ===================================================== */
+
+    function isProfileActive(
+        profile
+    ) {
+
+        /*
+         * Status NULL tidak dianggap sebagai akun
+         * nonaktif karena beberapa profile lama mungkin
+         * belum memiliki nilai status.
+         */
+
+        if (
+            !profile ||
+            profile.status === null ||
+            profile.status === undefined
+        ) {
+
+            return true;
+        }
+
+
+        const status =
+            String(
+                profile.status
+            )
+            .trim()
+            .toLowerCase();
+
+
+        return (
+            status === "" ||
+            status === "active" ||
+            status === "aktif" ||
+            status === "enabled"
+        );
+    }
+
+
+    /* =====================================================
+       ROLE NORMALIZATION
+       ===================================================== */
+
+    function normalizeRole(
+        role
+    ) {
+
+        const normalized =
+            String(
+                role || ""
+            )
+            .trim()
+            .toUpperCase();
+
+
+        if (
+            normalized === "USER"
+        ) {
+
+            return "USER";
+        }
+
+
+        if (
+            normalized === "ADMIN"
+        ) {
+
+            return "ADMIN";
+        }
+
+
+        if (
+            normalized === "OWNER"
+        ) {
+
+            return "OWNER";
+        }
+
+
+        return null;
+    }
+
+
+    /* =====================================================
        VALIDATE AUTH + ROLE
        ===================================================== */
 
@@ -1497,40 +1712,48 @@
                 "[GEN-Z.AI] Profile user tidak ditemukan."
             );
 
-            await signOutSilently();
-
-            redirectToLogin();
+            /*
+             * Jangan langsung signOut.
+             *
+             * Jika query profile gagal karena RLS,
+             * network, atau Supabase belum siap,
+             * session sebenarnya masih valid.
+             *
+             * SignOut di sini justru membuat user
+             * benar-benar kehilangan session.
+             */
 
             return false;
         }
 
 
         if (
-            profile.id !== user.id
+            String(profile.id) !==
+            String(user.id)
         ) {
 
             console.error(
                 "[GEN-Z.AI] ID profile tidak sesuai dengan Auth user."
             );
 
-            await signOutSilently();
-
-            redirectToLogin();
-
             return false;
         }
 
 
         if (
-            String(
-                profile.status || ""
-            ).toLowerCase() !==
-            "active"
+            !isProfileActive(
+                profile
+            )
         ) {
 
             console.warn(
                 "[GEN-Z.AI] Akun tidak aktif."
             );
+
+            /*
+             * Hanya akun yang benar-benar memiliki
+             * status nonaktif yang dikeluarkan.
+             */
 
             await signOutSilently();
 
@@ -1541,25 +1764,23 @@
 
 
         const role =
-            String(
-                profile.role || ""
-            )
-            .trim()
-            .toUpperCase();
+            normalizeRole(
+                profile.role
+            );
 
 
-        if (
-            !NAVIGATION_BY_ROLE[role]
-        ) {
+        if (!role) {
 
             console.error(
                 "[GEN-Z.AI] Role tidak valid:",
                 profile.role
             );
 
-            await signOutSilently();
-
-            redirectToLogin();
+            /*
+             * Jangan signOut hanya karena role
+             * belum terbaca/terisi. Session Auth tetap
+             * valid.
+             */
 
             return false;
         }
@@ -2289,6 +2510,22 @@
             currentRole;
 
 
+        /*
+         * Promise siap navigation.
+         *
+         * Dashboard dapat menunggu object ini jika
+         * tersedia sehingga tidak perlu menebak apakah
+         * navigation sudah selesai melakukan auth.
+         */
+
+        window.GENZNavigationReady =
+            Promise.resolve({
+                user: currentUser,
+                profile: currentProfile,
+                role: currentRole
+            });
+
+
         hideLoading();
     }
 
@@ -2339,10 +2576,17 @@
                 session
             ) => {
 
+                /*
+                 * Hanya SIGNED_OUT yang benar-benar
+                 * berarti session telah berakhir.
+                 *
+                 * Jangan menganggap event auth lain
+                 * sebagai logout.
+                 */
+
                 if (
                     event ===
-                        "SIGNED_OUT" ||
-                    !session
+                    "SIGNED_OUT"
                 ) {
 
                     if (
@@ -2353,6 +2597,30 @@
                         window.location.href =
                             LOGIN_PATH;
                     }
+
+                    return;
+                }
+
+
+                /*
+                 * Session masih ada.
+                 *
+                 * Event INITIAL_SESSION,
+                 * SIGNED_IN, TOKEN_REFRESHED,
+                 * USER_UPDATED, dll tidak boleh
+                 * melempar user ke login.
+                 */
+
+                if (
+                    session &&
+                    session.user
+                ) {
+
+                    currentUser =
+                        session.user;
+
+                    window.GENZ_NAVIGATION_USER =
+                        currentUser;
                 }
 
             }
@@ -2375,7 +2643,30 @@
                 "DOMContentLoaded",
                 async () => {
 
+                    /*
+                     * Pastikan config sudah tersedia
+                     * sebelum navigation membuat client.
+                     */
+
+                    if (
+                        !window.GENZ_CONFIG
+                    ) {
+
+                        console.warn(
+                            "[GEN-Z.AI] GENZ_CONFIG belum tersedia saat navigation dimulai."
+                        );
+                    }
+
+
+                    /*
+                     * Buat/reuse client terlebih dahulu.
+                     */
+
+                    getSupabaseClient();
+
+
                     bindAuthState();
+
 
                     await init();
 
@@ -2387,12 +2678,57 @@
 
         } else {
 
+            getSupabaseClient();
+
             bindAuthState();
 
             init();
         }
     }
 
+
+    /* =====================================================
+       PUBLIC API
+       ===================================================== */
+
+    window.GENZNavigation = {
+
+        getSupabaseClient,
+
+        getAuthenticatedUser,
+
+        getUserProfile,
+
+        validateAuthentication,
+
+        getCurrentUser: () =>
+            currentUser,
+
+        getCurrentProfile: () =>
+            currentProfile,
+
+        getCurrentRole: () =>
+            currentRole,
+
+        getNavigationByRole: () =>
+            NAVIGATION_BY_ROLE,
+
+        render,
+
+        toggleMenu,
+
+        closeMenu,
+
+        logout,
+
+        init
+
+    };
+
+
+    /* =====================================================
+       START
+       ===================================================== */
 
     start();
 
