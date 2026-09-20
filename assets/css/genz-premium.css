@@ -653,6 +653,538 @@ button {
 
 
 /* =========================================================
+   GLOBAL HOLOGRAM LOGO
+   ---------------------------------------------------------
+   GEN   = PUTIH
+   -     = ABU-ABU
+   Z.AI  = MERAH
+   ---------------------------------------------------------
+   Penggunaan:
+
+   <div class="gz-hologram-logo">
+       <div class="gz-hologram-logo-text">
+           <span class="gz-hologram-gen">GEN</span>
+           <span class="gz-hologram-dash">-</span>
+           <span class="gz-hologram-zai">Z.AI</span>
+       </div>
+
+       <div class="gz-hologram-logo-sub">
+           AI VIDEO GENERATION PLATFORM
+       </div>
+   </div>
+========================================================= */
+
+.gz-hologram-logo {
+
+    position:
+        relative;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    flex-direction:
+        column;
+
+    width:
+        fit-content;
+
+    max-width:
+        100%;
+
+    margin:
+        0 auto;
+
+    padding:
+        8px 18px 12px;
+
+    isolation:
+        isolate;
+
+    text-align:
+        center;
+
+    user-select:
+        none;
+
+}
+
+
+/* =========================================================
+   HOLOGRAM FLOOR GLOW
+========================================================= */
+
+.gz-hologram-logo::before {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    left:
+        5%;
+
+    right:
+        5%;
+
+    bottom:
+        7px;
+
+    height:
+        22px;
+
+    background:
+
+        radial-gradient(
+            ellipse,
+            rgba(255,23,68,.34),
+            rgba(255,23,68,.12) 38%,
+            transparent 72%
+        );
+
+    filter:
+        blur(10px);
+
+    opacity:
+        .70;
+
+    z-index:
+        -1;
+
+    animation:
+        gz-hologram-pulse 2.8s ease-in-out infinite;
+
+}
+
+
+/* =========================================================
+   HOLOGRAM SCAN LINE
+========================================================= */
+
+.gz-hologram-logo::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    left:
+        7%;
+
+    right:
+        7%;
+
+    top:
+        10%;
+
+    height:
+        2px;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.08),
+            rgba(255,23,68,.58),
+            rgba(255,255,255,.08),
+            transparent
+        );
+
+    box-shadow:
+        0 0 13px rgba(255,23,68,.38);
+
+    opacity:
+        .55;
+
+    pointer-events:
+        none;
+
+    animation:
+        gz-hologram-scan 3.2s linear infinite;
+
+}
+
+
+/* =========================================================
+   HOLOGRAM MAIN TEXT
+========================================================= */
+
+.gz-hologram-logo-text {
+
+    position:
+        relative;
+
+    display:
+        inline-flex;
+
+    align-items:
+        baseline;
+
+    justify-content:
+        center;
+
+    white-space:
+        nowrap;
+
+    font-size:
+        clamp(54px, 9vw, 108px);
+
+    line-height:
+        .86;
+
+    font-weight:
+        950;
+
+    letter-spacing:
+        -5px;
+
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    filter:
+        drop-shadow(
+            0 0 10px
+            rgba(255,255,255,.08)
+        );
+
+}
+
+
+/* =========================================================
+   GEN
+   PUTIH
+========================================================= */
+
+.gz-hologram-gen {
+
+    color:
+        #ffffff;
+
+    text-shadow:
+
+        0 0 3px
+        rgba(255,255,255,.95),
+
+        0 0 7px
+        rgba(255,255,255,.65),
+
+        0 0 16px
+        rgba(255,255,255,.28),
+
+        0 0 32px
+        rgba(255,255,255,.12);
+
+}
+
+
+/* =========================================================
+   DASH
+   ABU-ABU
+========================================================= */
+
+.gz-hologram-dash {
+
+    color:
+        #8d8d92;
+
+    margin:
+        0 2px;
+
+    text-shadow:
+
+        0 0 4px
+        rgba(170,170,175,.65),
+
+        0 0 12px
+        rgba(170,170,175,.24),
+
+        0 0 22px
+        rgba(170,170,175,.10);
+
+}
+
+
+/* =========================================================
+   Z.AI
+   MERAH HOLOGRAM
+========================================================= */
+
+.gz-hologram-zai {
+
+    color:
+        var(--gz-red);
+
+    text-shadow:
+
+        0 0 4px
+        rgba(255,23,68,1),
+
+        0 0 8px
+        rgba(255,23,68,.90),
+
+        0 0 16px
+        rgba(255,23,68,.70),
+
+        0 0 32px
+        rgba(255,23,68,.34),
+
+        0 0 58px
+        rgba(255,23,68,.18);
+
+}
+
+
+/* =========================================================
+   HOLOGRAM SUBTITLE
+========================================================= */
+
+.gz-hologram-logo-sub {
+
+    margin-top:
+        14px;
+
+    color:
+        rgba(255,255,255,.40);
+
+    font-size:
+        8px;
+
+    line-height:
+        1;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        3px;
+
+    text-transform:
+        uppercase;
+
+    text-shadow:
+        0 0 10px
+        rgba(255,23,68,.15);
+
+}
+
+
+/* =========================================================
+   HOLOGRAM REFLECTION
+========================================================= */
+
+.gz-hologram-logo-text::after {
+
+    content:
+        "GEN-Z.AI";
+
+    position:
+        absolute;
+
+    left:
+        0;
+
+    right:
+        0;
+
+    top:
+        100%;
+
+    transform:
+        scaleY(-0.34);
+
+    transform-origin:
+        top;
+
+    opacity:
+        .055;
+
+    filter:
+        blur(2px);
+
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,.9),
+            rgba(255,255,255,.25) 38%,
+            rgba(255,23,68,.9) 72%,
+            rgba(255,23,68,.2)
+        );
+
+    -webkit-background-clip:
+        text;
+
+    background-clip:
+        text;
+
+    color:
+        transparent;
+
+    pointer-events:
+        none;
+
+}
+
+
+/* =========================================================
+   SMALL HOLOGRAM
+   ---------------------------------------------------------
+   class:
+   gz-hologram-logo gz-hologram-logo-sm
+========================================================= */
+
+.gz-hologram-logo-sm .gz-hologram-logo-text {
+
+    font-size:
+        clamp(36px, 6vw, 64px);
+
+    letter-spacing:
+        -3px;
+
+}
+
+
+.gz-hologram-logo-sm .gz-hologram-logo-sub {
+
+    margin-top:
+        9px;
+
+    font-size:
+        7px;
+
+    letter-spacing:
+        2.2px;
+
+}
+
+
+/* =========================================================
+   MINI HOLOGRAM
+   ---------------------------------------------------------
+   class:
+   gz-hologram-logo gz-hologram-logo-mini
+========================================================= */
+
+.gz-hologram-logo-mini {
+
+    padding:
+        4px 8px 7px;
+
+}
+
+
+.gz-hologram-logo-mini .gz-hologram-logo-text {
+
+    font-size:
+        30px;
+
+    letter-spacing:
+        -2px;
+
+}
+
+
+.gz-hologram-logo-mini .gz-hologram-logo-sub {
+
+    margin-top:
+        6px;
+
+    font-size:
+        6px;
+
+    letter-spacing:
+        1.5px;
+
+}
+
+
+/* =========================================================
+   HOLOGRAM PULSE
+========================================================= */
+
+@keyframes gz-hologram-pulse {
+
+    0%,
+    100% {
+
+        transform:
+            scaleX(.88);
+
+        opacity:
+            .45;
+
+    }
+
+    50% {
+
+        transform:
+            scaleX(1.04);
+
+        opacity:
+            .82;
+
+    }
+
+}
+
+
+/* =========================================================
+   HOLOGRAM SCAN
+========================================================= */
+
+@keyframes gz-hologram-scan {
+
+    0% {
+
+        top:
+            10%;
+
+        opacity:
+            0;
+
+    }
+
+    12% {
+
+        opacity:
+            .55;
+
+    }
+
+    88% {
+
+        opacity:
+            .55;
+
+    }
+
+    100% {
+
+        top:
+            88%;
+
+        opacity:
+            0;
+
+    }
+
+}
+
+
+/* =========================================================
    PAGE TITLE
 ========================================================= */
 
@@ -2708,6 +3240,43 @@ button {
 
     }
 
+
+    /* =====================================================
+       HOLOGRAM MOBILE
+    ===================================================== */
+
+    .gz-hologram-logo {
+
+        padding:
+            6px 8px 10px;
+
+    }
+
+
+    .gz-hologram-logo-text {
+
+        font-size:
+            clamp(42px, 15vw, 72px);
+
+        letter-spacing:
+            -3.5px;
+
+    }
+
+
+    .gz-hologram-logo-sub {
+
+        margin-top:
+            10px;
+
+        font-size:
+            6px;
+
+        letter-spacing:
+            2px;
+
+    }
+
 }
 
 
@@ -2759,6 +3328,28 @@ button {
 
     }
 
+
+    .gz-hologram-logo-text {
+
+        font-size:
+            40px;
+
+        letter-spacing:
+            -3px;
+
+    }
+
+
+    .gz-hologram-logo-sub {
+
+        font-size:
+            5px;
+
+        letter-spacing:
+            1.5px;
+
+    }
+
 }
 
 
@@ -2783,6 +3374,15 @@ button {
 
         transition-duration:
             .01ms !important;
+
+    }
+
+
+    .gz-hologram-logo::before,
+    .gz-hologram-logo::after {
+
+        animation:
+            none;
 
     }
 
