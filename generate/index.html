@@ -1123,52 +1123,6 @@
 
     </script>
 
-    <!-- =====================================================
-         GENERATE UI CLEANUP
-         - Menghapus label Index 0/1/... yang bocor ke UI.
-         - Tidak mengontrol lifecycle loading.
-         ====================================================== -->
-    <script>
-    (function () {
-        "use strict";
-
-        function removeLeakedIndexLabels(root) {
-            if (!root || !root.querySelectorAll) return;
-
-            root.querySelectorAll("label, span, div, p, strong, b, h1, h2, h3, h4, h5, h6").forEach(function (element) {
-                if (!element || element.children.length > 0) return;
-
-                const text = String(element.textContent || "").trim();
-                if (/^Index\s+\d+$/i.test(text)) {
-                    element.remove();
-                }
-            });
-        }
-
-        function boot() {
-            removeLeakedIndexLabels(document);
-
-            const target = document.getElementById("dynamicFields") || document.body;
-            if (!target || typeof MutationObserver === "undefined") return;
-
-            const observer = new MutationObserver(function () {
-                removeLeakedIndexLabels(target);
-            });
-
-            observer.observe(target, {
-                childList: true,
-                subtree: true
-            });
-        }
-
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", boot, { once: true });
-        } else {
-            boot();
-        }
-    })();
-    </script>
-
 </head>
 
 
@@ -1506,7 +1460,6 @@
                                     role="status"
                                     aria-live="polite"
                                     hidden
-                                    style="display: none; visibility: hidden; opacity: 0;"
                                 >
 
                                     <span
