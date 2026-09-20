@@ -9,6 +9,16 @@
         content="width=device-width, initial-scale=1.0"
     >
 
+    <meta
+        name="theme-color"
+        content="#080a0f"
+    >
+
+    <meta
+        name="description"
+        content="GEN-Z.AI AI Video Generation Platform"
+    >
+
     <title>GEN-Z.AI | Login</title>
 
     <link
@@ -20,238 +30,636 @@
 
 <body>
 
+    <!-- =========================================================
+         BACKGROUND
+         ========================================================= -->
+
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="ambient ambient-three"></div>
+
+
+    <!-- =========================================================
+         MAIN
+         ========================================================= -->
+
     <main class="login-container">
 
-        <section class="login-card">
+        <section
+            class="login-card"
+            aria-label="GEN-Z.AI Login"
+        >
 
-            <div class="brand">
+            <!-- =================================================
+                 BRAND PANEL
+                 ================================================= -->
 
-                <h1>
-                    GEN-Z.AI
-                </h1>
+            <div class="brand-panel">
 
-                <p>
-                    AI Video Generation Platform
-                </p>
+                <div class="brand-content">
 
-            </div>
-
-
-            <form id="loginForm">
-
-                <div class="input-group">
-
-                    <label for="email">
-                        EMAIL
-                    </label>
-
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        placeholder="Masukkan email"
-                        autocomplete="email"
-                        required
+                    <div
+                        class="brand-logo"
+                        aria-label="GEN-Z.AI"
                     >
+
+                        <span class="logo-gen">
+                            GEN
+                        </span>
+
+                        <span class="logo-dash">
+                            -
+                        </span>
+
+                        <span class="logo-zai">
+                            Z.AI
+                        </span>
+
+                    </div>
+
+
+                    <div class="brand-line"></div>
+
+
+                    <div class="brand-kicker">
+                        AI VIDEO GENERATION PLATFORM
+                    </div>
+
+
+                    <p class="brand-description">
+                        Create, generate, and manage AI-powered
+                        video content from one unified platform.
+                    </p>
+
+
+                    <div class="brand-features">
+
+                        <div class="brand-feature">
+
+                            <span class="feature-icon">
+                                ✦
+                            </span>
+
+                            <span>
+                                AI Video Generation
+                            </span>
+
+                        </div>
+
+
+                        <div class="brand-feature">
+
+                            <span class="feature-icon">
+                                ◈
+                            </span>
+
+                            <span>
+                                Multiple AI Providers
+                            </span>
+
+                        </div>
+
+
+                        <div class="brand-feature">
+
+                            <span class="feature-icon">
+                                ◉
+                            </span>
+
+                            <span>
+                                Secure Supabase Authentication
+                            </span>
+
+                        </div>
+
+                    </div>
 
                 </div>
 
 
-                <div class="input-group">
+                <div class="brand-footer">
 
-                    <label for="password">
-                        PASSWORD
+                    <span class="brand-status-dot"></span>
+
+                    <span>
+                        GEN-Z.AI SYSTEM
+                    </span>
+
+                    <span class="brand-footer-separator">
+                        /
+                    </span>
+
+                    <span>
+                        SECURE ACCESS
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 LOGIN PANEL
+                 ================================================= -->
+
+            <div class="login-panel">
+
+                <div class="login-panel-inner">
+
+
+                    <!-- =========================================
+                         HEADER
+                         ========================================= -->
+
+                    <div class="login-header">
+
+                        <div class="login-kicker">
+                            WELCOME BACK
+                        </div>
+
+
+                        <h1>
+                            Masuk ke akun Anda
+                        </h1>
+
+
+                        <p>
+                            Gunakan akun GEN-Z.AI Anda untuk
+                            melanjutkan ke platform.
+                        </p>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         LOGIN FORM
+                         ========================================= -->
+
+                    <form
+                        id="loginForm"
+                        novalidate
+                    >
+
+                        <!-- =====================================
+                             EMAIL
+                             ===================================== -->
+
+                        <div class="input-group">
+
+                            <label for="email">
+                                EMAIL
+                            </label>
+
+
+                            <div class="input-wrapper">
+
+                                <span
+                                    class="input-icon"
+                                    aria-hidden="true"
+                                >
+                                    @
+                                </span>
+
+
+                                <input
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    placeholder="nama@email.com"
+                                    autocomplete="email"
+                                    inputmode="email"
+                                    spellcheck="false"
+                                    autocapitalize="none"
+                                    required
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             PASSWORD
+                             ===================================== -->
+
+                        <div class="input-group password-group">
+
+                            <label for="password">
+                                PASSWORD
+                            </label>
+
+
+                            <div class="input-wrapper">
+
+                                <span
+                                    class="input-icon password-icon"
+                                    aria-hidden="true"
+                                >
+                                    •
+                                </span>
+
+
+                                <input
+                                    type="password"
+                                    id="password"
+                                    name="password"
+                                    placeholder="Masukkan password"
+                                    autocomplete="current-password"
+                                    required
+                                >
+
+
+                                <button
+                                    type="button"
+                                    id="togglePassword"
+                                    class="password-toggle"
+                                    aria-label="Tampilkan password"
+                                    aria-pressed="false"
+                                >
+
+                                    <svg
+                                        id="eyeOpen"
+                                        class="eye-icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        aria-hidden="true"
+                                    >
+
+                                        <path
+                                            d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
+                                        />
+
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="2.8"
+                                        />
+
+                                    </svg>
+
+
+                                    <svg
+                                        id="eyeClosed"
+                                        class="eye-icon hidden"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        aria-hidden="true"
+                                    >
+
+                                        <path
+                                            d="m3 3 18 18"
+                                        />
+
+                                        <path
+                                            d="M10.6 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a19.7 19.7 0 0 1-3.2 3.8"
+                                        />
+
+                                        <path
+                                            d="M6.3 6.4C3.6 8.2 2 12 2 12s3.5 7 10 7a9.8 9.8 0 0 0 4.1-.9"
+                                        />
+
+                                        <path
+                                            d="M9.9 9.9a3 3 0 0 0 4.2 4.2"
+                                        />
+
+                                    </svg>
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             FORGOT PASSWORD
+                             ===================================== -->
+
+                        <div class="form-options">
+
+                            <button
+                                type="button"
+                                id="forgotPasswordButton"
+                                class="forgot-password-button"
+                            >
+                                Lupa password?
+                            </button>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             LOGIN BUTTON
+                             ===================================== -->
+
+                        <button
+                            type="submit"
+                            id="loginButton"
+                            class="login-button"
+                        >
+
+                            <span
+                                id="loginButtonText"
+                            >
+                                LOGIN
+                            </span>
+
+
+                            <span
+                                id="loginSpinner"
+                                class="button-spinner"
+                                aria-hidden="true"
+                            ></span>
+
+                        </button>
+
+
+                        <!-- =====================================
+                             LOGIN MESSAGE
+                             ===================================== -->
+
+                        <div
+                            id="loginMessage"
+                            class="login-message"
+                            role="alert"
+                            aria-live="polite"
+                        ></div>
+
+                    </form>
+
+
+                    <!-- =========================================
+                         REGISTER
+                         ========================================= -->
+
+                    <div class="register-section">
+
+                        <div class="register-divider">
+
+                            <span></span>
+
+                            <small>
+                                ATAU
+                            </small>
+
+                            <span></span>
+
+                        </div>
+
+
+                        <p class="register-text">
+                            Belum memiliki akun?
+                        </p>
+
+
+                        <a
+                            href="register.html"
+                            class="register-button"
+                        >
+                            <span>
+                                DAFTAR SEKARANG
+                            </span>
+
+                            <span
+                                class="register-arrow"
+                                aria-hidden="true"
+                            >
+                                →
+                            </span>
+
+                        </a>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         SECURITY NOTE
+                         ========================================= -->
+
+                    <div class="security-note">
+
+                        <span
+                            class="security-icon"
+                            aria-hidden="true"
+                        >
+                            ⛨
+                        </span>
+
+                        <span>
+                            Secure authentication powered by
+                            Supabase
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             PAGE FOOTER
+             ===================================================== -->
+
+        <div class="page-footer">
+
+            <span>
+                © 2026 GEN-Z.AI
+            </span>
+
+            <span class="footer-dot">
+                •
+            </span>
+
+            <span>
+                AI VIDEO GENERATION
+            </span>
+
+        </div>
+
+    </main>
+
+
+    <!-- =========================================================
+         FORGOT PASSWORD MODAL
+         ========================================================= -->
+
+    <div
+        id="forgotPasswordModal"
+        class="forgot-modal"
+        aria-hidden="true"
+    >
+
+        <div
+            id="forgotPasswordBackdrop"
+            class="forgot-backdrop"
+        ></div>
+
+
+        <section
+            class="forgot-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="forgotPasswordTitle"
+        >
+
+            <button
+                type="button"
+                id="closeForgotPassword"
+                class="modal-close"
+                aria-label="Tutup"
+            >
+
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                >
+
+                    <path
+                        d="M6 6l12 12"
+                    />
+
+                    <path
+                        d="M18 6 6 18"
+                    />
+
+                </svg>
+
+            </button>
+
+
+            <div class="modal-icon">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    aria-hidden="true"
+                >
+
+                    <rect
+                        x="3"
+                        y="5"
+                        width="18"
+                        height="14"
+                        rx="3"
+                    />
+
+                    <path
+                        d="m4 7 8 6 8-6"
+                    />
+
+                </svg>
+
+            </div>
+
+
+            <div class="modal-kicker">
+                ACCOUNT RECOVERY
+            </div>
+
+
+            <h2 id="forgotPasswordTitle">
+                Lupa password?
+            </h2>
+
+
+            <p class="modal-description">
+                Masukkan email akun GEN-Z.AI Anda.
+                Kami akan mengirimkan link untuk
+                membuat password baru.
+            </p>
+
+
+            <form
+                id="forgotPasswordForm"
+                novalidate
+            >
+
+                <div class="input-group modal-input-group">
+
+                    <label for="resetEmail">
+                        EMAIL
                     </label>
 
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        placeholder="Masukkan password"
-                        autocomplete="current-password"
-                        required
-                    >
+
+                    <div class="input-wrapper">
+
+                        <span
+                            class="input-icon"
+                            aria-hidden="true"
+                        >
+                            @
+                        </span>
+
+
+                        <input
+                            type="email"
+                            id="resetEmail"
+                            name="resetEmail"
+                            placeholder="nama@email.com"
+                            autocomplete="email"
+                            inputmode="email"
+                            spellcheck="false"
+                            autocapitalize="none"
+                            required
+                        >
+
+                    </div>
 
                 </div>
 
 
                 <button
                     type="submit"
-                    id="loginButton"
+                    id="resetPasswordButton"
+                    class="reset-button"
                 >
-                    LOGIN
+
+                    <span id="resetButtonText">
+                        KIRIM LINK RESET
+                    </span>
+
+                    <span
+                        id="resetSpinner"
+                        class="button-spinner"
+                        aria-hidden="true"
+                    ></span>
+
                 </button>
 
 
                 <div
-                    id="loginMessage"
-                    class="login-message"
+                    id="resetMessage"
+                    class="reset-message"
+                    role="alert"
+                    aria-live="polite"
                 ></div>
 
             </form>
 
 
-            <!-- =================================================
-                 REGISTER
-                 ================================================= -->
-
-            <div class="register-section">
-
-                <div class="register-divider">
-                    <span></span>
-                    <small>ATAU</small>
-                    <span></span>
-                </div>
-
-
-                <p class="register-text">
-                    Belum memiliki akun?
-                </p>
-
-
-                <a
-                    href="register.html"
-                    class="register-button"
-                >
-                    DAFTAR SEKARANG
-                </a>
-
-            </div>
+            <button
+                type="button"
+                id="backToLogin"
+                class="back-login-button"
+            >
+                ← Kembali ke login
+            </button>
 
         </section>
 
-    </main>
-
-
-    <!-- =========================================================
-         REGISTER STYLE
-         Dibuat di sini agar langsung bekerja tanpa perlu
-         mengubah assets/css/login.css
-         ========================================================= -->
-
-    <style>
-
-        .register-section {
-            margin-top: 22px;
-            text-align: center;
-        }
-
-
-        .register-divider {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-
-            margin-bottom: 17px;
-        }
-
-
-        .register-divider span {
-            flex: 1;
-
-            height: 1px;
-
-            background:
-                rgba(0,0,0,.09);
-        }
-
-
-        .register-divider small {
-            font-size: 8px;
-            font-weight: 800;
-
-            letter-spacing: .12em;
-
-            color:
-                #98a2b3;
-        }
-
-
-        .register-text {
-            margin-bottom: 10px;
-
-            font-size: 10px;
-
-            color:
-                #667085;
-        }
-
-
-        .register-button {
-            width: 100%;
-
-            min-height: 44px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            border:
-                1px solid
-                #d0d5dd;
-
-            border-radius: 11px;
-
-            background:
-                #ffffff;
-
-            color:
-                #101828;
-
-            font-size: 10px;
-            font-weight: 850;
-
-            letter-spacing: .05em;
-
-            text-decoration: none;
-
-            transition:
-                background .18s ease,
-                color .18s ease,
-                border-color .18s ease,
-                transform .18s ease,
-                box-shadow .18s ease;
-        }
-
-
-        .register-button:hover {
-            transform:
-                translateY(-2px);
-
-            background:
-                #111827;
-
-            border-color:
-                #111827;
-
-            color:
-                #ffffff;
-
-            box-shadow:
-                0 10px 25px
-                rgba(15,23,42,.12);
-        }
-
-
-        .register-button:active {
-            transform:
-                translateY(0);
-        }
-
-
-        @media (max-width: 480px) {
-
-            .register-section {
-                margin-top: 18px;
-            }
-
-            .register-button {
-                min-height: 42px;
-            }
-
-        }
-
-    </style>
+    </div>
 
 
     <!-- =========================================================
@@ -271,10 +679,3473 @@
 
 
     <!-- =========================================================
-         AUTHENTICATION
+         LOGIN AUTHENTICATION
          ========================================================= -->
 
     <script src="assets/js/auth.js"></script>
+
+
+    <!-- =========================================================
+         LOGIN UI
+         ========================================================= -->
+
+    <script>
+
+        (function () {
+
+            "use strict";
+
+
+            /* =================================================
+               ELEMENTS
+               ================================================= */
+
+            const emailInput =
+                document.getElementById("email");
+
+            const passwordInput =
+                document.getElementById("password");
+
+            const togglePassword =
+                document.getElementById("togglePassword");
+
+            const eyeOpen =
+                document.getElementById("eyeOpen");
+
+            const eyeClosed =
+                document.getElementById("eyeClosed");
+
+            const loginButton =
+                document.getElementById("loginButton");
+
+            const loginButtonText =
+                document.getElementById("loginButtonText");
+
+            const loginSpinner =
+                document.getElementById("loginSpinner");
+
+            const loginMessage =
+                document.getElementById("loginMessage");
+
+            const forgotButton =
+                document.getElementById(
+                    "forgotPasswordButton"
+                );
+
+            const forgotModal =
+                document.getElementById(
+                    "forgotPasswordModal"
+                );
+
+            const forgotBackdrop =
+                document.getElementById(
+                    "forgotPasswordBackdrop"
+                );
+
+            const closeForgotPassword =
+                document.getElementById(
+                    "closeForgotPassword"
+                );
+
+            const backToLogin =
+                document.getElementById(
+                    "backToLogin"
+                );
+
+            const forgotForm =
+                document.getElementById(
+                    "forgotPasswordForm"
+                );
+
+            const resetEmail =
+                document.getElementById(
+                    "resetEmail"
+                );
+
+            const resetButton =
+                document.getElementById(
+                    "resetPasswordButton"
+                );
+
+            const resetButtonText =
+                document.getElementById(
+                    "resetButtonText"
+                );
+
+            const resetSpinner =
+                document.getElementById(
+                    "resetSpinner"
+                );
+
+            const resetMessage =
+                document.getElementById(
+                    "resetMessage"
+                );
+
+
+            /* =================================================
+               SHOW / HIDE PASSWORD
+               ================================================= */
+
+            if (
+                togglePassword &&
+                passwordInput
+            ) {
+
+                togglePassword.addEventListener(
+                    "click",
+                    function () {
+
+                        const isHidden =
+                            passwordInput.type === "password";
+
+
+                        passwordInput.type =
+                            isHidden
+                                ? "text"
+                                : "password";
+
+
+                        togglePassword.setAttribute(
+                            "aria-pressed",
+                            isHidden
+                                ? "true"
+                                : "false"
+                        );
+
+
+                        togglePassword.setAttribute(
+                            "aria-label",
+                            isHidden
+                                ? "Sembunyikan password"
+                                : "Tampilkan password"
+                        );
+
+
+                        if (eyeOpen) {
+
+                            eyeOpen.classList.toggle(
+                                "hidden",
+                                isHidden
+                            );
+
+                        }
+
+
+                        if (eyeClosed) {
+
+                            eyeClosed.classList.toggle(
+                                "hidden",
+                                !isHidden
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               LOGIN MESSAGE HELPER
+               ================================================= */
+
+            function setLoginMessage(
+                message,
+                type
+            ) {
+
+                if (!loginMessage) {
+                    return;
+                }
+
+
+                loginMessage.textContent =
+                    message;
+
+
+                loginMessage.className =
+                    "login-message";
+
+
+                if (type) {
+
+                    loginMessage.classList.add(
+                        type
+                    );
+
+                }
+
+            }
+
+
+            /* =================================================
+               MODAL MESSAGE HELPER
+               ================================================= */
+
+            function setResetMessage(
+                message,
+                type
+            ) {
+
+                if (!resetMessage) {
+                    return;
+                }
+
+
+                resetMessage.textContent =
+                    message;
+
+
+                resetMessage.className =
+                    "reset-message";
+
+
+                if (message) {
+
+                    resetMessage.classList.add(
+                        "show"
+                    );
+
+                }
+
+
+                if (type) {
+
+                    resetMessage.classList.add(
+                        type
+                    );
+
+                }
+
+            }
+
+
+            function clearResetMessage() {
+
+                if (!resetMessage) {
+                    return;
+                }
+
+
+                resetMessage.textContent = "";
+
+
+                resetMessage.className =
+                    "reset-message";
+
+            }
+
+
+            /* =================================================
+               OPEN FORGOT PASSWORD
+               ================================================= */
+
+            function openForgotModal() {
+
+                if (!forgotModal) {
+                    return;
+                }
+
+
+                clearResetMessage();
+
+
+                /*
+                 * Jika email login sudah diisi,
+                 * otomatis gunakan email tersebut.
+                 */
+
+                if (
+                    resetEmail &&
+                    emailInput &&
+                    emailInput.value.trim()
+                ) {
+
+                    resetEmail.value =
+                        emailInput.value.trim();
+
+                }
+
+
+                forgotModal.classList.add(
+                    "is-open"
+                );
+
+
+                forgotModal.setAttribute(
+                    "aria-hidden",
+                    "false"
+                );
+
+
+                document.body.classList.add(
+                    "modal-open"
+                );
+
+
+                setTimeout(
+                    function () {
+
+                        if (resetEmail) {
+
+                            resetEmail.focus();
+
+                        }
+
+                    },
+                    120
+                );
+
+            }
+
+
+            /* =================================================
+               CLOSE FORGOT PASSWORD
+               ================================================= */
+
+            function closeForgotModal() {
+
+                if (!forgotModal) {
+                    return;
+                }
+
+
+                forgotModal.classList.remove(
+                    "is-open"
+                );
+
+
+                forgotModal.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+
+                document.body.classList.remove(
+                    "modal-open"
+                );
+
+
+                if (forgotButton) {
+
+                    forgotButton.focus();
+
+                }
+
+            }
+
+
+            if (forgotButton) {
+
+                forgotButton.addEventListener(
+                    "click",
+                    openForgotModal
+                );
+
+            }
+
+
+            if (closeForgotPassword) {
+
+                closeForgotPassword.addEventListener(
+                    "click",
+                    closeForgotModal
+                );
+
+            }
+
+
+            if (backToLogin) {
+
+                backToLogin.addEventListener(
+                    "click",
+                    closeForgotModal
+                );
+
+            }
+
+
+            if (forgotBackdrop) {
+
+                forgotBackdrop.addEventListener(
+                    "click",
+                    closeForgotModal
+                );
+
+            }
+
+
+            /* =================================================
+               ESCAPE
+               ================================================= */
+
+            document.addEventListener(
+                "keydown",
+                function (event) {
+
+                    if (
+                        event.key === "Escape" &&
+                        forgotModal &&
+                        forgotModal.classList.contains(
+                            "is-open"
+                        )
+                    ) {
+
+                        closeForgotModal();
+
+                    }
+
+                }
+            );
+
+
+            /* =================================================
+               PASSWORD RESET
+               ================================================= */
+
+            if (forgotForm) {
+
+                forgotForm.addEventListener(
+                    "submit",
+                    async function (event) {
+
+                        event.preventDefault();
+
+
+                        clearResetMessage();
+
+
+                        const email =
+                            resetEmail
+                                ? resetEmail.value.trim()
+                                : "";
+
+
+                        if (!email) {
+
+                            setResetMessage(
+                                "Masukkan alamat email terlebih dahulu.",
+                                "error"
+                            );
+
+                            if (resetEmail) {
+                                resetEmail.focus();
+                            }
+
+                            return;
+
+                        }
+
+
+                        /*
+                         * Browser email validation.
+                         */
+
+                        if (
+                            !resetEmail.checkValidity()
+                        ) {
+
+                            setResetMessage(
+                                "Masukkan alamat email yang valid.",
+                                "error"
+                            );
+
+                            resetEmail.focus();
+
+                            return;
+
+                        }
+
+
+                        /*
+                         * Pastikan konfigurasi tersedia.
+                         */
+
+                        if (
+                            typeof GENZ_CONFIG ===
+                            "undefined" ||
+                            !GENZ_CONFIG.SUPABASE_URL ||
+                            !GENZ_CONFIG.SUPABASE_KEY
+                        ) {
+
+                            setResetMessage(
+                                "Konfigurasi Supabase tidak tersedia.",
+                                "error"
+                            );
+
+                            return;
+
+                        }
+
+
+                        if (
+                            typeof window.supabase ===
+                            "undefined" ||
+                            typeof window.supabase.createClient !==
+                            "function"
+                        ) {
+
+                            setResetMessage(
+                                "Supabase belum berhasil dimuat.",
+                                "error"
+                            );
+
+                            return;
+
+                        }
+
+
+                        /*
+                         * auth.js menggunakan client internal
+                         * bernama supabaseClient.
+                         *
+                         * Karena const tersebut tidak diekspor
+                         * ke window, halaman login membuat client
+                         * yang sama untuk kebutuhan password reset.
+                         *
+                         * Tidak mengubah sistem login yang sudah
+                         * berjalan di auth.js.
+                         */
+
+                        let resetClient;
+
+
+                        try {
+
+                            resetClient =
+                                window.supabase.createClient(
+                                    GENZ_CONFIG.SUPABASE_URL,
+                                    GENZ_CONFIG.SUPABASE_KEY
+                                );
+
+                        } catch (error) {
+
+                            console.error(
+                                "Gagal membuat Supabase reset client:",
+                                error
+                            );
+
+                            setResetMessage(
+                                "Gagal menginisialisasi layanan reset password.",
+                                "error"
+                            );
+
+                            return;
+
+                        }
+
+
+                        if (resetButton) {
+
+                            resetButton.disabled =
+                                true;
+
+                        }
+
+
+                        if (resetButtonText) {
+
+                            resetButtonText.textContent =
+                                "MENGIRIM...";
+
+                        }
+
+
+                        if (resetSpinner) {
+
+                            resetSpinner.classList.add(
+                                "active"
+                            );
+
+                        }
+
+
+                        try {
+
+                            /*
+                             * Supabase akan mengirim email
+                             * reset password.
+                             *
+                             * Halaman tujuan dibuat eksplisit.
+                             */
+
+                            const redirectUrl =
+                                new URL(
+                                    "reset-password.html",
+                                    window.location.href
+                                ).href;
+
+
+                            const {
+                                error
+                            } =
+                                await resetClient.auth
+                                    .resetPasswordForEmail(
+                                        email,
+                                        {
+                                            redirectTo:
+                                                redirectUrl
+                                        }
+                                    );
+
+
+                            if (error) {
+
+                                throw error;
+
+                            }
+
+
+                            setResetMessage(
+                                "Link reset password telah dikirim. Periksa inbox atau folder spam email Anda.",
+                                "success"
+                            );
+
+
+                            if (resetButtonText) {
+
+                                resetButtonText.textContent =
+                                    "LINK TERKIRIM";
+
+                            }
+
+
+                        } catch (error) {
+
+                            console.error(
+                                "GEN-Z.AI PASSWORD RESET ERROR:",
+                                error
+                            );
+
+
+                            let message =
+                                "Gagal mengirim link reset password.";
+
+
+                            if (
+                                error &&
+                                error.message
+                            ) {
+
+                                message =
+                                    error.message;
+
+                            }
+
+
+                            setResetMessage(
+                                message,
+                                "error"
+                            );
+
+
+                            if (resetButton) {
+
+                                resetButton.disabled =
+                                    false;
+
+                            }
+
+
+                            if (resetButtonText) {
+
+                                resetButtonText.textContent =
+                                    "KIRIM LINK RESET";
+
+                            }
+
+                        } finally {
+
+                            if (resetSpinner) {
+
+                                resetSpinner.classList.remove(
+                                    "active"
+                                );
+
+                            }
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               INPUT FOCUS CLEANUP
+               ================================================= */
+
+            [
+                emailInput,
+                passwordInput,
+                resetEmail
+            ].forEach(
+                function (input) {
+
+                    if (!input) {
+                        return;
+                    }
+
+
+                    input.addEventListener(
+                        "input",
+                        function () {
+
+                            if (
+                                input === emailInput ||
+                                input === passwordInput
+                            ) {
+
+                                if (
+                                    loginMessage &&
+                                    loginMessage.textContent
+                                ) {
+
+                                    setLoginMessage(
+                                        "",
+                                        ""
+                                    );
+
+                                }
+
+                            }
+
+
+                            if (
+                                input === resetEmail
+                            ) {
+
+                                clearResetMessage();
+
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
+
+            /* =================================================
+               ENTER BEHAVIOR
+               ================================================= */
+
+            if (emailInput) {
+
+                emailInput.addEventListener(
+                    "keydown",
+                    function (event) {
+
+                        if (
+                            event.key === "Enter"
+                        ) {
+
+                            event.preventDefault();
+
+
+                            if (passwordInput) {
+
+                                passwordInput.focus();
+
+                            }
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               AUTH ERROR NORMALIZATION
+               =================================================
+               
+               auth.js tetap menjadi pemilik proses login.
+               Bagian ini hanya memperbaiki tampilan beberapa
+               error Supabase yang terlalu teknis.
+               ================================================= */
+
+            function normalizeAuthMessage(
+                message
+            ) {
+
+                if (!message) {
+                    return "";
+                }
+
+
+                const lower =
+                    String(message).toLowerCase();
+
+
+                if (
+                    lower.includes(
+                        "invalid login credentials"
+                    )
+                ) {
+
+                    return "Email atau password salah.";
+
+                }
+
+
+                if (
+                    lower.includes(
+                        "email not confirmed"
+                    )
+                ) {
+
+                    return "Email akun belum dikonfirmasi.";
+
+                }
+
+
+                if (
+                    lower.includes(
+                        "too many requests"
+                    )
+                ) {
+
+                    return "Terlalu banyak percobaan. Silakan tunggu beberapa saat.";
+
+                }
+
+
+                return message;
+
+            }
+
+
+            /*
+             * Pantau perubahan text pada loginMessage agar
+             * pesan dari auth.js tetap digunakan tetapi
+             * tampil lebih manusiawi.
+             */
+
+            if (loginMessage) {
+
+                const observer =
+                    new MutationObserver(
+                        function () {
+
+                            const current =
+                                loginMessage.textContent
+                                    .trim();
+
+
+                            if (!current) {
+
+                                loginMessage.className =
+                                    "login-message";
+
+                                return;
+
+                            }
+
+
+                            const normalized =
+                                normalizeAuthMessage(
+                                    current
+                                );
+
+
+                            if (
+                                normalized !==
+                                current
+                            ) {
+
+                                loginMessage.textContent =
+                                    normalized;
+
+                            }
+
+
+                            if (
+                                normalized
+                                    .toLowerCase()
+                                    .includes(
+                                        "berhasil"
+                                    )
+                            ) {
+
+                                loginMessage.className =
+                                    "login-message success";
+
+                            } else {
+
+                                loginMessage.className =
+                                    "login-message error";
+
+                            }
+
+                        }
+                    );
+
+
+                observer.observe(
+                    loginMessage,
+                    {
+                        childList: true,
+                        characterData: true,
+                        subtree: true
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               INITIAL STATE
+               ================================================= */
+
+            if (forgotModal) {
+
+                forgotModal.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+            }
+
+
+            if (loginButton) {
+
+                loginButton.addEventListener(
+                    "click",
+                    function () {
+
+                        /*
+                         * auth.js juga mengatur disabled state.
+                         * UI spinner hanya mengikuti proses visual.
+                         */
+
+                        setTimeout(
+                            function () {
+
+                                if (
+                                    loginButton.disabled
+                                ) {
+
+                                    loginButton.classList.add(
+                                        "loading"
+                                    );
+
+
+                                    if (loginButtonText) {
+
+                                        loginButtonText.textContent =
+                                            "MEMPROSES...";
+
+                                    }
+
+
+                                    if (loginSpinner) {
+
+                                        loginSpinner.classList.add(
+                                            "active"
+                                        );
+
+                                    }
+
+                                }
+
+                            },
+                            20
+                        );
+
+                    }
+                );
+
+            }
+
+        })();
+
+    </script>
+
+
+    <!-- =========================================================
+         PREMIUM LOGIN OVERRIDE
+         ========================================================= -->
+
+    <style>
+
+        /* =====================================================
+           VARIABLES
+           ===================================================== */
+
+        :root {
+
+            --login-black:
+                #07090d;
+
+            --login-black-2:
+                #0c1017;
+
+            --login-black-3:
+                #111722;
+
+            --login-red:
+                #e11d2e;
+
+            --login-red-bright:
+                #ff3345;
+
+            --login-red-soft:
+                rgba(225,29,46,.10);
+
+            --login-white:
+                #ffffff;
+
+            --login-grey:
+                #98a2b3;
+
+            --login-grey-light:
+                #667085;
+
+            --login-border:
+                #e4e7ec;
+
+            --login-card:
+                rgba(255,255,255,.96);
+
+            --login-radius:
+                26px;
+
+            --login-input-height:
+                56px;
+
+        }
+
+
+        /* =====================================================
+           BASE
+           ===================================================== */
+
+        * {
+            box-sizing:
+                border-box;
+        }
+
+
+        html {
+            min-height:
+                100%;
+        }
+
+
+        body {
+
+            position:
+                relative;
+
+            min-height:
+                100vh;
+
+            margin:
+                0;
+
+            padding:
+                30px;
+
+            overflow-x:
+                hidden;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            background:
+                #080a0f;
+
+            color:
+                #101828;
+
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            -webkit-font-smoothing:
+                antialiased;
+
+            text-rendering:
+                optimizeLegibility;
+        }
+
+
+        /* =====================================================
+           AMBIENT LIGHT
+           ===================================================== */
+
+        .ambient {
+
+            position:
+                fixed;
+
+            z-index:
+                0;
+
+            pointer-events:
+                none;
+
+            border-radius:
+                999px;
+
+            filter:
+                blur(90px);
+        }
+
+
+        .ambient-one {
+
+            width:
+                420px;
+
+            height:
+                420px;
+
+            top:
+                -230px;
+
+            left:
+                -180px;
+
+            background:
+                rgba(255,255,255,.055);
+        }
+
+
+        .ambient-two {
+
+            width:
+                360px;
+
+            height:
+                360px;
+
+            right:
+                -180px;
+
+            bottom:
+                -170px;
+
+            background:
+                rgba(225,29,46,.055);
+        }
+
+
+        .ambient-three {
+
+            width:
+                280px;
+
+            height:
+                280px;
+
+            left:
+                48%;
+
+            bottom:
+                -180px;
+
+            background:
+                rgba(255,255,255,.025);
+        }
+
+
+        /* =====================================================
+           MAIN
+           ===================================================== */
+
+        .login-container {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            width:
+                100%;
+
+            max-width:
+                1080px;
+
+            margin:
+                auto;
+        }
+
+
+        /* =====================================================
+           CARD
+           ===================================================== */
+
+        .login-card {
+
+            position:
+                relative;
+
+            width:
+                100%;
+
+            min-height:
+                650px;
+
+            display:
+                grid;
+
+            grid-template-columns:
+                minmax(0, 1.03fr)
+                minmax(0, .97fr);
+
+            overflow:
+                hidden;
+
+            border:
+                1px solid
+                rgba(255,255,255,.12);
+
+            border-radius:
+                var(--login-radius);
+
+            background:
+                var(--login-card);
+
+            box-shadow:
+                0 35px 100px
+                rgba(0,0,0,.42),
+                0 12px 35px
+                rgba(0,0,0,.20);
+        }
+
+
+        /* =====================================================
+           BRAND PANEL
+           ===================================================== */
+
+        .brand-panel {
+
+            position:
+                relative;
+
+            min-width:
+                0;
+
+            min-height:
+                650px;
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            justify-content:
+                space-between;
+
+            padding:
+                68px;
+
+            overflow:
+                hidden;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #06080c 0%,
+                    #0c1017 48%,
+                    #131a24 100%
+                );
+
+            color:
+                #fff;
+        }
+
+
+        .brand-panel::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            width:
+                520px;
+
+            height:
+                520px;
+
+            top:
+                -340px;
+
+            right:
+                -250px;
+
+            border:
+                1px solid
+                rgba(255,255,255,.07);
+
+            border-radius:
+                50%;
+
+            box-shadow:
+                0 0 0 70px rgba(255,255,255,.012),
+                0 0 0 140px rgba(255,255,255,.008);
+        }
+
+
+        .brand-panel::after {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            left:
+                0;
+
+            right:
+                0;
+
+            bottom:
+                0;
+
+            height:
+                1px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    rgba(225,29,46,.55),
+                    transparent
+                );
+
+            opacity:
+                .65;
+        }
+
+
+        .brand-content {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            margin:
+                auto 0;
+        }
+
+
+        /* =====================================================
+           LOGO
+           ===================================================== */
+
+        .brand-logo {
+
+            display:
+                flex;
+
+            align-items:
+                baseline;
+
+            white-space:
+                nowrap;
+
+            font-size:
+                clamp(48px, 6vw, 76px);
+
+            line-height:
+                .88;
+
+            font-weight:
+                950;
+
+            letter-spacing:
+                -.075em;
+
+            user-select:
+                none;
+
+            text-shadow:
+                0 0 30px rgba(255,255,255,.06);
+        }
+
+
+        .logo-gen {
+
+            color:
+                #fff;
+
+            text-shadow:
+                0 0 16px rgba(255,255,255,.16),
+                0 0 45px rgba(255,255,255,.05);
+        }
+
+
+        .logo-dash {
+
+            margin:
+                0 2px;
+
+            color:
+                #858b96;
+
+            text-shadow:
+                0 0 14px rgba(148,163,184,.16);
+        }
+
+
+        .logo-zai {
+
+            color:
+                var(--login-red-bright);
+
+            text-shadow:
+                0 0 15px rgba(255,51,69,.45),
+                0 0 42px rgba(225,29,46,.18);
+        }
+
+
+        .brand-line {
+
+            width:
+                56px;
+
+            height:
+                2px;
+
+            margin-top:
+                30px;
+
+            margin-bottom:
+                18px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    var(--login-red),
+                    transparent
+                );
+        }
+
+
+        .brand-kicker {
+
+            color:
+                rgba(255,255,255,.72);
+
+            font-size:
+                10px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                .20em;
+        }
+
+
+        .brand-description {
+
+            max-width:
+                410px;
+
+            margin:
+                18px 0 0;
+
+            color:
+                rgba(255,255,255,.53);
+
+            font-size:
+                13px;
+
+            line-height:
+                1.75;
+        }
+
+
+        /* =====================================================
+           FEATURES
+           ===================================================== */
+
+        .brand-features {
+
+            display:
+                grid;
+
+            gap:
+                13px;
+
+            margin-top:
+                34px;
+        }
+
+
+        .brand-feature {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                11px;
+
+            color:
+                rgba(255,255,255,.60);
+
+            font-size:
+                11px;
+
+            font-weight:
+                600;
+
+            letter-spacing:
+                .01em;
+        }
+
+
+        .feature-icon {
+
+            width:
+                26px;
+
+            height:
+                26px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            border:
+                1px solid
+                rgba(255,255,255,.10);
+
+            border-radius:
+                8px;
+
+            background:
+                rgba(255,255,255,.035);
+
+            color:
+                var(--login-red-bright);
+
+            font-size:
+                12px;
+
+            box-shadow:
+                inset 0 0 15px
+                rgba(255,255,255,.015);
+        }
+
+
+        /* =====================================================
+           BRAND FOOTER
+           ===================================================== */
+
+        .brand-footer {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                8px;
+
+            color:
+                rgba(255,255,255,.32);
+
+            font-size:
+                8px;
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                .12em;
+        }
+
+
+        .brand-status-dot {
+
+            width:
+                6px;
+
+            height:
+                6px;
+
+            border-radius:
+                50%;
+
+            background:
+                #31c48d;
+
+            box-shadow:
+                0 0 10px
+                rgba(49,196,141,.7);
+        }
+
+
+        .brand-footer-separator {
+
+            color:
+                rgba(255,255,255,.14);
+        }
+
+
+        /* =====================================================
+           LOGIN PANEL
+           ===================================================== */
+
+        .login-panel {
+
+            min-width:
+                0;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                62px;
+
+            background:
+                #fff;
+        }
+
+
+        .login-panel-inner {
+
+            width:
+                100%;
+
+            max-width:
+                390px;
+        }
+
+
+        /* =====================================================
+           LOGIN HEADER
+           ===================================================== */
+
+        .login-header {
+
+            margin-bottom:
+                31px;
+        }
+
+
+        .login-kicker {
+
+            margin-bottom:
+                11px;
+
+            color:
+                #98a2b3;
+
+            font-size:
+                9px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                .19em;
+        }
+
+
+        .login-header h1 {
+
+            margin:
+                0;
+
+            color:
+                #101828;
+
+            font-size:
+                27px;
+
+            line-height:
+                1.18;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                -.035em;
+        }
+
+
+        .login-header p {
+
+            max-width:
+                340px;
+
+            margin:
+                11px 0 0;
+
+            color:
+                #667085;
+
+            font-size:
+                12px;
+
+            line-height:
+                1.65;
+        }
+
+
+        /* =====================================================
+           FORM
+           ===================================================== */
+
+        #loginForm {
+
+            width:
+                100%;
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+        }
+
+
+        .input-group {
+
+            width:
+                100%;
+
+            margin:
+                0 0 19px;
+        }
+
+
+        .input-group label {
+
+            display:
+                block;
+
+            width:
+                100%;
+
+            margin:
+                0 0 8px;
+
+            color:
+                #344054;
+
+            font-size:
+                10px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                .12em;
+        }
+
+
+        /* =====================================================
+           INPUT WRAPPER
+           ===================================================== */
+
+        .input-wrapper {
+
+            position:
+                relative;
+
+            width:
+                100%;
+
+            height:
+                var(--login-input-height);
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            box-sizing:
+                border-box;
+        }
+
+
+        .input-wrapper input {
+
+            display:
+                block;
+
+            width:
+                100%;
+
+            height:
+                100%;
+
+            min-width:
+                0;
+
+            margin:
+                0;
+
+            padding:
+                0 16px 0 45px;
+
+            border:
+                1px solid
+                #e4e7ec;
+
+            border-radius:
+                14px;
+
+            outline:
+                none;
+
+            background:
+                #f8fafc;
+
+            color:
+                #101828;
+
+            font-family:
+                inherit;
+
+            font-size:
+                13px;
+
+            line-height:
+                normal;
+
+            box-shadow:
+                inset 0 1px 0
+                rgba(255,255,255,.8);
+
+            transition:
+                border-color .18s ease,
+                background .18s ease,
+                box-shadow .18s ease;
+        }
+
+
+        .input-wrapper input:hover {
+
+            background:
+                #fff;
+
+            border-color:
+                #d0d5dd;
+        }
+
+
+        .input-wrapper input:focus {
+
+            background:
+                #fff;
+
+            border-color:
+                #98a2b3;
+
+            box-shadow:
+                0 0 0 4px
+                rgba(16,24,40,.045);
+        }
+
+
+        .input-wrapper input::placeholder {
+
+            color:
+                #98a2b3;
+
+            opacity:
+                1;
+        }
+
+
+        .input-icon {
+
+            position:
+                absolute;
+
+            z-index:
+                2;
+
+            left:
+                16px;
+
+            top:
+                50%;
+
+            transform:
+                translateY(-50%);
+
+            width:
+                17px;
+
+            height:
+                17px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            color:
+                #98a2b3;
+
+            font-size:
+                13px;
+
+            font-weight:
+                800;
+
+            pointer-events:
+                none;
+        }
+
+
+        .password-icon {
+
+            font-size:
+                19px;
+
+            line-height:
+                1;
+        }
+
+
+        /* =====================================================
+           PASSWORD TOGGLE
+           ===================================================== */
+
+        .password-toggle {
+
+            position:
+                absolute;
+
+            z-index:
+                3;
+
+            top:
+                50%;
+
+            right:
+                9px;
+
+            width:
+                38px;
+
+            height:
+                38px;
+
+            transform:
+                translateY(-50%);
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                0;
+
+            border:
+                0;
+
+            border-radius:
+                10px;
+
+            background:
+                transparent;
+
+            color:
+                #98a2b3;
+
+            cursor:
+                pointer;
+
+            transition:
+                color .18s ease,
+                background .18s ease;
+        }
+
+
+        .password-toggle:hover {
+
+            background:
+                #f2f4f7;
+
+            color:
+                #344054;
+        }
+
+
+        .password-toggle:focus-visible {
+
+            outline:
+                2px solid
+                #98a2b3;
+
+            outline-offset:
+                1px;
+        }
+
+
+        .eye-icon {
+
+            width:
+                18px;
+
+            height:
+                18px;
+        }
+
+
+        .hidden {
+
+            display:
+                none !important;
+        }
+
+
+        /* =====================================================
+           FORGOT PASSWORD
+           ===================================================== */
+
+        .form-options {
+
+            width:
+                100%;
+
+            min-height:
+                18px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                flex-end;
+
+            margin:
+                -4px 0 18px;
+        }
+
+
+        .forgot-password-button {
+
+            padding:
+                0;
+
+            border:
+                0;
+
+            background:
+                transparent;
+
+            color:
+                #667085;
+
+            font-family:
+                inherit;
+
+            font-size:
+                10px;
+
+            font-weight:
+                750;
+
+            cursor:
+                pointer;
+
+            transition:
+                color .18s ease;
+        }
+
+
+        .forgot-password-button:hover {
+
+            color:
+                var(--login-red);
+        }
+
+
+        .forgot-password-button:focus-visible {
+
+            outline:
+                2px solid
+                rgba(225,29,46,.35);
+
+            outline-offset:
+                3px;
+
+            border-radius:
+                3px;
+        }
+
+
+        /* =====================================================
+           LOGIN BUTTON
+           ===================================================== */
+
+        .login-button {
+
+            position:
+                relative;
+
+            width:
+                100%;
+
+            height:
+                var(--login-input-height);
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            gap:
+                10px;
+
+            overflow:
+                hidden;
+
+            border:
+                0;
+
+            border-radius:
+                14px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #090b10 0%,
+                    #171c25 100%
+                );
+
+            color:
+                #fff;
+
+            font-family:
+                inherit;
+
+            font-size:
+                10px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                .16em;
+
+            cursor:
+                pointer;
+
+            box-shadow:
+                0 12px 25px
+                rgba(15,23,42,.17);
+
+            transition:
+                transform .18s ease,
+                box-shadow .18s ease,
+                opacity .18s ease;
+        }
+
+
+        .login-button::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            inset:
+                0;
+
+            background:
+                linear-gradient(
+                    105deg,
+                    transparent 25%,
+                    rgba(255,255,255,.12) 50%,
+                    transparent 75%
+                );
+
+            transform:
+                translateX(-120%);
+
+            transition:
+                transform .55s ease;
+        }
+
+
+        .login-button:hover {
+
+            transform:
+                translateY(-2px);
+
+            box-shadow:
+                0 17px 32px
+                rgba(15,23,42,.22);
+        }
+
+
+        .login-button:hover::before {
+
+            transform:
+                translateX(120%);
+        }
+
+
+        .login-button:active {
+
+            transform:
+                translateY(0);
+        }
+
+
+        .login-button:disabled {
+
+            opacity:
+                .58;
+
+            cursor:
+                not-allowed;
+
+            transform:
+                none;
+
+            box-shadow:
+                none;
+        }
+
+
+        /* =====================================================
+           SPINNER
+           ===================================================== */
+
+        .button-spinner {
+
+            display:
+                none;
+
+            width:
+                15px;
+
+            height:
+                15px;
+
+            border:
+                2px solid
+                rgba(255,255,255,.28);
+
+            border-top-color:
+                #fff;
+
+            border-radius:
+                50%;
+
+            animation:
+                loginSpin .65s linear infinite;
+        }
+
+
+        .button-spinner.active {
+
+            display:
+                block;
+        }
+
+
+        @keyframes loginSpin {
+
+            to {
+                transform:
+                    rotate(360deg);
+            }
+
+        }
+
+
+        /* =====================================================
+           LOGIN MESSAGE
+           ===================================================== */
+
+        .login-message {
+
+            width:
+                100%;
+
+            min-height:
+                0;
+
+            margin:
+                13px 0 0;
+
+            padding:
+                0;
+
+            text-align:
+                center;
+
+            color:
+                #b42318;
+
+            font-size:
+                10px;
+
+            line-height:
+                1.55;
+        }
+
+
+        .login-message:not(:empty) {
+
+            min-height:
+                17px;
+        }
+
+
+        .login-message.success {
+
+            color:
+                #067647;
+        }
+
+
+        .login-message.error {
+
+            color:
+                #b42318;
+        }
+
+
+        /* =====================================================
+           REGISTER
+           ===================================================== */
+
+        .register-section {
+
+            width:
+                100%;
+
+            margin:
+                27px 0 0;
+
+            text-align:
+                center;
+        }
+
+
+        .register-divider {
+
+            width:
+                100%;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                11px;
+
+            margin:
+                0 0 17px;
+        }
+
+
+        .register-divider span {
+
+            flex:
+                1;
+
+            height:
+                1px;
+
+            background:
+                #eaecf0;
+        }
+
+
+        .register-divider small {
+
+            color:
+                #98a2b3;
+
+            font-size:
+                8px;
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                .15em;
+        }
+
+
+        .register-text {
+
+            margin:
+                0 0 10px;
+
+            color:
+                #667085;
+
+            font-size:
+                10px;
+        }
+
+
+        .register-button {
+
+            position:
+                relative;
+
+            width:
+                100%;
+
+            height:
+                48px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            gap:
+                10px;
+
+            border:
+                1px solid
+                #d0d5dd;
+
+            border-radius:
+                12px;
+
+            background:
+                #fff;
+
+            color:
+                #101828;
+
+            font-size:
+                10px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                .08em;
+
+            text-decoration:
+                none;
+
+            transition:
+                color .18s ease,
+                background .18s ease,
+                border-color .18s ease,
+                transform .18s ease,
+                box-shadow .18s ease;
+        }
+
+
+        .register-button:hover {
+
+            transform:
+                translateY(-2px);
+
+            border-color:
+                #101828;
+
+            background:
+                #101828;
+
+            color:
+                #fff;
+
+            box-shadow:
+                0 10px 22px
+                rgba(15,23,42,.12);
+        }
+
+
+        .register-button:active {
+
+            transform:
+                translateY(0);
+        }
+
+
+        .register-arrow {
+
+            font-size:
+                15px;
+
+            line-height:
+                1;
+
+            transition:
+                transform .18s ease;
+        }
+
+
+        .register-button:hover .register-arrow {
+
+            transform:
+                translateX(3px);
+        }
+
+
+        /* =====================================================
+           SECURITY
+           ===================================================== */
+
+        .security-note {
+
+            width:
+                100%;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            gap:
+                7px;
+
+            margin:
+                20px 0 0;
+
+            color:
+                #98a2b3;
+
+            font-size:
+                8px;
+
+            line-height:
+                1.4;
+
+            text-align:
+                center;
+        }
+
+
+        .security-icon {
+
+            color:
+                #98a2b3;
+
+            font-size:
+                12px;
+        }
+
+
+        /* =====================================================
+           PAGE FOOTER
+           ===================================================== */
+
+        .page-footer {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            gap:
+                7px;
+
+            margin:
+                18px 0 0;
+
+            color:
+                rgba(255,255,255,.28);
+
+            font-size:
+                8px;
+
+            font-weight:
+                700;
+
+            letter-spacing:
+                .10em;
+        }
+
+
+        .footer-dot {
+
+            color:
+                rgba(255,255,255,.15);
+        }
+
+
+        /* =====================================================
+           MODAL
+           ===================================================== */
+
+        body.modal-open {
+
+            overflow:
+                hidden;
+        }
+
+
+        .forgot-modal {
+
+            position:
+                fixed;
+
+            inset:
+                0;
+
+            z-index:
+                9999;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                20px;
+
+            visibility:
+                hidden;
+
+            opacity:
+                0;
+
+            pointer-events:
+                none;
+
+            transition:
+                opacity .2s ease,
+                visibility .2s ease;
+        }
+
+
+        .forgot-modal.is-open {
+
+            visibility:
+                visible;
+
+            opacity:
+                1;
+
+            pointer-events:
+                auto;
+        }
+
+
+        .forgot-backdrop {
+
+            position:
+                absolute;
+
+            inset:
+                0;
+
+            background:
+                rgba(0,0,0,.70);
+
+            backdrop-filter:
+                blur(10px);
+
+            -webkit-backdrop-filter:
+                blur(10px);
+        }
+
+
+        .forgot-card {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            width:
+                100%;
+
+            max-width:
+                430px;
+
+            padding:
+                35px;
+
+            border:
+                1px solid
+                rgba(255,255,255,.14);
+
+            border-radius:
+                22px;
+
+            background:
+                #fff;
+
+            box-shadow:
+                0 35px 100px
+                rgba(0,0,0,.35);
+
+            transform:
+                translateY(12px)
+                scale(.98);
+
+            transition:
+                transform .22s ease;
+        }
+
+
+        .forgot-modal.is-open .forgot-card {
+
+            transform:
+                translateY(0)
+                scale(1);
+        }
+
+
+        .modal-close {
+
+            position:
+                absolute;
+
+            top:
+                15px;
+
+            right:
+                15px;
+
+            width:
+                34px;
+
+            height:
+                34px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                0;
+
+            border:
+                0;
+
+            border-radius:
+                10px;
+
+            background:
+                #f2f4f7;
+
+            color:
+                #667085;
+
+            cursor:
+                pointer;
+
+            transition:
+                background .18s ease,
+                color .18s ease;
+        }
+
+
+        .modal-close:hover {
+
+            background:
+                #eaecf0;
+
+            color:
+                #101828;
+        }
+
+
+        .modal-close svg {
+
+            width:
+                16px;
+
+            height:
+                16px;
+        }
+
+
+        .modal-icon {
+
+            width:
+                52px;
+
+            height:
+                52px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            margin:
+                0 0 20px;
+
+            border:
+                1px solid
+                rgba(225,29,46,.12);
+
+            border-radius:
+                15px;
+
+            background:
+                #fff1f2;
+
+            color:
+                var(--login-red);
+        }
+
+
+        .modal-icon svg {
+
+            width:
+                24px;
+
+            height:
+                24px;
+        }
+
+
+        .modal-kicker {
+
+            margin-bottom:
+                8px;
+
+            color:
+                #98a2b3;
+
+            font-size:
+                8px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                .18em;
+        }
+
+
+        .forgot-card h2 {
+
+            margin:
+                0;
+
+            color:
+                #101828;
+
+            font-size:
+                24px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                -.035em;
+        }
+
+
+        .modal-description {
+
+            margin:
+                10px 0 24px;
+
+            color:
+                #667085;
+
+            font-size:
+                11px;
+
+            line-height:
+                1.7;
+        }
+
+
+        .modal-input-group {
+
+            margin-bottom:
+                16px;
+        }
+
+
+        .reset-button {
+
+            position:
+                relative;
+
+            width:
+                100%;
+
+            height:
+                52px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            gap:
+                10px;
+
+            border:
+                0;
+
+            border-radius:
+                13px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #090b10,
+                    #1a202b
+                );
+
+            color:
+                #fff;
+
+            font-family:
+                inherit;
+
+            font-size:
+                10px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                .12em;
+
+            cursor:
+                pointer;
+
+            transition:
+                transform .18s ease,
+                box-shadow .18s ease,
+                opacity .18s ease;
+        }
+
+
+        .reset-button:hover {
+
+            transform:
+                translateY(-1px);
+
+            box-shadow:
+                0 12px 25px
+                rgba(15,23,42,.18);
+        }
+
+
+        .reset-button:disabled {
+
+            opacity:
+                .55;
+
+            cursor:
+                not-allowed;
+
+            transform:
+                none;
+
+            box-shadow:
+                none;
+        }
+
+
+        .reset-message {
+
+            display:
+                none;
+
+            margin:
+                13px 0 0;
+
+            padding:
+                10px 12px;
+
+            border-radius:
+                10px;
+
+            font-size:
+                10px;
+
+            line-height:
+                1.55;
+        }
+
+
+        .reset-message.show {
+
+            display:
+                block;
+        }
+
+
+        .reset-message.success {
+
+            border:
+                1px solid
+                #abefc6;
+
+            background:
+                #ecfdf3;
+
+            color:
+                #067647;
+        }
+
+
+        .reset-message.error {
+
+            border:
+                1px solid
+                #fecdca;
+
+            background:
+                #fef3f2;
+
+            color:
+                #b42318;
+        }
+
+
+        .back-login-button {
+
+            width:
+                100%;
+
+            margin:
+                18px 0 0;
+
+            padding:
+                0;
+
+            border:
+                0;
+
+            background:
+                transparent;
+
+            color:
+                #667085;
+
+            font-family:
+                inherit;
+
+            font-size:
+                10px;
+
+            font-weight:
+                700;
+
+            cursor:
+                pointer;
+
+            transition:
+                color .18s ease;
+        }
+
+
+        .back-login-button:hover {
+
+            color:
+                #101828;
+        }
+
+
+        /* =====================================================
+           RESPONSIVE TABLET
+           ===================================================== */
+
+        @media (max-width: 900px) {
+
+            body {
+                padding:
+                    20px;
+            }
+
+
+            .login-card {
+
+                grid-template-columns:
+                    1fr;
+
+                max-width:
+                    560px;
+
+                margin:
+                    auto;
+            }
+
+
+            .brand-panel {
+
+                min-height:
+                    390px;
+
+                padding:
+                    48px;
+            }
+
+
+            .brand-content {
+                margin:
+                    auto 0;
+            }
+
+
+            .brand-logo {
+
+                font-size:
+                    58px;
+            }
+
+
+            .login-panel {
+
+                padding:
+                    48px;
+            }
+
+        }
+
+
+        /* =====================================================
+           RESPONSIVE MOBILE
+           ===================================================== */
+
+        @media (max-width: 600px) {
+
+            body {
+
+                min-height:
+                    100vh;
+
+                padding:
+                    10px;
+
+                align-items:
+                    flex-start;
+            }
+
+
+            .login-container {
+
+                margin:
+                    10px auto 20px;
+            }
+
+
+            .login-card {
+
+                border-radius:
+                    21px;
+            }
+
+
+            .brand-panel {
+
+                min-height:
+                    310px;
+
+                padding:
+                    34px 25px;
+            }
+
+
+            .brand-logo {
+
+                font-size:
+                    45px;
+            }
+
+
+            .brand-line {
+
+                margin-top:
+                    22px;
+
+                margin-bottom:
+                    14px;
+            }
+
+
+            .brand-kicker {
+
+                font-size:
+                    8px;
+
+                letter-spacing:
+                    .15em;
+            }
+
+
+            .brand-description {
+
+                margin-top:
+                    13px;
+
+                font-size:
+                    11px;
+            }
+
+
+            .brand-features {
+
+                display:
+                    none;
+            }
+
+
+            .brand-footer {
+
+                font-size:
+                    7px;
+            }
+
+
+            .login-panel {
+
+                padding:
+                    32px 22px;
+            }
+
+
+            .login-header {
+
+                margin-bottom:
+                    25px;
+            }
+
+
+            .login-header h1 {
+
+                font-size:
+                    23px;
+            }
+
+
+            .login-header p {
+
+                font-size:
+                    11px;
+            }
+
+
+            .input-wrapper,
+            .input-wrapper input {
+
+                height:
+                    53px;
+            }
+
+
+            .login-button {
+
+                height:
+                    53px;
+            }
+
+
+            .forgot-card {
+
+                padding:
+                    28px 21px;
+            }
+
+
+            .page-footer {
+
+                font-size:
+                    7px;
+            }
+
+        }
+
+
+        /* =====================================================
+           SMALL MOBILE
+           ===================================================== */
+
+        @media (max-width: 370px) {
+
+            body {
+
+                padding:
+                    7px;
+            }
+
+
+            .brand-panel {
+
+                padding:
+                    30px 20px;
+            }
+
+
+            .brand-logo {
+
+                font-size:
+                    39px;
+            }
+
+
+            .login-panel {
+
+                padding:
+                    28px 18px;
+            }
+
+
+            .login-header h1 {
+
+                font-size:
+                    21px;
+            }
+
+
+            .input-wrapper,
+            .input-wrapper input {
+
+                height:
+                    50px;
+            }
+
+
+            .login-button {
+
+                height:
+                    50px;
+            }
+
+        }
+
+
+        /* =====================================================
+           ACCESSIBILITY
+           ===================================================== */
+
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible {
+
+            outline:
+                2px solid
+                rgba(225,29,46,.42);
+
+            outline-offset:
+                2px;
+        }
+
+
+        /* =====================================================
+           REDUCED MOTION
+           ===================================================== */
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+
+                animation:
+                    none !important;
+
+                transition:
+                    none !important;
+
+                scroll-behavior:
+                    auto !important;
+            }
+
+        }
+
+    </style>
 
 </body>
 </html>
