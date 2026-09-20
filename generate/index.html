@@ -9,14 +9,25 @@
         content="width=device-width, initial-scale=1.0"
     >
 
+    <meta
+        name="theme-color"
+        content="#06070c"
+    >
+
+    <meta
+        name="color-scheme"
+        content="dark"
+    >
+
     <title>GEN-Z.AI - Generate Video</title>
+
 
     <!-- =====================================================
          SUPABASE
          -----------------------------------------------------
          Dipertahankan untuk kompatibilitas global.
-         generate-auth.js juga dapat memakai instance yang
-         sudah tersedia.
+         generate-auth.js dapat menggunakan instance global
+         yang sudah tersedia.
     ====================================================== -->
 
     <script
@@ -36,8 +47,11 @@
     <!-- =====================================================
          GLOBAL PREMIUM CSS
          -----------------------------------------------------
-         Semua styling halaman Generate menggunakan stylesheet
-         global GEN-Z.AI.
+         SELURUH styling halaman Generate menggunakan:
+         
+         assets/css/genz-premium.css
+
+         Tidak menggunakan generate.css.
     ====================================================== -->
 
     <link
@@ -47,7 +61,7 @@
 
 
     <!-- =====================================================
-         SHARED PREMIUM NAVIGATION
+         SHARED NAVIGATION
     ====================================================== -->
 
     <script
@@ -62,7 +76,8 @@
     <!-- =====================================================
          SHARED NAVIGATION
          -----------------------------------------------------
-         admin-nav.js akan mengisi container ini.
+         admin-nav.js mengisi container ini berdasarkan
+         authenticated user dan role.
     ====================================================== -->
 
     <div
@@ -79,50 +94,149 @@
 
         <main class="main">
 
+
             <!-- =================================================
-                 TOPBAR
+                 PREMIUM TOPBAR
+                 -------------------------------------------------
+                 Logo hologram dibuat oleh global CSS.
             ================================================== -->
 
-            <header class="topbar">
+            <header class="topbar generate-topbar">
 
-                <div class="topbar-left">
+
+                <!-- =============================================
+                     HOLOGRAM BRAND
+                ============================================== -->
+
+                <div
+                    class="brand-hologram"
+                    aria-label="GEN-Z.AI"
+                    title="GEN-Z.AI"
+                >
 
                     <div
-                        class="page-logo"
-                        aria-label="GEN-Z.AI"
+                        class="brand-hologram-glow"
+                        aria-hidden="true"
+                    ></div>
+
+
+                    <div
+                        class="brand-logo"
+                        aria-hidden="true"
                     >
-                        G
+
+                        <span class="brand-gen">
+                            GEN
+                        </span>
+
+                        <span class="brand-z">
+                            -Z
+                        </span>
+
+                        <span class="brand-ai">
+                            .AI
+                        </span>
+
                     </div>
 
-                    <div class="page-heading">
 
-                        <h1 class="page-title">
-                            Generate Video
-                        </h1>
+                    <div
+                        class="brand-scanline"
+                        aria-hidden="true"
+                    ></div>
 
-                        <div class="page-subtitle">
-                            AI Video Generation
-                        </div>
+
+                    <div
+                        class="brand-particles"
+                        aria-hidden="true"
+                    >
+
+                        <i></i>
+                        <i></i>
+                        <i></i>
+                        <i></i>
+                        <i></i>
+                        <i></i>
 
                     </div>
 
                 </div>
 
 
-                <div class="topbar-right">
+                <!-- =============================================
+                     PAGE TITLE
+                ============================================== -->
+
+                <div class="topbar-title">
+
+                    <span class="topbar-eyebrow">
+                        AI VIDEO GENERATOR
+                    </span>
+
+
+                    <h1>
+                        Generate Studio
+                    </h1>
+
+
+                    <p>
+                        Buat video AI dengan kontrol model dan
+                        parameter secara real-time.
+                    </p>
+
+                </div>
+
+
+                <!-- =============================================
+                     USER / CREDIT INFORMATION
+                ============================================== -->
+
+                <div class="topbar-actions">
+
+
+                    <!-- =========================================
+                         ROLE
+                    ========================================== -->
 
                     <div
-                        class="role-badge"
-                        id="roleBadge"
+                        class="header-badge role-badge"
+                        aria-label="User role"
                     >
-                        User
+
+                        <span
+                            class="header-badge-dot"
+                            aria-hidden="true"
+                        ></span>
+
+
+                        <span id="roleBadge">
+                            USER
+                        </span>
+
                     </div>
 
+
+                    <!-- =========================================
+                         CREDIT
+                    ========================================== -->
+
                     <div
-                        class="credit-badge"
-                        id="creditBadge"
+                        class="header-badge credit-badge"
+                        aria-label="Available credits"
                     >
-                        Credit: -
+
+                        <span
+                            class="credit-icon"
+                            aria-hidden="true"
+                        >
+                            ✦
+                        </span>
+
+
+                        <span id="creditBadge">
+                            0 Credits
+                        </span>
+
                     </div>
 
                 </div>
@@ -131,7 +245,7 @@
 
 
             <!-- =================================================
-                 CONTENT
+                 MAIN CONTENT
             ================================================== -->
 
             <section class="content">
@@ -144,35 +258,62 @@
                 <div
                     id="status"
                     class="status"
+                    role="status"
+                    aria-live="polite"
                 ></div>
 
 
                 <!-- =================================================
                      MODEL SELECTOR
                      -------------------------------------------------
-                     Model berasal dari /api/model-config.
+                     Model berasal dari:
+
+                     GET /api/model-config
+
+                     Tidak ada model yang dibuat manual di frontend.
                 ================================================== -->
 
-                <div
+                <section
                     id="modelSelector"
                     class="model-selector"
+                    aria-labelledby="modelSelectorTitle"
                 >
 
                     <div class="model-selector-inner">
 
-                        <div>
 
-                            <h2 class="selector-title">
+                        <!-- =========================================
+                             SELECTOR INFORMATION
+                        ========================================== -->
+
+                        <div class="model-selector-info">
+
+                            <span class="section-eyebrow">
+                                MODEL ENGINE
+                            </span>
+
+
+                            <h2
+                                id="modelSelectorTitle"
+                                class="selector-title"
+                            >
                                 Pilih Model
                             </h2>
 
+
                             <p class="selector-description">
-                                Daftar model berasal dari konfigurasi model aktif GEN-Z.AI.
-                                Tidak ada model yang dibuat secara manual di halaman ini.
+                                Daftar model berasal dari konfigurasi
+                                model aktif GEN-Z.AI.
+                                Tidak ada model yang dibuat secara
+                                manual di halaman ini.
                             </p>
 
                         </div>
 
+
+                        <!-- =========================================
+                             MODEL SELECT
+                        ========================================== -->
 
                         <div class="model-selector-control">
 
@@ -183,9 +324,11 @@
                                 Model
                             </label>
 
+
                             <select
                                 id="modelSelect"
                                 disabled
+                                autocomplete="off"
                             >
 
                                 <option value="">
@@ -198,21 +341,32 @@
 
                     </div>
 
-                </div>
+                </section>
 
 
                 <!-- =================================================
-                     MODEL INFO
+                     MODEL INFORMATION
                 ================================================== -->
 
-                <div
+                <section
                     id="modelHeader"
                     class="model-header"
+                    aria-labelledby="modelName"
                 >
 
                     <div class="model-header-top">
 
-                        <div>
+
+                        <!-- =========================================
+                             MODEL IDENTITY
+                        ========================================== -->
+
+                        <div class="model-header-main">
+
+                            <span class="section-eyebrow">
+                                ACTIVE MODEL
+                            </span>
+
 
                             <h2
                                 id="modelName"
@@ -220,6 +374,7 @@
                             >
                                 Memuat model...
                             </h2>
+
 
                             <p
                                 id="modelDescription"
@@ -231,11 +386,16 @@
                         </div>
 
 
+                        <!-- =========================================
+                             PROVIDER
+                        ========================================== -->
+
                         <div class="provider-info">
 
-                            <div class="provider-label">
-                                Provider
-                            </div>
+                            <span class="provider-label">
+                                PROVIDER
+                            </span>
+
 
                             <div
                                 id="providerName"
@@ -249,61 +409,111 @@
                     </div>
 
 
+                    <!-- =============================================
+                         MODEL METADATA
+                    ============================================== -->
+
                     <div
                         id="modelMeta"
                         class="model-meta"
                     ></div>
 
-                </div>
+                </section>
 
 
                 <!-- =================================================
                      PAGE ERROR
+                     -------------------------------------------------
+                     Default hidden/controlled oleh generate-ui.js.
                 ================================================== -->
 
-                <div
+                <section
                     id="pageError"
                     class="page-error"
+                    role="alert"
+                    aria-live="assertive"
                 >
 
-                    <h2>
-                        Model tidak tersedia
-                    </h2>
+                    <div class="page-error-icon" aria-hidden="true">
+                        !
+                    </div>
 
-                    <p id="pageErrorMessage">
-                        Konfigurasi model tidak dapat dimuat.
-                    </p>
 
-                </div>
+                    <div class="page-error-content">
+
+                        <h2>
+                            Model tidak tersedia
+                        </h2>
+
+
+                        <p id="pageErrorMessage">
+                            Konfigurasi model tidak dapat dimuat.
+                        </p>
+
+                    </div>
+
+                </section>
 
 
                 <!-- =================================================
-                     GENERATE FORM
+                     GENERATE CARD
                 ================================================== -->
 
-                <div
+                <section
                     id="generateCard"
-                    class="card"
+                    class="card generate-card"
+                    aria-labelledby="generateCardTitle"
                 >
 
-                    <h2 class="card-title">
-                        Parameter Generation
-                    </h2>
 
-                    <p class="card-description">
-                        Parameter yang tersedia mengikuti konfigurasi model dan database.
-                    </p>
+                    <!-- =============================================
+                         CARD HEADER
+                    ============================================== -->
 
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="section-eyebrow">
+                                GENERATION CONTROL
+                            </span>
+
+
+                            <h2
+                                id="generateCardTitle"
+                                class="card-title"
+                            >
+                                Parameter Generation
+                            </h2>
+
+
+                            <p class="card-description">
+                                Parameter yang tersedia mengikuti
+                                konfigurasi model dan database.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =============================================
+                         FORM
+                    ============================================== -->
 
                     <form
                         id="generateForm"
                         novalidate
+                        autocomplete="off"
                     >
 
-                        <!--
-                            generate-form.js akan mengisi container
-                            ini berdasarkan konfigurasi model.
-                        -->
+
+                        <!-- =========================================
+                             DYNAMIC PARAMETERS
+                             -----------------------------------------
+                             generate-form.js mengisi container
+                             berdasarkan konfigurasi model.
+                        ========================================== -->
 
                         <div
                             id="dynamicFields"
@@ -311,11 +521,16 @@
                         ></div>
 
 
-                        <!-- =================================================
-                             ACTIONS
-                        ================================================== -->
+                        <!-- =========================================
+                             FORM ACTIONS
+                        ========================================== -->
 
-                        <div class="actions">
+                        <div class="actions form-actions">
+
+
+                            <!-- =====================================
+                                 LEFT ACTIONS
+                            ====================================== -->
 
                             <div class="actions-left">
 
@@ -331,14 +546,29 @@
                             </div>
 
 
+                            <!-- =====================================
+                                 RIGHT ACTIONS
+                            ====================================== -->
+
                             <div class="actions-right">
+
+
+                                <!-- =================================
+                                     LOADING
+                                ================================== -->
 
                                 <div
                                     id="loading"
                                     class="loading"
+                                    role="status"
+                                    aria-live="polite"
                                 >
 
-                                    <span class="spinner"></span>
+                                    <span
+                                        class="spinner"
+                                        aria-hidden="true"
+                                    ></span>
+
 
                                     <span>
                                         Membuat task...
@@ -347,13 +577,29 @@
                                 </div>
 
 
+                                <!-- =================================
+                                     GENERATE BUTTON
+                                ================================== -->
+
                                 <button
                                     type="submit"
                                     class="btn btn-primary"
                                     id="generateButton"
                                     disabled
                                 >
-                                    Generate Video
+
+                                    <span
+                                        class="btn-icon"
+                                        aria-hidden="true"
+                                    >
+                                        ✦
+                                    </span>
+
+
+                                    <span>
+                                        Generate Video
+                                    </span>
+
                                 </button>
 
                             </div>
@@ -362,75 +608,123 @@
 
                     </form>
 
-                </div>
+                </section>
 
 
                 <!-- =================================================
-                     RESULT
+                     RESULT CARD
                 ================================================== -->
 
-                <div
+                <section
                     id="resultCard"
                     class="card result-card"
+                    aria-labelledby="resultCardTitle"
                 >
 
-                    <h2 class="card-title">
-                        Generation Task
-                    </h2>
 
-                    <p class="card-description">
-                        Task berhasil dibuat pada provider.
-                    </p>
+                    <!-- =============================================
+                         RESULT HEADER
+                    ============================================== -->
 
+                    <div class="card-header">
 
-                    <div class="result-row">
+                        <div>
 
-                        <div class="result-label">
-                            Model
-                        </div>
-
-                        <div
-                            id="resultModel"
-                            class="result-value"
-                        >
-                            -
-                        </div>
-
-                    </div>
+                            <span class="section-eyebrow">
+                                TASK STATUS
+                            </span>
 
 
-                    <div class="result-row">
+                            <h2
+                                id="resultCardTitle"
+                                class="card-title"
+                            >
+                                Generation Task
+                            </h2>
 
-                        <div class="result-label">
-                            Provider
-                        </div>
 
-                        <div
-                            id="resultProvider"
-                            class="result-value"
-                        >
-                            -
+                            <p class="card-description">
+                                Task berhasil dibuat pada provider.
+                            </p>
+
                         </div>
 
                     </div>
 
 
-                    <div class="result-row">
+                    <!-- =============================================
+                         RESULT DATA
+                    ============================================== -->
 
-                        <div class="result-label">
-                            Task ID
+                    <div class="result-details">
+
+
+                        <!-- =========================================
+                             MODEL
+                        ========================================== -->
+
+                        <div class="result-row">
+
+                            <div class="result-label">
+                                Model
+                            </div>
+
+
+                            <div
+                                id="resultModel"
+                                class="result-value"
+                            >
+                                -
+                            </div>
+
                         </div>
 
-                        <div
-                            id="resultTaskId"
-                            class="result-value task-id"
-                        >
-                            -
+
+                        <!-- =========================================
+                             PROVIDER
+                        ========================================== -->
+
+                        <div class="result-row">
+
+                            <div class="result-label">
+                                Provider
+                            </div>
+
+
+                            <div
+                                id="resultProvider"
+                                class="result-value"
+                            >
+                                -
+                            </div>
+
+                        </div>
+
+
+                        <!-- =========================================
+                             TASK ID
+                        ========================================== -->
+
+                        <div class="result-row">
+
+                            <div class="result-label">
+                                Task ID
+                            </div>
+
+
+                            <div
+                                id="resultTaskId"
+                                class="result-value task-id"
+                            >
+                                -
+                            </div>
+
                         </div>
 
                     </div>
 
-                </div>
+                </section>
+
 
             </section>
 
@@ -444,8 +738,7 @@
          ---------------------------------------------------------
          Entry point tunggal untuk seluruh logic Generate.
 
-         generate-app.js bertanggung jawab melakukan bootstrap
-         dan menghubungkan module:
+         generate-app.js menghubungkan:
 
          - generate-auth.js
          - generate-state.js
@@ -455,6 +748,8 @@
          - generate-request.js
          - generate-ui.js
          - generate-utils.js
+
+         Tidak ada logic Generate inline di halaman.
     ========================================================= -->
 
     <script
