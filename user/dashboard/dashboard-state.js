@@ -8,7 +8,9 @@
    Tanggung jawab:
    - Menyimpan seluruh state dashboard
    - Menyediakan getter/setter state
+   - Menentukan page mode dari URL
    - Menjaga state tetap terpusat
+   - Menyediakan compatibility API untuk module lama
 
    Tidak bertanggung jawab:
    - Auth
@@ -21,13 +23,19 @@
 ========================================================= */
 
 (function () {
+
     "use strict";
+
 
     /* =====================================================
        NAMESPACE
     ===================================================== */
 
-    window.GENZDashboard = window.GENZDashboard || {};
+    window.GENZDashboard =
+        window.GENZDashboard || {};
+
+    const dashboard =
+        window.GENZDashboard;
 
 
     /* =====================================================
@@ -131,12 +139,75 @@
         if (
             typeof role !== "string"
         ) {
+
             return "";
         }
+
 
         return role
             .trim()
             .toUpperCase();
+    }
+
+
+    function readEditModeFromURL() {
+
+        try {
+
+            const params =
+                new URLSearchParams(
+                    window.location.search
+                );
+
+
+            const value =
+                params.get("edit");
+
+
+            if (
+                value === null
+            ) {
+
+                return false;
+            }
+
+
+            return (
+                value === "1" ||
+                value === "true" ||
+                value === "yes"
+            );
+
+        } catch (error) {
+
+            return false;
+        }
+    }
+
+
+    function normalizeProgress(value) {
+
+        const numeric =
+            Number(value);
+
+
+        if (
+            !Number.isFinite(
+                numeric
+            )
+        ) {
+
+            return 0;
+        }
+
+
+        return Math.max(
+            0,
+            Math.min(
+                100,
+                numeric
+            )
+        );
     }
 
 
@@ -146,9 +217,12 @@
 
     function setCurrentUser(user) {
 
-        state.currentUser = user || null;
+        state.currentUser =
+            user || null;
 
-        state.isAuthenticated = !!user;
+
+        state.isAuthenticated =
+            !!user;
     }
 
 
@@ -160,17 +234,25 @@
 
     function setCurrentProfile(profile) {
 
-        state.currentProfile = profile || null;
+        state.currentProfile =
+            profile || null;
 
-        const role = normalizeRole(
-            profile && profile.role
-        );
 
-        state.role = role || null;
+        const role =
+            normalizeRole(
+                profile &&
+                profile.role
+            );
+
+
+        state.role =
+            role || null;
+
 
         state.isAdmin =
             role === "ADMIN" ||
             role === "OWNER";
+
 
         state.isOwner =
             role === "OWNER";
@@ -192,14 +274,19 @@
     function setRole(role) {
 
         const normalizedRole =
-            normalizeRole(role);
+            normalizeRole(
+                role
+            );
+
 
         state.role =
             normalizedRole || null;
 
+
         state.isAdmin =
             normalizedRole === "ADMIN" ||
             normalizedRole === "OWNER";
+
 
         state.isOwner =
             normalizedRole === "OWNER";
@@ -230,19 +317,50 @@
 
     function setEditMode(value) {
 
-        state.editMode = value === true;
-    }
+        state.editMode =
+            value === true;
 
-
-    function isEditMode() {
 
         return state.editMode;
     }
 
 
+    function initializeEditMode() {
+
+        /*
+         * URL adalah sumber awal page mode.
+         *
+         * Authorization tetap ditentukan oleh
+         * dashboard-auth.js.
+         *
+         * Jadi:
+         *
+         * ?edit=1
+         *     =
+         * requested edit mode
+         *
+         * bukan otomatis =
+         * authorized edit mode.
+         */
+
+        state.editMode =
+            readEditModeFromURL();
+
+
+        return state.editMode;
+    }
+
+
+    function isEditMode() {
+
+        return state.editMode === true;
+    }
+
+
     function setInitialized(value) {
 
-        state.initialized = value === true;
+        state.initialized =
+            value === true;
     }
 
 
@@ -258,7 +376,8 @@
 
     function setLoading(value) {
 
-        state.loading = value === true;
+        state.loading =
+            value === true;
     }
 
 
@@ -270,7 +389,8 @@
 
     function setSaving(value) {
 
-        state.saving = value === true;
+        state.saving =
+            value === true;
     }
 
 
@@ -282,7 +402,8 @@
 
     function setDeleting(value) {
 
-        state.deleting = value === true;
+        state.deleting =
+            value === true;
     }
 
 
@@ -298,7 +419,10 @@
 
     function setVideos(videos) {
 
-        state.videos = cloneArray(videos);
+        state.videos =
+            cloneArray(
+                videos
+            );
     }
 
 
@@ -311,59 +435,95 @@
     function addVideo(video) {
 
         if (!video) {
+
             return;
         }
 
-        state.videos.push(video);
+
+        state.videos.push(
+            video
+        );
     }
 
 
-    function updateVideo(videoId, updatedVideo) {
+    function updateVideo(
+        videoId,
+        updatedVideo
+    ) {
 
-        if (!videoId || !updatedVideo) {
+        if (
+            !videoId ||
+            !updatedVideo
+        ) {
+
             return false;
         }
+
 
         const index =
-            state.videos.findIndex(function (video) {
+            state.videos.findIndex(
+                function (video) {
 
-                return String(video.id) ===
-                    String(videoId);
+                    return (
+                        String(video.id) ===
+                        String(videoId)
+                    );
 
-            });
+                }
+            );
 
-        if (index === -1) {
+
+        if (
+            index === -1
+        ) {
+
             return false;
         }
 
+
         state.videos[index] = {
+
             ...state.videos[index],
+
             ...updatedVideo
+
         };
+
 
         return true;
     }
 
 
-    function removeVideo(videoId) {
+    function removeVideo(
+        videoId
+    ) {
 
         if (!videoId) {
+
             return false;
         }
+
 
         const oldLength =
             state.videos.length;
 
+
         state.videos =
-            state.videos.filter(function (video) {
+            state.videos.filter(
+                function (video) {
 
-                return String(video.id) !==
-                    String(videoId);
+                    return (
+                        String(video.id) !==
+                        String(videoId)
+                    );
 
-            });
+                }
+            );
+
 
         return (
-            state.videos.length !== oldLength
+            state.videos.length !==
+            oldLength
         );
     }
 
@@ -374,12 +534,14 @@
     }
 
 
-    function setActiveCategory(category) {
+    function setActiveCategory(
+        category
+    ) {
 
         state.activeCategory =
             typeof category === "string" &&
             category.trim()
-                ? category
+                ? category.trim()
                 : "all";
     }
 
@@ -390,7 +552,9 @@
     }
 
 
-    function setSelectedVideoId(videoId) {
+    function setSelectedVideoId(
+        videoId
+    ) {
 
         state.selectedVideoId =
             videoId || null;
@@ -403,19 +567,27 @@
     }
 
 
-    function getVideoById(videoId) {
+    function getVideoById(
+        videoId
+    ) {
 
         if (!videoId) {
+
             return null;
         }
 
+
         return (
-            state.videos.find(function (video) {
+            state.videos.find(
+                function (video) {
 
-                return String(video.id) ===
-                    String(videoId);
+                    return (
+                        String(video.id) ===
+                        String(videoId)
+                    );
 
-            }) || null
+                }
+            ) || null
         );
     }
 
@@ -433,8 +605,10 @@
         state.modalOpen =
             open === true;
 
+
         state.modalMode =
             mode || null;
+
 
         state.selectedVideoId =
             videoId || null;
@@ -466,13 +640,43 @@
         state.uploadInProgress =
             inProgress === true;
 
+
         state.uploadProgress =
-            Number.isFinite(progress)
-                ? Math.max(
-                    0,
-                    Math.min(100, progress)
-                )
-                : 0;
+            normalizeProgress(
+                progress
+            );
+
+
+        state.uploadProgressText =
+            typeof text === "string"
+                ? text
+                : "";
+    }
+
+
+    function setUploadInProgress(
+        value
+    ) {
+
+        state.uploadInProgress =
+            value === true;
+    }
+
+
+    function setUploadProgress(
+        value
+    ) {
+
+        state.uploadProgress =
+            normalizeProgress(
+                value
+            );
+    }
+
+
+    function setUploadProgressText(
+        text
+    ) {
 
         state.uploadProgressText =
             typeof text === "string"
@@ -483,7 +687,9 @@
 
     function isUploadInProgress() {
 
-        return state.uploadInProgress;
+        return (
+            state.uploadInProgress === true
+        );
     }
 
 
@@ -518,94 +724,161 @@
 
     function clearError() {
 
-        state.error = null;
+        state.error =
+            null;
     }
 
 
     /* =====================================================
-       RESET
+       RESET TRANSIENT STATE
     ===================================================== */
 
     function resetTransientState() {
 
-        state.selectedVideoId = null;
+        state.selectedVideoId =
+            null;
 
-        state.modalOpen = false;
 
-        state.modalMode = null;
+        state.modalOpen =
+            false;
 
-        state.saving = false;
 
-        state.deleting = false;
+        state.modalMode =
+            null;
 
-        state.uploadInProgress = false;
 
-        state.uploadProgress = 0;
+        state.saving =
+            false;
 
-        state.uploadProgressText = "";
 
-        state.error = null;
+        state.deleting =
+            false;
+
+
+        state.uploadInProgress =
+            false;
+
+
+        state.uploadProgress =
+            0;
+
+
+        state.uploadProgressText =
+            "";
+
+
+        state.error =
+            null;
     }
 
 
+    /* =====================================================
+       RESET ALL
+    ===================================================== */
+
     function resetAll() {
 
-        state.currentUser = null;
+        state.currentUser =
+            null;
 
-        state.currentProfile = null;
 
-        state.role = null;
+        state.currentProfile =
+            null;
 
-        state.isAuthenticated = false;
 
-        state.isAdmin = false;
+        state.role =
+            null;
 
-        state.isOwner = false;
 
-        state.editMode = false;
+        state.isAuthenticated =
+            false;
 
-        state.initialized = false;
 
-        state.loading = false;
+        state.isAdmin =
+            false;
 
-        state.saving = false;
 
-        state.deleting = false;
+        state.isOwner =
+            false;
 
-        state.videos = [];
 
-        state.activeCategory = "all";
+        state.editMode =
+            false;
 
-        state.selectedVideoId = null;
 
-        state.modalOpen = false;
+        state.initialized =
+            false;
 
-        state.modalMode = null;
 
-        state.uploadInProgress = false;
+        state.loading =
+            false;
 
-        state.uploadProgress = 0;
 
-        state.uploadProgressText = "";
+        state.saving =
+            false;
 
-        state.error = null;
 
-        state.toastTimer = null;
+        state.deleting =
+            false;
+
+
+        state.videos =
+            [];
+
+
+        state.activeCategory =
+            "all";
+
+
+        state.selectedVideoId =
+            null;
+
+
+        state.modalOpen =
+            false;
+
+
+        state.modalMode =
+            null;
+
+
+        state.uploadInProgress =
+            false;
+
+
+        state.uploadProgress =
+            0;
+
+
+        state.uploadProgressText =
+            "";
+
+
+        state.error =
+            null;
+
+
+        state.toastTimer =
+            null;
     }
 
 
     /* =====================================================
        SNAPSHOT
-       Digunakan debugging tanpa memberikan akses langsung
-       ke object state internal.
     ===================================================== */
 
     function getSnapshot() {
 
         return {
-            currentUser: state.currentUser,
-            currentProfile: state.currentProfile,
-            role: state.role,
+
+            currentUser:
+                state.currentUser,
+
+            currentProfile:
+                state.currentProfile,
+
+            role:
+                state.role,
 
             isAuthenticated:
                 state.isAuthenticated,
@@ -632,7 +905,9 @@
                 state.deleting,
 
             videos:
-                cloneArray(state.videos),
+                cloneArray(
+                    state.videos
+                ),
 
             activeCategory:
                 state.activeCategory,
@@ -662,163 +937,218 @@
 
 
     /* =====================================================
-       PUBLIC API
+       PUBLIC STATE
     ===================================================== */
 
-    window.GENZDashboard.state = state;
+    dashboard.state =
+        state;
 
 
-    /* Auth */
-    window.GENZDashboard.setCurrentUser =
+    /* =====================================================
+       AUTH API
+    ===================================================== */
+
+    dashboard.setCurrentUser =
         setCurrentUser;
 
-    window.GENZDashboard.getCurrentUser =
+    dashboard.getCurrentUser =
         getCurrentUser;
 
-    window.GENZDashboard.setCurrentProfile =
+    dashboard.setCurrentProfile =
         setCurrentProfile;
 
-    window.GENZDashboard.getCurrentProfile =
+    dashboard.getCurrentProfile =
         getCurrentProfile;
 
-    window.GENZDashboard.getRole =
+    dashboard.getRole =
         getRole;
 
-    window.GENZDashboard.setRole =
+    dashboard.setRole =
         setRole;
 
-    window.GENZDashboard.isAuthenticated =
+    dashboard.isAuthenticated =
         isAuthenticated;
 
-    window.GENZDashboard.isAdmin =
+    dashboard.isAdmin =
         isAdmin;
 
-    window.GENZDashboard.isOwner =
+    dashboard.isOwner =
         isOwner;
 
 
-    /* Page */
-    window.GENZDashboard.setEditMode =
+    /* =====================================================
+       PAGE API
+    ===================================================== */
+
+    dashboard.setEditMode =
         setEditMode;
 
-    window.GENZDashboard.isEditMode =
+    dashboard.initializeEditMode =
+        initializeEditMode;
+
+    dashboard.isEditMode =
         isEditMode;
 
-    window.GENZDashboard.setInitialized =
+    dashboard.setInitialized =
         setInitialized;
 
-    window.GENZDashboard.isInitialized =
+    dashboard.isInitialized =
         isInitialized;
 
 
-    /* Loading */
-    window.GENZDashboard.setLoading =
+    /* =====================================================
+       LOADING API
+    ===================================================== */
+
+    dashboard.setLoading =
         setLoading;
 
-    window.GENZDashboard.isLoading =
+    dashboard.isLoading =
         isLoading;
 
-    window.GENZDashboard.setSaving =
+    dashboard.setSaving =
         setSaving;
 
-    window.GENZDashboard.isSaving =
+    dashboard.isSaving =
         isSaving;
 
-    window.GENZDashboard.setDeleting =
+    dashboard.setDeleting =
         setDeleting;
 
-    window.GENZDashboard.isDeleting =
+    dashboard.isDeleting =
         isDeleting;
 
 
-    /* Videos */
-    window.GENZDashboard.setVideos =
+    /* =====================================================
+       VIDEO API
+    ===================================================== */
+
+    dashboard.setVideos =
         setVideos;
 
-    window.GENZDashboard.getVideos =
+    dashboard.getVideos =
         getVideos;
 
-    window.GENZDashboard.addVideo =
+    dashboard.addVideo =
         addVideo;
 
-    window.GENZDashboard.updateVideo =
+    dashboard.updateVideo =
         updateVideo;
 
-    window.GENZDashboard.removeVideo =
+    dashboard.removeVideo =
         removeVideo;
 
-    window.GENZDashboard.clearVideos =
+    dashboard.clearVideos =
         clearVideos;
 
-    window.GENZDashboard.setActiveCategory =
+    dashboard.setActiveCategory =
         setActiveCategory;
 
-    window.GENZDashboard.getActiveCategory =
+    dashboard.getActiveCategory =
         getActiveCategory;
 
-    window.GENZDashboard.setSelectedVideoId =
+    dashboard.setSelectedVideoId =
         setSelectedVideoId;
 
-    window.GENZDashboard.getSelectedVideoId =
+    dashboard.getSelectedVideoId =
         getSelectedVideoId;
 
-    window.GENZDashboard.getVideoById =
+    dashboard.getVideoById =
         getVideoById;
 
 
-    /* Modal */
-    window.GENZDashboard.setModalState =
+    /* =====================================================
+       MODAL API
+    ===================================================== */
+
+    dashboard.setModalState =
         setModalState;
 
-    window.GENZDashboard.isModalOpen =
+    dashboard.isModalOpen =
         isModalOpen;
 
-    window.GENZDashboard.getModalMode =
+    dashboard.getModalMode =
         getModalMode;
 
 
-    /* Upload */
-    window.GENZDashboard.setUploadState =
+    /* =====================================================
+       UPLOAD API
+    ===================================================== */
+
+    dashboard.setUploadState =
         setUploadState;
 
-    window.GENZDashboard.isUploadInProgress =
+    dashboard.setUploadInProgress =
+        setUploadInProgress;
+
+    dashboard.setUploadProgress =
+        setUploadProgress;
+
+    dashboard.setUploadProgressText =
+        setUploadProgressText;
+
+    dashboard.isUploadInProgress =
         isUploadInProgress;
 
-    window.GENZDashboard.getUploadProgress =
+    dashboard.getUploadProgress =
         getUploadProgress;
 
-    window.GENZDashboard.getUploadProgressText =
+    dashboard.getUploadProgressText =
         getUploadProgressText;
 
 
-    /* Error */
-    window.GENZDashboard.setError =
+    /* =====================================================
+       ERROR API
+    ===================================================== */
+
+    dashboard.setError =
         setError;
 
-    window.GENZDashboard.getError =
+    dashboard.getError =
         getError;
 
-    window.GENZDashboard.clearError =
+    dashboard.clearError =
         clearError;
 
 
-    /* Reset */
-    window.GENZDashboard.resetTransientState =
+    /* =====================================================
+       RESET API
+    ===================================================== */
+
+    dashboard.resetTransientState =
         resetTransientState;
 
-    window.GENZDashboard.resetAll =
+    dashboard.resetAll =
         resetAll;
 
 
-    /* Debug */
-    window.GENZDashboard.getSnapshot =
+    /* =====================================================
+       DEBUG API
+    ===================================================== */
+
+    dashboard.getSnapshot =
         getSnapshot;
+
+
+    /* =====================================================
+       INITIALIZE PAGE MODE
+    ===================================================== */
+
+    /*
+     * Jalankan setelah state API tersedia.
+     *
+     * Ini menggantikan fungsi isEditMode() milik
+     * dashboard-config.js tanpa kehilangan nilai URL.
+     */
+
+    initializeEditMode();
 
 
     /* =====================================================
        READY FLAG
     ===================================================== */
 
-    window.GENZDashboard.stateReady = true;
+    dashboard.stateReady =
+        true;
 
 })();
