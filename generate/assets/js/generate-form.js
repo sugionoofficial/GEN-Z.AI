@@ -8,7 +8,6 @@
    Tanggung jawab:
    - Render dynamic parameter form
    - Membaca parameter dari currentModel
-   - Membaca parameter dari adapter model
    - Menjaga nama/key parameter
    - Mengambil nilai form
    - Reset form
@@ -16,9 +15,14 @@
 
    SUMBER PARAMETER:
    - model.parameters
-   - model.config.parameters
-   - model.parameter_schema
-   - model.config.parameter_schema
+
+   SOURCE OF TRUTH:
+   - models/<model>/parameters.js
+   - dikirim melalui /api/model-config
+
+   INTERNAL PARAMETERS:
+   - task_id tidak pernah dirender sebagai input user
+   - task_id hanya digunakan oleh backend/query task
 
    Tidak ada parameter model yang di-hardcode.
 ========================================================= */
@@ -27,6 +31,20 @@ import {
     getGenerateElements,
     getCurrentModel
 } from "./generate-state.js";
+
+
+/* =========================================================
+   INTERNAL PARAMETERS
+   ---------------------------------------------------------
+   Parameter internal backend tidak boleh muncul
+   sebagai input user dan tidak boleh ikut payload
+   generation.
+========================================================= */
+
+const INTERNAL_PARAMETERS =
+    new Set([
+        "task_id"
+    ]);
 
 
 /* =========================================================
@@ -51,6 +69,10 @@ function safeString(
     return result || fallback;
 }
 
+
+/* =========================================================
+   NORMALIZE ARRAY
+========================================================= */
 
 function normalizeArray(
     value
@@ -195,6 +217,10 @@ function normalizeArray(
 }
 
 
+/* =========================================================
+   BOOLEAN
+========================================================= */
+
 function toBoolean(
     value,
     fallback = false
@@ -290,23 +316,22 @@ function getDynamicFieldsElement() {
 
 
 /* =========================================================
-   PARAMETER SOURCE RESOLUTION
+   PARAMETER SOURCE
    ---------------------------------------------------------
-   Adapter dari model folder menggunakan:
-
-   const parameters = {
-       prompt: {...},
-       mode: {...},
-       ...
-   };
-
-   API model-config mengirim object tersebut
-   sebagai:
+   SINGLE SOURCE OF TRUTH:
 
        model.parameters
 
-   Tetapi module ini juga mendukung beberapa
-   bentuk kompatibilitas lain.
+   model.parameters berasal dari:
+
+       models/<model>/parameters.js
+
+   melalui:
+
+       /api/model-config
+
+   Tidak ada fallback legacy agar frontend tidak
+   mengambil schema dari sumber yang berbeda.
 ========================================================= */
 
 function resolveParameterSource(
@@ -318,83 +343,16 @@ function resolveParameterSource(
     }
 
 
-    /*
-     * PRIORITAS 1
-     *
-     * API utama.
-     */
     if (
-        model.parameters &&
-        typeof model.parameters === "object"
+        !model.parameters ||
+        typeof model.parameters !== "object"
     ) {
 
-        return model.parameters;
+        return null;
     }
 
 
-    /*
-     * PRIORITAS 2
-     *
-     * Beberapa adapter/config wrapper.
-     */
-    if (
-        model.config?.parameters &&
-        typeof model.config.parameters === "object"
-    ) {
-
-        return model.config.parameters;
-    }
-
-
-    /*
-     * PRIORITAS 3
-     */
-    if (
-        model.parameter_schema &&
-        typeof model.parameter_schema === "object"
-    ) {
-
-        return model.parameter_schema;
-    }
-
-
-    /*
-     * PRIORITAS 4
-     */
-    if (
-        model.parameterSchema &&
-        typeof model.parameterSchema === "object"
-    ) {
-
-        return model.parameterSchema;
-    }
-
-
-    /*
-     * PRIORITAS 5
-     */
-    if (
-        model.config?.parameter_schema &&
-        typeof model.config.parameter_schema === "object"
-    ) {
-
-        return model.config.parameter_schema;
-    }
-
-
-    /*
-     * PRIORITAS 6
-     */
-    if (
-        model.config?.parameterSchema &&
-        typeof model.config.parameterSchema === "object"
-    ) {
-
-        return model.config.parameterSchema;
-    }
-
-
-    return null;
+    return model.parameters;
 }
 
 
@@ -418,10 +376,12 @@ function resolveParameterSource(
        }
    }
 
-   3. Single wrapper
+   3. Wrapper
    {
        parameters: {...}
    }
+
+   Semua bentuk akhirnya dinormalisasi menjadi array.
 ========================================================= */
 
 function normalizeParameterDefinitions(
@@ -452,7 +412,10 @@ function normalizeParameterDefinitions(
 
 
     /*
-     * Object wrapper.
+     * Wrapper.
+     *
+     * Tetap didukung karena model.parameters
+     * dapat dibungkus oleh adapter.
      */
     if (
         source.parameters &&
@@ -501,10 +464,6 @@ function normalizeParameterDefinition(
 
     /*
      * Primitive definition.
-     *
-     * Contoh:
-     *
-     * prompt: "string"
      */
     if (
         definition === null ||
@@ -527,15 +486,14 @@ function normalizeParameterDefinition(
         typeof definition !== "object"
     ) {
 
+        if (!fallbackName) {
+            return null;
+        }
+
         return {
-            name:
-                fallbackName,
-
-            key:
-                fallbackName,
-
-            type:
-                typeof definition
+            name: fallbackName,
+            key: fallbackName,
+            type: typeof definition
         };
     }
 
@@ -556,20 +514,19 @@ function normalizeParameterDefinition(
 
 
     /*
-     * Copy seluruh definisi asli.
+     * Jangan menghilangkan properti asli.
      *
-     * Ini penting supaya:
-     *
-     * min
-     * max
-     * enum
-     * default
-     * required
-     * maxLength
-     * maxItems
-     * dll.
-     *
-     * tetap tersedia untuk frontend.
+     * Contoh:
+     * - min
+     * - max
+     * - step
+     * - enum
+     * - default
+     * - required
+     * - maxLength
+     * - maxItems
+     * - description
+     * - placeholder
      */
     return {
         ...definition,
@@ -603,7 +560,27 @@ function getModelParameters(
 
     return normalizeParameterDefinitions(
         source
-    );
+    )
+        .filter(
+            definition => {
+
+                const name =
+                    getParameterName(
+                        definition
+                    );
+
+                /*
+                 * Parameter internal tidak boleh
+                 * masuk ke UI.
+                 */
+                return (
+                    name &&
+                    !INTERNAL_PARAMETERS.has(
+                        name
+                    )
+                );
+            }
+        );
 }
 
 
@@ -706,7 +683,17 @@ function getParameterType(
             "url",
 
         video_url:
-            "url"
+            "url",
+
+        /*
+         * Array tetap menggunakan input text
+         * sebagai representasi UI.
+         *
+         * Nilainya akan dinormalisasi menjadi array
+         * ketika dibaca dari form.
+         */
+        array:
+            "text"
     };
 
 
@@ -790,15 +777,6 @@ function isRequired(
 
 /* =========================================================
    OPTIONS
-   ---------------------------------------------------------
-   Sumber:
-
-   enum
-   options
-   values
-   choices
-
-   Tidak ada nilai model yang ditulis manual.
 ========================================================= */
 
 function getOptions(
@@ -917,11 +895,7 @@ function getOptions(
 
 
     /*
-     * Object:
-     *
-     * {
-     *     "16:9": "16:9"
-     * }
+     * Object.
      */
     if (
         typeof source === "object"
@@ -1220,6 +1194,38 @@ function applyCommonAttributes(
                 definition.minLength
             );
     }
+
+
+    /*
+     * maxItems disimpan sebagai data attribute
+     * karena HTML input biasa tidak mempunyai
+     * maxItems.
+     */
+    if (
+        definition?.maxItems !== undefined &&
+        definition?.maxItems !== null
+    ) {
+
+        element.dataset.maxItems =
+            String(
+                definition.maxItems
+            );
+    }
+
+
+    /*
+     * minItems.
+     */
+    if (
+        definition?.minItems !== undefined &&
+        definition?.minItems !== null
+    ) {
+
+        element.dataset.minItems =
+            String(
+                definition.minItems
+            );
+    }
 }
 
 
@@ -1262,10 +1268,28 @@ function createTextInput(
         defaultValue !== undefined
     ) {
 
-        input.value =
-            String(
+        /*
+         * Array default dikonversi menjadi
+         * CSV hanya untuk tampilan input.
+         */
+        if (
+            Array.isArray(
                 defaultValue
-            );
+            )
+        ) {
+
+            input.value =
+                defaultValue.join(
+                    ", "
+                );
+
+        } else {
+
+            input.value =
+                String(
+                    defaultValue
+                );
+        }
     }
 
 
@@ -1486,10 +1510,6 @@ function createSelect(
         );
 
 
-    /*
-     * Jika enum/options tersedia,
-     * render semuanya.
-     */
     options.forEach(
         optionData => {
 
@@ -1525,8 +1545,6 @@ function createSelect(
 
 
     /*
-     * Tidak ada options.
-     *
      * Jangan membuat pilihan palsu.
      */
     if (
@@ -1809,6 +1827,19 @@ function createField(
     }
 
 
+    /*
+     * Internal parameter guard.
+     */
+    if (
+        INTERNAL_PARAMETERS.has(
+            name
+        )
+    ) {
+
+        return null;
+    }
+
+
     const field =
         document.createElement(
             "div"
@@ -1830,8 +1861,26 @@ function createField(
 
 
     /*
-     * Checkbox dan radio memiliki label
-     * sendiri.
+     * Simpan informasi type asli.
+     *
+     * Ini berguna untuk array karena UI
+     * menggunakan text input.
+     */
+    if (
+        definition?.type
+    ) {
+
+        field.dataset.parameterType =
+            String(
+                definition.type
+            )
+                .trim()
+                .toLowerCase();
+    }
+
+
+    /*
+     * Checkbox dan radio memiliki label sendiri.
      */
     if (
         type !== "checkbox" &&
@@ -1929,9 +1978,8 @@ export function renderDynamicFields(
 
 
     /*
-     * Debug hanya untuk membantu verifikasi
-     * konfigurasi yang benar-benar diterima
-     * frontend.
+     * Debug konfigurasi yang benar-benar
+     * diterima frontend.
      */
     console.debug(
         "[GEN-Z.AI][Generate Form] Model:",
@@ -2032,6 +2080,37 @@ export function findField(
 
 
     if (!normalizedName) {
+        return null;
+    }
+
+
+    if (
+        typeof CSS === "undefined" ||
+        typeof CSS.escape !== "function"
+    ) {
+
+        const fields =
+            container.querySelectorAll(
+                "[name]"
+            );
+
+
+        for (
+            const field of fields
+        ) {
+
+            if (
+                String(
+                    field.name || ""
+                ).trim() ===
+                normalizedName
+            ) {
+
+                return field;
+            }
+        }
+
+
         return null;
     }
 
@@ -2162,6 +2241,19 @@ export function getFormParameters() {
 
 
             /*
+             * task_id adalah parameter internal.
+             */
+            if (
+                INTERNAL_PARAMETERS.has(
+                    name
+                )
+            ) {
+
+                return;
+            }
+
+
+            /*
              * Radio yang tidak aktif
              * tidak boleh menimpa radio aktif.
              */
@@ -2184,6 +2276,51 @@ export function getFormParameters() {
             if (
                 value === undefined
             ) {
+
+                return;
+            }
+
+
+            /*
+             * Cek definisi parameter.
+             */
+            const definition =
+                parameterDefinition(
+                    name
+                );
+
+
+            const originalType =
+                String(
+                    definition?.type ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            /*
+             * Parameter array.
+             *
+             * Contoh:
+             *
+             * image_urls:
+             * {
+             *     type: "array"
+             * }
+             *
+             * UI menggunakan text input,
+             * tetapi payload menggunakan array.
+             */
+            if (
+                originalType ===
+                    "array"
+            ) {
+
+                parameters[name] =
+                    normalizeArray(
+                        value
+                    );
 
                 return;
             }
@@ -2241,6 +2378,23 @@ export function getFormData() {
         of formData.entries()
     ) {
 
+        /*
+         * Internal parameter tidak boleh ikut.
+         */
+        if (
+            INTERNAL_PARAMETERS.has(
+                key
+            )
+        ) {
+
+            continue;
+        }
+
+
+        /*
+         * Parameter dynamic sudah dibaca
+         * dengan tipe yang benar.
+         */
         if (
             Object.prototype.hasOwnProperty.call(
                 data,
@@ -2252,6 +2406,10 @@ export function getFormData() {
         }
 
 
+        /*
+         * File ditangani oleh module upload,
+         * bukan sebagai parameter biasa.
+         */
         if (
             typeof File !==
                 "undefined" &&
@@ -2296,6 +2454,16 @@ export function setFieldValue(
 
 
     if (!normalizedName) {
+        return false;
+    }
+
+
+    if (
+        INTERNAL_PARAMETERS.has(
+            normalizedName
+        )
+    ) {
+
         return false;
     }
 
@@ -2345,6 +2513,25 @@ export function setFieldValue(
                     ) ===
                     String(
                         value
+                    );
+
+                return;
+            }
+
+
+            /*
+             * Array ditampilkan sebagai CSV
+             * di input text.
+             */
+            if (
+                Array.isArray(
+                    value
+                )
+            ) {
+
+                field.value =
+                    value.join(
+                        ", "
                     );
 
                 return;
@@ -2462,9 +2649,19 @@ export function getMediaParameters(
 
 
     Object.entries(
-        parameters
+        parameters || {}
     ).forEach(
         ([key, value]) => {
+
+            if (
+                INTERNAL_PARAMETERS.has(
+                    key
+                )
+            ) {
+
+                return;
+            }
+
 
             if (
                 key === "image_urls" ||
@@ -2499,6 +2696,16 @@ export function parameterDefinition(
 
 
     if (!normalizedName) {
+        return null;
+    }
+
+
+    if (
+        INTERNAL_PARAMETERS.has(
+            normalizedName
+        )
+    ) {
+
         return null;
     }
 
