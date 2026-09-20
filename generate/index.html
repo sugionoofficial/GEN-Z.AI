@@ -26,8 +26,13 @@
          SUPABASE
          -----------------------------------------------------
          Dipertahankan untuk kompatibilitas global.
-         generate-auth.js dapat menggunakan instance global
-         yang sudah tersedia.
+
+         Library ini hanya menyediakan:
+         window.supabase.createClient()
+
+         Client aktif tetap dibuat/dikelola oleh:
+         - navigation.js
+         - generate-auth.js
     ====================================================== -->
 
     <script
@@ -47,8 +52,7 @@
     <!-- =====================================================
          GLOBAL PREMIUM CSS
          -----------------------------------------------------
-         SELURUH styling halaman Generate menggunakan:
-         
+         Seluruh styling halaman Generate menggunakan:
          assets/css/genz-premium.css
 
          Tidak menggunakan generate.css.
@@ -62,6 +66,15 @@
 
     <!-- =====================================================
          SHARED NAVIGATION
+         -----------------------------------------------------
+         Navigation menggunakan Supabase Auth + profiles
+         untuk menentukan:
+         - user
+         - admin
+         - owner
+
+         navigation.js juga membuat shared Supabase client
+         jika belum tersedia.
     ====================================================== -->
 
     <script
@@ -76,7 +89,7 @@
     <!-- =====================================================
          SHARED NAVIGATION
          -----------------------------------------------------
-         admin-nav.js mengisi container ini berdasarkan
+         navigation.js mengisi container berdasarkan
          authenticated user dan role.
     ====================================================== -->
 
@@ -196,6 +209,9 @@
 
                     <!-- =========================================
                          ROLE
+                         -----------------------------------------
+                         Jangan hardcode USER.
+                         Role harus berasal dari profiles.role.
                     ========================================== -->
 
                     <div
@@ -209,8 +225,10 @@
                         ></span>
 
 
-                        <span id="roleBadge">
-                            USER
+                        <span
+                            id="roleBadge"
+                        >
+                            ...
                         </span>
 
                     </div>
@@ -218,6 +236,9 @@
 
                     <!-- =========================================
                          CREDIT
+                         -----------------------------------------
+                         Jangan hardcode 0.
+                         Credit harus berasal dari profiles.credits.
                     ========================================== -->
 
                     <div
@@ -233,8 +254,10 @@
                         </span>
 
 
-                        <span id="creditBadge">
-                            0 Credits
+                        <span
+                            id="creditBadge"
+                        >
+                            ...
                         </span>
 
                     </div>
@@ -253,7 +276,7 @@
 
                 <!-- =================================================
                      STATUS
-                ================================================== -->
+                ================================================= -->
 
                 <div
                     id="status"
@@ -434,7 +457,10 @@
                     aria-live="assertive"
                 >
 
-                    <div class="page-error-icon" aria-hidden="true">
+                    <div
+                        class="page-error-icon"
+                        aria-hidden="true"
+                    >
                         !
                     </div>
 
@@ -510,9 +536,6 @@
 
                         <!-- =========================================
                              DYNAMIC PARAMETERS
-                             -----------------------------------------
-                             generate-form.js mengisi container
-                             berdasarkan konfigurasi model.
                         ========================================== -->
 
                         <div
