@@ -9,6 +9,7 @@
    - Menyimpan seluruh state halaman Generate
    - Menyimpan referensi DOM
    - Menyediakan getter/setter untuk module lain
+   - Menyediakan kompatibilitas nama elemen antar-module
 
    Tidak bertanggung jawab:
    - Supabase authentication
@@ -33,6 +34,10 @@ const state = {
     modelLoaded: false,
 
     elements: {
+        /* =====================================================
+           CANONICAL ELEMENT REFERENCES
+        ===================================================== */
+
         status: null,
 
         modelSelector: null,
@@ -73,7 +78,78 @@ const state = {
 
         resultProvider: null,
 
-        resultTaskId: null
+        resultTaskId: null,
+
+        /* =====================================================
+           LEGACY / MODULE COMPATIBILITY ALIASES
+
+           Beberapa module Generate menggunakan nama:
+           - statusEl
+           - modelSelectorEl
+           - modelSelectEl
+           - modelNameEl
+           - modelDescriptionEl
+           - providerNameEl
+           - modelMetaEl
+           - dynamicFieldsEl
+           - generateFormEl
+           - generateCardEl
+           - generateButtonEl
+           - resetButtonEl
+           - loadingEl
+           - resultCardEl
+           - pageErrorEl
+           - pageErrorMessageEl
+           - roleBadgeEl
+           - creditBadgeEl
+           - resultModelEl
+           - resultProviderEl
+           - resultTaskIdEl
+
+           Alias ini menunjuk ke DOM yang sama.
+        ===================================================== */
+
+        statusEl: null,
+
+        modelSelectorEl: null,
+
+        modelSelectEl: null,
+
+        modelNameEl: null,
+
+        modelDescriptionEl: null,
+
+        providerNameEl: null,
+
+        modelMetaEl: null,
+
+        dynamicFieldsEl: null,
+
+        generateFormEl: null,
+
+        generateCardEl: null,
+
+        generateButtonEl: null,
+
+        resetButtonEl: null,
+
+        loadingEl: null,
+
+        resultCardEl: null,
+
+        pageErrorEl: null,
+
+        pageErrorMessageEl: null,
+
+        roleBadgeEl: null,
+
+        creditBadgeEl: null,
+
+        resultModelEl: null,
+
+        resultProviderEl: null,
+
+        resultTaskIdEl: null
     }
 };
 
@@ -128,15 +204,90 @@ export function initializeGenerateElements() {
         resultTaskId: "resultTaskId"
     };
 
+
+    /* =====================================================
+       LOAD DOM REFERENCES
+    ===================================================== */
+
     for (
         const [
             key,
             id
         ] of Object.entries(ids)
     ) {
+
         state.elements[key] =
             document.getElementById(id);
     }
+
+
+    /* =====================================================
+       CREATE COMPATIBILITY ALIASES
+    ===================================================== */
+
+    state.elements.statusEl =
+        state.elements.status;
+
+    state.elements.modelSelectorEl =
+        state.elements.modelSelector;
+
+    state.elements.modelSelectEl =
+        state.elements.modelSelect;
+
+    state.elements.modelNameEl =
+        state.elements.modelName;
+
+    state.elements.modelDescriptionEl =
+        state.elements.modelDescription;
+
+    state.elements.providerNameEl =
+        state.elements.providerName;
+
+    state.elements.modelMetaEl =
+        state.elements.modelMeta;
+
+    state.elements.dynamicFieldsEl =
+        state.elements.dynamicFields;
+
+    state.elements.generateFormEl =
+        state.elements.generateForm;
+
+    state.elements.generateCardEl =
+        state.elements.generateCard;
+
+    state.elements.generateButtonEl =
+        state.elements.generateButton;
+
+    state.elements.resetButtonEl =
+        state.elements.resetButton;
+
+    state.elements.loadingEl =
+        state.elements.loading;
+
+    state.elements.resultCardEl =
+        state.elements.resultCard;
+
+    state.elements.pageErrorEl =
+        state.elements.pageError;
+
+    state.elements.pageErrorMessageEl =
+        state.elements.pageErrorMessage;
+
+    state.elements.roleBadgeEl =
+        state.elements.roleBadge;
+
+    state.elements.creditBadgeEl =
+        state.elements.creditBadge;
+
+    state.elements.resultModelEl =
+        state.elements.resultModel;
+
+    state.elements.resultProviderEl =
+        state.elements.resultProvider;
+
+    state.elements.resultTaskIdEl =
+        state.elements.resultTaskId;
+
 
     return state.elements;
 }
@@ -180,19 +331,23 @@ export function validateGenerateElements() {
         "pageErrorMessage"
     ];
 
+
     const missing =
         required.filter(
             key =>
                 !state.elements[key]
         );
 
+
     if (
         missing.length > 0
     ) {
+
         throw new Error(
             `Elemen Generate tidak lengkap: ${missing.join(", ")}.`
         );
     }
+
 
     return true;
 }
@@ -205,8 +360,10 @@ export function validateGenerateElements() {
 export function setSupabaseClient(
     client
 ) {
+
     state.supabaseClient =
         client || null;
+
 
     return state.supabaseClient;
 }
@@ -225,8 +382,10 @@ export function getSupabaseClient() {
 export function setCurrentUser(
     user
 ) {
+
     state.currentUser =
         user || null;
+
 
     return state.currentUser;
 }
@@ -245,8 +404,10 @@ export function getCurrentUser() {
 export function setCurrentProfile(
     profile
 ) {
+
     state.currentProfile =
         profile || null;
+
 
     return state.currentProfile;
 }
@@ -265,14 +426,20 @@ export function getCurrentProfile() {
 export function setCurrentModel(
     model
 ) {
+
     state.currentModel =
         model || null;
+
 
     state.modelLoaded =
         Boolean(
             model &&
-            model.model_id
+            String(
+                model.model_id ??
+                ""
+            ).trim()
         );
+
 
     return state.currentModel;
 }
@@ -291,10 +458,14 @@ export function getCurrentModel() {
 export function setAvailableModels(
     models
 ) {
+
     state.availableModels =
-        Array.isArray(models)
+        Array.isArray(
+            models
+        )
             ? models
             : [];
+
 
     return state.availableModels;
 }
@@ -318,23 +489,29 @@ export function findAvailableModel(
         modelId === null ||
         modelId === undefined
     ) {
+
         return null;
     }
+
 
     const target =
         String(
             modelId
         ).trim();
 
+
     if (!target) {
+
         return null;
     }
+
 
     return (
         state.availableModels.find(
             model =>
                 String(
-                    model?.model_id ?? ""
+                    model?.model_id ??
+                    ""
                 ).trim() === target
         ) ||
         null
@@ -349,8 +526,12 @@ export function findAvailableModel(
 export function setModelLoaded(
     value
 ) {
+
     state.modelLoaded =
-        Boolean(value);
+        Boolean(
+            value
+        );
+
 
     return state.modelLoaded;
 }
@@ -359,6 +540,40 @@ export function setModelLoaded(
 export function isModelLoaded() {
 
     return state.modelLoaded;
+}
+
+
+/* =========================================================
+   MODEL READY
+   ---------------------------------------------------------
+   Dipakai oleh:
+   - generate-ui.js
+   - generate-app.js
+
+   Model dianggap siap apabila:
+   1. currentModel tersedia
+   2. currentModel memiliki model_id
+   3. modelLoaded bernilai true
+========================================================= */
+
+export function isModelReady() {
+
+    const model =
+        state.currentModel;
+
+
+    const modelId =
+        String(
+            model?.model_id ??
+            ""
+        ).trim();
+
+
+    return Boolean(
+        state.modelLoaded &&
+        model &&
+        modelId
+    );
 }
 
 
@@ -381,14 +596,18 @@ export function resetGenerateState() {
     state.currentUser =
         null;
 
+
     state.currentProfile =
         null;
+
 
     state.currentModel =
         null;
 
+
     state.availableModels =
         [];
+
 
     state.modelLoaded =
         false;
