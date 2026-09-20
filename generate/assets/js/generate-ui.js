@@ -6,33 +6,30 @@
    generate/assets/js/generate-ui.js
 
    Tanggung jawab:
-   - Status message
+   - Render status
+   - Render model header
+   - Render MODEL CREDIT
+   - Render account OWNER
+   - Render account CREDIT
    - Loading state
-   - Button state
-   - Page error
-   - Model header
-   - Role / account credit badge
-   - Model credit cost
-   - Generate card
-   - Model selector
+   - Error state
+   - Generate button state
    - Reset UI
 
-   Tidak bertanggung jawab:
-   - Supabase auth
-   - Query database
-   - Model API request
-   - Provider API
-   - Parameter validation
-   - Credit calculation
-   - Polling
-   - Menampilkan hasil video di halaman Generate
+   CATATAN PENTING:
+   ---------------------------------------------------------
+   ACCOUNT CREDIT:
+       profile.credits
 
-   SOURCE OF TRUTH:
-   - Account credit : profile.credits
-   - Model cost     : model.pricing.credit_final
-   - Model identity : repository model registry
-   - Admin config   : Supabase models
+   MODEL CREDIT:
+       model.pricing.credit_final
+       fallback:
+       model.credit_final
+       model.credit_cost
+
+   Model credit TIDAK dihitung dari frontend.
 ========================================================= */
+
 
 import {
     getGenerateElements,
@@ -40,6 +37,17 @@ import {
     getCurrentProfile,
     isModelReady
 } from "./generate-state.js";
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+function elements() {
+
+    return getGenerateElements();
+
+}
 
 
 /* =========================================================
@@ -55,46 +63,304 @@ function safeString(
         value === null ||
         value === undefined
     ) {
+
         return fallback;
+
     }
 
-    const result =
-        String(value).trim();
 
-    return result || fallback;
+    const result =
+        String(
+            value
+        ).trim();
+
+
+    return result ||
+        fallback;
+
 }
 
 
 /* =========================================================
-   FORMAT NUMBER
+   NUMBER FORMAT
 ========================================================= */
 
 function formatNumber(
     value
 ) {
 
-    const numeric =
-        Number(value);
+    const number =
+        Number(
+            value
+        );
+
 
     if (
-        !Number.isFinite(numeric)
+        !Number.isFinite(
+            number
+        )
     ) {
-        return String(value ?? "");
+
+        return String(
+            value ?? ""
+        );
+
     }
 
+
     return new Intl.NumberFormat(
-        "id-ID"
-    ).format(numeric);
+        "id-ID",
+        {
+            maximumFractionDigits: 2
+        }
+    ).format(
+        number
+    );
+
 }
 
 
 /* =========================================================
-   DOM
+   GET MODEL CREDIT
+   ---------------------------------------------------------
+   PRIORITY:
+
+   1. model.pricing.credit_final
+   2. model.credit_final
+   3. model.pricing.credit_cost
+   4. model.credit_cost
+
+   Tidak melakukan kalkulasi discount.
+   Backend adalah source of truth.
 ========================================================= */
 
-function elements() {
+export function getModelCreditCost(
+    model = getCurrentModel()
+) {
 
-    return getGenerateElements();
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const candidates = [
+
+        model?.pricing?.credit_final,
+
+        model?.credit_final,
+
+        model?.pricing?.credit_cost,
+
+        model?.credit_cost
+
+    ];
+
+
+    for (
+        const candidate
+        of candidates
+    ) {
+
+        if (
+            candidate === null ||
+            candidate === undefined ||
+            candidate === ""
+        ) {
+
+            continue;
+
+        }
+
+
+        const numeric =
+            Number(
+                candidate
+            );
+
+
+        if (
+            Number.isFinite(
+                numeric
+            )
+        ) {
+
+            return numeric;
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   RENDER MODEL CREDIT
+========================================================= */
+
+export function renderModelCredit(
+    model = getCurrentModel()
+) {
+
+    const {
+        generateCreditCost,
+        generateCreditValue
+    } = elements();
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate UI] renderModelCredit()",
+        {
+            hasContainer:
+                Boolean(
+                    generateCreditCost
+                ),
+
+            hasValue:
+                Boolean(
+                    generateCreditValue
+                ),
+
+            modelId:
+                model?.model_id,
+
+            pricing:
+                model?.pricing,
+
+            creditFinal:
+                model?.credit_final,
+
+            creditCost:
+                model?.credit_cost
+        }
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * ELEMENT TIDAK ADA
+     * -----------------------------------------------------
+     */
+
+    if (
+        !generateCreditValue
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][Generate UI] #generateCreditValue tidak ditemukan."
+        );
+
+        return null;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * AMBIL CREDIT
+     * -----------------------------------------------------
+     */
+
+    const credit =
+        getModelCreditCost(
+            model
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * CONTAINER SELALU DITAMPILKAN
+     * -----------------------------------------------------
+     */
+
+    if (
+        generateCreditCost
+    ) {
+
+        generateCreditCost.hidden =
+            false;
+
+        generateCreditCost.style.display =
+            "inline-flex";
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * CREDIT TIDAK TERSEDIA
+     * -----------------------------------------------------
+     */
+
+    if (
+        credit === null
+    ) {
+
+        generateCreditValue.textContent =
+            "-- Credit";
+
+        generateCreditValue.dataset.credit =
+            "";
+
+
+        return null;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * CREDIT TERSEDIA
+     * -----------------------------------------------------
+     */
+
+    const formatted =
+        formatNumber(
+            credit
+        );
+
+
+    generateCreditValue.textContent =
+        `${formatted} Credit`;
+
+
+    generateCreditValue.dataset.credit =
+        String(
+            credit
+        );
+
+
+    /*
+     * Simpan juga pada button agar
+     * mudah diperiksa dari browser.
+     */
+
+    const {
+        generateButton
+    } = elements();
+
+
+    if (
+        generateButton
+    ) {
+
+        generateButton.dataset.modelCredit =
+            String(
+                credit
+            );
+
+    }
+
+
+    return credit;
+
 }
 
 
@@ -108,56 +374,56 @@ export function showStatus(
 ) {
 
     const {
-        statusEl
+        status
     } = elements();
 
-    if (!statusEl) {
+
+    if (!status) {
+
         return;
+
     }
 
-    const text =
-        safeString(message);
 
-    statusEl.textContent =
-        text;
-
-    statusEl.className =
-        "generate-status";
-
-    if (type) {
-
-        statusEl.classList.add(
-            `is-${type}`
+    status.textContent =
+        safeString(
+            message
         );
-    }
 
-    statusEl.hidden =
-        !text;
+
+    status.dataset.type =
+        safeString(
+            type,
+            "info"
+        );
+
+
+    status.hidden =
+        false;
+
 }
 
-
-/* =========================================================
-   HIDE STATUS
-========================================================= */
 
 export function hideStatus() {
 
     const {
-        statusEl
+        status
     } = elements();
 
-    if (!statusEl) {
+
+    if (!status) {
+
         return;
+
     }
 
-    statusEl.textContent =
-        "";
 
-    statusEl.hidden =
+    status.hidden =
         true;
 
-    statusEl.className =
-        "generate-status";
+    status.textContent =
+        "";
+
 }
 
 
@@ -170,515 +436,254 @@ export function showPageError(
 ) {
 
     const {
-        pageErrorEl,
-        pageErrorMessageEl
+        pageError,
+        pageErrorMessage
     } = elements();
 
-    const text =
-        safeString(
-            message,
-            "Terjadi kesalahan."
-        );
 
-    if (pageErrorMessageEl) {
+    if (
+        pageErrorMessage
+    ) {
 
-        pageErrorMessageEl.textContent =
-            text;
+        pageErrorMessage.textContent =
+            safeString(
+                message,
+                "Terjadi kesalahan."
+            );
+
     }
 
-    if (pageErrorEl) {
 
-        pageErrorEl.hidden =
+    if (
+        pageError
+    ) {
+
+        pageError.hidden =
             false;
+
     }
+
 }
 
-
-/* =========================================================
-   HIDE PAGE ERROR
-========================================================= */
 
 export function hidePageError() {
 
     const {
-        pageErrorEl,
-        pageErrorMessageEl
+        pageError,
+        pageErrorMessage
     } = elements();
 
-    if (pageErrorMessageEl) {
 
-        pageErrorMessageEl.textContent =
-            "";
-    }
+    if (
+        pageError
+    ) {
 
-    if (pageErrorEl) {
-
-        pageErrorEl.hidden =
+        pageError.hidden =
             true;
+
     }
+
+
+    if (
+        pageErrorMessage
+    ) {
+
+        pageErrorMessage.textContent =
+            "";
+
+    }
+
 }
 
 
 /* =========================================================
-   ERROR HANDLING
+   ERROR
 ========================================================= */
 
 export function showError(
-    error,
-    fallback =
-        "Terjadi kesalahan saat memproses permintaan."
+    error
 ) {
 
-    let message =
-        fallback;
+    const message =
+        error instanceof Error
+            ? error.message
+            : safeString(
+                error,
+                "Terjadi kesalahan."
+            );
 
-    if (
-        typeof error ===
-        "string"
-    ) {
 
-        message =
-            error;
+    showPageError(
+        message
+    );
 
-    } else if (
-        error &&
-        typeof error.message ===
-        "string"
-    ) {
-
-        message =
-            error.message;
-    }
-
-    message =
-        String(message || fallback)
-            .split("\n")
-            .map(
-                item =>
-                    item.trim()
-            )
-            .filter(
-                Boolean
-            )
-            .join("\n");
 
     showStatus(
         message,
         "error"
     );
 
-    return message;
-}
-
-
-/* =========================================================
-   MODEL CREDIT COST
-   ---------------------------------------------------------
-   SOURCE OF TRUTH:
-       model.pricing.credit_final
-
-   Fallback:
-       model.pricing.credit_cost
-
-   Tidak membuat angka credit sendiri.
-
-   Jika kedua field tidak tersedia:
-       tampilkan "-- Credit"
-========================================================= */
-
-export function renderModelCredit(
-    model =
-        getCurrentModel()
-) {
-
-    const {
-        generateCreditCost,
-        generateCreditValue
-    } = elements();
-
-
-    /*
-     * HTML saat ini memakai:
-     *
-     * #generateCreditCost
-     * #generateCreditValue
-     *
-     * Jika elemen tidak ada, jangan membuat DOM baru.
-     */
-
-    if (
-        !generateCreditValue
-    ) {
-
-        return null;
-    }
-
-
-    /*
-     * Ambil pricing dari model.
-     */
-
-    const pricing =
-        model?.pricing;
-
-
-    /*
-     * FINAL CREDIT adalah harga yang digunakan
-     * setelah discount.
-     */
-
-    let creditFinal =
-        pricing?.credit_final;
-
-
-    /*
-     * Compatibility fallback:
-     * jika credit_final tidak tersedia,
-     * gunakan credit_cost.
-     *
-     * Tidak melakukan kalkulasi discount di frontend.
-     */
-
-    if (
-        creditFinal === null ||
-        creditFinal === undefined ||
-        creditFinal === ""
-    ) {
-
-        creditFinal =
-            pricing?.credit_cost;
-    }
-
-
-    /*
-     * Tidak ada pricing.
-     */
-
-    if (
-        creditFinal === null ||
-        creditFinal === undefined ||
-        creditFinal === ""
-    ) {
-
-        generateCreditValue.textContent =
-            "-- Credit";
-
-
-        generateCreditValue.dataset.credit =
-            "";
-
-
-        if (generateCreditCost) {
-
-            generateCreditCost.hidden =
-                false;
-        }
-
-
-        return null;
-    }
-
-
-    const numericCredit =
-        Number(
-            creditFinal
-        );
-
-
-    /*
-     * Credit harus berupa angka.
-     */
-
-    if (
-        !Number.isFinite(
-            numericCredit
-        )
-    ) {
-
-        generateCreditValue.textContent =
-            "-- Credit";
-
-
-        generateCreditValue.dataset.credit =
-            "";
-
-
-        if (generateCreditCost) {
-
-            generateCreditCost.hidden =
-                false;
-        }
-
-
-        return null;
-    }
-
-
-    /*
-     * Render harga model.
-     */
-
-    const formatted =
-        formatNumber(
-            numericCredit
-        );
-
-
-    generateCreditValue.textContent =
-        `${formatted} Credit`;
-
-
-    generateCreditValue.dataset.credit =
-        String(
-            numericCredit
-        );
-
-
-    if (generateCreditCost) {
-
-        generateCreditCost.hidden =
-            false;
-    }
-
-
-    return numericCredit;
-}
-
-
-/* =========================================================
-   GET MODEL CREDIT COST
-========================================================= */
-
-export function getModelCreditCost(
-    model =
-        getCurrentModel()
-) {
-
-    const pricing =
-        model?.pricing;
-
-
-    if (!pricing) {
-        return null;
-    }
-
-
-    let value =
-        pricing.credit_final;
-
-
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
-
-        value =
-            pricing.credit_cost;
-    }
-
-
-    const numeric =
-        Number(
-            value
-        );
-
-
-    if (
-        !Number.isFinite(
-            numeric
-        )
-    ) {
-
-        return null;
-    }
-
-
-    return numeric;
 }
 
 
 /* =========================================================
    LOADING
-   ---------------------------------------------------------
-   Jangan mengganti seluruh inner text button.
-
-   Alasannya:
-   #generateCreditValue berada DI DALAM button.
-
-   Kita hanya mengganti label generate.
 ========================================================= */
 
 export function setLoading(
-    loading,
-    message =
-        "Sedang memproses..."
+    active,
+    message = "Memproses..."
 ) {
 
     const {
-        loadingEl,
         generateButton,
-        resetButton,
-        modelSelectEl
+        loading,
+        modelSelect,
+        resetButton
     } = elements();
 
-    const active =
-        Boolean(loading);
+
+    const isActive =
+        Boolean(
+            active
+        );
 
 
-    /* -----------------------------------------------------
-       LOADING INDICATOR
-    ----------------------------------------------------- */
+    /*
+     * -----------------------------------------------------
+     * LOADING INDICATOR
+     * -----------------------------------------------------
+     */
 
-    if (loadingEl) {
+    if (
+        loading
+    ) {
 
-        loadingEl.hidden =
-            !active;
+        loading.hidden =
+            !isActive;
 
-        if (active) {
+        if (
+            isActive
+        ) {
 
-            loadingEl.textContent =
-                safeString(
-                    message,
-                    "Sedang memproses..."
-                );
+            loading.setAttribute(
+                "aria-live",
+                "polite"
+            );
+
         }
+
     }
 
 
-    /* -----------------------------------------------------
-       GENERATE BUTTON
-    ----------------------------------------------------- */
+    /*
+     * -----------------------------------------------------
+     * GENERATE BUTTON
+     * -----------------------------------------------------
+     */
 
-    if (generateButton) {
+    if (
+        generateButton
+    ) {
 
-        if (active) {
+        generateButton.setAttribute(
+            "aria-busy",
+            String(
+                isActive
+            )
+        );
 
-            generateButton.disabled =
-                true;
 
-            generateButton.setAttribute(
-                "aria-busy",
-                "true"
+        /*
+         * Jangan menggunakan:
+         *
+         * generateButton.textContent = ...
+         *
+         * karena itu akan menghapus
+         * #generateCreditValue.
+         */
+
+        const label =
+            generateButton.querySelector(
+                ".btn-icon + span"
             );
 
 
-            /*
-             * Jangan gunakan:
-             *
-             * generateButton.textContent =
-             *     "Memproses...";
-             *
-             * Karena itu akan menghapus:
-             *
-             * #generateCreditCost
-             * #generateCreditValue
-             *
-             * Kita hanya ubah elemen label.
-             */
+        if (
+            label
+        ) {
 
-            const label =
-                generateButton.querySelector(
-                    ".btn-icon + span"
-                );
+            if (
+                !label.dataset.originalText
+            ) {
 
+                label.dataset.originalText =
+                    label.textContent;
 
-            if (label) {
-
-                /*
-                 * Simpan teks asli sekali.
-                 */
-
-                if (
-                    !label.dataset.originalText
-                ) {
-
-                    label.dataset.originalText =
-                        label.textContent;
-                }
-
-
-                label.textContent =
-                    "Memproses...";
             }
 
 
-        } else {
+            label.textContent =
+                isActive
+                    ? safeString(
+                        message,
+                        "Memproses..."
+                    )
+                    : (
+                        label.dataset.originalText ||
+                        "Generate Video"
+                    );
 
-            generateButton.disabled =
-                !isModelReady();
-
-            generateButton.removeAttribute(
-                "aria-busy"
-            );
-
-
-            /*
-             * Restore label tanpa mengganggu
-             * credit cost.
-             */
-
-            const label =
-                generateButton.querySelector(
-                    ".btn-icon + span"
-                );
-
-
-            if (label) {
-
-                const original =
-                    label.dataset.originalText;
-
-
-                if (original) {
-
-                    label.textContent =
-                        original;
-
-
-                    delete label.dataset
-                        .originalText;
-                }
-            }
-
-
-            /*
-             * Pastikan credit model tetap
-             * tampil setelah loading selesai.
-             */
-
-            renderModelCredit(
-                getCurrentModel()
-            );
         }
+
+
+        /*
+         * Credit model tetap render.
+         */
+
+        renderModelCredit(
+            getCurrentModel()
+        );
+
     }
 
 
-    /* -----------------------------------------------------
-       MODEL SELECTOR
-    ----------------------------------------------------- */
+    /*
+     * -----------------------------------------------------
+     * MODEL SELECT
+     * -----------------------------------------------------
+     */
 
-    if (modelSelectEl) {
+    if (
+        modelSelect
+    ) {
 
-        modelSelectEl.disabled =
-            active;
+        modelSelect.disabled =
+            isActive;
+
     }
 
 
-    /* -----------------------------------------------------
-       RESET BUTTON
-    ----------------------------------------------------- */
+    /*
+     * -----------------------------------------------------
+     * RESET
+     * -----------------------------------------------------
+     */
 
-    if (resetButton) {
+    if (
+        resetButton
+    ) {
 
         resetButton.disabled =
-            active;
+            isActive;
+
     }
+
 }
 
 
 /* =========================================================
-   GENERATE BUTTON
+   ENABLE GENERATION
 ========================================================= */
 
 export function enableGeneration() {
@@ -687,29 +692,33 @@ export function enableGeneration() {
         generateButton
     } = elements();
 
-    if (!generateButton) {
+
+    if (
+        !generateButton
+    ) {
+
         return;
+
     }
+
 
     const ready =
         isModelReady();
 
+
     generateButton.disabled =
         !ready;
+
 
     generateButton.removeAttribute(
         "aria-busy"
     );
 
 
-    /*
-     * Credit model harus selalu sinkron
-     * dengan model yang aktif.
-     */
-
     renderModelCredit(
         getCurrentModel()
     );
+
 }
 
 
@@ -723,25 +732,29 @@ export function disableGeneration() {
         generateButton
     } = elements();
 
-    if (!generateButton) {
+
+    if (
+        !generateButton
+    ) {
+
         return;
+
     }
+
 
     generateButton.disabled =
         true;
+
 
     generateButton.removeAttribute(
         "aria-busy"
     );
 
 
-    /*
-     * Tetap tampilkan harga model.
-     */
-
     renderModelCredit(
         getCurrentModel()
     );
+
 }
 
 
@@ -757,213 +770,292 @@ export function setFormDisabled(
         generateForm
     } = elements();
 
-    if (!generateForm) {
+
+    if (
+        !generateForm
+    ) {
+
         return;
+
     }
+
 
     const controls =
         generateForm.querySelectorAll(
             "input, textarea, select, button"
         );
 
+
     controls.forEach(
         control => {
 
             control.disabled =
-                Boolean(disabled);
+                Boolean(
+                    disabled
+                );
+
         }
     );
+
 }
 
 
 /* =========================================================
    MODEL HEADER
-   ---------------------------------------------------------
-   Source:
-   - Repository model registry
-   - Optional admin model configuration
 ========================================================= */
 
 export function renderModelHeader(
-    model =
-        getCurrentModel()
+    model = getCurrentModel()
 ) {
 
     const {
-        modelNameEl,
-        modelDescriptionEl,
-        providerNameEl,
-        modelMetaEl
+        modelName,
+        modelDescription,
+        providerName,
+        modelMeta
     } = elements();
 
 
-    /* -----------------------------------------------------
-       NO MODEL
-    ----------------------------------------------------- */
+    /*
+     * -----------------------------------------------------
+     * NO MODEL
+     * -----------------------------------------------------
+     */
 
-    if (!model) {
+    if (
+        !model
+    ) {
 
-        if (modelNameEl) {
+        if (
+            modelName
+        ) {
 
-            modelNameEl.textContent =
+            modelName.textContent =
                 "Model belum dipilih";
+
         }
 
-        if (modelDescriptionEl) {
 
-            modelDescriptionEl.textContent =
+        if (
+            modelDescription
+        ) {
+
+            modelDescription.textContent =
                 "";
+
         }
 
-        if (providerNameEl) {
 
-            providerNameEl.textContent =
+        if (
+            providerName
+        ) {
+
+            providerName.textContent =
                 "";
+
         }
 
-        if (modelMetaEl) {
 
-            modelMetaEl.textContent =
+        if (
+            modelMeta
+        ) {
+
+            modelMeta.textContent =
                 "";
+
         }
 
-
-        /*
-         * Tidak ada model berarti tidak ada
-         * harga model untuk ditampilkan.
-         */
 
         renderModelCredit(
             null
         );
 
+
         return null;
-    }
 
-
-    /* -----------------------------------------------------
-       MODEL NAME
-    ----------------------------------------------------- */
-
-    const modelName =
-        safeString(
-            model.model_name ||
-            model.name ||
-            model.config?.model_name ||
-            model.config?.name ||
-            model.repository?.model_name ||
-            model.model_id ||
-            model.config?.id,
-            "Model"
-        );
-
-
-    /* -----------------------------------------------------
-       DESCRIPTION
-    ----------------------------------------------------- */
-
-    const description =
-        safeString(
-            model.description ||
-            model.config?.description ||
-            model.repository?.description,
-            ""
-        );
-
-
-    /* -----------------------------------------------------
-       PROVIDER
-    ----------------------------------------------------- */
-
-    const provider =
-        safeString(
-            model.provider_name ||
-            model.providerName ||
-            model.provider?.provider_name ||
-            model.provider?.providerName ||
-            model.provider?.name ||
-            model.repository?.provider_name ||
-            model.config?.providerName ||
-            model.provider_id ||
-            model.config?.providerId,
-            "-"
-        );
-
-
-    /* -----------------------------------------------------
-       MODEL ID
-    ----------------------------------------------------- */
-
-    const modelId =
-        safeString(
-            model.model_id ||
-            model.config?.id ||
-            model.id,
-            ""
-        );
-
-
-    /* -----------------------------------------------------
-       RENDER
-    ----------------------------------------------------- */
-
-    if (modelNameEl) {
-
-        modelNameEl.textContent =
-            modelName;
-    }
-
-    if (modelDescriptionEl) {
-
-        modelDescriptionEl.textContent =
-            description;
-    }
-
-    if (providerNameEl) {
-
-        providerNameEl.textContent =
-            provider;
-    }
-
-    if (modelMetaEl) {
-
-        modelMetaEl.textContent =
-            modelId
-                ? `Model ID: ${modelId}`
-                : "";
     }
 
 
     /*
-     * =====================================================
-     * MODEL CREDIT
-     * =====================================================
-     *
-     * Ini adalah bagian yang sebelumnya hilang.
+     * -----------------------------------------------------
+     * MODEL NAME
+     * -----------------------------------------------------
      */
 
-    renderModelCredit(
-        model
-    );
+    const name =
+        safeString(
+
+            model.model_name ||
+
+            model.name ||
+
+            model.config?.model_name ||
+
+            model.config?.name ||
+
+            model.repository?.model_name ||
+
+            model.model_id ||
+
+            model.config?.id,
+
+            "Model"
+
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * DESCRIPTION
+     * -----------------------------------------------------
+     */
+
+    const description =
+        safeString(
+
+            model.description ||
+
+            model.config?.description ||
+
+            model.repository?.description,
+
+            ""
+
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * PROVIDER
+     * -----------------------------------------------------
+     */
+
+    const provider =
+        safeString(
+
+            model.provider_name ||
+
+            model.providerName ||
+
+            model.provider?.provider_name ||
+
+            model.provider?.providerName ||
+
+            model.provider?.name ||
+
+            model.repository?.provider_name ||
+
+            model.config?.providerName ||
+
+            model.provider_id,
+
+            "-"
+
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * MODEL ID
+     * -----------------------------------------------------
+     */
+
+    const modelId =
+        safeString(
+
+            model.model_id ||
+
+            model.config?.id ||
+
+            model.id,
+
+            ""
+
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * RENDER HEADER
+     * -----------------------------------------------------
+     */
+
+    if (
+        modelName
+    ) {
+
+        modelName.textContent =
+            name;
+
+    }
+
+
+    if (
+        modelDescription
+    ) {
+
+        modelDescription.textContent =
+            description;
+
+    }
+
+
+    if (
+        providerName
+    ) {
+
+        providerName.textContent =
+            provider;
+
+    }
+
+
+    if (
+        modelMeta
+    ) {
+
+        modelMeta.textContent =
+            modelId
+                ? `Model ID: ${modelId}`
+                : "";
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * MODEL CREDIT
+     * -----------------------------------------------------
+     */
+
+    const credit =
+        renderModelCredit(
+            model
+        );
 
 
     return {
-        modelName,
+
+        modelName:
+            name,
+
         description,
+
         provider,
+
         modelId,
-        credit:
-            getModelCreditCost(
-                model
-            )
+
+        credit
+
     };
+
 }
 
 
 /* =========================================================
-   LEGACY RESULT API
+   RESULT
    ---------------------------------------------------------
-   Generate page sekarang TIDAK menampilkan hasil video.
+   Generate page tidak menampilkan video.
 ========================================================= */
 
 export function hideResult() {
@@ -972,38 +1064,25 @@ export function hideResult() {
         resultCard
     } = elements();
 
-    if (!resultCard) {
-        return;
-    }
 
-    resultCard.hidden =
-        true;
-}
-
-
-/* =========================================================
-   SHOW RESULT
-   ---------------------------------------------------------
-   Compatibility only.
-========================================================= */
-
-export function showResult() {
-
-    const {
+    if (
         resultCard
-    } = elements();
-
-    if (resultCard) {
+    ) {
 
         resultCard.hidden =
             true;
+
     }
+
 }
 
 
-/* =========================================================
-   LEGACY RENDER RESULT
-========================================================= */
+export function showResult() {
+
+    hideResult();
+
+}
+
 
 export function renderResult(
     data = {}
@@ -1015,37 +1094,61 @@ export function renderResult(
 
     const modelName =
         safeString(
+
             data.model_name ||
+
             data.model_id ||
+
             data.model ||
+
             model?.model_name ||
+
             model?.name ||
+
             model?.model_id,
+
             "-"
+
         );
 
 
     const provider =
         safeString(
+
             data.provider ||
+
             data.provider_name ||
+
             data.provider_id ||
+
             model?.provider_name ||
+
             model?.provider?.provider_name ||
+
             model?.provider_id,
+
             "-"
+
         );
 
 
     const taskId =
         safeString(
+
             data.taskId ||
+
             data.task_id ||
+
             data.jobId ||
+
             data.job_id ||
+
             data.task?.taskId ||
+
             data.task?.task_id,
+
             "-"
+
         );
 
 
@@ -1053,6 +1156,7 @@ export function renderResult(
 
 
     return {
+
         model:
             modelName,
 
@@ -1060,13 +1164,16 @@ export function renderResult(
 
         taskId,
 
-        resultUrls: []
+        resultUrls:
+            []
+
     };
+
 }
 
 
 /* =========================================================
-   PROFILE NORMALIZATION
+   PROFILE NORMALIZER
 ========================================================= */
 
 function normalizeProfile(
@@ -1076,61 +1183,54 @@ function normalizeProfile(
     if (
         !profile ||
         typeof profile !==
-        "object"
+            "object"
     ) {
 
         return null;
+
     }
 
 
     const role =
-        String(
-            profile.role ??
-            ""
-        )
-            .trim()
-            .toUpperCase();
+        safeString(
+            profile.role
+        ).toUpperCase();
 
-
-    const rawCredits =
-        profile.credits;
 
     let credits =
         null;
 
 
     if (
-        rawCredits !== null &&
-        rawCredits !== undefined &&
-        rawCredits !== ""
+        profile.credits !== null &&
+        profile.credits !== undefined &&
+        profile.credits !== ""
     ) {
 
         const numeric =
             Number(
-                rawCredits
+                profile.credits
             );
 
-        if (
+
+        credits =
             Number.isFinite(
                 numeric
             )
-        ) {
+                ? numeric
+                : profile.credits;
 
-            credits =
-                numeric;
-
-        } else {
-
-            credits =
-                rawCredits;
-        }
     }
 
 
     return {
+
         role,
+
         credits
+
     };
+
 }
 
 
@@ -1143,22 +1243,27 @@ export function renderRoleBadge(
 ) {
 
     const {
-        roleBadgeEl
+        roleBadge
     } = elements();
 
-    if (!roleBadgeEl) {
+
+    if (
+        !roleBadge
+    ) {
+
         return;
+
     }
 
 
-    const sourceProfile =
+    const source =
         profile ||
         getCurrentProfile();
 
 
     const normalized =
         normalizeProfile(
-            sourceProfile
+            source
         );
 
 
@@ -1167,31 +1272,32 @@ export function renderRoleBadge(
         "";
 
 
-    roleBadgeEl.textContent =
+    roleBadge.textContent =
         role;
 
 
-    roleBadgeEl.hidden =
+    roleBadge.hidden =
         !role;
 
 
-    if (role) {
+    if (
+        role
+    ) {
 
-        roleBadgeEl.dataset.role =
+        roleBadge.dataset.role =
             role.toLowerCase();
 
     } else {
 
-        delete roleBadgeEl.dataset.role;
+        delete roleBadge.dataset.role;
+
     }
+
 }
 
 
 /* =========================================================
-   CREDIT BADGE
-   ---------------------------------------------------------
-   Source:
-   Supabase profiles.credits
+   ACCOUNT CREDIT BADGE
 ========================================================= */
 
 export function renderCreditBadge(
@@ -1199,22 +1305,27 @@ export function renderCreditBadge(
 ) {
 
     const {
-        creditBadgeEl
+        creditBadge
     } = elements();
 
-    if (!creditBadgeEl) {
+
+    if (
+        !creditBadge
+    ) {
+
         return;
+
     }
 
 
-    const sourceProfile =
+    const source =
         profile ||
         getCurrentProfile();
 
 
     const normalized =
         normalizeProfile(
-            sourceProfile
+            source
         );
 
 
@@ -1228,37 +1339,28 @@ export function renderCreditBadge(
         credits === ""
     ) {
 
-        creditBadgeEl.textContent =
+        creditBadge.textContent =
             "";
 
-        creditBadgeEl.hidden =
+        creditBadge.hidden =
             true;
 
         return;
+
     }
 
 
-    if (
-        typeof credits ===
-        "number"
-    ) {
+    creditBadge.textContent =
+        typeof credits === "number"
 
-        creditBadgeEl.textContent =
-            `Credit: ${formatNumber(
-                credits
-            )}`;
+            ? `Credit: ${formatNumber(credits)}`
 
-    } else {
-
-        creditBadgeEl.textContent =
-            `Credit: ${safeString(
-                credits
-            )}`;
-    }
+            : `Credit: ${safeString(credits)}`;
 
 
-    creditBadgeEl.hidden =
+    creditBadge.hidden =
         false;
+
 }
 
 
@@ -1270,22 +1372,23 @@ export function renderAuthBadges(
     profile
 ) {
 
-    const sourceProfile =
+    const source =
         profile ||
         getCurrentProfile();
 
 
     renderRoleBadge(
-        sourceProfile
+        source
     );
 
 
     renderCreditBadge(
-        sourceProfile
+        source
     );
 
 
-    return sourceProfile || null;
+    return source || null;
+
 }
 
 
@@ -1299,17 +1402,18 @@ export function showGenerateCard() {
         generateCard
     } = elements();
 
-    if (generateCard) {
+
+    if (
+        generateCard
+    ) {
 
         generateCard.hidden =
             false;
+
     }
+
 }
 
-
-/* =========================================================
-   HIDE GENERATE CARD
-========================================================= */
 
 export function hideGenerateCard() {
 
@@ -1317,11 +1421,16 @@ export function hideGenerateCard() {
         generateCard
     } = elements();
 
-    if (generateCard) {
+
+    if (
+        generateCard
+    ) {
 
         generateCard.hidden =
             true;
+
     }
+
 }
 
 
@@ -1332,37 +1441,43 @@ export function hideGenerateCard() {
 export function showModelSelector() {
 
     const {
-        modelSelectorEl
+        modelSelector
     } = elements();
 
-    if (modelSelectorEl) {
 
-        modelSelectorEl.hidden =
+    if (
+        modelSelector
+    ) {
+
+        modelSelector.hidden =
             false;
+
     }
+
 }
 
-
-/* =========================================================
-   HIDE MODEL SELECTOR
-========================================================= */
 
 export function hideModelSelector() {
 
     const {
-        modelSelectorEl
+        modelSelector
     } = elements();
 
-    if (modelSelectorEl) {
 
-        modelSelectorEl.hidden =
+    if (
+        modelSelector
+    ) {
+
+        modelSelector.hidden =
             true;
+
     }
+
 }
 
 
 /* =========================================================
-   RESET RESULT UI
+   RESET RESULT
 ========================================================= */
 
 export function resetResultUI() {
@@ -1377,24 +1492,33 @@ export function resetResultUI() {
     } = elements();
 
 
-    if (resultModel) {
+    if (
+        resultModel
+    ) {
 
         resultModel.textContent =
             "";
+
     }
 
 
-    if (resultProvider) {
+    if (
+        resultProvider
+    ) {
 
         resultProvider.textContent =
             "";
+
     }
 
 
-    if (resultTaskId) {
+    if (
+        resultTaskId
+    ) {
 
         resultTaskId.textContent =
             "";
+
     }
 
 
@@ -1404,16 +1528,20 @@ export function resetResultUI() {
         );
 
 
-    if (resultMedia) {
+    if (
+        resultMedia
+    ) {
 
         resultMedia.innerHTML =
             "";
+
     }
+
 }
 
 
 /* =========================================================
-   RESET STATUS UI
+   RESET STATUS
 ========================================================= */
 
 export function resetStatusUI() {
@@ -1421,6 +1549,7 @@ export function resetStatusUI() {
     hideStatus();
 
     hidePageError();
+
 }
 
 
@@ -1434,25 +1563,15 @@ export function resetUI() {
 
     resetStatusUI();
 
-
     setLoading(
         false
     );
 
 
-    /*
-     * Account OWNER + account credit.
-     */
-
     renderAuthBadges(
         getCurrentProfile()
     );
 
-
-    /*
-     * Model identity + provider +
-     * model credit cost.
-     */
 
     renderModelHeader(
         getCurrentModel()
@@ -1468,12 +1587,14 @@ export function resetUI() {
     } else {
 
         disableGeneration();
+
     }
+
 }
 
 
 /* =========================================================
-   FOCUS FIRST INVALID FIELD
+   FOCUS INVALID
 ========================================================= */
 
 export function focusFirstInvalidField() {
@@ -1482,8 +1603,13 @@ export function focusFirstInvalidField() {
         generateForm
     } = elements();
 
-    if (!generateForm) {
+
+    if (
+        !generateForm
+    ) {
+
         return false;
+
     }
 
 
@@ -1493,8 +1619,12 @@ export function focusFirstInvalidField() {
         );
 
 
-    if (!invalid) {
+    if (
+        !invalid
+    ) {
+
         return false;
+
     }
 
 
@@ -1504,60 +1634,75 @@ export function focusFirstInvalidField() {
 
     } catch {
 
-        /* Browser tertentu dapat menolak focus. */
+        /* Ignore focus failure. */
+
     }
 
 
     return true;
+
 }
 
 
 /* =========================================================
-   SCROLL TO ERROR
+   SCROLL ERROR
 ========================================================= */
 
 export function scrollToError() {
 
     const {
-        pageErrorEl,
-        statusEl
+        pageError,
+        status
     } = elements();
 
 
     const target =
-        pageErrorEl &&
-        !pageErrorEl.hidden
-            ? pageErrorEl
-            : statusEl &&
-              !statusEl.hidden
-                ? statusEl
+
+        pageError &&
+        !pageError.hidden
+
+            ? pageError
+
+            : status &&
+              !status.hidden
+
+                ? status
+
                 : null;
 
 
-    if (!target) {
+    if (
+        !target
+    ) {
+
         return;
+
     }
 
 
     try {
 
         target.scrollIntoView({
+
             behavior:
                 "smooth",
 
             block:
                 "center"
+
         });
 
     } catch {
 
         target.scrollIntoView();
+
     }
+
 }
 
 
 /* =========================================================
-   SUCCESS STATE
+   SUCCESS
 ========================================================= */
 
 export function showSuccess(
@@ -1569,11 +1714,17 @@ export function showSuccess(
         message,
         "success"
     );
+
+
+    renderModelCredit(
+        getCurrentModel()
+    );
+
 }
 
 
 /* =========================================================
-   READY STATE
+   READY
 ========================================================= */
 
 export function showReady(
@@ -1583,16 +1734,12 @@ export function showReady(
 
     hidePageError();
 
+
     showStatus(
         message,
         "success"
     );
 
-
-    /*
-     * Pastikan model credit tampil
-     * ketika model sudah siap.
-     */
 
     renderModelCredit(
         getCurrentModel()
@@ -1600,11 +1747,12 @@ export function showReady(
 
 
     enableGeneration();
+
 }
 
 
 /* =========================================================
-   BUSY STATE
+   BUSY
 ========================================================= */
 
 export function showBusy(
@@ -1614,20 +1762,23 @@ export function showBusy(
 
     hidePageError();
 
+
     showStatus(
         message,
         "info"
     );
 
+
     setLoading(
         true,
         message
     );
+
 }
 
 
 /* =========================================================
-   FINISH REQUEST STATE
+   FINISH REQUEST
 ========================================================= */
 
 export function finishRequest() {
@@ -1636,10 +1787,6 @@ export function finishRequest() {
         false
     );
 
-
-    /*
-     * Refresh model credit setelah request.
-     */
 
     renderModelCredit(
         getCurrentModel()
@@ -1655,7 +1802,9 @@ export function finishRequest() {
     } else {
 
         disableGeneration();
+
     }
+
 }
 
 
