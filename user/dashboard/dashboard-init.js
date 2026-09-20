@@ -9,7 +9,7 @@
    - Menjalankan module dashboard dalam urutan yang benar
    - Cache DOM
    - Memastikan dependency tersedia
-   - Menunggu navigation/auth shared selesai
+   - Menunggu shared navigation/auth state
    - Initialize modal
    - Initialize upload
    - Initialize events
@@ -52,7 +52,7 @@
 
 
     /* =====================================================
-       LOG
+       LOGGING
     ===================================================== */
 
     function log(...args) {
@@ -79,14 +79,17 @@
 
     function getErrorMessage(error) {
 
-        if (!error) {
+        if (
+            !error
+        ) {
 
             return "Dashboard gagal dimuat.";
         }
 
 
         if (
-            typeof error === "string"
+            typeof error ===
+            "string"
         ) {
 
             return error;
@@ -95,14 +98,17 @@
 
         if (
             error.message &&
-            typeof error.message === "string"
+            typeof error.message ===
+            "string"
         ) {
 
             return error.message;
         }
 
 
-        return "Terjadi kesalahan saat memuat dashboard.";
+        return (
+            "Terjadi kesalahan saat memuat dashboard."
+        );
     }
 
 
@@ -111,11 +117,6 @@
     ===================================================== */
 
     function cacheElements() {
-
-        /*
-         * dashboard-config.js adalah pemilik utama
-         * cache element.
-         */
 
         if (
             typeof dashboard.cacheElements !==
@@ -131,11 +132,6 @@
         const elements =
             dashboard.cacheElements();
 
-
-        /*
-         * Simpan cache di namespace agar seluruh module
-         * menggunakan object yang sama.
-         */
 
         dashboard.elements =
             elements;
@@ -155,6 +151,7 @@
 
             {
                 name: "dashboard-config",
+
                 check: function () {
 
                     return (
@@ -166,10 +163,13 @@
 
             {
                 name: "dashboard-state",
+
                 check: function () {
 
                     return (
                         typeof dashboard.getVideos ===
+                        "function" &&
+                        typeof dashboard.setInitialized ===
                         "function"
                     );
                 }
@@ -177,6 +177,7 @@
 
             {
                 name: "dashboard-auth",
+
                 check: function () {
 
                     return (
@@ -188,6 +189,7 @@
 
             {
                 name: "dashboard-data",
+
                 check: function () {
 
                     return (
@@ -199,6 +201,7 @@
 
             {
                 name: "dashboard-render",
+
                 check: function () {
 
                     return (
@@ -210,6 +213,7 @@
 
             {
                 name: "dashboard-modal",
+
                 check: function () {
 
                     return (
@@ -221,6 +225,7 @@
 
             {
                 name: "dashboard-upload",
+
                 check: function () {
 
                     return (
@@ -232,6 +237,7 @@
 
             {
                 name: "dashboard-events",
+
                 check: function () {
 
                     return (
@@ -250,7 +256,9 @@
 
                     try {
 
-                        return !item.check();
+                        return (
+                            !item.check()
+                        );
 
                     } catch (error) {
 
@@ -287,13 +295,13 @@
 
 
     /* =====================================================
-       SUPABASE CLIENT CHECK
+       SUPABASE CHECK
     ===================================================== */
 
     function ensureSupabase() {
 
         /*
-         * Dashboard tidak membuat client baru.
+         * Dashboard tidak membuat Supabase client baru.
          *
          * Client harus berasal dari config.js.
          */
@@ -339,26 +347,64 @@
 
 
     /* =====================================================
-       NAVIGATION / AUTH WAIT
+       CHECK SHARED NAVIGATION STATE
     ===================================================== */
 
-    async function waitForSharedNavigation() {
+    function hasSharedNavigationState() {
+
+        return !!(
+            window.GENZ_NAVIGATION_USER &&
+            window.GENZ_NAVIGATION_PROFILE &&
+            window.GENZ_NAVIGATION_ROLE
+        );
+    }
+
+
+    /* =====================================================
+       WAIT FOR SHARED NAVIGATION
+       -----------------------------------------------------
+       navigation/navigation.js berjalan lebih dahulu,
+       tetapi proses auth/profile bersifat async.
+
+       Kita tunggu state navigation sebentar agar dashboard
+       tidak langsung melakukan query profile kedua.
+    ===================================================== */
+
+    async function waitForNavigationState(
+        timeout
+    ) {
+
+        const maxWait =
+            Number.isFinite(
+                Number(timeout)
+            )
+                ? Number(timeout)
+                : 3000;
+
+
+        const interval =
+            50;
+
+
+        const startedAt =
+            Date.now();
+
 
         /*
-         * navigation.js melakukan:
-         *
-         * 1. Session validation
-         * 2. Profile lookup
-         * 3. Role validation
-         * 4. Navigation rendering
-         *
-         * Dashboard tidak boleh mengulang proses tersebut.
+         * Jika state sudah tersedia, langsung lanjut.
          */
+
+        if (
+            hasSharedNavigationState()
+        ) {
+
+            return true;
+        }
 
 
         /*
          * Jika navigation menyediakan Promise ready,
-         * tunggu Promise tersebut.
+         * gunakan terlebih dahulu.
          */
 
         if (
@@ -369,98 +415,212 @@
 
             try {
 
-                await window.GENZNavigationReady;
+                await Promise.race([
+
+                    window.GENZNavigationReady,
+
+                    new Promise(
+                        function (resolve) {
+
+                            setTimeout(
+                                resolve,
+                                maxWait
+                            );
+                        }
+                    )
+
+                ]);
 
             } catch (error) {
 
                 logError(
-                    "Navigation ready error:",
+                    "Shared navigation promise error:",
                     error
                 );
             }
+
+
+            if (
+                hasSharedNavigationState()
+            ) {
+
+                return true;
+            }
         }
 
 
         /*
-         * Beberapa versi navigation menggunakan
-         * global state setelah initialization.
+         * Fallback untuk navigation.js versi yang
+         * menggunakan global state tanpa Promise.
          */
 
-        if (
-            window.GENZ_NAVIGATION_PROFILE
+        while (
+            Date.now() -
+            startedAt <
+            maxWait
         ) {
 
+            if (
+                hasSharedNavigationState()
+            ) {
+
+                return true;
+            }
+
+
             /*
-             * Sinkronkan informasi navigation ke dashboard
-             * hanya sebagai state UI.
-             *
-             * Ini BUKAN sumber otorisasi.
+             * Beri kesempatan navigation.js menyelesaikan
+             * request Supabase.
              */
 
-            if (
-                typeof dashboard.setCurrentUser ===
-                "function" &&
-                window.GENZ_NAVIGATION_USER
-            ) {
+            await new Promise(
+                function (resolve) {
 
-                dashboard.setCurrentUser(
-                    window.GENZ_NAVIGATION_USER
-                );
-            }
-
-
-            if (
-                typeof dashboard.setCurrentProfile ===
-                "function"
-            ) {
-
-                dashboard.setCurrentProfile(
-                    window.GENZ_NAVIGATION_PROFILE
-                );
-            }
-
-
-            if (
-                typeof dashboard.setRole ===
-                "function" &&
-                window.GENZ_NAVIGATION_ROLE
-            ) {
-
-                dashboard.setRole(
-                    window.GENZ_NAVIGATION_ROLE
-                );
-            }
+                    setTimeout(
+                        resolve,
+                        interval
+                    );
+                }
+            );
         }
 
 
-        /*
-         * Dashboard auth tetap digunakan untuk state
-         * dashboard sendiri.
-         *
-         * Tetapi auth module harus memanfaatkan session
-         * yang sudah ada, bukan membuat sistem auth kedua.
-         */
+        return hasSharedNavigationState();
+    }
+
+
+    /* =====================================================
+       SYNC NAVIGATION STATE
+    ===================================================== */
+
+    function syncNavigationState() {
+
+        const user =
+            window.GENZ_NAVIGATION_USER;
+
+
+        const profile =
+            window.GENZ_NAVIGATION_PROFILE;
+
+
+        const role =
+            window.GENZ_NAVIGATION_ROLE;
+
 
         if (
-            typeof dashboard.initializeAuth ===
+            user &&
+            typeof dashboard.setCurrentUser ===
             "function"
         ) {
 
-            const result =
-                await dashboard.initializeAuth();
+            dashboard.setCurrentUser(
+                user
+            );
+        }
 
 
-            if (
-                result === false
-            ) {
+        if (
+            profile &&
+            typeof dashboard.setCurrentProfile ===
+            "function"
+        ) {
 
-                /*
-                 * Auth module mungkin melakukan redirect.
-                 * Jangan teruskan loading dashboard.
-                 */
+            dashboard.setCurrentProfile(
+                profile
+            );
+        }
 
-                return false;
-            }
+
+        if (
+            role &&
+            typeof dashboard.setRole ===
+            "function"
+        ) {
+
+            dashboard.setRole(
+                role
+            );
+        }
+
+
+        return !!(
+            user &&
+            profile &&
+            role
+        );
+    }
+
+
+    /* =====================================================
+       SHARED AUTH / NAVIGATION
+    ===================================================== */
+
+    async function waitForSharedNavigation() {
+
+        /*
+         * Jangan langsung menjalankan dashboard auth.
+         *
+         * navigation.js sudah bertanggung jawab terhadap:
+         *
+         * - session
+         * - profile
+         * - role
+         * - status account
+         * - redirect login
+         *
+         * Dashboard hanya mengambil state yang sudah tersedia.
+         */
+
+        const navigationReady =
+            await waitForNavigationState(
+                3000
+            );
+
+
+        if (
+            navigationReady
+        ) {
+
+            syncNavigationState();
+        }
+
+
+        /*
+         * initializeAuth() tetap dipanggil karena dashboard
+         * membutuhkan state internalnya sendiri.
+         *
+         * dashboard-auth.js akan:
+         *
+         * 1. memakai state navigation jika tersedia
+         * 2. fallback ke Supabase hanya jika state navigation
+         *    belum tersedia
+         */
+
+        if (
+            typeof dashboard.initializeAuth !==
+            "function"
+        ) {
+
+            throw new Error(
+                "dashboard-auth.js belum menyediakan initializeAuth()."
+            );
+        }
+
+
+        const result =
+            await dashboard.initializeAuth();
+
+
+        if (
+            result === false
+        ) {
+
+            /*
+             * Biasanya terjadi ketika auth module
+             * sedang melakukan redirect.
+             */
+
+            return false;
         }
 
 
@@ -475,21 +635,21 @@
     function initializeUI() {
 
         /*
-         * Modal
+         * Modal lifecycle
          */
 
         dashboard.initializeModal();
 
 
         /*
-         * Upload
+         * Upload/form lifecycle
          */
 
         dashboard.initializeUpload();
 
 
         /*
-         * Events
+         * Button/event delegation
          */
 
         dashboard.initializeEvents();
@@ -503,12 +663,24 @@
     function forceCloseModal() {
 
         /*
-         * Sangat penting untuk bug:
-         *
-         * Admin / Owner masuk dashboard
-         * → form edit langsung muncul
-         *
-         * Tidak boleh terjadi.
+         * Dashboard tidak boleh otomatis membuka Add/Edit
+         * modal hanya karena user adalah ADMIN/OWNER
+         * atau karena ?edit=1.
+         */
+
+        if (
+            typeof dashboard.forceCloseModal ===
+            "function"
+        ) {
+
+            dashboard.forceCloseModal();
+
+            return;
+        }
+
+
+        /*
+         * Fallback jika API forceCloseModal belum tersedia.
          */
 
         if (
@@ -516,7 +688,17 @@
             "function"
         ) {
 
-            dashboard.closeModal();
+            try {
+
+                dashboard.closeModal();
+
+            } catch (error) {
+
+                logError(
+                    "closeModal fallback error:",
+                    error
+                );
+            }
         }
 
 
@@ -577,28 +759,54 @@
 
 
         /*
-         * User:
-         *   hanya video aktif.
+         * Default:
          *
-         * Admin / Owner + edit mode:
-         *   boleh melihat inactive untuk management.
+         * USER
+         *   -> active saja
+         *
+         * ADMIN / OWNER
+         *   -> active saja
+         *
+         * ADMIN / OWNER + ?edit=1
+         *   -> active + inactive
          */
 
         let includeInactive =
             false;
 
 
-        if (
+        const editMode =
             typeof dashboard.isEditMode ===
-            "function" &&
+            "function"
+                ? dashboard.isEditMode() === true
+                : false;
+
+
+        const managementAccess =
             typeof dashboard.hasManagementAccess ===
             "function"
+                ? dashboard.hasManagementAccess() === true
+                : false;
+
+
+        if (
+            editMode &&
+            managementAccess
         ) {
 
             includeInactive =
-                dashboard.isEditMode() &&
-                dashboard.hasManagementAccess();
+                true;
         }
+
+
+        log(
+            "Loading dashboard videos:",
+            {
+                editMode,
+                managementAccess,
+                includeInactive
+            }
+        );
 
 
         const videos =
@@ -720,7 +928,8 @@
 
 
         /*
-         * Render error state melalui renderer.
+         * Tetap gunakan renderer agar error state
+         * mengikuti UI dashboard.
          */
 
         try {
@@ -780,28 +989,41 @@
 
 
             /* ---------------------------------------------
-               1. DOM
+               1. CACHE DOM
             --------------------------------------------- */
 
             cacheElements();
 
 
             /* ---------------------------------------------
-               2. Dependency
+               2. CHECK MODULES
             --------------------------------------------- */
 
             checkDependencies();
 
 
             /* ---------------------------------------------
-               3. Supabase
+               3. CHECK SUPABASE
             --------------------------------------------- */
 
             ensureSupabase();
 
 
             /* ---------------------------------------------
-               4. Shared Auth / Navigation
+               4. INITIALIZE EDIT MODE STATE
+            --------------------------------------------- */
+
+            if (
+                typeof dashboard.initializeEditMode ===
+                "function"
+            ) {
+
+                dashboard.initializeEditMode();
+            }
+
+
+            /* ---------------------------------------------
+               5. SHARED NAVIGATION + AUTH
             --------------------------------------------- */
 
             const authenticated =
@@ -817,49 +1039,47 @@
 
 
             /* ---------------------------------------------
-               5. UI modules
+               6. INITIALIZE UI MODULES
             --------------------------------------------- */
 
             initializeUI();
 
 
             /* ---------------------------------------------
-               6. Force modal closed
+               7. FORCE MODAL CLOSED
             --------------------------------------------- */
 
             forceCloseModal();
 
 
             /* ---------------------------------------------
-               7. Load video
+               8. LOAD VIDEOS
             --------------------------------------------- */
 
             await loadDashboardVideos();
 
 
             /* ---------------------------------------------
-               8. Render
+               9. INITIAL RENDER
             --------------------------------------------- */
 
             renderDashboard();
 
 
             /* ---------------------------------------------
-               9. Close modal again
-               --------------------------------------------- */
+               10. DEFENSIVE MODAL CLOSE
+            --------------------------------------------- */
 
             /*
-             * Defensive.
-             *
-             * Jika module lain mengubah modal selama render,
-             * dashboard tetap dimulai dalam kondisi tertutup.
+             * Render tidak seharusnya membuka modal.
+             * Tetap dipastikan tertutup sebagai guard terakhir.
              */
 
             forceCloseModal();
 
 
             /* ---------------------------------------------
-               10. READY
+               11. READY
             --------------------------------------------- */
 
             initialized =
@@ -905,12 +1125,24 @@
        PUBLIC API
     ===================================================== */
 
-    dashboard.checkDependencies =
+    dashboard.checkDashboardDependencies =
         checkDependencies;
 
 
     dashboard.ensureDashboardSupabase =
         ensureSupabase;
+
+
+    dashboard.hasSharedNavigationState =
+        hasSharedNavigationState;
+
+
+    dashboard.waitForNavigationState =
+        waitForNavigationState;
+
+
+    dashboard.syncNavigationState =
+        syncNavigationState;
 
 
     dashboard.waitForSharedNavigation =
