@@ -10,52 +10,68 @@
  *   GET /api/model-config
  *   GET /api/model-config?model_id=grok-imagine/image-to-video
  *
- * ARSITEKTUR:
+ * =========================================================
  *
- *   Supabase:
- *       models
- *          ↓
- *       model_id
- *          ↓
- *       MODEL_REGISTRY
- *          ↓
- *       adapter model
+ * ARSITEKTUR
  *
- *   Supabase:
- *       models.provider_id
- *          ↓
- *       providers.id
- *          ↓
- *       provider configuration
+ * MODEL SOURCE OF TRUTH
  *
- * MODEL SOURCE OF TRUTH:
- * - Supabase models
+ *   Admin Models
+ *        |
+ *        v
+ *   Supabase: models
+ *        |
+ *        +-- model_id
+ *        +-- model_name
+ *        +-- provider_id
+ *        +-- description
+ *        +-- status
+ *        +-- credit
+ *        +-- duration
+ *        +-- ratios
+ *        +-- resolutions
  *
- * PROVIDER SOURCE OF TRUTH:
- * - Supabase providers
  *
- * ADAPTER SOURCE OF TRUTH:
- * - models/<model-folder>/index.js
+ * PROVIDER SOURCE OF TRUTH
  *
- * MODEL_REGISTRY HANYA DIGUNAKAN UNTUK:
- * - memetakan model_id ke adapter
- * - parameters
- * - validation
- * - createTask
- * - queryTask
- * - API metadata
+ *   Supabase: providers
+ *        |
+ *        +-- provider_id
+ *        +-- provider_name
+ *        +-- status
  *
- * TIDAK DIGUNAKAN UNTUK:
- * - daftar model
- * - model name administratif
- * - provider database
- * - pricing administratif
- * - status administratif
+ *
+ * ADAPTER SOURCE OF TRUTH
+ *
+ *   models/<model-folder>/index.js
+ *
+ *
+ * MODEL_REGISTRY
+ *
+ *   BUKAN daftar model.
+ *
+ *   Hanya digunakan untuk:
+ *
+ *   model_id
+ *        |
+ *        v
+ *   adapter
+ *
+ *
+ * API KEY / CREDENTIAL
+ *
+ *   TIDAK PERNAH dikirim ke frontend.
  *
  * =========================================================
  */
 
-import grokImagineImageToVideo from "../models/grok-imagine-image-to-video/index.js";
+
+/* =========================================================
+   MODEL ADAPTER IMPORTS
+   ========================================================= */
+
+import grokImagineImageToVideo
+    from "../models/grok-imagine-image-to-video/index.js";
 
 
 /* =========================================================
@@ -83,27 +99,29 @@ const SUPABASE_SERVICE_ROLE_KEY =
    MODEL ADAPTER REGISTRY
    ---------------------------------------------------------
    PENTING:
-   Registry ini BUKAN daftar model yang tersedia.
  *
-   Registry hanya memetakan:
+ * Registry ini BUKAN daftar model.
  *
-   model_id
-      ↓
-   adapter
+ * Daftar model berasal dari:
  *
-   Model yang boleh tampil tetap berasal dari:
+ *   Supabase -> models
  *
-   Supabase -> models
+ * Registry hanya memetakan:
  *
-   Untuk model baru:
+ *   model_id
+ *       ↓
+ *   adapter
  *
-   import model2 from "../models/model-folder/index.js";
+ * Untuk menambahkan adapter:
  *
-   lalu:
+ *   import modelAdapter
+ *       from "../models/model-folder/index.js";
  *
-   "model-2/id": model2
+ * lalu:
  *
-   ========================================================= */
+ *   "model-id": modelAdapter
+ *
+ * ========================================================= */
 
 const MODEL_REGISTRY = Object.freeze({
 
@@ -216,6 +234,7 @@ async function supabaseRequest(
         await fetch(
             `${SUPABASE_URL}${path}`,
             {
+
                 ...options,
 
                 headers: {
@@ -241,7 +260,8 @@ async function supabaseRequest(
         await response.text();
 
 
-    let data = null;
+    let data =
+        null;
 
 
     if (text) {
@@ -377,6 +397,7 @@ async function authenticateUser(
         await supabaseRequest(
             "/auth/v1/user",
             {
+
                 method: "GET",
 
                 headers: {
@@ -507,7 +528,7 @@ function normalizeArray(
 
 
         /*
-         * PostgreSQL array:
+         * PostgreSQL array
          *
          * {"2:3","9:16"}
          */
@@ -518,10 +539,12 @@ function normalizeArray(
         ) {
 
             const content =
-                trimmed.slice(
-                    1,
-                    -1
-                ).trim();
+                trimmed
+                    .slice(
+                        1,
+                        -1
+                    )
+                    .trim();
 
 
             if (!content) {
@@ -552,7 +575,7 @@ function normalizeArray(
 
 
         /*
-         * JSON array.
+         * JSON array
          */
 
         if (
@@ -583,7 +606,7 @@ function normalizeArray(
             } catch {
 
                 /*
-                 * Fallback ke comma separated.
+                 * fallback CSV
                  */
 
             }
@@ -592,7 +615,7 @@ function normalizeArray(
 
 
         /*
-         * Comma separated.
+         * CSV
          */
 
         return [
@@ -661,9 +684,7 @@ function serializeParameters(
     parameters
 ) {
 
-    if (
-        !parameters
-    ) {
+    if (!parameters) {
 
         return {};
 
@@ -866,14 +887,12 @@ function getModelAdapter(
 /* =========================================================
    LOAD MODEL FROM SUPABASE
    ---------------------------------------------------------
-   SUPABASE MODELS ADALAH SOURCE OF TRUTH.
+   MODEL SOURCE OF TRUTH:
  *
-   Tidak ada fallback ke model folder.
+ *   Supabase -> models
  *
-   Jika model tidak ada di tabel models,
-   model dianggap tidak tersedia.
- *
-   ========================================================= */
+ * Tidak ada fallback ke registry.
+ * ========================================================= */
 
 async function loadDatabaseModel(
     modelId
@@ -949,10 +968,7 @@ async function loadDatabaseModel(
 /* =========================================================
    LOAD ALL DATABASE MODELS
    ---------------------------------------------------------
-   Semua model Generate berasal dari Supabase.
- *
-   MODEL_REGISTRY hanya digunakan untuk mencari adapter.
- *
+   SEMUA MODEL BERASAL DARI ADMIN MODELS.
    ========================================================= */
 
 async function loadDatabaseModels() {
@@ -1082,11 +1098,19 @@ async function loadProviderByDatabaseId(
 /* =========================================================
    BUILD MODEL CONFIG
    ---------------------------------------------------------
-   Identity administratif berasal dari Supabase.
+   Identity administratif:
  *
-   Technical adapter data berasal dari model folder.
+ *   Supabase models
  *
-   ========================================================= */
+ * Provider:
+ *
+ *   Supabase providers
+ *
+ * Technical adapter:
+ *
+ *   model folder
+ *
+ * ========================================================= */
 
 function buildModelConfig(
     adapter,
@@ -1105,11 +1129,10 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
      * MODEL ID
-     * -------------------------------------------------------
      *
-     * SUPABASE ADALAH SOURCE OF TRUTH.
+     * SOURCE OF TRUTH:
+     * Supabase models
      */
 
     const modelId =
@@ -1120,9 +1143,7 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
      * MODEL NAME
-     * -------------------------------------------------------
      */
 
     const modelName =
@@ -1134,11 +1155,7 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
      * PROVIDER
-     * -------------------------------------------------------
-     *
-     * Provider berasal dari Supabase.
      */
 
     const providerId =
@@ -1157,12 +1174,7 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
-     * PARAMETER TEKNIS
-     * -------------------------------------------------------
-     *
-     * Adapter tetap menjadi sumber parameter
-     * teknis yang diperlukan engine.
+     * PARAMETERS DARI ADAPTER
      */
 
     const ratioParameter =
@@ -1193,14 +1205,7 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
-     * DATABASE PARAMETER
-     * -------------------------------------------------------
-     *
-     * Jika kolom tersedia di models,
-     * gunakan data tersebut.
-     *
-     * Jika kosong, gunakan parameter adapter.
+     * PARAMETER DARI ADMIN MODELS
      */
 
     const databaseRatios =
@@ -1228,9 +1233,7 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
      * DURATION
-     * -------------------------------------------------------
      */
 
     const folderMinDuration =
@@ -1270,11 +1273,7 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
-     * PRICING
-     * -------------------------------------------------------
-     *
-     * Pricing administratif berasal dari Supabase.
+     * CREDIT
      */
 
     const creditCost =
@@ -1317,9 +1316,7 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
-     * STATUS MODEL
-     * -------------------------------------------------------
+     * STATUS
      */
 
     const modelStatus =
@@ -1332,27 +1329,23 @@ function buildModelConfig(
 
 
     /*
-     * -------------------------------------------------------
      * TYPE
-     * -------------------------------------------------------
-     *
-     * Preferensi:
-     * Supabase -> adapter config
      */
 
     const modelType =
         String(
             databaseModel?.type ||
+            databaseModel?.model_type ||
             config.type ||
             "unknown"
         ).trim();
 
 
-    return {
+    /*
+     * FINAL OBJECT
+     */
 
-        /*
-         * Database primary key.
-         */
+    return {
 
         id:
             databaseModel?.id ||
@@ -1360,17 +1353,24 @@ function buildModelConfig(
 
 
         /*
-         * ---------------------------------------------------
-         * MODEL IDENTITY
-         * ---------------------------------------------------
+         * MODEL ID
          */
 
         model_id:
             modelId,
 
+
+        /*
+         * MODEL NAME
+         */
+
         model_name:
             modelName,
 
+
+        /*
+         * DESCRIPTION
+         */
 
         description:
             String(
@@ -1379,14 +1379,16 @@ function buildModelConfig(
             ).trim(),
 
 
+        /*
+         * TYPE
+         */
+
         type:
             modelType,
 
 
         /*
-         * ---------------------------------------------------
          * PROVIDER
-         * ---------------------------------------------------
          */
 
         provider: {
@@ -1413,9 +1415,21 @@ function buildModelConfig(
 
 
         /*
-         * ---------------------------------------------------
+         * COMPATIBILITY FIELD
+         */
+
+        provider_id:
+            provider?.id ||
+            databaseModel?.provider_id ||
+            null,
+
+
+        provider_code:
+            providerId,
+
+
+        /*
          * PRICING
-         * ---------------------------------------------------
          */
 
         pricing: {
@@ -1433,9 +1447,21 @@ function buildModelConfig(
 
 
         /*
-         * ---------------------------------------------------
+         * COMPATIBILITY PRICING FIELDS
+         */
+
+        credit_cost:
+            creditCost,
+
+        discount_percent:
+            discountPercent,
+
+        credit_final:
+            creditFinal,
+
+
+        /*
          * DURATION
-         * ---------------------------------------------------
          */
 
         duration: {
@@ -1450,9 +1476,18 @@ function buildModelConfig(
 
 
         /*
-         * ---------------------------------------------------
+         * COMPATIBILITY DURATION FIELDS
+         */
+
+        min_duration:
+            minDuration,
+
+        max_duration:
+            maxDuration,
+
+
+        /*
          * SUPPORTED RATIOS
-         * ---------------------------------------------------
          */
 
         supported_ratios:
@@ -1460,9 +1495,7 @@ function buildModelConfig(
 
 
         /*
-         * ---------------------------------------------------
          * SUPPORTED RESOLUTIONS
-         * ---------------------------------------------------
          */
 
         supported_resolutions:
@@ -1470,9 +1503,7 @@ function buildModelConfig(
 
 
         /*
-         * ---------------------------------------------------
          * STATUS
-         * ---------------------------------------------------
          */
 
         status:
@@ -1480,21 +1511,18 @@ function buildModelConfig(
 
 
         /*
-         * ---------------------------------------------------
          * SOURCE
-         * ---------------------------------------------------
          */
 
         source:
-            "supabase",
+            "admin-model",
 
 
         /*
-         * ---------------------------------------------------
          * PARAMETERS
-         * ---------------------------------------------------
          *
-         * Function validate tidak dikirim.
+         * Adapter boleh null untuk model yang belum
+         * mempunyai adapter.
          */
 
         parameters:
@@ -1504,12 +1532,7 @@ function buildModelConfig(
 
 
         /*
-         * ---------------------------------------------------
-         * API METADATA
-         * ---------------------------------------------------
-         *
-         * Ini hanya metadata adapter.
-         * Bukan endpoint provider credential.
+         * API
          */
 
         api: {
@@ -1522,7 +1545,17 @@ function buildModelConfig(
                 config.api?.queryTask ||
                 null
 
-        }
+        },
+
+
+        /*
+         * ADAPTER STATUS
+         */
+
+        adapter_available:
+            Boolean(
+                adapter
+            )
 
     };
 
@@ -1531,7 +1564,14 @@ function buildModelConfig(
 
 /* =========================================================
    RESOLVE ONE MODEL
-   ========================================================= */
+   ---------------------------------------------------------
+   resolveModel() digunakan untuk request:
+ *
+ *   /api/model-config?model_id=...
+ *
+ * Untuk single model, adapter WAJIB tersedia karena
+ * model tersebut akan digunakan untuk execution.
+ * ========================================================= */
 
 async function resolveModel(
     modelId
@@ -1550,9 +1590,8 @@ async function resolveModel(
 
 
     /*
-     * -------------------------------------------------------
-     * 1. MODEL HARUS ADA DI SUPABASE
-     * -------------------------------------------------------
+     * 1.
+     * MODEL HARUS ADA DI ADMIN MODELS
      */
 
     const databaseModel =
@@ -1581,9 +1620,8 @@ async function resolveModel(
 
 
     /*
-     * -------------------------------------------------------
-     * 2. MODEL HARUS ACTIVE
-     * -------------------------------------------------------
+     * 2.
+     * MODEL HARUS ACTIVE
      */
 
     const modelStatus =
@@ -1622,14 +1660,8 @@ async function resolveModel(
 
 
     /*
-     * -------------------------------------------------------
-     * 3. ADAPTER HARUS TERSEDIA
-     * -------------------------------------------------------
-     *
-     * Supabase menentukan MODEL APA yang tersedia.
-     *
-     * Registry menentukan BAGAIMANA model tersebut
-     * dijalankan.
+     * 3.
+     * ADAPTER
      */
 
     const adapter =
@@ -1648,7 +1680,10 @@ async function resolveModel(
             details: {
 
                 model_id:
-                    modelId
+                    modelId,
+
+                adapter_available:
+                    false
 
             }
 
@@ -1658,9 +1693,8 @@ async function resolveModel(
 
 
     /*
-     * -------------------------------------------------------
-     * 4. PROVIDER WAJIB MENGIKUTI models.provider_id
-     * -------------------------------------------------------
+     * 4.
+     * PROVIDER ID
      */
 
     if (
@@ -1683,6 +1717,11 @@ async function resolveModel(
 
     }
 
+
+    /*
+     * 5.
+     * PROVIDER
+     */
 
     const provider =
         await loadProviderByDatabaseId(
@@ -1713,9 +1752,8 @@ async function resolveModel(
 
 
     /*
-     * -------------------------------------------------------
-     * 5. PROVIDER HARUS ACTIVE
-     * -------------------------------------------------------
+     * 6.
+     * PROVIDER ACTIVE
      */
 
     const providerStatus =
@@ -1763,12 +1801,8 @@ async function resolveModel(
 
 
     /*
-     * -------------------------------------------------------
-     * 6. VALIDASI ADAPTER ID
-     * -------------------------------------------------------
-     *
-     * Adapter boleh mendeskripsikan ID teknisnya,
-     * tetapi tidak boleh menggantikan model_id Supabase.
+     * 7.
+     * VALIDASI ADAPTER ID
      */
 
     const adapterModelId =
@@ -1805,9 +1839,8 @@ async function resolveModel(
 
 
     /*
-     * -------------------------------------------------------
-     * 7. BUILD FINAL CONFIG
-     * -------------------------------------------------------
+     * 8.
+     * BUILD
      */
 
     return {
@@ -1825,16 +1858,23 @@ async function resolveModel(
 
 
 /* =========================================================
-   LOAD ALL MODELS
+   LOAD ALL ACTIVE MODELS
    ---------------------------------------------------------
    PENTING:
  *
- * Jangan iterasi MODEL_REGISTRY.
+ * JANGAN ITERASI MODEL_REGISTRY.
  *
- * MODEL_REGISTRY bukan daftar model.
+ * Semua model berasal dari Admin Models.
  *
- * Daftar model harus berasal dari Supabase.
+ * Model tanpa adapter TETAP masuk ke daftar.
  *
+ * Tujuannya:
+ *
+ *   Admin Models
+ *        ↓
+ *   Generate model selector
+ *
+ * Adapter hanya diperlukan saat execution.
  * ========================================================= */
 
 async function loadAllModels() {
@@ -1871,8 +1911,7 @@ async function loadAllModels() {
 
 
         /*
-         * Hanya model active yang boleh
-         * masuk ke Generate.
+         * HANYA MODEL ACTIVE
          */
 
         const modelStatus =
@@ -1894,36 +1933,114 @@ async function loadAllModels() {
         }
 
 
+        /*
+         * PROVIDER HARUS TERHUBUNG
+         */
+
+        if (
+            !databaseModel.provider_id
+        ) {
+
+            console.warn(
+                `[model-config] Model skipped because provider_id is missing: ${modelId}`
+            );
+
+
+            continue;
+
+        }
+
+
         try {
 
-            const resolved =
-                await resolveModel(
+            const provider =
+                await loadProviderByDatabaseId(
+                    databaseModel.provider_id
+                );
+
+
+            if (!provider) {
+
+                console.warn(
+                    `[model-config] Model skipped because provider was not found: ${modelId}`
+                );
+
+
+                continue;
+
+            }
+
+
+            /*
+             * Provider inactive tidak boleh
+             * menjadi model yang bisa digunakan.
+             */
+
+            const providerStatus =
+                String(
+                    provider.status ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            if (
+                providerStatus !==
+                "active"
+            ) {
+
+                console.warn(
+                    `[model-config] Model skipped because provider is inactive: ${modelId}`
+                );
+
+
+                continue;
+
+            }
+
+
+            /*
+             * ADAPTER OPTIONAL UNTUK LIST.
+             *
+             * Ini inti perbaikannya.
+             */
+
+            const adapter =
+                getModelAdapter(
                     modelId
                 );
 
 
-            if (
-                resolved?.model
-            ) {
+            /*
+             * Jika adapter belum tersedia,
+             * model tetap masuk response.
+             *
+             * adapter_available = false
+             */
 
-                result.push(
-                    resolved.model
+            const model =
+                buildModelConfig(
+                    adapter,
+                    databaseModel,
+                    provider
                 );
 
-            } else {
 
-                console.warn(
-                    `[model-config] Model skipped: ${modelId}`,
-                    resolved?.error ||
-                    "Unknown error"
-                );
+            result.push(
+                model
+            );
 
-            }
 
         } catch (err) {
 
+            /*
+             * Satu model error tidak boleh
+             * menghentikan seluruh daftar model.
+             */
+
             console.error(
-                `[model-config] Failed resolving ${modelId}:`,
+                `[model-config] Failed loading model ${modelId}:`,
                 err
             );
 
@@ -1947,9 +2064,7 @@ export default async function handler(
 ) {
 
     /*
-     * -------------------------------------------------------
      * METHOD
-     * -------------------------------------------------------
      */
 
     if (
@@ -1973,9 +2088,7 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
-     * AUTH
-     * -------------------------------------------------------
+     * AUTHENTICATION
      */
 
     try {
@@ -1999,9 +2112,7 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
      * REQUESTED MODEL
-     * -------------------------------------------------------
      */
 
     const requestedModelId =
@@ -2011,9 +2122,9 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * SINGLE MODEL
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     if (
@@ -2032,7 +2143,8 @@ export default async function handler(
                 resolved?.error
             ) {
 
-                let status = 404;
+                let status =
+                    404;
 
 
                 if (
@@ -2040,7 +2152,8 @@ export default async function handler(
                     "Model is not active"
                 ) {
 
-                    status = 409;
+                    status =
+                        409;
 
                 }
 
@@ -2050,7 +2163,8 @@ export default async function handler(
                     "Model provider is not active"
                 ) {
 
-                    status = 409;
+                    status =
+                        409;
 
                 }
 
@@ -2060,7 +2174,19 @@ export default async function handler(
                     "Model provider is not configured"
                 ) {
 
-                    status = 409;
+                    status =
+                        409;
+
+                }
+
+
+                if (
+                    resolved.error ===
+                    "Model adapter is not registered"
+                ) {
+
+                    status =
+                        409;
 
                 }
 
@@ -2079,8 +2205,10 @@ export default async function handler(
             return success(
                 res,
                 {
+
                     model:
                         resolved.model
+
                 }
             );
 
@@ -2104,9 +2232,21 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * ALL ACTIVE MODELS
-     * -------------------------------------------------------
+     * =====================================================
+     *
+     * INI YANG DIPAKAI GENERATE MODEL SELECTOR.
+     *
+     * Source:
+     *
+     *   Admin Models
+     *       ↓
+     *   Supabase models
+     *
+     * BUKAN:
+     *
+     *   MODEL_REGISTRY
      */
 
     try {
@@ -2118,7 +2258,9 @@ export default async function handler(
         return success(
             res,
             {
+
                 models
+
             }
         );
 
