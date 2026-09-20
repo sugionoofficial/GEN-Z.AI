@@ -283,6 +283,7 @@
                     class="status"
                     role="status"
                     aria-live="polite"
+                    hidden
                 ></div>
 
 
@@ -447,7 +448,9 @@
                 <!-- =================================================
                      PAGE ERROR
                      -------------------------------------------------
-                     Default hidden/controlled oleh generate-ui.js.
+                     Hidden sejak awal.
+                     generate-ui.js akan menampilkannya jika
+                     konfigurasi model benar-benar gagal.
                 ================================================== -->
 
                 <section
@@ -455,6 +458,7 @@
                     class="page-error"
                     role="alert"
                     aria-live="assertive"
+                    hidden
                 >
 
                     <div
@@ -536,6 +540,9 @@
 
                         <!-- =========================================
                              DYNAMIC PARAMETERS
+                             -----------------------------------------
+                             Diisi oleh generate-form.js berdasarkan
+                             konfigurasi model.
                         ========================================== -->
 
                         <div
@@ -578,6 +585,13 @@
 
                                 <!-- =================================
                                      LOADING
+                                     ---------------------------------
+                                     WAJIB hidden saat halaman pertama
+                                     kali dimuat.
+
+                                     generate-ui.js hanya akan
+                                     menampilkannya ketika proses
+                                     generate benar-benar berjalan.
                                 ================================== -->
 
                                 <div
@@ -585,6 +599,7 @@
                                     class="loading"
                                     role="status"
                                     aria-live="polite"
+                                    hidden
                                 >
 
                                     <span
@@ -636,12 +651,15 @@
 
                 <!-- =================================================
                      RESULT CARD
+                     -------------------------------------------------
+                     Hanya ditampilkan setelah task berhasil dibuat.
                 ================================================== -->
 
                 <section
                     id="resultCard"
                     class="card result-card"
                     aria-labelledby="resultCardTitle"
+                    hidden
                 >
 
 
@@ -770,9 +788,8 @@
          - generate-validation.js
          - generate-request.js
          - generate-ui.js
-         - generate-utils.js
 
-         Tidak ada logic Generate inline di halaman.
+         Tidak menggunakan generate-utils.js.
     ========================================================= -->
 
     <script
