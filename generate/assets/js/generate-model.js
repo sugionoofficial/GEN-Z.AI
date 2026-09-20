@@ -26,6 +26,12 @@
    - Model       : Admin Models / Supabase models
    - Provider    : Supabase providers
    - Adapter     : model adapter registry
+
+   CATATAN:
+   - Model aktif tetap boleh tampil walaupun adapter
+     belum tersedia.
+   - Adapter hanya menentukan apakah model siap
+     dieksekusi.
 ========================================================= */
 
 import {
@@ -132,22 +138,24 @@ function getProviderName(model) {
 
 
 /* =========================================================
-   MODEL EXECUTION VALIDATION
+   MODEL VISIBILITY VALIDATION
    ---------------------------------------------------------
-   Model tetap berasal dari Admin Models.
+   Menentukan apakah model boleh DITAMPILKAN.
 
-   Namun Generate hanya boleh menampilkan model yang:
-   - mempunyai model_id
-   - mempunyai adapter
+   TIDAK memeriksa adapter.
+
+   Syarat:
+   - model valid
+   - model_id tersedia
+   - status model active jika status tersedia
    - provider tersedia
-   - provider aktif
-   - status model aktif
+   - provider active jika status tersedia
+   - provider ID tersedia
 
-   API key TIDAK diperiksa di frontend.
-   API key tetap menjadi tanggung jawab backend/provider.
+   adapter_available TIDAK digunakan di sini.
 ========================================================= */
 
-function isExecutableModel(model) {
+function isVisibleModel(model) {
 
     if (
         !model ||
@@ -157,12 +165,21 @@ function isExecutableModel(model) {
     }
 
     const modelId =
-        getModelId(model);
+        getModelId(
+            model
+        );
 
     if (!modelId) {
         return false;
     }
 
+    /*
+     * Jika backend mengirim status model,
+     * hanya model active yang ditampilkan.
+     *
+     * Jika status kosong / undefined,
+     * jangan membuat asumsi inactive.
+     */
     const modelStatus =
         String(
             model.status || ""
@@ -178,22 +195,7 @@ function isExecutableModel(model) {
     }
 
     /*
-     * Model harus mempunyai adapter.
-     *
-     * Backend /api/model-config mengirim:
-     *
-     * adapter_available: true / false
-     *
-     * Jangan menganggap undefined sebagai true.
-     */
-    if (
-        model.adapter_available !== true
-    ) {
-        return false;
-    }
-
-    /*
-     * Provider harus tersedia.
+     * Provider wajib tersedia.
      */
     const provider =
         model.provider;
@@ -207,7 +209,7 @@ function isExecutableModel(model) {
 
     /*
      * Jika backend memberikan status provider,
-     * model hanya boleh digunakan ketika active.
+     * provider harus active.
      */
     const providerStatus =
         String(
@@ -224,16 +226,62 @@ function isExecutableModel(model) {
     }
 
     /*
-     * Provider ID harus tersedia.
+     * Provider ID.
      */
     const providerId =
         String(
             model.provider_code ||
             provider.provider_id ||
+            provider.id ||
             ""
         ).trim();
 
     if (!providerId) {
+        return false;
+    }
+
+    return true;
+
+}
+
+
+/* =========================================================
+   MODEL EXECUTION VALIDATION
+   ---------------------------------------------------------
+   Menentukan apakah model benar-benar siap
+   digunakan untuk execution.
+
+   Berbeda dengan isVisibleModel().
+
+   Model yang:
+   - active
+   - provider active
+   - tetapi adapter belum tersedia
+
+   tetap boleh tampil.
+
+   Namun model tersebut TIDAK executable.
+========================================================= */
+
+function isExecutableModel(model) {
+
+    /*
+     * Pertama model harus visible.
+     */
+    if (
+        !isVisibleModel(
+            model
+        )
+    ) {
+        return false;
+    }
+
+    /*
+     * Adapter WAJIB tersedia untuk execution.
+     */
+    if (
+        model.adapter_available !== true
+    ) {
         return false;
     }
 
@@ -400,23 +448,27 @@ export async function loadAvailableModels() {
         );
 
     /*
-     * Model source tetap berasal dari
-     * /api/model-config.
+     * Source tetap:
      *
-     * Tidak ada model hardcoded di frontend.
+     * /api/model-config
+     *
+     * Tidak ada model hardcoded.
+     *
+     * PENTING:
+     * Jangan gunakan isExecutableModel()
+     * di sini karena adapter yang belum tersedia
+     * tidak boleh membuat model menghilang.
      */
     const validModels =
         models.filter(
             model =>
-                isExecutableModel(
+                isVisibleModel(
                     model
                 )
         );
 
     /*
-     * Jika backend mengirim model tetapi
-     * semuanya tidak executable, berikan
-     * pesan yang lebih tepat.
+     * Jika tidak ada model visible.
      */
     if (
         validModels.length === 0
@@ -428,7 +480,7 @@ export async function loadAvailableModels() {
         if (hasModels) {
 
             throw new Error(
-                "Tidak ada model aktif yang memiliki adapter dan provider aktif."
+                "Tidak ada model aktif yang tersedia."
             );
 
         }
@@ -506,18 +558,17 @@ export function renderModelSelector(
     );
 
     /*
-     * Hanya model executable yang
-     * boleh dirender.
+     * Hanya model visible yang dirender.
      *
-     * Ini juga menjadi perlindungan kedua
-     * jika fungsi ini dipanggil langsung
-     * dengan data mentah.
+     * JANGAN menggunakan isExecutableModel()
+     * karena model tanpa adapter tetap harus
+     * terlihat di daftar.
      */
     const normalizedModels =
         Array.isArray(models)
             ? models.filter(
                 model =>
-                    isExecutableModel(
+                    isVisibleModel(
                         model
                     )
             )
@@ -562,6 +613,16 @@ export function renderModelSelector(
                     ? `${modelName} • ${providerName}`
                     : modelName;
 
+            /*
+             * Simpan informasi adapter pada
+             * option untuk kebutuhan UI/debug
+             * tanpa mengubah source model.
+             */
+            option.dataset.adapterAvailable =
+                model.adapter_available === true
+                    ? "true"
+                    : "false";
+
             modelSelect.appendChild(
                 option
             );
@@ -576,7 +637,8 @@ export function renderModelSelector(
      *
      * 1. preferredModelId
      * 2. stored model
-     * 3. model pertama
+     * 3. executable model pertama
+     * 4. model visible pertama
      */
     let selectedModelId =
         preferredModelId ||
@@ -595,8 +657,21 @@ export function renderModelSelector(
         !preferredExists
     ) {
 
+        /*
+         * Utamakan model yang benar-benar
+         * mempunyai adapter.
+         */
+        const executableModel =
+            normalizedModels.find(
+                model =>
+                    isExecutableModel(
+                        model
+                    )
+            );
+
         selectedModelId =
             getModelId(
+                executableModel ||
                 normalizedModels[0]
             );
 
@@ -680,9 +755,6 @@ export async function loadModelConfig(
     /*
      * Pastikan model memang berasal dari
      * daftar model yang telah dimuat.
-     *
-     * Ini mencegah frontend meminta
-     * model sembarangan.
      */
     const availableModels =
         getAvailableModels();
@@ -706,11 +778,6 @@ export async function loadModelConfig(
 
     }
 
-    /*
-     * URLSearchParams mencegah model_id
-     * merusak URL ketika mempunyai karakter
-     * khusus.
-     */
     const params =
         new URLSearchParams();
 
@@ -725,18 +792,27 @@ export async function loadModelConfig(
         );
 
     /*
-     * Endpoint detail biasanya mengembalikan
-     * object model langsung, atau data.model.
+     * Endpoint detail dapat mengembalikan:
+     *
+     * {
+     *   model: {...}
+     * }
+     *
+     * atau:
+     *
+     * {
+     *   data: {
+     *      model: {...}
+     *   }
+     * }
+     *
+     * atau object model langsung.
      */
     let model =
         data?.model ||
         data?.data?.model ||
         data?.data;
 
-    /*
-     * Jika response langsung berupa object
-     * model, gunakan response tersebut.
-     */
     if (
         !model &&
         data &&
@@ -755,7 +831,9 @@ export async function loadModelConfig(
 
     if (
         !model ||
-        !getModelId(model)
+        !getModelId(
+            model
+        )
     ) {
 
         throw new Error(
@@ -764,10 +842,6 @@ export async function loadModelConfig(
 
     }
 
-    /*
-     * Jangan mengganti model_id dari server
-     * dengan nilai buatan frontend.
-     */
     const serverModelId =
         getModelId(
             model
@@ -785,11 +859,16 @@ export async function loadModelConfig(
     }
 
     /*
-     * Detail model juga wajib executable.
+     * =====================================================
+     * PENTING
+     * =====================================================
      *
-     * Backend adalah sumber validasi utama.
-     * Pemeriksaan frontend ini hanya menjaga
-     * state agar tidak menyimpan model invalid.
+     * Detail model yang dipilih tetap harus
+     * executable.
+     *
+     * Model tanpa adapter boleh TAMPIL,
+     * tetapi tidak boleh dianggap siap
+     * untuk execution.
      */
     if (
         !isExecutableModel(
@@ -874,7 +953,11 @@ export async function selectModel(
     }
 
     /*
-     * Perlindungan tambahan.
+     * Model visible belum tentu executable.
+     *
+     * Di sini kita memberikan error yang
+     * jelas jika user memilih model yang
+     * adapter-nya belum tersedia.
      */
     if (
         !isExecutableModel(
@@ -883,7 +966,7 @@ export async function selectModel(
     ) {
 
         throw new Error(
-            "Model yang dipilih belum siap digunakan."
+            "Model yang dipilih belum memiliki adapter dan belum siap digunakan."
         );
 
     }
@@ -908,25 +991,37 @@ export async function resolveInitialModel() {
         await loadAvailableModels();
 
     /*
-     * Jika model tersimpan masih tersedia
-     * dan executable, gunakan model tersebut.
+     * Model tersimpan boleh digunakan jika
+     * model tersebut masih visible.
      */
     let selectedModelId =
         storedModelId;
 
-    if (
-        !selectedModelId ||
-        !models.some(
+    const storedModel =
+        models.find(
             model =>
                 getModelId(
                     model
                 ) ===
                 selectedModelId
-        )
-    ) {
+        );
+
+    if (!storedModel) {
+
+        /*
+         * Prioritas model yang executable.
+         */
+        const executableModel =
+            models.find(
+                model =>
+                    isExecutableModel(
+                        model
+                    )
+            );
 
         selectedModelId =
             getModelId(
+                executableModel ||
                 models[0]
             );
 
@@ -945,15 +1040,20 @@ export async function resolveInitialModel() {
         selectedModelId
     );
 
+    /*
+     * Load detail model.
+     *
+     * Jika model pertama ternyata belum
+     * mempunyai adapter, fungsi ini akan
+     * memberi error execution readiness.
+     */
     const model =
         await loadModelConfig(
             selectedModelId
         );
 
     /*
-     * Pastikan selector tetap sinkron
-     * dengan model yang benar-benar diterima
-     * dari endpoint detail.
+     * Pastikan selector tetap sinkron.
      */
     const elements =
         getElements();
