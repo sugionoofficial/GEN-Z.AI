@@ -17,8 +17,8 @@
    - Collect parameter
    - Reset form
    - Tidak membuat parameter model baru
-   - task_id tidak ditampilkan
-   - task_id tidak dikirim
+   - Parameter internal seperti task_id / index tidak
+     ditampilkan atau dikirim secara otomatis
 ========================================================= */
 
 "use strict";
@@ -42,7 +42,8 @@ import {
 
 const INTERNAL_PARAMETERS =
     new Set([
-        "task_id"
+        "task_id",
+        "index"
     ]);
 
 
@@ -69,12 +70,13 @@ const MAX_IMAGE_SIZE =
  *
  * Parameter lain yang diberikan model
  * tetap akan dirender.
+ *
+ * "index" sengaja tidak dimasukkan.
  */
 
 const PARAMETER_ORDER = [
     "image_urls",
     "image_url",
-    "index",
     "prompt",
     "mode",
     "aspect_ratio",
@@ -92,7 +94,6 @@ function getContainer() {
 
     const elements =
         getGenerateElements();
-
 
     return (
         elements?.dynamicFields ||
@@ -174,9 +175,7 @@ function getParameterDefinitions(
 
     /*
      * Semua kemungkinan struktur parameter
-     * yang dapat berasal dari model-config.
-     *
-     * Tidak membuat parameter sendiri.
+     * yang berasal dari konfigurasi model.
      */
 
     const candidates = [
@@ -273,13 +272,7 @@ function getParameterDefinitions(
 
 
     /*
-     * Beberapa API mengembalikan:
-     *
-     * {
-     *   data: {
-     *      parameters: {...}
-     *   }
-     * }
+     * Nested API response.
      */
 
     const nestedCandidates = [
@@ -362,7 +355,7 @@ function normalizeParameterDefinitions(
 
 
     /*
-     * JSON string compatibility.
+     * JSON STRING
      */
 
     if (
@@ -457,9 +450,7 @@ function normalizeParameterDefinitions(
 
 
                 const definition = {
-
                     ...item
-
                 };
 
 
@@ -673,9 +664,6 @@ function normalizeParameterDefinitions(
 
             /*
              * Primitive definition.
-             *
-             * Hanya dipertahankan sebagai
-             * definisi sederhana.
              */
 
             if (
@@ -746,9 +734,6 @@ function getParameterLabel(
 
         image_url:
             "Gambar Referensi",
-
-        index:
-            "Index",
 
         prompt:
             "Prompt",
@@ -1140,7 +1125,7 @@ function normalizeArray(
 
 
     /*
-     * JSON array.
+     * JSON ARRAY
      */
 
     if (
@@ -1178,7 +1163,7 @@ function normalizeArray(
 
 
     /*
-     * PostgreSQL array.
+     * PostgreSQL ARRAY
      */
 
     if (
@@ -1207,7 +1192,7 @@ function normalizeArray(
 
 
     /*
-     * CSV.
+     * CSV
      */
 
     return text
@@ -2109,9 +2094,7 @@ function createEnumField(
 
 
     enumValues.forEach(
-        (
-            value
-        ) => {
+        value => {
 
             const option =
                 document.createElement(
@@ -2407,15 +2390,11 @@ function createNumberField(
 
 
     input.step =
-        (
-            String(
-                definition?.type ||
-                ""
-            ).toLowerCase() ===
-            "integer" ||
-            name ===
-            "index"
-        )
+        String(
+            definition?.type ||
+            ""
+        ).toLowerCase() ===
+            "integer"
 
             ? "1"
 
@@ -3184,6 +3163,18 @@ function renderParameter(
     definition
 ) {
 
+    if (
+        !isRenderableParameter(
+            name,
+            definition
+        )
+    ) {
+
+        return null;
+
+    }
+
+
     const wrapper =
         createField(
             name,
@@ -3258,14 +3249,6 @@ export function renderGenerateForm(
     }
 
 
-    /*
-     * MODEL SOURCE
-     *
-     * Prioritas:
-     * 1. argument dari generate-app
-     * 2. currentModel sebagai fallback
-     */
-
     const model =
         resolveModel(
             modelArgument
@@ -3325,9 +3308,7 @@ export function renderGenerateForm(
 
 
     /*
-     * =====================================================
-     * EMPTY PARAMETERS
-     * =====================================================
+     * EMPTY
      */
 
     if (
@@ -3365,9 +3346,7 @@ export function renderGenerateForm(
 
 
     /*
-     * =====================================================
      * RENDER
-     * =====================================================
      */
 
     let renderedCount =
@@ -3416,12 +3395,6 @@ export function renderGenerateForm(
     );
 
 
-    /*
-     * =====================================================
-     * FORCE VISIBLE
-     * =====================================================
-     */
-
     forceContainerVisible(
         container
     );
@@ -3430,7 +3403,6 @@ export function renderGenerateForm(
     console.log(
         "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
         {
-
             model:
                 model.model_id ||
                 model.id ||
@@ -3441,7 +3413,6 @@ export function renderGenerateForm(
 
             parameters:
                 names
-
         }
     );
 
@@ -3837,6 +3808,23 @@ export function getFormParameters(
     names.forEach(
         name => {
 
+            /*
+             * Safety:
+             * parameter internal tidak pernah
+             * ikut dikirim.
+             */
+
+            if (
+                isInternalParameter(
+                    name
+                )
+            ) {
+
+                return;
+
+            }
+
+
             const field =
                 findField(
                     name
@@ -3961,10 +3949,11 @@ export function getFormParameters(
 
 
     /*
-     * Internal parameter.
+     * Final safety.
      */
 
     delete parameters.task_id;
+    delete parameters.index;
 
 
     console.debug(
@@ -4001,6 +3990,17 @@ export function setFieldValue(
     name,
     value
 ) {
+
+    if (
+        isInternalParameter(
+            name
+        )
+    ) {
+
+        return false;
+
+    }
+
 
     const field =
         findField(
@@ -4325,6 +4325,17 @@ export function getParameterDefinition(
     name,
     modelArgument = null
 ) {
+
+    if (
+        isInternalParameter(
+            name
+        )
+    ) {
+
+        return null;
+
+    }
+
 
     const definitions =
         getParameterDefinitions(
