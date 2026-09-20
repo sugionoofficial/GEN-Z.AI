@@ -9,7 +9,7 @@
    - Bootstrap halaman Generate
    - Inisialisasi DOM
    - Inisialisasi authentication
-   - Menampilkan OWNER + CREDIT
+   - Menampilkan OWNER + CREDIT dari profile
    - Memuat model
    - Menghubungkan model -> form -> request
    - Menjalankan polling task
@@ -27,6 +27,7 @@
    CATATAN:
    - Result final tidak dirender di halaman Generate.
    - Result akan digunakan untuk History.
+   - Role/Credit TIDAK dibuat secara hardcode.
 ========================================================= */
 
 
@@ -118,6 +119,9 @@ const appState = {
     authReady:
         false,
 
+    profileReady:
+        false,
+
     modelReady:
         false,
 
@@ -201,15 +205,17 @@ function refreshGenerateAvailability() {
 /* =========================================================
    AUTH BADGE FALLBACK
    ---------------------------------------------------------
-   Jika profile berhasil dimuat:
-       gunakan profile terbaru.
+   Tidak membuat role/credit palsu.
 
-   Jika profile gagal tetapi cache navigation
-   tersedia:
-       gunakan cache tersebut hanya sebagai
-       tampilan sementara.
+   Urutan source:
+   1. currentProfile dari state
+   2. profile global yang memang sudah tersedia
+   3. tidak menampilkan badge
 
-   Source of truth tetap loadProfile().
+   Tidak pernah:
+   - OWNER hardcode
+   - USER hardcode
+   - credit default
 ========================================================= */
 
 function renderAuthFallback() {
@@ -221,7 +227,9 @@ function renderAuthFallback() {
 
 
         if (
-            profile
+            profile &&
+            typeof profile ===
+                "object"
         ) {
 
             renderAuthBadges(
@@ -240,7 +248,9 @@ function renderAuthFallback() {
 
 
         if (
-            cachedProfile
+            cachedProfile &&
+            typeof cachedProfile ===
+                "object"
         ) {
 
             renderAuthBadges(
@@ -258,6 +268,61 @@ function renderAuthFallback() {
 
         console.warn(
             "[GEN-Z.AI][Generate] Auth badge fallback gagal:",
+            error
+        );
+
+    }
+
+
+    /*
+     * Tidak ada fallback palsu.
+     *
+     * Pastikan badge kosong jika memang
+     * profile tidak tersedia.
+     */
+
+    try {
+
+        const {
+            roleBadgeEl,
+            creditBadgeEl
+        } =
+            getElements();
+
+
+        if (
+            roleBadgeEl
+        ) {
+
+            roleBadgeEl.textContent =
+                "";
+
+            roleBadgeEl.hidden =
+                true;
+
+            delete roleBadgeEl.dataset.role;
+
+        }
+
+
+        if (
+            creditBadgeEl
+        ) {
+
+            creditBadgeEl.textContent =
+                "";
+
+            creditBadgeEl.hidden =
+                true;
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate] Gagal membersihkan auth badge:",
             error
         );
 
@@ -291,7 +356,11 @@ async function handleModelChange(
         appState.modelReady =
             false;
 
-        refreshGenerateAvailability();
+        disableGeneration();
+
+        renderModelHeader(
+            null
+        );
 
         return;
 
@@ -360,6 +429,11 @@ async function handleModelChange(
 
 
         disableGeneration();
+
+
+        renderModelHeader(
+            null
+        );
 
 
         showError(
@@ -709,12 +783,6 @@ async function waitForTask(
         return result;
 
 
-    } catch (
-        error
-    ) {
-
-        throw error;
-
     } finally {
 
         appState.polling =
@@ -860,13 +928,10 @@ async function handleGenerateSubmit(
 
         /*
          * =====================================================
-         * PENTING
+         * RESULT TIDAK DITAMPILKAN DI GENERATE
+         * =====================================================
          *
-         * Hasil final TIDAK dirender di halaman Generate.
-         *
-         * History menjadi tempat hasil generation.
-         *
-         * Backend/History integration akan menyimpan:
+         * History akan menjadi tempat:
          * - task_id
          * - model_id
          * - provider
@@ -874,8 +939,7 @@ async function handleGenerateSubmit(
          * - status
          * - parameter
          *
-         * Generate hanya memberi status sukses.
-         * =====================================================
+         * Backend/History integration menangani penyimpanan.
          */
 
         const completedTaskId =
@@ -930,16 +994,6 @@ async function handleGenerateSubmit(
         }
 
 
-        /*
-         * Jangan menyembunyikan pageError di sini.
-         *
-         * Sebelumnya:
-         * hidePageError();
-         *
-         * Ini membuat error yang sudah dirender
-         * langsung hilang lagi.
-         */
-
     } finally {
 
         appState.submitting =
@@ -991,14 +1045,20 @@ async function resetForm() {
     }
 
 
-    /*
-     * Reset parameter dinamis.
-     *
-     * Fungsi ini async karena upload gambar
-     * dapat membutuhkan penghapusan Storage.
-     */
+    try {
 
-    await resetDynamicFields();
+        await resetDynamicFields();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate] Reset dynamic fields gagal:",
+            error
+        );
+
+    }
 
 
     appState.currentTaskId =
@@ -1012,13 +1072,27 @@ async function resetForm() {
     resetUI();
 
 
+    /*
+     * Authentication badge harus tetap ada.
+     */
+
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    /*
+     * Model tetap dipertahankan setelah reset.
+     */
+
+    const model =
+        getCurrentModel();
+
+
     if (
+        model &&
         isModelReady()
     ) {
-
-        const model =
-            getCurrentModel();
-
 
         renderModelHeader(
             model
@@ -1035,6 +1109,14 @@ async function resetForm() {
         showReady(
             "Form berhasil direset."
         );
+
+    } else {
+
+        appState.modelReady =
+            false;
+
+
+        disableGeneration();
 
     }
 
@@ -1221,9 +1303,6 @@ function bindEvents() {
 
 /* =========================================================
    AUTH INITIALIZATION
-   ---------------------------------------------------------
-   Auth dan Model sengaja dipisahkan.
-   Error badge tidak boleh langsung mematikan model.
 ========================================================= */
 
 async function initializeAuth() {
@@ -1254,8 +1333,12 @@ async function initializeAuth() {
     }
 
 
+    appState.authReady =
+        true;
+
+
     /*
-     * Profile adalah source of truth untuk:
+     * Profile adalah source of truth:
      * - role
      * - credits
      */
@@ -1266,22 +1349,38 @@ async function initializeAuth() {
             await loadProfile();
 
 
-        renderAuthBadges(
-            profile
-        );
+        if (
+            profile &&
+            typeof profile ===
+                "object"
+        ) {
+
+            appState.profileReady =
+                true;
+
+
+            renderAuthBadges(
+                profile
+            );
+
+        } else {
+
+            appState.profileReady =
+                false;
+
+
+            renderAuthFallback();
+
+        }
 
 
     } catch (
         profileError
     ) {
 
-        /*
-         * Profile error tidak langsung
-         * menghancurkan halaman Generate.
-         *
-         * Coba tampilkan cache profile
-         * yang sudah ada.
-         */
+        appState.profileReady =
+            false;
+
 
         console.warn(
             "[GEN-Z.AI][Generate] Profile gagal dimuat:",
@@ -1289,54 +1388,16 @@ async function initializeAuth() {
         );
 
 
-        const fallback =
-            renderAuthFallback();
-
-
-        if (
-            !fallback
-        ) {
-
-            /*
-             * Badge tetap diberi status jelas.
-             * Jangan dibiarkan "..." selamanya.
-             */
-
-            const {
-                roleBadge,
-                creditBadge
-            } =
-                getElements();
-
-
-            if (
-                roleBadge
-            ) {
-
-                roleBadge.textContent =
-                    "OWNER";
-
-            }
-
-
-            if (
-                creditBadge
-            ) {
-
-                creditBadge.textContent =
-                    "Credit: -";
-
-            }
-
-        }
+        renderAuthFallback();
 
     }
 
 
     /*
-     * Role tidak digunakan untuk redirect.
+     * Role hanya dibaca.
      *
-     * Hak akses endpoint tetap di backend.
+     * Hak akses endpoint tetap ditentukan
+     * oleh backend.
      */
 
     try {
@@ -1353,10 +1414,6 @@ async function initializeAuth() {
         );
 
     }
-
-
-    appState.authReady =
-        true;
 
 
     return true;
@@ -1486,19 +1543,21 @@ export async function initializeGenerateApp() {
             authError
         ) {
 
-            /*
-             * Auth utama gagal.
-             *
-             * Jangan berpura-pura user siap.
-             * Tetapi tetap tampilkan error yang jelas.
-             */
-
             appState.authReady =
+                false;
+
+            appState.profileReady =
                 false;
 
 
             renderAuthFallback();
 
+
+            /*
+             * Auth wajib.
+             * Jangan menjalankan generation
+             * tanpa session.
+             */
 
             throw authError;
 
@@ -1512,7 +1571,21 @@ export async function initializeGenerateApp() {
          * =====================================================
          */
 
-        await initializeModel();
+        try {
+
+            await initializeModel();
+
+        } catch (
+            modelError
+        ) {
+
+            appState.modelReady =
+                false;
+
+
+            throw modelError;
+
+        }
 
 
         /*
@@ -1558,11 +1631,19 @@ export async function initializeGenerateApp() {
 
 
         /*
-         * Jangan hapus OWNER/Credit
-         * hanya karena model gagal.
+         * Jangan menghapus badge authentication.
+         *
+         * Jika profile sebelumnya berhasil dimuat,
+         * badge tetap dipertahankan.
          */
 
-        renderAuthFallback();
+        if (
+            !appState.profileReady
+        ) {
+
+            renderAuthFallback();
+
+        }
 
 
         showPageError(
@@ -1617,6 +1698,10 @@ export const generateApp =
         isAuthReady:
             () =>
                 appState.authReady,
+
+        isProfileReady:
+            () =>
+                appState.profileReady,
 
         isModelReady:
             () =>
