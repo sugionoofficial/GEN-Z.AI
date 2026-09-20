@@ -2,7 +2,6 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -11,11 +10,6 @@
     <title>Edit Model - GEN-Z.AI</title>
 
     <style>
-
-        /* =====================================================
-           RESET
-        ===================================================== */
-
         * {
             box-sizing: border-box;
         }
@@ -35,41 +29,28 @@
                 sans-serif;
         }
 
-        :root {
-            --neon-red: #ff1744;
-            --neon-red-dark: #d50032;
-            --white: #ffffff;
-            --gray-50: #fafafa;
-            --gray-100: #f3f3f3;
-            --gray-200: #e7e7e7;
-            --gray-300: #d2d2d2;
-            --gray-500: #777;
-            --gray-700: #333;
-            --gray-900: #171717;
-        }
-
         body {
             min-height: 100vh;
-            color: var(--gray-900);
+            color: #171717;
 
             background:
                 radial-gradient(
-                    circle at 10% 5%,
-                    rgba(255,255,255,.98),
-                    rgba(255,255,255,.72) 24%,
+                    circle at 12% 8%,
+                    rgba(255,255,255,.98) 0%,
+                    rgba(255,255,255,.72) 25%,
                     transparent 48%
                 ),
                 radial-gradient(
-                    circle at 90% 90%,
-                    rgba(255,255,255,.96),
-                    rgba(210,210,210,.58) 34%,
-                    transparent 66%
+                    circle at 88% 92%,
+                    rgba(255,255,255,.95) 0%,
+                    rgba(210,210,210,.55) 35%,
+                    transparent 65%
                 ),
                 linear-gradient(
                     135deg,
-                    #898989 0%,
-                    #cfcfcf 30%,
-                    #f2f2f2 65%,
+                    #8a8a8a 0%,
+                    #cfcfcf 28%,
+                    #f4f4f4 62%,
                     #ffffff 100%
                 );
 
@@ -87,21 +68,287 @@
             cursor: pointer;
         }
 
+        :root {
+            --neon-red: #ff1744;
+            --neon-red-dark: #d50032;
+            --neon-red-soft: rgba(255,23,68,.18);
+            --neon-red-glow: rgba(255,23,68,.42);
+
+            --white: rgba(255,255,255,.96);
+            --gray: rgba(232,232,232,.95);
+        }
+
         /* =====================================================
-           SHARED ADMIN NAV COMPATIBILITY
+           APP
+        ===================================================== */
+
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* =====================================================
+           NAV TOGGLE
+        ===================================================== */
+
+        .nav-toggle {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+
+            z-index: 300;
+
+            width: 44px;
+            height: 44px;
+
+            display: grid;
+            place-items: center;
+
+            border: 1px solid rgba(255,255,255,.18);
+            border-radius: 11px;
+
+            color: #fff;
+            background: rgba(20,20,20,.94);
+
+            box-shadow:
+                0 6px 18px rgba(0,0,0,.25),
+                0 0 14px rgba(255,23,68,.18);
+
+            font-size: 21px;
+            font-weight: 900;
+            line-height: 1;
+
+            transition:
+                background .2s ease,
+                border-color .2s ease,
+                box-shadow .2s ease;
+        }
+
+        .nav-toggle:hover {
+            background: var(--neon-red);
+            border-color: var(--neon-red);
+
+            box-shadow:
+                0 0 18px rgba(255,23,68,.55),
+                0 8px 24px rgba(0,0,0,.25);
+        }
+
+        .nav-toggle:focus-visible {
+            outline: 3px solid rgba(255,23,68,.25);
+            outline-offset: 2px;
+        }
+
+        /* =====================================================
+           SIDEBAR
+        ===================================================== */
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+
+            width: 245px;
+
+            padding: 22px 16px;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(20,20,20,.98),
+                    rgba(40,40,40,.98)
+                );
+
+            border-right:
+                1px solid rgba(255,255,255,.12);
+
+            z-index: 200;
+
+            transition:
+                transform .22s ease,
+                box-shadow .22s ease;
+        }
+
+        .app.sidebar-collapsed .sidebar {
+            transform: translateX(-100%);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+
+            padding: 4px 10px 25px;
+
+            color: #fff;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+
+            display: grid;
+            place-items: center;
+
+            border-radius: 11px;
+
+            color: #fff;
+            background: var(--neon-red);
+
+            font-size: 17px;
+            font-weight: 900;
+
+            box-shadow:
+                0 0 12px rgba(255,23,68,.75),
+                0 0 30px rgba(255,23,68,.35);
+        }
+
+        .brand-text {
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: .5px;
+        }
+
+        .brand-sub {
+            margin-top: 2px;
+
+            color: #aaa;
+
+            font-size: 10px;
+            letter-spacing: 1.4px;
+        }
+
+        .nav-title {
+            padding: 0 11px 9px;
+
+            color: #777;
+
+            font-size: 10px;
+            font-weight: 800;
+
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+
+            min-height: 44px;
+
+            padding: 0 13px;
+
+            color: #bdbdbd;
+
+            text-decoration: none;
+
+            border-radius: 10px;
+
+            transition: .2s ease;
+        }
+
+        .nav a:hover {
+            color: #fff;
+            background: rgba(255,255,255,.08);
+        }
+
+        .nav a.active {
+            color: #fff;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(255,23,68,.22),
+                    rgba(255,23,68,.07)
+                );
+
+            box-shadow:
+                inset 3px 0 0 var(--neon-red),
+                0 0 15px rgba(255,23,68,.08);
+        }
+
+        .nav-icon {
+            width: 22px;
+
+            text-align: center;
+
+            font-size: 17px;
+        }
+
+        .nav-label {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .sidebar-bottom {
+            position: absolute;
+
+            left: 16px;
+            right: 16px;
+            bottom: 20px;
+        }
+
+        .logout {
+            width: 100%;
+            min-height: 42px;
+
+            border:
+                1px solid rgba(255,255,255,.12);
+
+            border-radius: 10px;
+
+            color: #ccc;
+            background: rgba(255,255,255,.04);
+        }
+
+        .logout:hover {
+            color: #fff;
+
+            border-color:
+                rgba(255,23,68,.5);
+
+            background:
+                rgba(255,23,68,.12);
+        }
+
+        .sidebar-overlay {
+            display: none;
+
+            position: fixed;
+            inset: 0;
+
+            z-index: 150;
+
+            background: rgba(0,0,0,.38);
+        }
+
+        /* =====================================================
+           MAIN
         ===================================================== */
 
         .main {
-            width: calc(100% - 300px);
-            min-height: 100vh;
-            margin-left: 300px;
+            width: 100%;
 
-            padding:
-                28px 24px 40px;
+            margin-left: 245px;
+
+            padding: 28px;
+
+            transition:
+                margin-left .22s ease;
+        }
+
+        .app.sidebar-collapsed .main {
+            margin-left: 0;
         }
 
         .content {
-            width: min(1100px, 100%);
+            width: min(1100px,100%);
+
             margin: 0 auto;
         }
 
@@ -118,7 +365,7 @@
 
             margin-bottom: 24px;
 
-            padding: 0;
+            padding-left: 48px;
         }
 
         .eyebrow {
@@ -182,15 +429,11 @@
                 0 0 5px rgba(255,23,68,.55),
                 0 0 14px rgba(255,23,68,.18),
                 0 6px 18px rgba(0,0,0,.08);
-
-            transition: .2s ease;
         }
 
         .back-button:hover {
             color: #fff;
-
-            background:
-                var(--neon-red);
+            background: var(--neon-red);
 
             box-shadow:
                 0 0 8px rgba(255,23,68,1),
@@ -198,7 +441,7 @@
         }
 
         /* =====================================================
-           GLOBAL BLOCK
+           COMMON BLOCK
         ===================================================== */
 
         .model-hero,
@@ -210,35 +453,34 @@
         .loading,
         .actions {
             border:
-                1px solid var(--neon-red) !important;
+                1px solid var(--neon-red);
 
             background:
                 linear-gradient(
                     145deg,
-                    rgba(255,255,255,.97) 0%,
-                    rgba(247,247,247,.97) 45%,
-                    rgba(225,225,225,.96) 100%
-                ) !important;
+                    var(--white) 0%,
+                    rgba(247,247,247,.97) 42%,
+                    var(--gray) 100%
+                );
 
             box-shadow:
-                0 0 5px rgba(255,23,68,.88),
+                0 0 5px rgba(255,23,68,.82),
                 0 0 15px rgba(255,23,68,.30),
                 0 10px 30px rgba(0,0,0,.10);
         }
 
         /* =====================================================
-           MODEL HERO
+           HERO
         ===================================================== */
 
         .model-hero {
             position: relative;
 
             margin-bottom: 18px;
+
             padding: 22px;
 
             border-radius: 18px;
-
-            overflow: hidden;
 
             box-shadow:
                 0 0 6px rgba(255,23,68,.95),
@@ -256,21 +498,18 @@
             inset: -2px;
 
             border:
-                1px solid rgba(255,23,68,.16);
+                1px solid rgba(255,23,68,.18);
 
             border-radius: inherit;
 
             pointer-events: none;
 
             box-shadow:
-                0 0 18px rgba(255,23,68,.14),
-                0 0 35px rgba(255,23,68,.06);
+                0 0 18px rgba(255,23,68,.16),
+                0 0 35px rgba(255,23,68,.08);
         }
 
         .model-hero-top {
-            position: relative;
-            z-index: 1;
-
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
@@ -340,6 +579,7 @@
             position: relative;
 
             margin-bottom: 18px;
+
             padding: 24px;
 
             border-radius: 18px;
@@ -411,10 +651,6 @@
             line-height: 1.45;
         }
 
-        /* =====================================================
-           INPUT
-        ===================================================== */
-
         input,
         textarea,
         select {
@@ -453,8 +689,7 @@
         input:focus,
         textarea:focus,
         select:focus {
-            border-color:
-                var(--neon-red);
+            border-color: var(--neon-red);
 
             box-shadow:
                 0 0 0 3px rgba(255,23,68,.10),
@@ -462,23 +697,12 @@
         }
 
         input[readonly],
-        textarea[readonly],
-        .readonly-value {
+        textarea[readonly] {
             color: #555;
 
-            background:
-                linear-gradient(
-                    145deg,
-                    #fff,
-                    #e6e6e6
-                );
+            background: #eee;
 
-            border-color:
-                rgba(255,23,68,.55);
-
-            box-shadow:
-                inset 0 0 8px rgba(255,23,68,.05),
-                0 0 5px rgba(255,23,68,.12);
+            cursor: not-allowed;
         }
 
         .readonly-value {
@@ -489,7 +713,23 @@
 
             padding: 0 13px;
 
+            border:
+                1px solid rgba(255,23,68,.55);
+
             border-radius: 10px;
+
+            color: #555;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #fff,
+                    #e6e6e6
+                );
+
+            box-shadow:
+                inset 0 0 8px rgba(255,23,68,.05),
+                0 0 5px rgba(255,23,68,.12);
 
             font-size: 13px;
 
@@ -504,163 +744,6 @@
                 Monaco,
                 Consolas,
                 monospace;
-        }
-
-        /* =====================================================
-           PROVIDER SELECTOR
-        ===================================================== */
-
-        .provider-options {
-            display: grid;
-
-            grid-template-columns:
-                repeat(2,minmax(0,1fr));
-
-            gap: 10px;
-
-            width: 100%;
-        }
-
-        .provider-option {
-            position: relative;
-
-            display: flex;
-            align-items: center;
-
-            gap: 11px;
-
-            min-height: 58px;
-
-            padding: 11px 13px;
-
-            border:
-                1px solid #cfcfcf;
-
-            border-radius: 11px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    #fff,
-                    #f3f3f3
-                );
-
-            cursor: pointer;
-
-            transition:
-                border-color .18s ease,
-                box-shadow .18s ease,
-                background .18s ease,
-                transform .18s ease;
-        }
-
-        .provider-option:hover {
-            border-color:
-                rgba(255,23,68,.72);
-
-            box-shadow:
-                0 0 8px rgba(255,23,68,.18);
-        }
-
-        .provider-option.selected {
-            border-color:
-                var(--neon-red);
-
-            background:
-                linear-gradient(
-                    145deg,
-                    #fff,
-                    #f0f0f0
-                );
-
-            box-shadow:
-                0 0 6px rgba(255,23,68,.75),
-                0 0 17px rgba(255,23,68,.22);
-        }
-
-        .provider-option input {
-            width: 19px;
-            height: 19px;
-
-            min-width: 19px;
-            min-height: 19px;
-
-            flex:
-                0 0 19px;
-
-            margin: 0;
-            padding: 0;
-
-            accent-color:
-                var(--neon-red);
-
-            cursor: pointer;
-        }
-
-        .provider-option-text {
-            min-width: 0;
-
-            display: block;
-        }
-
-        .provider-option-name {
-            display: block;
-
-            color: #171717;
-
-            font-size: 13px;
-            font-weight: 900;
-
-            line-height: 1.3;
-
-            overflow-wrap: anywhere;
-        }
-
-        .provider-option-id {
-            display: block;
-
-            margin-top: 4px;
-
-            color: #777;
-
-            font-size: 10px;
-
-            line-height: 1.3;
-
-            overflow-wrap: anywhere;
-        }
-
-        .provider-empty {
-            min-height: 48px;
-
-            display: flex;
-            align-items: center;
-
-            padding: 11px 13px;
-
-            border:
-                1px dashed #c8c8c8;
-
-            border-radius: 10px;
-
-            color: #777;
-
-            background:
-                rgba(250,250,250,.95);
-
-            font-size: 11px;
-
-            grid-column: 1 / -1;
-        }
-
-        .provider-empty.provider-error {
-            color: #8c001d;
-
-            border-color:
-                rgba(255,23,68,.55);
-
-            background:
-                rgba(255,255,255,.96);
         }
 
         /* =====================================================
@@ -679,14 +762,6 @@
             padding: 8px 12px;
 
             border-radius: 10px;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    #fff 0%,
-                    #f5f5f5 50%,
-                    #ddd 100%
-                ) !important;
         }
 
         .status-info strong {
@@ -718,12 +793,12 @@
             position: absolute;
 
             opacity: 0;
-
             pointer-events: none;
         }
 
         .slider {
             position: absolute;
+
             inset: 0;
 
             border-radius: 999px;
@@ -757,48 +832,45 @@
         }
 
         .switch input:checked + .slider {
-            background:
-                var(--neon-red);
+            background: var(--neon-red);
 
             box-shadow:
                 0 0 12px rgba(255,23,68,.55);
         }
 
         .switch input:checked + .slider::before {
-            transform:
-                translateX(24px);
+            transform: translateX(24px);
         }
 
         /* =====================================================
-           CREDIT
+           PRICING
         ===================================================== */
 
-        .credit-input-wrap {
+        .price-input-wrap {
             position: relative;
         }
 
-        .credit-prefix {
+        .price-prefix {
             position: absolute;
 
             left: 13px;
             top: 50%;
 
-            transform:
-                translateY(-50%);
+            transform: translateY(-50%);
 
             color: #555;
 
             font-size: 12px;
-            font-weight: 900;
+            font-weight: 800;
 
             pointer-events: none;
         }
 
-        .credit-input-wrap input {
-            padding-left: 64px;
+        .price-input-wrap input {
+            padding-left: 42px;
         }
 
-        .credit-preview {
+        .price-preview {
             display: grid;
 
             grid-template-columns:
@@ -813,13 +885,6 @@
             padding: 15px;
 
             border-radius: 12px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    #fff,
-                    #eee
-                ) !important;
         }
 
         .price-label {
@@ -840,9 +905,6 @@
         }
 
         .price-box.final {
-            border-color:
-                var(--neon-red) !important;
-
             box-shadow:
                 0 0 6px rgba(255,23,68,.95),
                 0 0 20px rgba(255,23,68,.38),
@@ -850,8 +912,43 @@
         }
 
         .price-box.final .price-value {
-            color:
-                var(--neon-red-dark);
+            color: var(--neon-red-dark);
+        }
+
+        /* =====================================================
+           CREDIT INFO
+        ===================================================== */
+
+        .credit-info {
+            margin-top: 18px;
+
+            padding: 13px 15px;
+
+            border:
+                1px solid var(--neon-red);
+
+            border-radius: 12px;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #fff,
+                    #e5e5e5
+                );
+
+            box-shadow:
+                0 0 5px rgba(255,23,68,.55),
+                0 0 14px rgba(255,23,68,.18);
+
+            color: #555;
+
+            font-size: 11px;
+
+            line-height: 1.55;
+        }
+
+        .credit-info strong {
+            color: #222;
         }
 
         /* =====================================================
@@ -879,15 +976,10 @@
             background:
                 linear-gradient(
                     145deg,
-                    #fff 0%,
+                    #fff,
                     #f3f3f3 48%,
-                    #dedede 100%
-                ) !important;
-
-            box-shadow:
-                0 0 5px rgba(255,23,68,.65),
-                0 0 14px rgba(255,23,68,.20),
-                0 7px 20px rgba(0,0,0,.08);
+                    #dedede
+                );
         }
 
         .parameter-card:hover {
@@ -931,16 +1023,11 @@
 
             gap: 10px;
 
+            margin-top: 0;
+
             padding: 15px;
 
             border-radius: 15px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,.96),
-                    rgba(226,226,226,.94)
-                ) !important;
         }
 
         .btn {
@@ -971,19 +1058,16 @@
         .btn-primary {
             color: #fff;
 
-            background:
-                var(--neon-red);
+            background: var(--neon-red);
 
-            border-color:
-                var(--neon-red);
+            border-color: var(--neon-red);
 
             box-shadow:
                 0 0 12px rgba(255,23,68,.4);
         }
 
         .btn-primary:hover {
-            background:
-                #e60032;
+            background: #e60032;
 
             box-shadow:
                 0 0 20px rgba(255,23,68,.55);
@@ -1011,6 +1095,7 @@
             border-radius: 10px;
 
             font-size: 12px;
+
             line-height: 1.55;
         }
 
@@ -1020,15 +1105,14 @@
 
         .alert.error,
         .alert.success {
-            border-color:
-                var(--neon-red) !important;
+            border-color: var(--neon-red);
 
             background:
                 linear-gradient(
                     135deg,
                     rgba(255,255,255,.97),
                     rgba(235,235,235,.95)
-                ) !important;
+                );
 
             box-shadow:
                 0 0 5px rgba(255,23,68,.65),
@@ -1036,13 +1120,11 @@
         }
 
         .alert.error {
-            color:
-                #8c001d;
+            color: #8c001d;
         }
 
         .alert.success {
-            color:
-                #14532d;
+            color: #14532d;
         }
 
         /* =====================================================
@@ -1057,11 +1139,11 @@
 
             min-height: 350px;
 
+            border-radius: 18px;
+
             color: #555;
 
             font-size: 13px;
-
-            border-radius: 18px;
         }
 
         .spinner {
@@ -1084,8 +1166,7 @@
 
         @keyframes spin {
             to {
-                transform:
-                    rotate(360deg);
+                transform: rotate(360deg);
             }
         }
 
@@ -1094,25 +1175,77 @@
         }
 
         /* =====================================================
-           MOBILE / TABLET
+           RESPONSIVE
         ===================================================== */
 
         @media (max-width: 900px) {
 
             .main {
-                width: 100%;
-                margin-left: 0;
+                margin-left: 210px;
+                padding: 20px;
+            }
 
-                padding:
-                    82px 18px 35px;
+            .sidebar {
+                width: 210px;
+            }
+
+            .price-preview {
+                grid-template-columns: 1fr;
             }
         }
 
-        @media (max-width: 800px) {
+        @media (max-width: 720px) {
+
+            .sidebar {
+                position: fixed;
+
+                top: 0;
+                left: 0;
+                bottom: 0;
+
+                width: min(245px,82vw);
+
+                height: 100vh;
+
+                transform: translateX(-100%);
+
+                overflow-y: auto;
+            }
+
+            .app {
+                display: block;
+            }
+
+            .app:not(.sidebar-collapsed)
+            .sidebar {
+                transform: translateX(0);
+
+                box-shadow:
+                    12px 0 35px rgba(0,0,0,.35);
+            }
+
+            .app:not(.sidebar-collapsed)
+            .sidebar-overlay {
+                display: block;
+            }
+
+            .main {
+                margin-left: 0;
+                padding: 15px;
+            }
+
+            .page-header {
+                flex-direction: column;
+
+                padding-left: 52px;
+            }
+
+            .back-button {
+                width: 100%;
+            }
 
             .form-grid {
-                grid-template-columns:
-                    1fr;
+                grid-template-columns: 1fr;
             }
 
             .field.full {
@@ -1120,96 +1253,148 @@
             }
 
             .parameter-grid {
-                grid-template-columns:
-                    repeat(2,minmax(0,1fr));
-            }
-
-            .provider-options {
-                grid-template-columns:
-                    1fr;
-            }
-        }
-
-        @media (max-width: 600px) {
-
-            .main {
-                padding:
-                    76px 12px 30px;
-            }
-
-            .page-header {
-                flex-direction: column;
-
-                gap: 14px;
-            }
-
-            .back-button {
-                width: 100%;
-            }
-
-            .credit-preview {
-                grid-template-columns:
-                    1fr;
-            }
-
-            .parameter-grid {
-                grid-template-columns:
-                    1fr;
+                grid-template-columns: 1fr;
             }
 
             .model-hero-top {
                 flex-direction: column;
             }
 
-            .premium-badge {
-                align-self: flex-start;
-            }
-
             .actions {
-                flex-direction:
-                    column-reverse;
+                flex-direction: column-reverse;
             }
 
             .actions .btn {
                 width: 100%;
             }
-
-            .model-hero,
-            .form-card,
-            .price-box,
-            .parameter-card,
-            .status-box,
-            .alert,
-            .loading,
-            .actions {
-                border-radius: 14px;
-            }
         }
-
     </style>
 </head>
 
-
 <body>
 
-    <!-- =====================================================
-         SHARED ADMIN NAVIGATION
-    ===================================================== -->
+<button
+    type="button"
+    class="nav-toggle"
+    id="navToggle"
+    aria-label="Tutup navigasi"
+    aria-controls="adminSidebar"
+    aria-expanded="true"
+>
+    ☰
+</button>
 
-    <div id="adminNavigation"></div>
+
+<div
+    class="app"
+    id="appShell"
+>
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside
+        class="sidebar"
+        id="adminSidebar"
+    >
+
+        <div class="brand">
+
+            <div class="brand-logo">
+                G
+            </div>
+
+            <div>
+                <div class="brand-text">
+                    GEN-Z.AI
+                </div>
+
+                <div class="brand-sub">
+                    ADMIN CONTROL
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="nav-title">
+            Management
+        </div>
+
+
+        <nav class="nav">
+
+            <a href="./index.html">
+                <span class="nav-icon">⌂</span>
+                <span class="nav-label">
+                    Dashboard
+                </span>
+            </a>
+
+            <a href="./users.html">
+                <span class="nav-icon">♙</span>
+                <span class="nav-label">
+                    Users
+                </span>
+            </a>
+
+            <a href="./providers.html">
+                <span class="nav-icon">◈</span>
+                <span class="nav-label">
+                    Providers
+                </span>
+            </a>
+
+            <a
+                href="./models.html"
+                class="active"
+            >
+                <span class="nav-icon">◆</span>
+                <span class="nav-label">
+                    Models
+                </span>
+            </a>
+
+            <a href="./credit.html">
+                <span class="nav-icon">₿</span>
+                <span class="nav-label">
+                    Credit
+                </span>
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <button
+                type="button"
+                class="logout"
+                id="logoutButton"
+            >
+                Logout
+            </button>
+
+        </div>
+
+    </aside>
+
+
+    <div
+        class="sidebar-overlay"
+        id="sidebarOverlay"
+        aria-hidden="true"
+    ></div>
 
 
     <!-- =====================================================
          MAIN
-    ===================================================== -->
+    ====================================================== -->
 
     <main class="main">
 
         <div class="content">
-
-            <!-- =================================================
-                 HEADER
-            ================================================= -->
 
             <header class="page-header">
 
@@ -1227,8 +1412,8 @@
                         Konfigurasi model yang berasal dari
                         folder model di repository.
                         Model ID dikunci karena digunakan
-                        sebagai referensi utama pada
-                        halaman Generate.
+                        sebagai referensi utama pada halaman
+                        Generate.
                     </p>
 
                 </div>
@@ -1245,27 +1430,21 @@
             </header>
 
 
-            <!-- =================================================
-                 ALERT
-            ================================================== -->
-
             <div
                 id="alertBox"
                 class="alert"
-                role="alert"
             ></div>
 
 
-            <!-- =================================================
-                 LOADING
-            ================================================== -->
-
             <div
                 id="loadingBox"
-                class="loading"
+                class="form-card loading"
             >
+
                 <span class="spinner"></span>
+
                 Memuat konfigurasi model...
+
             </div>
 
 
@@ -1278,9 +1457,7 @@
                 class="hidden"
             >
 
-                <!-- =================================================
-                     MODEL HERO
-                ================================================= -->
+                <!-- MODEL HERO -->
 
                 <section class="model-hero">
 
@@ -1315,7 +1492,7 @@
 
                 <!-- =================================================
                      BASIC CONFIG
-                ================================================= -->
+                ================================================== -->
 
                 <section class="form-card">
 
@@ -1325,9 +1502,8 @@
 
                     <p class="section-description">
                         Identitas teknis model berasal dari
-                        folder model. Nama, deskripsi, dan
-                        status dapat dikonfigurasi oleh admin.
-                        Model ID tidak dapat diubah.
+                        folder model. Hanya konfigurasi
+                        administratif yang dapat diubah.
                     </p>
 
 
@@ -1348,6 +1524,7 @@
 
                             <div class="field-help">
                                 Nama tampilan model.
+                                Tidak mengubah Model ID.
                             </div>
 
                         </div>
@@ -1367,40 +1544,24 @@
                             </div>
 
                             <div class="field-help">
-                                Immutable. Digunakan sebagai
-                                referensi halaman Generate.
+                                Read-only. Berasal dari
+                                config.js model.
                             </div>
 
                         </div>
 
 
-                        <!-- =================================================
-                             PROVIDER
-                        ================================================== -->
-
-                        <div class="field full">
+                        <div class="field">
 
                             <label>
                                 Provider
                             </label>
 
                             <div
-                                id="modelProviderOptions"
-                                class="provider-options"
-                                aria-label="Pilih Provider"
+                                class="readonly-value"
+                                id="providerName"
                             >
-
-                                <div class="provider-empty">
-                                    Memuat provider dari Supabase...
-                                </div>
-
-                            </div>
-
-                            <div class="field-help">
-                                Pilih tepat satu provider.
-                                Daftar provider berasal langsung
-                                dari data provider yang tersedia
-                                pada Supabase.
+                                -
                             </div>
 
                         </div>
@@ -1487,15 +1648,15 @@
                 <section class="form-card">
 
                     <h2 class="section-title">
-                        Pricing Credit
+                        Pricing
                     </h2>
 
                     <p class="section-description">
-                        Sistem pricing GEN-Z.AI menggunakan
-                        credit_cost sebagai harga dasar.
-                        Diskon dihitung otomatis menjadi
-                        credit_final. Nilai credit tidak
-                        diperlakukan sebagai USD.
+                        Bagian ini hanya digunakan untuk
+                        konfigurasi harga jika data harga
+                        USD memang tersedia pada konfigurasi
+                        model. Field credit tidak diperlakukan
+                        sebagai harga USD.
                     </p>
 
 
@@ -1503,29 +1664,67 @@
 
                         <div class="field">
 
-                            <label for="creditCost">
-                                Harga Dasar Credit
+                            <label for="priceUsd">
+                                Harga Dasar USD
                             </label>
 
-                            <div class="credit-input-wrap">
+                            <div class="price-input-wrap">
 
-                                <span class="credit-prefix">
-                                    CREDIT
+                                <span class="price-prefix">
+                                    $
                                 </span>
 
                                 <input
                                     type="number"
-                                    id="creditCost"
+                                    id="priceUsd"
                                     min="0"
                                     step="0.000001"
                                     inputmode="decimal"
+                                    placeholder="0"
                                 >
 
                             </div>
 
                             <div class="field-help">
-                                Nilai ini disimpan ke
-                                models.credit_cost.
+                                Nilai USD hanya disimpan jika
+                                field harga USD tersedia pada
+                                konfigurasi yang digunakan.
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="exchangeRate">
+                                Kurs USD → IDR
+                            </label>
+
+                            <div class="price-input-wrap">
+
+                                <input
+                                    type="number"
+                                    id="exchangeRate"
+                                    min="0"
+                                    step="1"
+                                    inputmode="numeric"
+                                    placeholder="Masukkan kurs"
+                                >
+
+                                <span
+                                    class="price-prefix"
+                                    style="
+                                        left:auto;
+                                        right:13px;
+                                    "
+                                >
+                                    IDR
+                                </span>
+
+                            </div>
+
+                            <div class="field-help">
+                                Hanya untuk kalkulasi tampilan.
                             </div>
 
                         </div>
@@ -1537,7 +1736,7 @@
                                 Diskon
                             </label>
 
-                            <div class="credit-input-wrap">
+                            <div class="price-input-wrap">
 
                                 <input
                                     type="number"
@@ -1546,10 +1745,11 @@
                                     max="100"
                                     step="0.01"
                                     inputmode="decimal"
+                                    placeholder="0"
                                 >
 
                                 <span
-                                    class="credit-prefix"
+                                    class="price-prefix"
                                     style="
                                         left:auto;
                                         right:13px;
@@ -1561,29 +1761,7 @@
                             </div>
 
                             <div class="field-help">
-                                0 berarti tanpa diskon.
-                                Maksimum 100%.
-                            </div>
-
-                        </div>
-
-
-                        <div class="field">
-
-                            <label>
-                                Credit Setelah Diskon
-                            </label>
-
-                            <div
-                                class="readonly-value mono"
-                                id="creditFinalValue"
-                            >
-                                0
-                            </div>
-
-                            <div class="field-help">
-                                Dihitung otomatis dan tidak
-                                menjadi input manual.
+                                Nilai 0 berarti tanpa diskon.
                             </div>
 
                         </div>
@@ -1591,19 +1769,19 @@
                     </div>
 
 
-                    <div class="credit-preview">
+                    <div class="price-preview">
 
                         <div class="price-box">
 
                             <div class="price-label">
-                                Credit Normal
+                                Harga USD
                             </div>
 
                             <div
                                 class="price-value"
-                                id="previewNormal"
+                                id="previewUsd"
                             >
-                                0
+                                $0.00
                             </div>
 
                         </div>
@@ -1612,14 +1790,14 @@
                         <div class="price-box">
 
                             <div class="price-label">
-                                Diskon
+                                Harga IDR
                             </div>
 
                             <div
                                 class="price-value"
-                                id="previewDiscount"
+                                id="previewIdr"
                             >
-                                0%
+                                Rp0
                             </div>
 
                         </div>
@@ -1628,17 +1806,30 @@
                         <div class="price-box final">
 
                             <div class="price-label">
-                                Credit Final
+                                Setelah Diskon
                             </div>
 
                             <div
                                 class="price-value"
                                 id="previewFinal"
                             >
-                                0
+                                Rp0
                             </div>
 
                         </div>
+
+                    </div>
+
+
+                    <div class="credit-info">
+
+                        <strong>Catatan:</strong>
+                        `credit_cost` pada database adalah
+                        biaya credit sistem, bukan otomatis
+                        harga USD. Karena itu halaman ini tidak
+                        mengubah `credit_cost` menjadi nilai USD.
+                        Ini mencegah konfigurasi credit rusak
+                        hanya karena admin mengedit pricing.
 
                     </div>
 
@@ -1658,7 +1849,7 @@
                     <p class="section-description">
                         Parameter teknis dibaca langsung dari
                         parameters.js pada folder model.
-                        Nilai ini tidak dapat diedit dari
+                        Parameter tidak dapat diedit dari
                         halaman admin.
                     </p>
 
@@ -1751,1477 +1942,1054 @@
 
     </main>
 
-
-    <!-- =====================================================
-         SUPABASE
-    ===================================================== -->
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <script src="../assets/js/config.js"></script>
-
-    <script src="./supabase.js"></script>
+</div>
 
 
-    <!-- =====================================================
-         SHARED ADMIN NAV
-    ===================================================== -->
+<!-- =========================================================
+     SUPABASE
+========================================================= -->
 
-    <script src="./admin-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script src="../assets/js/config.js"></script>
 
-    <!-- =====================================================
-         MODEL EDIT
-    ===================================================== -->
-
-    <script type="module">
-
-        import {
-            getRegistryModel,
-            getModelByModelId
-        } from "./models/models-data.js";
+<script src="./supabase.js"></script>
 
 
-        /* =====================================================
-           SUPABASE
-        ===================================================== */
+<!-- =========================================================
+     MODEL EDIT
+========================================================= -->
 
-        const supabase =
-            window.GENZ_SUPABASE ||
-            window.supabaseClient ||
-            null;
+<script type="module">
+
+    import {
+        loadModels,
+        getRegistryModel
+    } from "./models/models-data.js";
 
 
-        /* =====================================================
-           ELEMENTS
-        ===================================================== */
+    /* =====================================================
+       SHARED SUPABASE CLIENT
+    ===================================================== */
 
-        const backButton =
-            document.getElementById("backButton");
+    const supabase =
+        window.GENZ_SUPABASE ||
+        window.supabaseClient ||
+        null;
 
-        const cancelButton =
-            document.getElementById("cancelButton");
 
-        const saveButton =
-            document.getElementById("saveButton");
+    /* =====================================================
+       ELEMENTS
+    ===================================================== */
 
-        const alertBox =
-            document.getElementById("alertBox");
+    const appShell =
+        document.getElementById("appShell");
 
-        const loadingBox =
-            document.getElementById("loadingBox");
+    const navToggle =
+        document.getElementById("navToggle");
 
-        const editContent =
-            document.getElementById("editContent");
+    const sidebarOverlay =
+        document.getElementById("sidebarOverlay");
 
-        const heroModelName =
-            document.getElementById("heroModelName");
+    const adminSidebar =
+        document.getElementById("adminSidebar");
 
-        const heroModelId =
-            document.getElementById("heroModelId");
+    const backButton =
+        document.getElementById("backButton");
 
-        const modelName =
-            document.getElementById("modelName");
+    const cancelButton =
+        document.getElementById("cancelButton");
 
-        const modelId =
-            document.getElementById("modelId");
+    const saveButton =
+        document.getElementById("saveButton");
 
-        const modelProviderOptions =
-            document.getElementById(
-                "modelProviderOptions"
+    const logoutButton =
+        document.getElementById("logoutButton");
+
+    const alertBox =
+        document.getElementById("alertBox");
+
+    const loadingBox =
+        document.getElementById("loadingBox");
+
+    const editContent =
+        document.getElementById("editContent");
+
+    const heroModelName =
+        document.getElementById("heroModelName");
+
+    const heroModelId =
+        document.getElementById("heroModelId");
+
+    const modelName =
+        document.getElementById("modelName");
+
+    const modelId =
+        document.getElementById("modelId");
+
+    const providerName =
+        document.getElementById("providerName");
+
+    const modelType =
+        document.getElementById("modelType");
+
+    const description =
+        document.getElementById("description");
+
+    const statusToggle =
+        document.getElementById("statusToggle");
+
+    const statusText =
+        document.getElementById("statusText");
+
+    const priceUsd =
+        document.getElementById("priceUsd");
+
+    const exchangeRate =
+        document.getElementById("exchangeRate");
+
+    const discount =
+        document.getElementById("discount");
+
+    const previewUsd =
+        document.getElementById("previewUsd");
+
+    const previewIdr =
+        document.getElementById("previewIdr");
+
+    const previewFinal =
+        document.getElementById("previewFinal");
+
+    const durationValue =
+        document.getElementById("durationValue");
+
+    const ratioValue =
+        document.getElementById("ratioValue");
+
+    const resolutionValue =
+        document.getElementById("resolutionValue");
+
+
+    /* =====================================================
+       STATE
+    ===================================================== */
+
+    let currentModel = null;
+
+    let currentModelId = "";
+
+    let currentDatabaseModel = null;
+
+    let saving = false;
+
+
+    /* =====================================================
+       NAVIGATION
+    ===================================================== */
+
+    function setNavigation(open) {
+
+        appShell.classList.toggle(
+            "sidebar-collapsed",
+            !open
+        );
+
+        navToggle.setAttribute(
+            "aria-expanded",
+            String(open)
+        );
+
+        navToggle.setAttribute(
+            "aria-label",
+            open
+                ? "Tutup navigasi"
+                : "Buka navigasi"
+        );
+    }
+
+
+    function toggleNavigation() {
+
+        const isOpen =
+            !appShell.classList.contains(
+                "sidebar-collapsed"
             );
 
-        const modelType =
-            document.getElementById("modelType");
+        setNavigation(!isOpen);
+    }
 
-        const description =
-            document.getElementById("description");
 
-        const statusToggle =
-            document.getElementById("statusToggle");
+    navToggle.addEventListener(
+        "click",
+        toggleNavigation
+    );
 
-        const statusText =
-            document.getElementById("statusText");
 
-        const creditCost =
-            document.getElementById("creditCost");
+    sidebarOverlay.addEventListener(
+        "click",
+        () => setNavigation(false)
+    );
 
-        const discount =
-            document.getElementById("discount");
 
-        const creditFinalValue =
-            document.getElementById("creditFinalValue");
+    adminSidebar
+        .querySelectorAll("a")
+        .forEach(link => {
 
-        const previewNormal =
-            document.getElementById("previewNormal");
-
-        const previewDiscount =
-            document.getElementById("previewDiscount");
-
-        const previewFinal =
-            document.getElementById("previewFinal");
-
-        const durationValue =
-            document.getElementById("durationValue");
-
-        const ratioValue =
-            document.getElementById("ratioValue");
-
-        const resolutionValue =
-            document.getElementById("resolutionValue");
-
-
-        /* =====================================================
-           STATE
-        ===================================================== */
-
-        let currentModel = null;
-
-        let currentModelId = null;
-
-        let currentDatabaseRow = null;
-
-        let currentProviderId = null;
-
-        let availableProviders = [];
-
-        let saving = false;
-
-
-        /* =====================================================
-           ALERT
-        ===================================================== */
-
-        function showAlert(
-            message,
-            type = "error"
-        ) {
-
-            alertBox.textContent =
-                String(message || "");
-
-            alertBox.className =
-                "alert show " +
-                type;
-        }
-
-
-        function hideAlert() {
-
-            alertBox.textContent =
-                "";
-
-            alertBox.className =
-                "alert";
-        }
-
-
-        /* =====================================================
-           LOADING
-        ===================================================== */
-
-        function setLoading(
-            loading
-        ) {
-
-            if (loading) {
-
-                loadingBox.classList.remove(
-                    "hidden"
-                );
-
-                editContent.classList.add(
-                    "hidden"
-                );
-
-            } else {
-
-                loadingBox.classList.add(
-                    "hidden"
-                );
-
-                editContent.classList.remove(
-                    "hidden"
-                );
-            }
-        }
-
-
-        /* =====================================================
-           NUMBER
-        ===================================================== */
-
-        function numberValue(
-            value,
-            fallback = 0
-        ) {
-
-            if (
-                value === null ||
-                value === undefined ||
-                value === ""
-            ) {
-
-                return fallback;
-            }
-
-            const parsed =
-                Number(
-                    String(value)
-                        .replace(/,/g, "")
-                        .trim()
-                );
-
-            return Number.isFinite(parsed)
-                ? parsed
-                : fallback;
-        }
-
-
-        function nonNegative(
-            value
-        ) {
-
-            return Math.max(
-                0,
-                numberValue(
-                    value,
-                    0
-                )
-            );
-        }
-
-
-        function clampDiscount(
-            value
-        ) {
-
-            return Math.min(
-                100,
-                Math.max(
-                    0,
-                    numberValue(
-                        value,
-                        0
-                    )
-                )
-            );
-        }
-
-
-        function roundCredit(
-            value
-        ) {
-
-            const numeric =
-                nonNegative(value);
-
-            const factor =
-                1000000;
-
-            return (
-                Math.round(
-                    (
-                        numeric +
-                        Number.EPSILON
-                    ) *
-                    factor
-                ) /
-                factor
-            );
-        }
-
-
-        /* =====================================================
-           ARRAY
-        ===================================================== */
-
-        function normalizeArray(
-            value
-        ) {
-
-            if (
-                Array.isArray(value)
-            ) {
-
-                return value;
-            }
-
-
-            if (
-                typeof value === "string"
-            ) {
-
-                try {
-
-                    const parsed =
-                        JSON.parse(value);
+            link.addEventListener(
+                "click",
+                () => {
 
                     if (
-                        Array.isArray(parsed)
+                        window.innerWidth <= 720
                     ) {
-
-                        return parsed;
+                        setNavigation(false);
                     }
 
-                } catch (_) {
-                    /* fallback */
+                }
+            );
+
+        });
+
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+
+    function showAlert(
+        message,
+        type = "error"
+    ) {
+
+        alertBox.textContent =
+            message;
+
+        alertBox.className =
+            "alert show " + type;
+    }
+
+
+    function hideAlert() {
+
+        alertBox.textContent = "";
+
+        alertBox.className =
+            "alert";
+    }
+
+
+    function setLoading(value) {
+
+        if (value) {
+
+            loadingBox.classList.remove(
+                "hidden"
+            );
+
+            editContent.classList.add(
+                "hidden"
+            );
+
+        } else {
+
+            loadingBox.classList.add(
+                "hidden"
+            );
+
+            editContent.classList.remove(
+                "hidden"
+            );
+        }
+    }
+
+
+    function numberValue(
+        value,
+        fallback = 0
+    ) {
+
+        const number =
+            Number(value);
+
+        return Number.isFinite(number)
+            ? number
+            : fallback;
+    }
+
+
+    function normalizeArray(value) {
+
+        if (Array.isArray(value)) {
+            return value;
+        }
+
+        if (
+            typeof value === "string"
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(value);
+
+                if (
+                    Array.isArray(parsed)
+                ) {
+                    return parsed;
                 }
 
-
-                return value
-                    .split(",")
-                    .map(
-                        item =>
-                            item.trim()
-                    )
-                    .filter(Boolean);
+            } catch (_) {
+                /* not JSON */
             }
 
+            return value
+                .split(",")
+                .map(
+                    item =>
+                        item.trim()
+                )
+                .filter(Boolean);
+        }
 
+        return [];
+    }
+
+
+    function getQueryModelId() {
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        return (
+            params.get("model_id") ||
+            params.get("id") ||
+            ""
+        ).trim();
+    }
+
+
+    function goBack() {
+
+        if (
+            document.referrer &&
+            document.referrer.includes(
+                window.location.host
+            )
+        ) {
+
+            window.history.back();
+
+            return;
+        }
+
+        window.location.href =
+            "./models.html";
+    }
+
+
+    /* =====================================================
+       PARAMETER EXTRACTION
+    ===================================================== */
+
+    function getParameterDefinition(
+        model,
+        parameterName
+    ) {
+
+        const parameters =
+            model?.parameters;
+
+        if (!Array.isArray(parameters)) {
+            return null;
+        }
+
+        return (
+            parameters.find(
+                parameter =>
+                    parameter &&
+                    parameter.name ===
+                    parameterName
+            ) ||
+            null
+        );
+    }
+
+
+    function getParameterValues(
+        model,
+        parameterName
+    ) {
+
+        const definition =
+            getParameterDefinition(
+                model,
+                parameterName
+            );
+
+        if (!definition) {
             return [];
         }
 
-
-        /* =====================================================
-           QUERY
-        ===================================================== */
-
-        function getQueryModelId() {
-
-            const params =
-                new URLSearchParams(
-                    window.location.search
-                );
-
-            return (
-                params.get("model_id") ||
-                params.get("id") ||
-                ""
-            ).trim();
-        }
-
-
-        /* =====================================================
-           BACK
-        ===================================================== */
-
-        function goBack() {
-
-            if (
-                document.referrer &&
-                document.referrer.includes(
-                    window.location.host
-                )
-            ) {
-
-                window.history.back();
-
-                return;
-            }
-
-            window.location.href =
-                "./models.html";
-        }
-
-
-        /* =====================================================
-           STATUS
-        ===================================================== */
-
-        function updateStatusText() {
-
-            statusText.textContent =
-                statusToggle.checked
-                    ? "Aktif"
-                    : "Nonaktif";
-        }
-
-
-        /* =====================================================
-           CREDIT
-        ===================================================== */
-
-        function calculateCredit() {
-
-            const base =
-                nonNegative(
-                    creditCost.value
-                );
-
-            const discountPercent =
-                clampDiscount(
-                    discount.value
-                );
-
-            const discountAmount =
-                roundCredit(
-                    base *
-                    (
-                        discountPercent /
-                        100
-                    )
-                );
-
-            const finalCredit =
-                roundCredit(
-                    base -
-                    discountAmount
-                );
-
-
-            return {
-
-                credit_cost:
-                    base,
-
-                discount_percent:
-                    discountPercent,
-
-                discount_amount:
-                    discountAmount,
-
-                credit_final:
-                    finalCredit
-
-            };
-        }
-
-
-        function formatCredit(
-            value
+        if (
+            Array.isArray(
+                definition.enum
+            )
         ) {
-
-            return new Intl.NumberFormat(
-                "id-ID",
-                {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 6
-                }
-            ).format(
-                nonNegative(value)
-            );
-        }
-
-
-        function updateCreditPreview() {
-
-            const result =
-                calculateCredit();
-
-
-            previewNormal.textContent =
-                formatCredit(
-                    result.credit_cost
-                );
-
-
-            previewDiscount.textContent =
-                new Intl.NumberFormat(
-                    "id-ID",
-                    {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 2
-                    }
-                ).format(
-                    result.discount_percent
-                ) + "%";
-
-
-            previewFinal.textContent =
-                formatCredit(
-                    result.credit_final
-                );
-
-
-            creditFinalValue.textContent =
-                formatCredit(
-                    result.credit_final
-                );
-
-
-            return result;
-        }
-
-
-        /* =====================================================
-           PARAMETERS
-        ===================================================== */
-
-        function getParameterObject(
-            model
-        ) {
-
-            return (
-                model?.parameters ||
-                model?.parameterDefinitions ||
-                model?.parameter_definitions ||
-                {}
-            );
-        }
-
-
-        function getParameterDefinition(
-            model,
-            key
-        ) {
-
-            const parameters =
-                getParameterObject(model);
-
-            return (
-                parameters?.[key] ||
-                null
-            );
-        }
-
-
-        function getParameterEnum(
-            model,
-            key
-        ) {
-
-            const definition =
-                getParameterDefinition(
-                    model,
-                    key
-                );
-
-            if (
-                !definition ||
-                !Array.isArray(
-                    definition.enum
-                )
-            ) {
-
-                return [];
-            }
-
             return definition.enum;
         }
 
+        if (
+            Array.isArray(
+                definition.options
+            )
+        ) {
+            return definition.options;
+        }
 
-        function getDurationRange(
-            model
+        return [];
+    }
+
+
+    function getParameterDefault(
+        model,
+        parameterName
+    ) {
+
+        const definition =
+            getParameterDefinition(
+                model,
+                parameterName
+            );
+
+        if (!definition) {
+            return null;
+        }
+
+        return (
+            definition.default ??
+            null
+        );
+    }
+
+
+    /* =====================================================
+       PARAMETERS
+    ===================================================== */
+
+    function renderParameters(model) {
+
+        /*
+         * Duration
+         */
+
+        const durationParameter =
+            getParameterDefinition(
+                model,
+                "duration"
+            );
+
+
+        let minDuration =
+            model?.min_duration ??
+            durationParameter?.min ??
+            null;
+
+        let maxDuration =
+            model?.max_duration ??
+            durationParameter?.max ??
+            null;
+
+
+        if (
+            minDuration !== null &&
+            maxDuration !== null
         ) {
 
-            const definition =
-                getParameterDefinition(
+            durationValue.textContent =
+                `${minDuration} - ${maxDuration} detik`;
+
+        } else if (
+            minDuration !== null
+        ) {
+
+            durationValue.textContent =
+                `${minDuration} detik`;
+
+        } else if (
+            maxDuration !== null
+        ) {
+
+            durationValue.textContent =
+                `${maxDuration} detik`;
+
+        } else {
+
+            const defaultDuration =
+                getParameterDefault(
                     model,
                     "duration"
                 );
 
-
-            const minimum =
-                definition?.min ??
-                definition?.minimum ??
-                model?.min_duration ??
-                null;
-
-            const maximum =
-                definition?.max ??
-                definition?.maximum ??
-                model?.max_duration ??
-                null;
-
-
-            return {
-
-                min: minimum,
-
-                max: maximum
-
-            };
+            durationValue.textContent =
+                defaultDuration !== null
+                    ? `${defaultDuration} detik`
+                    : "Mengikuti parameters.js";
         }
 
 
-        function renderParameters(
-            model
-        ) {
+        /*
+         * Aspect ratio
+         */
 
-            const duration =
-                getDurationRange(model);
+        let ratios =
+            normalizeArray(
+                model?.supported_ratios
+            );
 
+
+        if (!ratios.length) {
+
+            ratios =
+                getParameterValues(
+                    model,
+                    "aspect_ratio"
+                );
+        }
+
+
+        if (!ratios.length) {
+
+            const defaultRatio =
+                getParameterDefault(
+                    model,
+                    "aspect_ratio"
+                );
 
             if (
-                duration.min !== null &&
-                duration.max !== null
+                defaultRatio !== null
             ) {
-
-                durationValue.textContent =
-                    `${duration.min} - ${duration.max} detik`;
-
-            } else if (
-                duration.min !== null
-            ) {
-
-                durationValue.textContent =
-                    `${duration.min} detik`;
-
-            } else if (
-                duration.max !== null
-            ) {
-
-                durationValue.textContent =
-                    `${duration.max} detik`;
-
-            } else {
-
-                durationValue.textContent =
-                    "Mengikuti parameters.js";
+                ratios = [
+                    defaultRatio
+                ];
             }
-
-
-            let ratios =
-                normalizeArray(
-                    model?.supported_ratios
-                );
-
-
-            if (!ratios.length) {
-
-                ratios =
-                    getParameterEnum(
-                        model,
-                        "aspect_ratio"
-                    );
-            }
-
-
-            ratioValue.textContent =
-                ratios.length
-                    ? ratios.join(" • ")
-                    : "Mengikuti parameters.js";
-
-
-            let resolutions =
-                normalizeArray(
-                    model?.supported_resolutions
-                );
-
-
-            if (!resolutions.length) {
-
-                resolutions =
-                    getParameterEnum(
-                        model,
-                        "resolution"
-                    );
-            }
-
-
-            resolutionValue.textContent =
-                resolutions.length
-                    ? resolutions.join(" • ")
-                    : "Mengikuti parameters.js";
         }
 
 
-        /* =====================================================
-           MODEL HELPERS
-        ===================================================== */
+        ratioValue.textContent =
+            ratios.length
+                ? ratios.join(" • ")
+                : "Mengikuti parameters.js";
 
-        function getModelName(
-            model
-        ) {
 
-            return (
-                model?.model_name ||
-                model?.name ||
-                model?.config?.name ||
+        /*
+         * Resolution
+         */
+
+        let resolutions =
+            normalizeArray(
+                model?.supported_resolutions
+            );
+
+
+        if (!resolutions.length) {
+
+            resolutions =
+                getParameterValues(
+                    model,
+                    "resolution"
+                );
+        }
+
+
+        if (!resolutions.length) {
+
+            const defaultResolution =
+                getParameterDefault(
+                    model,
+                    "resolution"
+                );
+
+            if (
+                defaultResolution !== null
+            ) {
+                resolutions = [
+                    defaultResolution
+                ];
+            }
+        }
+
+
+        resolutionValue.textContent =
+            resolutions.length
+                ? resolutions.join(" • ")
+                : "Mengikuti parameters.js";
+    }
+
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    function updateStatusText() {
+
+        statusText.textContent =
+            statusToggle.checked
+                ? "Aktif"
+                : "Nonaktif";
+    }
+
+
+    /* =====================================================
+       PRICING
+    ===================================================== */
+
+    function updatePricePreview() {
+
+        const usd =
+            Math.max(
+                0,
+                numberValue(
+                    priceUsd.value
+                )
+            );
+
+        const rate =
+            Math.max(
+                0,
+                numberValue(
+                    exchangeRate.value
+                )
+            );
+
+        const discountPercent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    numberValue(
+                        discount.value
+                    )
+                )
+            );
+
+
+        const idr =
+            usd * rate;
+
+
+        const finalIdr =
+            idr *
+            (
+                1 -
+                discountPercent / 100
+            );
+
+
+        previewUsd.textContent =
+            "$" +
+            usd.toLocaleString(
+                "en-US",
+                {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 6
+                }
+            );
+
+
+        previewIdr.textContent =
+            "Rp" +
+            Math.round(idr)
+                .toLocaleString(
+                    "id-ID"
+                );
+
+
+        previewFinal.textContent =
+            "Rp" +
+            Math.round(finalIdr)
+                .toLocaleString(
+                    "id-ID"
+                );
+
+
+        return {
+            usd,
+            rate,
+            idr,
+            discountPercent,
+            finalIdr
+        };
+    }
+
+
+    /* =====================================================
+       RENDER MODEL
+    ===================================================== */
+
+    function renderModel(model) {
+
+        currentModel =
+            model;
+
+        currentModelId =
+            String(
                 model?.model_id ||
                 model?.id ||
-                "-"
-            );
-        }
-
-
-        function getModelId(
-            model
-        ) {
-
-            return (
-                model?.model_id ||
-                model?.config?.id ||
                 ""
             );
-        }
 
 
-        function getProviderId(
-            model
-        ) {
-
-            return (
-                model?.provider_id ||
-                model?.providerId ||
-                model?.config?.providerId ||
-                model?.provider?.id ||
-                null
-            );
-        }
+        const name =
+            model?.model_name ||
+            model?.name ||
+            currentModelId ||
+            "Model";
 
 
-        function getModelType(
-            model
-        ) {
-
-            return (
-                model?.type ||
-                model?.model_type ||
-                model?.config?.type ||
-                "-"
-            );
-        }
+        const provider =
+            model?.provider_name ||
+            model?.providerName ||
+            model?.provider_id ||
+            model?.providerId ||
+            "-";
 
 
-        /* =====================================================
-           PROVIDER HELPERS
-        ===================================================== */
-
-        function normalizeId(
-            value
-        ) {
-
-            return String(
-                value ?? ""
-            )
-                .trim()
-                .toLowerCase();
-        }
+        const type =
+            model?.type ||
+            model?.model_type ||
+            "-";
 
 
-        function providerDbId(
-            provider
-        ) {
-
-            return (
-                provider?.id ||
-                provider?.uuid ||
-                provider?.provider_uuid ||
-                null
-            );
-        }
+        heroModelName.textContent =
+            name;
 
 
-        function providerRegistryId(
-            provider
-        ) {
+        heroModelId.textContent =
+            currentModelId;
 
-            return (
-                provider?.provider_id ||
-                provider?.alias ||
-                provider?.key ||
+
+        modelName.value =
+            name;
+
+
+        modelId.textContent =
+            currentModelId;
+
+
+        providerName.textContent =
+            provider;
+
+
+        modelType.textContent =
+            type;
+
+
+        description.value =
+            model?.description ||
+            "";
+
+
+        statusToggle.checked =
+            String(
+                model?.status ||
                 ""
+            ).toLowerCase() ===
+            "active";
+
+
+        updateStatusText();
+
+
+        renderParameters(model);
+
+
+        /*
+         * Jangan membaca credit_cost sebagai USD.
+         *
+         * Jika model registry/config memiliki
+         * price_usd, gunakan itu.
+         */
+
+        const registryPrice =
+            model?.price_usd ??
+            model?.priceUSD ??
+            null;
+
+
+        priceUsd.value =
+            registryPrice !== null
+                ? numberValue(
+                    registryPrice
+                )
+                : "";
+
+
+        /*
+         * Jangan hardcode kurs.
+         * Admin mengisinya sendiri untuk
+         * kalkulasi tampilan.
+         */
+
+        exchangeRate.value =
+            "";
+
+
+        discount.value =
+            numberValue(
+                model?.discount_percent ?? 0
             );
-        }
 
 
-        function providerDisplayName(
-            provider
-        ) {
-
-            return (
-                provider?.provider_name ||
-                provider?.name ||
-                provider?.label ||
-                providerRegistryId(provider) ||
-                providerDbId(provider) ||
-                "Provider"
-            );
-        }
+        updatePricePreview();
+    }
 
 
-        function resolveProvider(
-            providers,
-            model
-        ) {
+    /* =====================================================
+       FIND DATABASE CONFIG
+    ===================================================== */
 
-            const rawProviderId =
-                getProviderId(
-                    model
-                );
+    async function findDatabaseModel(
+        modelIdValue
+    ) {
 
-
-            const rawProviderName =
-                model?.provider_name ||
-                model?.providerName ||
-                model?.config?.providerName ||
-                model?.provider?.name ||
-                "";
+        currentDatabaseModel =
+            null;
 
 
-            if (
-                rawProviderId
-            ) {
-
-                const matchedById =
-                    providers.find(
-                        provider => {
-
-                            const dbId =
-                                providerDbId(
-                                    provider
-                                );
-
-                            const registryId =
-                                providerRegistryId(
-                                    provider
-                                );
-
-
-                            return (
-                                normalizeId(dbId) ===
-                                    normalizeId(
-                                        rawProviderId
-                                    ) ||
-
-                                normalizeId(registryId) ===
-                                    normalizeId(
-                                        rawProviderId
-                                    )
-                            );
-                        }
-                    );
-
-
-                if (
-                    matchedById
-                ) {
-
-                    return matchedById;
-                }
-            }
-
-
-            if (
-                rawProviderName
-            ) {
-
-                const matchedByName =
-                    providers.find(
-                        provider => {
-
-                            const name =
-                                providerDisplayName(
-                                    provider
-                                );
-
-                            return (
-                                normalizeId(name) ===
-                                normalizeId(
-                                    rawProviderName
-                                )
-                            );
-                        }
-                    );
-
-
-                if (
-                    matchedByName
-                ) {
-
-                    return matchedByName;
-                }
-            }
-
-
+        if (!supabase) {
             return null;
         }
 
 
-        function getSelectedProviderId() {
-
-            const selected =
-                modelProviderOptions?.querySelector(
-                    'input[name="modelProvider"]:checked'
-                );
-
-
-            return (
-                selected?.value ||
-                ""
-            ).trim();
-        }
-
-
-        function updateProviderVisuals() {
-
-            if (
-                !modelProviderOptions
-            ) {
-
-                return;
-            }
-
-
-            modelProviderOptions
-                .querySelectorAll(
-                    ".provider-option"
-                )
-                .forEach(
-                    option => {
-
-                        const checkbox =
-                            option.querySelector(
-                                'input[name="modelProvider"]'
-                            );
-
-
-                        option.classList.toggle(
-                            "selected",
-                            Boolean(
-                                checkbox?.checked
-                            )
-                        );
-                    }
-                );
-        }
-
-
-        function renderProviderOptions(
-            providers,
-            selectedId = ""
-        ) {
-
-            availableProviders =
-                Array.isArray(
-                    providers
-                )
-                    ? providers.filter(
-                        provider =>
-                            Boolean(
-                                providerDbId(
-                                    provider
-                                )
-                            )
-                    )
-                    : [];
-
-
-            modelProviderOptions.innerHTML =
-                "";
-
-
-            if (
-                !availableProviders.length
-            ) {
-
-                const empty =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                empty.className =
-                    "provider-empty provider-error";
-
-
-                empty.textContent =
-                    "Tidak ada provider terdaftar di Supabase.";
-
-
-                modelProviderOptions.appendChild(
-                    empty
-                );
-
-
-                currentProviderId =
-                    null;
-
-
-                return;
-            }
-
-
-            let selectedMatched =
-                false;
-
-
-            availableProviders.forEach(
-                provider => {
-
-                    const dbId =
-                        String(
-                            providerDbId(
-                                provider
-                            )
-                        );
-
-
-                    const registryId =
-                        providerRegistryId(
-                            provider
-                        );
-
-
-                    const displayName =
-                        providerDisplayName(
-                            provider
-                        );
-
-
-                    const option =
-                        document.createElement(
-                            "label"
-                        );
-
-
-                    option.className =
-                        "provider-option";
-
-
-                    const checkbox =
-                        document.createElement(
-                            "input"
-                        );
-
-
-                    /*
-                     * =================================================
-                     * ACTUAL CHECKBOX
-                     *
-                     * Tetap checkbox secara visual,
-                     * tetapi JS memastikan hanya satu
-                     * provider yang aktif.
-                     * =================================================
-                     */
-
-                    checkbox.type =
-                        "checkbox";
-
-
-                    checkbox.name =
-                        "modelProvider";
-
-
-                    /*
-                     * PENTING:
-                     * value selalu UUID/ID database provider.
-                     *
-                     * Bukan:
-                     * kie_ai
-                     * bytedance
-                     * google
-                     *
-                     * melainkan:
-                     * providers.id
-                     */
-
-                    checkbox.value =
-                        dbId;
-
-
-                    const isSelected =
-                        normalizeId(dbId) ===
-                        normalizeId(selectedId);
-
-
-                    checkbox.checked =
-                        isSelected;
-
-
-                    if (
-                        isSelected
-                    ) {
-
-                        selectedMatched =
-                            true;
-                    }
-
-
-                    const text =
-                        document.createElement(
-                            "span"
-                        );
-
-
-                    text.className =
-                        "provider-option-text";
-
-
-                    const name =
-                        document.createElement(
-                            "span"
-                        );
-
-
-                    name.className =
-                        "provider-option-name";
-
-
-                    name.textContent =
-                        displayName;
-
-
-                    const providerIdText =
-                        document.createElement(
-                            "span"
-                        );
-
-
-                    providerIdText.className =
-                        "provider-option-id mono";
-
-
-                    providerIdText.textContent =
-                        registryId ||
-                        dbId;
-
-
-                    text.append(
-                        name,
-                        providerIdText
-                    );
-
-
-                    option.append(
-                        checkbox,
-                        text
-                    );
-
-
-                    checkbox.addEventListener(
-                        "change",
-                        () => {
-
-                            if (
-                                checkbox.checked
-                            ) {
-
-                                modelProviderOptions
-                                    .querySelectorAll(
-                                        'input[name="modelProvider"]'
-                                    )
-                                    .forEach(
-                                        other => {
-
-                                            if (
-                                                other !==
-                                                checkbox
-                                            ) {
-
-                                                other.checked =
-                                                    false;
-                                            }
-                                        }
-                                    );
-                            }
-
-
-                            currentProviderId =
-                                getSelectedProviderId() ||
-                                null;
-
-
-                            updateProviderVisuals();
-                        }
-                    );
-
-
-                    modelProviderOptions.appendChild(
-                        option
-                    );
-                }
-            );
-
-
-            /*
-             * =================================================
-             * Jika selectedId tidak ditemukan,
-             * jangan memilih provider secara sembarang.
-             *
-             * Admin harus memilih sendiri.
-             * =================================================
-             */
-
-            if (
-                !selectedMatched
-            ) {
-
-                currentProviderId =
-                    null;
-
-            } else {
-
-                currentProviderId =
-                    getSelectedProviderId() ||
-                    null;
-            }
-
-
-            updateProviderVisuals();
-        }
-
-
-        function renderSelectedProvider(
-            providers,
-            model
-        ) {
-
-            const matched =
-                resolveProvider(
-                    providers,
-                    model
-                );
-
-
-            const selectedId =
-                matched
-                    ? providerDbId(
-                        matched
-                    )
-                    : (
-                        getProviderId(
-                            model
-                        ) || ""
-                    );
-
-
-            renderProviderOptions(
-                providers,
-                selectedId
-            );
-        }
-
-
-        /* =====================================================
-           SUPABASE SESSION
-        ===================================================== */
-
-        async function getAccessToken() {
-
-            if (!supabase) {
-
-                throw new Error(
-                    "Supabase belum terhubung. Periksa konfigurasi Supabase."
-                );
-            }
-
+        try {
 
             const {
                 data,
                 error
             } =
-                await supabase.auth.getSession();
+                await supabase
+                    .from("models")
+                    .select(
+                        [
+                            "id",
+                            "provider_id",
+                            "model_id",
+                            "model_name",
+                            "description",
+                            "credit_cost",
+                            "discount_percent",
+                            "credit_final",
+                            "status"
+                        ].join(",")
+                    )
+                    .eq(
+                        "model_id",
+                        modelIdValue
+                    )
+                    .maybeSingle();
 
 
-            if (
-                error
-            ) {
+            if (error) {
 
-                throw error;
-            }
-
-
-            const token =
-                data?.session?.access_token;
-
-
-            if (
-                !token
-            ) {
-
-                throw new Error(
-                    "Session admin tidak ditemukan. Silakan login kembali."
+                console.warn(
+                    "GEN-Z.AI model config lookup warning:",
+                    error
                 );
+
+                return null;
             }
 
 
-            return token;
+            currentDatabaseModel =
+                data || null;
+
+
+            return currentDatabaseModel;
+
+        } catch (error) {
+
+            console.warn(
+                "GEN-Z.AI model config lookup failed:",
+                error
+            );
+
+            return null;
+        }
+    }
+
+
+    /* =====================================================
+       MERGE ADMIN CONFIG
+    ===================================================== */
+
+    function mergeAdminConfig(
+        registryModel,
+        databaseModel
+    ) {
+
+        if (!databaseModel) {
+
+            return {
+                ...registryModel
+            };
         }
 
 
-        /* =====================================================
-           ADMIN API
-        ===================================================== */
+        return {
+            ...registryModel,
 
-        async function adminApi(
-            method = "GET",
-            body = null
-        ) {
+            id:
+                registryModel.id ??
+                databaseModel.id,
 
-            const token =
-                await getAccessToken();
+            model_id:
+                registryModel.model_id,
 
+            model_name:
+                databaseModel.model_name ||
+                registryModel.model_name ||
+                registryModel.name,
 
-            const headers = {
+            description:
+                databaseModel.description ??
+                registryModel.description ??
+                "",
 
-                "Authorization":
-                    `Bearer ${token}`,
+            status:
+                databaseModel.status ??
+                registryModel.status ??
+                "inactive",
 
-                "Content-Type":
-                    "application/json",
+            discount_percent:
+                databaseModel.discount_percent ??
+                registryModel.discount_percent ??
+                0,
 
-                "Accept":
-                    "application/json"
+            /*
+             * Credit tetap credit.
+             */
 
-            };
+            credit_cost:
+                databaseModel.credit_cost,
 
+            credit_final:
+                databaseModel.credit_final,
 
-            const options = {
-
-                method,
-
-                headers,
-
-                cache:
-                    "no-store"
-
-            };
-
-
-            if (
-                body !== null
-            ) {
-
-                options.body =
-                    JSON.stringify(
-                        body
-                    );
-            }
+            provider_id:
+                registryModel.provider_id ??
+                databaseModel.provider_id
+        };
+    }
 
 
-            const response =
-                await fetch(
-                    "/api/admin-models",
-                    options
-                );
+    /* =====================================================
+       LOAD MODEL
+    ===================================================== */
+
+    async function loadModel() {
+
+        hideAlert();
+
+        setLoading(true);
 
 
-            const text =
-                await response.text();
+        const requestedId =
+            getQueryModelId();
 
 
-            let data =
+        if (!requestedId) {
+
+            setLoading(false);
+
+            showAlert(
+                "Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...",
+                "error"
+            );
+
+            return;
+        }
+
+
+        try {
+
+            /*
+             * STEP 1
+             *
+             * Model HARUS berasal dari
+             * registry repository.
+             */
+
+            let registryModel =
                 null;
 
 
             try {
 
-                data =
-                    text
-                        ? JSON.parse(text)
-                        : null;
-
-            } catch (_) {
-
-                data = null;
-            }
-
-
-            if (
-                !response.ok
-            ) {
-
-                throw new Error(
-                    data?.error ||
-                    data?.message ||
-                    `Admin API gagal (HTTP ${response.status}).`
-                );
-            }
-
-
-            if (
-                data &&
-                data.success === false
-            ) {
-
-                throw new Error(
-                    data.error ||
-                    data.message ||
-                    "Admin API mengembalikan error."
-                );
-            }
-
-
-            return data || {};
-        }
-
-
-        /* =====================================================
-           LOAD REPOSITORY MODEL
-        ===================================================== */
-
-        async function loadRepositoryModel(
-            requestedId
-        ) {
-
-            try {
-
-                const registryModel =
-                    getRegistryModel(
+                registryModel =
+                    await getRegistryModel(
                         requestedId
                     );
 
-
-                if (
-                    registryModel
-                ) {
-
-                    return registryModel;
-                }
-
-            } catch (error) {
+            } catch (registryError) {
 
                 console.warn(
-                    "[GEN-Z.AI] getRegistryModel gagal:",
-                    error
+                    "getRegistryModel failed, fallback to registry load:",
+                    registryError
                 );
             }
 
 
-            try {
+            /*
+             * Fallback jika helper tidak
+             * mengembalikan object.
+             */
 
-                const model =
-                    await getModelByModelId(
-                        requestedId
-                    );
+            if (!registryModel) {
+
+                const result =
+                    await loadModels({
+                        force: true,
+                        includeInactive: true
+                    });
 
 
-                if (
-                    model
-                ) {
+                const models =
+                    Array.isArray(result)
+                        ? result
+                        : (
+                            result?.models ||
+                            []
+                        );
 
-                    return model;
-                }
 
-            } catch (error) {
-
-                console.warn(
-                    "[GEN-Z.AI] getModelByModelId gagal:",
-                    error
-                );
+                registryModel =
+                    models.find(
+                        item =>
+                            String(
+                                item?.model_id ||
+                                ""
+                            ) ===
+                            String(
+                                requestedId
+                            )
+                    ) ||
+                    null;
             }
 
 
-            return null;
-        }
+            /*
+             * Jangan pernah membuat model
+             * dari data Supabase jika model
+             * tidak ada di repository.
+             */
 
-
-        /* =====================================================
-           LOAD MODEL
-        ===================================================== */
-
-        async function loadModel() {
-
-            hideAlert();
-
-            setLoading(true);
-
-
-            const requestedId =
-                getQueryModelId();
-
-
-            if (
-                !requestedId
-            ) {
+            if (!registryModel) {
 
                 setLoading(false);
 
                 showAlert(
-                    "Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...",
+                    `Model "${requestedId}" tidak ditemukan di registry repository.`,
                     "error"
                 );
 
@@ -3229,947 +2997,408 @@
             }
 
 
-            try {
+            /*
+             * STEP 2
+             *
+             * Supabase hanya dipakai untuk
+             * konfigurasi administratif.
+             */
 
-                /* =================================================
-                   STEP 1
-                   Repository adalah sumber utama.
-                ================================================= */
-
-                const repositoryModel =
-                    await loadRepositoryModel(
-                        requestedId
-                    );
-
-
-                if (
-                    !repositoryModel
-                ) {
-
-                    throw new Error(
-                        `Model "${requestedId}" tidak ditemukan pada registry repository.`
-                    );
-                }
-
-
-                /* =================================================
-                   STEP 2
-                   Ambil konfigurasi melalui ADMIN API.
-                ================================================= */
-
-                const apiData =
-                    await adminApi(
-                        "GET"
-                    );
-
-
-                /*
-                 * Provider WAJIB berasal dari API.
-                 *
-                 * Tidak ada fallback hardcode.
-                 */
-
-                const providers =
-                    Array.isArray(
-                        apiData.providers
-                    )
-                        ? apiData.providers
-                        : [];
-
-
-                if (
-                    !providers.length
-                ) {
-
-                    throw new Error(
-                        "Tidak ada provider yang terdaftar pada Supabase."
-                    );
-                }
-
-
-                const databaseModels =
-                    Array.isArray(
-                        apiData.models
-                    )
-                        ? apiData.models
-                        : [];
-
-
-                const found =
-                    databaseModels.find(
-                        item =>
-                            String(
-                                item?.model_id ||
-                                ""
-                            ).trim() ===
-                            requestedId
-                    );
-
-
-                let mergedModel = {
-
-                    ...repositoryModel
-
-                };
-
-
-                if (
-                    found
-                ) {
-
-                    currentDatabaseRow =
-                        found;
-
-
-                    currentProviderId =
-                        found.provider_id ||
-                        null;
-
-
-                    mergedModel = {
-
-                        ...repositoryModel,
-
-                        ...found,
-
-                        model_id:
-                            requestedId
-
-                    };
-
-                } else {
-
-                    /*
-                     * Row database belum ada.
-                     *
-                     * Provider repository hanya digunakan
-                     * untuk mencari provider yang benar
-                     * di daftar Supabase.
-                     */
-
-                    const repositoryProvider =
-                        getProviderId(
-                            repositoryModel
-                        );
-
-
-                    if (
-                        repositoryProvider
-                    ) {
-
-                        const matchedProvider =
-                            resolveProvider(
-                                providers,
-                                repositoryModel
-                            );
-
-
-                        if (
-                            matchedProvider
-                        ) {
-
-                            currentProviderId =
-                                providerDbId(
-                                    matchedProvider
-                                );
-
-
-                            mergedModel = {
-
-                                ...repositoryModel,
-
-                                provider_id:
-                                    providerDbId(
-                                        matchedProvider
-                                    ),
-
-                                provider_name:
-                                    providerDisplayName(
-                                        matchedProvider
-                                    )
-
-                            };
-                        }
-                    }
-                }
-
-
-                /*
-                 * =================================================
-                 * STEP 3
-                 * Render model dan provider.
-                 * =================================================
-                 */
-
-                renderModel(
-                    mergedModel
+            const databaseModel =
+                await findDatabaseModel(
+                    requestedId
                 );
 
 
-                renderSelectedProvider(
-                    providers,
-                    mergedModel
+            const mergedModel =
+                mergeAdminConfig(
+                    registryModel,
+                    databaseModel
                 );
 
 
-                setLoading(false);
-
-            } catch (error) {
-
-                console.error(
-                    "GEN-Z.AI model-edit load error:",
-                    error
-                );
+            renderModel(
+                mergedModel
+            );
 
 
-                setLoading(false);
+            setLoading(false);
+
+        } catch (error) {
+
+            console.error(
+                "GEN-Z.AI model-edit load error:",
+                error
+            );
+
+            setLoading(false);
+
+            showAlert(
+                error?.message ||
+                "Gagal memuat konfigurasi model.",
+                "error"
+            );
+        }
+    }
 
 
-                showAlert(
-                    error?.message ||
-                    "Gagal memuat data model.",
-                    "error"
-                );
-            }
+    /* =====================================================
+       SAVE MODEL
+    ===================================================== */
+
+    async function saveModel() {
+
+        if (saving) {
+            return;
         }
 
 
-        /* =====================================================
-           RENDER MODEL
-        ===================================================== */
+        hideAlert();
 
-        function renderModel(
-            model
-        ) {
+
+        if (!currentModel) {
+
+            showAlert(
+                "Data model belum tersedia.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (!supabase) {
+
+            showAlert(
+                "Supabase belum terhubung. Periksa konfigurasi project.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const name =
+            modelName.value.trim();
+
+
+        if (!name) {
+
+            showAlert(
+                "Nama model wajib diisi.",
+                "error"
+            );
+
+            modelName.focus();
+
+            return;
+        }
+
+
+        const modelIdValue =
+            currentModel.model_id ||
+            currentModelId;
+
+
+        if (!modelIdValue) {
+
+            showAlert(
+                "Model ID tidak valid.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        /*
+         * Model ID TIDAK dimasukkan ke
+         * payload update.
+         *
+         * Model ID immutable.
+         */
+
+        const discountPercent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    numberValue(
+                        discount.value
+                    )
+                )
+            );
+
+
+        const payload = {
+
+            model_name:
+                name,
+
+            description:
+                description.value.trim(),
+
+            discount_percent:
+                discountPercent,
+
+            status:
+                statusToggle.checked
+                    ? "active"
+                    : "inactive",
+
+            updated_at:
+                new Date().toISOString()
+        };
+
+
+        saving = true;
+
+        saveButton.disabled =
+            true;
+
+        saveButton.textContent =
+            "Menyimpan...";
+
+
+        try {
+
+            /*
+             * Gunakan UUID database jika
+             * tersedia.
+             */
+
+            let query =
+                supabase
+                    .from("models")
+                    .update(payload);
+
 
             if (
-                !model
+                currentDatabaseModel?.id
             ) {
 
-                throw new Error(
-                    "Data model kosong."
+                query =
+                    query.eq(
+                        "id",
+                        currentDatabaseModel.id
+                    );
+
+            } else {
+
+                /*
+                 * Jika belum ada row konfigurasi,
+                 * jangan mengarang INSERT otomatis.
+                 *
+                 * Karena schema provider_id,
+                 * credit_cost, dan field wajib
+                 * lainnya belum boleh diasumsikan.
+                 */
+
+                showAlert(
+                    "Konfigurasi model belum memiliki record Supabase. Model tetap berasal dari repository, tetapi record konfigurasi belum dapat disimpan otomatis tanpa schema lengkap.",
+                    "error"
                 );
+
+                return;
             }
 
 
-            currentModel =
-                model;
+            const {
+                error
+            } =
+                await query;
 
 
-            currentModelId =
-                getModelId(
-                    model
-                );
-
-
-            if (
-                !currentModelId
-            ) {
-
-                throw new Error(
-                    "Model ID tidak tersedia dari config.js."
-                );
+            if (error) {
+                throw error;
             }
 
 
-            const name =
-                getModelName(
-                    model
-                );
+            currentModel = {
+                ...currentModel,
 
+                model_name:
+                    name,
 
-            const type =
-                getModelType(
-                    model
-                );
+                description:
+                    payload.description,
+
+                discount_percent:
+                    discountPercent,
+
+                status:
+                    payload.status
+            };
 
 
             heroModelName.textContent =
                 name;
 
 
-            heroModelId.textContent =
-                currentModelId;
-
-
-            modelName.value =
-                name;
-
-
-            modelId.textContent =
-                currentModelId;
-
-
-            modelType.textContent =
-                type;
-
-
-            description.value =
-                model?.description ||
-                "";
-
-
-            statusToggle.checked =
-                String(
-                    model?.status ||
-                    ""
-                )
-                    .trim()
-                    .toLowerCase() ===
-                "active";
-
-
-            updateStatusText();
-
-
-            creditCost.value =
-                nonNegative(
-                    model?.credit_cost ??
-                    model?.creditCost ??
-                    0
-                );
-
-
-            discount.value =
-                clampDiscount(
-                    model?.discount_percent ??
-                    model?.discountPercent ??
-                    0
-                );
-
-
-            if (
-                model?.provider_id
-            ) {
-
-                currentProviderId =
-                    model.provider_id;
-            }
-
-
-            renderParameters(
-                model
+            showAlert(
+                "Perubahan model berhasil disimpan.",
+                "success"
             );
 
 
-            updateCreditPreview();
-        }
+            setTimeout(
+                () => {
 
+                    window.location.href =
+                        "./models.html";
 
-        /* =====================================================
-           BUILD SAVE PAYLOAD
-        ===================================================== */
+                },
+                900
+            );
 
-        function buildSavePayload() {
+        } catch (error) {
 
-            const pricing =
-                calculateCredit();
+            console.error(
+                "GEN-Z.AI model-edit save error:",
+                error
+            );
 
+            showAlert(
+                error?.message ||
+                "Gagal menyimpan perubahan model.",
+                "error"
+            );
 
-            const providerId =
-                getSelectedProviderId();
+        } finally {
 
-
-            if (
-                !providerId
-            ) {
-
-                throw new Error(
-                    "Pilih satu Provider terlebih dahulu."
-                );
-            }
-
-
-            return {
-
-                /*
-                 * PENTING:
-                 * provider_id di sini adalah
-                 * UUID/ID asli providers.id.
-                 */
-
-                provider_id:
-                    providerId,
-
-                model_name:
-                    modelName.value.trim(),
-
-                description:
-                    description.value.trim(),
-
-                credit_cost:
-                    pricing.credit_cost,
-
-                discount_percent:
-                    pricing.discount_percent,
-
-                status:
-                    statusToggle.checked
-                        ? "active"
-                        : "inactive"
-
-            };
-        }
-
-
-        /* =====================================================
-           SAVE MODEL
-        ===================================================== */
-
-        async function saveModel() {
-
-            if (
-                saving
-            ) {
-
-                return;
-            }
-
-
-            hideAlert();
-
-
-            if (
-                !currentModel
-            ) {
-
-                showAlert(
-                    "Data model belum tersedia.",
-                    "error"
-                );
-
-                return;
-            }
-
-
-            const name =
-                modelName.value.trim();
-
-
-            if (
-                !name
-            ) {
-
-                showAlert(
-                    "Nama model wajib diisi.",
-                    "error"
-                );
-
-                modelName.focus();
-
-                return;
-            }
-
-
-            const modelIdValue =
-                currentModelId;
-
-
-            if (
-                !modelIdValue
-            ) {
-
-                showAlert(
-                    "Model ID tidak tersedia.",
-                    "error"
-                );
-
-                return;
-            }
-
-
-            if (
-                !supabase
-            ) {
-
-                showAlert(
-                    "Supabase belum terhubung. Periksa konfigurasi Supabase pada project.",
-                    "error"
-                );
-
-                return;
-            }
-
-
-            /*
-             * Provider harus dipilih sebelum proses
-             * penyimpanan dimulai.
-             */
-
-            const selectedProviderId =
-                getSelectedProviderId();
-
-
-            if (
-                !selectedProviderId
-            ) {
-
-                showAlert(
-                    "Pilih satu Provider terlebih dahulu.",
-                    "error"
-                );
-
-                modelProviderOptions?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center"
-                });
-
-                return;
-            }
-
-
-            /*
-             * Pastikan provider yang dipilih memang
-             * berasal dari daftar provider yang diberikan
-             * oleh API.
-             */
-
-            const validProvider =
-                availableProviders.find(
-                    provider =>
-                        normalizeId(
-                            providerDbId(
-                                provider
-                            )
-                        ) ===
-                        normalizeId(
-                            selectedProviderId
-                        )
-                );
-
-
-            if (
-                !validProvider
-            ) {
-
-                showAlert(
-                    "Provider yang dipilih tidak valid atau sudah tidak terdaftar di Supabase.",
-                    "error"
-                );
-
-                return;
-            }
-
-
-            saving =
-                true;
-
+            saving = false;
 
             saveButton.disabled =
-                true;
-
+                false;
 
             saveButton.textContent =
-                "Menyimpan...";
+                "Simpan Perubahan";
+        }
+    }
 
 
-            try {
+    /* =====================================================
+       LOGOUT
+    ===================================================== */
 
-                /* =================================================
-                   STEP 1
-                   Ambil data terbaru dari ADMIN API.
-                ================================================= */
+    async function logout() {
 
-                const apiData =
-                    await adminApi(
-                        "GET"
-                    );
+        try {
 
+            if (supabase) {
 
-                const databaseModels =
-                    Array.isArray(
-                        apiData.models
-                    )
-                        ? apiData.models
-                        : [];
-
-
-                const existingRow =
-                    databaseModels.find(
-                        item =>
-                            String(
-                                item?.model_id ||
-                                ""
-                            ).trim() ===
-                            String(
-                                modelIdValue
-                            ).trim()
-                    ) ||
-                    null;
-
-
-                /*
-                 * Jika provider di halaman sudah lama,
-                 * pastikan provider tersebut masih ada
-                 * pada response API terbaru.
-                 */
-
-                const latestProviders =
-                    Array.isArray(
-                        apiData.providers
-                    )
-                        ? apiData.providers
-                        : [];
-
-
-                const latestProvider =
-                    latestProviders.find(
-                        provider =>
-                            normalizeId(
-                                providerDbId(
-                                    provider
-                                )
-                            ) ===
-                            normalizeId(
-                                selectedProviderId
-                            )
-                    );
-
-
-                if (
-                    !latestProvider
-                ) {
-
-                    throw new Error(
-                        "Provider yang dipilih tidak ditemukan pada data Supabase terbaru."
-                    );
-                }
-
-
-                /* =================================================
-                   STEP 2
-                   Payload.
-                ================================================= */
-
-                const payload =
-                    buildSavePayload();
-
-
-                /*
-                 * Pastikan value yang dikirim benar-benar
-                 * database ID provider, bukan alias.
-                 */
-
-                payload.provider_id =
-                    providerDbId(
-                        latestProvider
-                    );
-
-
-                if (
-                    !payload.provider_id
-                ) {
-
-                    throw new Error(
-                        "ID database Provider tidak tersedia."
-                    );
-                }
-
-
-                /* =================================================
-                   STEP 3
-                   UPDATE
-                ================================================= */
-
-                if (
-                    existingRow?.id
-                ) {
-
-                    const result =
-                        await adminApi(
-                            "PATCH",
-                            {
-
-                                id:
-                                    existingRow.id,
-
-                                ...payload
-
-                            }
-                        );
-
-
-                    const savedModel =
-                        result?.model ||
-                        null;
-
-
-                    if (
-                        !savedModel
-                    ) {
-
-                        throw new Error(
-                            "API tidak mengembalikan model setelah update."
-                        );
-                    }
-
-
-                    currentDatabaseRow =
-                        savedModel;
-
-
-                    currentProviderId =
-                        savedModel.provider_id ||
-                        payload.provider_id;
-
-
-                    currentModel = {
-
-                        ...currentModel,
-
-                        ...savedModel,
-
-                        model_id:
-                            modelIdValue
-
-                    };
-
-
-                    /*
-                     * Sinkronkan kembali checkbox
-                     * menggunakan provider ID yang benar.
-                     */
-
-                    renderProviderOptions(
-                        latestProviders,
-                        savedModel.provider_id ||
-                        payload.provider_id
-                    );
-
-
-                    creditFinalValue.textContent =
-                        formatCredit(
-                            savedModel.credit_final ??
-                            calculateCredit().credit_final
-                        );
-
-
-                    showAlert(
-                        "Perubahan model berhasil disimpan.",
-                        "success"
-                    );
-
-                }
-
-
-                /* =================================================
-                   STEP 4
-                   CREATE
-                ================================================= */
-
-                else {
-
-                    const createPayload = {
-
-                        provider_id:
-                            payload.provider_id,
-
-                        model_id:
-                            modelIdValue,
-
-                        model_name:
-                            payload.model_name,
-
-                        description:
-                            payload.description,
-
-                        credit_cost:
-                            payload.credit_cost,
-
-                        discount_percent:
-                            payload.discount_percent,
-
-                        status:
-                            payload.status
-
-                    };
-
-
-                    /*
-                     * POST melalui Admin API.
-                     *
-                     * Tidak ada direct INSERT dari browser.
-                     */
-
-                    const result =
-                        await adminApi(
-                            "POST",
-                            createPayload
-                        );
-
-
-                    const savedModel =
-                        result?.model ||
-                        null;
-
-
-                    if (
-                        !savedModel
-                    ) {
-
-                        throw new Error(
-                            "API tidak mengembalikan model setelah pembuatan."
-                        );
-                    }
-
-
-                    currentDatabaseRow =
-                        savedModel;
-
-
-                    currentProviderId =
-                        savedModel.provider_id ||
-                        createPayload.provider_id;
-
-
-                    currentModel = {
-
-                        ...currentModel,
-
-                        ...savedModel,
-
-                        model_id:
-                            modelIdValue
-
-                    };
-
-
-                    renderProviderOptions(
-                        latestProviders,
-                        savedModel.provider_id ||
-                        createPayload.provider_id
-                    );
-
-
-                    creditFinalValue.textContent =
-                        formatCredit(
-                            savedModel.credit_final ??
-                            calculateCredit().credit_final
-                        );
-
-
-                    showAlert(
-                        "Konfigurasi admin model berhasil dibuat.",
-                        "success"
-                    );
-                }
-
-
-                /* =================================================
-                   STEP 5
-                   Kembali ke Models.
-                ================================================= */
-
-                setTimeout(
-                    () => {
-
-                        window.location.href =
-                            "./models.html";
-
-                    },
-                    900
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "GEN-Z.AI model-edit save error:",
-                    error
-                );
-
-
-                let message =
-                    error?.message ||
-                    "Gagal menyimpan perubahan model.";
-
-
-                /*
-                 * Pesan RLS hanya sebagai diagnosis.
-                 */
-
-                if (
-                    String(message)
-                        .toLowerCase()
-                        .includes(
-                            "row-level security"
-                        )
-                ) {
-
-                    message =
-                        "Operasi database terkena RLS. Pastikan deployment terbaru api/admin-models.js sudah aktif di Vercel.";
-                }
-
-
-                showAlert(
-                    message,
-                    "error"
-                );
-
-            } finally {
-
-                saving =
-                    false;
-
-
-                saveButton.disabled =
-                    false;
-
-
-                saveButton.textContent =
-                    "Simpan Perubahan";
+                await supabase.auth.signOut();
             }
+
+        } catch (error) {
+
+            console.error(
+                "Logout error:",
+                error
+            );
         }
 
 
-        /* =====================================================
-           EVENTS
-        ===================================================== */
-
-        backButton.addEventListener(
-            "click",
-            goBack
-        );
+        window.location.href =
+            "../login.html";
+    }
 
 
-        cancelButton.addEventListener(
-            "click",
-            goBack
-        );
+    /* =====================================================
+       EVENTS
+    ===================================================== */
+
+    backButton.addEventListener(
+        "click",
+        goBack
+    );
 
 
-        saveButton.addEventListener(
-            "click",
-            saveModel
-        );
+    cancelButton.addEventListener(
+        "click",
+        goBack
+    );
 
 
-        statusToggle.addEventListener(
-            "change",
-            updateStatusText
-        );
+    saveButton.addEventListener(
+        "click",
+        saveModel
+    );
 
 
-        creditCost.addEventListener(
-            "input",
-            updateCreditPreview
-        );
+    logoutButton.addEventListener(
+        "click",
+        logout
+    );
 
 
-        discount.addEventListener(
-            "input",
-            updateCreditPreview
-        );
+    statusToggle.addEventListener(
+        "change",
+        updateStatusText
+    );
 
 
-        /* =====================================================
-           INITIALIZE
-        ===================================================== */
+    priceUsd.addEventListener(
+        "input",
+        updatePricePreview
+    );
 
-        updateCreditPreview();
 
-        loadModel();
+    exchangeRate.addEventListener(
+        "input",
+        updatePricePreview
+    );
 
-    </script>
+
+    discount.addEventListener(
+        "input",
+        updatePricePreview
+    );
+
+
+    /* =====================================================
+       INITIAL STATE
+    ===================================================== */
+
+    /*
+     * Desktop:
+     * sidebar terbuka.
+     *
+     * Mobile:
+     * sidebar tertutup.
+     */
+
+    if (window.innerWidth <= 720) {
+        setNavigation(false);
+    } else {
+        setNavigation(true);
+    }
+
+
+    window.addEventListener(
+        "resize",
+        () => {
+
+            if (
+                window.innerWidth > 720
+            ) {
+
+                sidebarOverlay.style.display =
+                    "none";
+
+            }
+
+        }
+    );
+
+
+    /* =====================================================
+       INITIALIZE
+    ===================================================== */
+
+    loadModel();
+
+</script>
 
 </body>
 </html>
