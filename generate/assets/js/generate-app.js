@@ -10,8 +10,9 @@
    - Inisialisasi modul
    - Menghubungkan event UI
    - Menjalankan flow generate
+   - Menjalankan polling task
    - Menjalankan reset
-   - Sinkronisasi model -> form -> request -> result
+   - Sinkronisasi model -> form -> request -> polling -> result
 
    Tidak bertanggung jawab:
    - Query Supabase langsung
@@ -19,7 +20,9 @@
    - Menentukan provider
    - Menentukan harga/model capability
    - Menulis CSS
+   - Query provider secara langsung
 ========================================================= */
+
 
 import {
     initializeGenerateElements,
@@ -29,6 +32,7 @@ import {
     isModelReady
 } from "./generate-state.js";
 
+
 import {
     loadSupabase,
     loadCurrentUser,
@@ -36,10 +40,12 @@ import {
     getCurrentRole
 } from "./generate-auth.js";
 
+
 import {
     resolveInitialModel,
     selectModel
 } from "./generate-model.js";
+
 
 import {
     renderDynamicFields,
@@ -47,14 +53,23 @@ import {
     resetDynamicFields
 } from "./generate-form.js";
 
+
 import {
     validateClientParameters
 } from "./generate-validation.js";
+
 
 import {
     generateVideo,
     GenerateRequestError
 } from "./generate-request.js";
+
+
+import {
+    pollTask,
+    GeneratePollingError
+} from "./generate-polling.js";
+
 
 import {
     renderModelHeader,
@@ -81,15 +96,51 @@ import {
 ========================================================= */
 
 const appState = {
+
     initialized:
         false,
 
     submitting:
         false,
 
+    polling:
+        false,
+
     eventsBound:
-        false
+        false,
+
+    currentTaskId:
+        null,
+
+    pollingStartedAt:
+        null
 };
+
+
+/* =========================================================
+   POLLING CONFIG
+========================================================= */
+
+/*
+ * Polling minimal 3 detik.
+ *
+ * Jangan terlalu agresif.
+ * Provider tetap butuh waktu memproses video.
+ */
+
+const POLLING_INTERVAL =
+    3000;
+
+
+/*
+ * Maksimal 10 menit.
+ *
+ * Nilai ini hanya timeout frontend.
+ * Provider tetap menentukan status task.
+ */
+
+const POLLING_TIMEOUT =
+    10 * 60 * 1000;
 
 
 /* =========================================================
@@ -107,6 +158,22 @@ function getElements() {
 ========================================================= */
 
 function refreshGenerateAvailability() {
+
+    /*
+     * Selama submit/polling berjalan,
+     * tombol Generate tetap dikunci.
+     */
+
+    if (
+        appState.submitting ||
+        appState.polling
+    ) {
+
+        disableGeneration();
+
+        return;
+    }
+
 
     if (
         isModelReady()
@@ -135,6 +202,7 @@ async function handleModelChange(
             ""
         ).trim();
 
+
     if (!modelId) {
 
         disableGeneration();
@@ -142,21 +210,26 @@ async function handleModelChange(
         return;
     }
 
+
     try {
 
         hidePageError();
+
 
         showStatus(
             "Memuat konfigurasi model...",
             "info"
         );
 
+
         disableGeneration();
+
 
         const model =
             await selectModel(
                 modelId
             );
+
 
         if (!model) {
 
@@ -165,28 +238,26 @@ async function handleModelChange(
             );
         }
 
+
         /*
          * Model yang diterima dari selectModel()
          * adalah konfigurasi model sebenarnya.
-         *
-         * Di dalamnya termasuk:
-         *
-         * model.parameters
-         *
-         * yang berasal dari adapter model.
          */
 
         renderModelHeader(
             model
         );
 
+
         renderDynamicFields(
             model
         );
 
+
         showReady(
             "Model siap digunakan."
         );
+
 
     } catch (
         error
@@ -194,10 +265,12 @@ async function handleModelChange(
 
         disableGeneration();
 
+
         showError(
             error,
             "Gagal memuat konfigurasi model."
         );
+
 
         showPageError(
             error?.message ||
@@ -230,12 +303,14 @@ function validateBeforeSubmit(
             parameters
         );
 
+
     if (
         errors.length === 0
     ) {
 
         return true;
     }
+
 
     showError(
         errors.join(
@@ -244,11 +319,322 @@ function validateBeforeSubmit(
         "Parameter belum valid."
     );
 
+
     focusFirstInvalidField();
+
 
     scrollToError();
 
+
     return false;
+}
+
+
+/* =========================================================
+   EXTRACT TASK ID
+   ---------------------------------------------------------
+   Backend generate dapat mengembalikan task ID dalam
+   beberapa bentuk. Normalisasi dilakukan di satu tempat.
+========================================================= */
+
+function extractTaskId(
+    data
+) {
+
+    if (!data) {
+
+        return "";
+    }
+
+
+    const candidates = [
+
+        data.task_id,
+
+        data.taskId,
+
+        data.job_id,
+
+        data.jobId,
+
+        data.task?.task_id,
+
+        data.task?.taskId,
+
+        data.task?.job_id,
+
+        data.task?.jobId,
+
+        data.data?.task_id,
+
+        data.data?.taskId,
+
+        data.data?.job_id,
+
+        data.data?.jobId
+
+    ];
+
+
+    for (
+        const candidate
+        of candidates
+    ) {
+
+        const value =
+            String(
+                candidate ||
+                ""
+            ).trim();
+
+
+        if (value) {
+
+            return value;
+        }
+    }
+
+
+    return "";
+}
+
+
+/* =========================================================
+   POLLING STATUS MESSAGE
+========================================================= */
+
+function getPollingStatusMessage(
+    result
+) {
+
+    const state =
+        String(
+            result?.state ||
+            ""
+        ).trim().toLowerCase();
+
+
+    switch (
+        state
+    ) {
+
+        case "waiting":
+
+        case "pending":
+
+        case "queued":
+
+        case "queue":
+
+            return "Task sedang menunggu diproses...";
+
+
+        case "processing":
+
+        case "running":
+
+        case "generating":
+
+        case "in_progress":
+
+        case "in-progress":
+
+            return "Video sedang dibuat oleh provider...";
+
+
+        case "success":
+
+        case "succeeded":
+
+        case "completed":
+
+        case "complete":
+
+        case "done":
+
+        case "finished":
+
+            return "Video selesai dibuat.";
+
+
+        case "fail":
+
+        case "failed":
+
+        case "error":
+
+        case "cancelled":
+
+        case "canceled":
+
+            return "Generate gagal.";
+
+
+        default:
+
+            return "Memeriksa status video...";
+    }
+}
+
+
+/* =========================================================
+   HANDLE POLLING UPDATE
+========================================================= */
+
+function handlePollingUpdate(
+    result
+) {
+
+    /*
+     * Jangan render hasil final di sini.
+     *
+     * Callback ini hanya untuk status progress.
+     */
+
+    const message =
+        getPollingStatusMessage(
+            result
+        );
+
+
+    showStatus(
+        message,
+        "info"
+    );
+
+
+    /*
+     * Simpan task ID terbaru jika backend
+     * mengembalikan ID lagi.
+     */
+
+    const taskId =
+        extractTaskId(
+            result
+        );
+
+
+    if (taskId) {
+
+        appState.currentTaskId =
+            taskId;
+    }
+}
+
+
+/* =========================================================
+   WAIT FOR TASK
+========================================================= */
+
+async function waitForTask(
+    taskId
+) {
+
+    const normalizedTaskId =
+        String(
+            taskId ||
+            ""
+        ).trim();
+
+
+    if (!normalizedTaskId) {
+
+        throw new GeneratePollingError(
+            "Task ID tidak ditemukan dari response generate.",
+            {
+                code:
+                    "TASK_ID_MISSING"
+            }
+        );
+    }
+
+
+    appState.polling =
+        true;
+
+
+    appState.currentTaskId =
+        normalizedTaskId;
+
+
+    appState.pollingStartedAt =
+        Date.now();
+
+
+    refreshGenerateAvailability();
+
+
+    try {
+
+        showStatus(
+            "Task berhasil dibuat. Menunggu hasil video...",
+            "info"
+        );
+
+
+        const result =
+            await pollTask(
+                normalizedTaskId,
+                {
+
+                    interval:
+                        POLLING_INTERVAL,
+
+                    timeout:
+                        POLLING_TIMEOUT,
+
+                    onUpdate:
+                        handlePollingUpdate
+                }
+            );
+
+
+        /*
+         * Polling selesai.
+         */
+
+        appState.polling =
+            false;
+
+
+        /*
+         * Task ID tetap disimpan agar result UI
+         * dapat menampilkannya.
+         */
+
+        const finalTaskId =
+            extractTaskId(
+                result
+            );
+
+
+        if (
+            finalTaskId
+        ) {
+
+            appState.currentTaskId =
+                finalTaskId;
+        }
+
+
+        return result;
+
+
+    } catch (
+        error
+    ) {
+
+        appState.polling =
+            false;
+
+
+        throw error;
+
+
+    } finally {
+
+        refreshGenerateAvailability();
+    }
 }
 
 
@@ -262,11 +648,22 @@ async function handleGenerateSubmit(
 
     event.preventDefault();
 
+
     if (
         appState.submitting
     ) {
+
         return;
     }
+
+
+    if (
+        appState.polling
+    ) {
+
+        return;
+    }
+
 
     if (
         !isModelReady()
@@ -279,25 +676,36 @@ async function handleGenerateSubmit(
         return;
     }
 
+
     appState.submitting =
         true;
+
+
+    appState.currentTaskId =
+        null;
+
+
+    appState.pollingStartedAt =
+        null;
+
 
     try {
 
         hidePageError();
 
+
         /*
          * Ambil parameter hanya dari form module.
          */
+
         const parameters =
             collectParameters();
 
+
         /*
          * Client validation.
-         *
-         * Backend tetap menjadi validator
-         * terakhir.
          */
+
         if (
             !validateBeforeSubmit(
                 parameters
@@ -307,43 +715,100 @@ async function handleGenerateSubmit(
             return;
         }
 
+
         /*
-         * Request mulai.
+         * Request membuat task.
          */
+
         showBusy(
             "Mengirim permintaan generate..."
         );
 
-        /*
-         * Tetap gunakan endpoint dan payload
-         * yang sudah ditentukan oleh request module.
-         */
+
         const data =
             await generateVideo(
                 parameters
             );
 
+
         /*
-         * Render hasil.
+         * Task ID wajib tersedia.
+         *
+         * Tanpa task ID kita tidak memiliki referensi
+         * untuk menanyakan status ke backend.
          */
+
+        const taskId =
+            extractTaskId(
+                data
+            );
+
+
+        if (!taskId) {
+
+            throw new GenerateRequestError(
+                "Task berhasil dikirim tetapi Task ID tidak ditemukan.",
+                {
+                    code:
+                        "TASK_ID_MISSING",
+
+                    details:
+                        data
+                }
+            );
+        }
+
+
+        /*
+         * Simpan task ID.
+         */
+
+        appState.currentTaskId =
+            taskId;
+
+
+        /*
+         * Polling dimulai.
+         */
+
+        const finalResult =
+            await waitForTask(
+                taskId
+            );
+
+
+        /*
+         * Render hasil FINAL.
+         *
+         * Bukan response awal /createTask.
+         */
+
         renderResult(
-            data
+            finalResult
         );
 
+
         showStatus(
-            "Permintaan generate berhasil dikirim.",
+            "Video berhasil dibuat.",
             "success"
         );
+
 
     } catch (
         error
     ) {
 
-        /*
-         * Error request ditampilkan apa adanya
-         * selama tersedia message.
-         */
         if (
+            error instanceof
+                GeneratePollingError
+        ) {
+
+            showError(
+                error,
+                "Proses generate gagal."
+            );
+
+        } else if (
             error instanceof
                 GenerateRequestError
         ) {
@@ -361,16 +826,22 @@ async function handleGenerateSubmit(
             );
         }
 
-        /*
-         * Jangan menganggap error sebagai
-         * perubahan status model.
-         */
+
         hidePageError();
+
 
     } finally {
 
         appState.submitting =
             false;
+
+
+        appState.polling =
+            false;
+
+
+        refreshGenerateAvailability();
+
 
         finishRequest();
     }
@@ -383,15 +854,23 @@ async function handleGenerateSubmit(
 
 function resetForm() {
 
+    /*
+     * Jangan reset ketika task sedang berjalan.
+     */
+
     if (
-        appState.submitting
+        appState.submitting ||
+        appState.polling
     ) {
+
         return;
     }
+
 
     const {
         generateForm
     } = getElements();
+
 
     if (
         generateForm
@@ -400,17 +879,34 @@ function resetForm() {
         generateForm.reset();
     }
 
+
     /*
      * Parameter dinamis kembali ke nilai
      * default dari konfigurasi model.
      */
+
     resetDynamicFields();
 
+
+    /*
+     * Bersihkan task state.
+     */
+
+    appState.currentTaskId =
+        null;
+
+
+    appState.pollingStartedAt =
+        null;
+
+
     resetUI();
+
 
     /*
      * Jangan menghilangkan model yang sedang dipilih.
      */
+
     if (
         isModelReady()
     ) {
@@ -418,9 +914,11 @@ function resetForm() {
         const model =
             getCurrentModel();
 
+
         renderModelHeader(
             model
         );
+
 
         showReady(
             "Form berhasil direset."
@@ -440,14 +938,18 @@ function handleInput(
     const target =
         event?.target;
 
+
     if (!target) {
+
         return;
     }
+
 
     /*
      * Hilangkan status error ketika user
      * mulai memperbaiki input.
      */
+
     if (
         target.matches(
             "input, textarea, select"
@@ -457,6 +959,7 @@ function handleInput(
         const {
             statusEl
         } = getElements();
+
 
         if (
             statusEl &&
@@ -482,16 +985,21 @@ function handleChange(
     const target =
         event?.target;
 
+
     if (!target) {
+
         return;
     }
+
 
     /*
      * Model selector punya handler khusus.
      */
+
     const {
         modelSelectEl
     } = getElements();
+
 
     if (
         target ===
@@ -501,12 +1009,15 @@ function handleChange(
         return;
     }
 
+
     /*
      * Input lain cukup menghapus error visual.
      */
+
     const {
         statusEl
     } = getElements();
+
 
     if (
         statusEl &&
@@ -529,8 +1040,10 @@ function bindEvents() {
     if (
         appState.eventsBound
     ) {
+
         return;
     }
+
 
     const {
         modelSelectEl,
@@ -538,9 +1051,11 @@ function bindEvents() {
         resetButton
     } = getElements();
 
+
     /*
      * Model selector.
      */
+
     if (
         modelSelectEl
     ) {
@@ -551,9 +1066,11 @@ function bindEvents() {
         );
     }
 
+
     /*
      * Form submit.
      */
+
     if (
         generateForm
     ) {
@@ -564,9 +1081,11 @@ function bindEvents() {
         );
     }
 
+
     /*
      * Reset.
      */
+
     if (
         resetButton
     ) {
@@ -577,21 +1096,26 @@ function bindEvents() {
         );
     }
 
+
     /*
      * Input.
      */
+
     document.addEventListener(
         "input",
         handleInput
     );
 
+
     /*
      * Change.
      */
+
     document.addEventListener(
         "change",
         handleChange
     );
+
 
     appState.eventsBound =
         true;
@@ -607,36 +1131,38 @@ async function initializeAuth() {
     /*
      * Pastikan Supabase client tersedia.
      */
+
     await loadSupabase();
+
 
     /*
      * User berasal dari session Supabase.
      */
+
     await loadCurrentUser();
+
 
     /*
      * Profile harus berasal dari profiles
      * berdasarkan auth user ID.
      */
+
     const profile =
         await loadProfile();
+
 
     renderAuthBadges(
         profile
     );
 
+
     /*
      * Role tidak digunakan untuk redirect.
-     *
-     * USER:
-     * tetap di Generate.
-     *
-     * ADMIN / OWNER:
-     * tetap di Generate.
      *
      * Hak akses endpoint tetap ditentukan
      * oleh backend.
      */
+
     getCurrentRole();
 }
 
@@ -648,12 +1174,7 @@ async function initializeAuth() {
 async function initializeModel() {
 
     /*
-     * PENTING:
-     *
-     * resolveInitialModel() tidak mengembalikan
-     * model secara langsung.
-     *
-     * Bentuk return:
+     * resolveInitialModel() mengembalikan:
      *
      * {
      *     model,
@@ -661,39 +1182,16 @@ async function initializeModel() {
      *     executable,
      *     selectedModelId
      * }
-     *
-     * Jadi kita harus mengambil:
-     *
-     *     resolved.model
-     *
-     * BUKAN:
-     *
-     *     resolved
-     *
-     * Sebelumnya object wrapper dikirim langsung
-     * ke renderDynamicFields().
-     *
-     * Akibatnya generate-form.js mencari:
-     *
-     *     resolved.parameters
-     *
-     * yang tidak ada.
-     *
-     * Parameter sebenarnya berada di:
-     *
-     *     resolved.model.parameters
-     *
-     * Inilah penyebab:
-     *
-     *     "Model ini tidak memiliki parameter tambahan."
      */
 
     const resolved =
         await resolveInitialModel();
 
+
     const model =
         resolved?.model ||
         null;
+
 
     if (!model) {
 
@@ -702,32 +1200,27 @@ async function initializeModel() {
         );
     }
 
+
     /*
      * Render model sebenarnya.
      */
+
     renderModelHeader(
         model
     );
 
+
     /*
      * Render parameter dari model sebenarnya.
-     *
-     * Sumber parameter:
-     *
-     * models/<model-folder>/parameters.js
-     *
-     * -> model adapter
-     * -> /api/model-config
-     * -> model.parameters
-     * -> generate-form.js
-     *
-     * Tidak ada parameter hardcoded di sini.
      */
+
     renderDynamicFields(
         model
     );
 
+
     refreshGenerateAvailability();
+
 
     return model;
 }
@@ -742,58 +1235,75 @@ export async function initializeGenerateApp() {
     if (
         appState.initialized
     ) {
+
         return;
     }
+
 
     try {
 
         /*
          * Ambil semua elemen DOM.
          */
+
         initializeGenerateElements();
+
 
         /*
          * Validasi struktur HTML.
          */
+
         validateGenerateElements();
+
 
         /*
          * Bind event sebelum proses async.
-         * Dengan begitu UI sudah siap menerima event.
          */
+
         bindEvents();
+
 
         /*
          * Auth.
          */
+
         showStatus(
             "Memeriksa sesi...",
             "info"
         );
 
+
         await initializeAuth();
+
 
         /*
          * Model.
          */
+
         showStatus(
             "Memuat model...",
             "info"
         );
 
+
         await initializeModel();
+
 
         /*
          * Semua siap.
          */
+
         hidePageError();
+
 
         showReady(
             "Model siap digunakan."
         );
 
+
         appState.initialized =
             true;
+
 
     } catch (
         error
@@ -802,15 +1312,19 @@ export async function initializeGenerateApp() {
         appState.initialized =
             false;
 
+
         disableGeneration();
+
 
         const message =
             error?.message ||
             "Halaman Generate gagal diinisialisasi.";
 
+
         showPageError(
             message
         );
+
 
         showError(
             error,
@@ -837,6 +1351,14 @@ export const generateApp =
 
         validate:
             validateBeforeSubmit,
+
+        getCurrentTaskId:
+            () =>
+                appState.currentTaskId,
+
+        isPolling:
+            () =>
+                appState.polling,
 
         isInitialized:
             () =>
@@ -878,7 +1400,8 @@ if (
 /* =========================================================
    GLOBAL COMPATIBILITY
    ---------------------------------------------------------
-   Hanya expose API app, bukan API key atau provider.
+   Hanya expose API app.
+   Tidak pernah expose API key/provider credential.
 ========================================================= */
 
 window.GENZGenerateApp =
