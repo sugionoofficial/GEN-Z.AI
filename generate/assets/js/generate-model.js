@@ -12,12 +12,14 @@
    - Authorization Bearer
    - Menyimpan model terpilih
    - Menyediakan model lengkap untuk module Generate
+   - Menormalisasi CREDIT model secara konsisten
 
    SOURCE OF TRUTH:
    - Model identity      : repository model registry
    - Model parameters    : model folder parameters.js
    - Provider identity   : model config / Supabase provider
    - Admin configuration : optional Supabase models row
+   - Model credit        : models.credit_final
 
    Catatan:
    - Tidak membuat model sendiri.
@@ -25,6 +27,7 @@
    - Tidak menganggap provider selalu berupa object.
    - Tidak melakukan request detail kedua jika model lengkap
      sudah tersedia dari endpoint list.
+   - Credit model TIDAK mengambil credit account/profile.
 ========================================================= */
 
 import {
@@ -134,6 +137,43 @@ function safeBoolean(
 
 
 /* =========================================================
+   SAFE NUMBER
+   ---------------------------------------------------------
+   Penting:
+   - 0 adalah nilai valid.
+   - null/undefined/"" dianggap tidak tersedia.
+========================================================= */
+
+function safeNumber(
+    value,
+    fallback = null
+) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return fallback;
+    }
+
+
+    const number =
+        Number(
+            value
+        );
+
+
+    return Number.isFinite(
+        number
+    )
+        ? number
+        : fallback;
+}
+
+
+/* =========================================================
    STORAGE
 ========================================================= */
 
@@ -199,8 +239,8 @@ function getElements() {
    ---------------------------------------------------------
    PRIORITAS:
    1. model.model_id
-   2. model.id
-   3. model.config.id
+   2. model.config.id
+   3. model.id
 ========================================================= */
 
 function getModelId(
@@ -247,14 +287,6 @@ function getModelName(
 
 /* =========================================================
    PROVIDER OBJECT
-   ---------------------------------------------------------
-   Backend baru menyediakan provider sebagai object.
-
-   Tetapi frontend tetap dibuat fleksibel untuk:
-   - provider object
-   - provider_id
-   - provider_code
-   - provider_name
 ========================================================= */
 
 function getProviderObject(
@@ -370,12 +402,6 @@ function hasAdapter(
     model
 ) {
 
-    /*
-     * Backend model-config mengirim:
-     *
-     * adapter_available: true
-     */
-
     if (
         model &&
         Object.prototype.hasOwnProperty.call(
@@ -390,10 +416,6 @@ function hasAdapter(
         );
     }
 
-
-    /*
-     * Fallback untuk response kompatibilitas.
-     */
 
     if (
         model?.adapter &&
@@ -411,9 +433,6 @@ function hasAdapter(
 
 /* =========================================================
    PARAMETER AVAILABILITY
-   ---------------------------------------------------------
-   Tidak menentukan parameter.
-   Hanya memeriksa data dari backend.
 ========================================================= */
 
 function hasParameters(
@@ -461,20 +480,31 @@ function hasParameters(
 
 
 /* =========================================================
-   MODEL VISIBILITY
+   MODEL CREDIT
    ---------------------------------------------------------
-   Model boleh tampil apabila:
+   SOURCE OF TRUTH:
 
-   1. Model ID tersedia.
-   2. Status model active.
-   3. Jika provider diketahui, provider harus active.
-   4. Provider tidak lagi diwajibkan harus berupa object.
+   models.credit_final
 
-   Model tanpa provider tetap bisa diketahui dari
-   repository, tetapi tidak executable.
+   Backend juga menyediakan:
+
+   pricing.credit_final
+
+   Compatibility:
+
+   credit_cost
+   discount_percent
+
+   Urutan:
+   1. pricing.credit_final
+   2. credit_final
+   3. pricing.credit_cost
+   4. credit_cost
+
+   Jika credit_final tersedia, JANGAN menghitung ulang.
 ========================================================= */
 
-function isVisibleModel(
+function getModelCredit(
     model
 ) {
 
@@ -484,142 +514,109 @@ function isVisibleModel(
             "object"
     ) {
 
-        return false;
+        return {
+            creditCost: null,
+            discountPercent: 0,
+            creditFinal: null
+        };
     }
 
 
-    const modelId =
-        getModelId(
-            model
+    const pricing =
+        model.pricing &&
+        typeof model.pricing ===
+            "object"
+            ? model.pricing
+            : {};
+
+
+    const pricingCreditFinal =
+        safeNumber(
+            pricing.credit_final
+        );
+
+    const rootCreditFinal =
+        safeNumber(
+            model.credit_final
+        );
+
+    const pricingCreditCost =
+        safeNumber(
+            pricing.credit_cost
+        );
+
+    const rootCreditCost =
+        safeNumber(
+            model.credit_cost
+        );
+
+    const discountPercent =
+        safeNumber(
+            pricing.discount_percent ??
+            model.discount_percent,
+            0
         );
 
 
-    if (!modelId) {
-        return false;
-    }
-
-
-    const modelStatus =
-        getModelStatus(
-            model
-        );
+    let creditFinal =
+        pricingCreditFinal;
 
 
     if (
-        modelStatus &&
-        modelStatus !==
-            "active"
+        creditFinal === null
     ) {
 
-        return false;
+        creditFinal =
+            rootCreditFinal;
     }
-
-
-    const providerId =
-        getProviderId(
-            model
-        );
-
-    const providerStatus =
-        getProviderStatus(
-            model
-        );
-
-
-    /*
-     * Jika provider tersedia dan statusnya
-     * bukan active, model tidak executable.
-     *
-     * Namun model tetap dianggap visible jika
-     * backend mengirimnya.
-     */
-    if (
-        providerId &&
-        providerStatus &&
-        providerStatus !==
-            "active"
-    ) {
-
-        return false;
-    }
-
-
-    return true;
-}
-
-
-/* =========================================================
-   MODEL EXECUTABLE
-========================================================= */
-
-function isExecutableModel(
-    model
-) {
-
-    if (
-        !isVisibleModel(
-            model
-        )
-    ) {
-
-        return false;
-    }
-
-
-    /*
-     * Model harus memiliki adapter.
-     */
-    if (
-        !hasAdapter(
-            model
-        )
-    ) {
-
-        return false;
-    }
-
-
-    /*
-     * Provider harus tersedia untuk execution.
-     */
-    const providerId =
-        getProviderId(
-            model
-        );
-
-
-    if (!providerId) {
-        return false;
-    }
-
-
-    const providerStatus =
-        getProviderStatus(
-            model
-        );
 
 
     if (
-        providerStatus &&
-        providerStatus !==
-            "active"
+        creditFinal === null &&
+        pricingCreditCost !== null
     ) {
 
-        return false;
+        creditFinal =
+            pricingCreditCost;
     }
 
 
-    return true;
+    if (
+        creditFinal === null &&
+        rootCreditCost !== null
+    ) {
+
+        creditFinal =
+            rootCreditCost;
+    }
+
+
+    const creditCost =
+        pricingCreditCost !== null
+            ? pricingCreditCost
+            : rootCreditCost;
+
+
+    return {
+        creditCost,
+        discountPercent,
+        creditFinal
+    };
 }
 
 
 /* =========================================================
    NORMALIZE MODEL
    ---------------------------------------------------------
-   Tidak membuat data teknis baru.
+   Fokus penting:
 
-   Hanya menambahkan alias aman agar module Generate
-   tidak perlu mengetahui variasi response backend.
+   normalized.pricing.credit_final
+   normalized.credit_final
+
+   HARUS selalu sinkron.
+
+   Ini memastikan UI Generate dapat membaca credit
+   walaupun backend/legacy module mengirim format berbeda.
 ========================================================= */
 
 function normalizeModel(
@@ -636,10 +633,9 @@ function normalizeModel(
     }
 
 
-    const normalized =
-        {
-            ...model
-        };
+    const normalized = {
+        ...model
+    };
 
 
     const modelId =
@@ -666,10 +662,10 @@ function normalizeModel(
         );
 
 
-    /*
-     * Jangan mengganti nilai model_id
-     * dengan ID database.
-     */
+    /* =====================================================
+       MODEL ID
+    ===================================================== */
+
     if (
         !normalized.model_id &&
         modelId
@@ -679,6 +675,10 @@ function normalizeModel(
             modelId;
     }
 
+
+    /* =====================================================
+       MODEL NAME
+    ===================================================== */
 
     if (
         !normalized.model_name &&
@@ -690,9 +690,10 @@ function normalizeModel(
     }
 
 
-    /*
-     * Compatibility provider.
-     */
+    /* =====================================================
+       PROVIDER
+    ===================================================== */
+
     if (
         !normalized.provider_id &&
         providerId
@@ -713,17 +714,87 @@ function normalizeModel(
     }
 
 
+    /* =====================================================
+       CREDIT NORMALIZATION
+    ===================================================== */
+
+    const credit =
+        getModelCredit(
+            model
+        );
+
+
+    /*
+     * pricing harus selalu berupa object.
+     */
+    const existingPricing =
+        normalized.pricing &&
+        typeof normalized.pricing ===
+            "object"
+            ? normalized.pricing
+            : {};
+
+
+    normalized.pricing = {
+        ...existingPricing,
+
+        credit_cost:
+            credit.creditCost,
+
+        discount_percent:
+            credit.discountPercent,
+
+        credit_final:
+            credit.creditFinal
+    };
+
+
+    /*
+     * Compatibility root fields.
+     */
+    normalized.credit_cost =
+        credit.creditCost;
+
+
+    normalized.discount_percent =
+        credit.discountPercent;
+
+
+    normalized.credit_final =
+        credit.creditFinal;
+
+
+    /*
+     * Debug khusus credit model.
+     * Tidak mengganggu UI.
+     */
+    console.debug(
+        "[GEN-Z.AI][Generate Model] Credit normalized:",
+        {
+            model_id:
+                normalized.model_id,
+
+            credit_cost:
+                normalized.credit_cost,
+
+            discount_percent:
+                normalized.discount_percent,
+
+            credit_final:
+                normalized.credit_final,
+
+            pricing:
+                normalized.pricing
+        }
+    );
+
+
     return normalized;
 }
 
 
 /* =========================================================
    MERGE MODEL CONFIGURATION
-   ---------------------------------------------------------
-   Dipertahankan untuk kompatibilitas.
-
-   Detail server memiliki prioritas.
-   Data list hanya digunakan sebagai fallback.
 ========================================================= */
 
 function mergeModelConfiguration(
@@ -808,6 +879,75 @@ function mergeModelConfiguration(
         merged.parameterSchema =
             listModel.parameterSchema;
     }
+
+
+    /*
+     * Credit harus berasal dari detail jika tersedia.
+     * Jika detail tidak membawa credit, pertahankan list.
+     */
+    const detailCredit =
+        getModelCredit(
+            detailModel
+        );
+
+    const listCredit =
+        getModelCredit(
+            listModel
+        );
+
+
+    if (
+        detailCredit.creditFinal !==
+        null
+    ) {
+
+        merged.credit_final =
+            detailCredit.creditFinal;
+
+    } else {
+
+        merged.credit_final =
+            listCredit.creditFinal;
+    }
+
+
+    if (
+        detailCredit.creditCost !==
+        null
+    ) {
+
+        merged.credit_cost =
+            detailCredit.creditCost;
+
+    } else {
+
+        merged.credit_cost =
+            listCredit.creditCost;
+    }
+
+
+    merged.discount_percent =
+        detailCredit.discountPercent !==
+            null &&
+        detailCredit.discountPercent !==
+            undefined
+            ? detailCredit.discountPercent
+            : listCredit.discountPercent;
+
+
+    merged.pricing = {
+        ...(listModel.pricing || {}),
+        ...(detailModel.pricing || {}),
+
+        credit_cost:
+            merged.credit_cost,
+
+        discount_percent:
+            merged.discount_percent,
+
+        credit_final:
+            merged.credit_final
+    };
 
 
     return normalizeModel(
@@ -1048,7 +1188,7 @@ export async function loadAvailableModels() {
 
 
     /*
-     * Normalize tetapi jangan membuat model baru.
+     * Normalize tanpa membuat model baru.
      */
     const normalizedModels =
         models
@@ -1236,6 +1376,33 @@ export function renderModelSelector(
                 );
 
 
+            const modelCredit =
+                getModelCredit(
+                    model
+                );
+
+
+            /*
+             * Simpan credit pada option juga.
+             * Berguna untuk debugging dan kompatibilitas.
+             */
+            option.dataset.creditCost =
+                modelCredit.creditCost !==
+                null
+                    ? String(
+                        modelCredit.creditCost
+                    )
+                    : "";
+
+            option.dataset.creditFinal =
+                modelCredit.creditFinal !==
+                null
+                    ? String(
+                        modelCredit.creditFinal
+                    )
+                    : "";
+
+
             modelSelect.appendChild(
                 option
             );
@@ -1361,18 +1528,6 @@ export function findModel(
 
 /* =========================================================
    LOAD MODEL CONFIG
-   ---------------------------------------------------------
-   OPTIMIZATION:
-
-   Jika model sudah tersedia di availableModels,
-   langsung gunakan model tersebut.
-
-   Tidak perlu:
-       GET /api/model-config
-       GET /api/model-config?model_id=...
-
-   Endpoint detail tetap menjadi fallback jika fungsi
-   dipanggil sebelum daftar model tersedia.
 ========================================================= */
 
 export async function loadModelConfig(
@@ -1411,8 +1566,6 @@ export async function loadModelConfig(
      * =====================================================
      * FAST PATH
      * =====================================================
-     *
-     * Endpoint list sudah mengirim konfigurasi lengkap.
      */
     if (
         availableModel
@@ -1457,6 +1610,14 @@ export async function loadModelConfig(
 
 
         console.debug(
+            "[GEN-Z.AI][Generate Model] Model credit:",
+            getModelCredit(
+                model
+            )
+        );
+
+
+        console.debug(
             "[GEN-Z.AI][Generate Model] Parameters:",
             model.parameters || {}
         );
@@ -1470,9 +1631,6 @@ export async function loadModelConfig(
      * =====================================================
      * FALLBACK DETAIL REQUEST
      * =====================================================
-     *
-     * Hanya digunakan jika model belum ada
-     * di availableModels.
      */
 
     const params =
@@ -1570,6 +1728,14 @@ export async function loadModelConfig(
 
 
     console.debug(
+        "[GEN-Z.AI][Generate Model] Model credit:",
+        getModelCredit(
+            model
+        )
+    );
+
+
+    console.debug(
         "[GEN-Z.AI][Generate Model] Parameters:",
         model?.parameters || {}
     );
@@ -1647,10 +1813,6 @@ export async function selectModel(
     }
 
 
-    /*
-     * loadModelConfig sekarang menggunakan
-     * fast path dari state.
-     */
     return loadModelConfig(
         normalizedId
     );
@@ -1760,10 +1922,6 @@ export async function resolveInitialModel() {
     }
 
 
-    /*
-     * Fast path.
-     * Tidak request endpoint kedua.
-     */
     const model =
         await loadModelConfig(
             selectedModelId
