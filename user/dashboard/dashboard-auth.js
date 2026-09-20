@@ -6,8 +6,9 @@
    user/dashboard/dashboard-auth.js
 
    Tanggung jawab:
-   - Mengecek Supabase session
-   - Mengambil profile user
+   - Sinkronisasi auth dashboard dengan navigation.js
+   - Fallback session validation bila navigation state
+     belum tersedia
    - Menentukan role USER / ADMIN / OWNER
    - Menentukan akses edit mode
    - Mengatur UI berdasarkan role
@@ -19,10 +20,21 @@
    - Delete video
    - Render video
    - Modal
+   - Navigation rendering
+
+   CATATAN:
+   navigation/navigation.js adalah auth gate utama aplikasi.
+   Module ini tidak membuat sistem authentication kedua.
 ========================================================= */
 
 (function () {
+
     "use strict";
+
+
+    /* =====================================================
+       NAMESPACE
+    ===================================================== */
 
     window.GENZDashboard =
         window.GENZDashboard || {};
@@ -32,33 +44,43 @@
 
 
     /* =====================================================
-       DEPENDENCY CHECK
+       INTERNAL STATE
+    ===================================================== */
+
+    let authenticatedOnce =
+        false;
+
+
+    /* =====================================================
+       SUPABASE CLIENT
     ===================================================== */
 
     function getSupabaseClient() {
 
         /*
-         * Prioritas:
-         * 1. window.supabaseClient
-         * 2. window.GENZ_SUPABASE
+         * Jangan membuat Supabase client baru.
          *
-         * Config project GEN-Z.AI dapat menggunakan salah
-         * satu referensi tersebut.
+         * Gunakan client global yang sudah dibuat oleh
+         * config.js / application bootstrap.
          */
 
         if (
             window.supabaseClient &&
             typeof window.supabaseClient.auth === "object"
         ) {
+
             return window.supabaseClient;
         }
+
 
         if (
             window.GENZ_SUPABASE &&
             typeof window.GENZ_SUPABASE.auth === "object"
         ) {
+
             return window.GENZ_SUPABASE;
         }
+
 
         return null;
     }
@@ -69,6 +91,7 @@
         const client =
             getSupabaseClient();
 
+
         if (!client) {
 
             throw new Error(
@@ -76,12 +99,13 @@
             );
         }
 
+
         return client;
     }
 
 
     /* =====================================================
-       PROFILE SELECT
+       PROFILE COLUMNS
     ===================================================== */
 
     function getProfileColumns() {
@@ -98,7 +122,7 @@
 
 
     /* =====================================================
-       GET SESSION
+       SESSION
     ===================================================== */
 
     async function getSession() {
@@ -106,31 +130,57 @@
         const supabase =
             requireSupabase();
 
+
         const result =
             await supabase.auth.getSession();
 
-        if (result.error) {
+
+        if (
+            result.error
+        ) {
+
             throw result.error;
         }
 
-        return result.data
+
+        return (
+            result.data &&
+            result.data.session
+        )
             ? result.data.session
             : null;
     }
 
 
     /* =====================================================
-       GET PROFILE
+       PROFILE
     ===================================================== */
 
-    async function getProfile(userId) {
+    async function getProfile(
+        userId
+    ) {
 
         if (!userId) {
+
             return null;
         }
 
+
         const supabase =
             requireSupabase();
+
+
+        if (
+            !dashboard.config ||
+            !dashboard.config.tables ||
+            !dashboard.config.tables.profiles
+        ) {
+
+            throw new Error(
+                "Konfigurasi profiles belum tersedia."
+            );
+        }
+
 
         const result =
             await supabase
@@ -146,9 +196,14 @@
                 )
                 .maybeSingle();
 
-        if (result.error) {
+
+        if (
+            result.error
+        ) {
+
             throw result.error;
         }
+
 
         return result.data || null;
     }
@@ -158,31 +213,40 @@
        PROFILE STATUS
     ===================================================== */
 
-    function isProfileActive(profile) {
+    function isProfileActive(
+        profile
+    ) {
 
         if (!profile) {
+
             return false;
         }
 
+
         /*
-         * Status lama GEN-Z.AI menggunakan nilai seperti:
-         * active / inactive.
+         * Jika kolom status tidak tersedia/null,
+         * jangan memblokir akun yang valid.
          *
-         * Bila status tidak tersedia, jangan langsung
-         * menganggap user aktif secara diam-diam.
+         * Navigation.js juga menggunakan pendekatan
+         * validasi profile tersendiri.
          */
 
         if (
             profile.status === null ||
             typeof profile.status === "undefined"
         ) {
+
             return true;
         }
 
+
         const status =
-            String(profile.status)
+            String(
+                profile.status
+            )
                 .trim()
                 .toLowerCase();
+
 
         return (
             status === "active" ||
@@ -196,13 +260,17 @@
        ROLE
     ===================================================== */
 
-    function normalizeRole(role) {
+    function normalizeRole(
+        role
+    ) {
 
         if (
             typeof role !== "string"
         ) {
+
             return "";
         }
+
 
         return role
             .trim()
@@ -210,11 +278,15 @@
     }
 
 
-    function resolveRole(profile) {
+    function resolveRole(
+        profile
+    ) {
 
         if (!profile) {
+
             return "";
         }
+
 
         return normalizeRole(
             profile.role
@@ -222,10 +294,33 @@
     }
 
 
+    /* =====================================================
+       MANAGEMENT ACCESS
+    ===================================================== */
+
     function hasManagementAccess() {
 
+        if (
+            typeof dashboard.isAdmin ===
+            "function"
+        ) {
+
+            return (
+                dashboard.isAdmin()
+            );
+        }
+
+
+        const role =
+            typeof dashboard.getRole ===
+            "function"
+                ? dashboard.getRole()
+                : "";
+
+
         return (
-            dashboard.isAdmin()
+            role === "ADMIN" ||
+            role === "OWNER"
         );
     }
 
@@ -236,26 +331,155 @@
 
     function shouldEnterEditMode() {
 
-        return dashboard.isEditMode();
+        if (
+            typeof dashboard.isEditMode ===
+            "function"
+        ) {
+
+            return (
+                dashboard.isEditMode()
+            );
+        }
+
+
+        /*
+         * Fallback langsung dari URL.
+         */
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+
+        return (
+            params.get("edit") === "1" ||
+            params.get("edit") === "true"
+        );
     }
 
 
     function validateEditModeAccess() {
 
-        if (!shouldEnterEditMode()) {
+        if (
+            !shouldEnterEditMode()
+        ) {
+
             return true;
         }
 
-        /*
-         * ADMIN dan OWNER boleh menggunakan edit mode.
-         *
-         * USER biasa tidak boleh mendapatkan akses hanya
-         * dengan menambahkan ?edit=1 ke URL.
-         */
 
-        if (!hasManagementAccess()) {
+        return (
+            hasManagementAccess()
+        );
+    }
+
+
+    /* =====================================================
+       VALID ROLE
+    ===================================================== */
+
+    function isValidRole(
+        role
+    ) {
+
+        return (
+            role === "USER" ||
+            role === "ADMIN" ||
+            role === "OWNER"
+        );
+    }
+
+
+    /* =====================================================
+       NAVIGATION STATE
+    ===================================================== */
+
+    function hasNavigationAuthState() {
+
+        return !!(
+            window.GENZ_NAVIGATION_USER &&
+            window.GENZ_NAVIGATION_PROFILE &&
+            window.GENZ_NAVIGATION_ROLE
+        );
+    }
+
+
+    function syncFromNavigation() {
+
+        if (
+            !hasNavigationAuthState()
+        ) {
+
             return false;
         }
+
+
+        const user =
+            window.GENZ_NAVIGATION_USER;
+
+
+        const profile =
+            window.GENZ_NAVIGATION_PROFILE;
+
+
+        const role =
+            normalizeRole(
+                window.GENZ_NAVIGATION_ROLE
+            );
+
+
+        /*
+         * Pastikan navigation state benar-benar valid
+         * sebelum dimasukkan ke dashboard state.
+         */
+
+        if (
+            !user ||
+            !profile ||
+            !isValidRole(role)
+        ) {
+
+            return false;
+        }
+
+
+        if (
+            typeof dashboard.setCurrentUser ===
+            "function"
+        ) {
+
+            dashboard.setCurrentUser(
+                user
+            );
+        }
+
+
+        if (
+            typeof dashboard.setCurrentProfile ===
+            "function"
+        ) {
+
+            dashboard.setCurrentProfile(
+                profile
+            );
+        }
+
+
+        if (
+            typeof dashboard.setRole ===
+            "function"
+        ) {
+
+            dashboard.setRole(
+                role
+            );
+        }
+
+
+        authenticatedOnce =
+            true;
+
 
         return true;
     }
@@ -269,26 +493,37 @@
 
         const elements =
             dashboard.elements ||
-            dashboard.cacheElements();
+            (
+                typeof dashboard.cacheElements ===
+                "function"
+                    ? dashboard.cacheElements()
+                    : {}
+            );
+
 
         const editMode =
             shouldEnterEditMode();
 
+
         const managementAccess =
             hasManagementAccess();
+
+
+        const effectiveEditMode =
+            editMode &&
+            managementAccess;
 
 
         /* -------------------------------------------------
            Add Video
         ------------------------------------------------- */
 
-        if (elements.addVideoButton) {
+        if (
+            elements.addVideoButton
+        ) {
 
             elements.addVideoButton.hidden =
-                !(
-                    editMode &&
-                    managementAccess
-                );
+                !effectiveEditMode;
         }
 
 
@@ -296,13 +531,12 @@
            Edit Mode Banner
         ------------------------------------------------- */
 
-        if (elements.editModeBanner) {
+        if (
+            elements.editModeBanner
+        ) {
 
             elements.editModeBanner.hidden =
-                !(
-                    editMode &&
-                    managementAccess
-                );
+                !effectiveEditMode;
         }
 
 
@@ -310,43 +544,54 @@
            Admin Back Button
         ------------------------------------------------- */
 
-        if (elements.adminBackButton) {
+        if (
+            elements.adminBackButton
+        ) {
 
             elements.adminBackButton.hidden =
-                !(
-                    editMode &&
-                    managementAccess
-                );
+                !effectiveEditMode;
         }
 
 
         /* -------------------------------------------------
-           Page state
+           Page dataset
         ------------------------------------------------- */
 
-        if (elements.page) {
+        if (
+            elements.page
+        ) {
 
             elements.page.dataset.role =
-                dashboard.getRole() || "USER";
+                (
+                    typeof dashboard.getRole ===
+                    "function"
+                        ? dashboard.getRole()
+                        : "USER"
+                ) || "USER";
+
 
             elements.page.dataset.editMode =
-                editMode &&
-                managementAccess
+                effectiveEditMode
                     ? "true"
                     : "false";
         }
 
 
         /* -------------------------------------------------
-           Body state
+           Body dataset
         ------------------------------------------------- */
 
         document.body.dataset.role =
-            dashboard.getRole() || "USER";
+            (
+                typeof dashboard.getRole ===
+                "function"
+                    ? dashboard.getRole()
+                    : "USER"
+            ) || "USER";
+
 
         document.body.dataset.editMode =
-            editMode &&
-            managementAccess
+            effectiveEditMode
                 ? "true"
                 : "false";
     }
@@ -358,42 +603,114 @@
 
     function redirectToLogin() {
 
-        window.location.replace(
+        const loginPath =
+            dashboard.config &&
+            dashboard.config.routes &&
             dashboard.config.routes.login
+                ? dashboard.config.routes.login
+                : "../login.html";
+
+
+        window.location.replace(
+            loginPath
         );
     }
 
 
     function redirectToDashboard() {
 
-        window.location.replace(
+        const dashboardPath =
+            dashboard.config &&
+            dashboard.config.routes &&
             dashboard.config.routes.dashboard
+                ? dashboard.config.routes.dashboard
+                : "./dashboard.html";
+
+
+        /*
+         * Hindari redirect ke URL yang sama terus-menerus.
+         */
+
+        const currentPath =
+            window.location.pathname;
+
+
+        const targetPath =
+            new URL(
+                dashboardPath,
+                window.location.href
+            ).pathname;
+
+
+        if (
+            currentPath === targetPath &&
+            !window.location.search
+        ) {
+
+            return;
+        }
+
+
+        window.location.replace(
+            dashboardPath
         );
     }
 
 
     /* =====================================================
-       AUTHENTICATE DASHBOARD
+       FALLBACK AUTHENTICATION
     ===================================================== */
 
-    async function authenticate() {
+    async function authenticateFromSupabase() {
 
         const session =
             await getSession();
+
 
         /* -------------------------------------------------
            Tidak ada session
         ------------------------------------------------- */
 
-        if (!session || !session.user) {
+        if (
+            !session ||
+            !session.user
+        ) {
 
-            dashboard.setCurrentUser(null);
+            if (
+                typeof dashboard.setCurrentUser ===
+                "function"
+            ) {
 
-            dashboard.setCurrentProfile(null);
+                dashboard.setCurrentUser(
+                    null
+                );
+            }
 
-            dashboard.setRole(null);
+
+            if (
+                typeof dashboard.setCurrentProfile ===
+                "function"
+            ) {
+
+                dashboard.setCurrentProfile(
+                    null
+                );
+            }
+
+
+            if (
+                typeof dashboard.setRole ===
+                "function"
+            ) {
+
+                dashboard.setRole(
+                    null
+                );
+            }
+
 
             redirectToLogin();
+
 
             return {
                 success: false,
@@ -404,7 +721,7 @@
 
 
         /* -------------------------------------------------
-           Simpan user
+           User
         ------------------------------------------------- */
 
         dashboard.setCurrentUser(
@@ -413,7 +730,7 @@
 
 
         /* -------------------------------------------------
-           Ambil profile
+           Profile
         ------------------------------------------------- */
 
         const profile =
@@ -422,17 +739,35 @@
             );
 
 
-        if (!profile) {
+        if (
+            !profile
+        ) {
 
-            dashboard.setCurrentProfile(null);
-
-            dashboard.setError(
-                new Error(
-                    "Profile user tidak ditemukan."
-                )
+            dashboard.setCurrentProfile(
+                null
             );
 
+
+            dashboard.setRole(
+                null
+            );
+
+
+            if (
+                typeof dashboard.setError ===
+                "function"
+            ) {
+
+                dashboard.setError(
+                    new Error(
+                        "Profile user tidak ditemukan."
+                    )
+                );
+            }
+
+
             redirectToLogin();
+
 
             return {
                 success: false,
@@ -443,22 +778,35 @@
 
 
         /* -------------------------------------------------
-           Cek status account
+           Account status
         ------------------------------------------------- */
 
-        if (!isProfileActive(profile)) {
+        if (
+            !isProfileActive(
+                profile
+            )
+        ) {
 
             dashboard.setCurrentProfile(
                 profile
             );
 
-            dashboard.setError(
-                new Error(
-                    "Akun tidak aktif."
-                )
-            );
+
+            if (
+                typeof dashboard.setError ===
+                "function"
+            ) {
+
+                dashboard.setError(
+                    new Error(
+                        "Akun tidak aktif."
+                    )
+                );
+            }
+
 
             redirectToLogin();
+
 
             return {
                 success: false,
@@ -469,38 +817,46 @@
 
 
         /* -------------------------------------------------
-           Simpan profile
+           Role
         ------------------------------------------------- */
-
-        dashboard.setCurrentProfile(
-            profile
-        );
-
 
         const role =
-            resolveRole(profile);
-
-
-        dashboard.setRole(role);
-
-
-        /* -------------------------------------------------
-           Validasi role
-        ------------------------------------------------- */
-
-        if (
-            role !== "USER" &&
-            role !== "ADMIN" &&
-            role !== "OWNER"
-        ) {
-
-            dashboard.setError(
-                new Error(
-                    "Role akun tidak valid."
-                )
+            resolveRole(
+                profile
             );
 
+
+        if (
+            !isValidRole(
+                role
+            )
+        ) {
+
+            dashboard.setCurrentProfile(
+                profile
+            );
+
+
+            dashboard.setRole(
+                role
+            );
+
+
+            if (
+                typeof dashboard.setError ===
+                "function"
+            ) {
+
+                dashboard.setError(
+                    new Error(
+                        "Role akun tidak valid."
+                    )
+                );
+            }
+
+
             redirectToLogin();
+
 
             return {
                 success: false,
@@ -510,22 +866,135 @@
         }
 
 
-        /* -------------------------------------------------
-           Edit mode security
-        ------------------------------------------------- */
+        dashboard.setCurrentProfile(
+            profile
+        );
+
+
+        dashboard.setRole(
+            role
+        );
+
+
+        authenticatedOnce =
+            true;
+
+
+        return {
+            success: true,
+            redirected: false,
+            session: session,
+            user: session.user,
+            profile: profile,
+            role: role
+        };
+    }
+
+
+    /* =====================================================
+       AUTHENTICATE
+    ===================================================== */
+
+    async function authenticate() {
+
+        /*
+         * =================================================
+         * PRIORITY 1
+         * =================================================
+         *
+         * Navigation.js sudah melakukan auth.
+         *
+         * Jangan query profiles lagi.
+         */
+
+        if (
+            syncFromNavigation()
+        ) {
+
+            /*
+             * User yang mencoba ?edit=1 tetap harus
+             * melewati authorization check.
+             */
+
+            if (
+                shouldEnterEditMode() &&
+                !validateEditModeAccess()
+            ) {
+
+                redirectToDashboard();
+
+
+                return {
+                    success: false,
+                    redirected: true,
+                    reason: "EDIT_ACCESS_DENIED"
+                };
+            }
+
+
+            applyRoleUI();
+
+
+            return {
+                success: true,
+                redirected: false,
+                source: "navigation",
+                user:
+                    dashboard.getCurrentUser(),
+                profile:
+                    dashboard.getCurrentProfile(),
+                role:
+                    dashboard.getRole(),
+                isAdmin:
+                    typeof dashboard.isAdmin ===
+                    "function"
+                        ? dashboard.isAdmin()
+                        : false,
+                isOwner:
+                    typeof dashboard.isOwner ===
+                    "function"
+                        ? dashboard.isOwner()
+                        : false,
+                editMode:
+                    shouldEnterEditMode()
+            };
+        }
+
+
+        /*
+         * =================================================
+         * PRIORITY 2
+         * =================================================
+         *
+         * Navigation belum menyediakan state.
+         *
+         * Gunakan fallback Supabase.
+         */
+
+        const result =
+            await authenticateFromSupabase();
+
+
+        if (
+            !result ||
+            !result.success
+        ) {
+
+            return result;
+        }
+
+
+        /*
+         * Edit mode security.
+         */
 
         if (
             shouldEnterEditMode() &&
             !validateEditModeAccess()
         ) {
 
-            /*
-             * USER tidak boleh masuk ke mode edit.
-             * Jangan tampilkan modal lalu berharap CSS
-             * menyelamatkan keamanan. URL bukan permission.
-             */
-
             redirectToDashboard();
+
 
             return {
                 success: false,
@@ -535,24 +1004,31 @@
         }
 
 
-        /* -------------------------------------------------
-           Apply UI
-        ------------------------------------------------- */
-
         applyRoleUI();
 
 
         return {
             success: true,
             redirected: false,
-            session: session,
-            user: session.user,
-            profile: profile,
-            role: role,
+            source: "supabase",
+            session:
+                result.session,
+            user:
+                result.user,
+            profile:
+                result.profile,
+            role:
+                result.role,
             isAdmin:
-                dashboard.isAdmin(),
+                typeof dashboard.isAdmin ===
+                "function"
+                    ? dashboard.isAdmin()
+                    : false,
             isOwner:
-                dashboard.isOwner(),
+                typeof dashboard.isOwner ===
+                "function"
+                    ? dashboard.isOwner()
+                    : false,
             editMode:
                 shouldEnterEditMode()
         };
@@ -568,19 +1044,26 @@
         const supabase =
             getSupabaseClient();
 
-        if (!supabase) {
+
+        if (
+            !supabase
+        ) {
+
             return null;
         }
 
+
         /*
-         * Hanya mendaftarkan listener sekali.
+         * Register hanya sekali.
          */
 
         if (
             dashboard.authListenerRegistered
         ) {
+
             return null;
         }
+
 
         dashboard.authListenerRegistered =
             true;
@@ -588,39 +1071,54 @@
 
         const result =
             supabase.auth.onAuthStateChange(
-                function (event, session) {
+                function (
+                    event,
+                    session
+                ) {
 
                     /*
-                     * Jangan melakukan query berat langsung
-                     * di dalam callback Supabase auth.
+                     * Jangan melakukan query profile berat
+                     * di callback auth.
                      *
-                     * Dashboard init dapat menangani refresh
-                     * state bila diperlukan.
+                     * Navigation.js tetap menjadi pemilik
+                     * lifecycle authentication.
                      */
 
                     if (
                         event === "SIGNED_OUT"
                     ) {
 
+                        authenticatedOnce =
+                            false;
+
+
                         dashboard.setCurrentUser(
                             null
                         );
+
 
                         dashboard.setCurrentProfile(
                             null
                         );
 
+
                         dashboard.setRole(
                             null
                         );
 
+
                         redirectToLogin();
+
 
                         return;
                     }
 
+
                     if (
-                        event === "SIGNED_IN" &&
+                        (
+                            event === "SIGNED_IN" ||
+                            event === "INITIAL_SESSION"
+                        ) &&
                         session &&
                         session.user
                     ) {
@@ -629,9 +1127,9 @@
                             session.user
                         );
                     }
-
                 }
             );
+
 
         return result;
     }
@@ -645,6 +1143,7 @@
 
         const profile =
             dashboard.getCurrentProfile();
+
 
         const user =
             dashboard.getCurrentUser();
@@ -676,7 +1175,8 @@
             typeof user.email === "string"
         ) {
 
-            return user.email.split("@")[0];
+            return user.email
+                .split("@")[0];
         }
 
 
@@ -688,6 +1188,7 @@
 
         const profile =
             dashboard.getCurrentProfile();
+
 
         const user =
             dashboard.getCurrentUser();
@@ -721,14 +1222,24 @@
         const profile =
             dashboard.getCurrentProfile();
 
-        if (!profile) {
+
+        if (
+            !profile
+        ) {
+
             return 0;
         }
 
-        const credits =
-            Number(profile.credits);
 
-        return Number.isFinite(credits)
+        const credits =
+            Number(
+                profile.credits
+            );
+
+
+        return Number.isFinite(
+            credits
+        )
             ? credits
             : 0;
     }
@@ -741,53 +1252,84 @@
     dashboard.getSupabaseClient =
         getSupabaseClient;
 
+
     dashboard.requireSupabase =
         requireSupabase;
+
 
     dashboard.getSession =
         getSession;
 
+
     dashboard.getProfile =
         getProfile;
+
 
     dashboard.isProfileActive =
         isProfileActive;
 
+
+    dashboard.normalizeRole =
+        normalizeRole;
+
+
     dashboard.resolveRole =
         resolveRole;
+
 
     dashboard.hasManagementAccess =
         hasManagementAccess;
 
+
     dashboard.shouldEnterEditMode =
         shouldEnterEditMode;
+
 
     dashboard.validateEditModeAccess =
         validateEditModeAccess;
 
+
+    dashboard.hasNavigationAuthState =
+        hasNavigationAuthState;
+
+
+    dashboard.syncFromNavigation =
+        syncFromNavigation;
+
+
     dashboard.applyRoleUI =
         applyRoleUI;
+
+
+    dashboard.authenticateFromSupabase =
+        authenticateFromSupabase;
+
 
     dashboard.authenticate =
         authenticate;
 
+
     dashboard.registerAuthListener =
         registerAuthListener;
+
 
     dashboard.getDisplayName =
         getDisplayName;
 
+
     dashboard.getEmail =
         getEmail;
+
 
     dashboard.getCredits =
         getCredits;
 
 
     /* =====================================================
-       READY FLAG
+       READY
     ===================================================== */
 
-    dashboard.authReady = true;
+    dashboard.authReady =
+        true;
 
 })();
