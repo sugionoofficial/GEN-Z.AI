@@ -10,14 +10,18 @@
    - Validasi required field
    - Validasi pilihan parameter
    - Validasi numeric min / max / step
-   - Validasi aspect ratio
-   - Validasi resolution
-   - Validasi duration
-   - Validasi kombinasi image_urls + task_id
+   - Validasi array minItems / maxItems
+   - Validasi parameter berdasarkan currentModel
+   - Menjaga validasi tetap sinkron dengan parameters.js
 
-   Sumber aturan:
-   - currentModel dari /api/model-config
-   - parameter definitions dari backend
+   SOURCE OF TRUTH:
+   - currentModel.parameters
+   - model config dari /api/model-config
+
+   INTERNAL:
+   - task_id BUKAN parameter Generate
+   - task_id tidak divalidasi sebagai input user
+   - task_id hanya digunakan untuk query task backend
 
    Tidak bertanggung jawab:
    - Query Supabase
@@ -25,10 +29,6 @@
    - Provider
    - Credit deduction
    - Render UI
-
-   Catatan:
-   - Tidak bergantung pada generate-utils.js
-   - Semua helper yang diperlukan tersedia lokal
 ========================================================= */
 
 import {
@@ -41,6 +41,16 @@ import {
 
 
 /* =========================================================
+   INTERNAL PARAMETERS
+========================================================= */
+
+const INTERNAL_PARAMETERS =
+    new Set([
+        "task_id"
+    ]);
+
+
+/* =========================================================
    LOCAL HELPERS
 ========================================================= */
 
@@ -48,9 +58,7 @@ function normalizeArray(
     value
 ) {
 
-    if (
-        Array.isArray(value)
-    ) {
+    if (Array.isArray(value)) {
 
         return value
             .filter(
@@ -70,6 +78,7 @@ function normalizeArray(
             );
     }
 
+
     if (
         value === null ||
         value === undefined
@@ -77,6 +86,7 @@ function normalizeArray(
 
         return [];
     }
+
 
     if (
         typeof value === "string"
@@ -89,8 +99,9 @@ function normalizeArray(
             return [];
         }
 
+
         /*
-         * Support JSON array.
+         * JSON array.
          */
         if (
             text.startsWith("[") &&
@@ -114,15 +125,47 @@ function normalizeArray(
                 }
 
             } catch {
-                /*
-                 * Bukan JSON valid.
-                 * Lanjut sebagai string.
-                 */
+                /* fallback */
             }
         }
 
+
         /*
-         * Support comma-separated values.
+         * PostgreSQL array.
+         *
+         * {"2:3","9:16"}
+         */
+        if (
+            text.startsWith("{") &&
+            text.endsWith("}")
+        ) {
+
+            const content =
+                text
+                    .slice(1, -1)
+                    .trim();
+
+            if (!content) {
+                return [];
+            }
+
+            return content
+                .split(",")
+                .map(
+                    item =>
+                        item
+                            .trim()
+                            .replace(
+                                /^"(.*)"$/,
+                                "$1"
+                            )
+                )
+                .filter(Boolean);
+        }
+
+
+        /*
+         * CSV.
          */
         return text
             .split(",")
@@ -130,13 +173,12 @@ function normalizeArray(
                 item =>
                     item.trim()
             )
-            .filter(
-                Boolean
-            );
+            .filter(Boolean);
     }
 
+
     /*
-     * Support object values.
+     * Object values.
      */
     if (
         typeof value === "object"
@@ -144,18 +186,24 @@ function normalizeArray(
 
         return Object.values(
             value
-        ).filter(
-            item =>
-                item !== null &&
-                item !== undefined
-        );
+        )
+            .filter(
+                item =>
+                    item !== null &&
+                    item !== undefined
+            );
     }
+
 
     return [
         value
     ];
 }
 
+
+/* =========================================================
+   NUMBER
+========================================================= */
 
 function toFiniteNumber(
     value,
@@ -171,8 +219,12 @@ function toFiniteNumber(
         return fallback;
     }
 
+
     const number =
-        Number(value);
+        Number(
+            value
+        );
+
 
     return Number.isFinite(
         number
@@ -181,6 +233,10 @@ function toFiniteNumber(
         : fallback;
 }
 
+
+/* =========================================================
+   EMPTY
+========================================================= */
 
 function isEmpty(
     value
@@ -194,12 +250,14 @@ function isEmpty(
         return true;
     }
 
+
     if (
         typeof value === "string"
     ) {
 
         return value.trim() === "";
     }
+
 
     if (
         Array.isArray(value)
@@ -208,12 +266,15 @@ function isEmpty(
         return value.length === 0;
     }
 
+
     return false;
 }
 
 
 /* =========================================================
    MODEL PARAMETERS
+   ---------------------------------------------------------
+   Hanya model.parameters.
 ========================================================= */
 
 function getModelParameters(
@@ -224,8 +285,10 @@ function getModelParameters(
         return [];
     }
 
+
     const parameters =
         model.parameters;
+
 
     if (
         Array.isArray(
@@ -233,8 +296,16 @@ function getModelParameters(
         )
     ) {
 
-        return parameters;
+        return parameters.filter(
+            definition =>
+                !INTERNAL_PARAMETERS.has(
+                    getParameterName(
+                        definition
+                    )
+                )
+        );
     }
+
 
     if (
         parameters &&
@@ -242,35 +313,72 @@ function getModelParameters(
             "object"
     ) {
 
+        /*
+         * Wrapper:
+         *
+         * {
+         *     parameters: {...}
+         * }
+         */
+        if (
+            parameters.parameters &&
+            typeof parameters.parameters ===
+                "object"
+        ) {
+
+            return getModelParameters({
+                ...model,
+                parameters:
+                    parameters.parameters
+            });
+        }
+
+
         return Object.entries(
             parameters
-        ).map(
-            ([key, definition]) => {
+        )
+            .map(
+                ([key, definition]) => {
 
-                if (
-                    definition &&
-                    typeof definition ===
-                        "object"
-                ) {
+                    if (
+                        definition &&
+                        typeof definition ===
+                            "object"
+                    ) {
+
+                        return {
+                            ...definition,
+
+                            key,
+
+                            name:
+                                definition.name ||
+                                key
+                        };
+                    }
+
 
                     return {
                         key,
+
                         name:
-                            definition.name ||
                             key,
-                        ...definition
+
+                        type:
+                            typeof definition
                     };
                 }
-
-                return {
-                    key,
-                    name: key,
-                    type:
-                        typeof definition
-                };
-            }
-        );
+            )
+            .filter(
+                definition =>
+                    !INTERNAL_PARAMETERS.has(
+                        getParameterName(
+                            definition
+                        )
+                    )
+            );
     }
+
 
     return [];
 }
@@ -288,6 +396,7 @@ function getParameterName(
         definition?.name ||
         definition?.key ||
         definition?.parameter ||
+        definition?.id ||
         ""
     ).trim();
 }
@@ -311,6 +420,7 @@ function getParameterType(
             .trim()
             .toLowerCase();
 
+
     if (
         type === "number" ||
         type === "integer" ||
@@ -321,6 +431,7 @@ function getParameterType(
         return "number";
     }
 
+
     if (
         type === "boolean" ||
         type === "bool" ||
@@ -329,6 +440,7 @@ function getParameterType(
 
         return "checkbox";
     }
+
 
     if (
         type === "select" ||
@@ -339,6 +451,7 @@ function getParameterType(
         return "select";
     }
 
+
     if (
         type === "radio"
     ) {
@@ -346,7 +459,59 @@ function getParameterType(
         return "radio";
     }
 
+
+    if (
+        type === "array"
+    ) {
+
+        return "array";
+    }
+
+
     return "text";
+}
+
+
+/* =========================================================
+   REQUIRED
+========================================================= */
+
+function getRequired(
+    definition
+) {
+
+    return (
+        definition?.required === true ||
+        definition?.is_required === true ||
+        String(
+            definition?.required ??
+            definition?.is_required ??
+            ""
+        )
+            .trim()
+            .toLowerCase() ===
+            "true"
+    );
+}
+
+
+/* =========================================================
+   LABEL
+========================================================= */
+
+function getLabel(
+    definition
+) {
+
+    return (
+        definition?.label ||
+        definition?.title ||
+        definition?.display_name ||
+        definition?.displayName ||
+        getParameterName(
+            definition
+        )
+    );
 }
 
 
@@ -364,6 +529,7 @@ function getOptions(
         definition?.choices ??
         definition?.enum ??
         [];
+
 
     if (
         Array.isArray(
@@ -385,9 +551,11 @@ function getOptions(
                             option.value ??
                             option.id ??
                             option.key ??
+                            option.name ??
                             ""
                         );
                     }
+
 
                     return String(
                         option
@@ -399,29 +567,17 @@ function getOptions(
             );
     }
 
+
     return normalizeArray(
         source
-    );
-}
-
-
-/* =========================================================
-   REQUIRED
-========================================================= */
-
-function getRequired(
-    definition
-) {
-
-    return (
-        definition?.required === true ||
-        definition?.is_required === true ||
-        String(
-            definition?.required ||
-            ""
-        ).toLowerCase() ===
-            "true"
-    );
+    )
+        .map(
+            value =>
+                String(value)
+        )
+        .filter(
+            Boolean
+        );
 }
 
 
@@ -444,24 +600,171 @@ function validateRequired(
         return;
     }
 
+
     if (
         isEmpty(
             value
         )
     ) {
 
-        const name =
-            getParameterName(
+        errors.push(
+            `${getLabel(
                 definition
-            );
+            )} wajib diisi.`
+        );
+    }
+}
 
-        const label =
-            definition?.label ||
-            definition?.title ||
-            name;
+
+/* =========================================================
+   VALIDATE STRING LENGTH
+========================================================= */
+
+function validateStringLength(
+    definition,
+    value,
+    errors
+) {
+
+    if (
+        isEmpty(
+            value
+        )
+    ) {
+
+        return;
+    }
+
+
+    if (
+        typeof value !== "string"
+    ) {
+
+        return;
+    }
+
+
+    const label =
+        getLabel(
+            definition
+        );
+
+
+    const minLength =
+        toFiniteNumber(
+            definition?.minLength,
+            null
+        );
+
+
+    const maxLength =
+        toFiniteNumber(
+            definition?.maxLength,
+            null
+        );
+
+
+    if (
+        minLength !== null &&
+        value.length < minLength
+    ) {
 
         errors.push(
-            `${label} wajib diisi.`
+            `${label} minimal ${minLength} karakter.`
+        );
+    }
+
+
+    if (
+        maxLength !== null &&
+        value.length > maxLength
+    ) {
+
+        errors.push(
+            `${label} maksimal ${maxLength} karakter.`
+        );
+    }
+}
+
+
+/* =========================================================
+   VALIDATE ARRAY
+========================================================= */
+
+function validateArray(
+    definition,
+    value,
+    errors
+) {
+
+    const type =
+        getParameterType(
+            definition
+        );
+
+
+    if (
+        type !== "array"
+    ) {
+
+        return;
+    }
+
+
+    if (
+        isEmpty(
+            value
+        )
+    ) {
+
+        return;
+    }
+
+
+    const items =
+        normalizeArray(
+            value
+        );
+
+
+    const label =
+        getLabel(
+            definition
+        );
+
+
+    const minItems =
+        toFiniteNumber(
+            definition?.minItems,
+            null
+        );
+
+
+    const maxItems =
+        toFiniteNumber(
+            definition?.maxItems,
+            null
+        );
+
+
+    if (
+        minItems !== null &&
+        items.length < minItems
+    ) {
+
+        errors.push(
+            `${label} minimal ${minItems} item.`
+        );
+    }
+
+
+    if (
+        maxItems !== null &&
+        items.length > maxItems
+    ) {
+
+        errors.push(
+            `${label} maksimal ${maxItems} item.`
         );
     }
 }
@@ -482,6 +785,7 @@ function validateOptions(
             definition
         );
 
+
     if (
         type !== "select" &&
         type !== "radio"
@@ -489,6 +793,7 @@ function validateOptions(
 
         return;
     }
+
 
     if (
         isEmpty(
@@ -499,17 +804,24 @@ function validateOptions(
         return;
     }
 
+
     const options =
         getOptions(
             definition
         );
 
+
+    /*
+     * Kalau model memang tidak memberikan
+     * daftar pilihan, jangan mengarang pilihan.
+     */
     if (
         options.length === 0
     ) {
 
         return;
     }
+
 
     const valid =
         options.some(
@@ -518,17 +830,13 @@ function validateOptions(
                 String(value)
         );
 
+
     if (!valid) {
 
-        const label =
-            definition?.label ||
-            definition?.title ||
-            getParameterName(
-                definition
-            );
-
         errors.push(
-            `${label} memiliki pilihan yang tidak tersedia.`
+            `${getLabel(
+                definition
+            )} memiliki pilihan yang tidak tersedia.`
         );
     }
 }
@@ -553,6 +861,7 @@ function validateNumber(
         return;
     }
 
+
     if (
         isEmpty(
             value
@@ -562,15 +871,18 @@ function validateNumber(
         return;
     }
 
+
     const number =
-        Number(value);
+        Number(
+            value
+        );
+
 
     const label =
-        definition?.label ||
-        definition?.title ||
-        getParameterName(
+        getLabel(
             definition
         );
+
 
     if (
         !Number.isFinite(
@@ -585,11 +897,13 @@ function validateNumber(
         return;
     }
 
+
     const min =
         toFiniteNumber(
             definition?.min,
             null
         );
+
 
     const max =
         toFiniteNumber(
@@ -597,11 +911,13 @@ function validateNumber(
             null
         );
 
+
     const step =
         toFiniteNumber(
             definition?.step,
             null
         );
+
 
     if (
         min !== null &&
@@ -613,6 +929,7 @@ function validateNumber(
         );
     }
 
+
     if (
         max !== null &&
         number > max
@@ -623,9 +940,10 @@ function validateNumber(
         );
     }
 
+
     /*
-     * Validasi step hanya jika backend
-     * memang memberikan step.
+     * Validasi step hanya jika memang
+     * diberikan oleh parameters.js.
      */
     if (
         step !== null &&
@@ -637,17 +955,23 @@ function validateNumber(
                 ? min
                 : 0;
 
+
         const difference =
-            (number - base) /
-            step;
+            (
+                number -
+                base
+            ) / step;
+
 
         const nearest =
             Math.round(
                 difference
             );
 
+
         const tolerance =
             0.000001;
+
 
         if (
             Math.abs(
@@ -665,275 +989,326 @@ function validateNumber(
 
 
 /* =========================================================
-   VALIDATE MODEL RATIOS
+   MODEL CAPABILITIES
 ========================================================= */
 
-function validateAspectRatio(
-    parameters,
-    errors
+function getSupportedRatios(
+    model
 ) {
 
-    const model =
-        getCurrentModel();
+    if (!model) {
+        return [];
+    }
+
+
+    return normalizeArray(
+        model.supported_ratios ??
+        model.supportedRatios ??
+        model.config?.supported_ratios ??
+        model.config?.supportedRatios
+    );
+}
+
+
+function getSupportedResolutions(
+    model
+) {
 
     if (!model) {
-        return;
+        return [];
     }
 
-    const value =
-        parameters.aspect_ratio;
 
-    if (
-        isEmpty(
-            value
-        )
-    ) {
-
-        return;
-    }
-
-    const supported =
-        normalizeArray(
-            model.supported_ratios
-        );
-
-    if (
-        supported.length === 0
-    ) {
-
-        return;
-    }
-
-    const valid =
-        supported.some(
-            ratio =>
-                String(ratio) ===
-                String(value)
-        );
-
-    if (!valid) {
-
-        errors.push(
-            `Aspect ratio ${value} tidak tersedia untuk model ini.`
-        );
-    }
+    return normalizeArray(
+        model.supported_resolutions ??
+        model.supportedResolutions ??
+        model.config?.supported_resolutions ??
+        model.config?.supportedResolutions
+    );
 }
 
 
 /* =========================================================
-   VALIDATE RESOLUTION
+   DURATION LIMITS
 ========================================================= */
 
-function validateResolution(
-    parameters,
-    errors
+function getDurationLimits(
+    model
 ) {
 
-    const model =
-        getCurrentModel();
-
     if (!model) {
-        return;
+
+        return {
+            min: null,
+            max: null
+        };
     }
 
-    const value =
-        parameters.resolution;
 
-    if (
-        isEmpty(
-            value
-        )
-    ) {
-
-        return;
-    }
-
-    const supported =
-        normalizeArray(
-            model.supported_resolutions
+    /*
+     * Bentuk langsung dari API.
+     */
+    let min =
+        toFiniteNumber(
+            model.min_duration,
+            null
         );
 
-    if (
-        supported.length === 0
-    ) {
 
-        return;
-    }
-
-    const valid =
-        supported.some(
-            resolution =>
-                String(resolution) ===
-                String(value)
+    let max =
+        toFiniteNumber(
+            model.max_duration,
+            null
         );
 
-    if (!valid) {
 
-        errors.push(
-            `Resolution ${value} tidak tersedia untuk model ini.`
-        );
-    }
-}
+    /*
+     * CamelCase.
+     */
+    if (min === null) {
 
-
-/* =========================================================
-   VALIDATE DURATION
-========================================================= */
-
-function validateDuration(
-    parameters,
-    errors
-) {
-
-    const model =
-        getCurrentModel();
-
-    if (!model) {
-        return;
+        min =
+            toFiniteNumber(
+                model.minDuration,
+                null
+            );
     }
 
+
+    if (max === null) {
+
+        max =
+            toFiniteNumber(
+                model.maxDuration,
+                null
+            );
+    }
+
+
+    /*
+     * Object duration.
+     */
     if (
-        isEmpty(
-            parameters.duration
-        )
-    ) {
-
-        return;
-    }
-
-    const duration =
-        Number(
-            parameters.duration
-        );
-
-    if (
-        !Number.isFinite(
-            duration
-        )
-    ) {
-
-        errors.push(
-            "Durasi harus berupa angka."
-        );
-
-        return;
-    }
-
-    const modelDuration =
-        model.duration;
-
-    if (
-        !modelDuration ||
-        typeof modelDuration !==
+        model.duration &&
+        typeof model.duration ===
             "object"
     ) {
 
+        if (min === null) {
+
+            min =
+                toFiniteNumber(
+                    model.duration.min,
+                    null
+                );
+        }
+
+
+        if (max === null) {
+
+            max =
+                toFiniteNumber(
+                    model.duration.max,
+                    null
+                );
+        }
+    }
+
+
+    /*
+     * Config wrapper.
+     */
+    if (
+        model.config &&
+        typeof model.config ===
+            "object"
+    ) {
+
+        if (min === null) {
+
+            min =
+                toFiniteNumber(
+                    model.config.min_duration,
+                    null
+                );
+        }
+
+
+        if (max === null) {
+
+            max =
+                toFiniteNumber(
+                    model.config.max_duration,
+                    null
+                );
+        }
+    }
+
+
+    return {
+        min,
+        max
+    };
+}
+
+
+/* =========================================================
+   VALIDATE MODEL CAPABILITIES
+========================================================= */
+
+function validateModelCapabilities(
+    parameters,
+    errors
+) {
+
+    const model =
+        getCurrentModel();
+
+
+    if (!model) {
         return;
     }
 
-    const min =
-        toFiniteNumber(
-            modelDuration.min,
-            null
-        );
-
-    const max =
-        toFiniteNumber(
-            modelDuration.max,
-            null
-        );
-
-    if (
-        min !== null &&
-        duration < min
-    ) {
-
-        errors.push(
-            `Durasi minimum adalah ${min} detik.`
-        );
-    }
-
-    if (
-        max !== null &&
-        duration > max
-    ) {
-
-        errors.push(
-            `Durasi maksimum adalah ${max} detik.`
-        );
-    }
-}
-
-
-/* =========================================================
-   VALIDATE PROMPT
-========================================================= */
-
-function validatePrompt(
-    parameters,
-    errors
-) {
 
     /*
-     * Prompt tetap wajib seperti perilaku
-     * generator sebelumnya.
+     * Aspect ratio.
      */
     if (
-        isEmpty(
-            parameters.prompt
+        Object.prototype.hasOwnProperty.call(
+            parameters,
+            "aspect_ratio"
+        ) &&
+        !isEmpty(
+            parameters.aspect_ratio
         )
     ) {
 
-        errors.push(
-            "Prompt wajib diisi."
-        );
-    }
-}
-
-
-/* =========================================================
-   VALIDATE IMAGE URL / TASK ID
-========================================================= */
-
-function validateImageAndTask(
-    parameters,
-    errors
-) {
-
-    const imageUrls =
-        parameters.image_urls;
-
-    const taskId =
-        parameters.task_id;
-
-    const hasImages =
-        Array.isArray(
-            imageUrls
-        )
-            ? imageUrls.length > 0
-            : !isEmpty(
-                imageUrls
+        const supported =
+            getSupportedRatios(
+                model
             );
 
-    const hasTaskId =
-        !isEmpty(
-            taskId
-        );
 
+        if (
+            supported.length > 0 &&
+            !supported.some(
+                ratio =>
+                    String(ratio) ===
+                    String(
+                        parameters.aspect_ratio
+                    )
+            )
+        ) {
+
+            errors.push(
+                `Aspect ratio ${parameters.aspect_ratio} tidak tersedia untuk model ini.`
+            );
+        }
+    }
+
+
+    /*
+     * Resolution.
+     */
     if (
-        hasImages &&
-        hasTaskId
+        Object.prototype.hasOwnProperty.call(
+            parameters,
+            "resolution"
+        ) &&
+        !isEmpty(
+            parameters.resolution
+        )
     ) {
 
-        errors.push(
-            "Image URL dan Task ID tidak boleh digunakan bersamaan."
-        );
+        const supported =
+            getSupportedResolutions(
+                model
+            );
+
+
+        if (
+            supported.length > 0 &&
+            !supported.some(
+                resolution =>
+                    String(resolution) ===
+                    String(
+                        parameters.resolution
+                    )
+            )
+        ) {
+
+            errors.push(
+                `Resolution ${parameters.resolution} tidak tersedia untuk model ini.`
+            );
+        }
+    }
+
+
+    /*
+     * Duration.
+     */
+    if (
+        Object.prototype.hasOwnProperty.call(
+            parameters,
+            "duration"
+        ) &&
+        !isEmpty(
+            parameters.duration
+        )
+    ) {
+
+        const duration =
+            Number(
+                parameters.duration
+            );
+
+
+        if (
+            !Number.isFinite(
+                duration
+            )
+        ) {
+
+            errors.push(
+                "Durasi harus berupa angka."
+            );
+
+            return;
+        }
+
+
+        const limits =
+            getDurationLimits(
+                model
+            );
+
+
+        if (
+            limits.min !== null &&
+            duration < limits.min
+        ) {
+
+            errors.push(
+                `Durasi minimum adalah ${limits.min} detik.`
+            );
+        }
+
+
+        if (
+            limits.max !== null &&
+            duration > limits.max
+        ) {
+
+            errors.push(
+                `Durasi maksimum adalah ${limits.max} detik.`
+            );
+        }
     }
 }
 
 
 /* =========================================================
-   VALIDATE PARAMETERS AGAINST DEFINITIONS
+   VALIDATE DEFINITIONS
 ========================================================= */
 
 function validateDefinitions(
@@ -944,6 +1319,7 @@ function validateDefinitions(
     const definitions =
         getModelParameters();
 
+
     definitions.forEach(
         definition => {
 
@@ -952,21 +1328,34 @@ function validateDefinitions(
                     definition
                 );
 
+
             if (!name) {
                 return;
             }
 
+
             /*
-             * Hanya validasi parameter yang memang
-             * diberikan oleh form/config.
+             * task_id tidak pernah menjadi
+             * parameter Generate.
              */
             if (
-                !Object.prototype
-                    .hasOwnProperty.call(
-                        parameters,
-                        name
-                    )
+                INTERNAL_PARAMETERS.has(
+                    name
+                )
             ) {
+
+                return;
+            }
+
+
+            const exists =
+                Object.prototype.hasOwnProperty.call(
+                    parameters,
+                    name
+                );
+
+
+            if (!exists) {
 
                 validateRequired(
                     definition,
@@ -977,8 +1366,10 @@ function validateDefinitions(
                 return;
             }
 
+
             const value =
                 parameters[name];
+
 
             validateRequired(
                 definition,
@@ -986,13 +1377,29 @@ function validateDefinitions(
                 errors
             );
 
+
             validateOptions(
                 definition,
                 value,
                 errors
             );
 
+
             validateNumber(
+                definition,
+                value,
+                errors
+            );
+
+
+            validateStringLength(
+                definition,
+                value,
+                errors
+            );
+
+
+            validateArray(
                 definition,
                 value,
                 errors
@@ -1003,43 +1410,53 @@ function validateDefinitions(
 
 
 /* =========================================================
-   VALIDATE UNKNOWN PARAMETERS
+   REMOVE INTERNAL PARAMETERS
+   ---------------------------------------------------------
+   Defensive cleanup sebelum validation.
+
+   Ini bukan mutasi object asli.
 ========================================================= */
 
-function validateKnownSpecialFields(
-    parameters,
-    errors
+function sanitizeParameters(
+    parameters
 ) {
 
-    /*
-     * Parameter umum yang memang sudah menjadi
-     * bagian dari generator tidak dianggap unknown.
-     */
-    const known =
-        new Set([
-            "prompt",
-            "image_urls",
-            "image_url",
-            "video_url",
-            "audio_url",
-            "task_id",
-            "aspect_ratio",
-            "resolution",
-            "duration",
-            "mode",
-            "nsfw_checker"
-        ]);
+    if (
+        !parameters ||
+        typeof parameters !==
+            "object"
+    ) {
 
-    /*
-     * Jangan menolak parameter tambahan hanya karena
-     * frontend belum mengenal namanya.
-     *
-     * Backend/model adapter tetap menjadi validator
-     * terakhir.
-     */
-    void known;
-    void parameters;
-    void errors;
+        return {};
+    }
+
+
+    const sanitized =
+        {};
+
+
+    Object.entries(
+        parameters
+    ).forEach(
+        ([key, value]) => {
+
+            if (
+                INTERNAL_PARAMETERS.has(
+                    key
+                )
+            ) {
+
+                return;
+            }
+
+
+            sanitized[key] =
+                value;
+        }
+    );
+
+
+    return sanitized;
 }
 
 
@@ -1054,8 +1471,10 @@ export function validateClientParameters(
     const errors =
         [];
 
+
     const model =
         getCurrentModel();
+
 
     if (!model) {
 
@@ -1066,10 +1485,12 @@ export function validateClientParameters(
         return errors;
     }
 
+
     if (
         !parameters ||
         typeof parameters !==
-            "object"
+            "object" ||
+        Array.isArray(parameters)
     ) {
 
         errors.push(
@@ -1079,40 +1500,32 @@ export function validateClientParameters(
         return errors;
     }
 
-    validatePrompt(
-        parameters,
-        errors
-    );
 
-    validateImageAndTask(
-        parameters,
-        errors
-    );
+    const sanitized =
+        sanitizeParameters(
+            parameters
+        );
 
-    validateAspectRatio(
-        parameters,
-        errors
-    );
 
-    validateResolution(
-        parameters,
-        errors
-    );
-
-    validateDuration(
-        parameters,
-        errors
-    );
-
+    /*
+     * Semua aturan berasal dari
+     * model.parameters.
+     */
     validateDefinitions(
-        parameters,
+        sanitized,
         errors
     );
 
-    validateKnownSpecialFields(
-        parameters,
+
+    /*
+     * Capability model berasal dari
+     * model-config, bukan aturan hardcode.
+     */
+    validateModelCapabilities(
+        sanitized,
         errors
     );
+
 
     return [
         ...new Set(
@@ -1153,6 +1566,7 @@ export function getFirstValidationError(
             parameters
         );
 
+
     return (
         errors[0] ||
         null
@@ -1169,18 +1583,46 @@ export function validateParameter(
     value
 ) {
 
+    const normalizedName =
+        String(
+            name || ""
+        ).trim();
+
+
+    if (!normalizedName) {
+        return [];
+    }
+
+
+    /*
+     * Internal parameter tidak boleh
+     * divalidasi sebagai input user.
+     */
+    if (
+        INTERNAL_PARAMETERS.has(
+            normalizedName
+        )
+    ) {
+
+        return [];
+    }
+
+
     const errors =
         [];
 
+
     const definition =
         parameterDefinition(
-            name
+            normalizedName
         );
+
 
     if (!definition) {
 
         return errors;
     }
+
 
     validateRequired(
         definition,
@@ -1188,17 +1630,34 @@ export function validateParameter(
         errors
     );
 
+
     validateOptions(
         definition,
         value,
         errors
     );
 
+
     validateNumber(
         definition,
         value,
         errors
     );
+
+
+    validateStringLength(
+        definition,
+        value,
+        errors
+    );
+
+
+    validateArray(
+        definition,
+        value,
+        errors
+    );
+
 
     return [
         ...new Set(
