@@ -6,24 +6,24 @@
    user/dashboard/dashboard-init.js
 
    Tanggung jawab:
-   - Menjalankan seluruh module dashboard
+   - Menjalankan module dashboard dalam urutan yang benar
+   - Cache DOM
    - Memastikan dependency tersedia
-   - Menjalankan auth
-   - Menjalankan navigation
-   - Menjalankan modal
-   - Menjalankan upload
-   - Menjalankan events
-   - Memuat data video
-   - Render awal dashboard
+   - Menunggu navigation/auth shared selesai
+   - Initialize modal
+   - Initialize upload
+   - Initialize events
+   - Load video dari Supabase
+   - Render dashboard
+   - Menjamin modal tidak terbuka otomatis
 
    Tidak bertanggung jawab:
+   - Auth implementation
    - Query Supabase langsung
-   - CRUD video
-   - Upload Storage
-   - HTML rendering detail
-   - CSS
-   - Implementasi authentication
-   - Implementasi navigation
+   - CRUD langsung
+   - Upload langsung
+   - Render detail
+   - Navigation implementation
 ========================================================= */
 
 (function () {
@@ -52,51 +52,10 @@
 
 
     /* =====================================================
-       ERROR MESSAGE
-    ===================================================== */
-
-    function getErrorMessage(error) {
-
-        if (!error) {
-
-            return (
-                "Dashboard gagal dimuat."
-            );
-        }
-
-
-        if (
-            typeof error ===
-            "string"
-        ) {
-
-            return error;
-        }
-
-
-        if (
-            error.message &&
-            typeof error.message ===
-            "string"
-        ) {
-
-            return error.message;
-        }
-
-
-        return (
-            "Terjadi kesalahan saat memuat dashboard."
-        );
-    }
-
-
-    /* =====================================================
        LOG
     ===================================================== */
 
-    function log(
-        ...args
-    ) {
+    function log(...args) {
 
         console.log(
             "[GEN-Z.AI Dashboard]",
@@ -105,9 +64,7 @@
     }
 
 
-    function logError(
-        ...args
-    ) {
+    function logError(...args) {
 
         console.error(
             "[GEN-Z.AI Dashboard]",
@@ -117,120 +74,174 @@
 
 
     /* =====================================================
+       ERROR MESSAGE
+    ===================================================== */
+
+    function getErrorMessage(error) {
+
+        if (!error) {
+
+            return "Dashboard gagal dimuat.";
+        }
+
+
+        if (
+            typeof error === "string"
+        ) {
+
+            return error;
+        }
+
+
+        if (
+            error.message &&
+            typeof error.message === "string"
+        ) {
+
+            return error.message;
+        }
+
+
+        return "Terjadi kesalahan saat memuat dashboard.";
+    }
+
+
+    /* =====================================================
+       DOM CACHE
+    ===================================================== */
+
+    function cacheElements() {
+
+        /*
+         * dashboard-config.js adalah pemilik utama
+         * cache element.
+         */
+
+        if (
+            typeof dashboard.cacheElements !==
+            "function"
+        ) {
+
+            throw new Error(
+                "dashboard-config.js belum menyediakan cacheElements()."
+            );
+        }
+
+
+        const elements =
+            dashboard.cacheElements();
+
+
+        /*
+         * Simpan cache di namespace agar seluruh module
+         * menggunakan object yang sama.
+         */
+
+        dashboard.elements =
+            elements;
+
+
+        return elements;
+    }
+
+
+    /* =====================================================
        DEPENDENCY CHECK
     ===================================================== */
 
     function checkDependencies() {
 
-        const required =
-            [
+        const required = [
 
-                {
-                    name:
-                        "dashboard-config",
-                    check:
-                        function () {
+            {
+                name: "dashboard-config",
+                check: function () {
 
-                            return (
-                                dashboard.config &&
-                                typeof dashboard.config ===
-                                "object"
-                            );
-                        }
-                },
-
-                {
-                    name:
-                        "dashboard-state",
-                    check:
-                        function () {
-
-                            return (
-                                typeof dashboard.getVideos ===
-                                "function"
-                            );
-                        }
-                },
-
-                {
-                    name:
-                        "dashboard-auth",
-                    check:
-                        function () {
-
-                            return (
-                                typeof dashboard.initializeAuth ===
-                                "function"
-                            );
-                        }
-                },
-
-                {
-                    name:
-                        "dashboard-data",
-                    check:
-                        function () {
-
-                            return (
-                                typeof dashboard.loadVideos ===
-                                "function"
-                            );
-                        }
-                },
-
-                {
-                    name:
-                        "dashboard-render",
-                    check:
-                        function () {
-
-                            return (
-                                typeof dashboard.renderDashboard ===
-                                "function"
-                            );
-                        }
-                },
-
-                {
-                    name:
-                        "dashboard-modal",
-                    check:
-                        function () {
-
-                            return (
-                                typeof dashboard.initializeModal ===
-                                "function"
-                            );
-                        }
-                },
-
-                {
-                    name:
-                        "dashboard-upload",
-                    check:
-                        function () {
-
-                            return (
-                                typeof dashboard.initializeUpload ===
-                                "function"
-                            );
-                        }
-                },
-
-                {
-                    name:
-                        "dashboard-events",
-                    check:
-                        function () {
-
-                            return (
-                                typeof dashboard.initializeEvents ===
-                                "function"
-                            );
-                        }
+                    return (
+                        dashboard.config &&
+                        dashboard.configReady === true
+                    );
                 }
+            },
 
-            ];
+            {
+                name: "dashboard-state",
+                check: function () {
+
+                    return (
+                        typeof dashboard.getVideos ===
+                        "function"
+                    );
+                }
+            },
+
+            {
+                name: "dashboard-auth",
+                check: function () {
+
+                    return (
+                        typeof dashboard.initializeAuth ===
+                        "function"
+                    );
+                }
+            },
+
+            {
+                name: "dashboard-data",
+                check: function () {
+
+                    return (
+                        typeof dashboard.loadVideos ===
+                        "function"
+                    );
+                }
+            },
+
+            {
+                name: "dashboard-render",
+                check: function () {
+
+                    return (
+                        typeof dashboard.renderDashboard ===
+                        "function"
+                    );
+                }
+            },
+
+            {
+                name: "dashboard-modal",
+                check: function () {
+
+                    return (
+                        typeof dashboard.initializeModal ===
+                        "function"
+                    );
+                }
+            },
+
+            {
+                name: "dashboard-upload",
+                check: function () {
+
+                    return (
+                        typeof dashboard.initializeUpload ===
+                        "function"
+                    );
+                }
+            },
+
+            {
+                name: "dashboard-events",
+                check: function () {
+
+                    return (
+                        typeof dashboard.initializeEvents ===
+                        "function"
+                    );
+                }
+            }
+
+        ];
 
 
         const missing =
@@ -250,7 +261,7 @@
 
 
         if (
-            missing.length
+            missing.length > 0
         ) {
 
             const names =
@@ -259,12 +270,9 @@
                         function (item) {
 
                             return item.name;
-
                         }
                     )
-                    .join(
-                        ", "
-                    );
+                    .join(", ");
 
 
             throw new Error(
@@ -279,224 +287,15 @@
 
 
     /* =====================================================
-       CACHE ELEMENTS
-    ===================================================== */
-
-    function cacheElements() {
-
-        /*
-         * Jika state module sudah menyediakan cache,
-         * gunakan itu.
-         */
-
-        if (
-            typeof dashboard.cacheElements ===
-            "function"
-        ) {
-
-            return dashboard.cacheElements();
-        }
-
-
-        /*
-         * Fallback.
-         *
-         * State module seharusnya menyediakan fungsi ini,
-         * tetapi fallback membuat initialization lebih aman.
-         */
-
-        const elements = {
-
-            dashboardRoot:
-                document.querySelector(
-                    "[data-dashboard-root]"
-                ) ||
-                document.getElementById(
-                    "dashboard"
-                ),
-
-
-            categoryFilters:
-                document.querySelector(
-                    "[data-dashboard-category-filter]"
-                ) ||
-                document.getElementById(
-                    "categoryFilters"
-                ),
-
-
-            videoGrid:
-                document.querySelector(
-                    "[data-video-grid]"
-                ) ||
-                document.getElementById(
-                    "videoGrid"
-                ),
-
-
-            videoModal:
-                document.getElementById(
-                    "videoModal"
-                ),
-
-
-            videoForm:
-                document.getElementById(
-                    "videoForm"
-                ),
-
-
-            videoId:
-                document.getElementById(
-                    "videoId"
-                ),
-
-
-            videoTitle:
-                document.getElementById(
-                    "videoTitle"
-                ),
-
-
-            videoDescription:
-                document.getElementById(
-                    "videoDescription"
-                ),
-
-
-            videoCategory:
-                document.getElementById(
-                    "videoCategory"
-                ),
-
-
-            videoAspectRatio:
-                document.getElementById(
-                    "videoAspectRatio"
-                ),
-
-
-            videoFile:
-                document.getElementById(
-                    "videoFile"
-                ),
-
-
-            thumbnailFile:
-                document.getElementById(
-                    "thumbnailFile"
-                ),
-
-
-            videoSortOrder:
-                document.getElementById(
-                    "videoSortOrder"
-                ),
-
-
-            videoIsActive:
-                document.getElementById(
-                    "videoIsActive"
-                ),
-
-
-            currentVideoFile:
-                document.getElementById(
-                    "currentVideoFile"
-                ),
-
-
-            currentThumbnailFile:
-                document.getElementById(
-                    "currentThumbnailFile"
-                ),
-
-
-            uploadProgress:
-                document.getElementById(
-                    "uploadProgress"
-                ),
-
-
-            uploadProgressPercent:
-                document.getElementById(
-                    "uploadProgressPercent"
-                ),
-
-
-            uploadProgressBar:
-                document.getElementById(
-                    "uploadProgressBar"
-                ),
-
-
-            uploadProgressText:
-                document.getElementById(
-                    "uploadProgressText"
-                ),
-
-
-            modalTitle:
-                document.getElementById(
-                    "modalTitle"
-                ),
-
-
-            modalClose:
-                document.getElementById(
-                    "modalClose"
-                ),
-
-
-            cancelModalButton:
-                document.getElementById(
-                    "cancelModalButton"
-                ),
-
-
-            addVideoButton:
-                document.getElementById(
-                    "addVideoButton"
-                ),
-
-
-            retryButton:
-                document.getElementById(
-                    "retryButton"
-                ),
-
-
-            adminBackButton:
-                document.getElementById(
-                    "adminBackButton"
-                ),
-
-
-            managementButton:
-                document.getElementById(
-                    "managementButton"
-                )
-
-        };
-
-
-        dashboard.elements =
-            elements;
-
-
-        return elements;
-    }
-
-
-    /* =====================================================
-       SUPABASE CHECK
+       SUPABASE CLIENT CHECK
     ===================================================== */
 
     function ensureSupabase() {
 
         /*
-         * Config.js seharusnya sudah menyediakan client.
-         * Dashboard tidak membuat client kedua.
+         * Dashboard tidak membuat client baru.
+         *
+         * Client harus berasal dari config.js.
          */
 
         if (
@@ -504,7 +303,16 @@
             "function"
         ) {
 
-            return dashboard.requireSupabase();
+            const client =
+                dashboard.requireSupabase();
+
+
+            if (
+                client
+            ) {
+
+                return client;
+            }
         }
 
 
@@ -531,155 +339,132 @@
 
 
     /* =====================================================
-       NAVIGATION
+       NAVIGATION / AUTH WAIT
     ===================================================== */
 
-    async function initializeNavigation() {
+    async function waitForSharedNavigation() {
 
         /*
-         * Navigation adalah module global.
+         * navigation.js melakukan:
          *
-         * Dashboard tidak mengimplementasikan navigation
-         * sendiri.
+         * 1. Session validation
+         * 2. Profile lookup
+         * 3. Role validation
+         * 4. Navigation rendering
+         *
+         * Dashboard tidak boleh mengulang proses tersebut.
          */
 
-        try {
 
-            if (
-                typeof window.GENZNavigation !==
-                "undefined"
-            ) {
-
-                const navigation =
-                    window.GENZNavigation;
-
-
-                if (
-                    typeof navigation.init ===
-                    "function"
-                ) {
-
-                    await navigation.init();
-
-                    log(
-                        "Navigation initialized."
-                    );
-
-                    return true;
-                }
-
-
-                if (
-                    typeof navigation.initialize ===
-                    "function"
-                ) {
-
-                    await navigation.initialize();
-
-                    log(
-                        "Navigation initialized."
-                    );
-
-                    return true;
-                }
-            }
-
-
-            /*
-             * Beberapa versi navigation.js mungkin
-             * menggunakan global function.
-             */
-
-            if (
-                typeof window.initializeNavigation ===
-                "function"
-            ) {
-
-                await window.initializeNavigation();
-
-                log(
-                    "Navigation initialized."
-                );
-
-                return true;
-            }
-
-
-            /*
-             * Navigation optional pada saat development.
-             *
-             * Jangan menggagalkan dashboard hanya karena
-             * navigation belum tersedia.
-             */
-
-            log(
-                "Navigation module belum tersedia, dashboard tetap dilanjutkan."
-            );
-
-
-            return false;
-
-        } catch (error) {
-
-            /*
-             * Navigation error tidak boleh menghapus
-             * fungsi utama dashboard.
-             */
-
-            logError(
-                "Navigation initialization failed:",
-                error
-            );
-
-
-            return false;
-        }
-    }
-
-
-    /* =====================================================
-       AUTH
-    ===================================================== */
-
-    async function initializeAuthentication() {
+        /*
+         * Jika navigation menyediakan Promise ready,
+         * tunggu Promise tersebut.
+         */
 
         if (
-            typeof dashboard.initializeAuth !==
+            window.GENZNavigationReady &&
+            typeof window.GENZNavigationReady.then ===
             "function"
         ) {
 
-            throw new Error(
-                "Authentication module tidak tersedia."
-            );
+            try {
+
+                await window.GENZNavigationReady;
+
+            } catch (error) {
+
+                logError(
+                    "Navigation ready error:",
+                    error
+                );
+            }
         }
-
-
-        const result =
-            await dashboard.initializeAuth();
 
 
         /*
-         * Auth module bertanggung jawab terhadap:
-         * - session
-         * - profile
-         * - role
-         * - active status
-         * - redirect
-         * - edit mode permission
+         * Beberapa versi navigation menggunakan
+         * global state setelah initialization.
          */
 
-
         if (
-            result === false
+            window.GENZ_NAVIGATION_PROFILE
         ) {
 
-            throw new Error(
-                "Autentikasi dashboard gagal."
-            );
+            /*
+             * Sinkronkan informasi navigation ke dashboard
+             * hanya sebagai state UI.
+             *
+             * Ini BUKAN sumber otorisasi.
+             */
+
+            if (
+                typeof dashboard.setCurrentUser ===
+                "function" &&
+                window.GENZ_NAVIGATION_USER
+            ) {
+
+                dashboard.setCurrentUser(
+                    window.GENZ_NAVIGATION_USER
+                );
+            }
+
+
+            if (
+                typeof dashboard.setCurrentProfile ===
+                "function"
+            ) {
+
+                dashboard.setCurrentProfile(
+                    window.GENZ_NAVIGATION_PROFILE
+                );
+            }
+
+
+            if (
+                typeof dashboard.setRole ===
+                "function" &&
+                window.GENZ_NAVIGATION_ROLE
+            ) {
+
+                dashboard.setRole(
+                    window.GENZ_NAVIGATION_ROLE
+                );
+            }
         }
 
 
-        return result;
+        /*
+         * Dashboard auth tetap digunakan untuk state
+         * dashboard sendiri.
+         *
+         * Tetapi auth module harus memanfaatkan session
+         * yang sudah ada, bukan membuat sistem auth kedua.
+         */
+
+        if (
+            typeof dashboard.initializeAuth ===
+            "function"
+        ) {
+
+            const result =
+                await dashboard.initializeAuth();
+
+
+            if (
+                result === false
+            ) {
+
+                /*
+                 * Auth module mungkin melakukan redirect.
+                 * Jangan teruskan loading dashboard.
+                 */
+
+                return false;
+            }
+        }
+
+
+        return true;
     }
 
 
@@ -690,47 +475,92 @@
     function initializeUI() {
 
         /*
-         * Modal.
+         * Modal
          */
 
-        if (
-            typeof dashboard.initializeModal ===
-            "function"
-        ) {
-
-            dashboard.initializeModal();
-        }
+        dashboard.initializeModal();
 
 
         /*
-         * Upload.
+         * Upload
          */
 
-        if (
-            typeof dashboard.initializeUpload ===
-            "function"
-        ) {
-
-            dashboard.initializeUpload();
-        }
+        dashboard.initializeUpload();
 
 
         /*
-         * Events.
+         * Events
+         */
+
+        dashboard.initializeEvents();
+    }
+
+
+    /* =====================================================
+       FORCE MODAL CLOSED
+    ===================================================== */
+
+    function forceCloseModal() {
+
+        /*
+         * Sangat penting untuk bug:
+         *
+         * Admin / Owner masuk dashboard
+         * → form edit langsung muncul
+         *
+         * Tidak boleh terjadi.
          */
 
         if (
-            typeof dashboard.initializeEvents ===
+            typeof dashboard.closeModal ===
             "function"
         ) {
 
-            dashboard.initializeEvents();
+            dashboard.closeModal();
+        }
+
+
+        const modal =
+            dashboard.elements &&
+            dashboard.elements.videoModal;
+
+
+        if (
+            modal
+        ) {
+
+            modal.hidden =
+                true;
+
+
+            modal.classList.add(
+                "hidden"
+            );
+
+
+            modal.setAttribute(
+                "aria-hidden",
+                "true"
+            );
+        }
+
+
+        if (
+            typeof dashboard.setModalState ===
+            "function"
+        ) {
+
+            dashboard.setModalState(
+                false,
+                null,
+                null
+            );
         }
     }
 
 
     /* =====================================================
-       LOAD VIDEO DATA
+       LOAD VIDEOS
     ===================================================== */
 
     async function loadDashboardVideos() {
@@ -741,41 +571,46 @@
         ) {
 
             throw new Error(
-                "Video data module tidak tersedia."
+                "dashboard-data.js belum menyediakan loadVideos()."
             );
         }
 
 
         /*
-         * Admin / Owner pada edit mode boleh melihat
-         * video inactive.
+         * User:
+         *   hanya video aktif.
          *
-         * User biasa hanya mendapat video aktif.
+         * Admin / Owner + edit mode:
+         *   boleh melihat inactive untuk management.
          */
 
-        const includeInactive =
+        let includeInactive =
+            false;
+
+
+        if (
             typeof dashboard.isEditMode ===
             "function" &&
             typeof dashboard.hasManagementAccess ===
-            "function" &&
-            dashboard.isEditMode() &&
-            dashboard.hasManagementAccess();
-
-
-        await dashboard.loadVideos({
-
-            includeInactive:
-                includeInactive
-
-        });
-
-
-        return (
-            typeof dashboard.getVideos ===
             "function"
-                ? dashboard.getVideos()
-                : []
-        );
+        ) {
+
+            includeInactive =
+                dashboard.isEditMode() &&
+                dashboard.hasManagementAccess();
+        }
+
+
+        const videos =
+            await dashboard.loadVideos({
+
+                includeInactive:
+                    includeInactive
+
+            });
+
+
+        return videos || [];
     }
 
 
@@ -783,7 +618,7 @@
        INITIAL RENDER
     ===================================================== */
 
-    function renderInitialDashboard() {
+    function renderDashboard() {
 
         if (
             typeof dashboard.renderDashboard !==
@@ -791,7 +626,7 @@
         ) {
 
             throw new Error(
-                "Render module tidak tersedia."
+                "dashboard-render.js belum menyediakan renderDashboard()."
             );
         }
 
@@ -801,66 +636,63 @@
 
 
     /* =====================================================
-       CLOSE MODAL ON START
+       READY STATE
     ===================================================== */
 
-    function forceCloseModalOnStartup() {
+    function markReady() {
 
-        /*
-         * Admin / Owner masuk edit mode TIDAK berarti
-         * form otomatis terbuka.
-         *
-         * Ini penting untuk bug sebelumnya:
-         * form edit muncul otomatis dan tidak bisa ditutup.
-         */
+        dashboard.initialized =
+            true;
+
+
+        dashboard.ready =
+            true;
+
 
         if (
-            typeof dashboard.closeModal ===
+            typeof dashboard.setInitialized ===
             "function"
         ) {
 
-            dashboard.closeModal();
+            dashboard.setInitialized(
+                true
+            );
         }
-    }
 
-
-    /* =====================================================
-       READY UI
-    ===================================================== */
-
-    function markDashboardReady() {
 
         const root =
             dashboard.elements &&
-            dashboard.elements.dashboardRoot
-                ? dashboard.elements.dashboardRoot
-                : document.querySelector(
-                    "[data-dashboard-root]"
-                );
+            dashboard.elements.page;
 
 
-        if (!root) {
-            return;
+        if (
+            root
+        ) {
+
+            root.setAttribute(
+                "data-dashboard-ready",
+                "true"
+            );
+
+
+            root.classList.add(
+                "dashboard-ready"
+            );
         }
 
 
-        root.setAttribute(
+        document.body.setAttribute(
             "data-dashboard-ready",
             "true"
-        );
-
-
-        root.classList.add(
-            "dashboard-ready"
         );
     }
 
 
     /* =====================================================
-       ERROR UI
+       ERROR STATE
     ===================================================== */
 
-    function renderInitializationError(
+    function handleInitializationError(
         error
     ) {
 
@@ -888,8 +720,7 @@
 
 
         /*
-         * Coba gunakan render module untuk menampilkan
-         * error secara konsisten.
+         * Render error state melalui renderer.
          */
 
         try {
@@ -905,18 +736,11 @@
         } catch (renderError) {
 
             logError(
-                "Error renderer juga gagal:",
+                "Gagal render error state:",
                 renderError
             );
         }
 
-
-        /*
-         * Fallback console.
-         *
-         * Tidak membuat alert browser karena alert
-         * mengganggu UX dashboard.
-         */
 
         return message;
     }
@@ -928,37 +752,42 @@
 
     async function initializeDashboard() {
 
-        if (initialized) {
+        if (
+            initialized
+        ) {
 
             return true;
         }
 
 
-        if (initializing) {
+        if (
+            initializing
+        ) {
 
             return false;
         }
 
 
-        initializing = true;
+        initializing =
+            true;
 
 
         try {
 
             log(
-                "Initializing dashboard..."
+                "Starting dashboard initialization..."
             );
 
 
             /* ---------------------------------------------
-               1. Cache DOM
+               1. DOM
             --------------------------------------------- */
 
             cacheElements();
 
 
             /* ---------------------------------------------
-               2. Check modules
+               2. Dependency
             --------------------------------------------- */
 
             checkDependencies();
@@ -972,80 +801,72 @@
 
 
             /* ---------------------------------------------
-               4. Authentication
+               4. Shared Auth / Navigation
             --------------------------------------------- */
 
-            await initializeAuthentication();
+            const authenticated =
+                await waitForSharedNavigation();
 
-
-            /*
-             * Auth module dapat melakukan redirect.
-             *
-             * Jika halaman masih aktif, lanjut.
-             */
 
             if (
-                !document.body
+                authenticated === false
             ) {
 
-                throw new Error(
-                    "DOM dashboard belum siap."
-                );
+                return false;
             }
 
 
             /* ---------------------------------------------
-               5. Navigation
-            --------------------------------------------- */
-
-            await initializeNavigation();
-
-
-            /* ---------------------------------------------
-               6. UI modules
+               5. UI modules
             --------------------------------------------- */
 
             initializeUI();
 
 
             /* ---------------------------------------------
-               7. Force close modal
+               6. Force modal closed
             --------------------------------------------- */
 
-            forceCloseModalOnStartup();
+            forceCloseModal();
 
 
             /* ---------------------------------------------
-               8. Load videos
+               7. Load video
             --------------------------------------------- */
 
             await loadDashboardVideos();
 
 
             /* ---------------------------------------------
-               9. Initial render
+               8. Render
             --------------------------------------------- */
 
-            renderInitialDashboard();
+            renderDashboard();
 
 
             /* ---------------------------------------------
-               10. Ready
+               9. Close modal again
+               --------------------------------------------- */
+
+            /*
+             * Defensive.
+             *
+             * Jika module lain mengubah modal selama render,
+             * dashboard tetap dimulai dalam kondisi tertutup.
+             */
+
+            forceCloseModal();
+
+
+            /* ---------------------------------------------
+               10. READY
             --------------------------------------------- */
-
-            markDashboardReady();
-
 
             initialized =
                 true;
 
 
-            dashboard.initialized =
-                true;
-
-
-            dashboard.ready =
-                true;
+            markReady();
 
 
             log(
@@ -1057,7 +878,7 @@
 
         } catch (error) {
 
-            renderInitializationError(
+            handleInitializationError(
                 error
             );
 
@@ -1081,14 +902,46 @@
 
 
     /* =====================================================
-       DOM READY
+       PUBLIC API
+    ===================================================== */
+
+    dashboard.checkDependencies =
+        checkDependencies;
+
+
+    dashboard.ensureDashboardSupabase =
+        ensureSupabase;
+
+
+    dashboard.waitForSharedNavigation =
+        waitForSharedNavigation;
+
+
+    dashboard.loadDashboardVideos =
+        loadDashboardVideos;
+
+
+    dashboard.renderInitialDashboard =
+        renderDashboard;
+
+
+    dashboard.initializeDashboard =
+        initializeDashboard;
+
+
+    /* =====================================================
+       READY FLAG
+    ===================================================== */
+
+    dashboard.initReady =
+        true;
+
+
+    /* =====================================================
+       START
     ===================================================== */
 
     function start() {
-
-        /*
-         * Jika DOM sudah siap, langsung jalankan.
-         */
 
         if (
             document.readyState ===
@@ -1114,41 +967,6 @@
         initializeDashboard();
     }
 
-
-    /* =====================================================
-       PUBLIC API
-    ===================================================== */
-
-    dashboard.checkDependencies =
-        checkDependencies;
-
-    dashboard.initializeNavigation =
-        initializeNavigation;
-
-    dashboard.initializeAuthentication =
-        initializeAuthentication;
-
-    dashboard.loadDashboardVideos =
-        loadDashboardVideos;
-
-    dashboard.renderInitialDashboard =
-        renderInitialDashboard;
-
-    dashboard.initializeDashboard =
-        initializeDashboard;
-
-
-    /* =====================================================
-       READY FLAG
-    ===================================================== */
-
-    dashboard.initReady =
-        true;
-
-
-    /* =====================================================
-       START
-    ===================================================== */
 
     start();
 
