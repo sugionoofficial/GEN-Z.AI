@@ -35,6 +35,12 @@
    - active jika kolom tersedia
    - jika kolom status tidak tersedia, profile tetap
      dianggap valid selama profile + role valid
+
+   PENTING:
+   - Role Generate berasal dari profiles Supabase
+   - Credit Generate berasal dari profiles Supabase
+   - Navigation profile hanya cache/sinkronisasi
+   - Navigation tidak boleh menjadi source of truth
 ========================================================= */
 
 import {
@@ -126,7 +132,10 @@ function loadSupabaseScript() {
                 typeof window.supabase.createClient ===
                     "function"
             ) {
-                resolve(window.supabase);
+                resolve(
+                    window.supabase
+                );
+
                 return;
             }
 
@@ -152,9 +161,11 @@ function loadSupabaseScript() {
                                 .createClient ===
                                 "function"
                         ) {
+
                             resolve(
                                 window.supabase
                             );
+
                             return;
                         }
 
@@ -163,11 +174,13 @@ function loadSupabaseScript() {
                                 startedAt >=
                             timeout
                         ) {
+
                             reject(
                                 new Error(
                                     "Supabase JS gagal dimuat."
                                 )
                             );
+
                             return;
                         }
 
@@ -178,6 +191,7 @@ function loadSupabaseScript() {
                     };
 
                 check();
+
                 return;
             }
 
@@ -200,9 +214,11 @@ function loadSupabaseScript() {
                             .createClient ===
                             "function"
                     ) {
+
                         resolve(
                             window.supabase
                         );
+
                         return;
                     }
 
@@ -240,13 +256,15 @@ function createSupabaseClient() {
     const {
         url,
         key
-    } = getSupabaseConfig();
+    } =
+        getSupabaseConfig();
 
     if (
         !window.supabase ||
         typeof window.supabase.createClient !==
             "function"
     ) {
+
         throw new Error(
             "Supabase JS belum tersedia."
         );
@@ -297,6 +315,7 @@ export async function loadSupabase() {
             existingClient
         )
     ) {
+
         return existingClient;
     }
 
@@ -345,6 +364,7 @@ export async function loadSupabase() {
         typeof window.supabase.createClient !==
             "function"
     ) {
+
         await loadSupabaseScript();
     }
 
@@ -382,6 +402,7 @@ async function getCurrentSession() {
             client
         )
     ) {
+
         throw new Error(
             "Supabase client belum tersedia."
         );
@@ -429,6 +450,7 @@ export async function loadCurrentUser() {
             client
         )
     ) {
+
         throw new Error(
             "Supabase client belum tersedia."
         );
@@ -478,6 +500,15 @@ export async function loadCurrentUser() {
     setCurrentUser(
         data.user
     );
+
+    /*
+     * Sinkronkan user global.
+     */
+    window.GENZ_CURRENT_USER =
+        data.user;
+
+    window.GENZ_NAVIGATION_USER =
+        data.user;
 
     return data.user;
 }
@@ -538,9 +569,16 @@ function validateProfile(
         );
     }
 
+    /*
+     * Profile WAJIB milik user Auth yang sedang login.
+     */
     if (
-        String(profile.id || "") !==
-        String(user.id)
+        String(
+            profile.id || ""
+        ) !==
+        String(
+            user.id
+        )
     ) {
 
         throw new Error(
@@ -549,23 +587,25 @@ function validateProfile(
     }
 
     /*
-     * Jika status memang tersedia, akun harus active.
+     * Jika status memang tersedia,
+     * akun harus active.
      *
      * Jika status tidak tersedia pada schema,
-     * validasi status dilewati. Jangan membuat
-     * user valid gagal login hanya karena schema
-     * tidak memiliki kolom status.
+     * validasi status dilewati.
      */
     if (
         profile.status !== undefined &&
         profile.status !== null &&
-        String(profile.status).trim() !== ""
+        String(
+            profile.status
+        ).trim() !== ""
     ) {
 
         if (
             normalizeStatus(
                 profile.status
-            ) !== ACTIVE_STATUS
+            ) !==
+            ACTIVE_STATUS
         ) {
 
             throw new Error(
@@ -617,24 +657,33 @@ function updateAuthBadges(
         creditBadge
     } = elements;
 
+    /*
+     * ROLE
+     */
     if (roleBadge) {
 
-        roleBadge.textContent =
+        const role =
             normalizeRole(
-                profile.role
-            ) || "USER";
+                profile?.role
+            );
+
+        roleBadge.textContent =
+            role || "USER";
     }
 
+    /*
+     * CREDIT
+     */
     if (!creditBadge) {
         return;
     }
 
     const credits =
-        profile.credits;
+        profile?.credits;
 
     /*
-     * NULL / undefined berarti data memang
-     * tidak tersedia.
+     * NULL / undefined / empty:
+     * jangan mengubah menjadi 0.
      */
     if (
         credits === null ||
@@ -648,13 +697,17 @@ function updateAuthBadges(
         return;
     }
 
+    /*
+     * Supabase dapat mengembalikan
+     * numeric sebagai string.
+     */
     const numericCredits =
-        Number(credits);
+        Number(
+            credits
+        );
 
     /*
-     * Angka 0 tetap ditampilkan sebagai 0.
-     * Jangan menggunakan || 0 karena itu bisa
-     * menyamarkan data database.
+     * 0 adalah nilai VALID.
      */
     if (
         Number.isFinite(
@@ -670,6 +723,9 @@ function updateAuthBadges(
         return;
     }
 
+    /*
+     * Fallback jika nilai bukan angka.
+     */
     creditBadge.textContent =
         `Credit: ${String(
             credits
@@ -797,6 +853,17 @@ function isMissingStatusColumnError(
 
 /* =========================================================
    LOAD PROFILE
+   ---------------------------------------------------------
+   SOURCE OF TRUTH:
+   Supabase profiles
+
+   JANGAN:
+   - memakai navigation profile terlebih dahulu
+   - memakai cache sebagai role utama
+   - memakai cache sebagai credit utama
+
+   Navigation profile hanya diperbarui setelah
+   query Supabase berhasil.
 ========================================================= */
 
 export async function loadProfile() {
@@ -809,6 +876,7 @@ export async function loadProfile() {
             client
         )
     ) {
+
         throw new Error(
             "Supabase client belum tersedia."
         );
@@ -828,40 +896,19 @@ export async function loadProfile() {
     }
 
     /*
-     * Jika navigation sudah berhasil membaca
-     * profile untuk user yang sama, gunakan data
-     * tersebut terlebih dahulu.
+     * =====================================================
+     * JANGAN menggunakan:
+     *
+     * window.GENZ_NAVIGATION_PROFILE
+     *
+     * sebagai source of truth.
+     *
+     * Profile harus selalu dibaca langsung
+     * dari Supabase agar role dan credit
+     * merupakan data terbaru.
+     * =====================================================
      */
-    const navigationProfile =
-        window.GENZ_NAVIGATION_PROFILE;
 
-    if (
-        navigationProfile &&
-        String(
-            navigationProfile.id || ""
-        ) === String(user.id)
-    ) {
-
-        const validatedNavigationProfile =
-            validateProfile(
-                navigationProfile,
-                user
-            );
-
-        setCurrentProfile(
-            validatedNavigationProfile
-        );
-
-        updateAuthBadges(
-            validatedNavigationProfile
-        );
-
-        return validatedNavigationProfile;
-    }
-
-    /*
-     * Query normal dengan status.
-     */
     let result =
         await queryProfileWithStatus(
             client,
@@ -869,7 +916,7 @@ export async function loadProfile() {
         );
 
     /*
-     * Jika status tidak ada di schema,
+     * Jika kolom status tidak tersedia,
      * ulangi query tanpa status.
      */
     if (
@@ -886,6 +933,10 @@ export async function loadProfile() {
             );
     }
 
+    /*
+     * Error database lainnya tidak boleh
+     * ditutup dengan cache navigation.
+     */
     if (result.error) {
 
         throw new Error(
@@ -894,6 +945,9 @@ export async function loadProfile() {
         );
     }
 
+    /*
+     * Profile tidak ditemukan.
+     */
     if (!result.data) {
 
         await safeSignOut();
@@ -903,30 +957,46 @@ export async function loadProfile() {
         );
     }
 
+    /*
+     * Validasi terhadap Auth user.
+     */
     const profile =
         validateProfile(
             result.data,
             user
         );
 
+    /*
+     * Simpan profile terbaru.
+     */
     setCurrentProfile(
         profile
     );
 
+    /*
+     * Update badge menggunakan hasil
+     * query Supabase terbaru.
+     */
     updateAuthBadges(
         profile
     );
 
     /*
-     * Sinkronkan juga ke global navigation
-     * agar modul lain mendapatkan profile yang
-     * sama dan tidak membuat asumsi berbeda.
+     * Setelah Supabase berhasil menjadi
+     * source of truth, baru sinkronkan
+     * global navigation/cache.
      */
     window.GENZ_NAVIGATION_PROFILE =
         profile;
 
     window.GENZ_CURRENT_PROFILE =
         profile;
+
+    window.GENZ_NAVIGATION_ROLE =
+        profile.role;
+
+    window.GENZ_CURRENT_ROLE =
+        profile.role;
 
     return profile;
 }
@@ -946,6 +1016,7 @@ export async function getAccessToken() {
             client
         )
     ) {
+
         throw new Error(
             "Supabase client belum tersedia."
         );
@@ -973,6 +1044,13 @@ export async function getAccessToken() {
 
 /* =========================================================
    ENSURE AUTHENTICATED
+   ---------------------------------------------------------
+   PENTING:
+   - User boleh menggunakan navigation user
+     sebagai cache untuk menghindari query Auth
+     yang tidak perlu.
+   - Profile TIDAK menggunakan navigation cache
+     sebagai source of truth.
 ========================================================= */
 
 export async function ensureAuthenticated() {
@@ -987,7 +1065,8 @@ export async function ensureAuthenticated() {
 
     /*
      * Jika state lokal kosong tetapi navigation
-     * sudah membaca user, gunakan global user.
+     * sudah membaca user, gunakan user tersebut
+     * sebagai cache Auth.
      */
     if (
         !user &&
@@ -1012,56 +1091,28 @@ export async function ensureAuthenticated() {
             await loadCurrentUser();
     }
 
-    let profile =
-        getCurrentProfile();
-
     /*
-     * Gunakan profile dari navigation jika ada.
+     * =====================================================
+     * PROFILE SELALU REFRESH DARI SUPABASE
+     * =====================================================
+     *
+     * Jangan menggunakan:
+     *
+     * getCurrentProfile()
+     *
+     * sebagai alasan untuk melewati
+     * loadProfile().
+     *
+     * Kalau profile sudah berubah di Supabase,
+     * Generate harus melihat perubahan tersebut.
      */
-    if (
-        !profile &&
-        window.GENZ_NAVIGATION_PROFILE
-    ) {
 
-        if (
-            String(
-                window.GENZ_NAVIGATION_PROFILE.id ||
-                ""
-            ) ===
-            String(
-                user.id
-            )
-        ) {
-
-            profile =
-                validateProfile(
-                    window.GENZ_NAVIGATION_PROFILE,
-                    user
-                );
-
-            setCurrentProfile(
-                profile
-            );
-
-            updateAuthBadges(
-                profile
-            );
-        }
-    }
+    const profile =
+        await loadProfile();
 
     /*
-     * Jika profile belum ada, ambil dari
-     * Supabase profiles.
-     */
-    if (!profile) {
-
-        profile =
-            await loadProfile();
-    }
-
-    /*
-     * Pastikan badge selalu diperbarui
-     * berdasarkan data database terbaru.
+     * Pastikan badge menggunakan profile
+     * hasil query Supabase.
      */
     updateAuthBadges(
         profile
@@ -1088,6 +1139,7 @@ export async function safeSignOut() {
             client
         )
     ) {
+
         return;
     }
 
@@ -1140,7 +1192,9 @@ export function hasRole(
     }
 
     return roles
-        .map(normalizeRole)
+        .map(
+            normalizeRole
+        )
         .includes(
             currentRole
         );
