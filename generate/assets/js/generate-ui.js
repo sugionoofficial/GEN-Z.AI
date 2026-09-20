@@ -28,7 +28,8 @@
    - Role dan credit hanya berasal dari profile
    - Tidak menggunakan nilai hardcoded
    - Tidak mempertahankan USER / 0 dari HTML
- ========================================================= */
+   - Tidak menggunakan generate-utils.js
+========================================================= */
 
 import {
     getGenerateElements,
@@ -37,15 +38,85 @@ import {
     isModelReady
 } from "./generate-state.js";
 
-import {
-    formatNumber,
-    safeString
-} from "./generate-utils.js";
+
+/* =========================================================
+   LOCAL HELPERS
+   ---------------------------------------------------------
+   generate-utils.js tidak tersedia di repository.
+   Fungsi yang diperlukan dibuat lokal.
+========================================================= */
+
+
+/* =========================================================
+   SAFE STRING
+========================================================= */
+
+function safeString(
+    value,
+    fallback = ""
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return fallback;
+
+    }
+
+
+    const result =
+        String(
+            value
+        ).trim();
+
+
+    return result ||
+        fallback;
+
+}
+
+
+/* =========================================================
+   FORMAT NUMBER
+========================================================= */
+
+function formatNumber(
+    value
+) {
+
+    const numeric =
+        Number(
+            value
+        );
+
+
+    if (
+        !Number.isFinite(
+            numeric
+        )
+    ) {
+
+        return String(
+            value ?? ""
+        );
+
+    }
+
+
+    return new Intl.NumberFormat(
+        "id-ID"
+    ).format(
+        numeric
+    );
+
+}
 
 
 /* =========================================================
    DOM
- ========================================================= */
+========================================================= */
 
 function elements() {
 
@@ -56,7 +127,7 @@ function elements() {
 
 /* =========================================================
    STATUS
- ========================================================= */
+========================================================= */
 
 export function showStatus(
     message,
@@ -67,17 +138,21 @@ export function showStatus(
         statusEl
     } = elements();
 
+
     if (!statusEl) {
         return;
     }
+
 
     statusEl.textContent =
         String(
             message || ""
         );
 
+
     statusEl.className =
         "generate-status";
+
 
     if (type) {
 
@@ -87,11 +162,16 @@ export function showStatus(
 
     }
 
+
     statusEl.hidden =
         !message;
 
 }
 
+
+/* =========================================================
+   HIDE STATUS
+========================================================= */
 
 export function hideStatus() {
 
@@ -99,15 +179,19 @@ export function hideStatus() {
         statusEl
     } = elements();
 
+
     if (!statusEl) {
         return;
     }
 
+
     statusEl.textContent =
         "";
 
+
     statusEl.hidden =
         true;
+
 
     statusEl.className =
         "generate-status";
@@ -117,7 +201,7 @@ export function hideStatus() {
 
 /* =========================================================
    PAGE ERROR
- ========================================================= */
+========================================================= */
 
 export function showPageError(
     message
@@ -128,11 +212,13 @@ export function showPageError(
         pageErrorMessageEl
     } = elements();
 
+
     const text =
         String(
             message ||
             "Terjadi kesalahan."
         );
+
 
     if (
         pageErrorMessageEl
@@ -142,6 +228,7 @@ export function showPageError(
             text;
 
     }
+
 
     if (
         pageErrorEl
@@ -155,12 +242,17 @@ export function showPageError(
 }
 
 
+/* =========================================================
+   HIDE PAGE ERROR
+========================================================= */
+
 export function hidePageError() {
 
     const {
         pageErrorEl,
         pageErrorMessageEl
     } = elements();
+
 
     if (
         pageErrorMessageEl
@@ -170,6 +262,7 @@ export function hidePageError() {
             "";
 
     }
+
 
     if (
         pageErrorEl
@@ -185,7 +278,7 @@ export function hidePageError() {
 
 /* =========================================================
    ERROR HANDLING
- ========================================================= */
+========================================================= */
 
 export function showError(
     error,
@@ -195,6 +288,7 @@ export function showError(
 
     let message =
         fallback;
+
 
     if (
         typeof error ===
@@ -215,6 +309,7 @@ export function showError(
 
     }
 
+
     message =
         message
             .split("\n")
@@ -227,10 +322,12 @@ export function showError(
             )
             .join("\n");
 
+
     showStatus(
         message,
         "error"
     );
+
 
     return message;
 
@@ -239,7 +336,7 @@ export function showError(
 
 /* =========================================================
    LOADING
- ========================================================= */
+========================================================= */
 
 export function setLoading(
     loading,
@@ -254,10 +351,12 @@ export function setLoading(
         modelSelectEl
     } = elements();
 
+
     const active =
         Boolean(
             loading
         );
+
 
     if (
         loadingEl
@@ -266,9 +365,8 @@ export function setLoading(
         loadingEl.hidden =
             !active;
 
-        if (
-            active
-        ) {
+
+        if (active) {
 
             loadingEl.textContent =
                 message;
@@ -277,12 +375,14 @@ export function setLoading(
 
     }
 
+
     if (
         generateButton
     ) {
 
         generateButton.disabled =
             active;
+
 
         generateButton.setAttribute(
             "aria-busy",
@@ -291,13 +391,24 @@ export function setLoading(
             )
         );
 
-        if (
-            active
-        ) {
 
-            generateButton.dataset
-                .originalText =
-                generateButton.textContent;
+        if (active) {
+
+            /*
+             * Simpan teks asli sekali saja.
+             */
+
+            if (
+                !generateButton.dataset
+                    .originalText
+            ) {
+
+                generateButton.dataset
+                    .originalText =
+                    generateButton.textContent;
+
+            }
+
 
             generateButton.textContent =
                 "Memproses...";
@@ -309,12 +420,12 @@ export function setLoading(
                     .dataset
                     .originalText;
 
-            if (
-                original
-            ) {
+
+            if (original) {
 
                 generateButton.textContent =
                     original;
+
 
                 delete generateButton
                     .dataset
@@ -326,6 +437,7 @@ export function setLoading(
 
     }
 
+
     if (
         modelSelectEl
     ) {
@@ -334,6 +446,7 @@ export function setLoading(
             active;
 
     }
+
 
     if (
         resetButton
@@ -349,7 +462,7 @@ export function setLoading(
 
 /* =========================================================
    GENERATE BUTTON
- ========================================================= */
+========================================================= */
 
 export function enableGeneration() {
 
@@ -357,14 +470,17 @@ export function enableGeneration() {
         generateButton
     } = elements();
 
+
     if (
         !generateButton
     ) {
         return;
     }
 
+
     generateButton.disabled =
         !isModelReady();
+
 
     generateButton.removeAttribute(
         "aria-busy"
@@ -373,11 +489,16 @@ export function enableGeneration() {
 }
 
 
+/* =========================================================
+   DISABLE GENERATION
+========================================================= */
+
 export function disableGeneration() {
 
     const {
         generateButton
     } = elements();
+
 
     if (
         !generateButton
@@ -385,8 +506,10 @@ export function disableGeneration() {
         return;
     }
 
+
     generateButton.disabled =
         true;
+
 
     generateButton.removeAttribute(
         "aria-busy"
@@ -397,7 +520,7 @@ export function disableGeneration() {
 
 /* =========================================================
    FORM DISABLED
- ========================================================= */
+========================================================= */
 
 export function setFormDisabled(
     disabled
@@ -407,16 +530,19 @@ export function setFormDisabled(
         generateForm
     } = elements();
 
+
     if (
         !generateForm
     ) {
         return;
     }
 
+
     const controls =
         generateForm.querySelectorAll(
             "input, textarea, select, button"
         );
+
 
     controls.forEach(
         control => {
@@ -434,10 +560,11 @@ export function setFormDisabled(
 
 /* =========================================================
    MODEL HEADER
- ========================================================= */
+========================================================= */
 
 export function renderModelHeader(
-    model = getCurrentModel()
+    model =
+        getCurrentModel()
 ) {
 
     const {
@@ -446,6 +573,7 @@ export function renderModelHeader(
         providerNameEl,
         modelMetaEl
     } = elements();
+
 
     if (!model) {
 
@@ -458,6 +586,7 @@ export function renderModelHeader(
 
         }
 
+
         if (
             modelDescriptionEl
         ) {
@@ -466,6 +595,7 @@ export function renderModelHeader(
                 "";
 
         }
+
 
         if (
             providerNameEl
@@ -476,6 +606,7 @@ export function renderModelHeader(
 
         }
 
+
         if (
             modelMetaEl
         ) {
@@ -485,9 +616,11 @@ export function renderModelHeader(
 
         }
 
+
         return;
 
     }
+
 
     const modelName =
         safeString(
@@ -497,11 +630,13 @@ export function renderModelHeader(
             "Model"
         );
 
+
     const description =
         safeString(
             model.description,
             ""
         );
+
 
     const provider =
         safeString(
@@ -512,11 +647,13 @@ export function renderModelHeader(
             "-"
         );
 
+
     const modelId =
         safeString(
             model.model_id,
             ""
         );
+
 
     if (
         modelNameEl
@@ -527,6 +664,7 @@ export function renderModelHeader(
 
     }
 
+
     if (
         modelDescriptionEl
     ) {
@@ -536,6 +674,7 @@ export function renderModelHeader(
 
     }
 
+
     if (
         providerNameEl
     ) {
@@ -544,6 +683,7 @@ export function renderModelHeader(
             provider;
 
     }
+
 
     if (
         modelMetaEl
@@ -561,7 +701,7 @@ export function renderModelHeader(
 
 /* =========================================================
    RESULT
- ========================================================= */
+========================================================= */
 
 export function hideResult() {
 
@@ -569,11 +709,13 @@ export function hideResult() {
         resultCard
     } = elements();
 
+
     if (
         !resultCard
     ) {
         return;
     }
+
 
     resultCard.hidden =
         true;
@@ -581,11 +723,16 @@ export function hideResult() {
 }
 
 
+/* =========================================================
+   SHOW RESULT
+========================================================= */
+
 export function showResult() {
 
     const {
         resultCard
     } = elements();
+
 
     if (
         !resultCard
@@ -593,11 +740,16 @@ export function showResult() {
         return;
     }
 
+
     resultCard.hidden =
         false;
 
 }
 
+
+/* =========================================================
+   RENDER RESULT
+========================================================= */
 
 export function renderResult(
     data = {}
@@ -609,8 +761,10 @@ export function renderResult(
         resultTaskId
     } = elements();
 
+
     const model =
         getCurrentModel();
+
 
     const modelName =
         data.model_name ||
@@ -620,6 +774,7 @@ export function renderResult(
         model?.model_id ||
         "-";
 
+
     const provider =
         data.provider ||
         data.provider_id ||
@@ -627,12 +782,14 @@ export function renderResult(
         model?.provider_name ||
         "-";
 
+
     const taskId =
         data.taskId ||
         data.task_id ||
         data.jobId ||
         data.job_id ||
         "-";
+
 
     if (
         resultModel
@@ -645,6 +802,7 @@ export function renderResult(
 
     }
 
+
     if (
         resultProvider
     ) {
@@ -655,6 +813,7 @@ export function renderResult(
             );
 
     }
+
 
     if (
         resultTaskId
@@ -667,7 +826,9 @@ export function renderResult(
 
     }
 
+
     showResult();
+
 
     return {
         model:
@@ -684,14 +845,10 @@ export function renderResult(
 /* =========================================================
    NORMALIZE PROFILE
    ---------------------------------------------------------
-   Profile dapat berasal dari:
-   - generate-auth
-   - state
-   - navigation
-
-   Fungsi ini hanya mengambil field yang
-   memang diperlukan badge.
- ========================================================= */
+   Badge hanya membutuhkan:
+   - role
+   - credits
+========================================================= */
 
 function normalizeProfile(
     profile
@@ -707,6 +864,7 @@ function normalizeProfile(
 
     }
 
+
     const role =
         String(
             profile.role ??
@@ -715,11 +873,14 @@ function normalizeProfile(
             .trim()
             .toUpperCase();
 
+
     const rawCredits =
         profile.credits;
 
+
     let credits =
         null;
+
 
     if (
         rawCredits !== null &&
@@ -731,6 +892,7 @@ function normalizeProfile(
             Number(
                 rawCredits
             );
+
 
         if (
             Number.isFinite(
@@ -750,6 +912,7 @@ function normalizeProfile(
 
     }
 
+
     return {
         role,
         credits
@@ -760,7 +923,7 @@ function normalizeProfile(
 
 /* =========================================================
    ROLE BADGE
- ========================================================= */
+========================================================= */
 
 export function renderRoleBadge(
     profile
@@ -770,44 +933,51 @@ export function renderRoleBadge(
         roleBadgeEl
     } = elements();
 
+
     if (
         !roleBadgeEl
     ) {
         return;
     }
 
+
     /*
      * Jika caller tidak memberikan profile,
-     * ambil profile terbaru dari state.
+     * gunakan profile state terbaru.
      */
+
     const sourceProfile =
         profile ||
         getCurrentProfile();
+
 
     const normalized =
         normalizeProfile(
             sourceProfile
         );
 
+
     /*
-     * Jangan pernah fallback ke USER.
+     * Jangan fallback ke USER.
      *
-     * USER adalah nilai nyata untuk akun USER,
-     * bukan nilai pengganti ketika profile gagal.
+     * USER hanya boleh muncul jika Supabase
+     * memang memberikan role USER.
      */
+
     const role =
         normalized?.role ||
         "";
 
+
     roleBadgeEl.textContent =
         role;
+
 
     roleBadgeEl.hidden =
         !role;
 
-    if (
-        role
-    ) {
+
+    if (role) {
 
         roleBadgeEl.dataset.role =
             role.toLowerCase();
@@ -823,7 +993,7 @@ export function renderRoleBadge(
 
 /* =========================================================
    CREDIT BADGE
- ========================================================= */
+========================================================= */
 
 export function renderCreditBadge(
     profile
@@ -833,29 +1003,35 @@ export function renderCreditBadge(
         creditBadgeEl
     } = elements();
 
+
     if (
         !creditBadgeEl
     ) {
         return;
     }
 
+
     const sourceProfile =
         profile ||
         getCurrentProfile();
+
 
     const normalized =
         normalizeProfile(
             sourceProfile
         );
 
+
     /*
-     * Jangan pernah fallback ke 0.
+     * Jangan fallback ke 0.
      *
-     * 0 hanya ditampilkan jika Supabase
-     * memang mengembalikan credits = 0.
+     * 0 hanya sah jika profiles.credits
+     * memang bernilai 0.
      */
+
     const credits =
         normalized?.credits;
+
 
     if (
         credits === null ||
@@ -866,12 +1042,15 @@ export function renderCreditBadge(
         creditBadgeEl.textContent =
             "";
 
+
         creditBadgeEl.hidden =
             true;
+
 
         return;
 
     }
+
 
     if (
         typeof credits ===
@@ -892,6 +1071,7 @@ export function renderCreditBadge(
 
     }
 
+
     creditBadgeEl.hidden =
         false;
 
@@ -900,16 +1080,7 @@ export function renderCreditBadge(
 
 /* =========================================================
    AUTH BADGES
-   ---------------------------------------------------------
-   SATU fungsi untuk menyinkronkan role + credit.
-
-   Source:
-       profile yang baru dibaca Supabase.
-
-   Tidak menggunakan:
-       window.GENZ_NAVIGATION_PROFILE
-       sebagai source utama.
- ========================================================= */
+========================================================= */
 
 export function renderAuthBadges(
     profile
@@ -919,13 +1090,7 @@ export function renderAuthBadges(
         profile ||
         getCurrentProfile();
 
-    /*
-     * Simpan profile ke state jika caller
-     * memberikan profile baru.
-     *
-     * generate-auth sudah melakukan setCurrentProfile(),
-     * jadi ini hanya fallback kompatibilitas.
-     */
+
     if (
         sourceProfile &&
         typeof sourceProfile ===
@@ -936,26 +1101,32 @@ export function renderAuthBadges(
             sourceProfile
         );
 
+
         renderCreditBadge(
             sourceProfile
         );
 
+
         return sourceProfile;
 
     }
+
 
     /*
      * Tidak ada profile.
      *
      * Jangan menampilkan USER / 0 palsu.
      */
+
     renderRoleBadge(
         null
     );
 
+
     renderCreditBadge(
         null
     );
+
 
     return null;
 
@@ -964,13 +1135,14 @@ export function renderAuthBadges(
 
 /* =========================================================
    GENERATE CARD
- ========================================================= */
+========================================================= */
 
 export function showGenerateCard() {
 
     const {
         generateCard
     } = elements();
+
 
     if (
         generateCard
@@ -984,11 +1156,16 @@ export function showGenerateCard() {
 }
 
 
+/* =========================================================
+   HIDE GENERATE CARD
+========================================================= */
+
 export function hideGenerateCard() {
 
     const {
         generateCard
     } = elements();
+
 
     if (
         generateCard
@@ -1004,13 +1181,14 @@ export function hideGenerateCard() {
 
 /* =========================================================
    MODEL SELECTOR
- ========================================================= */
+========================================================= */
 
 export function showModelSelector() {
 
     const {
         modelSelectorEl
     } = elements();
+
 
     if (
         modelSelectorEl
@@ -1024,11 +1202,16 @@ export function showModelSelector() {
 }
 
 
+/* =========================================================
+   HIDE MODEL SELECTOR
+========================================================= */
+
 export function hideModelSelector() {
 
     const {
         modelSelectorEl
     } = elements();
+
 
     if (
         modelSelectorEl
@@ -1043,18 +1226,20 @@ export function hideModelSelector() {
 
 
 /* =========================================================
-   RESET UI
- ========================================================= */
+   RESET RESULT UI
+========================================================= */
 
 export function resetResultUI() {
 
     hideResult();
+
 
     const {
         resultModel,
         resultProvider,
         resultTaskId
     } = elements();
+
 
     if (
         resultModel
@@ -1065,6 +1250,7 @@ export function resetResultUI() {
 
     }
 
+
     if (
         resultProvider
     ) {
@@ -1073,6 +1259,7 @@ export function resetResultUI() {
             "";
 
     }
+
 
     if (
         resultTaskId
@@ -1086,6 +1273,10 @@ export function resetResultUI() {
 }
 
 
+/* =========================================================
+   RESET STATUS UI
+========================================================= */
+
 export function resetStatusUI() {
 
     hideStatus();
@@ -1094,6 +1285,10 @@ export function resetStatusUI() {
 
 }
 
+
+/* =========================================================
+   RESET UI
+========================================================= */
 
 export function resetUI() {
 
@@ -1105,10 +1300,11 @@ export function resetUI() {
         false
     );
 
+
     /*
-     * Badge tidak disentuh ketika reset.
+     * Authentication badge TIDAK disentuh.
      *
-     * Reset form bukan reset authentication.
+     * Reset form bukan reset account.
      */
 
     if (
@@ -1128,7 +1324,7 @@ export function resetUI() {
 
 /* =========================================================
    FOCUS FIRST ERROR
- ========================================================= */
+========================================================= */
 
 export function focusFirstInvalidField() {
 
@@ -1136,28 +1332,35 @@ export function focusFirstInvalidField() {
         generateForm
     } = elements();
 
+
     if (
         !generateForm
     ) {
         return false;
     }
 
+
     const invalid =
         generateForm.querySelector(
             ":invalid"
         );
 
+
     if (!invalid) {
         return false;
     }
+
 
     try {
 
         invalid.focus();
 
     } catch {
-        // Browser tertentu dapat menolak focus.
+        /*
+         * Browser tertentu dapat menolak focus.
+         */
     }
+
 
     return true;
 
@@ -1166,7 +1369,7 @@ export function focusFirstInvalidField() {
 
 /* =========================================================
    SCROLL TO ERROR
- ========================================================= */
+========================================================= */
 
 export function scrollToError() {
 
@@ -1174,6 +1377,7 @@ export function scrollToError() {
         pageErrorEl,
         statusEl
     } = elements();
+
 
     const target =
         pageErrorEl &&
@@ -1184,15 +1388,18 @@ export function scrollToError() {
                 ? statusEl
                 : null;
 
+
     if (!target) {
         return;
     }
+
 
     try {
 
         target.scrollIntoView({
             behavior:
                 "smooth",
+
             block:
                 "center"
         });
@@ -1208,7 +1415,7 @@ export function scrollToError() {
 
 /* =========================================================
    SUCCESS STATE
- ========================================================= */
+========================================================= */
 
 export function showSuccess(
     message =
@@ -1225,7 +1432,7 @@ export function showSuccess(
 
 /* =========================================================
    READY STATE
- ========================================================= */
+========================================================= */
 
 export function showReady(
     message =
@@ -1234,10 +1441,12 @@ export function showReady(
 
     hidePageError();
 
+
     showStatus(
         message,
         "success"
     );
+
 
     enableGeneration();
 
@@ -1246,7 +1455,7 @@ export function showReady(
 
 /* =========================================================
    BUSY STATE
- ========================================================= */
+========================================================= */
 
 export function showBusy(
     message =
@@ -1255,10 +1464,12 @@ export function showBusy(
 
     hidePageError();
 
+
     showStatus(
         message,
         "info"
     );
+
 
     setLoading(
         true,
@@ -1270,13 +1481,14 @@ export function showBusy(
 
 /* =========================================================
    FINISH REQUEST STATE
- ========================================================= */
+========================================================= */
 
 export function finishRequest() {
 
     setLoading(
         false
     );
+
 
     if (
         isModelReady()
@@ -1291,7 +1503,7 @@ export function finishRequest() {
 
 /* =========================================================
    PUBLIC API
- ========================================================= */
+========================================================= */
 
 export const generateUI =
     Object.freeze({
