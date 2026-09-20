@@ -10,10 +10,10 @@
    - Loading state
    - Button state
    - Page error
-   - Result card
    - Model header
    - Role / credit badge
-   - Render hasil video
+   - Generate card
+   - Model selector
    - Reset UI
 
    Tidak bertanggung jawab:
@@ -24,8 +24,14 @@
    - Parameter validation
    - Credit calculation
    - Polling
-========================================================= */
+   - Menampilkan hasil video di halaman Generate
 
+   CATATAN:
+   - Generate page hanya menampilkan status proses.
+   - Hasil generation disimpan/ditampilkan melalui History.
+   - Tidak ada fallback OWNER.
+   - Tidak ada credit palsu/default.
+========================================================= */
 
 import {
     getGenerateElements,
@@ -48,19 +54,13 @@ function safeString(
         value === null ||
         value === undefined
     ) {
-
         return fallback;
     }
 
-
     const result =
-        String(
-            value
-        ).trim();
+        String(value).trim();
 
-
-    return result ||
-        fallback;
+    return result || fallback;
 }
 
 
@@ -73,28 +73,17 @@ function formatNumber(
 ) {
 
     const numeric =
-        Number(
-            value
-        );
-
+        Number(value);
 
     if (
-        !Number.isFinite(
-            numeric
-        )
+        !Number.isFinite(numeric)
     ) {
-
-        return String(
-            value ?? ""
-        );
+        return String(value ?? "");
     }
-
 
     return new Intl.NumberFormat(
         "id-ID"
-    ).format(
-        numeric
-    );
+    ).format(numeric);
 }
 
 
@@ -121,22 +110,18 @@ export function showStatus(
         statusEl
     } = elements();
 
-
     if (!statusEl) {
-
         return;
     }
 
+    const text =
+        safeString(message);
 
     statusEl.textContent =
-        String(
-            message || ""
-        );
-
+        text;
 
     statusEl.className =
         "generate-status";
-
 
     if (type) {
 
@@ -145,9 +130,8 @@ export function showStatus(
         );
     }
 
-
     statusEl.hidden =
-        !message;
+        !text;
 }
 
 
@@ -161,20 +145,15 @@ export function hideStatus() {
         statusEl
     } = elements();
 
-
     if (!statusEl) {
-
         return;
     }
-
 
     statusEl.textContent =
         "";
 
-
     statusEl.hidden =
         true;
-
 
     statusEl.className =
         "generate-status";
@@ -194,26 +173,19 @@ export function showPageError(
         pageErrorMessageEl
     } = elements();
 
-
     const text =
-        String(
-            message ||
+        safeString(
+            message,
             "Terjadi kesalahan."
         );
 
-
-    if (
-        pageErrorMessageEl
-    ) {
+    if (pageErrorMessageEl) {
 
         pageErrorMessageEl.textContent =
             text;
     }
 
-
-    if (
-        pageErrorEl
-    ) {
+    if (pageErrorEl) {
 
         pageErrorEl.hidden =
             false;
@@ -232,19 +204,13 @@ export function hidePageError() {
         pageErrorMessageEl
     } = elements();
 
-
-    if (
-        pageErrorMessageEl
-    ) {
+    if (pageErrorMessageEl) {
 
         pageErrorMessageEl.textContent =
             "";
     }
 
-
-    if (
-        pageErrorEl
-    ) {
+    if (pageErrorEl) {
 
         pageErrorEl.hidden =
             true;
@@ -265,7 +231,6 @@ export function showError(
     let message =
         fallback;
 
-
     if (
         typeof error ===
         "string"
@@ -284,9 +249,8 @@ export function showError(
             error.message;
     }
 
-
     message =
-        message
+        String(message || fallback)
             .split("\n")
             .map(
                 item =>
@@ -297,12 +261,10 @@ export function showError(
             )
             .join("\n");
 
-
     showStatus(
         message,
         "error"
     );
-
 
     return message;
 }
@@ -325,51 +287,40 @@ export function setLoading(
         modelSelectEl
     } = elements();
 
-
     const active =
-        Boolean(
-            loading
-        );
+        Boolean(loading);
 
+    /* -----------------------------------------------------
+       LOADING INDICATOR
+    ----------------------------------------------------- */
 
-    if (
-        loadingEl
-    ) {
+    if (loadingEl) {
 
         loadingEl.hidden =
             !active;
 
-
-        if (
-            active
-        ) {
+        if (active) {
 
             loadingEl.textContent =
-                message;
+                safeString(
+                    message,
+                    "Sedang memproses..."
+                );
         }
     }
 
 
-    if (
-        generateButton
-    ) {
+    /* -----------------------------------------------------
+       GENERATE BUTTON
+    ----------------------------------------------------- */
 
-        generateButton.disabled =
-            active;
+    if (generateButton) {
 
+        if (active) {
 
-        generateButton.setAttribute(
-            "aria-busy",
-            String(
-                active
-            )
-        );
-
-
-        if (
-            active
-        ) {
-
+            /*
+             * Simpan label asli hanya sekali.
+             */
             if (
                 !generateButton.dataset
                     .originalText
@@ -380,46 +331,58 @@ export function setLoading(
                     generateButton.textContent;
             }
 
+            generateButton.disabled =
+                true;
+
+            generateButton.setAttribute(
+                "aria-busy",
+                "true"
+            );
 
             generateButton.textContent =
                 "Memproses...";
 
         } else {
 
+            generateButton.disabled =
+                !isModelReady();
+
+            generateButton.removeAttribute(
+                "aria-busy"
+            );
+
             const original =
-                generateButton
-                    .dataset
+                generateButton.dataset
                     .originalText;
 
-
-            if (
-                original
-            ) {
+            if (original) {
 
                 generateButton.textContent =
                     original;
 
-
-                delete generateButton
-                    .dataset
+                delete generateButton.dataset
                     .originalText;
             }
         }
     }
 
 
-    if (
-        modelSelectEl
-    ) {
+    /* -----------------------------------------------------
+       MODEL SELECTOR
+    ----------------------------------------------------- */
+
+    if (modelSelectEl) {
 
         modelSelectEl.disabled =
             active;
     }
 
 
-    if (
-        resetButton
-    ) {
+    /* -----------------------------------------------------
+       RESET BUTTON
+    ----------------------------------------------------- */
+
+    if (resetButton) {
 
         resetButton.disabled =
             active;
@@ -437,18 +400,15 @@ export function enableGeneration() {
         generateButton
     } = elements();
 
-
-    if (
-        !generateButton
-    ) {
-
+    if (!generateButton) {
         return;
     }
 
+    const ready =
+        isModelReady();
 
     generateButton.disabled =
-        !isModelReady();
-
+        !ready;
 
     generateButton.removeAttribute(
         "aria-busy"
@@ -466,18 +426,12 @@ export function disableGeneration() {
         generateButton
     } = elements();
 
-
-    if (
-        !generateButton
-    ) {
-
+    if (!generateButton) {
         return;
     }
 
-
     generateButton.disabled =
         true;
-
 
     generateButton.removeAttribute(
         "aria-busy"
@@ -497,28 +451,20 @@ export function setFormDisabled(
         generateForm
     } = elements();
 
-
-    if (
-        !generateForm
-    ) {
-
+    if (!generateForm) {
         return;
     }
-
 
     const controls =
         generateForm.querySelectorAll(
             "input, textarea, select, button"
         );
 
-
     controls.forEach(
         control => {
 
             control.disabled =
-                Boolean(
-                    disabled
-                );
+                Boolean(disabled);
         }
     );
 }
@@ -526,6 +472,12 @@ export function setFormDisabled(
 
 /* =========================================================
    MODEL HEADER
+   ---------------------------------------------------------
+   Source:
+   - Repository model registry
+   - Optional admin model configuration
+
+   Tidak membutuhkan provider object.
 ========================================================= */
 
 export function renderModelHeader(
@@ -541,122 +493,149 @@ export function renderModelHeader(
     } = elements();
 
 
+    /* -----------------------------------------------------
+       NO MODEL
+    ----------------------------------------------------- */
+
     if (!model) {
 
-        if (
-            modelNameEl
-        ) {
+        if (modelNameEl) {
 
             modelNameEl.textContent =
                 "Model belum dipilih";
         }
 
-
-        if (
-            modelDescriptionEl
-        ) {
+        if (modelDescriptionEl) {
 
             modelDescriptionEl.textContent =
                 "";
         }
 
-
-        if (
-            providerNameEl
-        ) {
+        if (providerNameEl) {
 
             providerNameEl.textContent =
                 "";
         }
 
-
-        if (
-            modelMetaEl
-        ) {
+        if (modelMetaEl) {
 
             modelMetaEl.textContent =
                 "";
         }
 
-
-        return;
+        return null;
     }
 
+
+    /* -----------------------------------------------------
+       MODEL NAME
+    ----------------------------------------------------- */
 
     const modelName =
         safeString(
             model.model_name ||
             model.name ||
-            model.model_id,
+            model.config?.model_name ||
+            model.config?.name ||
+            model.repository?.model_name ||
+            model.model_id ||
+            model.config?.id,
             "Model"
         );
 
 
+    /* -----------------------------------------------------
+       DESCRIPTION
+    ----------------------------------------------------- */
+
     const description =
         safeString(
-            model.description,
+            model.description ||
+            model.config?.description ||
+            model.repository?.description,
             ""
         );
 
 
+    /* -----------------------------------------------------
+       PROVIDER
+       Tidak bergantung pada provider object.
+    ----------------------------------------------------- */
+
     const provider =
         safeString(
-            model.provider?.provider_name ||
             model.provider_name ||
+            model.providerName ||
+            model.provider?.provider_name ||
+            model.provider?.providerName ||
             model.provider?.name ||
-            model.provider_id,
+            model.repository?.provider_name ||
+            model.config?.providerName ||
+            model.provider_id ||
+            model.config?.providerId,
             "-"
         );
 
 
+    /* -----------------------------------------------------
+       MODEL ID
+    ----------------------------------------------------- */
+
     const modelId =
         safeString(
-            model.model_id,
+            model.model_id ||
+            model.config?.id ||
+            model.id,
             ""
         );
 
 
-    if (
-        modelNameEl
-    ) {
+    /* -----------------------------------------------------
+       RENDER
+    ----------------------------------------------------- */
+
+    if (modelNameEl) {
 
         modelNameEl.textContent =
             modelName;
     }
 
-
-    if (
-        modelDescriptionEl
-    ) {
+    if (modelDescriptionEl) {
 
         modelDescriptionEl.textContent =
             description;
     }
 
-
-    if (
-        providerNameEl
-    ) {
+    if (providerNameEl) {
 
         providerNameEl.textContent =
             provider;
     }
 
-
-    if (
-        modelMetaEl
-    ) {
+    if (modelMetaEl) {
 
         modelMetaEl.textContent =
             modelId
                 ? `Model ID: ${modelId}`
                 : "";
     }
+
+    return {
+        modelName,
+        description,
+        provider,
+        modelId
+    };
 }
 
 
 /* =========================================================
-   RESULT CARD
+   LEGACY RESULT API
+   ---------------------------------------------------------
+   Generate page sekarang TIDAK menampilkan hasil video.
+
+   Fungsi tetap dipertahankan agar generate-app.js
+   dan module lama tidak error jika masih mengimportnya.
 ========================================================= */
 
 export function hideResult() {
@@ -665,14 +644,9 @@ export function hideResult() {
         resultCard
     } = elements();
 
-
-    if (
-        !resultCard
-    ) {
-
+    if (!resultCard) {
         return;
     }
-
 
     resultCard.hidden =
         true;
@@ -681,6 +655,10 @@ export function hideResult() {
 
 /* =========================================================
    SHOW RESULT
+   ---------------------------------------------------------
+   Compatibility only.
+
+   Tidak digunakan untuk menampilkan video final.
 ========================================================= */
 
 export function showResult() {
@@ -689,562 +667,82 @@ export function showResult() {
         resultCard
     } = elements();
 
+    /*
+     * Hasil generation sekarang tidak ditampilkan
+     * di halaman Generate.
+     */
+    if (resultCard) {
 
-    if (
-        !resultCard
-    ) {
-
-        return;
+        resultCard.hidden =
+            true;
     }
-
-
-    resultCard.hidden =
-        false;
 }
 
 
 /* =========================================================
-   FIND RESULT CONTAINER
+   LEGACY RENDER RESULT
    ---------------------------------------------------------
-   Prioritas:
-   1. Elemen #resultMedia
-   2. Elemen [data-result-media]
-   3. Elemen video di dalam resultCard
-   4. Elemen dengan class .result-media
-   5. Buat container baru
-========================================================= */
+   Compatibility only.
 
-function getResultMediaContainer() {
-
-    const {
-        resultCard
-    } = elements();
-
-
-    if (
-        !resultCard
-    ) {
-
-        return null;
-    }
-
-
-    let container =
-        document.getElementById(
-            "resultMedia"
-        );
-
-
-    if (
-        container
-    ) {
-
-        return container;
-    }
-
-
-    container =
-        resultCard.querySelector(
-            "[data-result-media]"
-        );
-
-
-    if (
-        container
-    ) {
-
-        return container;
-    }
-
-
-    container =
-        resultCard.querySelector(
-            ".result-media"
-        );
-
-
-    if (
-        container
-    ) {
-
-        return container;
-    }
-
-
-    const existingVideo =
-        resultCard.querySelector(
-            "video"
-        );
-
-
-    if (
-        existingVideo
-    ) {
-
-        return existingVideo.parentElement;
-    }
-
-
-    container =
-        document.createElement(
-            "div"
-        );
-
-
-    container.id =
-        "resultMedia";
-
-
-    container.dataset.resultMedia =
-        "true";
-
-
-    resultCard.appendChild(
-        container
-    );
-
-
-    return container;
-}
-
-
-/* =========================================================
-   NORMALIZE RESULT URLS
-========================================================= */
-
-function normalizeResultUrls(
-    value
-) {
-
-    if (
-        Array.isArray(
-            value
-        )
-    ) {
-
-        return value
-            .map(
-                item => {
-
-                    if (
-                        typeof item ===
-                        "string"
-                    ) {
-
-                        return item.trim();
-                    }
-
-
-                    if (
-                        item &&
-                        typeof item ===
-                        "object"
-                    ) {
-
-                        return (
-                            item.url ||
-                            item.video_url ||
-                            item.videoUrl ||
-                            ""
-                        ).toString().trim();
-                    }
-
-
-                    return "";
-                }
-            )
-            .filter(
-                Boolean
-            );
-    }
-
-
-    if (
-        typeof value ===
-        "string"
-    ) {
-
-        const valueTrimmed =
-            value.trim();
-
-
-        if (
-            !valueTrimmed
-        ) {
-
-            return [];
-        }
-
-
-        return [
-            valueTrimmed
-        ];
-    }
-
-
-    return [];
-}
-
-
-/* =========================================================
-   EXTRACT RESULT URLS
-========================================================= */
-
-function extractResultUrls(
-    data
-) {
-
-    if (!data) {
-
-        return [];
-    }
-
-
-    const candidates = [
-
-        data.result_urls,
-
-        data.resultUrls,
-
-        data.urls,
-
-        data.video_urls,
-
-        data.videoUrls,
-
-        data.result?.result_urls,
-
-        data.result?.resultUrls,
-
-        data.result?.urls,
-
-        data.result?.video_urls,
-
-        data.result?.videoUrls,
-
-        data.task?.result_urls,
-
-        data.task?.resultUrls,
-
-        data.task?.urls,
-
-        data.task?.video_urls,
-
-        data.task?.videoUrls,
-
-        data.task?.result?.result_urls,
-
-        data.task?.result?.resultUrls,
-
-        data.task?.result?.urls,
-
-        data.task?.result?.video_urls,
-
-        data.task?.result?.videoUrls,
-
-        data.resultJson?.resultUrls,
-
-        data.resultJson?.result_urls
-
-    ];
-
-
-    for (
-        const candidate
-        of candidates
-    ) {
-
-        const urls =
-            normalizeResultUrls(
-                candidate
-            );
-
-
-        if (
-            urls.length
-        ) {
-
-            return urls;
-        }
-    }
-
-
-    return [];
-}
-
-
-/* =========================================================
-   CREATE DOWNLOAD BUTTON
-========================================================= */
-
-function createDownloadButton(
-    url,
-    index
-) {
-
-    const button =
-        document.createElement(
-            "a"
-        );
-
-
-    button.href =
-        url;
-
-
-    button.target =
-        "_blank";
-
-
-    button.rel =
-        "noopener noreferrer";
-
-
-    button.textContent =
-        index > 0
-            ? `Buka Video ${index + 1}`
-            : "Buka Video";
-
-
-    button.className =
-        "generate-result-link";
-
-
-    button.setAttribute(
-        "download",
-        ""
-    );
-
-
-    return button;
-}
-
-
-/* =========================================================
-   RENDER VIDEO
-========================================================= */
-
-function renderVideoResults(
-    urls
-) {
-
-    const container =
-        getResultMediaContainer();
-
-
-    if (
-        !container
-    ) {
-
-        return;
-    }
-
-
-    container.innerHTML =
-        "";
-
-
-    if (
-        !urls.length
-    ) {
-
-        const empty =
-            document.createElement(
-                "div"
-            );
-
-
-        empty.className =
-            "generate-result-empty";
-
-
-        empty.textContent =
-            "Hasil video belum tersedia.";
-
-
-        container.appendChild(
-            empty
-        );
-
-
-        return;
-    }
-
-
-    urls.forEach(
-        (
-            url,
-            index
-        ) => {
-
-            const wrapper =
-                document.createElement(
-                    "div"
-                );
-
-
-            wrapper.className =
-                "generate-result-item";
-
-
-            const video =
-                document.createElement(
-                    "video"
-                );
-
-
-            video.src =
-                url;
-
-
-            video.controls =
-                true;
-
-
-            video.playsInline =
-                true;
-
-
-            video.preload =
-                "metadata";
-
-
-            video.className =
-                "generate-result-video";
-
-
-            video.setAttribute(
-                "aria-label",
-                `Hasil video ${index + 1}`
-            );
-
-
-            const download =
-                createDownloadButton(
-                    url,
-                    index
-                );
-
-
-            wrapper.appendChild(
-                video
-            );
-
-
-            wrapper.appendChild(
-                download
-            );
-
-
-            container.appendChild(
-                wrapper
-            );
-        }
-    );
-}
-
-
-/* =========================================================
-   RENDER RESULT
+   Tidak merender video.
+   History bertanggung jawab terhadap hasil generation.
 ========================================================= */
 
 export function renderResult(
     data = {}
 ) {
 
-    const {
-        resultModel,
-        resultProvider,
-        resultTaskId
-    } = elements();
-
-
     const model =
         getCurrentModel();
 
 
     const modelName =
-        data.model_name ||
-        data.model_id ||
-        data.model ||
-        model?.model_name ||
-        model?.model_id ||
-        "-";
-
-
-    const provider =
-        data.provider ||
-        data.provider_name ||
-        data.provider_id ||
-        model?.provider?.provider_name ||
-        model?.provider_name ||
-        "-";
-
-
-    const taskId =
-        data.taskId ||
-        data.task_id ||
-        data.jobId ||
-        data.job_id ||
-        data.task?.taskId ||
-        data.task?.task_id ||
-        "-";
-
-
-    const resultUrls =
-        extractResultUrls(
-            data
+        safeString(
+            data.model_name ||
+            data.model_id ||
+            data.model ||
+            model?.model_name ||
+            model?.name ||
+            model?.model_id,
+            "-"
         );
 
 
-    if (
-        resultModel
-    ) {
-
-        resultModel.textContent =
-            String(
-                modelName
-            );
-    }
-
-
-    if (
-        resultProvider
-    ) {
-
-        resultProvider.textContent =
-            String(
-                provider
-            );
-    }
+    const provider =
+        safeString(
+            data.provider ||
+            data.provider_name ||
+            data.provider_id ||
+            model?.provider_name ||
+            model?.provider?.provider_name ||
+            model?.provider_id,
+            "-"
+        );
 
 
-    if (
-        resultTaskId
-    ) {
-
-        resultTaskId.textContent =
-            String(
-                taskId
-            );
-    }
+    const taskId =
+        safeString(
+            data.taskId ||
+            data.task_id ||
+            data.jobId ||
+            data.job_id ||
+            data.task?.taskId ||
+            data.task?.task_id,
+            "-"
+        );
 
 
     /*
-     * Render media hanya setelah data final
-     * diterima dari polling.
+     * Jangan tampilkan result card.
      */
-
-    renderVideoResults(
-        resultUrls
-    );
+    hideResult();
 
 
-    showResult();
-
-
+    /*
+     * Return data tetap dipertahankan untuk
+     * compatibility dengan caller lama.
+     */
     return {
-
         model:
             modelName,
 
@@ -1252,13 +750,13 @@ export function renderResult(
 
         taskId,
 
-        resultUrls
+        resultUrls: []
     };
 }
 
 
 /* =========================================================
-   NORMALIZE PROFILE
+   PROFILE NORMALIZATION
 ========================================================= */
 
 function normalizeProfile(
@@ -1275,6 +773,10 @@ function normalizeProfile(
     }
 
 
+    /* -----------------------------------------------------
+       ROLE
+    ----------------------------------------------------- */
+
     const role =
         String(
             profile.role ??
@@ -1284,9 +786,12 @@ function normalizeProfile(
             .toUpperCase();
 
 
+    /* -----------------------------------------------------
+       CREDITS
+    ----------------------------------------------------- */
+
     const rawCredits =
         profile.credits;
-
 
     let credits =
         null;
@@ -1302,7 +807,6 @@ function normalizeProfile(
             Number(
                 rawCredits
             );
-
 
         if (
             Number.isFinite(
@@ -1322,9 +826,7 @@ function normalizeProfile(
 
 
     return {
-
         role,
-
         credits
     };
 }
@@ -1332,6 +834,12 @@ function normalizeProfile(
 
 /* =========================================================
    ROLE BADGE
+   ---------------------------------------------------------
+   Source of truth:
+   Supabase profiles.role
+
+   TIDAK ADA fallback OWNER.
+   TIDAK ADA fallback USER.
 ========================================================= */
 
 export function renderRoleBadge(
@@ -1342,11 +850,7 @@ export function renderRoleBadge(
         roleBadgeEl
     } = elements();
 
-
-    if (
-        !roleBadgeEl
-    ) {
-
+    if (!roleBadgeEl) {
         return;
     }
 
@@ -1367,6 +871,9 @@ export function renderRoleBadge(
         "";
 
 
+    /*
+     * Jangan membuat role jika data tidak tersedia.
+     */
     roleBadgeEl.textContent =
         role;
 
@@ -1389,6 +896,15 @@ export function renderRoleBadge(
 
 /* =========================================================
    CREDIT BADGE
+   ---------------------------------------------------------
+   Source of truth:
+   Supabase profiles.credits
+
+   NULL / undefined:
+   data memang belum tersedia.
+
+   0:
+   valid dan harus ditampilkan.
 ========================================================= */
 
 export function renderCreditBadge(
@@ -1399,11 +915,7 @@ export function renderCreditBadge(
         creditBadgeEl
     } = elements();
 
-
-    if (
-        !creditBadgeEl
-    ) {
-
+    if (!creditBadgeEl) {
         return;
     }
 
@@ -1423,6 +935,10 @@ export function renderCreditBadge(
         normalized?.credits;
 
 
+    /* -----------------------------------------------------
+       CREDIT TIDAK TERSEDIA
+    ----------------------------------------------------- */
+
     if (
         credits === null ||
         credits === undefined ||
@@ -1441,22 +957,26 @@ export function renderCreditBadge(
     }
 
 
+    /* -----------------------------------------------------
+       NUMERIC CREDIT
+    ----------------------------------------------------- */
+
     if (
         typeof credits ===
         "number"
     ) {
 
         creditBadgeEl.textContent =
-            `${formatNumber(
+            `Credit: ${formatNumber(
                 credits
-            )} credits`;
+            )}`;
 
     } else {
 
         creditBadgeEl.textContent =
-            String(
+            `Credit: ${safeString(
                 credits
-            );
+            )}`;
     }
 
 
@@ -1478,37 +998,21 @@ export function renderAuthBadges(
         getCurrentProfile();
 
 
-    if (
-        sourceProfile &&
-        typeof sourceProfile ===
-        "object"
-    ) {
-
-        renderRoleBadge(
-            sourceProfile
-        );
-
-
-        renderCreditBadge(
-            sourceProfile
-        );
-
-
-        return sourceProfile;
-    }
-
-
+    /*
+     * Jika profile belum ada:
+     * jangan membuat OWNER / USER / credit palsu.
+     */
     renderRoleBadge(
-        null
+        sourceProfile
     );
 
 
     renderCreditBadge(
-        null
+        sourceProfile
     );
 
 
-    return null;
+    return sourceProfile || null;
 }
 
 
@@ -1522,10 +1026,7 @@ export function showGenerateCard() {
         generateCard
     } = elements();
 
-
-    if (
-        generateCard
-    ) {
+    if (generateCard) {
 
         generateCard.hidden =
             false;
@@ -1543,10 +1044,7 @@ export function hideGenerateCard() {
         generateCard
     } = elements();
 
-
-    if (
-        generateCard
-    ) {
+    if (generateCard) {
 
         generateCard.hidden =
             true;
@@ -1564,10 +1062,7 @@ export function showModelSelector() {
         modelSelectorEl
     } = elements();
 
-
-    if (
-        modelSelectorEl
-    ) {
+    if (modelSelectorEl) {
 
         modelSelectorEl.hidden =
             false;
@@ -1585,10 +1080,7 @@ export function hideModelSelector() {
         modelSelectorEl
     } = elements();
 
-
-    if (
-        modelSelectorEl
-    ) {
+    if (modelSelectorEl) {
 
         modelSelectorEl.hidden =
             true;
@@ -1602,6 +1094,11 @@ export function hideModelSelector() {
 
 export function resetResultUI() {
 
+    /*
+     * Generate page tidak menampilkan result.
+     * Tetap bersihkan compatibility elements.
+     */
+
     hideResult();
 
 
@@ -1612,48 +1109,36 @@ export function resetResultUI() {
     } = elements();
 
 
-    if (
-        resultModel
-    ) {
+    if (resultModel) {
 
         resultModel.textContent =
             "";
     }
 
 
-    if (
-        resultProvider
-    ) {
+    if (resultProvider) {
 
         resultProvider.textContent =
             "";
     }
 
 
-    if (
-        resultTaskId
-    ) {
+    if (resultTaskId) {
 
         resultTaskId.textContent =
             "";
     }
 
 
-    /*
-     * Bersihkan hasil media.
-     */
-
-    const container =
+    const resultMedia =
         document.getElementById(
             "resultMedia"
         );
 
 
-    if (
-        container
-    ) {
+    if (resultMedia) {
 
-        container.innerHTML =
+        resultMedia.innerHTML =
             "";
     }
 }
@@ -1679,9 +1164,7 @@ export function resetUI() {
 
     resetResultUI();
 
-
     resetStatusUI();
-
 
     setLoading(
         false
@@ -1689,8 +1172,25 @@ export function resetUI() {
 
 
     /*
-     * Authentication badge TIDAK disentuh.
+     * Badge authentication TIDAK disentuh.
+     *
+     * Role dan credit tetap berasal dari profile
+     * yang sudah dimuat oleh auth module.
      */
+
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    /*
+     * Model header tetap sinkron.
+     */
+
+    renderModelHeader(
+        getCurrentModel()
+    );
+
 
     if (
         isModelReady()
@@ -1706,7 +1206,7 @@ export function resetUI() {
 
 
 /* =========================================================
-   FOCUS FIRST ERROR
+   FOCUS FIRST INVALID FIELD
 ========================================================= */
 
 export function focusFirstInvalidField() {
@@ -1715,11 +1215,7 @@ export function focusFirstInvalidField() {
         generateForm
     } = elements();
 
-
-    if (
-        !generateForm
-    ) {
-
+    if (!generateForm) {
         return false;
     }
 
@@ -1731,7 +1227,6 @@ export function focusFirstInvalidField() {
 
 
     if (!invalid) {
-
         return false;
     }
 
@@ -1742,9 +1237,7 @@ export function focusFirstInvalidField() {
 
     } catch {
 
-        /*
-         * Browser tertentu dapat menolak focus.
-         */
+        /* Browser tertentu dapat menolak focus. */
     }
 
 
@@ -1775,7 +1268,6 @@ export function scrollToError() {
 
 
     if (!target) {
-
         return;
     }
 
@@ -1783,7 +1275,6 @@ export function scrollToError() {
     try {
 
         target.scrollIntoView({
-
             behavior:
                 "smooth",
 
@@ -1825,12 +1316,10 @@ export function showReady(
 
     hidePageError();
 
-
     showStatus(
         message,
         "success"
     );
-
 
     enableGeneration();
 }
@@ -1847,12 +1336,10 @@ export function showBusy(
 
     hidePageError();
 
-
     showStatus(
         message,
         "info"
     );
-
 
     setLoading(
         true,
@@ -1877,6 +1364,10 @@ export function finishRequest() {
     ) {
 
         enableGeneration();
+
+    } else {
+
+        disableGeneration();
     }
 }
 
