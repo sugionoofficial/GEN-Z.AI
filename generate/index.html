@@ -114,14 +114,6 @@
 
         /* =====================================================
            MODEL SELECTOR
-           -----------------------------------------------------
-           WAJIB ADA.
-
-           generate-state.js mewajibkan:
-           #modelSelector
-           #modelSelect
-
-           Selector berada di dalam blok neon yang sama.
         ====================================================== */
 
         .generate-model-field {
@@ -167,9 +159,6 @@
 
         /* =====================================================
            CHECKBOX STYLE
-           -----------------------------------------------------
-           Visual checkbox.
-           Logic single-select dilakukan module form.
         ====================================================== */
 
         .generate-option-group {
@@ -369,9 +358,6 @@
 
         /* =====================================================
            COMPATIBILITY ELEMENTS
-           -----------------------------------------------------
-           Tidak ditampilkan tetapi tetap tersedia karena
-           generate-state.js dan module lain masih mengenalnya.
         ====================================================== */
 
         .generate-compat-hidden {
@@ -424,6 +410,719 @@
         src="/navigation/navigation.js"
     ></script>
 
+
+    <!-- =====================================================
+         EARLY AUTH BADGE BRIDGE
+         -----------------------------------------------------
+         Badge account TIDAK menunggu generate-app.js.
+
+         Source:
+         profiles.role
+         profiles.credits
+
+         Tujuan:
+         - OWNER selalu bisa dirender
+         - Credit akun selalu bisa dirender
+         - Tidak bergantung model
+         - Tidak bergantung form
+         - Tidak bergantung UI module
+         - Tidak mengubah model credit
+    ====================================================== -->
+
+    <script>
+
+    (function () {
+
+        "use strict";
+
+
+        const MAX_WAIT =
+            15000;
+
+
+        const INTERVAL =
+            150;
+
+
+        /* =====================================================
+           ELEMENT
+        ====================================================== */
+
+        function getElement(id) {
+
+            return document.getElementById(id);
+
+        }
+
+
+        /* =====================================================
+           CREDIT FORMAT
+        ====================================================== */
+
+        function formatCredit(value) {
+
+            if (
+                value === null ||
+                value === undefined ||
+                value === ""
+            ) {
+
+                return "0";
+
+            }
+
+
+            const number =
+                Number(value);
+
+
+            if (
+                Number.isFinite(number)
+            ) {
+
+                return new Intl.NumberFormat(
+                    "id-ID",
+                    {
+                        maximumFractionDigits: 2
+                    }
+                ).format(number);
+
+            }
+
+
+            return String(value);
+
+        }
+
+
+        /* =====================================================
+           ROLE NORMALIZATION
+        ====================================================== */
+
+        function normalizeRole(value) {
+
+            return String(
+                value || ""
+            )
+                .trim()
+                .toUpperCase();
+
+        }
+
+
+        /* =====================================================
+           NAVIGATION PROFILE
+        ====================================================== */
+
+        function getNavigationProfile() {
+
+            return (
+                window.GENZ_CURRENT_PROFILE ||
+                window.GENZ_NAVIGATION_PROFILE ||
+                null
+            );
+
+        }
+
+
+        /* =====================================================
+           RENDER ROLE
+        ====================================================== */
+
+        function renderRole(profile) {
+
+            const element =
+                getElement(
+                    "roleBadge"
+                );
+
+
+            if (
+                !element ||
+                !profile
+            ) {
+
+                return false;
+
+            }
+
+
+            const role =
+                normalizeRole(
+                    profile.role
+                );
+
+
+            if (!role) {
+
+                return false;
+
+            }
+
+
+            element.textContent =
+                role;
+
+
+            element.hidden =
+                false;
+
+
+            element.removeAttribute(
+                "hidden"
+            );
+
+
+            element.style.setProperty(
+                "display",
+                "inline",
+                "important"
+            );
+
+
+            element.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+
+            element.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+
+            element.dataset.role =
+                role;
+
+
+            return true;
+
+        }
+
+
+        /* =====================================================
+           RENDER ACCOUNT CREDIT
+           -----------------------------------------------------
+           INI ADALAH CREDIT AKUN.
+
+           SOURCE:
+           profiles.credits
+        ====================================================== */
+
+        function renderAccountCredit(profile) {
+
+            const element =
+                getElement(
+                    "creditBadge"
+                );
+
+
+            if (
+                !element ||
+                !profile
+            ) {
+
+                return false;
+
+            }
+
+
+            element.textContent =
+                `Credit: ${formatCredit(
+                    profile.credits
+                )}`;
+
+
+            element.hidden =
+                false;
+
+
+            element.removeAttribute(
+                "hidden"
+            );
+
+
+            element.style.setProperty(
+                "display",
+                "inline-flex",
+                "important"
+            );
+
+
+            element.style.setProperty(
+                "visibility",
+                "visible",
+                "important"
+            );
+
+
+            element.style.setProperty(
+                "opacity",
+                "1",
+                "important"
+            );
+
+
+            return true;
+
+        }
+
+
+        /* =====================================================
+           RENDER AUTH
+        ====================================================== */
+
+        function renderAuth(profile) {
+
+            if (
+                !profile ||
+                typeof profile !== "object"
+            ) {
+
+                return false;
+
+            }
+
+
+            const roleReady =
+                renderRole(
+                    profile
+                );
+
+
+            const creditReady =
+                renderAccountCredit(
+                    profile
+                );
+
+
+            if (
+                roleReady ||
+                creditReady
+            ) {
+
+                console.log(
+                    "[GEN-Z.AI][Generate] AUTH BADGE:",
+                    {
+                        email:
+                            profile.email,
+
+                        role:
+                            profile.role,
+
+                        credits:
+                            profile.credits
+                    }
+                );
+
+            }
+
+
+            return (
+                roleReady &&
+                creditReady
+            );
+
+        }
+
+
+        /* =====================================================
+           SUPABASE CLIENT
+        ====================================================== */
+
+        function getSupabaseClient() {
+
+            const candidates = [
+
+                window.GENZ_SUPABASE,
+
+                window.supabaseClient
+
+            ];
+
+
+            for (
+                const client
+                of candidates
+            ) {
+
+                if (
+                    client &&
+                    client.auth &&
+                    typeof client.auth.getSession ===
+                        "function"
+                ) {
+
+                    return client;
+
+                }
+
+            }
+
+
+            return null;
+
+        }
+
+
+        /* =====================================================
+           DIRECT SUPABASE PROFILE FALLBACK
+        ====================================================== */
+
+        async function loadProfileDirectly() {
+
+            const supabase =
+                getSupabaseClient();
+
+
+            if (!supabase) {
+
+                return null;
+
+            }
+
+
+            try {
+
+                const sessionResult =
+                    await supabase.auth.getSession();
+
+
+                const user =
+                    sessionResult
+                        ?.data
+                        ?.session
+                        ?.user ||
+                    null;
+
+
+                if (!user?.id) {
+
+                    return null;
+
+                }
+
+
+                let result =
+                    await supabase
+                        .from("profiles")
+                        .select(
+                            "id,email,name,role,credits,status"
+                        )
+                        .eq(
+                            "id",
+                            user.id
+                        )
+                        .maybeSingle();
+
+
+                /*
+                 * Fallback apabila kolom status
+                 * tidak tersedia pada schema.
+                 */
+
+                if (
+                    result?.error
+                ) {
+
+                    const message =
+                        String(
+                            result.error?.message ||
+                            ""
+                        ).toLowerCase();
+
+
+                    if (
+                        message.includes(
+                            "status"
+                        ) ||
+                        message.includes(
+                            "schema cache"
+                        ) ||
+                        message.includes(
+                            "column"
+                        )
+                    ) {
+
+                        result =
+                            await supabase
+                                .from("profiles")
+                                .select(
+                                    "id,email,name,role,credits"
+                                )
+                                .eq(
+                                    "id",
+                                    user.id
+                                )
+                                .maybeSingle();
+
+                    }
+
+                }
+
+
+                if (
+                    result?.error
+                ) {
+
+                    console.warn(
+                        "[GEN-Z.AI][Generate] Profile fallback gagal:",
+                        result.error
+                    );
+
+                    return null;
+
+                }
+
+
+                const profile =
+                    result?.data ||
+                    null;
+
+
+                if (!profile) {
+
+                    return null;
+
+                }
+
+
+                /*
+                 * Sinkronkan profile ke global state.
+                 */
+
+                window.GENZ_CURRENT_USER =
+                    user;
+
+
+                window.GENZ_CURRENT_PROFILE =
+                    profile;
+
+
+                window.GENZ_NAVIGATION_USER =
+                    user;
+
+
+                window.GENZ_NAVIGATION_PROFILE =
+                    profile;
+
+
+                return profile;
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI][Generate] Profile fallback exception:",
+                    error
+                );
+
+                return null;
+
+            }
+
+        }
+
+
+        /* =====================================================
+           HYDRATE
+        ====================================================== */
+
+        async function hydrate() {
+
+            /*
+             * PRIORITAS 1:
+             * Navigation shared profile.
+             */
+
+            let profile =
+                getNavigationProfile();
+
+
+            if (
+                profile &&
+                renderAuth(profile)
+            ) {
+
+                return;
+
+            }
+
+
+            /*
+             * PRIORITAS 2:
+             * Tunggu shared navigation.
+             */
+
+            if (
+                window.GENZNavigationReady &&
+                typeof window.GENZNavigationReady.then ===
+                    "function"
+            ) {
+
+                try {
+
+                    await Promise.race([
+
+                        window.GENZNavigationReady,
+
+                        new Promise(
+                            resolve => {
+
+                                setTimeout(
+                                    resolve,
+                                    5000
+                                );
+
+                            }
+                        )
+
+                    ]);
+
+                } catch {
+                    /* fallback */
+                }
+
+
+                profile =
+                    getNavigationProfile();
+
+
+                if (
+                    profile &&
+                    renderAuth(profile)
+                ) {
+
+                    return;
+
+                }
+
+            }
+
+
+            /*
+             * PRIORITAS 3:
+             * Query profile langsung.
+             */
+
+            profile =
+                await loadProfileDirectly();
+
+
+            if (profile) {
+
+                renderAuth(
+                    profile
+                );
+
+            }
+
+        }
+
+
+        /* =====================================================
+           SAFETY SYNC
+           -----------------------------------------------------
+           Menangani race condition jika navigation.js
+           mengisi profile setelah Generate mulai.
+        ====================================================== */
+
+        function startSafetySync() {
+
+            const started =
+                Date.now();
+
+
+            const timer =
+                setInterval(
+                    function () {
+
+                        const profile =
+                            getNavigationProfile();
+
+
+                        if (profile) {
+
+                            renderAuth(
+                                profile
+                            );
+
+                        }
+
+
+                        if (
+                            Date.now() -
+                            started >=
+                            MAX_WAIT
+                        ) {
+
+                            clearInterval(
+                                timer
+                            );
+
+                        }
+
+                    },
+                    INTERVAL
+                );
+
+        }
+
+
+        /* =====================================================
+           BOOT
+        ====================================================== */
+
+        function boot() {
+
+            hydrate()
+                .catch(
+                    function (error) {
+
+                        console.error(
+                            "[GEN-Z.AI][Generate] Early auth bridge:",
+                            error
+                        );
+
+                    }
+                );
+
+
+            startSafetySync();
+
+        }
+
+
+        /*
+         * Script berada di HEAD.
+         * DOM badge belum tentu sudah tersedia.
+         */
+
+        if (
+            document.readyState ===
+            "loading"
+        ) {
+
+            document.addEventListener(
+                "DOMContentLoaded",
+                boot,
+                {
+                    once: true
+                }
+            );
+
+        } else {
+
+            boot();
+
+        }
+
+    })();
+
+    </script>
+
 </head>
 
 
@@ -450,9 +1149,6 @@
 
             <!-- =================================================
                  TOPBAR
-                 -------------------------------------------------
-                 OWNER + CREDIT TETAP DITAMPILKAN.
-                 generate-auth.js mengisinya dari profiles.
             ================================================== -->
 
             <header class="topbar generate-topbar">
@@ -534,7 +1230,7 @@
 
                 <!-- =============================================
                      AUTH BADGES
-                     ============================================= -->
+                ============================================== -->
 
                 <div class="topbar-actions">
 
@@ -676,12 +1372,6 @@
 
                     <!-- =============================================
                          MODEL SELECTOR
-                         ------------------------------------------------
-                         JANGAN DIHAPUS.
-
-                         generate-state.js mewajibkan:
-                         #modelSelector
-                         #modelSelect
                     ============================================== -->
 
                     <section
@@ -731,17 +1421,6 @@
 
                         <!-- =========================================
                              DYNAMIC PARAMETERS
-
-                             generate-form.js akan mengambil
-                             parameter dari model:
-
-                             image_urls
-                             prompt
-                             aspect_ratio
-                             resolution
-                             duration
-
-                             task_id tidak boleh ditampilkan.
                         ========================================== -->
 
                         <div
@@ -816,6 +1495,16 @@
                                     </span>
 
 
+                                    <!-- =================================
+                                         MODEL USAGE CREDIT
+                                         ---------------------------------
+                                         BUKAN saldo akun.
+
+                                         Source akan berasal dari:
+                                         model.credit_final
+                                         / pricing.credit_final
+                                    ================================== -->
+
                                     <span
                                         id="generateCreditCost"
                                         class="generate-button-credit"
@@ -851,9 +1540,6 @@
 
                 <!-- =================================================
                      MODEL HEADER COMPATIBILITY
-                     -------------------------------------------------
-                     Module lama masih membutuhkan element ini.
-                     Tidak ditampilkan.
                 ================================================== -->
 
                 <section
@@ -884,9 +1570,6 @@
 
                 <!-- =================================================
                      RESULT COMPATIBILITY
-                     -------------------------------------------------
-                     Hasil tidak ditampilkan di Generate.
-                     History akan menjadi tempat hasil.
                 ================================================== -->
 
                 <section
