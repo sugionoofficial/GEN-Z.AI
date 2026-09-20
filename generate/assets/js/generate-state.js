@@ -5,28 +5,22 @@
    File:
    generate/assets/js/generate-state.js
 
-   Tanggung jawab:
-   - Menyimpan seluruh state halaman Generate
-   - Menyimpan referensi DOM
-   - Menyediakan getter/setter untuk module lain
-   - Menyediakan kompatibilitas nama elemen antar-module
-   - Menyediakan referensi MODEL CREDIT UI
-
-   Tidak bertanggung jawab:
-   - Supabase authentication
-   - Query model
-   - Render parameter
-   - Validation
-   - API generate
-   - Styling
+   Responsibility:
+   - Store Generate application state
+   - Store DOM references
+   - Provide getter/setter functions
+   - Preserve legacy element aliases
+   - Store model credit DOM references
 ========================================================= */
 
+"use strict";
+
+
+/* =========================================================
+   APPLICATION STATE
+========================================================= */
 
 const state = {
-
-    /* =====================================================
-       APPLICATION STATE
-    ===================================================== */
 
     supabaseClient: null,
 
@@ -42,13 +36,13 @@ const state = {
 
 
     /* =====================================================
-       DOM ELEMENTS
+       DOM REFERENCES
     ===================================================== */
 
     elements: {
 
         /* -------------------------------------------------
-           CANONICAL ELEMENT REFERENCES
+           CORE
         ------------------------------------------------- */
 
         status: null,
@@ -85,7 +79,7 @@ const state = {
 
 
         /* -------------------------------------------------
-           ACCOUNT BADGES
+           ACCOUNT
         ------------------------------------------------- */
 
         roleBadge: null,
@@ -95,17 +89,6 @@ const state = {
 
         /* -------------------------------------------------
            MODEL CREDIT
-           -------------------------------------------------
-           Ini berbeda dengan creditBadge.
-
-           creditBadge:
-           saldo credit user.
-
-           generateCreditCost:
-           container biaya model.
-
-           generateCreditValue:
-           nominal credit yang digunakan model.
         ------------------------------------------------- */
 
         generateCreditCost: null,
@@ -114,7 +97,7 @@ const state = {
 
 
         /* -------------------------------------------------
-           LEGACY RESULT REFERENCES
+           RESULT
         ------------------------------------------------- */
 
         resultModel: null,
@@ -124,9 +107,9 @@ const state = {
         resultTaskId: null,
 
 
-        /* =================================================
-           LEGACY / MODULE COMPATIBILITY ALIASES
-        ================================================= */
+        /* -------------------------------------------------
+           LEGACY ALIASES
+        ------------------------------------------------- */
 
         statusEl: null,
 
@@ -164,19 +147,9 @@ const state = {
 
         creditBadgeEl: null,
 
-
-        /* -------------------------------------------------
-           MODEL CREDIT ALIASES
-        ------------------------------------------------- */
-
         generateCreditCostEl: null,
 
         generateCreditValueEl: null,
-
-
-        /* -------------------------------------------------
-           RESULT ALIASES
-        ------------------------------------------------- */
 
         resultModelEl: null,
 
@@ -190,16 +163,12 @@ const state = {
 
 
 /* =========================================================
-   INITIALIZE DOM
+   INITIALIZE GENERATE ELEMENTS
 ========================================================= */
 
 export function initializeGenerateElements() {
 
-    const ids = {
-
-        /* -------------------------------------------------
-           CORE
-        ------------------------------------------------- */
+    const elementIds = {
 
         status:
             "status",
@@ -249,36 +218,17 @@ export function initializeGenerateElements() {
         pageErrorMessage:
             "pageErrorMessage",
 
-
-        /* -------------------------------------------------
-           ACCOUNT
-        ------------------------------------------------- */
-
         roleBadge:
             "roleBadge",
 
         creditBadge:
             "creditBadge",
 
-
-        /* -------------------------------------------------
-           MODEL CREDIT
-           -------------------------------------------------
-           WAJIB disambungkan ke HTML:
-           #generateCreditCost
-           #generateCreditValue
-        ------------------------------------------------- */
-
         generateCreditCost:
             "generateCreditCost",
 
         generateCreditValue:
             "generateCreditValue",
-
-
-        /* -------------------------------------------------
-           RESULT
-        ------------------------------------------------- */
 
         resultModel:
             "resultModel",
@@ -293,93 +243,82 @@ export function initializeGenerateElements() {
 
 
     /* =====================================================
-       LOAD DOM REFERENCES
+       FIND DOM ELEMENTS
     ===================================================== */
 
-    for (
-        const [
-            key,
-            id
-        ] of Object.entries(ids)
-    ) {
+    Object.entries(
+        elementIds
+    ).forEach(
+        (
+            [
+                key,
+                id
+            ]
+        ) => {
 
-        state.elements[key] =
-            document.getElementById(id);
+            state.elements[key] =
+                document.getElementById(
+                    id
+                );
 
-    }
+        }
+    );
 
 
     /* =====================================================
-       CREATE COMPATIBILITY ALIASES
+       LEGACY ALIASES
     ===================================================== */
 
     state.elements.statusEl =
         state.elements.status;
 
-
     state.elements.modelSelectorEl =
         state.elements.modelSelector;
-
 
     state.elements.modelSelectEl =
         state.elements.modelSelect;
 
-
     state.elements.modelNameEl =
         state.elements.modelName;
-
 
     state.elements.modelDescriptionEl =
         state.elements.modelDescription;
 
-
     state.elements.providerNameEl =
         state.elements.providerName;
-
 
     state.elements.modelMetaEl =
         state.elements.modelMeta;
 
-
     state.elements.dynamicFieldsEl =
         state.elements.dynamicFields;
-
 
     state.elements.generateFormEl =
         state.elements.generateForm;
 
-
     state.elements.generateCardEl =
         state.elements.generateCard;
-
 
     state.elements.generateButtonEl =
         state.elements.generateButton;
 
-
     state.elements.resetButtonEl =
         state.elements.resetButton;
-
 
     state.elements.loadingEl =
         state.elements.loading;
 
-
     state.elements.resultCardEl =
         state.elements.resultCard;
-
 
     state.elements.pageErrorEl =
         state.elements.pageError;
 
-
     state.elements.pageErrorMessageEl =
         state.elements.pageErrorMessage;
 
-
     state.elements.roleBadgeEl =
         state.elements.roleBadge;
-
 
     state.elements.creditBadgeEl =
         state.elements.creditBadge;
@@ -392,7 +331,6 @@ export function initializeGenerateElements() {
     state.elements.generateCreditCostEl =
         state.elements.generateCreditCost;
 
-
     state.elements.generateCreditValueEl =
         state.elements.generateCreditValue;
 
@@ -404,10 +342,8 @@ export function initializeGenerateElements() {
     state.elements.resultModelEl =
         state.elements.resultModel;
 
-
     state.elements.resultProviderEl =
         state.elements.resultProvider;
-
 
     state.elements.resultTaskIdEl =
         state.elements.resultTaskId;
@@ -415,15 +351,22 @@ export function initializeGenerateElements() {
 
     /* =====================================================
        DEBUG
-       -----------------------------------------------------
-       Tidak mengganggu aplikasi.
-       Membantu memastikan model credit benar-benar
-       ditemukan oleh DOM.
     ===================================================== */
 
     console.debug(
-        "[GEN-Z.AI][Generate State] Model credit elements:",
+        "[GEN-Z.AI][Generate State] DOM initialized",
         {
+
+            roleBadge:
+                Boolean(
+                    state.elements.roleBadge
+                ),
+
+            creditBadge:
+                Boolean(
+                    state.elements.creditBadge
+                ),
+
             generateCreditCost:
                 Boolean(
                     state.elements.generateCreditCost
@@ -432,12 +375,24 @@ export function initializeGenerateElements() {
             generateCreditValue:
                 Boolean(
                     state.elements.generateCreditValue
+                ),
+
+            modelSelect:
+                Boolean(
+                    state.elements.modelSelect
+                ),
+
+            generateForm:
+                Boolean(
+                    state.elements.generateForm
                 )
+
         }
     );
 
 
     return state.elements;
+
 }
 
 
@@ -447,7 +402,7 @@ export function initializeGenerateElements() {
 
 export function validateGenerateElements() {
 
-    const required = [
+    const requiredElements = [
 
         "status",
 
@@ -479,10 +434,6 @@ export function validateGenerateElements() {
 
         "pageErrorMessage",
 
-        /*
-         * Model credit memang bagian dari
-         * Generate UI sekarang.
-         */
         "generateCreditCost",
 
         "generateCreditValue"
@@ -491,7 +442,7 @@ export function validateGenerateElements() {
 
 
     const missing =
-        required.filter(
+        requiredElements.filter(
             key =>
                 !state.elements[key]
         );
@@ -502,18 +453,22 @@ export function validateGenerateElements() {
     ) {
 
         throw new Error(
-            `Elemen Generate tidak lengkap: ${missing.join(", ")}.`
+            "Elemen Generate tidak lengkap: " +
+            missing.join(
+                ", "
+            )
         );
 
     }
 
 
     return true;
+
 }
 
 
 /* =========================================================
-   SUPABASE
+   SUPABASE CLIENT
 ========================================================= */
 
 export function setSupabaseClient(
@@ -525,17 +480,19 @@ export function setSupabaseClient(
 
 
     return state.supabaseClient;
+
 }
 
 
 export function getSupabaseClient() {
 
     return state.supabaseClient;
+
 }
 
 
 /* =========================================================
-   USER
+   CURRENT USER
 ========================================================= */
 
 export function setCurrentUser(
@@ -547,17 +504,19 @@ export function setCurrentUser(
 
 
     return state.currentUser;
+
 }
 
 
 export function getCurrentUser() {
 
     return state.currentUser;
+
 }
 
 
 /* =========================================================
-   PROFILE
+   CURRENT PROFILE
 ========================================================= */
 
 export function setCurrentProfile(
@@ -569,17 +528,19 @@ export function setCurrentProfile(
 
 
     return state.currentProfile;
+
 }
 
 
 export function getCurrentProfile() {
 
     return state.currentProfile;
+
 }
 
 
 /* =========================================================
-   MODEL
+   CURRENT MODEL
 ========================================================= */
 
 export function setCurrentModel(
@@ -590,26 +551,28 @@ export function setCurrentModel(
         model || null;
 
 
+    const modelId =
+        String(
+            model?.model_id ??
+            ""
+        ).trim();
+
+
     state.modelLoaded =
         Boolean(
-
-            model &&
-
-            String(
-                model.model_id ??
-                ""
-            ).trim()
-
+            modelId
         );
 
 
     return state.currentModel;
+
 }
 
 
 export function getCurrentModel() {
 
     return state.currentModel;
+
 }
 
 
@@ -630,17 +593,19 @@ export function setAvailableModels(
 
 
     return state.availableModels;
+
 }
 
 
 export function getAvailableModels() {
 
     return state.availableModels;
+
 }
 
 
 /* =========================================================
-   FIND MODEL
+   FIND AVAILABLE MODEL
 ========================================================= */
 
 export function findAvailableModel(
@@ -653,6 +618,7 @@ export function findAvailableModel(
     ) {
 
         return null;
+
     }
 
 
@@ -662,28 +628,36 @@ export function findAvailableModel(
         ).trim();
 
 
-    if (!target) {
+    if (
+        !target
+    ) {
 
         return null;
+
     }
 
 
     return (
-
         state.availableModels.find(
+            model => {
 
-            model =>
+                const currentId =
+                    String(
+                        model?.model_id ??
+                        ""
+                    ).trim();
 
-                String(
-                    model?.model_id ??
-                    ""
-                ).trim() === target
 
+                return (
+                    currentId ===
+                    target
+                );
+
+            }
         ) ||
-
         null
-
     );
+
 }
 
 
@@ -702,12 +676,16 @@ export function setModelLoaded(
 
 
     return state.modelLoaded;
+
 }
 
 
 export function isModelLoaded() {
 
-    return state.modelLoaded;
+    return Boolean(
+        state.modelLoaded
+    );
+
 }
 
 
@@ -737,21 +715,23 @@ export function isModelReady() {
         modelId
 
     );
+
 }
 
 
 /* =========================================================
-   ELEMENTS
+   GET DOM ELEMENTS
 ========================================================= */
 
 export function getGenerateElements() {
 
     return state.elements;
+
 }
 
 
 /* =========================================================
-   RESET STATE
+   RESET GENERATE STATE
 ========================================================= */
 
 export function resetGenerateState() {
@@ -759,18 +739,14 @@ export function resetGenerateState() {
     state.currentUser =
         null;
 
-
     state.currentProfile =
         null;
-
 
     state.currentModel =
         null;
 
-
     state.availableModels =
         [];
-
 
     state.modelLoaded =
         false;
