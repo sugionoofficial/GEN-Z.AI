@@ -10,6 +10,7 @@
    - Menyimpan referensi DOM
    - Menyediakan getter/setter untuk module lain
    - Menyediakan kompatibilitas nama elemen antar-module
+   - Menyediakan referensi MODEL CREDIT UI
 
    Tidak bertanggung jawab:
    - Supabase authentication
@@ -20,7 +21,13 @@
    - Styling
 ========================================================= */
 
+
 const state = {
+
+    /* =====================================================
+       APPLICATION STATE
+    ===================================================== */
+
     supabaseClient: null,
 
     currentUser: null,
@@ -33,10 +40,16 @@ const state = {
 
     modelLoaded: false,
 
+
+    /* =====================================================
+       DOM ELEMENTS
+    ===================================================== */
+
     elements: {
-        /* =====================================================
+
+        /* -------------------------------------------------
            CANONICAL ELEMENT REFERENCES
-        ===================================================== */
+        ------------------------------------------------- */
 
         status: null,
 
@@ -70,9 +83,39 @@ const state = {
 
         pageErrorMessage: null,
 
+
+        /* -------------------------------------------------
+           ACCOUNT BADGES
+        ------------------------------------------------- */
+
         roleBadge: null,
 
         creditBadge: null,
+
+
+        /* -------------------------------------------------
+           MODEL CREDIT
+           -------------------------------------------------
+           Ini berbeda dengan creditBadge.
+
+           creditBadge:
+           saldo credit user.
+
+           generateCreditCost:
+           container biaya model.
+
+           generateCreditValue:
+           nominal credit yang digunakan model.
+        ------------------------------------------------- */
+
+        generateCreditCost: null,
+
+        generateCreditValue: null,
+
+
+        /* -------------------------------------------------
+           LEGACY RESULT REFERENCES
+        ------------------------------------------------- */
 
         resultModel: null,
 
@@ -80,34 +123,10 @@ const state = {
 
         resultTaskId: null,
 
-        /* =====================================================
+
+        /* =================================================
            LEGACY / MODULE COMPATIBILITY ALIASES
-
-           Beberapa module Generate menggunakan nama:
-           - statusEl
-           - modelSelectorEl
-           - modelSelectEl
-           - modelNameEl
-           - modelDescriptionEl
-           - providerNameEl
-           - modelMetaEl
-           - dynamicFieldsEl
-           - generateFormEl
-           - generateCardEl
-           - generateButtonEl
-           - resetButtonEl
-           - loadingEl
-           - resultCardEl
-           - pageErrorEl
-           - pageErrorMessageEl
-           - roleBadgeEl
-           - creditBadgeEl
-           - resultModelEl
-           - resultProviderEl
-           - resultTaskIdEl
-
-           Alias ini menunjuk ke DOM yang sama.
-        ===================================================== */
+        ================================================= */
 
         statusEl: null,
 
@@ -145,12 +164,28 @@ const state = {
 
         creditBadgeEl: null,
 
+
+        /* -------------------------------------------------
+           MODEL CREDIT ALIASES
+        ------------------------------------------------- */
+
+        generateCreditCostEl: null,
+
+        generateCreditValueEl: null,
+
+
+        /* -------------------------------------------------
+           RESULT ALIASES
+        ------------------------------------------------- */
+
         resultModelEl: null,
 
         resultProviderEl: null,
 
         resultTaskIdEl: null
+
     }
+
 };
 
 
@@ -161,47 +196,99 @@ const state = {
 export function initializeGenerateElements() {
 
     const ids = {
-        status: "status",
 
-        modelSelector: "modelSelector",
+        /* -------------------------------------------------
+           CORE
+        ------------------------------------------------- */
 
-        modelSelect: "modelSelect",
+        status:
+            "status",
 
-        modelName: "modelName",
+        modelSelector:
+            "modelSelector",
 
-        modelDescription: "modelDescription",
+        modelSelect:
+            "modelSelect",
 
-        providerName: "providerName",
+        modelName:
+            "modelName",
 
-        modelMeta: "modelMeta",
+        modelDescription:
+            "modelDescription",
 
-        dynamicFields: "dynamicFields",
+        providerName:
+            "providerName",
 
-        generateForm: "generateForm",
+        modelMeta:
+            "modelMeta",
 
-        generateCard: "generateCard",
+        dynamicFields:
+            "dynamicFields",
 
-        generateButton: "generateButton",
+        generateForm:
+            "generateForm",
 
-        resetButton: "resetButton",
+        generateCard:
+            "generateCard",
 
-        loading: "loading",
+        generateButton:
+            "generateButton",
 
-        resultCard: "resultCard",
+        resetButton:
+            "resetButton",
 
-        pageError: "pageError",
+        loading:
+            "loading",
 
-        pageErrorMessage: "pageErrorMessage",
+        resultCard:
+            "resultCard",
 
-        roleBadge: "roleBadge",
+        pageError:
+            "pageError",
 
-        creditBadge: "creditBadge",
+        pageErrorMessage:
+            "pageErrorMessage",
 
-        resultModel: "resultModel",
 
-        resultProvider: "resultProvider",
+        /* -------------------------------------------------
+           ACCOUNT
+        ------------------------------------------------- */
 
-        resultTaskId: "resultTaskId"
+        roleBadge:
+            "roleBadge",
+
+        creditBadge:
+            "creditBadge",
+
+
+        /* -------------------------------------------------
+           MODEL CREDIT
+           -------------------------------------------------
+           WAJIB disambungkan ke HTML:
+           #generateCreditCost
+           #generateCreditValue
+        ------------------------------------------------- */
+
+        generateCreditCost:
+            "generateCreditCost",
+
+        generateCreditValue:
+            "generateCreditValue",
+
+
+        /* -------------------------------------------------
+           RESULT
+        ------------------------------------------------- */
+
+        resultModel:
+            "resultModel",
+
+        resultProvider:
+            "resultProvider",
+
+        resultTaskId:
+            "resultTaskId"
+
     };
 
 
@@ -218,6 +305,7 @@ export function initializeGenerateElements() {
 
         state.elements[key] =
             document.getElementById(id);
+
     }
 
 
@@ -228,65 +316,125 @@ export function initializeGenerateElements() {
     state.elements.statusEl =
         state.elements.status;
 
+
     state.elements.modelSelectorEl =
         state.elements.modelSelector;
+
 
     state.elements.modelSelectEl =
         state.elements.modelSelect;
 
+
     state.elements.modelNameEl =
         state.elements.modelName;
+
 
     state.elements.modelDescriptionEl =
         state.elements.modelDescription;
 
+
     state.elements.providerNameEl =
         state.elements.providerName;
+
 
     state.elements.modelMetaEl =
         state.elements.modelMeta;
 
+
     state.elements.dynamicFieldsEl =
         state.elements.dynamicFields;
+
 
     state.elements.generateFormEl =
         state.elements.generateForm;
 
+
     state.elements.generateCardEl =
         state.elements.generateCard;
+
 
     state.elements.generateButtonEl =
         state.elements.generateButton;
 
+
     state.elements.resetButtonEl =
         state.elements.resetButton;
+
 
     state.elements.loadingEl =
         state.elements.loading;
 
+
     state.elements.resultCardEl =
         state.elements.resultCard;
+
 
     state.elements.pageErrorEl =
         state.elements.pageError;
 
+
     state.elements.pageErrorMessageEl =
         state.elements.pageErrorMessage;
+
 
     state.elements.roleBadgeEl =
         state.elements.roleBadge;
 
+
     state.elements.creditBadgeEl =
         state.elements.creditBadge;
+
+
+    /* =====================================================
+       MODEL CREDIT ALIASES
+    ===================================================== */
+
+    state.elements.generateCreditCostEl =
+        state.elements.generateCreditCost;
+
+
+    state.elements.generateCreditValueEl =
+        state.elements.generateCreditValue;
+
+
+    /* =====================================================
+       RESULT ALIASES
+    ===================================================== */
 
     state.elements.resultModelEl =
         state.elements.resultModel;
 
+
     state.elements.resultProviderEl =
         state.elements.resultProvider;
 
+
     state.elements.resultTaskIdEl =
         state.elements.resultTaskId;
+
+
+    /* =====================================================
+       DEBUG
+       -----------------------------------------------------
+       Tidak mengganggu aplikasi.
+       Membantu memastikan model credit benar-benar
+       ditemukan oleh DOM.
+    ===================================================== */
+
+    console.debug(
+        "[GEN-Z.AI][Generate State] Model credit elements:",
+        {
+            generateCreditCost:
+                Boolean(
+                    state.elements.generateCreditCost
+                ),
+
+            generateCreditValue:
+                Boolean(
+                    state.elements.generateCreditValue
+                )
+        }
+    );
 
 
     return state.elements;
@@ -300,6 +448,7 @@ export function initializeGenerateElements() {
 export function validateGenerateElements() {
 
     const required = [
+
         "status",
 
         "modelSelector",
@@ -328,7 +477,16 @@ export function validateGenerateElements() {
 
         "pageError",
 
-        "pageErrorMessage"
+        "pageErrorMessage",
+
+        /*
+         * Model credit memang bagian dari
+         * Generate UI sekarang.
+         */
+        "generateCreditCost",
+
+        "generateCreditValue"
+
     ];
 
 
@@ -346,6 +504,7 @@ export function validateGenerateElements() {
         throw new Error(
             `Elemen Generate tidak lengkap: ${missing.join(", ")}.`
         );
+
     }
 
 
@@ -433,11 +592,14 @@ export function setCurrentModel(
 
     state.modelLoaded =
         Boolean(
+
             model &&
+
             String(
                 model.model_id ??
                 ""
             ).trim()
+
         );
 
 
@@ -507,14 +669,20 @@ export function findAvailableModel(
 
 
     return (
+
         state.availableModels.find(
+
             model =>
+
                 String(
                     model?.model_id ??
                     ""
                 ).trim() === target
+
         ) ||
+
         null
+
     );
 }
 
@@ -545,15 +713,6 @@ export function isModelLoaded() {
 
 /* =========================================================
    MODEL READY
-   ---------------------------------------------------------
-   Dipakai oleh:
-   - generate-ui.js
-   - generate-app.js
-
-   Model dianggap siap apabila:
-   1. currentModel tersedia
-   2. currentModel memiliki model_id
-   3. modelLoaded bernilai true
 ========================================================= */
 
 export function isModelReady() {
@@ -570,9 +729,13 @@ export function isModelReady() {
 
 
     return Boolean(
+
         state.modelLoaded &&
+
         model &&
+
         modelId
+
     );
 }
 
@@ -611,6 +774,7 @@ export function resetGenerateState() {
 
     state.modelLoaded =
         false;
+
 }
 
 
