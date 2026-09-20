@@ -102,6 +102,7 @@ const appState = {
         polling:
             null
     }
+
 };
 
 
@@ -121,6 +122,8 @@ function debug(...args) {
 
 /* =========================================================
    DOM
+   ---------------------------------------------------------
+   ID HARUS SAMA DENGAN generate/index.html
 ========================================================= */
 
 function getDOM() {
@@ -182,30 +185,54 @@ function getDOM() {
                 "modelMeta"
             ),
 
+        /*
+         * CANONICAL IDs
+         */
+
         loading:
             document.getElementById(
-                "generateLoading"
+                "loading"
             ),
 
         status:
             document.getElementById(
-                "generateStatus"
+                "status"
             ),
 
         pageError:
             document.getElementById(
-                "generateError"
+                "pageError"
             ),
 
         pageErrorMessage:
             document.getElementById(
-                "generateErrorMessage"
+                "pageErrorMessage"
             ),
 
         resetButton:
             document.getElementById(
-                "resetGenerateButton"
+                "resetButton"
+            ),
+
+        /*
+         * Compatibility
+         */
+
+        generateCard:
+            document.getElementById(
+                "generateCard"
+            ),
+
+        creditBadge:
+            document.getElementById(
+                "creditBadge"
+            ),
+
+        roleBadge:
+            document.getElementById(
+                "roleBadge"
             )
+
     };
 
 }
@@ -213,10 +240,6 @@ function getDOM() {
 
 /* =========================================================
    LOAD MODULE
-   ---------------------------------------------------------
-   JANGAN CACHE-BUST INTERNAL MODULE.
-
-   Semua module harus mendapatkan instance state yang sama.
 ========================================================= */
 
 async function loadModule(
@@ -244,16 +267,16 @@ async function loadModule(
 
 
         /*
-         * PENTING:
+         * JANGAN CACHE BUST.
          *
-         * Jangan:
-         *
-         * import(`${path}?v=${Date.now()}`)
-         *
-         * karena itu membuat module instance berbeda.
+         * Semua module harus menggunakan instance
+         * generate-state.js yang sama.
          */
+
         const module =
-            await import(path);
+            await import(
+                path
+            );
 
 
         if (
@@ -274,13 +297,17 @@ async function loadModule(
         debug(
             "Module loaded:",
             name,
-            Object.keys(module)
+            Object.keys(
+                module
+            )
         );
 
 
         return module;
 
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         console.error(
             `[GEN-Z.AI][Generate] Module ${name} gagal dimuat:`,
@@ -310,9 +337,6 @@ async function loadModule(
 
 async function loadCoreModules() {
 
-    /*
-     * STATE
-     */
     await loadModule(
         "state",
         STATE_MODULE,
@@ -320,9 +344,6 @@ async function loadCoreModules() {
     );
 
 
-    /*
-     * AUTH
-     */
     await loadModule(
         "auth",
         AUTH_MODULE,
@@ -330,9 +351,6 @@ async function loadCoreModules() {
     );
 
 
-    /*
-     * UI
-     */
     await loadModule(
         "ui",
         UI_MODULE,
@@ -340,9 +358,6 @@ async function loadCoreModules() {
     );
 
 
-    /*
-     * MODEL
-     */
     await loadModule(
         "model",
         MODEL_MODULE,
@@ -350,9 +365,6 @@ async function loadCoreModules() {
     );
 
 
-    /*
-     * FORM
-     */
     await loadModule(
         "form",
         FORM_MODULE,
@@ -361,8 +373,9 @@ async function loadCoreModules() {
 
 
     /*
-     * OPTIONAL
+     * OPTIONAL MODULE
      */
+
     await loadModule(
         "validation",
         VALIDATION_MODULE,
@@ -399,6 +412,7 @@ function showError(
 
     const elements =
         getDOM();
+
 
     const text =
         String(
@@ -442,6 +456,9 @@ function showError(
 
         elements.status.textContent =
             text;
+
+        elements.status.hidden =
+            false;
 
     }
 
@@ -495,6 +512,17 @@ function showLoading(
         elements.loading.style.display =
             "flex";
 
+        elements.loading.style.visibility =
+            "visible";
+
+        elements.loading.style.opacity =
+            "1";
+
+        elements.loading.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
     }
 
 
@@ -509,6 +537,10 @@ function showLoading(
 
 }
 
+
+/* =========================================================
+   HIDE LOADING
+========================================================= */
 
 function hideLoading() {
 
@@ -525,6 +557,17 @@ function hideLoading() {
 
         elements.loading.style.display =
             "none";
+
+        elements.loading.style.visibility =
+            "hidden";
+
+        elements.loading.style.opacity =
+            "0";
+
+        elements.loading.setAttribute(
+            "aria-hidden",
+            "true"
+        );
 
     }
 
@@ -576,7 +619,9 @@ function getModelName(
 
         model?.repository?.model_name ||
 
-        getModelId(model) ||
+        getModelId(
+            model
+        ) ||
 
         "Model"
 
@@ -714,13 +759,17 @@ function getModelCredit(
 
 
     for (
-        const value of values
+        const value
+        of values
     ) {
 
         if (
-            value === null ||
-            value === undefined ||
-            value === ""
+            value ===
+                null ||
+            value ===
+                undefined ||
+            value ===
+                ""
         ) {
 
             continue;
@@ -729,11 +778,15 @@ function getModelCredit(
 
 
         const number =
-            Number(value);
+            Number(
+                value
+            );
 
 
         if (
-            Number.isFinite(number)
+            Number.isFinite(
+                number
+            )
         ) {
 
             return number;
@@ -757,8 +810,10 @@ function formatCredit(
 ) {
 
     if (
-        value === null ||
-        value === undefined
+        value ===
+            null ||
+        value ===
+            undefined
     ) {
 
         return "-";
@@ -767,11 +822,15 @@ function formatCredit(
 
 
     const number =
-        Number(value);
+        Number(
+            value
+        );
 
 
     if (
-        !Number.isFinite(number)
+        !Number.isFinite(
+            number
+        )
     ) {
 
         return "-";
@@ -785,16 +844,15 @@ function formatCredit(
             maximumFractionDigits:
                 2
         }
-    ).format(number);
+    ).format(
+        number
+    );
 
 }
 
 
 /* =========================================================
    RENDER MODEL CREDIT
-   ---------------------------------------------------------
-   HANYA CREDIT PEMAKAIAN MODEL.
-   TIDAK MENYENTUH profiles.credits.
 ========================================================= */
 
 function renderModelCredit(
@@ -804,11 +862,17 @@ function renderModelCredit(
     const elements =
         getDOM();
 
+
     const credit =
-        getModelCredit(model);
+        getModelCredit(
+            model
+        );
+
 
     const formatted =
-        formatCredit(credit);
+        formatCredit(
+            credit
+        );
 
 
     if (
@@ -821,9 +885,6 @@ function renderModelCredit(
         elements.generateCreditCost.hidden =
             false;
 
-        elements.generateCreditCost.style.display =
-            "";
-
     }
 
 
@@ -834,12 +895,6 @@ function renderModelCredit(
         elements.generateCreditValue.textContent =
             formatted;
 
-        elements.generateCreditValue.hidden =
-            false;
-
-        elements.generateCreditValue.style.display =
-            "";
-
     }
 
 
@@ -847,7 +902,9 @@ function renderModelCredit(
         "MODEL CREDIT:",
         {
             model:
-                getModelId(model),
+                getModelId(
+                    model
+                ),
 
             credit
         }
@@ -882,7 +939,9 @@ function renderModelInformation(
     ) {
 
         elements.modelName.textContent =
-            getModelName(model);
+            getModelName(
+                model
+            );
 
     }
 
@@ -910,7 +969,9 @@ function renderModelInformation(
     ) {
 
         elements.providerName.textContent =
-            getProviderName(model);
+            getProviderName(
+                model
+            );
 
     }
 
@@ -920,10 +981,15 @@ function renderModelInformation(
     ) {
 
         const id =
-            getModelId(model);
+            getModelId(
+                model
+            );
+
 
         const type =
-            getModelType(model);
+            getModelType(
+                model
+            );
 
 
         elements.modelMeta.textContent =
@@ -966,7 +1032,7 @@ function getCurrentModel() {
 
 
 /* =========================================================
-   FORCE STATE MODEL
+   SET CURRENT MODEL
 ========================================================= */
 
 function setCurrentModel(
@@ -995,9 +1061,6 @@ function setCurrentModel(
     );
 
 
-    /*
-     * Verifikasi langsung.
-     */
     const verified =
         typeof state.getCurrentModel ===
         "function"
@@ -1009,8 +1072,12 @@ function setCurrentModel(
 
     if (
         !verified ||
-        getModelId(verified) !==
-        getModelId(model)
+        getModelId(
+            verified
+        ) !==
+        getModelId(
+            model
+        )
     ) {
 
         throw new Error(
@@ -1020,29 +1087,6 @@ function setCurrentModel(
     }
 
 
-    debug(
-        "STATE CURRENT MODEL:",
-        {
-            id:
-                getModelId(verified),
-
-            parameters:
-                verified?.parameters,
-
-            parameterKeys:
-                verified?.parameters &&
-                typeof verified.parameters ===
-                "object"
-
-                    ? Object.keys(
-                        verified.parameters
-                    )
-
-                    : []
-        }
-    );
-
-
     return verified;
 
 }
@@ -1050,8 +1094,6 @@ function setCurrentModel(
 
 /* =========================================================
    RENDER FORM
-   ---------------------------------------------------------
-   INI BAGIAN PALING PENTING.
 ========================================================= */
 
 async function renderForm(
@@ -1060,6 +1102,7 @@ async function renderForm(
 
     const elements =
         getDOM();
+
 
     const formModule =
         appState.modules.form;
@@ -1087,31 +1130,26 @@ async function renderForm(
     }
 
 
-    /*
-     * Simpan model ke state yang SAMA
-     * dengan yang digunakan generate-form.js.
-     */
     setCurrentModel(
         model
     );
 
 
-    /*
-     * Bersihkan form lama.
-     */
     elements.dynamicFields.innerHTML =
         "";
 
 
-    /*
-     * Cari API render.
-     */
+    let result =
+        null;
+
+
     if (
         typeof formModule.renderGenerateForm ===
         "function"
     ) {
 
-        await formModule.renderGenerateForm();
+        result =
+            await formModule.renderGenerateForm();
 
     }
 
@@ -1120,7 +1158,8 @@ async function renderForm(
         "function"
     ) {
 
-        await formModule.render();
+        result =
+            await formModule.render();
 
     }
 
@@ -1129,27 +1168,22 @@ async function renderForm(
         "function"
     ) {
 
-        await formModule.init();
+        result =
+            await formModule.init();
 
     }
 
     else {
 
         throw new Error(
-            "generate-form.js tidak memiliki renderGenerateForm(), render(), atau init()."
+            "generate-form.js tidak memiliki API render yang valid."
         );
 
     }
 
 
-    /*
-     * Pastikan container tampil.
-     */
     elements.dynamicFields.hidden =
         false;
-
-    elements.dynamicFields.style.display =
-        "grid";
 
 
     if (
@@ -1162,106 +1196,32 @@ async function renderForm(
     }
 
 
+    /*
+     * Jangan menganggap form gagal hanya karena
+     * model tidak memiliki parameter.
+     */
+
     const children =
         elements.dynamicFields.children.length;
 
 
     debug(
-        "DYNAMIC FORM RESULT:",
+        "DYNAMIC FORM:",
         {
             model:
-                getModelId(model),
+                getModelId(
+                    model
+                ),
 
-            children,
+            rendered:
+                result,
 
-            parameters:
-                model?.parameters,
-
-            parameterKeys:
-                model?.parameters &&
-                typeof model.parameters ===
-                "object"
-
-                    ? Object.keys(
-                        model.parameters
-                    )
-
-                    : []
+            children
         }
     );
 
 
-    /*
-     * Jangan diam-diam gagal.
-     *
-     * Jika model memang punya parameter tetapi
-     * generate-form tidak menghasilkan element,
-     * tampilkan pesan diagnostik yang jelas.
-     */
-    if (
-        children === 0
-    ) {
-
-        const parameters =
-            model?.parameters;
-
-
-        let hasParameters =
-            false;
-
-
-        if (
-            Array.isArray(parameters)
-        ) {
-
-            hasParameters =
-                parameters.length > 0;
-
-        }
-
-        else if (
-            parameters &&
-            typeof parameters ===
-            "object"
-        ) {
-
-            hasParameters =
-                Object.keys(
-                    parameters
-                ).length > 0;
-
-        }
-
-
-        if (
-            hasParameters
-        ) {
-
-            console.error(
-                "[GEN-Z.AI][Generate] MODEL MEMILIKI PARAMETER TETAPI FORM KOSONG.",
-                {
-                    model,
-                    parameters
-                }
-            );
-
-
-            throw new Error(
-                "Konfigurasi parameter model tersedia, tetapi form parameter gagal dirender."
-            );
-
-        }
-
-        else {
-
-            console.warn(
-                "[GEN-Z.AI][Generate] Model tidak memiliki parameter.",
-                model
-            );
-
-        }
-
-    }
+    return true;
 
 }
 
@@ -1285,28 +1245,16 @@ async function renderModel(
     }
 
 
-    /*
-     * STEP 1
-     * Model information
-     */
     renderModelInformation(
         model
     );
 
 
-    /*
-     * STEP 2
-     * Model usage credit
-     */
     renderModelCredit(
         model
     );
 
 
-    /*
-     * STEP 3
-     * Dynamic parameters
-     */
     await renderForm(
         model
     );
@@ -1317,19 +1265,27 @@ async function renderModel(
 
 
     debug(
-        "COMPLETE MODEL UI READY:",
+        "MODEL UI READY:",
         {
             id:
-                getModelId(model),
+                getModelId(
+                    model
+                ),
 
             name:
-                getModelName(model),
+                getModelName(
+                    model
+                ),
 
             provider:
-                getProviderName(model),
+                getProviderName(
+                    model
+                ),
 
             credit:
-                getModelCredit(model)
+                getModelCredit(
+                    model
+                )
         }
     );
 
@@ -1358,8 +1314,9 @@ async function initializeAuth() {
 
 
     /*
-     * Supabase.
+     * Load Supabase.
      */
+
     if (
         typeof auth.loadSupabase ===
         "function"
@@ -1373,6 +1330,7 @@ async function initializeAuth() {
     /*
      * User.
      */
+
     let user =
         null;
 
@@ -1387,7 +1345,9 @@ async function initializeAuth() {
             user =
                 await auth.loadCurrentUser();
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             user =
                 window.GENZ_CURRENT_USER ||
@@ -1410,11 +1370,8 @@ async function initializeAuth() {
 
     /*
      * Profile.
-     *
-     * Ini hanya sinkronisasi internal.
-     * Badge Owner + account credit tetap milik
-     * early auth bridge/navigation.
      */
+
     let profile =
         null;
 
@@ -1429,7 +1386,9 @@ async function initializeAuth() {
             profile =
                 await auth.loadProfile();
 
-        } catch (error) {
+        } catch (
+            error
+        ) {
 
             console.warn(
                 "[GEN-Z.AI][Generate] Profile sync warning:",
@@ -1446,6 +1405,10 @@ async function initializeAuth() {
 
     }
 
+
+    /*
+     * Fallback authentication.
+     */
 
     if (
         !user &&
@@ -1471,7 +1434,9 @@ async function initializeAuth() {
 
 
     appState.authReady =
-        Boolean(user);
+        Boolean(
+            user
+        );
 
 
     appState.profileReady =
@@ -1490,14 +1455,10 @@ async function initializeAuth() {
         "AUTH READY:",
         {
             user:
-                Boolean(user),
+                appState.authReady,
 
             profile:
-                Boolean(
-                    profile ||
-                    window.GENZ_CURRENT_PROFILE ||
-                    window.GENZ_NAVIGATION_PROFILE
-                )
+                appState.profileReady
         }
     );
 
@@ -1536,17 +1497,13 @@ async function initializeModel() {
 
 
     /*
-     * Primary API.
+     * PRIMARY API
      */
+
     if (
         typeof modelModule.resolveInitialModel ===
         "function"
     ) {
-
-        debug(
-            "resolveInitialModel()"
-        );
-
 
         result =
             await modelModule.resolveInitialModel();
@@ -1556,8 +1513,9 @@ async function initializeModel() {
     else {
 
         /*
-         * Fallback.
+         * FALLBACK API
          */
+
         if (
             typeof modelModule.loadAvailableModels !==
             "function"
@@ -1575,8 +1533,11 @@ async function initializeModel() {
 
 
         if (
-            !Array.isArray(models) ||
-            models.length === 0
+            !Array.isArray(
+                models
+            ) ||
+            models.length ===
+                0
         ) {
 
             throw new Error(
@@ -1598,7 +1559,8 @@ async function initializeModel() {
             selectedId =
                 modelModule.renderModelSelector(
                     models
-                ) || "";
+                ) ||
+                "";
 
         }
 
@@ -1609,7 +1571,9 @@ async function initializeModel() {
 
             selectedId =
                 String(
-                    getDOM().modelSelect?.value ||
+                    getDOM()
+                        .modelSelect
+                        ?.value ||
                     ""
                 ).trim();
 
@@ -1668,18 +1632,11 @@ async function initializeModel() {
     }
 
 
-    /*
-     * Ambil model.
-     */
     let model =
         result?.model ||
         getCurrentModel();
 
 
-    /*
-     * Beberapa API mengembalikan model
-     * secara langsung.
-     */
     if (
         !model &&
         result?.model_id
@@ -1702,23 +1659,20 @@ async function initializeModel() {
     }
 
 
-    /*
-     * PAKSA MODEL MASUK KE STATE.
-     */
     model =
         setCurrentModel(
             model
         );
 
 
-    /*
-     * Set selector.
-     */
     const elements =
         getDOM();
 
+
     const id =
-        getModelId(model);
+        getModelId(
+            model
+        );
 
 
     if (
@@ -1732,17 +1686,11 @@ async function initializeModel() {
     }
 
 
-    /*
-     * RENDER SEMUANYA.
-     */
     await renderModel(
         model
     );
 
 
-    /*
-     * Pastikan selector terlihat.
-     */
     if (
         elements.modelSelector
     ) {
@@ -1760,6 +1708,9 @@ async function initializeModel() {
         elements.modelSelect
     ) {
 
+        elements.modelSelect.disabled =
+            false;
+
         elements.modelSelect.hidden =
             false;
 
@@ -1769,7 +1720,14 @@ async function initializeModel() {
     }
 
 
-    hideLoading();
+    if (
+        elements.resetButton
+    ) {
+
+        elements.resetButton.disabled =
+            false;
+
+    }
 
 
     return model;
@@ -1809,6 +1767,7 @@ async function handleModelChange(
     try {
 
         hideError();
+
 
         showLoading(
             "Memuat model..."
@@ -1870,18 +1829,12 @@ async function handleModelChange(
         }
 
 
-        /*
-         * State tunggal.
-         */
         model =
             setCurrentModel(
                 model
             );
 
 
-        /*
-         * Render model + form.
-         */
         await renderModel(
             model
         );
@@ -1891,12 +1844,9 @@ async function handleModelChange(
             true;
 
 
-        debug(
-            "MODEL CHANGED:",
-            selectedId
-        );
-
-    } catch (error) {
+    } catch (
+        error
+    ) {
 
         appState.modelReady =
             false;
@@ -1929,7 +1879,8 @@ async function handleModelChange(
 function bindModelEvent() {
 
     const select =
-        getDOM().modelSelect;
+        getDOM()
+            .modelSelect;
 
 
     if (
@@ -1962,11 +1913,6 @@ function bindModelEvent() {
     select.dataset.genzModelBound =
         "true";
 
-
-    debug(
-        "Model event bound."
-    );
-
 }
 
 
@@ -1977,7 +1923,8 @@ function bindModelEvent() {
 function bindResetEvent() {
 
     const button =
-        getDOM().resetButton;
+        getDOM()
+            .resetButton;
 
 
     if (
@@ -2001,7 +1948,7 @@ function bindResetEvent() {
 
     button.addEventListener(
         "click",
-        event => {
+        async event => {
 
             event.preventDefault();
 
@@ -2011,23 +1958,44 @@ function bindResetEvent() {
 
 
             if (
-                form &&
-                typeof form.reset ===
-                "function"
+                !form
             ) {
 
-                try {
+                return;
 
-                    form.reset();
+            }
 
-                } catch (error) {
 
-                    console.warn(
-                        "[GEN-Z.AI][Generate] Reset gagal:",
-                        error
+            try {
+
+                if (
+                    typeof form.reset ===
+                    "function"
+                ) {
+
+                    await form.reset();
+
+                }
+
+                else if (
+                    typeof form.resetDynamicFields ===
+                    "function"
+                ) {
+
+                    await form.resetDynamicFields(
+                        getCurrentModel()
                     );
 
                 }
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate] Reset gagal:",
+                    error
+                );
 
             }
 
@@ -2059,6 +2027,8 @@ function validateDOM() {
 
         "dynamicFields",
 
+        "generateForm",
+
         "generateButton"
 
     ];
@@ -2077,7 +2047,9 @@ function validateDOM() {
 
         throw new Error(
             "DOM Generate tidak lengkap: " +
-            missing.join(", ")
+            missing.join(
+                ", "
+            )
         );
 
     }
@@ -2089,21 +2061,53 @@ function validateDOM() {
 
 
 /* =========================================================
+   INITIAL HIDE
+========================================================= */
+
+function initializeVisualState() {
+
+    /*
+     * Jangan tampilkan loading saat halaman baru
+     * dibuka.
+     *
+     * Loading hanya digunakan saat:
+     * - pergantian model
+     * - proses Generate
+     */
+
+    hideLoading();
+
+
+    hideError();
+
+
+    const elements =
+        getDOM();
+
+
+    if (
+        elements.status
+    ) {
+
+        elements.status.hidden =
+            true;
+
+        elements.status.textContent =
+            "";
+
+    }
+
+}
+
+
+/* =========================================================
    BOOTSTRAP
 ========================================================= */
 
 async function bootstrap() {
 
     if (
-        appState.initialized
-    ) {
-
-        return;
-
-    }
-
-
-    if (
+        appState.initialized ||
         appState.initializing
     ) {
 
@@ -2116,6 +2120,9 @@ async function bootstrap() {
         true;
 
 
+    initializeVisualState();
+
+
     try {
 
         debug(
@@ -2126,18 +2133,21 @@ async function bootstrap() {
         /*
          * 1. DOM
          */
+
         validateDOM();
 
 
         /*
          * 2. MODULE
          */
+
         await loadCoreModules();
 
 
         /*
          * 3. STATE DOM
          */
+
         const state =
             appState.modules.state;
 
@@ -2155,12 +2165,14 @@ async function bootstrap() {
         /*
          * 4. AUTH
          */
+
         await initializeAuth();
 
 
         /*
          * 5. EVENTS
          */
+
         bindModelEvent();
 
         bindResetEvent();
@@ -2168,13 +2180,9 @@ async function bootstrap() {
 
         /*
          * 6. MODEL
+         *
+         * Tidak memanggil showLoading().
          */
-        hideError();
-
-        showLoading(
-            "Memuat model..."
-        );
-
 
         await initializeModel();
 
@@ -2182,6 +2190,7 @@ async function bootstrap() {
         /*
          * 7. COMPLETE
          */
+
         const elements =
             getDOM();
 
@@ -2214,7 +2223,10 @@ async function bootstrap() {
             "Bootstrap completed."
         );
 
-    } catch (error) {
+
+    } catch (
+        error
+    ) {
 
         console.error(
             "[GEN-Z.AI][Generate] Bootstrap gagal:",
@@ -2231,6 +2243,7 @@ async function bootstrap() {
 
         appState.initializing =
             false;
+
 
         hideLoading();
 
@@ -2266,16 +2279,17 @@ window.GENZGenerateApp =
 
 function start() {
 
-    bootstrap().catch(
-        error => {
+    bootstrap()
+        .catch(
+            error => {
 
-            console.error(
-                "[GEN-Z.AI][Generate] Fatal:",
-                error
-            );
+                console.error(
+                    "[GEN-Z.AI][Generate] Fatal:",
+                    error
+                );
 
-        }
-    );
+            }
+        );
 
 }
 
@@ -2298,7 +2312,9 @@ if (
         }
     );
 
-} else {
+}
+
+else {
 
     start();
 
