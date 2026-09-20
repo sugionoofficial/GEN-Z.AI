@@ -13,18 +13,30 @@
    - Role validation
    - Account status validation
    - Access token
-   - Badge role / credit
+   - Badge role / account credit
 
    Tidak bertanggung jawab:
    - Model
+   - Model credit
    - Parameter form
    - Generate request
    - Result
    - Provider API key
 
-   Sumber data:
+   SUMBER DATA:
    - Supabase Auth
    - profiles
+
+   CREDIT:
+   - Credit pojok kanan atas = profiles.credits
+   - BUKAN credit model
+   - BUKAN navigation cache
+   - BUKAN localStorage
+   - BUKAN hardcode
+
+   MODEL CREDIT:
+   - Ditangani oleh generate-model.js
+   - Source = models.credit_final
 
    Role valid:
    - USER
@@ -38,7 +50,7 @@
 
    PENTING:
    - Role Generate berasal dari profiles Supabase
-   - Credit Generate berasal dari profiles Supabase
+   - Account Credit Generate berasal dari profiles Supabase
    - Navigation profile hanya cache/sinkronisasi
    - Navigation tidak boleh menjadi source of truth
    - TIDAK bergantung pada generate-utils.js
@@ -666,6 +678,67 @@ function normalizeStatus(
 
 
 /* =========================================================
+   NORMALIZE ACCOUNT CREDIT
+   ---------------------------------------------------------
+   Source:
+   profiles.credits
+
+   Penting:
+   - 0 adalah nilai valid
+   - null/undefined = tidak tersedia
+   - tidak melakukan fallback ke model credit
+   - tidak mengambil dari navigation
+========================================================= */
+
+function normalizeAccountCredit(
+    credits
+) {
+
+    if (
+        credits === null ||
+        credits === undefined ||
+        credits === ""
+    ) {
+
+        return {
+            value: null,
+            valid: false
+        };
+
+    }
+
+
+    const numeric =
+        Number(
+            credits
+        );
+
+
+    if (
+        Number.isFinite(
+            numeric
+        )
+    ) {
+
+        return {
+            value: numeric,
+            valid: true
+        };
+
+    }
+
+
+    return {
+        value: String(
+            credits
+        ),
+        valid: true
+    };
+
+}
+
+
+/* =========================================================
    VALIDATE PROFILE
 ========================================================= */
 
@@ -766,9 +839,26 @@ function validateProfile(
     }
 
 
+    /*
+     * Normalisasi credit dilakukan tanpa
+     * mengubah source of truth.
+     */
+
+    const accountCredit =
+        normalizeAccountCredit(
+            profile.credits
+        );
+
+
     return {
         ...profile,
-        role
+
+        role,
+
+        credits:
+            accountCredit.valid
+                ? accountCredit.value
+                : null
     };
 
 }
@@ -813,8 +903,7 @@ function updateAuthBadges(
 
 
         /*
-         * Jangan mengambil USER dari fallback
-         * navigation atau HTML.
+         * Role hanya dari profile Supabase.
          */
 
         roleBadge.textContent =
@@ -824,7 +913,19 @@ function updateAuthBadges(
 
 
     /* =====================================================
-       CREDIT
+       ACCOUNT CREDIT
+       -----------------------------------------------------
+       INI CREDIT POJOK KANAN ATAS.
+
+       Source:
+       profiles.credits
+
+       BUKAN:
+       - model credit
+       - credit_final
+       - credit_cost
+       - localStorage
+       - navigation cache
     ===================================================== */
 
     if (
@@ -834,20 +935,18 @@ function updateAuthBadges(
     }
 
 
-    const credits =
-        profile?.credits;
+    const accountCredit =
+        normalizeAccountCredit(
+            profile?.credits
+        );
 
 
     /*
-     * NULL / undefined berarti data tidak tersedia.
-     *
-     * Bukan berarti 0.
+     * Data credit belum tersedia.
      */
 
     if (
-        credits === null ||
-        credits === undefined ||
-        credits === ""
+        !accountCredit.valid
     ) {
 
         creditBadge.textContent =
@@ -858,25 +957,23 @@ function updateAuthBadges(
     }
 
 
-    const numericCredits =
-        Number(
-            credits
-        );
-
-
     /*
-     * 0 tetap valid.
+     * Numeric credit.
+     *
+     * Nilai 0 tetap valid dan akan
+     * ditampilkan sebagai:
+     *
+     * Credit: 0
      */
 
     if (
-        Number.isFinite(
-            numericCredits
-        )
+        typeof accountCredit.value ===
+            "number"
     ) {
 
         creditBadge.textContent =
             `Credit: ${formatNumber(
-                numericCredits
+                accountCredit.value
             )}`;
 
         return;
@@ -884,9 +981,14 @@ function updateAuthBadges(
     }
 
 
+    /*
+     * Fallback hanya untuk nilai non-numeric
+     * yang memang tersimpan di database.
+     */
+
     creditBadge.textContent =
         `Credit: ${String(
-            credits
+            accountCredit.value
         )}`;
 
 }
@@ -1027,6 +1129,9 @@ function isMissingStatusColumnError(
 
    Tidak menggunakan navigation profile
    sebagai source of truth.
+
+   CREDIT:
+   profiles.credits
 ========================================================= */
 
 export async function loadProfile() {
@@ -1066,6 +1171,10 @@ export async function loadProfile() {
 
     /*
      * Query profile terbaru langsung dari Supabase.
+     *
+     * Ini sengaja tidak menggunakan cache.
+     * Kalau credit akun berubah di database,
+     * Generate harus membaca nilai terbaru.
      */
 
     let result =
@@ -1154,6 +1263,8 @@ export async function loadProfile() {
     /*
      * Sinkronisasi cache navigation
      * SETELAH query Supabase berhasil.
+     *
+     * Cache ini bukan source of truth.
      */
 
     window.GENZ_NAVIGATION_PROFILE =
@@ -1241,6 +1352,9 @@ export async function ensureAuthenticated() {
 
     /*
      * Cache user boleh digunakan.
+     *
+     * Ini hanya untuk menghindari query Auth
+     * yang tidak diperlukan.
      */
 
     if (
@@ -1280,7 +1394,7 @@ export async function ensureAuthenticated() {
      *
      * getCurrentProfile()
      *
-     * untuk melewati query.
+     * untuk melewati query profile.
      */
 
     const profile =
@@ -1396,6 +1510,70 @@ export function hasRole(
 
 
 /* =========================================================
+   GET CURRENT ACCOUNT CREDIT
+   ---------------------------------------------------------
+   Public helper agar module lain dapat membaca
+   credit akun tanpa membaca DOM.
+
+   Source:
+   current profile -> profiles.credits
+========================================================= */
+
+export function getCurrentAccountCredit() {
+
+    const profile =
+        getCurrentProfile();
+
+
+    if (!profile) {
+
+        return null;
+
+    }
+
+
+    const accountCredit =
+        normalizeAccountCredit(
+            profile.credits
+        );
+
+
+    if (
+        !accountCredit.valid
+    ) {
+
+        return null;
+
+    }
+
+
+    return accountCredit.value;
+
+}
+
+
+/* =========================================================
+   REFRESH ACCOUNT CREDIT
+   ---------------------------------------------------------
+   Dipakai jika setelah generate credit akun
+   berkurang dan badge kanan atas perlu
+   menampilkan nilai terbaru.
+
+   Tetap mengambil data dari Supabase.
+========================================================= */
+
+export async function refreshAccountCredit() {
+
+    const profile =
+        await loadProfile();
+
+
+    return getCurrentAccountCredit();
+
+}
+
+
+/* =========================================================
    EXPORT AUTH API
 ========================================================= */
 
@@ -1416,7 +1594,11 @@ export const generateAuth =
 
         getCurrentRole,
 
-        hasRole
+        hasRole,
+
+        getCurrentAccountCredit,
+
+        refreshAccountCredit
 
     });
 
