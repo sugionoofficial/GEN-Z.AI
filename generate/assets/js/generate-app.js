@@ -7,20 +7,26 @@
 
    Tanggung jawab:
    - Bootstrap halaman Generate
-   - Inisialisasi modul
-   - Menghubungkan event UI
-   - Menjalankan flow generate
+   - Inisialisasi DOM
+   - Inisialisasi authentication
+   - Menampilkan OWNER + CREDIT
+   - Memuat model
+   - Menghubungkan model -> form -> request
    - Menjalankan polling task
-   - Menjalankan reset
-   - Sinkronisasi model -> form -> request -> polling -> result
+   - Reset form
 
    Tidak bertanggung jawab:
    - Query Supabase langsung
-   - Menyimpan API key
    - Menentukan provider
    - Menentukan harga/model capability
+   - Menyimpan API key
    - Menulis CSS
-   - Query provider secara langsung
+   - Query provider langsung
+   - Menampilkan hasil video final
+
+   CATATAN:
+   - Result final tidak dirender di halaman Generate.
+   - Result akan digunakan untuk History.
 ========================================================= */
 
 
@@ -29,7 +35,8 @@ import {
     validateGenerateElements,
     getGenerateElements,
     getCurrentModel,
-    isModelReady
+    isModelReady,
+    getCurrentProfile
 } from "./generate-state.js";
 
 
@@ -82,7 +89,6 @@ import {
     showReady,
     showBusy,
     finishRequest,
-    renderResult,
     resetUI,
     enableGeneration,
     disableGeneration,
@@ -109,11 +115,18 @@ const appState = {
     eventsBound:
         false,
 
+    authReady:
+        false,
+
+    modelReady:
+        false,
+
     currentTaskId:
         null,
 
     pollingStartedAt:
         null
+
 };
 
 
@@ -121,23 +134,9 @@ const appState = {
    POLLING CONFIG
 ========================================================= */
 
-/*
- * Polling minimal 3 detik.
- *
- * Jangan terlalu agresif.
- * Provider tetap butuh waktu memproses video.
- */
-
 const POLLING_INTERVAL =
     3000;
 
-
-/*
- * Maksimal 10 menit.
- *
- * Nilai ini hanya timeout frontend.
- * Provider tetap menentukan status task.
- */
 
 const POLLING_TIMEOUT =
     10 * 60 * 1000;
@@ -150,18 +149,23 @@ const POLLING_TIMEOUT =
 function getElements() {
 
     return getGenerateElements();
+
 }
 
 
 /* =========================================================
-   MODEL READY
+   REFRESH GENERATION AVAILABILITY
 ========================================================= */
 
 function refreshGenerateAvailability() {
 
     /*
-     * Selama submit/polling berjalan,
-     * tombol Generate tetap dikunci.
+     * Generate hanya aktif jika:
+     *
+     * 1. Auth tersedia
+     * 2. Model siap
+     * 3. Tidak sedang submit
+     * 4. Tidak sedang polling
      */
 
     if (
@@ -172,24 +176,101 @@ function refreshGenerateAvailability() {
         disableGeneration();
 
         return;
+
     }
 
 
     if (
+        appState.authReady &&
+        appState.modelReady &&
         isModelReady()
     ) {
 
         enableGeneration();
 
-    } else {
+        return;
 
-        disableGeneration();
     }
+
+
+    disableGeneration();
+
 }
 
 
 /* =========================================================
-   SELECT MODEL
+   AUTH BADGE FALLBACK
+   ---------------------------------------------------------
+   Jika profile berhasil dimuat:
+       gunakan profile terbaru.
+
+   Jika profile gagal tetapi cache navigation
+   tersedia:
+       gunakan cache tersebut hanya sebagai
+       tampilan sementara.
+
+   Source of truth tetap loadProfile().
+========================================================= */
+
+function renderAuthFallback() {
+
+    try {
+
+        const profile =
+            getCurrentProfile();
+
+
+        if (
+            profile
+        ) {
+
+            renderAuthBadges(
+                profile
+            );
+
+            return profile;
+
+        }
+
+
+        const cachedProfile =
+            window.GENZ_CURRENT_PROFILE ||
+            window.GENZ_NAVIGATION_PROFILE ||
+            null;
+
+
+        if (
+            cachedProfile
+        ) {
+
+            renderAuthBadges(
+                cachedProfile
+            );
+
+            return cachedProfile;
+
+        }
+
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate] Auth badge fallback gagal:",
+            error
+        );
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   MODEL CHANGE
 ========================================================= */
 
 async function handleModelChange(
@@ -203,11 +284,17 @@ async function handleModelChange(
         ).trim();
 
 
-    if (!modelId) {
+    if (
+        !modelId
+    ) {
 
-        disableGeneration();
+        appState.modelReady =
+            false;
+
+        refreshGenerateAvailability();
 
         return;
+
     }
 
 
@@ -231,18 +318,16 @@ async function handleModelChange(
             );
 
 
-        if (!model) {
+        if (
+            !model
+        ) {
 
             throw new Error(
                 "Konfigurasi model tidak ditemukan."
             );
+
         }
 
-
-        /*
-         * Model yang diterima dari selectModel()
-         * adalah konfigurasi model sebenarnya.
-         */
 
         renderModelHeader(
             model
@@ -254,6 +339,13 @@ async function handleModelChange(
         );
 
 
+        appState.modelReady =
+            true;
+
+
+        refreshGenerateAvailability();
+
+
         showReady(
             "Model siap digunakan."
         );
@@ -262,6 +354,10 @@ async function handleModelChange(
     } catch (
         error
     ) {
+
+        appState.modelReady =
+            false;
+
 
         disableGeneration();
 
@@ -276,7 +372,9 @@ async function handleModelChange(
             error?.message ||
             "Gagal memuat konfigurasi model."
         );
+
     }
+
 }
 
 
@@ -287,6 +385,7 @@ async function handleModelChange(
 function collectParameters() {
 
     return getFormParameters();
+
 }
 
 
@@ -309,6 +408,7 @@ function validateBeforeSubmit(
     ) {
 
         return true;
+
     }
 
 
@@ -327,23 +427,24 @@ function validateBeforeSubmit(
 
 
     return false;
+
 }
 
 
 /* =========================================================
    EXTRACT TASK ID
-   ---------------------------------------------------------
-   Backend generate dapat mengembalikan task ID dalam
-   beberapa bentuk. Normalisasi dilakukan di satu tempat.
 ========================================================= */
 
 function extractTaskId(
     data
 ) {
 
-    if (!data) {
+    if (
+        !data
+    ) {
 
         return "";
+
     }
 
 
@@ -388,14 +489,19 @@ function extractTaskId(
             ).trim();
 
 
-        if (value) {
+        if (
+            value
+        ) {
 
             return value;
+
         }
+
     }
 
 
     return "";
+
 }
 
 
@@ -473,40 +579,27 @@ function getPollingStatusMessage(
         default:
 
             return "Memeriksa status video...";
+
     }
+
 }
 
 
 /* =========================================================
-   HANDLE POLLING UPDATE
+   POLLING UPDATE
 ========================================================= */
 
 function handlePollingUpdate(
     result
 ) {
 
-    /*
-     * Jangan render hasil final di sini.
-     *
-     * Callback ini hanya untuk status progress.
-     */
-
-    const message =
+    showStatus(
         getPollingStatusMessage(
             result
-        );
-
-
-    showStatus(
-        message,
+        ),
         "info"
     );
 
-
-    /*
-     * Simpan task ID terbaru jika backend
-     * mengembalikan ID lagi.
-     */
 
     const taskId =
         extractTaskId(
@@ -514,11 +607,15 @@ function handlePollingUpdate(
         );
 
 
-    if (taskId) {
+    if (
+        taskId
+    ) {
 
         appState.currentTaskId =
             taskId;
+
     }
+
 }
 
 
@@ -537,7 +634,9 @@ async function waitForTask(
         ).trim();
 
 
-    if (!normalizedTaskId) {
+    if (
+        !normalizedTaskId
+    ) {
 
         throw new GeneratePollingError(
             "Task ID tidak ditemukan dari response generate.",
@@ -546,6 +645,7 @@ async function waitForTask(
                     "TASK_ID_MISSING"
             }
         );
+
     }
 
 
@@ -585,22 +685,10 @@ async function waitForTask(
 
                     onUpdate:
                         handlePollingUpdate
+
                 }
             );
 
-
-        /*
-         * Polling selesai.
-         */
-
-        appState.polling =
-            false;
-
-
-        /*
-         * Task ID tetap disimpan agar result UI
-         * dapat menampilkannya.
-         */
 
         const finalTaskId =
             extractTaskId(
@@ -614,6 +702,7 @@ async function waitForTask(
 
             appState.currentTaskId =
                 finalTaskId;
+
         }
 
 
@@ -624,17 +713,18 @@ async function waitForTask(
         error
     ) {
 
+        throw error;
+
+    } finally {
+
         appState.polling =
             false;
 
 
-        throw error;
-
-
-    } finally {
-
         refreshGenerateAvailability();
+
     }
+
 }
 
 
@@ -650,18 +740,25 @@ async function handleGenerateSubmit(
 
 
     if (
-        appState.submitting
-    ) {
-
-        return;
-    }
-
-
-    if (
+        appState.submitting ||
         appState.polling
     ) {
 
         return;
+
+    }
+
+
+    if (
+        !appState.authReady
+    ) {
+
+        showError(
+            "Sesi pengguna belum siap."
+        );
+
+        return;
+
     }
 
 
@@ -674,6 +771,7 @@ async function handleGenerateSubmit(
         );
 
         return;
+
     }
 
 
@@ -694,17 +792,9 @@ async function handleGenerateSubmit(
         hidePageError();
 
 
-        /*
-         * Ambil parameter hanya dari form module.
-         */
-
         const parameters =
             collectParameters();
 
-
-        /*
-         * Client validation.
-         */
 
         if (
             !validateBeforeSubmit(
@@ -713,12 +803,9 @@ async function handleGenerateSubmit(
         ) {
 
             return;
+
         }
 
-
-        /*
-         * Request membuat task.
-         */
 
         showBusy(
             "Mengirim permintaan generate..."
@@ -731,44 +818,38 @@ async function handleGenerateSubmit(
             );
 
 
-        /*
-         * Task ID wajib tersedia.
-         *
-         * Tanpa task ID kita tidak memiliki referensi
-         * untuk menanyakan status ke backend.
-         */
-
         const taskId =
             extractTaskId(
                 data
             );
 
 
-        if (!taskId) {
+        if (
+            !taskId
+        ) {
 
             throw new GenerateRequestError(
                 "Task berhasil dikirim tetapi Task ID tidak ditemukan.",
                 {
+
                     code:
                         "TASK_ID_MISSING",
 
                     details:
                         data
+
                 }
             );
+
         }
 
-
-        /*
-         * Simpan task ID.
-         */
 
         appState.currentTaskId =
             taskId;
 
 
         /*
-         * Polling dimulai.
+         * Tunggu provider menyelesaikan task.
          */
 
         const finalResult =
@@ -778,18 +859,39 @@ async function handleGenerateSubmit(
 
 
         /*
-         * Render hasil FINAL.
+         * =====================================================
+         * PENTING
          *
-         * Bukan response awal /createTask.
+         * Hasil final TIDAK dirender di halaman Generate.
+         *
+         * History menjadi tempat hasil generation.
+         *
+         * Backend/History integration akan menyimpan:
+         * - task_id
+         * - model_id
+         * - provider
+         * - result URL
+         * - status
+         * - parameter
+         *
+         * Generate hanya memberi status sukses.
+         * =====================================================
          */
 
-        renderResult(
-            finalResult
-        );
+        const completedTaskId =
+            extractTaskId(
+                finalResult
+            ) ||
+            appState.currentTaskId ||
+            taskId;
+
+
+        appState.currentTaskId =
+            completedTaskId;
 
 
         showStatus(
-            "Video berhasil dibuat.",
+            "Video berhasil dibuat. Hasil tersedia di History.",
             "success"
         );
 
@@ -824,11 +926,19 @@ async function handleGenerateSubmit(
                 error,
                 "Terjadi kesalahan saat generate."
             );
+
         }
 
 
-        hidePageError();
-
+        /*
+         * Jangan menyembunyikan pageError di sini.
+         *
+         * Sebelumnya:
+         * hidePageError();
+         *
+         * Ini membuat error yang sudah dirender
+         * langsung hilang lagi.
+         */
 
     } finally {
 
@@ -844,7 +954,9 @@ async function handleGenerateSubmit(
 
 
         finishRequest();
+
     }
+
 }
 
 
@@ -852,11 +964,7 @@ async function handleGenerateSubmit(
    RESET FORM
 ========================================================= */
 
-function resetForm() {
-
-    /*
-     * Jangan reset ketika task sedang berjalan.
-     */
+async function resetForm() {
 
     if (
         appState.submitting ||
@@ -864,12 +972,14 @@ function resetForm() {
     ) {
 
         return;
+
     }
 
 
     const {
         generateForm
-    } = getElements();
+    } =
+        getElements();
 
 
     if (
@@ -877,20 +987,19 @@ function resetForm() {
     ) {
 
         generateForm.reset();
+
     }
 
 
     /*
-     * Parameter dinamis kembali ke nilai
-     * default dari konfigurasi model.
+     * Reset parameter dinamis.
+     *
+     * Fungsi ini async karena upload gambar
+     * dapat membutuhkan penghapusan Storage.
      */
 
-    resetDynamicFields();
+    await resetDynamicFields();
 
-
-    /*
-     * Bersihkan task state.
-     */
 
     appState.currentTaskId =
         null;
@@ -902,10 +1011,6 @@ function resetForm() {
 
     resetUI();
 
-
-    /*
-     * Jangan menghilangkan model yang sedang dipilih.
-     */
 
     if (
         isModelReady()
@@ -920,10 +1025,19 @@ function resetForm() {
         );
 
 
+        appState.modelReady =
+            true;
+
+
+        refreshGenerateAvailability();
+
+
         showReady(
             "Form berhasil direset."
         );
+
     }
+
 }
 
 
@@ -939,16 +1053,14 @@ function handleInput(
         event?.target;
 
 
-    if (!target) {
+    if (
+        !target
+    ) {
 
         return;
+
     }
 
-
-    /*
-     * Hilangkan status error ketika user
-     * mulai memperbaiki input.
-     */
 
     if (
         target.matches(
@@ -958,7 +1070,8 @@ function handleInput(
 
         const {
             statusEl
-        } = getElements();
+        } =
+            getElements();
 
 
         if (
@@ -969,8 +1082,11 @@ function handleInput(
         ) {
 
             hideStatus();
+
         }
+
     }
+
 }
 
 
@@ -986,19 +1102,20 @@ function handleChange(
         event?.target;
 
 
-    if (!target) {
+    if (
+        !target
+    ) {
 
         return;
+
     }
 
 
-    /*
-     * Model selector punya handler khusus.
-     */
-
     const {
-        modelSelectEl
-    } = getElements();
+        modelSelectEl,
+        statusEl
+    } =
+        getElements();
 
 
     if (
@@ -1007,16 +1124,8 @@ function handleChange(
     ) {
 
         return;
+
     }
-
-
-    /*
-     * Input lain cukup menghapus error visual.
-     */
-
-    const {
-        statusEl
-    } = getElements();
 
 
     if (
@@ -1027,7 +1136,9 @@ function handleChange(
     ) {
 
         hideStatus();
+
     }
+
 }
 
 
@@ -1042,6 +1153,7 @@ function bindEvents() {
     ) {
 
         return;
+
     }
 
 
@@ -1049,12 +1161,9 @@ function bindEvents() {
         modelSelectEl,
         generateForm,
         resetButton
-    } = getElements();
+    } =
+        getElements();
 
-
-    /*
-     * Model selector.
-     */
 
     if (
         modelSelectEl
@@ -1064,12 +1173,9 @@ function bindEvents() {
             "change",
             handleModelChange
         );
+
     }
 
-
-    /*
-     * Form submit.
-     */
 
     if (
         generateForm
@@ -1079,12 +1185,9 @@ function bindEvents() {
             "submit",
             handleGenerateSubmit
         );
+
     }
 
-
-    /*
-     * Reset.
-     */
 
     if (
         resetButton
@@ -1094,22 +1197,15 @@ function bindEvents() {
             "click",
             resetForm
         );
+
     }
 
-
-    /*
-     * Input.
-     */
 
     document.addEventListener(
         "input",
         handleInput
     );
 
-
-    /*
-     * Change.
-     */
 
     document.addEventListener(
         "change",
@@ -1119,51 +1215,152 @@ function bindEvents() {
 
     appState.eventsBound =
         true;
+
 }
 
 
 /* =========================================================
    AUTH INITIALIZATION
+   ---------------------------------------------------------
+   Auth dan Model sengaja dipisahkan.
+   Error badge tidak boleh langsung mematikan model.
 ========================================================= */
 
 async function initializeAuth() {
 
     /*
-     * Pastikan Supabase client tersedia.
+     * Supabase client wajib tersedia.
      */
 
     await loadSupabase();
 
 
     /*
-     * User berasal dari session Supabase.
+     * Pastikan user Auth tersedia.
      */
 
-    await loadCurrentUser();
+    const user =
+        await loadCurrentUser();
+
+
+    if (
+        !user?.id
+    ) {
+
+        throw new Error(
+            "User belum terautentikasi."
+        );
+
+    }
 
 
     /*
-     * Profile harus berasal dari profiles
-     * berdasarkan auth user ID.
+     * Profile adalah source of truth untuk:
+     * - role
+     * - credits
      */
 
-    const profile =
-        await loadProfile();
+    try {
+
+        const profile =
+            await loadProfile();
 
 
-    renderAuthBadges(
-        profile
-    );
+        renderAuthBadges(
+            profile
+        );
+
+
+    } catch (
+        profileError
+    ) {
+
+        /*
+         * Profile error tidak langsung
+         * menghancurkan halaman Generate.
+         *
+         * Coba tampilkan cache profile
+         * yang sudah ada.
+         */
+
+        console.warn(
+            "[GEN-Z.AI][Generate] Profile gagal dimuat:",
+            profileError
+        );
+
+
+        const fallback =
+            renderAuthFallback();
+
+
+        if (
+            !fallback
+        ) {
+
+            /*
+             * Badge tetap diberi status jelas.
+             * Jangan dibiarkan "..." selamanya.
+             */
+
+            const {
+                roleBadge,
+                creditBadge
+            } =
+                getElements();
+
+
+            if (
+                roleBadge
+            ) {
+
+                roleBadge.textContent =
+                    "OWNER";
+
+            }
+
+
+            if (
+                creditBadge
+            ) {
+
+                creditBadge.textContent =
+                    "Credit: -";
+
+            }
+
+        }
+
+    }
 
 
     /*
      * Role tidak digunakan untuk redirect.
      *
-     * Hak akses endpoint tetap ditentukan
-     * oleh backend.
+     * Hak akses endpoint tetap di backend.
      */
 
-    getCurrentRole();
+    try {
+
+        getCurrentRole();
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate] Role check gagal:",
+            error
+        );
+
+    }
+
+
+    appState.authReady =
+        true;
+
+
+    return true;
+
 }
 
 
@@ -1173,16 +1370,11 @@ async function initializeAuth() {
 
 async function initializeModel() {
 
-    /*
-     * resolveInitialModel() mengembalikan:
-     *
-     * {
-     *     model,
-     *     models,
-     *     executable,
-     *     selectedModelId
-     * }
-     */
+    showStatus(
+        "Memuat model...",
+        "info"
+    );
+
 
     const resolved =
         await resolveInitialModel();
@@ -1193,36 +1385,36 @@ async function initializeModel() {
         null;
 
 
-    if (!model) {
+    if (
+        !model
+    ) {
 
         throw new Error(
             "Tidak ada model executable yang tersedia."
         );
+
     }
 
-
-    /*
-     * Render model sebenarnya.
-     */
 
     renderModelHeader(
         model
     );
 
 
-    /*
-     * Render parameter dari model sebenarnya.
-     */
-
     renderDynamicFields(
         model
     );
+
+
+    appState.modelReady =
+        true;
 
 
     refreshGenerateAvailability();
 
 
     return model;
+
 }
 
 
@@ -1237,34 +1429,47 @@ export async function initializeGenerateApp() {
     ) {
 
         return;
+
     }
 
 
     try {
 
         /*
-         * Ambil semua elemen DOM.
+         * =====================================================
+         * STEP 1
+         * DOM
+         * =====================================================
          */
 
         initializeGenerateElements();
 
 
         /*
-         * Validasi struktur HTML.
+         * =====================================================
+         * STEP 2
+         * VALIDATE DOM
+         * =====================================================
          */
 
         validateGenerateElements();
 
 
         /*
-         * Bind event sebelum proses async.
+         * =====================================================
+         * STEP 3
+         * EVENT
+         * =====================================================
          */
 
         bindEvents();
 
 
         /*
-         * Auth.
+         * =====================================================
+         * STEP 4
+         * AUTH
+         * =====================================================
          */
 
         showStatus(
@@ -1273,24 +1478,48 @@ export async function initializeGenerateApp() {
         );
 
 
-        await initializeAuth();
+        try {
+
+            await initializeAuth();
+
+        } catch (
+            authError
+        ) {
+
+            /*
+             * Auth utama gagal.
+             *
+             * Jangan berpura-pura user siap.
+             * Tetapi tetap tampilkan error yang jelas.
+             */
+
+            appState.authReady =
+                false;
+
+
+            renderAuthFallback();
+
+
+            throw authError;
+
+        }
 
 
         /*
-         * Model.
+         * =====================================================
+         * STEP 5
+         * MODEL
+         * =====================================================
          */
-
-        showStatus(
-            "Memuat model...",
-            "info"
-        );
-
 
         await initializeModel();
 
 
         /*
-         * Semua siap.
+         * =====================================================
+         * STEP 6
+         * READY
+         * =====================================================
          */
 
         hidePageError();
@@ -1299,6 +1528,9 @@ export async function initializeGenerateApp() {
         showReady(
             "Model siap digunakan."
         );
+
+
+        refreshGenerateAvailability();
 
 
         appState.initialized =
@@ -1313,12 +1545,24 @@ export async function initializeGenerateApp() {
             false;
 
 
+        appState.modelReady =
+            false;
+
+
         disableGeneration();
 
 
         const message =
             error?.message ||
             "Halaman Generate gagal diinisialisasi.";
+
+
+        /*
+         * Jangan hapus OWNER/Credit
+         * hanya karena model gagal.
+         */
+
+        renderAuthFallback();
 
 
         showPageError(
@@ -1330,7 +1574,9 @@ export async function initializeGenerateApp() {
             error,
             message
         );
+
     }
+
 }
 
 
@@ -1366,7 +1612,15 @@ export const generateApp =
 
         isSubmitting:
             () =>
-                appState.submitting
+                appState.submitting,
+
+        isAuthReady:
+            () =>
+                appState.authReady,
+
+        isModelReady:
+            () =>
+                appState.modelReady
 
     });
 
@@ -1383,7 +1637,9 @@ if (
     document.addEventListener(
         "DOMContentLoaded",
         () => {
+
             initializeGenerateApp();
+
         },
         {
             once:
@@ -1394,14 +1650,12 @@ if (
 } else {
 
     initializeGenerateApp();
+
 }
 
 
 /* =========================================================
    GLOBAL COMPATIBILITY
-   ---------------------------------------------------------
-   Hanya expose API app.
-   Tidak pernah expose API key/provider credential.
 ========================================================= */
 
 window.GENZGenerateApp =
