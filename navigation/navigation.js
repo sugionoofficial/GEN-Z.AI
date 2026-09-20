@@ -714,70 +714,65 @@
         user: [
             {
                 label: "Dashboard",
-                href: "/dashboard.html",
-                icon: "⌂"
+                href: "/user/dashboard.html",
+                icon: "* "
             },
             {
                 label: "Generate",
-                href: "/generate.html",
-                icon: "✦"
+                href: "/generate/index.html",
+                icon: "* "
             },
             {
                 label: "History",
-                href: "/history.html",
-                icon: "◷"
+                href: "/history/index.html",
+                icon: "* "
             }
         ],
 
         admin: [
             {
                 label: "Dashboard",
-                href: "/admin-control/dashboard.html",
-                icon: "⌂"
+                href: "/admin/dashboard.html",
+                icon: "* "
             },
             {
-                label: "Users",
-                href: "/admin-control/users/",
-                icon: "♙"
+                label: "Generate",
+                href: "/generate/index.html",
+                icon: "* "
             },
             {
-                label: "Models",
-                href: "/admin-control/models/",
-                icon: "◆"
+                label: "History",
+                href: "/history/index.html",
+                icon: "* "
             },
             {
-                label: "Providers",
-                href: "/admin-control/providers/",
-                icon: "◇"
+                label: "Admin Panel",
+                href: "/admin-control/admin-panel.html",
+                icon: "* "
             }
         ],
 
         owner: [
             {
                 label: "Dashboard",
-                href: "/admin-control/dashboard.html",
-                icon: "⌂"
+                href: "/admin/dashboard.html",
+                icon: "* "
             },
             {
-                label: "Users",
-                href: "/admin-control/users/",
-                icon: "♙"
+                label: "Generate",
+                href: "/generate/index.html",
+                icon: "* "
             },
             {
-                label: "Models",
-                href: "/admin-control/models/",
-                icon: "◆"
+                label: "History",
+                href: "/history/index.html",
+                icon: "* "
             },
             {
-                label: "Providers",
-                href: "/admin-control/providers/",
-                icon: "◇"
-            },
-            {
-                label: "Settings",
-                href: "/admin-control/settings/",
-                icon: "⚙"
-            }
+                label: "Admin Panel",
+                href: "/admin-control/admin-panel.html",
+                icon: "* "
+            },   
         ]
     };
 
