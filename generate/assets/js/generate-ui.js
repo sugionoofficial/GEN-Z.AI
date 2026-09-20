@@ -23,11 +23,17 @@
    - Provider API
    - Parameter validation
    - Credit calculation
+
+   PENTING:
+   - Role dan credit hanya berasal dari profile
+   - Tidak menggunakan nilai hardcoded
+   - Tidak mempertahankan USER / 0 dari HTML
  ========================================================= */
 
 import {
     getGenerateElements,
     getCurrentModel,
+    getCurrentProfile,
     isModelReady
 } from "./generate-state.js";
 
@@ -42,7 +48,9 @@ import {
  ========================================================= */
 
 function elements() {
+
     return getGenerateElements();
+
 }
 
 
@@ -76,10 +84,12 @@ export function showStatus(
         statusEl.classList.add(
             `is-${type}`
         );
+
     }
 
     statusEl.hidden =
         !message;
+
 }
 
 
@@ -101,6 +111,7 @@ export function hideStatus() {
 
     statusEl.className =
         "generate-status";
+
 }
 
 
@@ -129,6 +140,7 @@ export function showPageError(
 
         pageErrorMessageEl.textContent =
             text;
+
     }
 
     if (
@@ -137,7 +149,9 @@ export function showPageError(
 
         pageErrorEl.hidden =
             false;
+
     }
+
 }
 
 
@@ -154,6 +168,7 @@ export function hidePageError() {
 
         pageErrorMessageEl.textContent =
             "";
+
     }
 
     if (
@@ -162,7 +177,9 @@ export function hidePageError() {
 
         pageErrorEl.hidden =
             true;
+
     }
+
 }
 
 
@@ -181,7 +198,7 @@ export function showError(
 
     if (
         typeof error ===
-            "string"
+        "string"
     ) {
 
         message =
@@ -190,17 +207,14 @@ export function showError(
     } else if (
         error &&
         typeof error.message ===
-            "string"
+        "string"
     ) {
 
         message =
             error.message;
+
     }
 
-    /*
-     * Error dari validation dapat berisi
-     * beberapa baris.
-     */
     message =
         message
             .split("\n")
@@ -219,6 +233,7 @@ export function showError(
     );
 
     return message;
+
 }
 
 
@@ -252,13 +267,14 @@ export function setLoading(
             !active;
 
         if (
-            active &&
-            loadingEl
+            active
         ) {
 
             loadingEl.textContent =
                 message;
+
         }
+
     }
 
     if (
@@ -285,6 +301,7 @@ export function setLoading(
 
             generateButton.textContent =
                 "Memproses...";
+
         } else {
 
             const original =
@@ -302,32 +319,31 @@ export function setLoading(
                 delete generateButton
                     .dataset
                     .originalText;
+
             }
+
         }
+
     }
 
-    /*
-     * Model tidak boleh diganti ketika
-     * request sedang berlangsung.
-     */
     if (
         modelSelectEl
     ) {
 
         modelSelectEl.disabled =
             active;
+
     }
 
-    /*
-     * Reset juga dikunci selama request.
-     */
     if (
         resetButton
     ) {
 
         resetButton.disabled =
             active;
+
     }
+
 }
 
 
@@ -353,6 +369,7 @@ export function enableGeneration() {
     generateButton.removeAttribute(
         "aria-busy"
     );
+
 }
 
 
@@ -374,6 +391,7 @@ export function disableGeneration() {
     generateButton.removeAttribute(
         "aria-busy"
     );
+
 }
 
 
@@ -407,8 +425,10 @@ export function setFormDisabled(
                 Boolean(
                     disabled
                 );
+
         }
     );
+
 }
 
 
@@ -432,32 +452,41 @@ export function renderModelHeader(
         if (
             modelNameEl
         ) {
+
             modelNameEl.textContent =
                 "Model belum dipilih";
+
         }
 
         if (
             modelDescriptionEl
         ) {
+
             modelDescriptionEl.textContent =
                 "";
+
         }
 
         if (
             providerNameEl
         ) {
+
             providerNameEl.textContent =
                 "";
+
         }
 
         if (
             modelMetaEl
         ) {
+
             modelMetaEl.textContent =
                 "";
+
         }
 
         return;
+
     }
 
     const modelName =
@@ -495,6 +524,7 @@ export function renderModelHeader(
 
         modelNameEl.textContent =
             modelName;
+
     }
 
     if (
@@ -503,6 +533,7 @@ export function renderModelHeader(
 
         modelDescriptionEl.textContent =
             description;
+
     }
 
     if (
@@ -511,6 +542,7 @@ export function renderModelHeader(
 
         providerNameEl.textContent =
             provider;
+
     }
 
     if (
@@ -521,7 +553,9 @@ export function renderModelHeader(
             modelId
                 ? `Model ID: ${modelId}`
                 : "";
+
     }
+
 }
 
 
@@ -543,6 +577,7 @@ export function hideResult() {
 
     resultCard.hidden =
         true;
+
 }
 
 
@@ -560,6 +595,7 @@ export function showResult() {
 
     resultCard.hidden =
         false;
+
 }
 
 
@@ -606,6 +642,7 @@ export function renderResult(
             String(
                 modelName
             );
+
     }
 
     if (
@@ -616,6 +653,7 @@ export function renderResult(
             String(
                 provider
             );
+
     }
 
     if (
@@ -626,6 +664,7 @@ export function renderResult(
             String(
                 taskId
             );
+
     }
 
     showResult();
@@ -638,6 +677,84 @@ export function renderResult(
 
         taskId
     };
+
+}
+
+
+/* =========================================================
+   NORMALIZE PROFILE
+   ---------------------------------------------------------
+   Profile dapat berasal dari:
+   - generate-auth
+   - state
+   - navigation
+
+   Fungsi ini hanya mengambil field yang
+   memang diperlukan badge.
+ ========================================================= */
+
+function normalizeProfile(
+    profile
+) {
+
+    if (
+        !profile ||
+        typeof profile !==
+        "object"
+    ) {
+
+        return null;
+
+    }
+
+    const role =
+        String(
+            profile.role ??
+            ""
+        )
+            .trim()
+            .toUpperCase();
+
+    const rawCredits =
+        profile.credits;
+
+    let credits =
+        null;
+
+    if (
+        rawCredits !== null &&
+        rawCredits !== undefined &&
+        rawCredits !== ""
+    ) {
+
+        const numeric =
+            Number(
+                rawCredits
+            );
+
+        if (
+            Number.isFinite(
+                numeric
+            )
+        ) {
+
+            credits =
+                numeric;
+
+        } else {
+
+            credits =
+                rawCredits;
+
+        }
+
+    }
+
+    return {
+        role,
+        credits
+    };
+
 }
 
 
@@ -659,33 +776,48 @@ export function renderRoleBadge(
         return;
     }
 
+    /*
+     * Jika caller tidak memberikan profile,
+     * ambil profile terbaru dari state.
+     */
+    const sourceProfile =
+        profile ||
+        getCurrentProfile();
+
+    const normalized =
+        normalizeProfile(
+            sourceProfile
+        );
+
+    /*
+     * Jangan pernah fallback ke USER.
+     *
+     * USER adalah nilai nyata untuk akun USER,
+     * bukan nilai pengganti ketika profile gagal.
+     */
     const role =
-        String(
-            profile?.role ||
-            ""
-        )
-            .trim()
-            .toUpperCase();
-
-    if (!role) {
-
-        roleBadgeEl.textContent =
-            "";
-
-        roleBadgeEl.hidden =
-            true;
-
-        return;
-    }
+        normalized?.role ||
+        "";
 
     roleBadgeEl.textContent =
         role;
 
     roleBadgeEl.hidden =
-        false;
+        !role;
 
-    roleBadgeEl.dataset.role =
-        role.toLowerCase();
+    if (
+        role
+    ) {
+
+        roleBadgeEl.dataset.role =
+            role.toLowerCase();
+
+    } else {
+
+        delete roleBadgeEl.dataset.role;
+
+    }
+
 }
 
 
@@ -707,16 +839,28 @@ export function renderCreditBadge(
         return;
     }
 
+    const sourceProfile =
+        profile ||
+        getCurrentProfile();
+
+    const normalized =
+        normalizeProfile(
+            sourceProfile
+        );
+
+    /*
+     * Jangan pernah fallback ke 0.
+     *
+     * 0 hanya ditampilkan jika Supabase
+     * memang mengembalikan credits = 0.
+     */
     const credits =
-        profile?.credits;
+        normalized?.credits;
 
     if (
-        credits ===
-            null ||
-        credits ===
-            undefined ||
-        credits ===
-            ""
+        credits === null ||
+        credits === undefined ||
+        credits === ""
     ) {
 
         creditBadgeEl.textContent =
@@ -726,42 +870,95 @@ export function renderCreditBadge(
             true;
 
         return;
+
     }
 
-    const numeric =
-        Number(
-            credits
-        );
+    if (
+        typeof credits ===
+        "number"
+    ) {
 
-    creditBadgeEl.textContent =
-        Number.isFinite(
-            numeric
-        )
-            ? `${formatNumber(numeric)} credits`
-            : String(
+        creditBadgeEl.textContent =
+            `${formatNumber(
+                credits
+            )} credits`;
+
+    } else {
+
+        creditBadgeEl.textContent =
+            String(
                 credits
             );
 
+    }
+
     creditBadgeEl.hidden =
         false;
+
 }
 
 
 /* =========================================================
    AUTH BADGES
+   ---------------------------------------------------------
+   SATU fungsi untuk menyinkronkan role + credit.
+
+   Source:
+       profile yang baru dibaca Supabase.
+
+   Tidak menggunakan:
+       window.GENZ_NAVIGATION_PROFILE
+       sebagai source utama.
  ========================================================= */
 
 export function renderAuthBadges(
     profile
 ) {
 
+    const sourceProfile =
+        profile ||
+        getCurrentProfile();
+
+    /*
+     * Simpan profile ke state jika caller
+     * memberikan profile baru.
+     *
+     * generate-auth sudah melakukan setCurrentProfile(),
+     * jadi ini hanya fallback kompatibilitas.
+     */
+    if (
+        sourceProfile &&
+        typeof sourceProfile ===
+        "object"
+    ) {
+
+        renderRoleBadge(
+            sourceProfile
+        );
+
+        renderCreditBadge(
+            sourceProfile
+        );
+
+        return sourceProfile;
+
+    }
+
+    /*
+     * Tidak ada profile.
+     *
+     * Jangan menampilkan USER / 0 palsu.
+     */
     renderRoleBadge(
-        profile
+        null
     );
 
     renderCreditBadge(
-        profile
+        null
     );
+
+    return null;
+
 }
 
 
@@ -781,7 +978,9 @@ export function showGenerateCard() {
 
         generateCard.hidden =
             false;
+
     }
+
 }
 
 
@@ -797,7 +996,9 @@ export function hideGenerateCard() {
 
         generateCard.hidden =
             true;
+
     }
+
 }
 
 
@@ -817,7 +1018,9 @@ export function showModelSelector() {
 
         modelSelectorEl.hidden =
             false;
+
     }
+
 }
 
 
@@ -833,7 +1036,9 @@ export function hideModelSelector() {
 
         modelSelectorEl.hidden =
             true;
+
     }
+
 }
 
 
@@ -854,30 +1059,39 @@ export function resetResultUI() {
     if (
         resultModel
     ) {
+
         resultModel.textContent =
             "";
+
     }
 
     if (
         resultProvider
     ) {
+
         resultProvider.textContent =
             "";
+
     }
 
     if (
         resultTaskId
     ) {
+
         resultTaskId.textContent =
             "";
+
     }
+
 }
 
 
 export function resetStatusUI() {
 
     hideStatus();
+
     hidePageError();
+
 }
 
 
@@ -891,15 +1105,24 @@ export function resetUI() {
         false
     );
 
+    /*
+     * Badge tidak disentuh ketika reset.
+     *
+     * Reset form bukan reset authentication.
+     */
+
     if (
         isModelReady()
     ) {
 
         enableGeneration();
+
     } else {
 
         disableGeneration();
+
     }
+
 }
 
 
@@ -937,6 +1160,7 @@ export function focusFirstInvalidField() {
     }
 
     return true;
+
 }
 
 
@@ -974,8 +1198,11 @@ export function scrollToError() {
         });
 
     } catch {
+
         target.scrollIntoView();
+
     }
+
 }
 
 
@@ -992,6 +1219,7 @@ export function showSuccess(
         message,
         "success"
     );
+
 }
 
 
@@ -1012,6 +1240,7 @@ export function showReady(
     );
 
     enableGeneration();
+
 }
 
 
@@ -1035,6 +1264,7 @@ export function showBusy(
         true,
         message
     );
+
 }
 
 
@@ -1053,7 +1283,9 @@ export function finishRequest() {
     ) {
 
         enableGeneration();
+
     }
+
 }
 
 
