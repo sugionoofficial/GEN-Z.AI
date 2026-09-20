@@ -11,7 +11,8 @@
    - Button state
    - Page error
    - Model header
-   - Role / credit badge
+   - Role / account credit badge
+   - Model credit cost
    - Generate card
    - Model selector
    - Reset UI
@@ -26,11 +27,11 @@
    - Polling
    - Menampilkan hasil video di halaman Generate
 
-   CATATAN:
-   - Generate page hanya menampilkan status proses.
-   - Hasil generation disimpan/ditampilkan melalui History.
-   - Tidak ada fallback OWNER.
-   - Tidak ada credit palsu/default.
+   SOURCE OF TRUTH:
+   - Account credit : profile.credits
+   - Model cost     : model.pricing.credit_final
+   - Model identity : repository model registry
+   - Admin config   : Supabase models
 ========================================================= */
 
 import {
@@ -271,7 +272,241 @@ export function showError(
 
 
 /* =========================================================
+   MODEL CREDIT COST
+   ---------------------------------------------------------
+   SOURCE OF TRUTH:
+       model.pricing.credit_final
+
+   Fallback:
+       model.pricing.credit_cost
+
+   Tidak membuat angka credit sendiri.
+
+   Jika kedua field tidak tersedia:
+       tampilkan "-- Credit"
+========================================================= */
+
+export function renderModelCredit(
+    model =
+        getCurrentModel()
+) {
+
+    const {
+        generateCreditCost,
+        generateCreditValue
+    } = elements();
+
+
+    /*
+     * HTML saat ini memakai:
+     *
+     * #generateCreditCost
+     * #generateCreditValue
+     *
+     * Jika elemen tidak ada, jangan membuat DOM baru.
+     */
+
+    if (
+        !generateCreditValue
+    ) {
+
+        return null;
+    }
+
+
+    /*
+     * Ambil pricing dari model.
+     */
+
+    const pricing =
+        model?.pricing;
+
+
+    /*
+     * FINAL CREDIT adalah harga yang digunakan
+     * setelah discount.
+     */
+
+    let creditFinal =
+        pricing?.credit_final;
+
+
+    /*
+     * Compatibility fallback:
+     * jika credit_final tidak tersedia,
+     * gunakan credit_cost.
+     *
+     * Tidak melakukan kalkulasi discount di frontend.
+     */
+
+    if (
+        creditFinal === null ||
+        creditFinal === undefined ||
+        creditFinal === ""
+    ) {
+
+        creditFinal =
+            pricing?.credit_cost;
+    }
+
+
+    /*
+     * Tidak ada pricing.
+     */
+
+    if (
+        creditFinal === null ||
+        creditFinal === undefined ||
+        creditFinal === ""
+    ) {
+
+        generateCreditValue.textContent =
+            "-- Credit";
+
+
+        generateCreditValue.dataset.credit =
+            "";
+
+
+        if (generateCreditCost) {
+
+            generateCreditCost.hidden =
+                false;
+        }
+
+
+        return null;
+    }
+
+
+    const numericCredit =
+        Number(
+            creditFinal
+        );
+
+
+    /*
+     * Credit harus berupa angka.
+     */
+
+    if (
+        !Number.isFinite(
+            numericCredit
+        )
+    ) {
+
+        generateCreditValue.textContent =
+            "-- Credit";
+
+
+        generateCreditValue.dataset.credit =
+            "";
+
+
+        if (generateCreditCost) {
+
+            generateCreditCost.hidden =
+                false;
+        }
+
+
+        return null;
+    }
+
+
+    /*
+     * Render harga model.
+     */
+
+    const formatted =
+        formatNumber(
+            numericCredit
+        );
+
+
+    generateCreditValue.textContent =
+        `${formatted} Credit`;
+
+
+    generateCreditValue.dataset.credit =
+        String(
+            numericCredit
+        );
+
+
+    if (generateCreditCost) {
+
+        generateCreditCost.hidden =
+            false;
+    }
+
+
+    return numericCredit;
+}
+
+
+/* =========================================================
+   GET MODEL CREDIT COST
+========================================================= */
+
+export function getModelCreditCost(
+    model =
+        getCurrentModel()
+) {
+
+    const pricing =
+        model?.pricing;
+
+
+    if (!pricing) {
+        return null;
+    }
+
+
+    let value =
+        pricing.credit_final;
+
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        value =
+            pricing.credit_cost;
+    }
+
+
+    const numeric =
+        Number(
+            value
+        );
+
+
+    if (
+        !Number.isFinite(
+            numeric
+        )
+    ) {
+
+        return null;
+    }
+
+
+    return numeric;
+}
+
+
+/* =========================================================
    LOADING
+   ---------------------------------------------------------
+   Jangan mengganti seluruh inner text button.
+
+   Alasannya:
+   #generateCreditValue berada DI DALAM button.
+
+   Kita hanya mengganti label generate.
 ========================================================= */
 
 export function setLoading(
@@ -289,6 +524,7 @@ export function setLoading(
 
     const active =
         Boolean(loading);
+
 
     /* -----------------------------------------------------
        LOADING INDICATOR
@@ -318,19 +554,6 @@ export function setLoading(
 
         if (active) {
 
-            /*
-             * Simpan label asli hanya sekali.
-             */
-            if (
-                !generateButton.dataset
-                    .originalText
-            ) {
-
-                generateButton.dataset
-                    .originalText =
-                    generateButton.textContent;
-            }
-
             generateButton.disabled =
                 true;
 
@@ -339,8 +562,46 @@ export function setLoading(
                 "true"
             );
 
-            generateButton.textContent =
-                "Memproses...";
+
+            /*
+             * Jangan gunakan:
+             *
+             * generateButton.textContent =
+             *     "Memproses...";
+             *
+             * Karena itu akan menghapus:
+             *
+             * #generateCreditCost
+             * #generateCreditValue
+             *
+             * Kita hanya ubah elemen label.
+             */
+
+            const label =
+                generateButton.querySelector(
+                    ".btn-icon + span"
+                );
+
+
+            if (label) {
+
+                /*
+                 * Simpan teks asli sekali.
+                 */
+
+                if (
+                    !label.dataset.originalText
+                ) {
+
+                    label.dataset.originalText =
+                        label.textContent;
+                }
+
+
+                label.textContent =
+                    "Memproses...";
+            }
+
 
         } else {
 
@@ -351,18 +612,44 @@ export function setLoading(
                 "aria-busy"
             );
 
-            const original =
-                generateButton.dataset
-                    .originalText;
 
-            if (original) {
+            /*
+             * Restore label tanpa mengganggu
+             * credit cost.
+             */
 
-                generateButton.textContent =
-                    original;
+            const label =
+                generateButton.querySelector(
+                    ".btn-icon + span"
+                );
 
-                delete generateButton.dataset
-                    .originalText;
+
+            if (label) {
+
+                const original =
+                    label.dataset.originalText;
+
+
+                if (original) {
+
+                    label.textContent =
+                        original;
+
+
+                    delete label.dataset
+                        .originalText;
+                }
             }
+
+
+            /*
+             * Pastikan credit model tetap
+             * tampil setelah loading selesai.
+             */
+
+            renderModelCredit(
+                getCurrentModel()
+            );
         }
     }
 
@@ -413,6 +700,16 @@ export function enableGeneration() {
     generateButton.removeAttribute(
         "aria-busy"
     );
+
+
+    /*
+     * Credit model harus selalu sinkron
+     * dengan model yang aktif.
+     */
+
+    renderModelCredit(
+        getCurrentModel()
+    );
 }
 
 
@@ -435,6 +732,15 @@ export function disableGeneration() {
 
     generateButton.removeAttribute(
         "aria-busy"
+    );
+
+
+    /*
+     * Tetap tampilkan harga model.
+     */
+
+    renderModelCredit(
+        getCurrentModel()
     );
 }
 
@@ -476,8 +782,6 @@ export function setFormDisabled(
    Source:
    - Repository model registry
    - Optional admin model configuration
-
-   Tidak membutuhkan provider object.
 ========================================================= */
 
 export function renderModelHeader(
@@ -523,6 +827,16 @@ export function renderModelHeader(
                 "";
         }
 
+
+        /*
+         * Tidak ada model berarti tidak ada
+         * harga model untuk ditampilkan.
+         */
+
+        renderModelCredit(
+            null
+        );
+
         return null;
     }
 
@@ -559,7 +873,6 @@ export function renderModelHeader(
 
     /* -----------------------------------------------------
        PROVIDER
-       Tidak bergantung pada provider object.
     ----------------------------------------------------- */
 
     const provider =
@@ -620,11 +933,29 @@ export function renderModelHeader(
                 : "";
     }
 
+
+    /*
+     * =====================================================
+     * MODEL CREDIT
+     * =====================================================
+     *
+     * Ini adalah bagian yang sebelumnya hilang.
+     */
+
+    renderModelCredit(
+        model
+    );
+
+
     return {
         modelName,
         description,
         provider,
-        modelId
+        modelId,
+        credit:
+            getModelCreditCost(
+                model
+            )
     };
 }
 
@@ -633,9 +964,6 @@ export function renderModelHeader(
    LEGACY RESULT API
    ---------------------------------------------------------
    Generate page sekarang TIDAK menampilkan hasil video.
-
-   Fungsi tetap dipertahankan agar generate-app.js
-   dan module lama tidak error jika masih mengimportnya.
 ========================================================= */
 
 export function hideResult() {
@@ -657,8 +985,6 @@ export function hideResult() {
    SHOW RESULT
    ---------------------------------------------------------
    Compatibility only.
-
-   Tidak digunakan untuk menampilkan video final.
 ========================================================= */
 
 export function showResult() {
@@ -667,10 +993,6 @@ export function showResult() {
         resultCard
     } = elements();
 
-    /*
-     * Hasil generation sekarang tidak ditampilkan
-     * di halaman Generate.
-     */
     if (resultCard) {
 
         resultCard.hidden =
@@ -681,11 +1003,6 @@ export function showResult() {
 
 /* =========================================================
    LEGACY RENDER RESULT
-   ---------------------------------------------------------
-   Compatibility only.
-
-   Tidak merender video.
-   History bertanggung jawab terhadap hasil generation.
 ========================================================= */
 
 export function renderResult(
@@ -732,16 +1049,9 @@ export function renderResult(
         );
 
 
-    /*
-     * Jangan tampilkan result card.
-     */
     hideResult();
 
 
-    /*
-     * Return data tetap dipertahankan untuk
-     * compatibility dengan caller lama.
-     */
     return {
         model:
             modelName,
@@ -773,10 +1083,6 @@ function normalizeProfile(
     }
 
 
-    /* -----------------------------------------------------
-       ROLE
-    ----------------------------------------------------- */
-
     const role =
         String(
             profile.role ??
@@ -785,10 +1091,6 @@ function normalizeProfile(
             .trim()
             .toUpperCase();
 
-
-    /* -----------------------------------------------------
-       CREDITS
-    ----------------------------------------------------- */
 
     const rawCredits =
         profile.credits;
@@ -834,12 +1136,6 @@ function normalizeProfile(
 
 /* =========================================================
    ROLE BADGE
-   ---------------------------------------------------------
-   Source of truth:
-   Supabase profiles.role
-
-   TIDAK ADA fallback OWNER.
-   TIDAK ADA fallback USER.
 ========================================================= */
 
 export function renderRoleBadge(
@@ -871,9 +1167,6 @@ export function renderRoleBadge(
         "";
 
 
-    /*
-     * Jangan membuat role jika data tidak tersedia.
-     */
     roleBadgeEl.textContent =
         role;
 
@@ -897,14 +1190,8 @@ export function renderRoleBadge(
 /* =========================================================
    CREDIT BADGE
    ---------------------------------------------------------
-   Source of truth:
+   Source:
    Supabase profiles.credits
-
-   NULL / undefined:
-   data memang belum tersedia.
-
-   0:
-   valid dan harus ditampilkan.
 ========================================================= */
 
 export function renderCreditBadge(
@@ -935,10 +1222,6 @@ export function renderCreditBadge(
         normalized?.credits;
 
 
-    /* -----------------------------------------------------
-       CREDIT TIDAK TERSEDIA
-    ----------------------------------------------------- */
-
     if (
         credits === null ||
         credits === undefined ||
@@ -948,18 +1231,12 @@ export function renderCreditBadge(
         creditBadgeEl.textContent =
             "";
 
-
         creditBadgeEl.hidden =
             true;
-
 
         return;
     }
 
-
-    /* -----------------------------------------------------
-       NUMERIC CREDIT
-    ----------------------------------------------------- */
 
     if (
         typeof credits ===
@@ -998,10 +1275,6 @@ export function renderAuthBadges(
         getCurrentProfile();
 
 
-    /*
-     * Jika profile belum ada:
-     * jangan membuat OWNER / USER / credit palsu.
-     */
     renderRoleBadge(
         sourceProfile
     );
@@ -1094,11 +1367,6 @@ export function hideModelSelector() {
 
 export function resetResultUI() {
 
-    /*
-     * Generate page tidak menampilkan result.
-     * Tetap bersihkan compatibility elements.
-     */
-
     hideResult();
 
 
@@ -1166,16 +1434,14 @@ export function resetUI() {
 
     resetStatusUI();
 
+
     setLoading(
         false
     );
 
 
     /*
-     * Badge authentication TIDAK disentuh.
-     *
-     * Role dan credit tetap berasal dari profile
-     * yang sudah dimuat oleh auth module.
+     * Account OWNER + account credit.
      */
 
     renderAuthBadges(
@@ -1184,7 +1450,8 @@ export function resetUI() {
 
 
     /*
-     * Model header tetap sinkron.
+     * Model identity + provider +
+     * model credit cost.
      */
 
     renderModelHeader(
@@ -1321,6 +1588,17 @@ export function showReady(
         "success"
     );
 
+
+    /*
+     * Pastikan model credit tampil
+     * ketika model sudah siap.
+     */
+
+    renderModelCredit(
+        getCurrentModel()
+    );
+
+
     enableGeneration();
 }
 
@@ -1359,6 +1637,15 @@ export function finishRequest() {
     );
 
 
+    /*
+     * Refresh model credit setelah request.
+     */
+
+    renderModelCredit(
+        getCurrentModel()
+    );
+
+
     if (
         isModelReady()
     ) {
@@ -1388,6 +1675,10 @@ export const generateUI =
         hidePageError,
 
         showError,
+
+        renderModelCredit,
+
+        getModelCreditCost,
 
         setLoading,
 
