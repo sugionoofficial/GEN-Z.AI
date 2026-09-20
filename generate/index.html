@@ -24,15 +24,6 @@
 
     <!-- =====================================================
          SUPABASE
-         -----------------------------------------------------
-         Dipertahankan untuk kompatibilitas global.
-
-         Library ini hanya menyediakan:
-         window.supabase.createClient()
-
-         Client aktif tetap dibuat/dikelola oleh:
-         - navigation.js
-         - generate-auth.js
     ====================================================== -->
 
     <script
@@ -50,12 +41,7 @@
 
 
     <!-- =====================================================
-         GLOBAL PREMIUM CSS
-         -----------------------------------------------------
-         Seluruh styling halaman Generate menggunakan:
-         assets/css/genz-premium.css
-
-         Tidak menggunakan generate.css.
+         PREMIUM CSS
     ====================================================== -->
 
     <link
@@ -65,16 +51,363 @@
 
 
     <!-- =====================================================
-         SHARED NAVIGATION
+         GENERATE PAGE STYLE
          -----------------------------------------------------
-         Navigation menggunakan Supabase Auth + profiles
-         untuk menentukan:
-         - user
-         - admin
-         - owner
+         Khusus layout Generate:
+         - Satu blok neon merah
+         - Checkbox-style parameter
+         - Duration slider
+         - Credit pada tombol
+    ====================================================== -->
 
-         navigation.js juga membuat shared Supabase client
-         jika belum tersedia.
+    <style>
+
+        .generate-neon-block {
+            position: relative;
+            margin-top: 24px;
+            padding: 24px;
+            border: 1px solid rgba(255, 35, 70, 0.85);
+            border-radius: 20px;
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255, 20, 55, 0.055),
+                    rgba(8, 8, 14, 0.94)
+                );
+            box-shadow:
+                0 0 8px rgba(255, 25, 60, 0.28),
+                0 0 28px rgba(255, 25, 60, 0.12),
+                inset 0 0 24px rgba(255, 25, 60, 0.035);
+        }
+
+
+        .generate-neon-block::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 80, 105, 0.08);
+        }
+
+
+        .generate-neon-header {
+            margin-bottom: 22px;
+        }
+
+
+        .generate-neon-title {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+
+        .generate-neon-description {
+            margin: 7px 0 0;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+
+        /* =====================================================
+           MODEL
+        ====================================================== */
+
+        .generate-model-field {
+            margin-bottom: 22px;
+        }
+
+
+        .generate-field-label {
+            display: block;
+            margin-bottom: 9px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+
+        .generate-model-select {
+            width: 100%;
+        }
+
+
+        /* =====================================================
+           DYNAMIC FORM
+        ====================================================== */
+
+        #dynamicFields {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+
+        #dynamicFields .form-group,
+        #dynamicFields .field,
+        #dynamicFields .form-field {
+            width: 100%;
+        }
+
+
+        /* =====================================================
+           CHECKBOX-STYLE OPTION
+           -----------------------------------------------------
+           Logic tetap single-select.
+           Visual menggunakan checkbox/card.
+        ====================================================== */
+
+        .generate-option-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+
+        .generate-option {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+
+        .generate-option input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+
+        .generate-option-label {
+            min-width: 76px;
+            padding: 11px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.035);
+            color: rgba(255, 255, 255, 0.72);
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            transition:
+                border-color 0.18s ease,
+                background 0.18s ease,
+                color 0.18s ease,
+                box-shadow 0.18s ease;
+        }
+
+
+        .generate-option:hover .generate-option-label {
+            border-color: rgba(255, 55, 85, 0.55);
+            color: #ffffff;
+        }
+
+
+        .generate-option input:checked + .generate-option-label {
+            border-color: rgba(255, 35, 70, 0.95);
+            background: rgba(255, 30, 65, 0.13);
+            color: #ffffff;
+            box-shadow:
+                0 0 7px rgba(255, 30, 65, 0.28),
+                inset 0 0 12px rgba(255, 30, 65, 0.06);
+        }
+
+
+        .generate-option input:focus-visible + .generate-option-label {
+            outline: 2px solid rgba(255, 80, 105, 0.8);
+            outline-offset: 2px;
+        }
+
+
+        /* =====================================================
+           DURATION SLIDER
+        ====================================================== */
+
+        .generate-duration-field {
+            width: 100%;
+        }
+
+
+        .generate-duration-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+
+        .generate-duration-value {
+            min-width: 70px;
+            padding: 6px 10px;
+            border: 1px solid rgba(255, 35, 70, 0.45);
+            border-radius: 8px;
+            background: rgba(255, 30, 65, 0.08);
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+
+        .generate-duration-range {
+            width: 100%;
+            height: 5px;
+            margin: 4px 0 0;
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 999px;
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(255, 35, 70, 0.85),
+                    rgba(255, 35, 70, 0.22)
+                );
+            outline: none;
+            cursor: pointer;
+        }
+
+
+        .generate-duration-range::-webkit-slider-thumb {
+            width: 18px;
+            height: 18px;
+            appearance: none;
+            -webkit-appearance: none;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            background: #ff2346;
+            box-shadow:
+                0 0 8px rgba(255, 35, 70, 0.8),
+                0 0 18px rgba(255, 35, 70, 0.35);
+        }
+
+
+        .generate-duration-range::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            background: #ff2346;
+            box-shadow:
+                0 0 8px rgba(255, 35, 70, 0.8),
+                0 0 18px rgba(255, 35, 70, 0.35);
+        }
+
+
+        .generate-duration-scale {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.38);
+            font-size: 11px;
+        }
+
+
+        /* =====================================================
+           CREDIT
+        ====================================================== */
+
+        .generate-button-credit {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 5px;
+            padding: 4px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.055);
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+
+        .generate-button-credit-icon {
+            color: #ff3657;
+        }
+
+
+        /* =====================================================
+           ACTIONS
+        ====================================================== */
+
+        .generate-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-top: 26px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+
+        .generate-actions-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+
+        /* =====================================================
+           HIDDEN COMPATIBILITY ELEMENTS
+           -----------------------------------------------------
+           Dipertahankan agar modul lama tidak error saat transisi.
+           Tidak tampil kepada user.
+        ====================================================== */
+
+        .generate-compat-hidden {
+            display: none !important;
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ====================================================== */
+
+        @media (max-width: 640px) {
+
+            .generate-neon-block {
+                padding: 18px;
+                border-radius: 16px;
+            }
+
+
+            .generate-option {
+                flex: 1 1 calc(50% - 10px);
+            }
+
+
+            .generate-option-label {
+                width: 100%;
+            }
+
+
+            .generate-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+
+            .generate-actions-right {
+                justify-content: flex-end;
+            }
+
+        }
+
+    </style>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
     ====================================================== -->
 
     <script
@@ -88,9 +421,6 @@
 
     <!-- =====================================================
          SHARED NAVIGATION
-         -----------------------------------------------------
-         navigation.js mengisi container berdasarkan
-         authenticated user dan role.
     ====================================================== -->
 
     <div
@@ -107,19 +437,11 @@
 
         <main class="main">
 
-
             <!-- =================================================
-                 PREMIUM TOPBAR
-                 -------------------------------------------------
-                 Logo hologram dibuat oleh global CSS.
+                 TOPBAR
             ================================================== -->
 
             <header class="topbar generate-topbar">
-
-
-                <!-- =============================================
-                     HOLOGRAM BRAND
-                ============================================== -->
 
                 <div
                     class="brand-hologram"
@@ -176,10 +498,6 @@
                 </div>
 
 
-                <!-- =============================================
-                     PAGE TITLE
-                ============================================== -->
-
                 <div class="topbar-title">
 
                     <span class="topbar-eyebrow">
@@ -193,26 +511,14 @@
 
 
                     <p>
-                        Buat video AI dengan kontrol model dan
-                        parameter secara real-time.
+                        Buat video AI dengan konfigurasi model
+                        secara otomatis.
                     </p>
 
                 </div>
 
 
-                <!-- =============================================
-                     USER / CREDIT INFORMATION
-                ============================================== -->
-
                 <div class="topbar-actions">
-
-
-                    <!-- =========================================
-                         ROLE
-                         -----------------------------------------
-                         Jangan hardcode USER.
-                         Role harus berasal dari profiles.role.
-                    ========================================== -->
 
                     <div
                         class="header-badge role-badge"
@@ -225,21 +531,12 @@
                         ></span>
 
 
-                        <span
-                            id="roleBadge"
-                        >
+                        <span id="roleBadge">
                             ...
                         </span>
 
                     </div>
 
-
-                    <!-- =========================================
-                         CREDIT
-                         -----------------------------------------
-                         Jangan hardcode 0.
-                         Credit harus berasal dari profiles.credits.
-                    ========================================== -->
 
                     <div
                         class="header-badge credit-badge"
@@ -254,9 +551,7 @@
                         </span>
 
 
-                        <span
-                            id="creditBadge"
-                        >
+                        <span id="creditBadge">
                             ...
                         </span>
 
@@ -276,7 +571,7 @@
 
                 <!-- =================================================
                      STATUS
-                ================================================= -->
+                ================================================== -->
 
                 <div
                     id="status"
@@ -288,169 +583,7 @@
 
 
                 <!-- =================================================
-                     MODEL SELECTOR
-                     -------------------------------------------------
-                     Model berasal dari:
-
-                     GET /api/model-config
-
-                     Tidak ada model yang dibuat manual di frontend.
-                ================================================== -->
-
-                <section
-                    id="modelSelector"
-                    class="model-selector"
-                    aria-labelledby="modelSelectorTitle"
-                >
-
-                    <div class="model-selector-inner">
-
-
-                        <!-- =========================================
-                             SELECTOR INFORMATION
-                        ========================================== -->
-
-                        <div class="model-selector-info">
-
-                            <span class="section-eyebrow">
-                                MODEL ENGINE
-                            </span>
-
-
-                            <h2
-                                id="modelSelectorTitle"
-                                class="selector-title"
-                            >
-                                Pilih Model
-                            </h2>
-
-
-                            <p class="selector-description">
-                                Daftar model berasal dari konfigurasi
-                                model aktif GEN-Z.AI.
-                                Tidak ada model yang dibuat secara
-                                manual di halaman ini.
-                            </p>
-
-                        </div>
-
-
-                        <!-- =========================================
-                             MODEL SELECT
-                        ========================================== -->
-
-                        <div class="model-selector-control">
-
-                            <label
-                                class="model-selector-label"
-                                for="modelSelect"
-                            >
-                                Model
-                            </label>
-
-
-                            <select
-                                id="modelSelect"
-                                disabled
-                                autocomplete="off"
-                            >
-
-                                <option value="">
-                                    Memuat model...
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                </section>
-
-
-                <!-- =================================================
-                     MODEL INFORMATION
-                ================================================== -->
-
-                <section
-                    id="modelHeader"
-                    class="model-header"
-                    aria-labelledby="modelName"
-                >
-
-                    <div class="model-header-top">
-
-
-                        <!-- =========================================
-                             MODEL IDENTITY
-                        ========================================== -->
-
-                        <div class="model-header-main">
-
-                            <span class="section-eyebrow">
-                                ACTIVE MODEL
-                            </span>
-
-
-                            <h2
-                                id="modelName"
-                                class="model-name"
-                            >
-                                Memuat model...
-                            </h2>
-
-
-                            <p
-                                id="modelDescription"
-                                class="model-description"
-                            >
-                                Memuat konfigurasi model...
-                            </p>
-
-                        </div>
-
-
-                        <!-- =========================================
-                             PROVIDER
-                        ========================================== -->
-
-                        <div class="provider-info">
-
-                            <span class="provider-label">
-                                PROVIDER
-                            </span>
-
-
-                            <div
-                                id="providerName"
-                                class="provider-name"
-                            >
-                                -
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    <!-- =============================================
-                         MODEL METADATA
-                    ============================================== -->
-
-                    <div
-                        id="modelMeta"
-                        class="model-meta"
-                    ></div>
-
-                </section>
-
-
-                <!-- =================================================
                      PAGE ERROR
-                     -------------------------------------------------
-                     Hidden sejak awal.
-                     generate-ui.js akan menampilkannya jika
-                     konfigurasi model benar-benar gagal.
                 ================================================== -->
 
                 <section
@@ -486,43 +619,70 @@
 
 
                 <!-- =================================================
-                     GENERATE CARD
+                     ONE GENERATE BLOCK
+                     -------------------------------------------------
+                     Seluruh kontrol utama Generate berada di sini.
                 ================================================== -->
 
                 <section
                     id="generateCard"
-                    class="card generate-card"
+                    class="generate-neon-block"
                     aria-labelledby="generateCardTitle"
                 >
 
-
                     <!-- =============================================
-                         CARD HEADER
+                         HEADER
                     ============================================== -->
 
-                    <div class="card-header">
+                    <div class="generate-neon-header">
 
-                        <div>
-
-                            <span class="section-eyebrow">
-                                GENERATION CONTROL
-                            </span>
+                        <span class="section-eyebrow">
+                            GENERATION CONTROL
+                        </span>
 
 
-                            <h2
-                                id="generateCardTitle"
-                                class="card-title"
-                            >
-                                Parameter Generation
-                            </h2>
+                        <h2
+                            id="generateCardTitle"
+                            class="generate-neon-title"
+                        >
+                            Generate Video
+                        </h2>
 
 
-                            <p class="card-description">
-                                Parameter yang tersedia mengikuti
-                                konfigurasi model dan database.
-                            </p>
+                        <p class="generate-neon-description">
+                            Pilih model dan parameter video yang
+                            tersedia pada konfigurasi model aktif.
+                        </p>
 
-                        </div>
+                    </div>
+
+
+                    <!-- =============================================
+                         MODEL
+                    ============================================== -->
+
+                    <div class="generate-model-field">
+
+                        <label
+                            class="generate-field-label"
+                            for="modelSelect"
+                        >
+                            Model
+                        </label>
+
+
+                        <select
+                            id="modelSelect"
+                            class="generate-model-select"
+                            disabled
+                            autocomplete="off"
+                        >
+
+                            <option value="">
+                                Memuat model...
+                            </option>
+
+                        </select>
 
                     </div>
 
@@ -537,12 +697,15 @@
                         autocomplete="off"
                     >
 
-
                         <!-- =========================================
                              DYNAMIC PARAMETERS
                              -----------------------------------------
-                             Diisi oleh generate-form.js berdasarkan
-                             konfigurasi model.
+                             generate-form.js akan merender:
+                             - image_urls
+                             - prompt
+                             - aspect_ratio
+                             - resolution
+                             - duration
                         ========================================== -->
 
                         <div
@@ -552,14 +715,16 @@
 
 
                         <!-- =========================================
-                             FORM ACTIONS
+                             ACTIONS
                         ========================================== -->
 
-                        <div class="actions form-actions">
-
+                        <div
+                            class="generate-actions"
+                            id="generateActions"
+                        >
 
                             <!-- =====================================
-                                 LEFT ACTIONS
+                                 RESET
                             ====================================== -->
 
                             <div class="actions-left">
@@ -577,21 +742,13 @@
 
 
                             <!-- =====================================
-                                 RIGHT ACTIONS
+                                 RIGHT
                             ====================================== -->
 
-                            <div class="actions-right">
-
+                            <div class="generate-actions-right">
 
                                 <!-- =================================
                                      LOADING
-                                     ---------------------------------
-                                     WAJIB hidden saat halaman pertama
-                                     kali dimuat.
-
-                                     generate-ui.js hanya akan
-                                     menampilkannya ketika proses
-                                     generate benar-benar berjalan.
                                 ================================== -->
 
                                 <div
@@ -609,7 +766,7 @@
 
 
                                     <span>
-                                        Membuat task...
+                                        Memproses...
                                     </span>
 
                                 </div>
@@ -638,6 +795,29 @@
                                         Generate Video
                                     </span>
 
+
+                                    <span
+                                        id="generateCreditCost"
+                                        class="generate-button-credit"
+                                        aria-label="Credit yang digunakan"
+                                    >
+
+                                        <span
+                                            class="generate-button-credit-icon"
+                                            aria-hidden="true"
+                                        >
+                                            ◆
+                                        </span>
+
+
+                                        <span
+                                            id="generateCreditValue"
+                                        >
+                                            -- Credit
+                                        </span>
+
+                                    </span>
+
                                 </button>
 
                             </div>
@@ -650,118 +830,61 @@
 
 
                 <!-- =================================================
-                     RESULT CARD
+                     MODEL HEADER COMPATIBILITY
                      -------------------------------------------------
-                     Hanya ditampilkan setelah task berhasil dibuat.
+                     Tidak ditampilkan.
+                     Dipertahankan agar state/module transisi tidak
+                     langsung gagal sebelum generate-state.js
+                     diperbarui.
+                ================================================== -->
+
+                <section
+                    id="modelHeader"
+                    class="generate-compat-hidden"
+                    aria-hidden="true"
+                >
+
+                    <h2 id="modelName">
+                        -
+                    </h2>
+
+                    <p id="modelDescription">
+                        -
+                    </p>
+
+                    <div id="providerName">
+                        -
+                    </div>
+
+                    <div id="modelMeta"></div>
+
+                </section>
+
+
+                <!-- =================================================
+                     RESULT COMPATIBILITY
+                     -------------------------------------------------
+                     Hasil generate TIDAK ditampilkan di halaman ini.
+                     Hasil akan ditangani History.
                 ================================================== -->
 
                 <section
                     id="resultCard"
-                    class="card result-card"
-                    aria-labelledby="resultCardTitle"
+                    class="generate-compat-hidden"
+                    aria-hidden="true"
                     hidden
                 >
 
-
-                    <!-- =============================================
-                         RESULT HEADER
-                    ============================================== -->
-
-                    <div class="card-header">
-
-                        <div>
-
-                            <span class="section-eyebrow">
-                                TASK STATUS
-                            </span>
-
-
-                            <h2
-                                id="resultCardTitle"
-                                class="card-title"
-                            >
-                                Generation Task
-                            </h2>
-
-
-                            <p class="card-description">
-                                Task berhasil dibuat pada provider.
-                            </p>
-
-                        </div>
-
+                    <div id="resultModel">
+                        -
                     </div>
 
+                    <div id="resultProvider">
+                        -
+                    </div>
 
-                    <!-- =============================================
-                         RESULT DATA
-                    ============================================== -->
-
-                    <div class="result-details">
-
-
-                        <!-- =========================================
-                             MODEL
-                        ========================================== -->
-
-                        <div class="result-row">
-
-                            <div class="result-label">
-                                Model
-                            </div>
-
-
-                            <div
-                                id="resultModel"
-                                class="result-value"
-                            >
-                                -
-                            </div>
-
-                        </div>
-
-
-                        <!-- =========================================
-                             PROVIDER
-                        ========================================== -->
-
-                        <div class="result-row">
-
-                            <div class="result-label">
-                                Provider
-                            </div>
-
-
-                            <div
-                                id="resultProvider"
-                                class="result-value"
-                            >
-                                -
-                            </div>
-
-                        </div>
-
-
-                        <!-- =========================================
-                             TASK ID
-                        ========================================== -->
-
-                        <div class="result-row">
-
-                            <div class="result-label">
-                                Task ID
-                            </div>
-
-
-                            <div
-                                id="resultTaskId"
-                                class="result-value task-id"
-                            >
-                                -
-                            </div>
-
-                        </div>
-
+                    <div id="resultTaskId">
+                        -
                     </div>
 
                 </section>
@@ -776,21 +899,7 @@
 
     <!-- =========================================================
          GENERATE APPLICATION
-         ---------------------------------------------------------
-         Entry point tunggal untuk seluruh logic Generate.
-
-         generate-app.js menghubungkan:
-
-         - generate-auth.js
-         - generate-state.js
-         - generate-model.js
-         - generate-form.js
-         - generate-validation.js
-         - generate-request.js
-         - generate-ui.js
-
-         Tidak menggunakan generate-utils.js.
-    ========================================================= -->
+    ========================================================== -->
 
     <script
         type="module"
