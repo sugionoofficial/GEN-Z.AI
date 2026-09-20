@@ -6,25 +6,31 @@
    generate/assets/js/generate-form.js
 
    Tanggung jawab:
-   - Render parameter berdasarkan model.parameters
-   - Input gambar URL / Upload
-   - Maksimal gambar mengikuti maxItems
-   - Preview + tombol X
-   - Option cards untuk enum
-   - Checkbox untuk boolean
-   - Number input untuk number
-   - Duration slider
-   - Collect parameter form
+   - Render parameter berdasarkan currentModel.parameters
+   - Tidak membuat parameter hardcoded
+   - Image URL / upload
+   - Enum option
+   - Boolean checkbox
+   - Number input
+   - Duration range
+   - Collect parameter
    - Reset form
 
    SOURCE OF TRUTH:
-   - models/*/parameters.js
+   currentModel.parameters
 
-   CATATAN:
-   - task_id bukan input user
-   - task_id tidak pernah dikirim
-   - image_urls hanya berisi SATU sumber aktif
-   - TIDAK menggunakan daftar parameter hardcoded
+   PENTING:
+   - task_id tidak ditampilkan
+   - task_id tidak dikirim
+   - image_urls tetap array
+   - semua parameter dari model dirender
+========================================================= */
+
+"use strict";
+
+
+/* =========================================================
+   STATE
 ========================================================= */
 
 import {
@@ -39,53 +45,45 @@ import {
    CONSTANTS
 ========================================================= */
 
-/*
- * Parameter internal yang tidak boleh tampil
- * dan tidak boleh dikirim dari form user.
- */
 const INTERNAL_PARAMETERS = new Set([
     "task_id"
 ]);
-
-
-/*
- * Urutan visual.
- *
- * Ini HANYA menentukan urutan.
- * BUKAN whitelist parameter.
- *
- * Parameter lain dari model akan tetap dirender
- * setelah parameter yang ada di daftar ini.
- */
-const GENERATE_PARAMETER_ORDER = [
-    "image_urls",
-    "image_url",
-    "prompt",
-    "mode",
-    "aspect_ratio",
-    "resolution",
-    "duration"
-];
 
 
 const STORAGE_BUCKET =
     "dashboard-videos";
 
 
-const ALLOWED_IMAGE_TYPES =
-    new Set([
-        "image/jpeg",
-        "image/png",
-        "image/webp"
-    ]);
+const ALLOWED_IMAGE_TYPES = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+]);
 
 
 const MAX_IMAGE_SIZE =
     10 * 1024 * 1024;
 
 
+/*
+ * Ini hanya urutan visual.
+ * Bukan whitelist.
+ */
+const PARAMETER_ORDER = [
+    "image_urls",
+    "image_url",
+    "index",
+    "prompt",
+    "mode",
+    "aspect_ratio",
+    "duration",
+    "resolution",
+    "nsfw_checker"
+];
+
+
 /* =========================================================
-   HELPERS
+   DOM CONTAINER
 ========================================================= */
 
 function getContainer() {
@@ -95,16 +93,17 @@ function getContainer() {
 
     return (
         elements?.dynamicFields ||
+        document.getElementById(
+            "dynamicFields"
+        ) ||
         null
     );
+
 }
 
 
 /* =========================================================
-   PARAMETER DEFINITIONS
-   ---------------------------------------------------------
-   Source of truth:
-   currentModel.parameters
+   PARAMETER SOURCE
 ========================================================= */
 
 function getParameterDefinitions() {
@@ -112,43 +111,111 @@ function getParameterDefinitions() {
     const model =
         getCurrentModel();
 
-    if (!model) {
-        return {};
-    }
 
-
-    let parameters =
-        model.parameters ??
-        model.config?.parameters ??
-        model.repository?.parameters ??
-        model.model?.parameters ??
-        {};
-
-
-    /*
-     * Bentuk:
-     *
-     * {
-     *   parameters: {
-     *      prompt: {...}
-     *   }
-     * }
-     */
     if (
-        parameters &&
-        typeof parameters === "object" &&
-        !Array.isArray(parameters) &&
-        parameters.parameters &&
-        typeof parameters.parameters === "object" &&
-        !Array.isArray(parameters.parameters)
+        !model ||
+        typeof model !== "object"
     ) {
-        parameters =
-            parameters.parameters;
+
+        console.warn(
+            "[GEN-Z.AI][Generate Form] Current model tidak tersedia."
+        );
+
+        return {};
+
+    }
+
+
+    const candidates = [
+
+        model.parameters,
+
+        model.parameter_schema,
+
+        model.parameterSchema,
+
+        model.config?.parameters,
+
+        model.repository?.parameters,
+
+        model.model?.parameters,
+
+        model.config?.parameter_schema,
+
+        model.repository?.parameter_schema,
+
+        model.model?.parameter_schema
+
+    ];
+
+
+    for (
+        const candidate
+        of candidates
+    ) {
+
+        const normalized =
+            normalizeParameterDefinitions(
+                candidate
+            );
+
+
+        if (
+            Object.keys(
+                normalized
+            ).length > 0
+        ) {
+
+            console.debug(
+                "[GEN-Z.AI][Generate Form] Parameter source ditemukan:",
+                {
+                    model:
+                        model.model_id,
+
+                    keys:
+                        Object.keys(
+                            normalized
+                        )
+                }
+            );
+
+
+            return normalized;
+
+        }
+
+    }
+
+
+    console.warn(
+        "[GEN-Z.AI][Generate Form] Model tidak memiliki parameter."
+    );
+
+
+    return {};
+
+}
+
+
+/* =========================================================
+   NORMALIZE PARAMETERS
+========================================================= */
+
+function normalizeParameterDefinitions(
+    value
+) {
+
+    if (
+        !value
+    ) {
+
+        return {};
+
     }
 
 
     /*
-     * Bentuk array:
+     * Array:
      *
      * [
      *   {
@@ -157,41 +224,48 @@ function getParameterDefinitions() {
      *   }
      * ]
      */
+
     if (
-        Array.isArray(parameters)
+        Array.isArray(value)
     ) {
 
-        const normalized = {};
+        const result = {};
 
 
-        parameters.forEach(
-            parameter => {
+        value.forEach(
+            item => {
 
                 if (
-                    !parameter ||
-                    typeof parameter !==
-                        "object"
+                    !item ||
+                    typeof item !==
+                    "object"
                 ) {
+
                     return;
+
                 }
 
 
                 const name =
                     String(
-                        parameter.name ??
-                        parameter.key ??
-                        parameter.id ??
+                        item.name ??
+                        item.key ??
+                        item.id ??
                         ""
                     ).trim();
 
 
-                if (!name) {
+                if (
+                    !name
+                ) {
+
                     return;
+
                 }
 
 
                 const definition = {
-                    ...parameter
+                    ...item
                 };
 
 
@@ -200,43 +274,580 @@ function getParameterDefinitions() {
                 delete definition.id;
 
 
-                normalized[name] =
+                result[name] =
                     definition;
+
             }
         );
 
 
-        return normalized;
+        return result;
+
     }
 
 
     if (
-        !parameters ||
-        typeof parameters !== "object"
+        typeof value !==
+        "object"
     ) {
+
         return {};
+
     }
 
 
-    return parameters;
+    /*
+     * Nested:
+     *
+     * {
+     *   parameters: {
+     *      prompt: {...}
+     *   }
+     * }
+     */
+
+    if (
+        value.parameters &&
+        typeof value.parameters ===
+        "object"
+    ) {
+
+        return normalizeParameterDefinitions(
+            value.parameters
+        );
+
+    }
+
+
+    /*
+     * JSON schema:
+     *
+     * {
+     *   properties: {
+     *      prompt: {...}
+     *   }
+     * }
+     */
+
+    if (
+        value.properties &&
+        typeof value.properties ===
+        "object"
+    ) {
+
+        return normalizeParameterDefinitions(
+            value.properties
+        );
+
+    }
+
+
+    const result = {};
+
+
+    Object.entries(value)
+        .forEach(
+            (
+                [
+                    key,
+                    definition
+                ]
+            ) => {
+
+                if (
+                    !key ||
+                    definition ===
+                    undefined ||
+                    definition ===
+                    null
+                ) {
+
+                    return;
+
+                }
+
+
+                if (
+                    typeof definition !==
+                    "object"
+                ) {
+
+                    return;
+
+                }
+
+
+                result[key] =
+                    definition;
+
+            }
+        );
+
+
+    return result;
+
 }
 
 
 /* =========================================================
-   PARAMETER DEFINITION
+   PARAMETER LABEL
 ========================================================= */
 
-function parameterDefinition(
+function getParameterLabel(
+    name,
+    definition
+) {
+
+    if (
+        definition &&
+        typeof definition.label ===
+        "string" &&
+        definition.label.trim()
+    ) {
+
+        return definition.label.trim();
+
+    }
+
+
+    const labels = {
+
+        image_urls:
+            "Gambar Referensi",
+
+        image_url:
+            "Gambar Referensi",
+
+        index:
+            "Index",
+
+        prompt:
+            "Prompt",
+
+        mode:
+            "Mode",
+
+        aspect_ratio:
+            "Aspect Ratio",
+
+        duration:
+            "Duration",
+
+        resolution:
+            "Resolution",
+
+        nsfw_checker:
+            "NSFW Checker"
+
+    };
+
+
+    if (
+        labels[name]
+    ) {
+
+        return labels[name];
+
+    }
+
+
+    return String(name)
+        .replace(
+            /[_-]+/g,
+            " "
+        )
+        .replace(
+            /\b\w/g,
+            character =>
+                character.toUpperCase()
+        );
+
+}
+
+
+/* =========================================================
+   PARAMETER DESCRIPTION
+========================================================= */
+
+function getParameterDescription(
+    definition
+) {
+
+    return String(
+        definition?.description ||
+        ""
+    ).trim();
+
+}
+
+
+/* =========================================================
+   INTERNAL PARAMETER
+========================================================= */
+
+function isInternalParameter(
     name
 ) {
 
-    const definitions =
-        getParameterDefinitions();
-
-    return (
-        definitions[name] ||
-        null
+    return INTERNAL_PARAMETERS.has(
+        String(
+            name || ""
+        ).trim()
     );
+
+}
+
+
+/* =========================================================
+   RENDERABLE PARAMETER
+========================================================= */
+
+function isRenderableParameter(
+    name,
+    definition
+) {
+
+    if (
+        !name ||
+        isInternalParameter(name)
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        !definition ||
+        typeof definition !==
+        "object"
+    ) {
+
+        return false;
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   ORDER
+========================================================= */
+
+function getOrderedParameterNames(
+    definitions
+) {
+
+    const names =
+        Object.keys(
+            definitions || {}
+        )
+        .filter(
+            name =>
+                isRenderableParameter(
+                    name,
+                    definitions[name]
+                )
+        );
+
+
+    const ordered = [];
+
+
+    PARAMETER_ORDER.forEach(
+        preferredName => {
+
+            if (
+                names.includes(
+                    preferredName
+                )
+            ) {
+
+                ordered.push(
+                    preferredName
+                );
+
+            }
+
+        }
+    );
+
+
+    names.forEach(
+        name => {
+
+            if (
+                !ordered.includes(name)
+            ) {
+
+                ordered.push(name);
+
+            }
+
+        }
+    );
+
+
+    return ordered;
+
+}
+
+
+/* =========================================================
+   FIELD WRAPPER
+========================================================= */
+
+function createField(
+    name,
+    definition
+) {
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
+
+
+    wrapper.className =
+        "generate-field";
+
+
+    wrapper.dataset.parameter =
+        name;
+
+
+    wrapper.style.width =
+        "100%";
+
+
+    const label =
+        document.createElement(
+            "label"
+        );
+
+
+    label.className =
+        "generate-field-label";
+
+
+    label.textContent =
+        getParameterLabel(
+            name,
+            definition
+        );
+
+
+    wrapper.appendChild(
+        label
+    );
+
+
+    return wrapper;
+
+}
+
+
+/* =========================================================
+   FIELD DESCRIPTION
+========================================================= */
+
+function appendDescription(
+    wrapper,
+    definition
+) {
+
+    const description =
+        getParameterDescription(
+            definition
+        );
+
+
+    if (
+        !description
+    ) {
+
+        return;
+
+    }
+
+
+    const element =
+        document.createElement(
+            "div"
+        );
+
+
+    element.className =
+        "generate-field-description";
+
+
+    element.textContent =
+        description;
+
+
+    wrapper.appendChild(
+        element
+    );
+
+}
+
+
+/* =========================================================
+   DEFAULT
+========================================================= */
+
+function getDefaultValue(
+    definition
+) {
+
+    if (
+        !definition ||
+        typeof definition !==
+        "object"
+    ) {
+
+        return undefined;
+
+    }
+
+
+    return definition.default;
+
+}
+
+
+/* =========================================================
+   ARRAY NORMALIZER
+========================================================= */
+
+function normalizeArray(
+    value
+) {
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return value
+            .map(
+                item =>
+                    String(
+                        item ?? ""
+                    ).trim()
+            )
+            .filter(Boolean);
+
+    }
+
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return [];
+
+    }
+
+
+    if (
+        typeof value !==
+        "string"
+    ) {
+
+        return [];
+
+    }
+
+
+    const text =
+        value.trim();
+
+
+    if (!text) {
+
+        return [];
+
+    }
+
+
+    /*
+     * JSON array
+     */
+
+    if (
+        text.startsWith("[") &&
+        text.endsWith("]")
+    ) {
+
+        try {
+
+            const parsed =
+                JSON.parse(
+                    text
+                );
+
+
+            if (
+                Array.isArray(parsed)
+            ) {
+
+                return normalizeArray(
+                    parsed
+                );
+
+            }
+
+        } catch {
+
+            /* fallback */
+
+        }
+
+    }
+
+
+    /*
+     * PostgreSQL array
+     */
+
+    if (
+        text.startsWith("{") &&
+        text.endsWith("}")
+    ) {
+
+        return text
+            .slice(1, -1)
+            .split(",")
+            .map(
+                item =>
+                    item
+                        .trim()
+                        .replace(
+                            /^"(.*)"$/,
+                            "$1"
+                        )
+            )
+            .filter(Boolean);
+
+    }
+
+
+    /*
+     * CSV
+     */
+
+    return text
+        .split(",")
+        .map(
+            item =>
+                item.trim()
+        )
+        .filter(Boolean);
+
 }
 
 
@@ -256,384 +867,38 @@ function createFieldId(
                 "-"
             )
     );
+
 }
 
 
 /* =========================================================
-   DEFAULT VALUE
+   IMAGE FIELD
 ========================================================= */
 
-function getDefaultValue(
-    definition
-) {
-
-    if (
-        !definition ||
-        typeof definition !== "object"
-    ) {
-        return undefined;
-    }
-
-
-    return definition.default;
-}
-
-
-/* =========================================================
-   INTERNAL PARAMETER
-========================================================= */
-
-function isInternalParameter(
-    name
-) {
-
-    return INTERNAL_PARAMETERS.has(
-        String(name || "").trim()
-    );
-}
-
-
-/* =========================================================
-   RENDERABLE PARAMETER
-   ---------------------------------------------------------
-   PENTING:
-
-   Tidak lagi menggunakan:
-       GENERATE_PARAMETER_ORDER.includes()
-
-   Daftar order hanya untuk urutan.
-
-   Semua parameter valid dari model akan dirender,
-   kecuali parameter internal.
-========================================================= */
-
-function isRenderableParameter(
+function createImageField(
     name,
     definition
-) {
-
-    const parameterName =
-        String(
-            name || ""
-        ).trim();
-
-
-    if (!parameterName) {
-        return false;
-    }
-
-
-    if (
-        isInternalParameter(
-            parameterName
-        )
-    ) {
-        return false;
-    }
-
-
-    if (
-        !definition ||
-        typeof definition !== "object"
-    ) {
-        return false;
-    }
-
-
-    return true;
-}
-
-
-/* =========================================================
-   NORMALIZE ARRAY
-========================================================= */
-
-function normalizeArray(
-    value
-) {
-
-    if (Array.isArray(value)) {
-
-        return value
-            .map(
-                item =>
-                    String(
-                        item ?? ""
-                    ).trim()
-            )
-            .filter(Boolean);
-    }
-
-
-    if (
-        value === null ||
-        value === undefined
-    ) {
-        return [];
-    }
-
-
-    if (
-        typeof value === "string"
-    ) {
-
-        const text =
-            value.trim();
-
-
-        if (!text) {
-            return [];
-        }
-
-
-        /*
-         * JSON array
-         */
-        if (
-            text.startsWith("[") &&
-            text.endsWith("]")
-        ) {
-
-            try {
-
-                const parsed =
-                    JSON.parse(text);
-
-
-                if (
-                    Array.isArray(
-                        parsed
-                    )
-                ) {
-
-                    return normalizeArray(
-                        parsed
-                    );
-                }
-
-            } catch {
-                /* fallback */
-            }
-        }
-
-
-        /*
-         * PostgreSQL array
-         */
-        if (
-            text.startsWith("{") &&
-            text.endsWith("}")
-        ) {
-
-            return text
-                .slice(1, -1)
-                .split(",")
-                .map(
-                    item =>
-                        item
-                            .trim()
-                            .replace(
-                                /^"(.*)"$/,
-                                "$1"
-                            )
-                )
-                .filter(Boolean);
-        }
-
-
-        /*
-         * CSV
-         */
-        return text
-            .split(",")
-            .map(
-                item =>
-                    item.trim()
-            )
-            .filter(Boolean);
-    }
-
-
-    return [
-        String(value)
-    ];
-}
-
-
-/* =========================================================
-   FIELD LABEL
-========================================================= */
-
-function getParameterLabel(
-    name,
-    definition
-) {
-
-    const labelMap = {
-
-        image_urls:
-            "Gambar Referensi",
-
-        image_url:
-            "Gambar Referensi",
-
-        prompt:
-            "Prompt",
-
-        aspect_ratio:
-            "Aspect Ratio",
-
-        resolution:
-            "Resolution",
-
-        duration:
-            "Duration",
-
-        mode:
-            "Mode",
-
-        index:
-            "Index",
-
-        nsfw_checker:
-            "NSFW Checker"
-
-    };
-
-
-    if (
-        labelMap[name]
-    ) {
-        return labelMap[name];
-    }
-
-
-    /*
-     * Backend boleh menyediakan label.
-     */
-    if (
-        definition &&
-        typeof definition.label ===
-            "string" &&
-        definition.label.trim()
-    ) {
-
-        return definition.label.trim();
-    }
-
-
-    /*
-     * Fallback dari nama parameter.
-     */
-    return String(name)
-        .replace(
-            /[_-]+/g,
-            " "
-        )
-        .replace(
-            /\b\w/g,
-            character =>
-                character.toUpperCase()
-        );
-}
-
-
-/* =========================================================
-   FIELD WRAPPER
-========================================================= */
-
-function createFieldWrapper(
-    name,
-    label
-) {
-
-    const field =
-        document.createElement("div");
-
-
-    field.className =
-        "generate-field";
-
-
-    field.dataset.parameter =
-        name;
-
-
-    const title =
-        document.createElement("label");
-
-
-    title.className =
-        "generate-field-label";
-
-
-    title.textContent =
-        label;
-
-
-    field.appendChild(
-        title
-    );
-
-
-    return {
-        field,
-        title
-    };
-}
-
-
-/* =========================================================
-   IMAGE INPUT
-   ---------------------------------------------------------
-   SATU SLOT
-
-   URL:
-   image_urls = [url]
-
-   UPLOAD:
-   image_urls = [publicUrl]
-
-   Hanya satu sumber aktif.
-========================================================= */
-
-function createImageInput(
-    definition,
-    name
 ) {
 
     const wrapper =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     wrapper.className =
         "generate-image-input";
 
 
-    const maxItemsRaw =
-        Number(
-            definition?.maxItems
-        );
+    wrapper.dataset.parameter =
+        name;
 
 
-    const maxItems =
-        Number.isFinite(
-            maxItemsRaw
-        )
-            ? Math.max(
-                0,
-                Math.floor(
-                    maxItemsRaw
-                )
-            )
-            : 1;
+    wrapper.style.width =
+        "100%";
 
 
-    /* -----------------------------------------------------
-       STATE
-    ----------------------------------------------------- */
-
-    let inputMode =
+    let mode =
         "url";
 
 
@@ -645,57 +910,59 @@ function createImageInput(
         "";
 
 
-    /* -----------------------------------------------------
-       MODE BUTTONS
-    ----------------------------------------------------- */
-
     const modeGroup =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     modeGroup.className =
         "generate-image-mode";
 
 
-    const urlModeButton =
-        document.createElement("button");
+    const urlButton =
+        document.createElement(
+            "button"
+        );
 
 
-    urlModeButton.type =
+    urlButton.type =
         "button";
 
 
-    urlModeButton.className =
+    urlButton.className =
         "generate-image-mode-button active";
 
 
-    urlModeButton.textContent =
+    urlButton.textContent =
         "Gunakan URL";
 
 
-    const uploadModeButton =
-        document.createElement("button");
+    const uploadButton =
+        document.createElement(
+            "button"
+        );
 
 
-    uploadModeButton.type =
+    uploadButton.type =
         "button";
 
 
-    uploadModeButton.className =
+    uploadButton.className =
         "generate-image-mode-button";
 
 
-    uploadModeButton.textContent =
+    uploadButton.textContent =
         "Upload Gambar";
 
 
     modeGroup.appendChild(
-        urlModeButton
+        urlButton
     );
 
 
     modeGroup.appendChild(
-        uploadModeButton
+        uploadButton
     );
 
 
@@ -704,12 +971,14 @@ function createImageInput(
     );
 
 
-    /* -----------------------------------------------------
-       URL PANEL
-    ----------------------------------------------------- */
+    /*
+     * URL
+     */
 
     const urlPanel =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     urlPanel.className =
@@ -717,7 +986,9 @@ function createImageInput(
 
 
     const urlInput =
-        document.createElement("input");
+        document.createElement(
+            "input"
+        );
 
 
     urlInput.type =
@@ -736,27 +1007,19 @@ function createImageInput(
         "form-control";
 
 
-    urlInput.inputMode =
-        "url";
+    urlInput.placeholder =
+        "Tempel URL gambar...";
 
 
     urlInput.autocomplete =
         "off";
 
 
-    urlInput.placeholder =
-        "Tempel URL gambar...";
-
-
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
-
-
     const defaultImages =
         normalizeArray(
-            defaultValue
+            getDefaultValue(
+                definition
+            )
         );
 
 
@@ -766,6 +1029,7 @@ function createImageInput(
 
         urlInput.value =
             defaultImages[0];
+
     }
 
 
@@ -779,12 +1043,14 @@ function createImageInput(
     );
 
 
-    /* -----------------------------------------------------
-       UPLOAD PANEL
-    ----------------------------------------------------- */
+    /*
+     * UPLOAD
+     */
 
     const uploadPanel =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     uploadPanel.className =
@@ -796,7 +1062,9 @@ function createImageInput(
 
 
     const fileInput =
-        document.createElement("input");
+        document.createElement(
+            "input"
+        );
 
 
     fileInput.type =
@@ -804,7 +1072,7 @@ function createImageInput(
 
 
     fileInput.accept =
-        ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+        "image/jpeg,image/png,image/webp";
 
 
     fileInput.hidden =
@@ -812,7 +1080,9 @@ function createImageInput(
 
 
     const chooseButton =
-        document.createElement("button");
+        document.createElement(
+            "button"
+        );
 
 
     chooseButton.type =
@@ -827,20 +1097,20 @@ function createImageInput(
         "+ Tambah Gambar";
 
 
-    const uploadStatus =
-        document.createElement("div");
+    const status =
+        document.createElement(
+            "div"
+        );
 
 
-    uploadStatus.className =
+    status.className =
         "generate-image-upload-status";
 
 
-    /* -----------------------------------------------------
-       PREVIEW
-    ----------------------------------------------------- */
-
     const preview =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
     preview.className =
@@ -852,7 +1122,9 @@ function createImageInput(
 
 
     const previewImage =
-        document.createElement("img");
+        document.createElement(
+            "img"
+        );
 
 
     previewImage.className =
@@ -860,15 +1132,13 @@ function createImageInput(
 
 
     previewImage.alt =
-        "Preview gambar referensi";
+        "Preview gambar";
 
-
-    /* -----------------------------------------------------
-       REMOVE
-    ----------------------------------------------------- */
 
     const removeButton =
-        document.createElement("button");
+        document.createElement(
+            "button"
+        );
 
 
     removeButton.type =
@@ -881,16 +1151,6 @@ function createImageInput(
 
     removeButton.textContent =
         "×";
-
-
-    removeButton.title =
-        "Hapus gambar";
-
-
-    removeButton.setAttribute(
-        "aria-label",
-        "Hapus gambar"
-    );
 
 
     preview.appendChild(
@@ -914,7 +1174,7 @@ function createImageInput(
 
 
     uploadPanel.appendChild(
-        uploadStatus
+        status
     );
 
 
@@ -928,660 +1188,680 @@ function createImageInput(
     );
 
 
-    /* =====================================================
-       CLEAR PREVIEW
-    ===================================================== */
-
-    function clearPreview() {
-
-        previewImage.removeAttribute(
-            "src"
-        );
-
-
-        preview.hidden =
-            true;
-
-
-        uploadedUrl =
-            "";
-    }
-
-
-    /* =====================================================
-       REMOVE STORAGE FILE
-    ===================================================== */
-
-    async function removeUploadedFile() {
-
-        const path =
-            uploadedPath;
-
-
-        uploadedPath =
-            "";
-
-
-        uploadedUrl =
-            "";
-
-
-        clearPreview();
-
-
-        if (!path) {
-            return;
-        }
-
-
-        const client =
-            getSupabaseClient();
-
-
-        if (
-            !client ||
-            !client.storage
-        ) {
-            return;
-        }
-
-
-        try {
-
-            await client
-                .storage
-                .from(
-                    STORAGE_BUCKET
-                )
-                .remove([
-                    path
-                ]);
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI][Generate Form] Storage remove failed:",
-                error
-            );
-        }
-    }
-
-
-    /* =====================================================
-       SET MODE
-    ===================================================== */
-
-    async function setMode(
-        mode
-    ) {
-
-        const nextMode =
-            mode === "upload"
-                ? "upload"
-                : "url";
-
-
-        inputMode =
-            nextMode;
-
-
-        const isUpload =
-            inputMode ===
-            "upload";
-
-
-        urlPanel.hidden =
-            isUpload;
-
-
-        uploadPanel.hidden =
-            !isUpload;
-
-
-        urlModeButton.classList.toggle(
-            "active",
-            !isUpload
-        );
-
-
-        uploadModeButton.classList.toggle(
-            "active",
-            isUpload
-        );
-
-
-        if (isUpload) {
-
-            urlInput.value =
-                "";
-
-            return;
-        }
-
-
-        if (uploadedPath) {
-
-            await removeUploadedFile();
-
-        } else {
-
-            clearPreview();
-        }
-
-
-        uploadStatus.textContent =
-            "";
-    }
-
-
-    /* =====================================================
-       UPLOAD IMAGE
-    ===================================================== */
-
-    async function uploadReferenceImage(
-        file
-    ) {
-
-        if (!file) {
-            return;
-        }
-
-
-        if (maxItems < 1) {
-
-            uploadStatus.textContent =
-                "Model tidak mendukung gambar referensi.";
-
-            return;
-        }
-
-
-        const type =
-            String(
-                file.type || ""
-            ).toLowerCase();
-
-
-        if (
-            !ALLOWED_IMAGE_TYPES.has(
-                type
-            )
-        ) {
-
-            uploadStatus.textContent =
-                "Format gambar harus JPG, PNG, atau WebP.";
-
-
-            fileInput.value =
-                "";
-
-
-            return;
-        }
-
-
-        if (
-            Number(file.size) >
-            MAX_IMAGE_SIZE
-        ) {
-
-            uploadStatus.textContent =
-                "Ukuran gambar maksimal 10 MB.";
-
-
-            fileInput.value =
-                "";
-
-
-            return;
-        }
-
-
-        const client =
-            getSupabaseClient();
-
-
-        const user =
-            getCurrentUser();
-
-
-        if (
-            !client ||
-            !client.storage
-        ) {
-
-            uploadStatus.textContent =
-                "Storage belum tersedia.";
-
-
-            return;
-        }
-
-
-        if (!user?.id) {
-
-            uploadStatus.textContent =
-                "Session user belum tersedia.";
-
-
-            return;
-        }
-
-
-        if (uploadedPath) {
-
-            await removeUploadedFile();
-        }
-
-
-        chooseButton.disabled =
-            true;
-
-
-        uploadStatus.textContent =
-            "Mengunggah gambar...";
-
-
-        const extensionMap = {
-
-            "image/jpeg":
-                "jpg",
-
-            "image/png":
-                "png",
-
-            "image/webp":
-                "webp"
-
-        };
-
-
-        const extension =
-            extensionMap[type] ||
-            "jpg";
-
-
-        const randomPart =
-            globalThis.crypto &&
-            typeof globalThis.crypto.randomUUID ===
-                "function"
-
-                ? globalThis.crypto.randomUUID()
-
-                : (
-                    Date.now() +
-                    "-" +
-                    Math.random()
-                        .toString(36)
-                        .slice(2)
-                );
-
-
-        const path =
-            "generate-inputs/" +
-            user.id +
-            "/" +
-            Date.now() +
-            "-" +
-            randomPart +
-            "." +
-            extension;
-
-
-        try {
-
-            const result =
-                await client
-                    .storage
-                    .from(
-                        STORAGE_BUCKET
-                    )
-                    .upload(
-                        path,
-                        file,
-                        {
-                            cacheControl:
-                                "3600",
-
-                            upsert:
-                                false,
-
-                            contentType:
-                                type
-                        }
-                    );
-
-
-            if (
-                result?.error
-            ) {
-
-                throw result.error;
-            }
-
-
-            const publicResult =
-                client
-                    .storage
-                    .from(
-                        STORAGE_BUCKET
-                    )
-                    .getPublicUrl(
-                        path
-                    );
-
-
-            const publicUrl =
-                String(
-                    publicResult
-                        ?.data
-                        ?.publicUrl ||
-                    ""
-                ).trim();
-
-
-            if (!publicUrl) {
-
-                throw new Error(
-                    "URL gambar tidak tersedia."
-                );
-            }
-
-
-            uploadedPath =
-                path;
-
-
-            uploadedUrl =
-                publicUrl;
-
-
-            previewImage.src =
-                publicUrl;
-
-
-            preview.hidden =
-                false;
-
-
-            uploadStatus.textContent =
-                "Gambar siap digunakan.";
-
-
-        } catch (error) {
-
-            uploadedPath =
-                "";
-
-
-            uploadedUrl =
-                "";
-
-
-            clearPreview();
-
-
-            uploadStatus.textContent =
-                error?.message ||
-                "Gagal mengunggah gambar.";
-
-
-            console.error(
-                "[GEN-Z.AI][Generate Form] Upload gagal:",
-                error
-            );
-
-
-        } finally {
-
-            chooseButton.disabled =
-                false;
-
-
-            fileInput.value =
-                "";
-        }
-    }
-
-
-    /* =====================================================
-       EVENTS
-    ===================================================== */
-
-    urlModeButton.addEventListener(
+    /*
+     * URL MODE
+     */
+
+    urlButton.addEventListener(
         "click",
         () => {
 
-            void setMode(
-                "url"
+            mode =
+                "url";
+
+
+            urlPanel.hidden =
+                false;
+
+
+            uploadPanel.hidden =
+                true;
+
+
+            urlButton.classList.add(
+                "active"
+            );
+
+
+            uploadButton.classList.remove(
+                "active"
             );
 
         }
     );
 
 
-    uploadModeButton.addEventListener(
+    /*
+     * UPLOAD MODE
+     */
+
+    uploadButton.addEventListener(
         "click",
         () => {
 
-            void setMode(
-                "upload"
+            mode =
+                "upload";
+
+
+            urlPanel.hidden =
+                true;
+
+
+            uploadPanel.hidden =
+                false;
+
+
+            urlButton.classList.remove(
+                "active"
+            );
+
+
+            uploadButton.classList.add(
+                "active"
             );
 
         }
     );
 
+
+    /*
+     * CHOOSE
+     */
 
     chooseButton.addEventListener(
         "click",
         () => {
 
-            if (maxItems < 1) {
-
-                uploadStatus.textContent =
-                    "Model tidak mendukung gambar referensi.";
-
-                return;
-            }
-
-
             fileInput.click();
+
         }
     );
 
+
+    /*
+     * UPLOAD
+     */
 
     fileInput.addEventListener(
         "change",
-        event => {
+        async event => {
 
             const file =
-                event.target?.files?.[0] ||
-                null;
+                event.target.files?.[0];
 
 
-            void uploadReferenceImage(
-                file
-            );
+            if (!file) {
+
+                return;
+
+            }
+
+
+            if (
+                !ALLOWED_IMAGE_TYPES.has(
+                    String(
+                        file.type || ""
+                    ).toLowerCase()
+                )
+            ) {
+
+                status.textContent =
+                    "Format gambar harus JPG, PNG, atau WebP.";
+
+                fileInput.value =
+                    "";
+
+                return;
+
+            }
+
+
+            if (
+                Number(file.size) >
+                MAX_IMAGE_SIZE
+            ) {
+
+                status.textContent =
+                    "Ukuran gambar maksimal 10 MB.";
+
+                fileInput.value =
+                    "";
+
+                return;
+
+            }
+
+
+            const client =
+                getSupabaseClient();
+
+
+            const user =
+                getCurrentUser();
+
+
+            if (
+                !client ||
+                !client.storage
+            ) {
+
+                status.textContent =
+                    "Storage belum tersedia.";
+
+                return;
+
+            }
+
+
+            if (
+                !user?.id
+            ) {
+
+                status.textContent =
+                    "Session user belum tersedia.";
+
+                return;
+
+            }
+
+
+            chooseButton.disabled =
+                true;
+
+
+            status.textContent =
+                "Mengunggah gambar...";
+
+
+            const extensionMap = {
+
+                "image/jpeg":
+                    "jpg",
+
+                "image/png":
+                    "png",
+
+                "image/webp":
+                    "webp"
+
+            };
+
+
+            const extension =
+                extensionMap[
+                    file.type
+                ] ||
+                "jpg";
+
+
+            const randomPart =
+                globalThis.crypto &&
+                typeof globalThis.crypto.randomUUID ===
+                    "function"
+
+                    ? globalThis.crypto.randomUUID()
+
+                    : (
+                        Date.now() +
+                        "-" +
+                        Math.random()
+                            .toString(36)
+                            .slice(2)
+                    );
+
+
+            const path =
+                "generate-inputs/" +
+                user.id +
+                "/" +
+                Date.now() +
+                "-" +
+                randomPart +
+                "." +
+                extension;
+
+
+            try {
+
+                const result =
+                    await client
+                        .storage
+                        .from(
+                            STORAGE_BUCKET
+                        )
+                        .upload(
+                            path,
+                            file,
+                            {
+                                cacheControl:
+                                    "3600",
+
+                                upsert:
+                                    false,
+
+                                contentType:
+                                    file.type
+                            }
+                        );
+
+
+                if (
+                    result?.error
+                ) {
+
+                    throw result.error;
+
+                }
+
+
+                uploadedPath =
+                    path;
+
+
+                const publicResult =
+                    client
+                        .storage
+                        .from(
+                            STORAGE_BUCKET
+                        )
+                        .getPublicUrl(
+                            path
+                        );
+
+
+                uploadedUrl =
+                    publicResult
+                        ?.data
+                        ?.publicUrl ||
+                    "";
+
+
+                if (
+                    !uploadedUrl
+                ) {
+
+                    throw new Error(
+                        "Public URL gambar tidak tersedia."
+                    );
+
+                }
+
+
+                urlInput.value =
+                    "";
+
+
+                previewImage.src =
+                    uploadedUrl;
+
+
+                preview.hidden =
+                    false;
+
+
+                status.textContent =
+                    "Gambar berhasil diunggah.";
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Upload error:",
+                    error
+                );
+
+
+                status.textContent =
+                    error?.message ||
+                    "Upload gambar gagal.";
+
+            } finally {
+
+                chooseButton.disabled =
+                    false;
+
+                fileInput.value =
+                    "";
+
+            }
+
         }
     );
 
+
+    /*
+     * REMOVE
+     */
 
     removeButton.addEventListener(
         "click",
-        () => {
+        async () => {
 
-            void removeUploadedFile();
+            const path =
+                uploadedPath;
 
 
-            uploadStatus.textContent =
+            uploadedPath =
                 "";
+
+
+            uploadedUrl =
+                "";
+
+
+            previewImage.removeAttribute(
+                "src"
+            );
+
+
+            preview.hidden =
+                true;
+
+
+            status.textContent =
+                "";
+
+
+            if (
+                !path
+            ) {
+
+                return;
+
+            }
+
+
+            const client =
+                getSupabaseClient();
+
+
+            if (
+                !client ||
+                !client.storage
+            ) {
+
+                return;
+
+            }
+
+
+            try {
+
+                await client
+                    .storage
+                    .from(
+                        STORAGE_BUCKET
+                    )
+                    .remove([
+                        path
+                    ]);
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI][Generate Form] Gagal menghapus upload:",
+                    error
+                );
+
+            }
+
         }
     );
 
 
-    /* =====================================================
-       PUBLIC IMAGE API
-    ===================================================== */
+    /*
+     * PUBLIC METHODS
+     */
 
     wrapper.getInputMode =
-        () => inputMode;
+        () =>
+            mode;
 
 
     wrapper.getUrlInput =
-        () => urlInput;
+        () =>
+            urlInput;
 
 
     wrapper.getUploadedUrl =
-        () => uploadedUrl;
-
-
-    wrapper.getUploadedPath =
-        () => uploadedPath;
-
-
-    wrapper.getReferenceFiles =
         () =>
-            uploadedUrl
-                ? [uploadedUrl]
-                : [];
+            uploadedUrl;
 
 
     wrapper.clearUploadedFile =
         async () => {
 
-            await removeUploadedFile();
+            removeButton.click();
 
-
-            uploadStatus.textContent =
-                "";
-
-
-            fileInput.value =
-                "";
         };
 
 
     wrapper.setMode =
-        setMode;
+        nextMode => {
 
+            if (
+                nextMode ===
+                "upload"
+            ) {
 
-    /* =====================================================
-       MODEL DOES NOT SUPPORT IMAGE
-    ===================================================== */
+                uploadButton.click();
 
-    if (maxItems < 1) {
+            } else {
 
-        urlModeButton.disabled =
-            true;
+                urlButton.click();
 
+            }
 
-        uploadModeButton.disabled =
-            true;
-
-
-        urlInput.disabled =
-            true;
-
-
-        chooseButton.disabled =
-            true;
-
-
-        uploadStatus.textContent =
-            "Model ini tidak mendukung gambar referensi.";
-    }
+        };
 
 
     return wrapper;
+
 }
 
 
 /* =========================================================
-   TEXTAREA
+   ENUM OPTIONS
 ========================================================= */
 
-function createTextarea(
-    definition,
-    name
+function createEnumField(
+    name,
+    definition
 ) {
 
-    const textarea =
+    const wrapper =
         document.createElement(
-            "textarea"
+            "div"
         );
 
 
-    textarea.id =
-        createFieldId(name);
+    wrapper.className =
+        "generate-option-group";
 
 
-    textarea.name =
-        name;
-
-
-    textarea.className =
-        "form-control";
-
-
-    textarea.rows =
-        Number(
-            definition?.rows
-        ) ||
-        5;
-
-
-    textarea.placeholder =
-        definition?.placeholder ||
-        "Tulis prompt...";
-
-
-    const maxLength =
-        Number(
-            definition?.maxLength
-        );
-
-
-    if (
-        Number.isFinite(
-            maxLength
+    const enumValues =
+        Array.isArray(
+            definition?.enum
         )
-    ) {
-
-        textarea.maxLength =
-            maxLength;
-    }
+            ? definition.enum
+            : [];
 
 
-    const defaultValue =
+    let defaultValue =
         getDefaultValue(
             definition
         );
 
 
     if (
-        defaultValue !== null &&
-        defaultValue !== undefined
+        defaultValue ===
+        undefined &&
+        enumValues.length
     ) {
 
-        textarea.value =
-            String(
-                defaultValue
-            );
+        defaultValue =
+            enumValues[0];
+
     }
 
 
-    return textarea;
+    enumValues.forEach(
+        (
+            value,
+            index
+        ) => {
+
+            const option =
+                document.createElement(
+                    "label"
+                );
+
+
+            option.className =
+                "generate-option";
+
+
+            const input =
+                document.createElement(
+                    "input"
+                );
+
+
+            input.type =
+                "radio";
+
+
+            input.name =
+                `generate-radio-${name}`;
+
+
+            input.value =
+                String(value);
+
+
+            input.dataset.parameter =
+                name;
+
+
+            const optionLabel =
+                document.createElement(
+                    "span"
+                );
+
+
+            optionLabel.className =
+                "generate-option-label";
+
+
+            optionLabel.textContent =
+                String(value);
+
+
+            if (
+                String(value) ===
+                String(defaultValue)
+            ) {
+
+                input.checked =
+                    true;
+
+            }
+
+
+            input.addEventListener(
+                "change",
+                () => {
+
+                    wrapper
+                        .querySelectorAll(
+                            ".generate-option-label"
+                        )
+                        .forEach(
+                            label => {
+
+                                label.classList.remove(
+                                    "active"
+                                );
+
+                            }
+                        );
+
+
+                    if (
+                        input.checked
+                    ) {
+
+                        optionLabel.classList.add(
+                            "active"
+                        );
+
+                    }
+
+                }
+            );
+
+
+            option.appendChild(
+                input
+            );
+
+
+            option.appendChild(
+                optionLabel
+            );
+
+
+            wrapper.appendChild(
+                option
+            );
+
+        }
+    );
+
+
+    /*
+     * Active class untuk default.
+     */
+
+    const checked =
+        wrapper.querySelector(
+            "input:checked"
+        );
+
+
+    if (
+        checked
+    ) {
+
+        const label =
+            checked.nextElementSibling;
+
+
+        if (
+            label
+        ) {
+
+            label.classList.add(
+                "active"
+            );
+
+        }
+
+    }
+
+
+    return wrapper;
+
 }
 
 
 /* =========================================================
-   TEXT INPUT
+   BOOLEAN
 ========================================================= */
 
-function createTextInput(
+function createBooleanField(
     definition,
     name
 ) {
+
+    const wrapper =
+        document.createElement(
+            "label"
+        );
+
+
+    wrapper.className =
+        "generate-checkbox-field";
+
 
     const input =
         document.createElement(
@@ -1590,65 +1870,59 @@ function createTextInput(
 
 
     input.type =
-        "text";
-
-
-    input.id =
-        createFieldId(name);
+        "checkbox";
 
 
     input.name =
         name;
 
 
-    input.className =
-        "form-control";
+    input.dataset.parameter =
+        name;
 
 
-    const maxLength =
-        Number(
-            definition?.maxLength
+    input.checked =
+        Boolean(
+            getDefaultValue(
+                definition
+            )
         );
 
 
-    if (
-        Number.isFinite(
-            maxLength
-        )
-    ) {
-
-        input.maxLength =
-            maxLength;
-    }
-
-
-    const defaultValue =
-        getDefaultValue(
-            definition
+    const text =
+        document.createElement(
+            "span"
         );
 
 
-    if (
-        defaultValue !== null &&
-        defaultValue !== undefined
-    ) {
-
-        input.value =
-            String(
-                defaultValue
-            );
-    }
+    text.className =
+        "generate-checkbox-label";
 
 
-    return input;
+    text.textContent =
+        "Aktif";
+
+
+    wrapper.appendChild(
+        input
+    );
+
+
+    wrapper.appendChild(
+        text
+    );
+
+
+    return wrapper;
+
 }
 
 
 /* =========================================================
-   NUMBER INPUT
+   NUMBER
 ========================================================= */
 
-function createNumberInput(
+function createNumberField(
     definition,
     name
 ) {
@@ -1675,6 +1949,10 @@ function createNumberInput(
         "form-control";
 
 
+    input.dataset.parameter =
+        name;
+
+
     const min =
         Number(
             definition?.min
@@ -1687,18 +1965,13 @@ function createNumberInput(
         );
 
 
-    const step =
-        Number(
-            definition?.step
-        );
-
-
     if (
         Number.isFinite(min)
     ) {
 
         input.min =
             String(min);
+
     }
 
 
@@ -1708,22 +1981,22 @@ function createNumberInput(
 
         input.max =
             String(max);
+
     }
 
 
-    if (
-        Number.isFinite(step) &&
-        step > 0
-    ) {
+    const step =
+        name === "index" ||
+        definition?.type ===
+            "integer"
 
-        input.step =
-            String(step);
+            ? "1"
 
-    } else {
+            : "any";
 
-        input.step =
-            "1";
-    }
+
+    input.step =
+        step;
 
 
     const defaultValue =
@@ -1733,8 +2006,8 @@ function createNumberInput(
 
 
     if (
-        defaultValue !== null &&
-        defaultValue !== undefined
+        defaultValue !==
+        undefined
     ) {
 
         input.value =
@@ -1742,257 +2015,51 @@ function createNumberInput(
                 defaultValue
             );
 
-    } else if (
-        Number.isFinite(min)
-    ) {
-
-        input.value =
-            String(min);
     }
 
 
     return input;
+
 }
 
 
 /* =========================================================
-   BOOLEAN CHECKBOX
+   DURATION RANGE
 ========================================================= */
 
-function createBooleanInput(
+function createDurationField(
     definition,
     name
 ) {
 
     const wrapper =
         document.createElement(
-            "label"
+            "div"
         );
 
 
     wrapper.className =
-        "generate-checkbox-wrapper";
+        "generate-duration-field";
 
 
-    const checkbox =
+    const top =
         document.createElement(
-            "input"
+            "div"
         );
 
 
-    checkbox.type =
-        "checkbox";
+    top.className =
+        "generate-duration-top";
 
 
-    checkbox.id =
-        createFieldId(name);
-
-
-    checkbox.name =
-        name;
-
-
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
-
-
-    checkbox.checked =
-        Boolean(
-            defaultValue
-        );
-
-
-    const text =
+    const valueLabel =
         document.createElement(
             "span"
         );
 
 
-    text.className =
-        "generate-checkbox-text";
-
-
-    text.textContent =
-        definition?.description ||
-        (
-            name === "nsfw_checker"
-                ? "Aktifkan pemeriksaan keamanan"
-                : "Aktif"
-        );
-
-
-    wrapper.appendChild(
-        checkbox
-    );
-
-
-    wrapper.appendChild(
-        text
-    );
-
-
-    return wrapper;
-}
-
-
-/* =========================================================
-   OPTION CARDS
-   ---------------------------------------------------------
-   Radio secara logic.
-   CSS dapat membuatnya terlihat seperti card.
-========================================================= */
-
-function createOptionCards(
-    definition,
-    name,
-    options
-) {
-
-    const wrapper =
-        document.createElement(
-            "div"
-        );
-
-
-    wrapper.className =
-        "generate-option-cards";
-
-
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
-
-
-    options.forEach(
-        option => {
-
-            const label =
-                document.createElement(
-                    "label"
-                );
-
-
-            label.className =
-                "generate-option-card";
-
-
-            const radio =
-                document.createElement(
-                    "input"
-                );
-
-
-            radio.type =
-                "radio";
-
-
-            radio.name =
-                name;
-
-
-            radio.value =
-                String(option);
-
-
-            if (
-                String(option) ===
-                String(defaultValue)
-            ) {
-
-                radio.checked =
-                    true;
-
-
-                label.classList.add(
-                    "active"
-                );
-            }
-
-
-            const text =
-                document.createElement(
-                    "span"
-                );
-
-
-            text.className =
-                "generate-option-card-text";
-
-
-            text.textContent =
-                String(option);
-
-
-            label.appendChild(
-                radio
-            );
-
-
-            label.appendChild(
-                text
-            );
-
-
-            wrapper.appendChild(
-                label
-            );
-
-
-            radio.addEventListener(
-                "change",
-                () => {
-
-                    wrapper
-                        .querySelectorAll(
-                            ".generate-option-card"
-                        )
-                        .forEach(
-                            card => {
-
-                                const input =
-                                    card.querySelector(
-                                        'input[type="radio"]'
-                                    );
-
-
-                                card.classList.toggle(
-                                    "active",
-                                    Boolean(
-                                        input?.checked
-                                    )
-                                );
-                            }
-                        );
-                }
-            );
-        }
-    );
-
-
-    return wrapper;
-}
-
-
-/* =========================================================
-   RANGE
-========================================================= */
-
-function createRangeInput(
-    definition,
-    name
-) {
-
-    const wrapper =
-        document.createElement(
-            "div"
-        );
-
-
-    wrapper.className =
-        "generate-range-wrapper";
+    valueLabel.className =
+        "generate-duration-value";
 
 
     const range =
@@ -2014,122 +2081,112 @@ function createRangeInput(
 
 
     range.className =
-        "generate-range";
+        "generate-duration-range";
 
 
-    const min =
+    range.dataset.parameter =
+        name;
+
+
+    let min =
         Number(
             definition?.min
         );
 
 
-    const max =
+    let max =
         Number(
             definition?.max
         );
 
 
-    const step =
-        Number(
-            definition?.step
-        );
+    if (
+        !Number.isFinite(min)
+    ) {
+
+        min =
+            1;
+
+    }
+
+
+    if (
+        !Number.isFinite(max)
+    ) {
+
+        max =
+            30;
+
+    }
 
 
     const defaultValue =
         Number(
-            definition?.default
+            getDefaultValue(
+                definition
+            )
         );
 
 
-    if (
-        Number.isFinite(min)
-    ) {
-
-        range.min =
-            String(min);
-    }
-
-
-    if (
-        Number.isFinite(max)
-    ) {
-
-        range.max =
-            String(max);
-    }
-
-
-    if (
-        Number.isFinite(step) &&
-        step > 0
-    ) {
-
-        range.step =
-            String(step);
-
-    } else {
-
-        range.step =
-            "1";
-    }
-
-
-    if (
+    let value =
         Number.isFinite(
             defaultValue
         )
-    ) {
-
-        range.value =
-            String(
-                defaultValue
-            );
-
-    } else if (
-        Number.isFinite(min)
-    ) {
-
-        range.value =
-            String(
-                min
-            );
-    }
+            ? defaultValue
+            : min;
 
 
-    const valueDisplay =
-        document.createElement(
-            "span"
+    value =
+        Math.max(
+            min,
+            Math.min(
+                max,
+                value
+            )
         );
 
 
-    valueDisplay.className =
-        "generate-range-value";
+    range.min =
+        String(min);
 
 
-    function updateValue() {
-
-        const value =
-            range.value;
+    range.max =
+        String(max);
 
 
-        const unit =
-            definition?.unit ||
-            "detik";
+    range.step =
+        "1";
 
 
-        valueDisplay.textContent =
-            value
-                ? `${value} ${unit}`
-                : "-";
-    }
+    range.value =
+        String(value);
 
 
-    updateValue();
+    valueLabel.textContent =
+        `${value} detik`;
 
 
-    range.addEventListener(
-        "input",
-        updateValue
+    top.appendChild(
+        document.createElement(
+            "span"
+        )
+    );
+
+
+    top.firstElementChild.textContent =
+        getParameterLabel(
+            name,
+            definition
+        );
+
+
+    top.appendChild(
+        valueLabel
+    );
+
+
+    wrapper.appendChild(
+        top
     );
 
 
@@ -2138,48 +2195,122 @@ function createRangeInput(
     );
 
 
+    const scale =
+        document.createElement(
+            "div"
+        );
+
+
+    scale.className =
+        "generate-duration-scale";
+
+
+    const minLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    minLabel.textContent =
+        `${min} detik`;
+
+
+    const maxLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    maxLabel.textContent =
+        `${max} detik`;
+
+
+    scale.appendChild(
+        minLabel
+    );
+
+
+    scale.appendChild(
+        maxLabel
+    );
+
+
     wrapper.appendChild(
-        valueDisplay
+        scale
+    );
+
+
+    range.addEventListener(
+        "input",
+        () => {
+
+            valueLabel.textContent =
+                `${range.value} detik`;
+
+        }
     );
 
 
     return wrapper;
+
 }
 
 
 /* =========================================================
-   SELECT
+   TEXTAREA
 ========================================================= */
 
-function createSelectInput(
+function createTextareaField(
     definition,
     name
 ) {
 
-    const select =
+    const textarea =
         document.createElement(
-            "select"
+            "textarea"
         );
 
 
-    select.id =
+    textarea.id =
         createFieldId(name);
 
 
-    select.name =
+    textarea.name =
         name;
 
 
-    select.className =
+    textarea.className =
         "form-control";
 
 
-    const options =
-        Array.isArray(
-            definition?.enum
+    textarea.dataset.parameter =
+        name;
+
+
+    textarea.rows =
+        5;
+
+
+    textarea.placeholder =
+        "Masukkan prompt...";
+
+
+    const maxLength =
+        Number(
+            definition?.maxLength
+        );
+
+
+    if (
+        Number.isFinite(
+            maxLength
         )
-            ? definition.enum
-            : [];
+    ) {
+
+        textarea.maxLength =
+            maxLength;
+
+    }
 
 
     const defaultValue =
@@ -2188,91 +2319,140 @@ function createSelectInput(
         );
 
 
-    options.forEach(
-        option => {
+    if (
+        defaultValue !==
+        undefined
+    ) {
 
-            const item =
-                document.createElement(
-                    "option"
-                );
-
-
-            item.value =
-                String(option);
-
-
-            item.textContent =
-                String(option);
-
-
-            item.selected =
-                String(option) ===
-                String(defaultValue);
-
-
-            select.appendChild(
-                item
+        textarea.value =
+            String(
+                defaultValue
             );
-        }
-    );
+
+    }
 
 
-    return select;
+    return textarea;
+
 }
 
 
 /* =========================================================
-   CREATE FIELD INPUT
+   TEXT
+========================================================= */
+
+function createTextField(
+    definition,
+    name
+) {
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+
+    input.type =
+        "text";
+
+
+    input.id =
+        createFieldId(name);
+
+
+    input.name =
+        name;
+
+
+    input.className =
+        "form-control";
+
+
+    input.dataset.parameter =
+        name;
+
+
+    const maxLength =
+        Number(
+            definition?.maxLength
+        );
+
+
+    if (
+        Number.isFinite(
+            maxLength
+        )
+    ) {
+
+        input.maxLength =
+            maxLength;
+
+    }
+
+
+    const defaultValue =
+        getDefaultValue(
+            definition
+        );
+
+
+    if (
+        defaultValue !==
+        undefined
+    ) {
+
+        input.value =
+            String(
+                defaultValue
+            );
+
+    }
+
+
+    return input;
+
+}
+
+
+/* =========================================================
+   CREATE INPUT
 ========================================================= */
 
 function createFieldInput(
-    definition,
-    name
+    name,
+    definition
 ) {
 
     const type =
         String(
             definition?.type ||
-            ""
+            "string"
         )
             .trim()
             .toLowerCase();
 
 
     /*
-     * IMAGE
+     * ARRAY IMAGE
      */
+
     if (
         name === "image_urls" ||
         name === "image_url"
     ) {
 
-        return createImageInput(
-            definition,
-            name
+        return createImageField(
+            name,
+            definition
         );
-    }
 
-
-    /*
-     * BOOLEAN
-     */
-    if (
-        type === "boolean" ||
-        typeof definition?.default ===
-            "boolean"
-    ) {
-
-        return createBooleanInput(
-            definition,
-            name
-        );
     }
 
 
     /*
      * ENUM
      */
+
     if (
         Array.isArray(
             definition?.enum
@@ -2280,75 +2460,109 @@ function createFieldInput(
         definition.enum.length
     ) {
 
-        return createOptionCards(
-            definition,
+        return createEnumField(
             name,
-            definition.enum
+            definition
         );
+
+    }
+
+
+    /*
+     * BOOLEAN
+     */
+
+    if (
+        type === "boolean"
+    ) {
+
+        return createBooleanField(
+            definition,
+            name
+        );
+
     }
 
 
     /*
      * DURATION
      */
+
     if (
-        name === "duration"
+        name === "duration" &&
+        (
+            type === "number" ||
+            type === "integer"
+        )
     ) {
 
-        return createRangeInput(
+        return createDurationField(
             definition,
             name
         );
+
     }
 
 
     /*
      * NUMBER
      */
+
     if (
         type === "number" ||
         type === "integer"
     ) {
 
-        return createNumberInput(
+        return createNumberField(
             definition,
             name
         );
+
     }
 
 
     /*
-     * TEXTAREA
+     * LONG STRING
      */
+
+    const maxLength =
+        Number(
+            definition?.maxLength
+        );
+
+
     if (
-        type === "string" &&
+        name === "prompt" ||
         (
-            name === "prompt" ||
-            Number(
-                definition?.maxLength
-            ) > 500
+            Number.isFinite(
+                maxLength
+            ) &&
+            maxLength > 500
         )
     ) {
 
-        return createTextarea(
+        return createTextareaField(
             definition,
             name
         );
+
     }
 
 
     /*
-     * TEXT
+     * STRING
      */
-    return createTextInput(
+
+    return createTextField(
         definition,
         name
     );
+
 }
 
 
 /* =========================================================
-   RENDER PARAMETER
+   RENDER ONE PARAMETER
 ========================================================= */
 
 function renderParameter(
@@ -2356,118 +2570,51 @@ function renderParameter(
     definition
 ) {
 
-    const label =
-        getParameterLabel(
+    const wrapper =
+        createField(
             name,
             definition
         );
 
 
-    const {
-        field
-    } =
-        createFieldWrapper(
-            name,
-            label
-        );
-
-
     const input =
         createFieldInput(
-            definition,
-            name
+            name,
+            definition
         );
 
 
-    if (input) {
-
-        field.appendChild(
-            input
-        );
-    }
-
-
-    /*
-     * Description dari model.
-     */
     if (
-        definition?.description &&
-        typeof definition.description ===
-            "string"
+        input
     ) {
 
-        const description =
-            document.createElement(
-                "div"
-            );
-
-
-        description.className =
-            "generate-field-description";
-
-
-        description.textContent =
-            definition.description;
-
-
-        field.appendChild(
-            description
+        wrapper.appendChild(
+            input
         );
+
     }
 
 
-    return field;
-}
-
-
-/* =========================================================
-   GET ORDERED PARAMETER NAMES
-========================================================= */
-
-function getRenderableParameterNames(
-    definitions
-) {
-
-    const names =
-        Object.keys(
-            definitions || {}
-        )
-            .filter(
-                name =>
-                    isRenderableParameter(
-                        name,
-                        definitions[name]
-                    )
-            );
-
-
     /*
-     * Parameter utama mengikuti urutan UI.
+     * Jangan tambahkan label kedua
+     * untuk duration karena duration
+     * sudah memiliki header sendiri.
      */
-    const ordered =
-        GENERATE_PARAMETER_ORDER.filter(
-            name =>
-                names.includes(name)
+
+    if (
+        name !== "duration"
+    ) {
+
+        appendDescription(
+            wrapper,
+            definition
         );
 
-
-    /*
-     * Semua parameter lain tetap muncul.
-     */
-    names.forEach(
-        name => {
-
-            if (
-                !ordered.includes(name)
-            ) {
-
-                ordered.push(name);
-            }
-        }
-    );
+    }
 
 
-    return ordered;
+    return wrapper;
+
 }
 
 
@@ -2481,16 +2628,22 @@ export function renderGenerateForm() {
         getContainer();
 
 
-    if (!container) {
+    if (
+        !container
+    ) {
 
-        console.warn(
-            "[GEN-Z.AI][Generate Form] dynamicFields tidak ditemukan."
+        console.error(
+            "[GEN-Z.AI][Generate Form] #dynamicFields tidak ditemukan."
         );
 
+        return false;
 
-        return;
     }
 
+
+    /*
+     * Bersihkan render sebelumnya.
+     */
 
     container.innerHTML =
         "";
@@ -2500,14 +2653,16 @@ export function renderGenerateForm() {
         getCurrentModel();
 
 
-    if (!model) {
+    if (
+        !model
+    ) {
 
         console.warn(
             "[GEN-Z.AI][Generate Form] Current model belum tersedia."
         );
 
+        return false;
 
-        return;
     }
 
 
@@ -2516,31 +2671,32 @@ export function renderGenerateForm() {
 
 
     const names =
-        getRenderableParameterNames(
+        getOrderedParameterNames(
             definitions
         );
 
 
-    console.debug(
-        "[GEN-Z.AI][Generate Form] Current model:",
-        model
+    console.log(
+        "[GEN-Z.AI][Generate Form] MODEL:",
+        model.model_id
     );
 
 
-    console.debug(
-        "[GEN-Z.AI][Generate Form] Parameter definitions:",
+    console.log(
+        "[GEN-Z.AI][Generate Form] PARAMETERS:",
         definitions
     );
 
 
-    console.debug(
-        "[GEN-Z.AI][Generate Form] Rendering parameters:",
+    console.log(
+        "[GEN-Z.AI][Generate Form] PARAMETER NAMES:",
         names
     );
 
 
     if (
-        names.length === 0
+        names.length ===
+        0
     ) {
 
         const empty =
@@ -2562,7 +2718,16 @@ export function renderGenerateForm() {
         );
 
 
-        return;
+        container.hidden =
+            false;
+
+
+        container.style.display =
+            "flex";
+
+
+        return false;
+
     }
 
 
@@ -2576,14 +2741,87 @@ export function renderGenerateForm() {
                 );
 
 
-            if (field) {
+            if (
+                field
+            ) {
 
                 container.appendChild(
                     field
                 );
+
             }
+
         }
     );
+
+
+    /*
+     * FORCE VISIBLE.
+     *
+     * Supaya tidak kalah oleh CSS global.
+     */
+
+    container.hidden =
+        false;
+
+
+    container.removeAttribute(
+        "hidden"
+    );
+
+
+    container.style.setProperty(
+        "display",
+        "flex",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "visibility",
+        "visible",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "opacity",
+        "1",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "height",
+        "auto",
+        "important"
+    );
+
+
+    container.style.setProperty(
+        "max-height",
+        "none",
+        "important"
+    );
+
+
+    console.log(
+        "[GEN-Z.AI][Generate Form] RENDER SELESAI:",
+        {
+            model:
+                model.model_id,
+
+            fields:
+                container.children.length,
+
+            parameters:
+                names
+        }
+    );
+
+
+    return true;
+
 }
 
 
@@ -2599,130 +2837,169 @@ function findField(
         getContainer();
 
 
-    if (!container) {
-        return null;
-    }
-
-
-    const fields =
-        container.querySelectorAll(
-            ".generate-field"
-        );
-
-
-    for (
-        const field of fields
+    if (
+        !container
     ) {
 
-        if (
-            field.dataset.parameter ===
-            name
-        ) {
+        return null;
 
-            return field;
-        }
     }
 
 
-    return null;
+    return (
+        container.querySelector(
+            `[data-parameter="${CSS.escape(name)}"]`
+        ) ||
+        null
+    );
+
 }
 
 
 /* =========================================================
-   READ FIELD VALUE
+   READ FIELD
 ========================================================= */
 
 function readFieldValue(
     field
 ) {
 
-    if (!field) {
+    if (
+        !field
+    ) {
+
         return undefined;
+
     }
 
 
     /*
-     * Checkbox
+     * IMAGE
      */
-    const checkbox =
+
+    const imageInput =
         field.querySelector(
-            'input[type="checkbox"]'
+            ".generate-image-input"
         );
 
 
-    if (checkbox) {
+    if (
+        imageInput
+    ) {
 
-        return checkbox.checked;
+        const mode =
+            typeof imageInput.getInputMode ===
+            "function"
+
+                ? imageInput.getInputMode()
+
+                : "url";
+
+
+        if (
+            mode === "upload"
+        ) {
+
+            return typeof imageInput.getUploadedUrl ===
+                "function"
+
+                    ? imageInput.getUploadedUrl()
+
+                    : "";
+
+        }
+
+
+        const urlInput =
+            typeof imageInput.getUrlInput ===
+            "function"
+
+                ? imageInput.getUrlInput()
+
+                : field.querySelector(
+                    'input[type="url"]'
+                );
+
+
+        return String(
+            urlInput?.value ||
+            ""
+        ).trim();
+
     }
 
 
     /*
-     * Radio
+     * RADIO
      */
+
     const radio =
         field.querySelector(
             'input[type="radio"]:checked'
         );
 
 
-    if (radio) {
+    if (
+        radio
+    ) {
 
         return radio.value;
+
     }
 
 
     /*
-     * Normal input.
+     * CHECKBOX
      */
+
+    const checkbox =
+        field.querySelector(
+            'input[type="checkbox"]'
+        );
+
+
+    if (
+        checkbox
+    ) {
+
+        return checkbox.checked;
+
+    }
+
+
+    /*
+     * NORMAL
+     */
+
     const input =
         field.querySelector(
             "input, textarea, select"
         );
 
 
-    if (!input) {
+    if (
+        !input
+    ) {
+
         return undefined;
+
     }
 
 
     return input.value;
+
 }
 
 
 /* =========================================================
-   NORMALIZE IMAGE
-========================================================= */
-
-function normalizeImageValue(
-    value
-) {
-
-    return normalizeArray(
-        value
-    );
-}
-
-
-/* =========================================================
-   NORMALIZE PARAMETER VALUE
-   ---------------------------------------------------------
-   Mengubah nilai berdasarkan definisi model.
+   NORMALIZE VALUE
 ========================================================= */
 
 function normalizeParameterValue(
+    name,
     value,
     definition
 ) {
-
-    if (
-        value === undefined ||
-        value === null ||
-        value === ""
-    ) {
-
-        return value;
-    }
-
 
     const type =
         String(
@@ -2734,10 +3011,25 @@ function normalizeParameterValue(
 
 
     if (
+        name === "image_urls" ||
+        name === "image_url"
+    ) {
+
+        return normalizeArray(
+            value
+        );
+
+    }
+
+
+    if (
         type === "boolean"
     ) {
 
-        return Boolean(value);
+        return Boolean(
+            value
+        );
+
     }
 
 
@@ -2751,21 +3043,28 @@ function normalizeParameterValue(
 
 
         if (
-            Number.isFinite(
+            !Number.isFinite(
                 number
             )
         ) {
 
-            return (
-                type === "integer"
-                    ? Math.round(number)
-                    : number
-            );
+            return value;
+
         }
+
+
+        return type ===
+            "integer"
+
+            ? Math.round(number)
+
+            : number;
+
     }
 
 
     return value;
+
 }
 
 
@@ -2775,114 +3074,69 @@ function normalizeParameterValue(
 
 export function getFormParameters() {
 
-    const container =
-        getContainer();
+    const definitions =
+        getParameterDefinitions();
 
 
-    if (!container) {
-        return {};
-    }
+    const names =
+        getOrderedParameterNames(
+            definitions
+        );
 
 
     const parameters =
         {};
 
 
-    const definitions =
-        getParameterDefinitions();
-
-
-    const names =
-        getRenderableParameterNames(
-            definitions
-        );
-
-
     names.forEach(
         name => {
 
             const field =
-                findField(name);
+                findField(
+                    name
+                );
 
 
-            if (!field) {
+            if (
+                !field
+            ) {
+
                 return;
+
             }
 
 
-            let value;
+            let value =
+                readFieldValue(
+                    field
+                );
 
 
-            /* -------------------------------------------------
-               IMAGE
-            ------------------------------------------------- */
+            const definition =
+                definitions[name];
+
+
+            /*
+             * IMAGE
+             */
 
             if (
                 name === "image_urls" ||
                 name === "image_url"
             ) {
 
-                const imageInput =
-                    field.querySelector(
-                        ".generate-image-input"
+                const images =
+                    normalizeArray(
+                        value
                     );
 
 
-                if (imageInput) {
-
-                    const mode =
-                        typeof imageInput.getInputMode ===
-                            "function"
-
-                            ? imageInput.getInputMode()
-
-                            : "url";
-
-
-                    if (
-                        mode === "upload"
-                    ) {
-
-                        value =
-                            typeof imageInput.getUploadedUrl ===
-                                "function"
-
-                                ? imageInput.getUploadedUrl()
-
-                                : "";
-
-                    } else {
-
-                        const urlInput =
-                            typeof imageInput.getUrlInput ===
-                                "function"
-
-                                ? imageInput.getUrlInput()
-
-                                : field.querySelector(
-                                    'input[type="url"]'
-                                );
-
-
-                        value =
-                            String(
-                                urlInput?.value ||
-                                ""
-                            ).trim();
-                    }
-
-                } else {
-
-                    value =
-                        readFieldValue(
-                            field
-                        );
-                }
-
-
-                const images =
-                    normalizeImageValue(
-                        value
+                const maxItems =
+                    Math.max(
+                        1,
+                        Number(
+                            definition?.maxItems
+                        ) || 1
                     );
 
 
@@ -2890,78 +3144,83 @@ export function getFormParameters() {
                     images.length
                 ) {
 
-                    const maxItems =
-                        Math.max(
-                            1,
-                            Number(
-                                definitions[name]
-                                    ?.maxItems
-                            ) || 1
-                        );
-
-
                     parameters.image_urls =
                         images.slice(
                             0,
                             maxItems
                         );
+
                 }
 
 
                 return;
+
             }
 
 
-            /* -------------------------------------------------
-               OTHER PARAMETERS
-            ------------------------------------------------- */
-
-            value =
-                readFieldValue(
-                    field
-                );
-
+            /*
+             * BOOLEAN
+             */
 
             if (
-                value === undefined ||
-                value === null ||
-                value === ""
+                definition?.type ===
+                "boolean"
             ) {
 
-                /*
-                 * Untuk boolean false tetap harus dikirim.
-                 */
-                if (
-                    definitions[name]?.type ===
-                        "boolean"
-                ) {
-
-                    parameters[name] =
-                        false;
-                }
-
+                parameters[name] =
+                    Boolean(
+                        value
+                    );
 
                 return;
+
+            }
+
+
+            /*
+             * EMPTY
+             */
+
+            if (
+                value ===
+                    undefined ||
+                value ===
+                    null ||
+                value ===
+                    ""
+            ) {
+
+                return;
+
             }
 
 
             parameters[name] =
                 normalizeParameterValue(
+                    name,
                     value,
-                    definitions[name]
+                    definition
                 );
+
         }
     );
 
 
-    /* -----------------------------------------------------
-       NEVER SEND TASK ID
-    ----------------------------------------------------- */
+    /*
+     * task_id tidak boleh masuk.
+     */
 
     delete parameters.task_id;
 
 
+    console.debug(
+        "[GEN-Z.AI][Generate Form] FORM PARAMETERS:",
+        parameters
+    );
+
+
     return parameters;
+
 }
 
 
@@ -2972,6 +3231,7 @@ export function getFormParameters() {
 export function getFormData() {
 
     return getFormParameters();
+
 }
 
 
@@ -2985,17 +3245,23 @@ export function setFieldValue(
 ) {
 
     const field =
-        findField(name);
+        findField(
+            name
+        );
 
 
-    if (!field) {
+    if (
+        !field
+    ) {
+
         return false;
+
     }
 
 
-    /* -----------------------------------------------------
-       IMAGE
-    ----------------------------------------------------- */
+    /*
+     * IMAGE
+     */
 
     if (
         name === "image_urls" ||
@@ -3005,6 +3271,12 @@ export function setFieldValue(
         const imageInput =
             field.querySelector(
                 ".generate-image-input"
+            );
+
+
+        const images =
+            normalizeArray(
+                value
             );
 
 
@@ -3020,70 +3292,25 @@ export function setFieldValue(
                 );
 
 
-        const images =
-            normalizeImageValue(
-                value
-            );
-
-
-        if (urlInput) {
+        if (
+            urlInput
+        ) {
 
             urlInput.value =
                 images[0] ||
                 "";
-        }
 
-
-        if (
-            images.length &&
-            imageInput &&
-            typeof imageInput.setMode ===
-                "function"
-        ) {
-
-            void imageInput.setMode(
-                "url"
-            );
         }
 
 
         return true;
+
     }
 
 
-    /* -----------------------------------------------------
-       CHECKBOX
-    ----------------------------------------------------- */
-
-    const checkbox =
-        field.querySelector(
-            'input[type="checkbox"]'
-        );
-
-
-    if (checkbox) {
-
-        checkbox.checked =
-            Boolean(value);
-
-
-        checkbox.dispatchEvent(
-            new Event(
-                "change",
-                {
-                    bubbles: true
-                }
-            )
-        );
-
-
-        return true;
-    }
-
-
-    /* -----------------------------------------------------
-       RADIO
-    ----------------------------------------------------- */
+    /*
+     * RADIO
+     */
 
     const radios =
         field.querySelectorAll(
@@ -3091,7 +3318,9 @@ export function setFieldValue(
         );
 
 
-    if (radios.length) {
+    if (
+        radios.length
+    ) {
 
         let found =
             false;
@@ -3100,7 +3329,7 @@ export function setFieldValue(
         radios.forEach(
             radio => {
 
-                const checked =
+                const active =
                     String(
                         radio.value
                     ) ===
@@ -3108,40 +3337,71 @@ export function setFieldValue(
 
 
                 radio.checked =
-                    checked;
+                    active;
 
 
-                const card =
-                    radio.closest(
-                        ".generate-option-card"
-                    );
+                const label =
+                    radio.nextElementSibling;
 
 
-                if (card) {
+                if (
+                    label
+                ) {
 
-                    card.classList.toggle(
+                    label.classList.toggle(
                         "active",
-                        checked
+                        active
                     );
+
                 }
 
 
-                if (checked) {
+                if (
+                    active
+                ) {
 
                     found =
                         true;
+
                 }
+
             }
         );
 
 
         return found;
+
     }
 
 
-    /* -----------------------------------------------------
-       NORMAL INPUT
-    ----------------------------------------------------- */
+    /*
+     * CHECKBOX
+     */
+
+    const checkbox =
+        field.querySelector(
+            'input[type="checkbox"]'
+        );
+
+
+    if (
+        checkbox
+    ) {
+
+        checkbox.checked =
+            Boolean(
+                value
+            );
+
+
+        return true;
+
+    }
+
+
+    /*
+     * NORMAL
+     */
 
     const input =
         field.querySelector(
@@ -3149,52 +3409,27 @@ export function setFieldValue(
         );
 
 
-    if (!input) {
-        return false;
-    }
-
-
     if (
-        input.type ===
-        "checkbox"
+        !input
     ) {
 
-        input.checked =
-            Boolean(value);
+        return false;
 
-    } else {
-
-        input.value =
-            value ?? "";
     }
 
 
-    input.dispatchEvent(
-        new Event(
-            "input",
-            {
-                bubbles: true
-            }
-        )
-    );
-
-
-    input.dispatchEvent(
-        new Event(
-            "change",
-            {
-                bubbles: true
-            }
-        )
-    );
+    input.value =
+        value ??
+        "";
 
 
     return true;
+
 }
 
 
 /* =========================================================
-   RESET DYNAMIC FIELDS
+   RESET
 ========================================================= */
 
 export async function resetDynamicFields() {
@@ -3203,47 +3438,62 @@ export async function resetDynamicFields() {
         getContainer();
 
 
-    if (!container) {
+    if (
+        !container
+    ) {
+
         return;
+
     }
 
 
-    const imageInputs =
+    /*
+     * Hapus upload terlebih dahulu.
+     */
+
+    const uploads =
         container.querySelectorAll(
             ".generate-image-input"
         );
 
 
     for (
-        const imageInput of imageInputs
+        const upload
+        of uploads
     ) {
 
         if (
-            typeof imageInput.clearUploadedFile ===
+            typeof upload.clearUploadedFile ===
             "function"
         ) {
 
             try {
 
-                await imageInput.clearUploadedFile();
+                await upload.clearUploadedFile();
 
-            } catch (error) {
+            } catch (
+                error
+            ) {
 
                 console.warn(
                     "[GEN-Z.AI][Generate Form] Reset upload gagal:",
                     error
                 );
+
             }
+
         }
+
     }
 
 
     renderGenerateForm();
+
 }
 
 
 /* =========================================================
-   DISABLE FORM
+   FORM DISABLED
 ========================================================= */
 
 export function setFormDisabled(
@@ -3254,8 +3504,12 @@ export function setFormDisabled(
         getContainer();
 
 
-    if (!container) {
+    if (
+        !container
+    ) {
+
         return;
+
     }
 
 
@@ -3270,8 +3524,10 @@ export function setFormDisabled(
                     Boolean(
                         disabled
                     );
+
             }
         );
+
 }
 
 
@@ -3295,6 +3551,7 @@ export function getMediaParameters() {
                 : []
 
     };
+
 }
 
 
@@ -3306,9 +3563,15 @@ export function getParameterDefinition(
     name
 ) {
 
-    return parameterDefinition(
-        name
+    const definitions =
+        getParameterDefinitions();
+
+
+    return (
+        definitions[name] ||
+        null
     );
+
 }
 
 
@@ -3318,7 +3581,8 @@ export function getParameterDefinition(
 
 export function initGenerateForm() {
 
-    renderGenerateForm();
+    return renderGenerateForm();
+
 }
 
 
@@ -3331,6 +3595,8 @@ export const generateForm =
 
         render:
             renderGenerateForm,
+
+        renderGenerateForm,
 
         init:
             initGenerateForm,
@@ -3354,5 +3620,9 @@ export const generateForm =
 
     });
 
+
+/* =========================================================
+   DEFAULT EXPORT
+========================================================= */
 
 export default generateForm;
