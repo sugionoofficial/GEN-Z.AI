@@ -6,9 +6,9 @@
    generate/assets/js/generate-state.js
 
    Tanggung jawab:
-   - Menyimpan state Generate
+   - Menyimpan seluruh state halaman Generate
    - Menyimpan referensi DOM
-   - Menyediakan akses state untuk module lain
+   - Menyediakan getter/setter untuk module lain
 
    Tidak bertanggung jawab:
    - Supabase authentication
@@ -20,33 +20,17 @@
 ========================================================= */
 
 const state = {
-    /* =====================================================
-       SUPABASE
-    ====================================================== */
-
     supabaseClient: null,
-
-    /* =====================================================
-       AUTH
-    ====================================================== */
 
     currentUser: null,
 
     currentProfile: null,
-
-    /* =====================================================
-       MODEL
-    ====================================================== */
 
     currentModel: null,
 
     availableModels: [],
 
     modelLoaded: false,
-
-    /* =====================================================
-       DOM
-    ====================================================== */
 
     elements: {
         status: null,
@@ -83,193 +67,124 @@ const state = {
 
         roleBadge: null,
 
-        creditBadge: null
+        creditBadge: null,
+
+        resultModel: null,
+
+        resultProvider: null,
+
+        resultTaskId: null
     }
 };
 
 
 /* =========================================================
-   INITIALIZE DOM REFERENCES
+   INITIALIZE DOM
 ========================================================= */
 
 export function initializeGenerateElements() {
 
-    state.elements.status =
-        document.getElementById(
-            "status"
-        );
+    const ids = {
+        status: "status",
 
-    state.elements.modelSelector =
-        document.getElementById(
-            "modelSelector"
-        );
+        modelSelector: "modelSelector",
 
-    state.elements.modelSelect =
-        document.getElementById(
-            "modelSelect"
-        );
+        modelSelect: "modelSelect",
 
-    state.elements.modelName =
-        document.getElementById(
-            "modelName"
-        );
+        modelName: "modelName",
 
-    state.elements.modelDescription =
-        document.getElementById(
-            "modelDescription"
-        );
+        modelDescription: "modelDescription",
 
-    state.elements.providerName =
-        document.getElementById(
-            "providerName"
-        );
+        providerName: "providerName",
 
-    state.elements.modelMeta =
-        document.getElementById(
-            "modelMeta"
-        );
+        modelMeta: "modelMeta",
 
-    state.elements.dynamicFields =
-        document.getElementById(
-            "dynamicFields"
-        );
+        dynamicFields: "dynamicFields",
 
-    state.elements.generateForm =
-        document.getElementById(
-            "generateForm"
-        );
+        generateForm: "generateForm",
 
-    state.elements.generateCard =
-        document.getElementById(
-            "generateCard"
-        );
+        generateCard: "generateCard",
 
-    state.elements.generateButton =
-        document.getElementById(
-            "generateButton"
-        );
+        generateButton: "generateButton",
 
-    state.elements.resetButton =
-        document.getElementById(
-            "resetButton"
-        );
+        resetButton: "resetButton",
 
-    state.elements.loading =
-        document.getElementById(
-            "loading"
-        );
+        loading: "loading",
 
-    state.elements.resultCard =
-        document.getElementById(
-            "resultCard"
-        );
+        resultCard: "resultCard",
 
-    state.elements.pageError =
-        document.getElementById(
-            "pageError"
-        );
+        pageError: "pageError",
 
-    state.elements.pageErrorMessage =
-        document.getElementById(
-            "pageErrorMessage"
-        );
+        pageErrorMessage: "pageErrorMessage",
 
-    state.elements.roleBadge =
-        document.getElementById(
-            "roleBadge"
-        );
+        roleBadge: "roleBadge",
 
-    state.elements.creditBadge =
-        document.getElementById(
-            "creditBadge"
-        );
+        creditBadge: "creditBadge",
+
+        resultModel: "resultModel",
+
+        resultProvider: "resultProvider",
+
+        resultTaskId: "resultTaskId"
+    };
+
+    for (
+        const [
+            key,
+            id
+        ] of Object.entries(ids)
+    ) {
+        state.elements[key] =
+            document.getElementById(id);
+    }
 
     return state.elements;
 }
 
 
 /* =========================================================
-   ELEMENT VALIDATION
-   ---------------------------------------------------------
-   Dipakai saat bootstrap untuk memastikan HTML Generate
-   memiliki elemen inti yang diperlukan.
+   VALIDATE DOM
 ========================================================= */
 
 export function validateGenerateElements() {
 
     const required = [
-        [
-            "status",
-            state.elements.status
-        ],
-        [
-            "modelSelector",
-            state.elements.modelSelector
-        ],
-        [
-            "modelSelect",
-            state.elements.modelSelect
-        ],
-        [
-            "modelName",
-            state.elements.modelName
-        ],
-        [
-            "modelDescription",
-            state.elements.modelDescription
-        ],
-        [
-            "providerName",
-            state.elements.providerName
-        ],
-        [
-            "modelMeta",
-            state.elements.modelMeta
-        ],
-        [
-            "dynamicFields",
-            state.elements.dynamicFields
-        ],
-        [
-            "generateForm",
-            state.elements.generateForm
-        ],
-        [
-            "generateButton",
-            state.elements.generateButton
-        ],
-        [
-            "resetButton",
-            state.elements.resetButton
-        ],
-        [
-            "loading",
-            state.elements.loading
-        ],
-        [
-            "resultCard",
-            state.elements.resultCard
-        ],
-        [
-            "pageError",
-            state.elements.pageError
-        ],
-        [
-            "pageErrorMessage",
-            state.elements.pageErrorMessage
-        ]
+        "status",
+
+        "modelSelector",
+
+        "modelSelect",
+
+        "modelName",
+
+        "modelDescription",
+
+        "providerName",
+
+        "modelMeta",
+
+        "dynamicFields",
+
+        "generateForm",
+
+        "generateButton",
+
+        "resetButton",
+
+        "loading",
+
+        "resultCard",
+
+        "pageError",
+
+        "pageErrorMessage"
     ];
 
     const missing =
-        required
-            .filter(
-                ([, element]) =>
-                    !element
-            )
-            .map(
-                ([name]) =>
-                    name
-            );
+        required.filter(
+            key =>
+                !state.elements[key]
+        );
 
     if (
         missing.length > 0
@@ -284,15 +199,14 @@ export function validateGenerateElements() {
 
 
 /* =========================================================
-   SUPABASE STATE
+   SUPABASE
 ========================================================= */
 
 export function setSupabaseClient(
     client
 ) {
-
     state.supabaseClient =
-        client;
+        client || null;
 
     return state.supabaseClient;
 }
@@ -305,13 +219,12 @@ export function getSupabaseClient() {
 
 
 /* =========================================================
-   USER STATE
+   USER
 ========================================================= */
 
 export function setCurrentUser(
     user
 ) {
-
     state.currentUser =
         user || null;
 
@@ -326,13 +239,12 @@ export function getCurrentUser() {
 
 
 /* =========================================================
-   PROFILE STATE
+   PROFILE
 ========================================================= */
 
 export function setCurrentProfile(
     profile
 ) {
-
     state.currentProfile =
         profile || null;
 
@@ -347,13 +259,12 @@ export function getCurrentProfile() {
 
 
 /* =========================================================
-   MODEL STATE
+   MODEL
 ========================================================= */
 
 export function setCurrentModel(
     model
 ) {
-
     state.currentModel =
         model || null;
 
@@ -373,10 +284,13 @@ export function getCurrentModel() {
 }
 
 
+/* =========================================================
+   AVAILABLE MODELS
+========================================================= */
+
 export function setAvailableModels(
     models
 ) {
-
     state.availableModels =
         Array.isArray(models)
             ? models
@@ -392,10 +306,49 @@ export function getAvailableModels() {
 }
 
 
+/* =========================================================
+   FIND MODEL
+========================================================= */
+
+export function findAvailableModel(
+    modelId
+) {
+
+    if (
+        modelId === null ||
+        modelId === undefined
+    ) {
+        return null;
+    }
+
+    const target =
+        String(
+            modelId
+        ).trim();
+
+    if (!target) {
+        return null;
+    }
+
+    return (
+        state.availableModels.find(
+            model =>
+                String(
+                    model?.model_id ?? ""
+                ).trim() === target
+        ) ||
+        null
+    );
+}
+
+
+/* =========================================================
+   MODEL LOADED
+========================================================= */
+
 export function setModelLoaded(
     value
 ) {
-
     state.modelLoaded =
         Boolean(value);
 
@@ -410,42 +363,17 @@ export function isModelLoaded() {
 
 
 /* =========================================================
-   MODEL LOOKUP
-   ---------------------------------------------------------
-   Menghindari module lain mengakses array secara langsung
-   ketika hanya membutuhkan satu model.
+   ELEMENTS
 ========================================================= */
 
-export function findAvailableModel(
-    modelId
-) {
+export function getGenerateElements() {
 
-    if (
-        !modelId
-    ) {
-        return null;
-    }
-
-    return (
-        state.availableModels.find(
-            model =>
-                String(
-                    model?.model_id
-                ) ===
-                String(
-                    modelId
-                )
-        ) ||
-        null
-    );
+    return state.elements;
 }
 
 
 /* =========================================================
-   STATE RESET
-   ---------------------------------------------------------
-   Dipakai ketika user logout atau Generate perlu
-   diinisialisasi ulang.
+   RESET STATE
 ========================================================= */
 
 export function resetGenerateState() {
@@ -464,16 +392,6 @@ export function resetGenerateState() {
 
     state.modelLoaded =
         false;
-}
-
-
-/* =========================================================
-   DOM ACCESSOR
-========================================================= */
-
-export function getGenerateElements() {
-
-    return state.elements;
 }
 
 
