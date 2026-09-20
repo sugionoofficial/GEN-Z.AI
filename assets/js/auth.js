@@ -2,95 +2,179 @@
 // GEN-Z.AI - SUPABASE AUTHENTICATION
 // ========================================
 
-console.log("========================================");
-console.log("GEN-Z.AI AUTH START");
-console.log("========================================");
+(function () {
+
+    "use strict";
 
 
-// ========================================
-// CEK KONFIGURASI
-// ========================================
+    // ========================================
+    // CEK KONFIGURASI
+    // ========================================
 
-if (
-    typeof GENZ_CONFIG === "undefined" ||
-    !GENZ_CONFIG.SUPABASE_URL ||
-    !GENZ_CONFIG.SUPABASE_KEY
-) {
-    console.error("GENZ_CONFIG tidak ditemukan.");
+    if (
+        typeof window.GENZ_CONFIG === "undefined" ||
+        !window.GENZ_CONFIG.SUPABASE_URL ||
+        !window.GENZ_CONFIG.SUPABASE_KEY
+    ) {
 
-    const message = document.getElementById("loginMessage");
+        console.error(
+            "GEN-Z.AI: Konfigurasi Supabase tidak ditemukan."
+        );
 
-    if (message) {
-        message.textContent =
-            "Konfigurasi Supabase tidak ditemukan.";
+        const message =
+            document.getElementById("loginMessage");
+
+        if (message) {
+            message.textContent =
+                "Konfigurasi Supabase tidak ditemukan.";
+        }
+
+        return;
     }
 
-    throw new Error("GENZ_CONFIG tidak ditemukan.");
-}
 
+    // ========================================
+    // CEK SUPABASE
+    // ========================================
 
-// ========================================
-// CEK SUPABASE
-// ========================================
+    if (
+        typeof window.supabase === "undefined" ||
+        typeof window.supabase.createClient !== "function"
+    ) {
 
-if (
-    typeof window.supabase === "undefined" ||
-    typeof window.supabase.createClient !== "function"
-) {
-    console.error("Supabase JS belum dimuat.");
+        console.error(
+            "GEN-Z.AI: Supabase JS belum dimuat."
+        );
 
-    const message = document.getElementById("loginMessage");
+        const message =
+            document.getElementById("loginMessage");
 
-    if (message) {
-        message.textContent =
-            "Supabase belum berhasil dimuat.";
+        if (message) {
+            message.textContent =
+                "Supabase belum berhasil dimuat.";
+        }
+
+        return;
     }
 
-    throw new Error("Supabase JS belum dimuat.");
-}
+
+    // ========================================
+    // SUPABASE CLIENT
+    // ========================================
+
+    const supabaseClient =
+        window.supabase.createClient(
+            window.GENZ_CONFIG.SUPABASE_URL,
+            window.GENZ_CONFIG.SUPABASE_KEY,
+            {
+                auth: {
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true
+                }
+            }
+        );
 
 
-// ========================================
-// SUPABASE CLIENT
-// ========================================
+    // ========================================
+    // ELEMENT
+    // ========================================
 
-const supabaseClient = window.supabase.createClient(
-    GENZ_CONFIG.SUPABASE_URL,
-    GENZ_CONFIG.SUPABASE_KEY
-);
+    const loginForm =
+        document.getElementById("loginForm");
 
-console.log("Supabase client berhasil dibuat.");
+    const loginButton =
+        document.getElementById("loginButton");
 
-
-// ========================================
-// ELEMENT
-// ========================================
-
-const loginForm =
-    document.getElementById("loginForm");
-
-const loginButton =
-    document.getElementById("loginButton");
-
-const loginMessage =
-    document.getElementById("loginMessage");
+    const loginMessage =
+        document.getElementById("loginMessage");
 
 
-// ========================================
-// CEK FORM
-// ========================================
+    // ========================================
+    // HELPER
+    // ========================================
 
-if (!loginForm) {
+    function showMessage(message) {
 
-    console.error(
-        "Form login #loginForm tidak ditemukan."
-    );
+        if (loginMessage) {
+            loginMessage.textContent = message;
+        }
+    }
 
-} else {
 
-    console.log(
-        "Form login berhasil ditemukan."
-    );
+    function setLoading(loading) {
+
+        if (!loginButton) {
+            return;
+        }
+
+        loginButton.disabled = loading;
+
+        loginButton.textContent =
+            loading
+                ? "LOGIN..."
+                : "LOGIN";
+    }
+
+
+    function getFriendlyAuthError(error) {
+
+        if (!error) {
+            return "Login gagal.";
+        }
+
+        const message =
+            String(error.message || "").toLowerCase();
+
+
+        if (
+            message.includes("invalid login credentials")
+        ) {
+            return "Email atau password salah.";
+        }
+
+
+        if (
+            message.includes("email not confirmed")
+        ) {
+            return "Email akun belum dikonfirmasi.";
+        }
+
+
+        if (
+            message.includes("too many requests")
+        ) {
+            return "Terlalu banyak percobaan. Silakan tunggu beberapa saat.";
+        }
+
+
+        if (
+            message.includes("network") ||
+            message.includes("fetch")
+        ) {
+            return "Koneksi bermasalah. Periksa internet lalu coba lagi.";
+        }
+
+
+        return (
+            error.message ||
+            "Login gagal."
+        );
+    }
+
+
+    // ========================================
+    // CEK FORM
+    // ========================================
+
+    if (!loginForm) {
+
+        console.error(
+            "GEN-Z.AI: Form login #loginForm tidak ditemukan."
+        );
+
+        return;
+    }
 
 
     // ========================================
@@ -102,10 +186,6 @@ if (!loginForm) {
         async function (event) {
 
             event.preventDefault();
-
-            console.log("----------------------------------------");
-            console.log("LOGIN DIMULAI");
-            console.log("----------------------------------------");
 
 
             // ====================================
@@ -119,21 +199,23 @@ if (!loginForm) {
                 document.getElementById("password");
 
 
-            if (!emailElement || !passwordElement) {
+            if (
+                !emailElement ||
+                !passwordElement
+            ) {
 
-                console.error(
-                    "Input email/password tidak ditemukan."
+                showMessage(
+                    "Form login tidak lengkap."
                 );
-
-                loginMessage.textContent =
-                    "Form login tidak lengkap.";
 
                 return;
             }
 
 
             const email =
-                emailElement.value.trim();
+                emailElement.value
+                    .trim()
+                    .toLowerCase();
 
             const password =
                 passwordElement.value;
@@ -141,36 +223,30 @@ if (!loginForm) {
 
             if (!email || !password) {
 
-                loginMessage.textContent =
-                    "Email dan password wajib diisi.";
+                showMessage(
+                    "Email dan password wajib diisi."
+                );
 
                 return;
             }
 
 
             // ====================================
-            // UI
+            // UI LOADING
             // ====================================
 
-            loginButton.disabled = true;
-            loginButton.textContent = "LOGIN...";
+            setLoading(true);
 
-            loginMessage.textContent =
-                "Memproses login...";
+            showMessage(
+                "Memproses login..."
+            );
 
 
             try {
 
-
                 // ==================================
                 // 1. LOGIN SUPABASE
                 // ==================================
-
-                console.log(
-                    "Mencoba login:",
-                    email
-                );
-
 
                 const {
                     data: authData,
@@ -178,20 +254,9 @@ if (!loginForm) {
                 } =
                     await supabaseClient.auth
                         .signInWithPassword({
-                            email: email,
-                            password: password
+                            email,
+                            password
                         });
-
-
-                console.log(
-                    "AUTH DATA:",
-                    authData
-                );
-
-                console.log(
-                    "AUTH ERROR:",
-                    authError
-                );
 
 
                 if (authError) {
@@ -214,21 +279,6 @@ if (!loginForm) {
                     authData.user.id;
 
 
-                console.log(
-                    "LOGIN BERHASIL"
-                );
-
-                console.log(
-                    "USER ID:",
-                    userId
-                );
-
-                console.log(
-                    "USER EMAIL:",
-                    authData.user.email
-                );
-
-
                 // ==================================
                 // 2. CEK SESSION
                 // ==================================
@@ -241,19 +291,7 @@ if (!loginForm) {
                         .getSession();
 
 
-                console.log(
-                    "CURRENT SESSION:",
-                    sessionData
-                );
-
-                console.log(
-                    "SESSION ERROR:",
-                    sessionError
-                );
-
-
                 if (sessionError) {
-
                     throw new Error(
                         "Gagal membaca session: " +
                         sessionError.message
@@ -274,12 +312,6 @@ if (!loginForm) {
 
                 const sessionUser =
                     sessionData.session.user;
-
-
-                console.log(
-                    "SESSION USER ID:",
-                    sessionUser.id
-                );
 
 
                 // ==================================
@@ -303,12 +335,6 @@ if (!loginForm) {
                 // 4. AMBIL PROFILE
                 // ==================================
 
-                console.log(
-                    "Mengambil profile:",
-                    userId
-                );
-
-
                 const {
                     data: profiles,
                     error: profileError
@@ -319,17 +345,6 @@ if (!loginForm) {
                             "id,email,name,role,credits,status"
                         )
                         .eq("id", userId);
-
-
-                console.log(
-                    "PROFILE DATA:",
-                    profiles
-                );
-
-                console.log(
-                    "PROFILE ERROR:",
-                    profileError
-                );
 
 
                 if (profileError) {
@@ -350,25 +365,11 @@ if (!loginForm) {
                     profiles.length === 0
                 ) {
 
-                    console.error(
-                        "PROFILE TIDAK DITEMUKAN."
-                    );
-
-                    console.error(
-                        "USER ID:",
-                        userId
-                    );
-
-                    console.error(
-                        "EMAIL:",
-                        authData.user.email
-                    );
-
+                    await supabaseClient.auth
+                        .signOut();
 
                     throw new Error(
-                        "Profile belum ditemukan untuk akun ini. " +
-                        "User ID: " +
-                        userId
+                        "Profile belum ditemukan untuk akun ini."
                     );
                 }
 
@@ -379,12 +380,6 @@ if (!loginForm) {
 
                 const profile =
                     profiles[0];
-
-
-                console.log(
-                    "PROFILE BERHASIL:",
-                    profile
-                );
 
 
                 // ==================================
@@ -409,7 +404,8 @@ if (!loginForm) {
                 // ==================================
 
                 if (
-                    profile.status !== "active"
+                    String(profile.status || "")
+                        .toLowerCase() !== "active"
                 ) {
 
                     await supabaseClient.auth
@@ -427,13 +423,8 @@ if (!loginForm) {
 
                 const role =
                     String(profile.role || "")
+                        .trim()
                         .toUpperCase();
-
-
-                console.log(
-                    "USER ROLE:",
-                    role
-                );
 
 
                 // ==================================
@@ -442,18 +433,12 @@ if (!loginForm) {
 
                 if (role === "USER") {
 
-                    loginMessage.textContent =
-                        "Login berhasil. Membuka dashboard...";
-
-
-                    console.log(
-                        "REDIRECT → USER DASHBOARD"
+                    showMessage(
+                        "Login berhasil. Membuka dashboard..."
                     );
-
 
                     window.location.href =
                         "user/dashboard.html";
-
 
                     return;
                 }
@@ -468,18 +453,12 @@ if (!loginForm) {
                     role === "OWNER"
                 ) {
 
-                    loginMessage.textContent =
-                        "Login berhasil. Membuka dashboard admin...";
-
-
-                    console.log(
-                        "REDIRECT → ADMIN DASHBOARD"
+                    showMessage(
+                        "Login berhasil. Membuka dashboard admin..."
                     );
-
 
                     window.location.href =
                         "admin/dashboard.html";
-
 
                     return;
                 }
@@ -492,46 +471,69 @@ if (!loginForm) {
                 await supabaseClient.auth
                     .signOut();
 
-
                 throw new Error(
-                    "Role akun tidak valid: " +
-                    profile.role
+                    "Role akun tidak valid."
                 );
 
 
             } catch (error) {
 
-
-                // ==================================
-                // ERROR
-                // ==================================
-
                 console.error(
-                    "========================================"
-                );
-
-                console.error(
-                    "GEN-Z.AI LOGIN ERROR"
-                );
-
-                console.error(
+                    "GEN-Z.AI login error:",
                     error
                 );
 
-                console.error(
-                    "========================================"
+                showMessage(
+                    getFriendlyAuthError(error)
                 );
 
-
-                loginMessage.textContent =
-                    error?.message ||
-                    "Login gagal.";
-
-
-                loginButton.disabled = false;
-                loginButton.textContent = "LOGIN";
+                setLoading(false);
             }
 
         }
     );
-}
+
+
+    // ========================================
+    // SESSION CHANGE HANDLER
+    // ========================================
+
+    supabaseClient.auth.onAuthStateChange(
+        function (event, session) {
+
+            /*
+             * Jangan melakukan redirect otomatis
+             * di sini. Redirect tetap dikontrol oleh
+             * proses login agar role USER / ADMIN /
+             * OWNER tidak tertukar.
+             */
+
+            if (event === "SIGNED_OUT") {
+
+                console.log(
+                    "GEN-Z.AI: Session logout."
+                );
+            }
+
+        }
+    );
+
+
+    // ========================================
+    // EXPOSE CLIENT
+    // ========================================
+
+    /*
+     * Hanya untuk kebutuhan halaman yang memang
+     * membutuhkan auth client yang sama.
+     *
+     * Tidak menaruh credential baru.
+     */
+
+    window.GENZ_AUTH =
+        Object.freeze({
+            supabase: supabaseClient
+        });
+
+
+})();
