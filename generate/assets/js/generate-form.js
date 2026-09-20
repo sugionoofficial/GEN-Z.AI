@@ -20,6 +20,10 @@
    - /api/generate
    - Provider API key
    - Credit deduction
+
+   Catatan:
+   - Tidak bergantung pada generate-utils.js
+   - Helper lokal digunakan agar module tetap mandiri
 ========================================================= */
 
 import {
@@ -27,12 +31,244 @@ import {
     getCurrentModel
 } from "./generate-state.js";
 
-import {
-    normalizeArray,
-    safeString,
-    toFiniteNumber,
-    toBoolean
-} from "./generate-utils.js";
+
+/* =========================================================
+   LOCAL HELPERS
+   ---------------------------------------------------------
+   Helper sebelumnya berasal dari generate-utils.js.
+   File tersebut tidak tersedia di repository, sehingga
+   helper yang memang dibutuhkan form didefinisikan lokal.
+========================================================= */
+
+function safeString(
+    value,
+    fallback = ""
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return fallback;
+    }
+
+    const result =
+        String(value).trim();
+
+    return result ||
+        fallback;
+}
+
+
+function normalizeArray(
+    value
+) {
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return value
+            .filter(
+                item =>
+                    item !== null &&
+                    item !== undefined
+            )
+            .map(
+                item =>
+                    typeof item === "string"
+                        ? item.trim()
+                        : item
+            )
+            .filter(
+                item =>
+                    item !== ""
+            );
+    }
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return [];
+    }
+
+    if (
+        typeof value === "string"
+    ) {
+
+        const text =
+            value.trim();
+
+        if (!text) {
+            return [];
+        }
+
+        /*
+         * Support JSON array.
+         */
+        if (
+            (
+                text.startsWith("[") &&
+                text.endsWith("]")
+            )
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        text
+                    );
+
+                if (
+                    Array.isArray(parsed)
+                ) {
+
+                    return normalizeArray(
+                        parsed
+                    );
+                }
+
+            } catch {
+                /*
+                 * Lanjut sebagai string biasa.
+                 */
+            }
+        }
+
+        /*
+         * Support comma-separated values.
+         */
+        return text
+            .split(",")
+            .map(
+                item =>
+                    item.trim()
+            )
+            .filter(
+                Boolean
+            );
+    }
+
+    /*
+     * Support object values.
+     */
+    if (
+        typeof value === "object"
+    ) {
+
+        return Object.values(
+            value
+        )
+            .filter(
+                item =>
+                    item !== null &&
+                    item !== undefined
+            );
+    }
+
+    return [
+        value
+    ];
+}
+
+
+function toFiniteNumber(
+    value,
+    fallback = null
+) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return fallback;
+    }
+
+    const number =
+        Number(value);
+
+    return Number.isFinite(
+        number
+    )
+        ? number
+        : fallback;
+}
+
+
+function toBoolean(
+    value,
+    fallback = false
+) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return fallback;
+    }
+
+    if (
+        typeof value === "boolean"
+    ) {
+
+        return value;
+    }
+
+    if (
+        typeof value === "number"
+    ) {
+
+        return value !== 0;
+    }
+
+    const normalized =
+        String(value)
+            .trim()
+            .toLowerCase();
+
+    if (
+        [
+            "true",
+            "1",
+            "yes",
+            "y",
+            "on",
+            "enabled",
+            "active"
+        ].includes(
+            normalized
+        )
+    ) {
+
+        return true;
+    }
+
+    if (
+        [
+            "false",
+            "0",
+            "no",
+            "n",
+            "off",
+            "disabled",
+            "inactive"
+        ].includes(
+            normalized
+        )
+    ) {
+
+        return false;
+    }
+
+    return fallback;
+}
 
 
 /* =========================================================
@@ -632,6 +868,7 @@ function createTextarea(
 
         textarea.rows =
             rows;
+
     } else {
 
         textarea.rows =
@@ -1164,7 +1401,8 @@ export function renderDynamicFields(
         );
     }
 
-    container.innerHTML = "";
+    container.innerHTML =
+        "";
 
     if (!model) {
 
@@ -1198,7 +1436,8 @@ export function renderDynamicFields(
         return [];
     }
 
-    const renderedFields = [];
+    const renderedFields =
+        [];
 
     parameters.forEach(
         definition => {
