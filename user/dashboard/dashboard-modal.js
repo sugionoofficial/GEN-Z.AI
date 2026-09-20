@@ -24,7 +24,13 @@
 ========================================================= */
 
 (function () {
+
     "use strict";
+
+
+    /* =====================================================
+       NAMESPACE
+    ===================================================== */
 
     window.GENZDashboard =
         window.GENZDashboard || {};
@@ -43,18 +49,114 @@
             dashboard.elements &&
             dashboard.elements.videoModal
         ) {
+
             return dashboard.elements;
         }
 
+
+        if (
+            typeof dashboard.cacheElements !==
+            "function"
+        ) {
+
+            return {};
+        }
+
+
         dashboard.elements =
             dashboard.cacheElements();
+
 
         return dashboard.elements;
     }
 
 
     /* =====================================================
-       MODAL STATE
+       CONFIG HELPERS
+    ===================================================== */
+
+    function getConfig() {
+
+        return (
+            dashboard.config ||
+            {}
+        );
+    }
+
+
+    function getDefaults() {
+
+        const config =
+            getConfig();
+
+
+        return (
+            config.defaults ||
+            {}
+        );
+    }
+
+
+    /* =====================================================
+       ACCESS CONTROL
+    ===================================================== */
+
+    function hasManagementAccess() {
+
+        if (
+            typeof dashboard.hasManagementAccess ===
+            "function"
+        ) {
+
+            return (
+                dashboard.hasManagementAccess()
+            );
+        }
+
+
+        if (
+            typeof dashboard.isAdmin ===
+            "function"
+        ) {
+
+            return (
+                dashboard.isAdmin()
+            );
+        }
+
+
+        return false;
+    }
+
+
+    function isEditMode() {
+
+        if (
+            typeof dashboard.isEditMode ===
+            "function"
+        ) {
+
+            return (
+                dashboard.isEditMode()
+            );
+        }
+
+
+        return false;
+    }
+
+
+    function canManageVideos() {
+
+        return (
+            hasManagementAccess() &&
+            isEditMode()
+        );
+    }
+
+
+    /* =====================================================
+       MODAL VISIBILITY
     ===================================================== */
 
     function setModalVisibility(
@@ -64,11 +166,15 @@
         const elements =
             getElements();
 
+
         const modal =
             elements.videoModal;
 
 
-        if (!modal) {
+        if (
+            !modal
+        ) {
+
             return;
         }
 
@@ -76,13 +182,6 @@
         const shouldOpen =
             open === true;
 
-
-        /*
-         * hidden adalah sumber state utama.
-         *
-         * class hidden tetap disinkronkan agar kompatibel
-         * dengan CSS / kode lama.
-         */
 
         modal.hidden =
             !shouldOpen;
@@ -102,7 +201,9 @@
         );
 
 
-        if (shouldOpen) {
+        if (
+            shouldOpen
+        ) {
 
             document.body.classList.add(
                 "genz-modal-open"
@@ -116,15 +217,31 @@
         }
 
 
-        dashboard.setModalState(
-            shouldOpen,
-            dashboard.getModalMode
-                ? dashboard.getModalMode()
-                : null,
-            dashboard.getSelectedVideoId
-                ? dashboard.getSelectedVideoId()
-                : null
-        );
+        if (
+            typeof dashboard.setModalState ===
+            "function"
+        ) {
+
+            const mode =
+                typeof dashboard.getModalMode ===
+                "function"
+                    ? dashboard.getModalMode()
+                    : null;
+
+
+            const selectedId =
+                typeof dashboard.getSelectedVideoId ===
+                "function"
+                    ? dashboard.getSelectedVideoId()
+                    : null;
+
+
+            dashboard.setModalState(
+                shouldOpen,
+                mode,
+                selectedId
+            );
+        }
     }
 
 
@@ -137,104 +254,11 @@
         const elements =
             getElements();
 
-        return elements.videoForm || null;
-    }
 
-
-    function resetForm() {
-
-        const elements =
-            getElements();
-
-        const form =
-            getForm();
-
-
-        if (form) {
-
-            form.reset();
-        }
-
-
-        /* -------------------------------------------------
-           Explicit defaults
-        ------------------------------------------------- */
-
-        if (
-            elements.videoId
-        ) {
-
-            elements.videoId.value =
-                "";
-        }
-
-
-        if (
-            elements.videoCategory
-        ) {
-
-            elements.videoCategory.value =
-                dashboard.config.defaults.category;
-        }
-
-
-        if (
-            elements.videoAspectRatio
-        ) {
-
-            elements.videoAspectRatio.value =
-                dashboard.config.defaults.aspectRatio;
-        }
-
-
-        if (
-            elements.videoSortOrder
-        ) {
-
-            elements.videoSortOrder.value =
-                String(
-                    dashboard.config.defaults.sortOrder
-                );
-        }
-
-
-        if (
-            elements.videoIsActive
-        ) {
-
-            elements.videoIsActive.checked =
-                dashboard.config.defaults.isActive;
-        }
-
-
-        if (
-            elements.videoFile
-        ) {
-
-            elements.videoFile.value =
-                "";
-        }
-
-
-        if (
-            elements.thumbnailFile
-        ) {
-
-            elements.thumbnailFile.value =
-                "";
-        }
-
-
-        clearCurrentFiles();
-
-
-        resetUploadProgress();
-
-
-        clearFormValidation();
-
-
-        dashboard.clearError();
+        return (
+            elements.videoForm ||
+            null
+        );
     }
 
 
@@ -269,23 +293,27 @@
             getForm();
 
 
-        if (!form) {
+        if (
+            !form
+        ) {
+
             return;
         }
 
 
-        const fields =
+        const invalidFields =
             form.querySelectorAll(
                 ".is-invalid, [aria-invalid='true']"
             );
 
 
-        fields.forEach(
+        invalidFields.forEach(
             function (field) {
 
                 field.classList.remove(
                     "is-invalid"
                 );
+
 
                 field.removeAttribute(
                     "aria-invalid"
@@ -339,11 +367,160 @@
             elements.uploadProgressText.textContent =
                 "Menyiapkan upload...";
         }
+
+
+        if (
+            typeof dashboard.setUploadState ===
+            "function"
+        ) {
+
+            dashboard.setUploadState(
+                false,
+                0,
+                ""
+            );
+        }
     }
 
 
     /* =====================================================
-       TITLE
+       RESET FORM
+    ===================================================== */
+
+    function resetForm() {
+
+        const elements =
+            getElements();
+
+
+        const form =
+            getForm();
+
+
+        if (
+            form
+        ) {
+
+            form.reset();
+        }
+
+
+        const defaults =
+            getDefaults();
+
+
+        if (
+            elements.videoId
+        ) {
+
+            elements.videoId.value =
+                "";
+        }
+
+
+        if (
+            elements.videoTitle
+        ) {
+
+            elements.videoTitle.value =
+                "";
+        }
+
+
+        if (
+            elements.videoDescription
+        ) {
+
+            elements.videoDescription.value =
+                "";
+        }
+
+
+        if (
+            elements.videoCategory
+        ) {
+
+            elements.videoCategory.value =
+                defaults.category ||
+                "";
+        }
+
+
+        if (
+            elements.videoAspectRatio
+        ) {
+
+            elements.videoAspectRatio.value =
+                defaults.aspectRatio ||
+                "";
+        }
+
+
+        if (
+            elements.videoSortOrder
+        ) {
+
+            elements.videoSortOrder.value =
+                String(
+                    Number.isFinite(
+                        Number(
+                            defaults.sortOrder
+                        )
+                    )
+                        ? Number(
+                            defaults.sortOrder
+                        )
+                        : 0
+                );
+        }
+
+
+        if (
+            elements.videoIsActive
+        ) {
+
+            elements.videoIsActive.checked =
+                defaults.isActive !== false;
+        }
+
+
+        if (
+            elements.videoFile
+        ) {
+
+            elements.videoFile.value =
+                "";
+        }
+
+
+        if (
+            elements.thumbnailFile
+        ) {
+
+            elements.thumbnailFile.value =
+                "";
+        }
+
+
+        clearCurrentFiles();
+
+        resetUploadProgress();
+
+        clearFormValidation();
+
+
+        if (
+            typeof dashboard.clearError ===
+            "function"
+        ) {
+
+            dashboard.clearError();
+        }
+    }
+
+
+    /* =====================================================
+       MODAL TITLE
     ===================================================== */
 
     function setModalTitle(
@@ -359,7 +536,7 @@
         ) {
 
             elements.modalTitle.textContent =
-                title;
+                title || "";
         }
     }
 
@@ -370,20 +547,14 @@
 
     function openAddModal() {
 
-        /*
-         * Security:
-         * Hanya ADMIN / OWNER dan edit mode.
-         */
-
         if (
-            !dashboard.isAdmin() ||
-            !dashboard.isEditMode()
+            !canManageVideos()
         ) {
 
-            dashboard.showToast(
-                "Anda tidak memiliki akses untuk menambah video.",
-                "error"
+            showAccessError(
+                "Anda tidak memiliki akses untuk menambah video."
             );
+
 
             return false;
         }
@@ -393,28 +564,50 @@
 
 
         const videos =
-            dashboard.getVideos();
+            typeof dashboard.getVideos ===
+            "function"
+                ? dashboard.getVideos()
+                : [];
 
 
-        const nextOrder =
-            videos.length > 0
-                ? Math.max.apply(
+        let nextOrder =
+            1;
+
+
+        if (
+            videos.length
+        ) {
+
+            const orders =
+                videos.map(
+                    function (video) {
+
+                        const value =
+                            Number(
+                                video &&
+                                video.sort_order
+                            );
+
+
+                        return Number.isFinite(
+                            value
+                        )
+                            ? value
+                            : 0;
+                    }
+                );
+
+
+            const maximum =
+                Math.max.apply(
                     null,
-                    videos.map(
-                        function (video) {
+                    orders
+                );
 
-                            const value =
-                                Number(
-                                    video.sort_order
-                                );
 
-                            return Number.isFinite(value)
-                                ? value
-                                : 0;
-                        }
-                    )
-                ) + 1
-                : 1;
+            nextOrder =
+                maximum + 1;
+        }
 
 
         const elements =
@@ -435,11 +628,17 @@
         );
 
 
-        dashboard.setModalState(
-            true,
-            "create",
-            null
-        );
+        if (
+            typeof dashboard.setModalState ===
+            "function"
+        ) {
+
+            dashboard.setModalState(
+                true,
+                "create",
+                null
+            );
+        }
 
 
         setModalVisibility(
@@ -462,48 +661,49 @@
         videoId
     ) {
 
-        /*
-         * Security:
-         * Jangan hanya mengandalkan tombol UI.
-         */
-
         if (
-            !dashboard.isAdmin() ||
-            !dashboard.isEditMode()
+            !canManageVideos()
         ) {
 
-            dashboard.showToast(
-                "Anda tidak memiliki akses untuk mengedit video.",
-                "error"
+            showAccessError(
+                "Anda tidak memiliki akses untuk mengedit video."
             );
+
 
             return false;
         }
 
 
-        if (!videoId) {
+        if (
+            !videoId
+        ) {
 
-            dashboard.showToast(
-                "Video ID tidak tersedia.",
-                "error"
+            showAccessError(
+                "Video ID tidak tersedia."
             );
+
 
             return false;
         }
 
 
         const video =
-            dashboard.getVideoById(
-                videoId
+            typeof dashboard.getVideoById ===
+            "function"
+                ? dashboard.getVideoById(
+                    videoId
+                )
+                : null;
+
+
+        if (
+            !video
+        ) {
+
+            showAccessError(
+                "Video tidak ditemukan."
             );
 
-
-        if (!video) {
-
-            dashboard.showToast(
-                "Video tidak ditemukan.",
-                "error"
-            );
 
             return false;
         }
@@ -530,7 +730,7 @@
 
 
         /* -------------------------------------------------
-           Title
+           TITLE
         ------------------------------------------------- */
 
         if (
@@ -543,7 +743,7 @@
 
 
         /* -------------------------------------------------
-           Description
+           DESCRIPTION
         ------------------------------------------------- */
 
         if (
@@ -556,7 +756,7 @@
 
 
         /* -------------------------------------------------
-           Category
+           CATEGORY
         ------------------------------------------------- */
 
         if (
@@ -569,44 +769,49 @@
 
 
         /* -------------------------------------------------
-           Aspect Ratio
+           ASPECT RATIO
         ------------------------------------------------- */
 
         if (
             elements.videoAspectRatio
         ) {
 
+            const defaults =
+                getDefaults();
+
+
             elements.videoAspectRatio.value =
                 video.aspect_ratio ||
-                dashboard.config.defaults.aspectRatio;
+                defaults.aspectRatio ||
+                "";
         }
 
 
         /* -------------------------------------------------
-           Sort Order
+           SORT ORDER
         ------------------------------------------------- */
 
         if (
             elements.videoSortOrder
         ) {
 
+            const order =
+                Number(
+                    video.sort_order
+                );
+
+
             elements.videoSortOrder.value =
                 String(
-                    Number.isFinite(
-                        Number(
-                            video.sort_order
-                        )
-                    )
-                        ? Number(
-                            video.sort_order
-                        )
+                    Number.isFinite(order)
+                        ? order
                         : 0
                 );
         }
 
 
         /* -------------------------------------------------
-           Active
+           ACTIVE
         ------------------------------------------------- */
 
         if (
@@ -619,7 +824,7 @@
 
 
         /* -------------------------------------------------
-           Existing Video
+           EXISTING VIDEO
         ------------------------------------------------- */
 
         if (
@@ -634,7 +839,7 @@
 
 
         /* -------------------------------------------------
-           Existing Thumbnail
+           EXISTING THUMBNAIL
         ------------------------------------------------- */
 
         if (
@@ -653,11 +858,17 @@
         );
 
 
-        dashboard.setModalState(
-            true,
-            "edit",
-            video.id
-        );
+        if (
+            typeof dashboard.setModalState ===
+            "function"
+        ) {
+
+            dashboard.setModalState(
+                true,
+                "edit",
+                video.id
+            );
+        }
 
 
         setModalVisibility(
@@ -673,6 +884,35 @@
 
 
     /* =====================================================
+       ACCESS ERROR
+    ===================================================== */
+
+    function showAccessError(
+        message
+    ) {
+
+        if (
+            typeof dashboard.showToast ===
+            "function"
+        ) {
+
+            dashboard.showToast(
+                message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        console.error(
+            "[GEN-Z.AI]",
+            message
+        );
+    }
+
+
+    /* =====================================================
        CLOSE MODAL
     ===================================================== */
 
@@ -681,19 +921,18 @@
         const elements =
             getElements();
 
+
         const modal =
             elements.videoModal;
 
 
-        if (!modal) {
+        if (
+            !modal
+        ) {
+
             return;
         }
 
-
-        /*
-         * Hentikan proses close hanya jika upload sedang
-         * berlangsung. Upload module dapat mengatur state ini.
-         */
 
         if (
             typeof dashboard.isUploadInProgress ===
@@ -701,19 +940,14 @@
             dashboard.isUploadInProgress()
         ) {
 
-            dashboard.showToast(
-                "Tunggu sampai upload selesai.",
-                "error"
+            showAccessError(
+                "Tunggu sampai upload selesai."
             );
+
 
             return;
         }
 
-
-        /*
-         * Hapus fokus dari elemen modal sebelum modal
-         * disembunyikan.
-         */
 
         if (
             document.activeElement &&
@@ -722,7 +956,17 @@
             )
         ) {
 
-            document.activeElement.blur();
+            try {
+
+                document.activeElement.blur();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Modal blur failed:",
+                    error
+                );
+            }
         }
 
 
@@ -731,24 +975,25 @@
         );
 
 
-        /*
-         * Reset setelah modal tertutup.
-         */
-
         resetForm();
 
 
-        dashboard.setModalState(
-            false,
-            null,
-            null
-        );
+        if (
+            typeof dashboard.setModalState ===
+            "function"
+        ) {
+
+            dashboard.setModalState(
+                false,
+                null,
+                null
+            );
+        }
     }
 
 
     /* =====================================================
        FORCE CLOSE
-       Digunakan ketika terjadi error fatal / logout.
     ===================================================== */
 
     function forceCloseModal() {
@@ -756,11 +1001,15 @@
         const elements =
             getElements();
 
+
         const modal =
             elements.videoModal;
 
 
-        if (!modal) {
+        if (
+            !modal
+        ) {
+
             return;
         }
 
@@ -788,16 +1037,22 @@
         resetForm();
 
 
-        dashboard.setModalState(
-            false,
-            null,
-            null
-        );
+        if (
+            typeof dashboard.setModalState ===
+            "function"
+        ) {
+
+            dashboard.setModalState(
+                false,
+                null,
+                null
+            );
+        }
     }
 
 
     /* =====================================================
-       FOCUS
+       FOCUS FIRST FIELD
     ===================================================== */
 
     function focusFirstField() {
@@ -812,7 +1067,9 @@
 
             elements.videoDescription,
 
-            elements.videoCategory
+            elements.videoCategory,
+
+            elements.videoAspectRatio
 
         ];
 
@@ -826,12 +1083,14 @@
                         !element.disabled &&
                         !element.hidden
                     );
-
                 }
             );
 
 
-        if (!field) {
+        if (
+            !field
+        ) {
+
             return;
         }
 
@@ -848,15 +1107,17 @@
                 } catch (error) {
 
                     try {
+
                         field.focus();
+
                     } catch (focusError) {
+
                         console.warn(
                             "[GEN-Z.AI] Modal focus failed:",
                             focusError
                         );
                     }
                 }
-
             }
         );
     }
@@ -873,6 +1134,7 @@
         const elements =
             getElements();
 
+
         const modal =
             elements.videoModal;
 
@@ -881,6 +1143,7 @@
             !modal ||
             modal.hidden
         ) {
+
             return;
         }
 
@@ -897,15 +1160,10 @@
         }
 
 
-        /*
-         * Basic focus trap.
-         *
-         * Tidak menggunakan library tambahan.
-         */
-
         if (
             event.key !== "Tab"
         ) {
+
             return;
         }
 
@@ -925,12 +1183,14 @@
         if (
             !focusable.length
         ) {
+
             return;
         }
 
 
         const first =
             focusable[0];
+
 
         const last =
             focusable[
@@ -974,6 +1234,7 @@
         const elements =
             getElements();
 
+
         const modal =
             elements.videoModal;
 
@@ -982,14 +1243,10 @@
             !modal ||
             modal.hidden
         ) {
+
             return;
         }
 
-
-        /*
-         * Hanya backdrop yang boleh menutup modal.
-         * Klik isi dialog tidak boleh menutup.
-         */
 
         if (
             event.target &&
@@ -1004,7 +1261,7 @@
 
 
     /* =====================================================
-       INITIALIZE MODAL
+       INITIALIZE
     ===================================================== */
 
     function initializeModal() {
@@ -1021,82 +1278,94 @@
                 "[GEN-Z.AI] #videoModal tidak ditemukan."
             );
 
+
             return false;
         }
 
 
         /*
-         * PENTING:
-         * Modal selalu dipaksa tertutup ketika dashboard
-         * pertama kali diinisialisasi.
+         * Pastikan modal selalu tertutup ketika halaman
+         * pertama kali dimuat.
          *
-         * Ini mencegah ADMIN / OWNER melihat form edit
-         * otomatis hanya karena mode ?edit=1 aktif.
+         * ?edit=1 hanya mengaktifkan management mode.
+         * Itu TIDAK berarti modal harus otomatis terbuka.
          */
 
         forceCloseModal();
 
 
         /* -------------------------------------------------
-           Close button
+           Hindari duplicate event binding
         ------------------------------------------------- */
 
+        const modal =
+            elements.videoModal;
+
+
         if (
-            elements.modalClose
+            !modal.dataset.modalEventsBound
         ) {
 
-            elements.modalClose.addEventListener(
+            if (
+                elements.modalClose
+            ) {
+
+                elements.modalClose.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        closeModal();
+                    }
+                );
+            }
+
+
+            if (
+                elements.cancelModalButton
+            ) {
+
+                elements.cancelModalButton.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+                        closeModal();
+                    }
+                );
+            }
+
+
+            modal.addEventListener(
                 "click",
-                function (event) {
-
-                    event.preventDefault();
-
-                    closeModal();
-
-                }
+                handleBackdropClick
             );
+
+
+            modal.dataset.modalEventsBound =
+                "true";
         }
 
 
-        /* -------------------------------------------------
-           Cancel button
-        ------------------------------------------------- */
+        /*
+         * Keyboard listener global hanya dipasang satu kali.
+         */
 
         if (
-            elements.cancelModalButton
+            !dashboard.modalKeyboardBound
         ) {
 
-            elements.cancelModalButton.addEventListener(
-                "click",
-                function (event) {
-
-                    event.preventDefault();
-
-                    closeModal();
-
-                }
+            document.addEventListener(
+                "keydown",
+                handleKeydown
             );
+
+
+            dashboard.modalKeyboardBound =
+                true;
         }
-
-
-        /* -------------------------------------------------
-           Backdrop
-        ------------------------------------------------- */
-
-        elements.videoModal.addEventListener(
-            "click",
-            handleBackdropClick
-        );
-
-
-        /* -------------------------------------------------
-           Keyboard
-        ------------------------------------------------- */
-
-        document.addEventListener(
-            "keydown",
-            handleKeydown
-        );
 
 
         return true;
@@ -1110,32 +1379,52 @@
     dashboard.setModalVisibility =
         setModalVisibility;
 
+
     dashboard.resetModalForm =
         resetForm;
+
 
     dashboard.openAddModal =
         openAddModal;
 
+
     dashboard.openEditModal =
         openEditModal;
+
 
     dashboard.closeModal =
         closeModal;
 
+
     dashboard.forceCloseModal =
         forceCloseModal;
 
+
     dashboard.initializeModal =
         initializeModal;
+
 
     dashboard.focusModalField =
         focusFirstField;
 
 
+    dashboard.setModalTitle =
+        setModalTitle;
+
+
+    dashboard.clearModalCurrentFiles =
+        clearCurrentFiles;
+
+
+    dashboard.resetModalUploadProgress =
+        resetUploadProgress;
+
+
     /* =====================================================
-       READY FLAG
+       READY
     ===================================================== */
 
-    dashboard.modalReady = true;
+    dashboard.modalReady =
+        true;
 
 })();
