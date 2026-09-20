@@ -5,12 +5,13 @@
    File:
    generate/assets/js/generate-app.js
 
-   Tanggung jawab:
-   - Bootstrap halaman Generate
-   - Inisialisasi DOM
+   RESPONSIBILITY:
+   - Bootstrap Generate
+   - DOM initialization
    - Authentication
    - Profile
-   - Role + Account Credit
+   - Role
+   - Account Credit
    - Model
    - Model Credit
    - Form
@@ -18,71 +19,87 @@
    - Polling
    - Reset
 
-   PENTING:
-   ---------------------------------------------------------
-   File ini menggunakan dynamic import agar kegagalan satu
-   module tidak membuat seluruh Generate mati sebelum
-   bootstrap dapat memberikan informasi error.
-
    SOURCE OF TRUTH:
-   - Auth          -> Supabase Auth
-   - Role          -> profiles.role
-   - Account Credit-> profiles.credits
-   - Model         -> model registry
-   - Model Credit  -> model.credit_final / pricing.credit_final
+   - Auth           -> Supabase Auth
+   - Role           -> profiles.role
+   - Account Credit -> profiles.credits
+   - Model          -> /api/model-config
+   - Model Credit   -> models.credit_final
 
-   TIDAK ADA:
-   - Role hardcode
-   - Account credit hardcode
-   - Model credit hardcode
+   IMPORTANT:
+   - Form failure must NOT destroy Auth.
+   - Form failure must NOT destroy Profile.
+   - Form failure must NOT destroy Role.
+   - Form failure must NOT destroy Account Credit.
+   - Form failure must NOT destroy Model.
+   - Model failure must NOT destroy Auth/Profile.
+
 ========================================================= */
 
 "use strict";
 
 
 /* =========================================================
-   APP STATE
+   APPLICATION STATE
 ========================================================= */
 
 const appState = {
 
-    initialized: false,
+    initialized:
+        false,
 
-    initializing: false,
+    initializing:
+        false,
 
-    submitting: false,
+    submitting:
+        false,
 
-    polling: false,
+    polling:
+        false,
 
-    eventsBound: false,
+    eventsBound:
+        false,
 
-    authReady: false,
+    authReady:
+        false,
 
-    profileReady: false,
+    profileReady:
+        false,
 
-    modelReady: false,
+    modelReady:
+        false,
 
-    currentTaskId: null,
+    currentTaskId:
+        null,
 
-    pollingStartedAt: null,
+    pollingStartedAt:
+        null,
 
     modules: {
 
-        state: null,
+        state:
+            null,
 
-        auth: null,
+        auth:
+            null,
 
-        model: null,
+        ui:
+            null,
 
-        form: null,
+        model:
+            null,
 
-        validation: null,
+        form:
+            null,
 
-        request: null,
+        validation:
+            null,
 
-        polling: null,
+        request:
+            null,
 
-        ui: null
+        polling:
+            null
 
     }
 
@@ -93,24 +110,29 @@ const appState = {
    CONFIG
 ========================================================= */
 
-const POLLING_INTERVAL = 3000;
+const POLLING_INTERVAL =
+    3000;
 
 const POLLING_TIMEOUT =
     10 * 60 * 1000;
 
 
 /* =========================================================
-   DIRECT DOM ACCESS
+   DIRECT DOM
    ---------------------------------------------------------
-   Digunakan bahkan sebelum state module berhasil dimuat.
-   Ini sengaja.
+   Direct DOM access intentionally does not depend on
+   generate-state.js or generate-ui.js.
 ========================================================= */
 
-function directElement(id) {
+function directElement(
+    id
+) {
 
     try {
 
-        return document.getElementById(id);
+        return document.getElementById(
+            id
+        );
 
     } catch {
 
@@ -126,73 +148,119 @@ function directElements() {
     return {
 
         status:
-            directElement("status"),
+            directElement(
+                "status"
+            ),
 
         modelSelector:
-            directElement("modelSelector"),
+            directElement(
+                "modelSelector"
+            ),
 
         modelSelect:
-            directElement("modelSelect"),
+            directElement(
+                "modelSelect"
+            ),
 
         modelName:
-            directElement("modelName"),
+            directElement(
+                "modelName"
+            ),
 
         modelDescription:
-            directElement("modelDescription"),
+            directElement(
+                "modelDescription"
+            ),
 
         providerName:
-            directElement("providerName"),
+            directElement(
+                "providerName"
+            ),
 
         modelMeta:
-            directElement("modelMeta"),
+            directElement(
+                "modelMeta"
+            ),
 
         dynamicFields:
-            directElement("dynamicFields"),
+            directElement(
+                "dynamicFields"
+            ),
 
         generateForm:
-            directElement("generateForm"),
+            directElement(
+                "generateForm"
+            ),
 
         generateCard:
-            directElement("generateCard"),
+            directElement(
+                "generateCard"
+            ),
 
         generateButton:
-            directElement("generateButton"),
+            directElement(
+                "generateButton"
+            ),
 
         resetButton:
-            directElement("resetButton"),
+            directElement(
+                "resetButton"
+            ),
 
         loading:
-            directElement("loading"),
+            directElement(
+                "loading"
+            ),
 
         resultCard:
-            directElement("resultCard"),
+            directElement(
+                "resultCard"
+            ),
 
         pageError:
-            directElement("pageError"),
+            directElement(
+                "pageError"
+            ),
 
         pageErrorMessage:
-            directElement("pageErrorMessage"),
+            directElement(
+                "pageErrorMessage"
+            ),
 
         roleBadge:
-            directElement("roleBadge"),
+            directElement(
+                "roleBadge"
+            ),
 
         creditBadge:
-            directElement("creditBadge"),
+            directElement(
+                "creditBadge"
+            ),
 
         generateCreditCost:
-            directElement("generateCreditCost"),
+            directElement(
+                "generateCreditCost"
+            ),
 
         generateCreditValue:
-            directElement("generateCreditValue"),
+            directElement(
+                "generateCreditValue"
+            ),
 
         resultModel:
-            directElement("resultModel"),
+            directElement(
+                "resultModel"
+            ),
 
         resultProvider:
-            directElement("resultProvider"),
+            directElement(
+                "resultProvider"
+            ),
 
         resultTaskId:
-            directElement("resultTaskId")
+            directElement(
+                "resultTaskId"
+            )
 
     };
 
@@ -200,12 +268,58 @@ function directElements() {
 
 
 /* =========================================================
-   SHOW BOOTSTRAP ERROR
-   ---------------------------------------------------------
-   Harus bisa bekerja walaupun state/UI module gagal.
+   GET ELEMENTS
 ========================================================= */
 
-function showDirectError(message) {
+function getElements() {
+
+    const state =
+        appState.modules.state;
+
+
+    if (
+        state &&
+        typeof state.getGenerateElements ===
+            "function"
+    ) {
+
+        try {
+
+            return state.getGenerateElements();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][Generate] State element lookup failed:",
+                error
+            );
+
+        }
+
+    }
+
+
+    return directElements();
+
+}
+
+
+/* =========================================================
+   ERROR DISPLAY
+========================================================= */
+
+function showDirectError(
+    message
+) {
+
+    const text =
+        String(
+            message ||
+            "Generate gagal diinisialisasi."
+        );
+
 
     const pageError =
         directElement(
@@ -217,16 +331,18 @@ function showDirectError(message) {
             "pageErrorMessage"
         );
 
+    const status =
+        directElement(
+            "status"
+        );
+
 
     if (
         pageErrorMessage
     ) {
 
         pageErrorMessage.textContent =
-            String(
-                message ||
-                "Generate gagal diinisialisasi."
-            );
+            text;
 
     }
 
@@ -248,12 +364,6 @@ function showDirectError(message) {
     }
 
 
-    const status =
-        directElement(
-            "status"
-        );
-
-
     if (
         status
     ) {
@@ -265,10 +375,7 @@ function showDirectError(message) {
             "";
 
         status.textContent =
-            String(
-                message ||
-                "Generate gagal diinisialisasi."
-            );
+            text;
 
         status.classList.add(
             "is-error"
@@ -278,16 +385,12 @@ function showDirectError(message) {
 
 
     console.error(
-        "[GEN-Z.AI][Generate] Bootstrap error:",
-        message
+        "[GEN-Z.AI][Generate] ERROR:",
+        text
     );
 
 }
 
-
-/* =========================================================
-   HIDE DIRECT ERROR
-========================================================= */
 
 function hideDirectError() {
 
@@ -304,13 +407,17 @@ function hideDirectError() {
         pageError.hidden =
             true;
 
+        pageError.classList.remove(
+            "is-error"
+        );
+
     }
 
 }
 
 
 /* =========================================================
-   LOAD MODULE
+   MODULE LOADER
 ========================================================= */
 
 async function loadModule(
@@ -382,101 +489,143 @@ async function loadModule(
 
 
 /* =========================================================
+   OPTIONAL MODULE LOADER
+   ---------------------------------------------------------
+   Module optional tidak boleh menghentikan bootstrap.
+========================================================= */
+
+async function loadOptionalModule(
+    name,
+    path
+) {
+
+    try {
+
+        return await loadModule(
+            name,
+            path
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            `[GEN-Z.AI][Generate] Optional module "${name}" gagal:`,
+            error
+        );
+
+
+        return null;
+
+    }
+
+}
+
+
+/* =========================================================
    LOAD CORE MODULES
+   ---------------------------------------------------------
+   CORE:
+   - state
+   - auth
+   - ui
+   - model
+
+   OPTIONAL:
+   - form
+   - validation
+   - request
+   - polling
 ========================================================= */
 
 async function loadCoreModules() {
 
-    /*
-     * State dimuat pertama.
-     *
-     * Setelah ini kita sudah punya DOM state.
-     */
+    /* -----------------------------------------------------
+       STATE
+    ----------------------------------------------------- */
 
     const state =
         await loadModule(
             "state",
-            "./generate-state.js"
+            "./generate-state.js?v=20260921"
         );
 
 
-    /*
-     * Auth.
-     */
+    /* -----------------------------------------------------
+       AUTH
+    ----------------------------------------------------- */
 
     const auth =
         await loadModule(
             "auth",
-            "./generate-auth.js"
+            "./generate-auth.js?v=20260921"
         );
 
 
-    /*
-     * UI.
-
-     * UI harus dimuat sebelum model supaya
-     * rendering error/credit tersedia.
-     */
+    /* -----------------------------------------------------
+       UI
+    ----------------------------------------------------- */
 
     const ui =
         await loadModule(
             "ui",
-            "./generate-ui.js"
+            "./generate-ui.js?v=20260921"
         );
 
 
-    /*
-     * Model.
-     */
+    /* -----------------------------------------------------
+       MODEL
+    ----------------------------------------------------- */
 
     const model =
         await loadModule(
             "model",
-            "./generate-model.js"
+            "./generate-model.js?v=20260921"
         );
 
 
-    /*
-     * Form.
-     */
+    /* -----------------------------------------------------
+       FORM
+    ----------------------------------------------------- */
 
     const form =
-        await loadModule(
+        await loadOptionalModule(
             "form",
-            "./generate-form.js"
+            "./generate-form.js?v=20260921"
         );
 
 
-    /*
-     * Validation.
-     */
+    /* -----------------------------------------------------
+       VALIDATION
+    ----------------------------------------------------- */
 
     const validation =
-        await loadModule(
+        await loadOptionalModule(
             "validation",
-            "./generate-validation.js"
+            "./generate-validation.js?v=20260921"
         );
 
 
-    /*
-     * Request.
-     */
+    /* -----------------------------------------------------
+       REQUEST
+    ----------------------------------------------------- */
 
     const request =
-        await loadModule(
+        await loadOptionalModule(
             "request",
-            "./generate-request.js"
+            "./generate-request.js?v=20260921"
         );
 
 
-    /*
-     * Polling.
-     */
+    /* -----------------------------------------------------
+       POLLING
+    ----------------------------------------------------- */
 
     const polling =
-        await loadModule(
+        await loadOptionalModule(
             "polling",
-            "./generate-polling.js"
+            "./generate-polling.js?v=20260921"
         );
 
 
@@ -504,41 +653,7 @@ async function loadCoreModules() {
 
 
 /* =========================================================
-   GET STATE ELEMENTS
-========================================================= */
-
-function getElements() {
-
-    const state =
-        appState.modules.state;
-
-
-    if (
-        state &&
-        typeof state.getGenerateElements ===
-            "function"
-    ) {
-
-        try {
-
-            return state.getGenerateElements();
-
-        } catch {
-
-            /* fallback */
-
-        }
-
-    }
-
-
-    return directElements();
-
-}
-
-
-/* =========================================================
-   STATE HELPERS
+   CURRENT PROFILE
 ========================================================= */
 
 function getCurrentProfile() {
@@ -553,7 +668,15 @@ function getCurrentProfile() {
             "function"
     ) {
 
-        return state.getCurrentProfile();
+        try {
+
+            return state.getCurrentProfile();
+
+        } catch {
+
+            return null;
+
+        }
 
     }
 
@@ -562,6 +685,44 @@ function getCurrentProfile() {
 
 }
 
+
+/* =========================================================
+   CURRENT USER
+========================================================= */
+
+function getCurrentUser() {
+
+    const state =
+        appState.modules.state;
+
+
+    if (
+        state &&
+        typeof state.getCurrentUser ===
+            "function"
+    ) {
+
+        try {
+
+            return state.getCurrentUser();
+
+        } catch {
+
+            return null;
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   CURRENT MODEL
+========================================================= */
 
 function getCurrentModel() {
 
@@ -575,7 +736,15 @@ function getCurrentModel() {
             "function"
     ) {
 
-        return state.getCurrentModel();
+        try {
+
+            return state.getCurrentModel();
+
+        } catch {
+
+            return null;
+
+        }
 
     }
 
@@ -584,6 +753,10 @@ function getCurrentModel() {
 
 }
 
+
+/* =========================================================
+   MODEL READY
+========================================================= */
 
 function isCurrentModelReady() {
 
@@ -617,14 +790,17 @@ function isCurrentModelReady() {
 
 
     return Boolean(
-        model?.model_id
+        String(
+            model?.model_id ||
+            ""
+        ).trim()
     );
 
 }
 
 
 /* =========================================================
-   AUTH BADGE
+   ROLE
 ========================================================= */
 
 function normalizeRole(
@@ -639,6 +815,10 @@ function normalizeRole(
 
 }
 
+
+/* =========================================================
+   CREDIT FORMAT
+========================================================= */
 
 function formatCredit(
     value
@@ -688,83 +868,10 @@ function formatCredit(
 
 
 /* =========================================================
-   RENDER ROLE DIRECTLY
-   ---------------------------------------------------------
-   Ini sengaja tidak bergantung pada UI module.
-========================================================= */
-
-function renderRoleDirect(
-    profile
-) {
-
-    const badge =
-        directElement(
-            "roleBadge"
-        );
-
-
-    if (
-        !badge
-    ) {
-
-        console.warn(
-            "[GEN-Z.AI][Generate] #roleBadge tidak ditemukan."
-        );
-
-        return false;
-
-    }
-
-
-    const role =
-        normalizeRole(
-            profile?.role
-        );
-
-
-    if (
-        !role
-    ) {
-
-        badge.textContent =
-            "-";
-
-        badge.hidden =
-            false;
-
-        badge.style.display =
-            "";
-
-        return false;
-
-    }
-
-
-    badge.textContent =
-        role;
-
-    badge.hidden =
-        false;
-
-    badge.style.display =
-        "";
-
-    badge.dataset.role =
-        role;
-
-
-    return true;
-
-}
-
-
-/* =========================================================
-   RENDER ACCOUNT CREDIT DIRECTLY
+   ACCOUNT CREDIT
    ---------------------------------------------------------
    SOURCE:
-       profiles.credits
-
-   0 VALID.
+   profiles.credits
 ========================================================= */
 
 function renderAccountCreditDirect(
@@ -799,6 +906,7 @@ function renderAccountCreditDirect(
             credits
         )}`;
 
+
     badge.hidden =
         false;
 
@@ -818,7 +926,75 @@ function renderAccountCreditDirect(
 
 
 /* =========================================================
-   RENDER AUTH BADGES
+   ROLE BADGE
+========================================================= */
+
+function renderRoleDirect(
+    profile
+) {
+
+    const badge =
+        directElement(
+            "roleBadge"
+        );
+
+
+    if (
+        !badge
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate] #roleBadge tidak ditemukan."
+        );
+
+        return false;
+
+    }
+
+
+    const role =
+        normalizeRole(
+            profile?.role
+        );
+
+
+    badge.textContent =
+        role ||
+        "-";
+
+
+    badge.hidden =
+        false;
+
+    badge.style.display =
+        "";
+
+    badge.style.visibility =
+        "visible";
+
+    badge.style.opacity =
+        "1";
+
+
+    if (
+        role
+    ) {
+
+        badge.dataset.role =
+            role;
+
+    }
+
+
+    return Boolean(
+        role
+    );
+
+}
+
+
+/* =========================================================
+   AUTH BADGES
 ========================================================= */
 
 function renderAuthBadgesDirect(
@@ -845,11 +1021,6 @@ function renderAuthBadgesDirect(
         profile
     );
 
-
-    /*
-     * UI module tetap dipanggil jika tersedia.
-     * Direct render di atas menjadi pengaman.
-     */
 
     const ui =
         appState.modules.ui;
@@ -882,8 +1053,9 @@ function renderAuthBadgesDirect(
 
 
     /*
-     * Pastikan UI module tidak menyembunyikan
-     * badge setelah render.
+     * Render ulang secara direct.
+     *
+     * Ini mencegah module UI lain mengosongkan badge.
      */
 
     renderRoleDirect(
@@ -901,7 +1073,7 @@ function renderAuthBadgesDirect(
 
 
 /* =========================================================
-   RENDER MODEL CREDIT DIRECTLY
+   MODEL CREDIT
 ========================================================= */
 
 function getModelCredit(
@@ -933,13 +1105,13 @@ function getModelCredit(
 
 
     for (
-        const value of candidates
+        const candidate of candidates
     ) {
 
         if (
-            value === null ||
-            value === undefined ||
-            value === ""
+            candidate === null ||
+            candidate === undefined ||
+            candidate === ""
         ) {
 
             continue;
@@ -949,7 +1121,7 @@ function getModelCredit(
 
         const numeric =
             Number(
-                value
+                candidate
             );
 
 
@@ -964,9 +1136,19 @@ function getModelCredit(
         }
 
 
-        return String(
-            value
-        ).trim();
+        const text =
+            String(
+                candidate
+            ).trim();
+
+
+        if (
+            text
+        ) {
+
+            return text;
+
+        }
 
     }
 
@@ -977,7 +1159,7 @@ function getModelCredit(
 
 
 /* =========================================================
-   RENDER MODEL CREDIT
+   MODEL CREDIT RENDER
 ========================================================= */
 
 function renderModelCreditDirect(
@@ -989,14 +1171,14 @@ function renderModelCreditDirect(
             "generateCreditCost"
         );
 
-    const valueElement =
+    const value =
         directElement(
             "generateCreditValue"
         );
 
 
     if (
-        !valueElement
+        !value
     ) {
 
         console.warn(
@@ -1018,12 +1200,12 @@ function renderModelCreditDirect(
         credit === null
     ) {
 
-        valueElement.textContent =
+        value.textContent =
             "-- Credit";
 
     } else {
 
-        valueElement.textContent =
+        value.textContent =
             `${formatCredit(
                 credit
             )} Credit`;
@@ -1031,11 +1213,17 @@ function renderModelCreditDirect(
     }
 
 
-    valueElement.hidden =
+    value.hidden =
         false;
 
-    valueElement.style.display =
+    value.style.display =
         "";
+
+    value.style.visibility =
+        "visible";
+
+    value.style.opacity =
+        "1";
 
 
     if (
@@ -1088,8 +1276,7 @@ function renderModelCreditDirect(
 
 
     /*
-     * Render ulang setelah UI module supaya
-     * tidak ada module lain yang mengosongkan nilai.
+     * Final direct render.
      */
 
     const finalCredit =
@@ -1098,18 +1285,22 @@ function renderModelCreditDirect(
         );
 
 
-    valueElement.textContent =
+    value.textContent =
         finalCredit === null
             ? "-- Credit"
             : `${formatCredit(
                 finalCredit
             )} Credit`;
 
-    valueElement.hidden =
+
+    value.hidden =
         false;
 
-    valueElement.style.display =
+    value.style.display =
         "";
+
+    value.style.visibility =
+        "visible";
 
 
     if (
@@ -1122,6 +1313,9 @@ function renderModelCreditDirect(
         container.style.display =
             "inline-flex";
 
+        container.style.visibility =
+            "visible";
+
     }
 
 
@@ -1131,7 +1325,7 @@ function renderModelCreditDirect(
 
 
 /* =========================================================
-   RENDER MODEL HEADER
+   MODEL HEADER
 ========================================================= */
 
 function renderModelHeaderSafe(
@@ -1168,10 +1362,6 @@ function renderModelHeaderSafe(
     }
 
 
-    /*
-     * Model credit selalu diproses terpisah.
-     */
-
     renderModelCreditDirect(
         model
     );
@@ -1198,12 +1388,23 @@ function showStatus(
             "function"
     ) {
 
-        ui.showStatus(
-            message,
-            type
-        );
+        try {
 
-        return;
+            ui.showStatus(
+                message,
+                type
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][Generate] UI status gagal:",
+                error
+            );
+
+        }
 
     }
 
@@ -1215,28 +1416,25 @@ function showStatus(
 
 
     if (
-        !status
+        status
     ) {
 
-        return;
+        status.hidden =
+            false;
+
+        status.style.display =
+            "";
+
+        status.textContent =
+            String(
+                message ||
+                ""
+            );
+
+        status.dataset.type =
+            type;
 
     }
-
-
-    status.hidden =
-        false;
-
-    status.style.display =
-        "";
-
-    status.textContent =
-        String(
-            message ||
-            ""
-        );
-
-    status.dataset.type =
-        type;
 
 }
 
@@ -1253,9 +1451,15 @@ function hideStatus() {
             "function"
     ) {
 
-        ui.hideStatus();
+        try {
 
-        return;
+            ui.hideStatus();
+
+        } catch {
+
+            /* ignore */
+
+        }
 
     }
 
@@ -1288,6 +1492,14 @@ function showError(
         "Terjadi kesalahan."
 ) {
 
+    const message =
+        error?.message ||
+        String(
+            error ||
+            fallback
+        );
+
+
     const ui =
         appState.modules.ui;
 
@@ -1307,46 +1519,7 @@ function showError(
 
         } catch {
 
-            /* fallback below */
-
-        }
-
-    }
-
-
-    console.error(
-        "[GEN-Z.AI][Generate]",
-        error
-    );
-
-}
-
-
-function showPageError(
-    message
-) {
-
-    const ui =
-        appState.modules.ui;
-
-
-    if (
-        ui &&
-        typeof ui.showPageError ===
-            "function"
-    ) {
-
-        try {
-
-            ui.showPageError(
-                message
-            );
-
-            return;
-
-        } catch {
-
-            /* fallback */
+            /* direct fallback */
 
         }
 
@@ -1360,28 +1533,22 @@ function showPageError(
 }
 
 
+function showPageError(
+    message
+) {
+
+    showDirectError(
+        message
+    );
+
+}
+
+
 /* =========================================================
-   GENERATION BUTTON
+   ENABLE GENERATE
 ========================================================= */
 
 function enableGeneration() {
-
-    const ui =
-        appState.modules.ui;
-
-
-    if (
-        ui &&
-        typeof ui.enableGeneration ===
-            "function"
-    ) {
-
-        ui.enableGeneration();
-
-        return;
-
-    }
-
 
     const button =
         directElement(
@@ -1390,35 +1557,45 @@ function enableGeneration() {
 
 
     if (
-        button
+        !button
     ) {
 
-        button.disabled =
-            false;
+        return;
+
+    }
+
+
+    button.disabled =
+        false;
+
+    button.removeAttribute(
+        "aria-disabled"
+    );
+
+
+    const loading =
+        directElement(
+            "loading"
+        );
+
+
+    if (
+        loading
+    ) {
+
+        loading.hidden =
+            true;
 
     }
 
 }
 
 
+/* =========================================================
+   DISABLE GENERATE
+========================================================= */
+
 function disableGeneration() {
-
-    const ui =
-        appState.modules.ui;
-
-
-    if (
-        ui &&
-        typeof ui.disableGeneration ===
-            "function"
-    ) {
-
-        ui.disableGeneration();
-
-        return;
-
-    }
-
 
     const button =
         directElement(
@@ -1433,13 +1610,18 @@ function disableGeneration() {
         button.disabled =
             true;
 
+        button.setAttribute(
+            "aria-disabled",
+            "true"
+        );
+
     }
 
 }
 
 
 /* =========================================================
-   AVAILABILITY
+   GENERATE AVAILABILITY
 ========================================================= */
 
 function refreshGenerateAvailability() {
@@ -1456,15 +1638,11 @@ function refreshGenerateAvailability() {
     }
 
 
-    const ready =
+    if (
         appState.authReady &&
         appState.profileReady &&
         appState.modelReady &&
-        isCurrentModelReady();
-
-
-    if (
-        ready
+        isCurrentModelReady()
     ) {
 
         enableGeneration();
@@ -1472,6 +1650,45 @@ function refreshGenerateAvailability() {
     } else {
 
         disableGeneration();
+
+    }
+
+
+    /*
+     * Model credit tidak boleh hilang ketika
+     * availability berubah.
+     */
+
+    const model =
+        getCurrentModel();
+
+
+    if (
+        model
+    ) {
+
+        renderModelCreditDirect(
+            model
+        );
+
+    }
+
+
+    /*
+     * Account credit juga selalu dipertahankan.
+     */
+
+    const profile =
+        getCurrentProfile();
+
+
+    if (
+        profile
+    ) {
+
+        renderAuthBadgesDirect(
+            profile
+        );
 
     }
 
@@ -1489,40 +1706,98 @@ async function initializeDOM() {
 
 
     if (
-        !state ||
-        typeof state.initializeGenerateElements !==
+        state &&
+        typeof state.initializeGenerateElements ===
             "function"
     ) {
 
-        throw new Error(
-            "generate-state.js tidak menyediakan initializeGenerateElements()."
-        );
+        state.initializeGenerateElements();
 
     }
 
 
-    state.initializeGenerateElements();
+    /*
+     * DOM direct validation.
+     */
+
+    const elements =
+        directElements();
+
+
+    console.log(
+        "[GEN-Z.AI][Generate] DOM:",
+        {
+
+            roleBadge:
+                Boolean(
+                    elements.roleBadge
+                ),
+
+            creditBadge:
+                Boolean(
+                    elements.creditBadge
+                ),
+
+            modelSelect:
+                Boolean(
+                    elements.modelSelect
+                ),
+
+            generateCreditCost:
+                Boolean(
+                    elements.generateCreditCost
+                ),
+
+            generateCreditValue:
+                Boolean(
+                    elements.generateCreditValue
+                ),
+
+            generateForm:
+                Boolean(
+                    elements.generateForm
+                ),
+
+            generateButton:
+                Boolean(
+                    elements.generateButton
+                )
+
+        }
+    );
 
 
     if (
+        state &&
         typeof state.validateGenerateElements ===
             "function"
     ) {
 
-        state.validateGenerateElements();
+        try {
+
+            state.validateGenerateElements();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][Generate] DOM validation warning:",
+                error
+            );
+
+        }
 
     }
 
 
-    console.log(
-        "[GEN-Z.AI][Generate] DOM elements initialized."
-    );
+    return elements;
 
 }
 
 
 /* =========================================================
-   AUTH
+   AUTH INITIALIZATION
 ========================================================= */
 
 async function initializeAuth() {
@@ -1542,9 +1817,9 @@ async function initializeAuth() {
     }
 
 
-    /*
-     * STEP 1
-     */
+    /* -----------------------------------------------------
+       SUPABASE
+    ----------------------------------------------------- */
 
     if (
         typeof auth.loadSupabase !==
@@ -1552,7 +1827,7 @@ async function initializeAuth() {
     ) {
 
         throw new Error(
-            "generate-auth.js tidak memiliki loadSupabase()."
+            "generate-auth.js tidak menyediakan loadSupabase()."
         );
 
     }
@@ -1561,9 +1836,9 @@ async function initializeAuth() {
     await auth.loadSupabase();
 
 
-    /*
-     * STEP 2
-     */
+    /* -----------------------------------------------------
+       USER
+    ----------------------------------------------------- */
 
     if (
         typeof auth.loadCurrentUser !==
@@ -1571,7 +1846,7 @@ async function initializeAuth() {
     ) {
 
         throw new Error(
-            "generate-auth.js tidak memiliki loadCurrentUser()."
+            "generate-auth.js tidak menyediakan loadCurrentUser()."
         );
 
     }
@@ -1596,9 +1871,9 @@ async function initializeAuth() {
         true;
 
 
-    /*
-     * STEP 3
-     */
+    /* -----------------------------------------------------
+       PROFILE
+    ----------------------------------------------------- */
 
     if (
         typeof auth.loadProfile !==
@@ -1606,7 +1881,7 @@ async function initializeAuth() {
     ) {
 
         throw new Error(
-            "generate-auth.js tidak memiliki loadProfile()."
+            "generate-auth.js tidak menyediakan loadProfile()."
         );
 
     }
@@ -1629,11 +1904,9 @@ async function initializeAuth() {
     }
 
 
-    /*
-     * STEP 4
-     *
-     * Profile ID wajib sama dengan user Auth.
-     */
+    /* -----------------------------------------------------
+       PROFILE ID
+    ----------------------------------------------------- */
 
     if (
         String(
@@ -1652,11 +1925,9 @@ async function initializeAuth() {
     }
 
 
-    /*
-     * STEP 5
-     *
-     * Role WAJIB berasal dari profiles.role.
-     */
+    /* -----------------------------------------------------
+       ROLE
+    ----------------------------------------------------- */
 
     const role =
         normalizeRole(
@@ -1675,23 +1946,49 @@ async function initializeAuth() {
     }
 
 
-    /*
-     * STEP 6
-     *
-     * Simpan global compatibility.
-     */
+    /* -----------------------------------------------------
+       SAVE STATE
+    ----------------------------------------------------- */
+
+    const state =
+        appState.modules.state;
+
+
+    if (
+        state &&
+        typeof state.setCurrentUser ===
+            "function"
+    ) {
+
+        state.setCurrentUser(
+            user
+        );
+
+    }
+
+
+    if (
+        state &&
+        typeof state.setCurrentProfile ===
+            "function"
+    ) {
+
+        state.setCurrentProfile(
+            profile
+        );
+
+    }
+
+
+    /* -----------------------------------------------------
+       GLOBAL COMPATIBILITY
+    ----------------------------------------------------- */
 
     window.GENZ_CURRENT_USER =
         user;
 
     window.GENZ_CURRENT_PROFILE =
         profile;
-
-
-    /*
-     * Navigation hanya cache.
-     * Tidak menjadi source of truth.
-     */
 
     window.GENZ_NAVIGATION_USER =
         user;
@@ -1700,57 +1997,27 @@ async function initializeAuth() {
         profile;
 
 
-    /*
-     * STEP 7
-     *
-     * Tandai profile siap SEBELUM model.
-     */
+    /* -----------------------------------------------------
+       PROFILE READY
+    ----------------------------------------------------- */
 
     appState.profileReady =
         true;
 
 
-    /*
-     * STEP 8
-     *
-     * Render badge langsung.
-     */
+    /* -----------------------------------------------------
+       RENDER AUTH
+    ----------------------------------------------------- */
 
     renderAuthBadgesDirect(
         profile
     );
 
 
-    /*
-     * Role helper bila tersedia.
-     */
-
-    if (
-        typeof auth.getCurrentRole ===
-            "function"
-    ) {
-
-        try {
-
-            auth.getCurrentRole();
-
-        } catch (
-            error
-        ) {
-
-            console.warn(
-                "[GEN-Z.AI][Generate] getCurrentRole:",
-                error
-            );
-
-        }
-
-    }
-
-
     console.log(
         "[GEN-Z.AI][Generate] AUTH READY:",
         {
+
             email:
                 user.email,
 
@@ -1759,16 +2026,10 @@ async function initializeAuth() {
 
             credits:
                 profile.credits
+
         }
     );
 
-
-    /*
-     * PENTING:
-     *
-     * Tidak ada model di sini.
-     * Tidak ada model credit di sini.
-     */
 
     return profile;
 
@@ -1776,7 +2037,7 @@ async function initializeAuth() {
 
 
 /* =========================================================
-   MODEL
+   MODEL INITIALIZATION
 ========================================================= */
 
 async function initializeModel() {
@@ -1786,7 +2047,17 @@ async function initializeModel() {
 
 
     if (
-        !modelModule ||
+        !modelModule
+    ) {
+
+        throw new Error(
+            "generate-model.js belum dimuat."
+        );
+
+    }
+
+
+    if (
         typeof modelModule.resolveInitialModel !==
             "function"
     ) {
@@ -1828,18 +2099,41 @@ async function initializeModel() {
     }
 
 
-    /*
-     * Render model header.
-     */
+    /* -----------------------------------------------------
+       SAVE MODEL
+    ----------------------------------------------------- */
+
+    const state =
+        appState.modules.state;
+
+
+    if (
+        state &&
+        typeof state.setCurrentModel ===
+            "function"
+    ) {
+
+        state.setCurrentModel(
+            model
+        );
+
+    }
+
+
+    /* -----------------------------------------------------
+       MODEL HEADER
+    ----------------------------------------------------- */
 
     renderModelHeaderSafe(
         model
     );
 
 
-    /*
-     * Render form.
-     */
+    /* -----------------------------------------------------
+       FORM
+       -----------------------------------------------------
+       FORM FAILURE DOES NOT FAIL MODEL.
+    ----------------------------------------------------- */
 
     const form =
         appState.modules.form;
@@ -1851,25 +2145,47 @@ async function initializeModel() {
             "function"
     ) {
 
-        form.renderGenerateForm();
+        try {
+
+            form.renderGenerateForm();
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "[GEN-Z.AI][Generate] Render form gagal:",
+                error
+            );
+
+
+            showStatus(
+                "Model siap digunakan. Form parameter belum dapat dimuat.",
+                "error"
+            );
+
+        }
 
     } else {
 
-        throw new Error(
-            "generate-form.js tidak menyediakan renderGenerateForm()."
+        console.warn(
+            "[GEN-Z.AI][Generate] Form module tidak tersedia."
         );
 
     }
 
 
+    /* -----------------------------------------------------
+       MODEL READY
+    ----------------------------------------------------- */
+
     appState.modelReady =
         true;
 
 
-    /*
-     * Jangan pernah menghapus auth badge
-     * saat model selesai.
-     */
+    /* -----------------------------------------------------
+       PRESERVE AUTH
+    ----------------------------------------------------- */
 
     const profile =
         getCurrentProfile();
@@ -1886,6 +2202,10 @@ async function initializeModel() {
     }
 
 
+    /* -----------------------------------------------------
+       MODEL CREDIT
+    ----------------------------------------------------- */
+
     renderModelCreditDirect(
         model
     );
@@ -1897,6 +2217,7 @@ async function initializeModel() {
     console.log(
         "[GEN-Z.AI][Generate] MODEL READY:",
         {
+
             model_id:
                 model.model_id,
 
@@ -1913,6 +2234,7 @@ async function initializeModel() {
 
             pricing:
                 model.pricing
+
         }
     );
 
@@ -1955,6 +2277,27 @@ async function handleModelChange(
     }
 
 
+    const modelModule =
+        appState.modules.model;
+
+
+    if (
+        !modelModule ||
+        typeof modelModule.selectModel !==
+            "function"
+    ) {
+
+        showError(
+            new Error(
+                "Model module tidak menyediakan selectModel()."
+            )
+        );
+
+        return;
+
+    }
+
+
     try {
 
         hideDirectError();
@@ -1969,23 +2312,6 @@ async function handleModelChange(
         disableGeneration();
 
 
-        const modelModule =
-            appState.modules.model;
-
-
-        if (
-            !modelModule ||
-            typeof modelModule.selectModel !==
-                "function"
-        ) {
-
-            throw new Error(
-                "Model module tidak menyediakan selectModel()."
-            );
-
-        }
-
-
         const model =
             await modelModule.selectModel(
                 modelId
@@ -1998,6 +2324,23 @@ async function handleModelChange(
 
             throw new Error(
                 "Konfigurasi model tidak ditemukan."
+            );
+
+        }
+
+
+        const state =
+            appState.modules.state;
+
+
+        if (
+            state &&
+            typeof state.setCurrentModel ===
+                "function"
+        ) {
+
+            state.setCurrentModel(
+                model
             );
 
         }
@@ -2018,7 +2361,20 @@ async function handleModelChange(
                 "function"
         ) {
 
-            form.renderGenerateForm();
+            try {
+
+                form.renderGenerateForm();
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate] Form model change gagal:",
+                    error
+                );
+
+            }
 
         }
 
@@ -2027,23 +2383,9 @@ async function handleModelChange(
             true;
 
 
-        /*
-         * Auth badge tetap dipertahankan.
-         */
-
-        const profile =
-            getCurrentProfile();
-
-
-        if (
-            profile
-        ) {
-
-            renderAuthBadgesDirect(
-                profile
-            );
-
-        }
+        renderAuthBadgesDirect(
+            getCurrentProfile()
+        );
 
 
         renderModelCreditDirect(
@@ -2071,17 +2413,6 @@ async function handleModelChange(
         disableGeneration();
 
 
-        renderModelHeaderSafe(
-            null
-        );
-
-
-        /*
-         * Jangan sentuh:
-         * - role
-         * - account credit
-         */
-
         const profile =
             getCurrentProfile();
 
@@ -2097,15 +2428,14 @@ async function handleModelChange(
         }
 
 
-        showError(
-            error,
-            "Gagal memuat konfigurasi model."
+        renderModelCreditDirect(
+            getCurrentModel()
         );
 
 
-        showPageError(
-            error?.message ||
-            "Gagal memuat konfigurasi model."
+        showError(
+            error,
+            "Model gagal dimuat."
         );
 
     }
@@ -2124,25 +2454,95 @@ function collectParameters() {
 
 
     if (
-        !form ||
-        typeof form.getFormParameters !==
+        form &&
+        typeof form.collectParameters ===
             "function"
     ) {
 
+        return form.collectParameters();
+
+    }
+
+
+    const generateForm =
+        directElement(
+            "generateForm"
+        );
+
+
+    if (
+        !generateForm
+    ) {
+
         throw new Error(
-            "generate-form.js tidak menyediakan getFormParameters()."
+            "Generate form tidak ditemukan."
         );
 
     }
 
 
-    return form.getFormParameters();
+    const formData =
+        new FormData(
+            generateForm
+        );
+
+
+    const result = {};
+
+
+    for (
+        const [
+            key,
+            value
+        ] of formData.entries()
+    ) {
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                result,
+                key
+            )
+        ) {
+
+            if (
+                Array.isArray(
+                    result[key]
+                )
+            ) {
+
+                result[key].push(
+                    value
+                );
+
+            } else {
+
+                result[key] = [
+
+                    result[key],
+
+                    value
+
+                ];
+
+            }
+
+        } else {
+
+            result[key] =
+                value;
+
+        }
+
+    }
+
+
+    return result;
 
 }
 
 
 /* =========================================================
-   VALIDATE
+   CLIENT VALIDATION
 ========================================================= */
 
 function validateBeforeSubmit(
@@ -2154,69 +2554,49 @@ function validateBeforeSubmit(
 
 
     if (
-        !validation ||
-        typeof validation.validateClientParameters !==
+        validation &&
+        typeof validation.validateGenerateParameters ===
             "function"
     ) {
 
-        throw new Error(
-            "generate-validation.js tidak tersedia."
-        );
+        const result =
+            validation.validateGenerateParameters(
+                parameters
+            );
+
+
+        if (
+            result === false
+        ) {
+
+            return false;
+
+        }
+
+
+        if (
+            result &&
+            typeof result ===
+                "object" &&
+            result.valid ===
+                false
+        ) {
+
+            showError(
+                new Error(
+                    result.message ||
+                    "Parameter Generate tidak valid."
+                )
+            );
+
+            return false;
+
+        }
 
     }
 
 
-    const errors =
-        validation.validateClientParameters(
-            parameters
-        );
-
-
-    if (
-        !errors ||
-        errors.length === 0
-    ) {
-
-        return true;
-
-    }
-
-
-    showError(
-        errors.join(
-            "\n"
-        ),
-        "Parameter belum valid."
-    );
-
-
-    const ui =
-        appState.modules.ui;
-
-
-    if (
-        ui &&
-        typeof ui.focusFirstInvalidField ===
-            "function"
-    ) {
-
-        ui.focusFirstInvalidField();
-
-    }
-
-
-    if (
-        ui &&
-        typeof ui.scrollToError ===
-            "function"
-    ) {
-
-        ui.scrollToError();
-
-    }
-
-
-    return false;
+    return true;
 
 }
 
@@ -2226,143 +2606,130 @@ function validateBeforeSubmit(
 ========================================================= */
 
 function extractTaskId(
-    data
+    payload
 ) {
+
+    if (
+        !payload ||
+        typeof payload !==
+            "object"
+    ) {
+
+        return null;
+
+    }
+
 
     const candidates = [
 
-        data?.task_id,
+        payload.task_id,
 
-        data?.taskId,
+        payload.taskId,
 
-        data?.job_id,
+        payload.id,
 
-        data?.jobId,
+        payload.data?.task_id,
 
-        data?.task?.task_id,
+        payload.data?.taskId,
 
-        data?.task?.taskId,
+        payload.data?.id,
 
-        data?.task?.job_id,
+        payload.result?.task_id,
 
-        data?.task?.jobId,
+        payload.result?.taskId,
 
-        data?.data?.task_id,
-
-        data?.data?.taskId,
-
-        data?.data?.job_id,
-
-        data?.data?.jobId
+        payload.result?.id
 
     ];
 
 
     for (
-        const value of candidates
+        const candidate of candidates
     ) {
 
-        const normalized =
+        const value =
             String(
-                value ??
+                candidate ??
                 ""
             ).trim();
 
 
         if (
-            normalized
+            value
         ) {
 
-            return normalized;
+            return value;
 
         }
 
     }
 
 
-    return "";
+    return null;
 
 }
 
 
 /* =========================================================
-   POLLING STATUS
+   POLLING STATUS MESSAGE
 ========================================================= */
 
 function getPollingStatusMessage(
-    result
+    status
 ) {
 
-    const state =
+    const normalized =
         String(
-            result?.state ||
+            status ??
             ""
         )
-            .trim()
-            .toLowerCase();
+        .trim()
+        .toUpperCase();
 
 
-    switch (
-        state
+    if (
+        normalized ===
+            "SUCCESS" ||
+        normalized ===
+            "SUCCEEDED" ||
+        normalized ===
+            "COMPLETED" ||
+        normalized ===
+            "DONE"
     ) {
 
-        case "waiting":
-
-        case "pending":
-
-        case "queued":
-
-        case "queue":
-
-            return "Task sedang menunggu diproses...";
-
-
-        case "processing":
-
-        case "running":
-
-        case "generating":
-
-        case "in_progress":
-
-        case "in-progress":
-
-            return "Video sedang dibuat oleh provider...";
-
-
-        case "success":
-
-        case "succeeded":
-
-        case "completed":
-
-        case "complete":
-
-        case "done":
-
-        case "finished":
-
-            return "Video selesai dibuat.";
-
-
-        case "fail":
-
-        case "failed":
-
-        case "error":
-
-        case "cancelled":
-
-        case "canceled":
-
-            return "Generate gagal.";
-
-
-        default:
-
-            return "Memeriksa status video...";
+        return "Generate selesai.";
 
     }
+
+
+    if (
+        normalized ===
+            "FAILED" ||
+        normalized ===
+            "FAILURE" ||
+        normalized ===
+            "ERROR"
+    ) {
+
+        return "Generate gagal.";
+
+    }
+
+
+    if (
+        normalized ===
+            "PROCESSING" ||
+        normalized ===
+            "RUNNING"
+    ) {
+
+        return "Video sedang diproses...";
+
+    }
+
+
+    return "Menunggu hasil generate...";
 
 }
 
@@ -2372,37 +2739,28 @@ function getPollingStatusMessage(
 ========================================================= */
 
 function handlePollingUpdate(
-    result
+    payload
 ) {
+
+    const status =
+        payload?.status ||
+        payload?.data?.status ||
+        payload?.result?.status ||
+        "";
+
 
     showStatus(
         getPollingStatusMessage(
-            result
+            status
         ),
         "info"
     );
-
-
-    const taskId =
-        extractTaskId(
-            result
-        );
-
-
-    if (
-        taskId
-    ) {
-
-        appState.currentTaskId =
-            taskId;
-
-    }
 
 }
 
 
 /* =========================================================
-   WAIT TASK
+   WAIT FOR TASK
 ========================================================= */
 
 async function waitForTask(
@@ -2414,13 +2772,11 @@ async function waitForTask(
 
 
     if (
-        !polling ||
-        typeof polling.pollTask !==
-            "function"
+        !polling
     ) {
 
         throw new Error(
-            "generate-polling.js tidak menyediakan pollTask()."
+            "generate-polling.js tidak tersedia."
         );
 
     }
@@ -2429,46 +2785,80 @@ async function waitForTask(
     appState.polling =
         true;
 
-    appState.currentTaskId =
-        taskId;
-
     appState.pollingStartedAt =
         Date.now();
 
 
-    refreshGenerateAvailability();
-
-
     try {
 
-        showStatus(
-            "Task berhasil dibuat. Menunggu hasil video...",
-            "info"
-        );
+        if (
+            typeof polling.pollGenerateTask ===
+                "function"
+        ) {
+
+            return await polling.pollGenerateTask(
+                taskId,
+                {
+
+                    interval:
+                        POLLING_INTERVAL,
+
+                    timeout:
+                        POLLING_TIMEOUT,
+
+                    onUpdate:
+                        handlePollingUpdate
+
+                }
+            );
+
+        }
 
 
-        return await polling.pollTask(
-            taskId,
-            {
+        if (
+            typeof polling.pollTask ===
+                "function"
+        ) {
 
-                interval:
-                    POLLING_INTERVAL,
+            return await polling.pollTask(
+                taskId,
+                {
 
-                timeout:
-                    POLLING_TIMEOUT,
+                    interval:
+                        POLLING_INTERVAL,
 
-                onUpdate:
-                    handlePollingUpdate
+                    timeout:
+                        POLLING_TIMEOUT,
 
-            }
+                    onUpdate:
+                        handlePollingUpdate
+
+                }
+            );
+
+        }
+
+
+        if (
+            typeof polling.waitForTask ===
+                "function"
+        ) {
+
+            return await polling.waitForTask(
+                taskId
+            );
+
+        }
+
+
+        throw new Error(
+            "generate-polling.js tidak menyediakan fungsi polling yang kompatibel."
         );
 
     } finally {
 
         appState.polling =
             false;
-
-        refreshGenerateAvailability();
 
     }
 
@@ -2483,7 +2873,13 @@ async function handleGenerateSubmit(
     event
 ) {
 
-    event.preventDefault();
+    if (
+        event
+    ) {
+
+        event.preventDefault();
+
+    }
 
 
     if (
@@ -2501,7 +2897,9 @@ async function handleGenerateSubmit(
     ) {
 
         showError(
-            "Sesi pengguna belum siap."
+            new Error(
+                "Sesi pengguna belum siap."
+            )
         );
 
         return;
@@ -2514,7 +2912,9 @@ async function handleGenerateSubmit(
     ) {
 
         showError(
-            "Profile akun belum siap. Credit belum dapat diverifikasi."
+            new Error(
+                "Profile akun belum siap."
+            )
         );
 
         return;
@@ -2528,7 +2928,30 @@ async function handleGenerateSubmit(
     ) {
 
         showError(
-            "Model belum siap digunakan."
+            new Error(
+                "Model belum siap digunakan."
+            )
+        );
+
+        return;
+
+    }
+
+
+    const request =
+        appState.modules.request;
+
+
+    if (
+        !request ||
+        typeof request.generateVideo !==
+            "function"
+    ) {
+
+        showError(
+            new Error(
+                "generate-request.js tidak tersedia."
+            )
         );
 
         return;
@@ -2581,45 +3004,10 @@ async function handleGenerateSubmit(
         }
 
 
-        const ui =
-            appState.modules.ui;
-
-
-        if (
-            ui &&
-            typeof ui.showBusy ===
-                "function"
-        ) {
-
-            ui.showBusy(
-                "Mengirim permintaan generate..."
-            );
-
-        } else {
-
-            showStatus(
-                "Mengirim permintaan generate...",
-                "info"
-            );
-
-        }
-
-
-        const request =
-            appState.modules.request;
-
-
-        if (
-            !request ||
-            typeof request.generateVideo !==
-                "function"
-        ) {
-
-            throw new Error(
-                "generate-request.js tidak menyediakan generateVideo()."
-            );
-
-        }
+        showStatus(
+            "Mengirim permintaan generate...",
+            "info"
+        );
 
 
         const data =
@@ -2671,8 +3059,7 @@ async function handleGenerateSubmit(
         /*
          * Refresh profile.
          *
-         * Backend adalah pihak yang menentukan
-         * pengurangan credit.
+         * Backend menjadi sumber perubahan credit.
          */
 
         const auth =
@@ -2706,23 +3093,18 @@ async function handleGenerateSubmit(
                 }
 
             } catch (
-                refreshError
+                error
             ) {
 
                 console.warn(
                     "[GEN-Z.AI][Generate] Refresh profile gagal:",
-                    refreshError
+                    error
                 );
 
             }
 
         }
 
-
-        /*
-         * Model credit tetap ditampilkan
-         * setelah profile refresh.
-         */
 
         renderModelCreditDirect(
             getCurrentModel()
@@ -2733,53 +3115,14 @@ async function handleGenerateSubmit(
         error
     ) {
 
-        const request =
-            appState.modules.request;
-
-        const polling =
-            appState.modules.polling;
-
-
-        const RequestError =
-            request?.GenerateRequestError;
-
-        const PollingError =
-            polling?.GeneratePollingError;
-
-
-        if (
-            RequestError &&
-            error instanceof RequestError
-        ) {
-
-            showError(
-                error,
-                "Generate gagal."
-            );
-
-        } else if (
-            PollingError &&
-            error instanceof PollingError
-        ) {
-
-            showError(
-                error,
-                "Proses generate gagal."
-            );
-
-        } else {
-
-            showError(
-                error,
-                "Terjadi kesalahan saat generate."
-            );
-
-        }
+        showError(
+            error,
+            "Generate gagal."
+        );
 
 
         /*
-         * Auth badge tidak boleh hilang karena
-         * request/model error.
+         * Jangan menghapus auth badge.
          */
 
         const profile =
@@ -2797,10 +3140,13 @@ async function handleGenerateSubmit(
         }
 
 
+        /*
+         * Jangan menghapus model credit.
+         */
+
         renderModelCreditDirect(
             getCurrentModel()
         );
-
 
     } finally {
 
@@ -2843,7 +3189,7 @@ async function handleGenerateSubmit(
 
 
         /*
-         * FINAL BADGE RESTORE.
+         * Final badge restore.
          */
 
         const profile =
@@ -2886,13 +3232,7 @@ async function resetForm() {
     }
 
 
-    const elements =
-        getElements();
-
-
     const generateForm =
-        elements?.generateForm ||
-        elements?.generateFormEl ||
         directElement(
             "generateForm"
         );
@@ -2978,10 +3318,6 @@ async function resetForm() {
     }
 
 
-    /*
-     * Auth selalu dipulihkan.
-     */
-
     const profile =
         getCurrentProfile();
 
@@ -2996,10 +3332,6 @@ async function resetForm() {
 
     }
 
-
-    /*
-     * Model tidak berubah.
-     */
 
     const model =
         getCurrentModel();
@@ -3065,6 +3397,7 @@ async function resetForm() {
 
         appState.modelReady =
             false;
+
 
         disableGeneration();
 
@@ -3204,12 +3537,10 @@ function bindEvents() {
             "modelSelect"
         );
 
-
     const generateForm =
         directElement(
             "generateForm"
         );
-
 
     const resetButton =
         directElement(
@@ -3278,7 +3609,15 @@ function bindEvents() {
 export async function initializeGenerateApp() {
 
     if (
-        appState.initialized ||
+        appState.initialized
+    ) {
+
+        return;
+
+    }
+
+
+    if (
         appState.initializing
     ) {
 
@@ -3293,23 +3632,15 @@ export async function initializeGenerateApp() {
 
     try {
 
-        /*
-         * -------------------------------------------------
-         * BOOTSTRAP MARKER
-         * -------------------------------------------------
-         */
-
         console.log(
             "[GEN-Z.AI][Generate] BOOTSTRAP START"
         );
 
 
-        /*
-         * -------------------------------------------------
-         * STEP 1
-         * LOAD MODULES
-         * -------------------------------------------------
-         */
+        /* =================================================
+           STEP 1
+           LOAD CORE + OPTIONAL MODULES
+        ================================================= */
 
         showStatus(
             "Memuat Generate...",
@@ -3320,32 +3651,26 @@ export async function initializeGenerateApp() {
         await loadCoreModules();
 
 
-        /*
-         * -------------------------------------------------
-         * STEP 2
-         * DOM
-         * -------------------------------------------------
-         */
+        /* =================================================
+           STEP 2
+           DOM
+        ================================================= */
 
         await initializeDOM();
 
 
-        /*
-         * -------------------------------------------------
-         * STEP 3
-         * EVENTS
-         * -------------------------------------------------
-         */
+        /* =================================================
+           STEP 3
+           EVENTS
+        ================================================= */
 
         bindEvents();
 
 
-        /*
-         * -------------------------------------------------
-         * STEP 4
-         * AUTH
-         * -------------------------------------------------
-         */
+        /* =================================================
+           STEP 4
+           AUTH
+        ================================================= */
 
         showStatus(
             "Memeriksa sesi...",
@@ -3368,10 +3693,6 @@ export async function initializeGenerateApp() {
                 false;
 
 
-            /*
-             * Jangan menampilkan badge palsu.
-             */
-
             showPageError(
                 authError?.message ||
                 "Authentication gagal."
@@ -3383,29 +3704,21 @@ export async function initializeGenerateApp() {
         }
 
 
-        /*
-         * -------------------------------------------------
-         * PENTING
-         *
-         * Pada titik ini:
-         *
-         * ROLE sudah harus terlihat.
-         * ACCOUNT CREDIT sudah harus terlihat.
-         *
-         * Model BELUM diperlukan.
-         * -------------------------------------------------
-         */
+        /* =================================================
+           AUTH IS NOW READY
+           ROLE + ACCOUNT CREDIT MUST BE VISIBLE
+        ================================================= */
 
-        const authProfile =
+        const profile =
             getCurrentProfile();
 
 
         if (
-            authProfile
+            profile
         ) {
 
             renderAuthBadgesDirect(
-                authProfile
+                profile
             );
 
         }
@@ -3414,21 +3727,23 @@ export async function initializeGenerateApp() {
         console.log(
             "[GEN-Z.AI][Generate] PROFILE READY:",
             {
+
                 role:
-                    authProfile?.role,
+                    profile?.role,
 
                 credits:
-                    authProfile?.credits
+                    profile?.credits
+
             }
         );
 
 
-        /*
-         * -------------------------------------------------
-         * STEP 5
-         * MODEL
-         * -------------------------------------------------
-         */
+        /* =================================================
+           STEP 5
+           MODEL
+           -------------------------------------------------
+           MODEL FAILURE DOES NOT FAIL AUTH.
+        ================================================= */
 
         try {
 
@@ -3437,11 +3752,6 @@ export async function initializeGenerateApp() {
         } catch (
             modelError
         ) {
-
-            /*
-             * Model gagal tidak boleh merusak
-             * AUTH + PROFILE.
-             */
 
             appState.modelReady =
                 false;
@@ -3462,21 +3772,11 @@ export async function initializeGenerateApp() {
             }
 
 
-            showPageError(
-                modelError?.message ||
-                "Model gagal dimuat."
+            showStatus(
+                "Akun siap. Model belum tersedia.",
+                "error"
             );
 
-
-            /*
-             * Jangan throw ke bootstrap utama.
-             *
-             * Halaman tetap hidup dengan:
-             * ROLE
-             * ACCOUNT CREDIT
-             *
-             * hanya model yang gagal.
-             */
 
             console.error(
                 "[GEN-Z.AI][Generate] Model initialization gagal:",
@@ -3486,12 +3786,10 @@ export async function initializeGenerateApp() {
         }
 
 
-        /*
-         * -------------------------------------------------
-         * STEP 6
-         * FINAL SYNC
-         * -------------------------------------------------
-         */
+        /* =================================================
+           STEP 6
+           FINAL AUTH RESTORE
+        ================================================= */
 
         const finalProfile =
             getCurrentProfile();
@@ -3508,6 +3806,11 @@ export async function initializeGenerateApp() {
         }
 
 
+        /* =================================================
+           STEP 7
+           FINAL MODEL CREDIT
+        ================================================= */
+
         const finalModel =
             getCurrentModel();
 
@@ -3523,12 +3826,18 @@ export async function initializeGenerateApp() {
         }
 
 
-        /*
-         * -------------------------------------------------
-         * STEP 7
-         * READY
-         * -------------------------------------------------
-         */
+        /* =================================================
+           STEP 8
+           AVAILABILITY
+        ================================================= */
+
+        refreshGenerateAvailability();
+
+
+        /* =================================================
+           STEP 9
+           READY
+        ================================================= */
 
         if (
             appState.modelReady
@@ -3552,9 +3861,6 @@ export async function initializeGenerateApp() {
         }
 
 
-        refreshGenerateAvailability();
-
-
         appState.initialized =
             true;
 
@@ -3562,6 +3868,7 @@ export async function initializeGenerateApp() {
         console.log(
             "[GEN-Z.AI][Generate] BOOTSTRAP READY:",
             {
+
                 authReady:
                     appState.authReady,
 
@@ -3584,6 +3891,7 @@ export async function initializeGenerateApp() {
                     getModelCredit(
                         finalModel
                     )
+
             }
         );
 
@@ -3603,14 +3911,9 @@ export async function initializeGenerateApp() {
         disableGeneration();
 
 
-        const message =
-            error?.message ||
-            "Halaman Generate gagal diinisialisasi.";
-
-
         /*
-         * Jangan pernah menghapus badge yang
-         * sudah berhasil dimuat.
+         * Jika Auth sudah berhasil, jangan
+         * menghapus badge.
          */
 
         const profile =
@@ -3629,13 +3932,14 @@ export async function initializeGenerateApp() {
 
 
         showDirectError(
-            message
+            error?.message ||
+            "Halaman Generate gagal diinisialisasi."
         );
 
 
-        showError(
-            error,
-            message
+        console.error(
+            "[GEN-Z.AI][Generate] Bootstrap failed:",
+            error
         );
 
 
@@ -3662,7 +3966,8 @@ export const generateApp =
         reset:
             resetForm,
 
-        collectParameters,
+        collectParameters:
+            collectParameters,
 
         isPolling:
             () =>
@@ -3705,11 +4010,6 @@ function boot() {
         .catch(
             error => {
 
-                /*
-                 * Jangan biarkan unhandled rejection
-                 * membuat browser diam saja.
-                 */
-
                 console.error(
                     "[GEN-Z.AI][Generate] Unhandled bootstrap error:",
                     error
@@ -3751,11 +4051,7 @@ window.GENZGenerateApp =
 
 
 /* =========================================================
-   BOOT MARKER
-   ---------------------------------------------------------
-   Ini sengaja diletakkan di akhir file.
-   Kalau marker ini muncul di console, berarti file
-   generate-app.js berhasil diparse browser.
+   FINAL LOAD MARKER
 ========================================================= */
 
 console.log(
