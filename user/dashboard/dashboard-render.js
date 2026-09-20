@@ -9,11 +9,11 @@
    - Render category filter
    - Render video cards
    - Render statistics
-   - Loading state
-   - Empty state
-   - Error state
-   - Update result counter
-   - Management buttons ADMIN / OWNER
+   - Loading / empty / error state
+   - Result counter
+   - Management controls
+   - Video viewer
+   - Toast
 
    Tidak bertanggung jawab:
    - Auth
@@ -21,10 +21,17 @@
    - Upload
    - CRUD
    - Modal lifecycle
+   - Event binding
 ========================================================= */
 
 (function () {
+
     "use strict";
+
+
+    /* =====================================================
+       NAMESPACE
+    ===================================================== */
 
     window.GENZDashboard =
         window.GENZDashboard || {};
@@ -43,11 +50,23 @@
             dashboard.elements &&
             dashboard.elements.videoGrid
         ) {
+
             return dashboard.elements;
         }
 
+
+        if (
+            typeof dashboard.cacheElements !==
+            "function"
+        ) {
+
+            return {};
+        }
+
+
         dashboard.elements =
             dashboard.cacheElements();
+
 
         return dashboard.elements;
     }
@@ -55,18 +74,20 @@
 
     /* =====================================================
        HTML ESCAPE
-       Semua data dari database wajib di-escape sebelum
-       dimasukkan ke innerHTML.
     ===================================================== */
 
-    function escapeHtml(value) {
+    function escapeHtml(
+        value
+    ) {
 
         if (
             value === null ||
             typeof value === "undefined"
         ) {
+
             return "";
         }
+
 
         return String(value)
             .replace(
@@ -106,24 +127,32 @@
                 ? value.trim()
                 : "";
 
+
         if (
             !maxLength ||
             text.length <= maxLength
         ) {
+
             return text;
         }
+
 
         return (
             text.slice(
                 0,
-                maxLength - 1
+                Math.max(
+                    1,
+                    maxLength - 1
+                )
             ) +
             "…"
         );
     }
 
 
-    function normalizeCategory(value) {
+    function normalizeCategory(
+        value
+    ) {
 
         return typeof value === "string"
             ? value.trim()
@@ -132,49 +161,137 @@
 
 
     /* =====================================================
-       VISIBILITY STATES
+       MANAGEMENT ACCESS
     ===================================================== */
 
-    function showElement(element) {
+    function hasManagementAccess() {
 
-        if (!element) {
-            return;
+        if (
+            typeof dashboard.hasManagementAccess ===
+            "function"
+        ) {
+
+            return (
+                dashboard.hasManagementAccess()
+            );
         }
 
-        element.hidden = false;
+
+        if (
+            typeof dashboard.isAdmin ===
+            "function"
+        ) {
+
+            return (
+                dashboard.isAdmin()
+            );
+        }
+
+
+        return false;
     }
 
 
-    function hideElement(element) {
+    function isEditMode() {
+
+        if (
+            typeof dashboard.isEditMode ===
+            "function"
+        ) {
+
+            return (
+                dashboard.isEditMode()
+            );
+        }
+
+
+        return false;
+    }
+
+
+    function canManageVideos() {
+
+        return (
+            hasManagementAccess() &&
+            isEditMode()
+        );
+    }
+
+
+    /* =====================================================
+       VISIBILITY
+    ===================================================== */
+
+    function showElement(
+        element
+    ) {
 
         if (!element) {
+
             return;
         }
 
-        element.hidden = true;
+
+        element.hidden =
+            false;
     }
 
+
+    function hideElement(
+        element
+    ) {
+
+        if (!element) {
+
+            return;
+        }
+
+
+        element.hidden =
+            true;
+    }
+
+
+    /* =====================================================
+       LOADING
+    ===================================================== */
 
     function showLoading() {
 
         const elements =
             getElements();
 
+
         showElement(
             elements.videoLoading
         );
+
 
         hideElement(
             elements.videoEmpty
         );
 
+
         hideElement(
             elements.videoError
         );
 
-        if (elements.videoGrid) {
 
-            elements.videoGrid.innerHTML = "";
+        if (
+            elements.videoGrid
+        ) {
+
+            elements.videoGrid.innerHTML =
+                "";
+        }
+
+
+        if (
+            elements.videoResultLabel
+        ) {
+
+            elements.videoResultLabel.textContent =
+                "";
         }
     }
 
@@ -184,24 +301,32 @@
         const elements =
             getElements();
 
+
         hideElement(
             elements.videoLoading
         );
     }
 
+
+    /* =====================================================
+       EMPTY
+    ===================================================== */
 
     function showEmpty() {
 
         const elements =
             getElements();
 
+
         hideElement(
             elements.videoLoading
         );
 
+
         showElement(
             elements.videoEmpty
         );
+
 
         hideElement(
             elements.videoError
@@ -209,27 +334,39 @@
     }
 
 
-    function showError(error) {
+    /* =====================================================
+       ERROR
+    ===================================================== */
+
+    function showError(
+        error
+    ) {
 
         const elements =
             getElements();
+
 
         hideElement(
             elements.videoLoading
         );
 
+
         hideElement(
             elements.videoEmpty
         );
+
 
         showElement(
             elements.videoError
         );
 
 
-        if (elements.videoGrid) {
+        if (
+            elements.videoGrid
+        ) {
 
-            elements.videoGrid.innerHTML = "";
+            elements.videoGrid.innerHTML =
+                "";
         }
 
 
@@ -237,11 +374,19 @@
             elements.videoErrorMessage
         ) {
 
-            const message =
+            let message =
+                "Terjadi kesalahan saat memuat video.";
+
+
+            if (
                 error &&
                 error.message
-                    ? error.message
-                    : "Terjadi kesalahan saat memuat video.";
+            ) {
+
+                message =
+                    error.message;
+            }
+
 
             elements.videoErrorMessage.textContent =
                 message;
@@ -250,89 +395,120 @@
 
 
     /* =====================================================
-       CATEGORY FILTER
+       CATEGORY FILTERS
     ===================================================== */
+
+    function getCategories() {
+
+        if (
+            dashboard.config &&
+            Array.isArray(
+                dashboard.config.categories
+            )
+        ) {
+
+            return dashboard.config.categories;
+        }
+
+
+        return [];
+    }
+
 
     function renderCategoryFilters() {
 
         const elements =
             getElements();
 
+
         if (
             !elements.categoryFilters
         ) {
+
             return;
         }
 
 
         const categories =
-            dashboard.config &&
-            Array.isArray(
-                dashboard.config.categories
-            )
-                ? dashboard.config.categories
-                : [];
+            getCategories();
 
 
         const activeCategory =
-            dashboard.getActiveCategory();
+            typeof dashboard.getActiveCategory ===
+            "function"
+                ? dashboard.getActiveCategory()
+                : "all";
 
 
         elements.categoryFilters.innerHTML =
-            categories.map(
-                function (category) {
+            categories
+                .map(
+                    function (category) {
 
-                    const active =
-                        String(
-                            category.value
-                        ) ===
-                        String(
-                            activeCategory
-                        );
+                        const value =
+                            category &&
+                            typeof category.value !==
+                            "undefined"
+                                ? category.value
+                                : "";
 
 
-                    return `
-                        <button
-                            type="button"
-                            class="genz-filter-chip${active ? " active" : ""}"
-                            data-category="${escapeHtml(category.value)}"
-                            role="tab"
-                            aria-selected="${active ? "true" : "false"}"
-                        >
-                            ${escapeHtml(category.label)}
-                        </button>
-                    `;
+                        const label =
+                            category &&
+                            typeof category.label !==
+                            "undefined"
+                                ? category.label
+                                : value;
 
-                }
-            ).join("");
+
+                        const active =
+                            String(value) ===
+                            String(activeCategory);
+
+
+                        return `
+                            <button
+                                type="button"
+                                class="genz-filter-chip${active ? " active" : ""}"
+                                data-category="${escapeHtml(value)}"
+                                role="tab"
+                                aria-selected="${active ? "true" : "false"}"
+                            >
+                                ${escapeHtml(label)}
+                            </button>
+                        `;
+
+                    }
+                )
+                .join("");
     }
 
-
-    /* =====================================================
-       FILTER ACTIVE STATE
-    ===================================================== */
 
     function updateCategoryFilterState() {
 
         const elements =
             getElements();
 
+
         if (
             !elements.categoryFilters
         ) {
+
             return;
         }
 
 
         const activeCategory =
-            dashboard.getActiveCategory();
+            typeof dashboard.getActiveCategory ===
+            "function"
+                ? dashboard.getActiveCategory()
+                : "all";
 
 
         const buttons =
-            elements.categoryFilters
-                .querySelectorAll(
-                    "[data-category]"
-                );
+            elements.categoryFilters.querySelectorAll(
+                "[data-category]"
+            );
 
 
         buttons.forEach(
@@ -365,17 +541,23 @@
 
 
     /* =====================================================
-       GET FILTERED VIDEOS
+       FILTERED VIDEOS
     ===================================================== */
 
     function getFilteredVideos() {
 
         const videos =
-            dashboard.getVideos();
+            typeof dashboard.getVideos ===
+            "function"
+                ? dashboard.getVideos()
+                : [];
 
 
         const category =
-            dashboard.getActiveCategory();
+            typeof dashboard.getActiveCategory ===
+            "function"
+                ? dashboard.getActiveCategory()
+                : "all";
 
 
         if (
@@ -392,29 +574,44 @@
 
         if (
             !category ||
-            category === "all"
+            String(
+                category
+            ).toLowerCase() === "all"
         ) {
+
             return videos.slice();
         }
+
+
+        const target =
+            String(
+                category
+            )
+                .trim()
+                .toUpperCase();
 
 
         return videos.filter(
             function (video) {
 
-                return String(
-                    video.category || ""
-                ).toUpperCase() ===
+                return (
                     String(
-                        category
-                    ).toUpperCase();
-
+                        video &&
+                        video.category
+                            ? video.category
+                            : ""
+                    )
+                        .trim()
+                        .toUpperCase() ===
+                    target
+                );
             }
         );
     }
 
 
     /* =====================================================
-       STATS
+       STATISTICS
     ===================================================== */
 
     function renderStats() {
@@ -422,8 +619,12 @@
         const elements =
             getElements();
 
+
         const videos =
-            dashboard.getVideos();
+            typeof dashboard.getVideos ===
+            "function"
+                ? dashboard.getVideos()
+                : [];
 
 
         const total =
@@ -434,8 +635,10 @@
             videos.filter(
                 function (video) {
 
-                    return video.is_active === true;
-
+                    return (
+                        video &&
+                        video.is_active === true
+                    );
                 }
             ).length;
 
@@ -449,10 +652,15 @@
 
                 const category =
                     normalizeCategory(
+                        video &&
                         video.category
                     );
 
-                if (category) {
+
+                if (
+                    category
+                ) {
+
                     categorySet.add(
                         category.toUpperCase()
                     );
@@ -506,6 +714,7 @@
         if (
             !elements.videoResultLabel
         ) {
+
             return;
         }
 
@@ -529,14 +738,66 @@
 
 
     /* =====================================================
-       VIDEO CARD
+       THUMBNAIL
     ===================================================== */
 
-    function renderVideoCard(
+    function renderThumbnail(
         video
     ) {
 
-        if (!video) {
+        const title =
+            escapeHtml(
+                video.title ||
+                "Untitled Video"
+            );
+
+
+        const thumbnail =
+            typeof video.thumbnail_url ===
+            "string"
+                ? video.thumbnail_url.trim()
+                : "";
+
+
+        if (
+            !thumbnail
+        ) {
+
+            return `
+                <div
+                    class="genz-video-thumbnail genz-video-thumbnail-placeholder"
+                    aria-hidden="true"
+                >
+                    <span>GEN-Z.AI</span>
+                </div>
+            `;
+        }
+
+
+        return `
+            <img
+                src="${escapeHtml(thumbnail)}"
+                alt="${title}"
+                class="genz-video-thumbnail"
+                loading="lazy"
+                decoding="async"
+            >
+        `;
+    }
+
+
+    /* =====================================================
+       MANAGEMENT CONTROLS
+    ===================================================== */
+
+    function renderManagementControls(
+        video
+    ) {
+
+        if (
+            !canManageVideos()
+        ) {
+
             return "";
         }
 
@@ -549,7 +810,102 @@
 
         const title =
             escapeHtml(
-                video.title || "Untitled Video"
+                video.title ||
+                "video"
+            );
+
+
+        const active =
+            video.is_active === true;
+
+
+        return `
+            <div
+                class="genz-video-management"
+                data-management="${id}"
+            >
+
+                <button
+                    type="button"
+                    class="genz-video-action genz-video-edit"
+                    data-action="edit"
+                    data-video-id="${id}"
+                    aria-label="Edit ${title}"
+                >
+                    Edit
+                </button>
+
+                <button
+                    type="button"
+                    class="genz-video-action genz-video-delete"
+                    data-action="delete"
+                    data-video-id="${id}"
+                    aria-label="Hapus ${title}"
+                >
+                    Hapus
+                </button>
+
+            </div>
+        `;
+    }
+
+
+    /* =====================================================
+       STATUS
+    ===================================================== */
+
+    function renderStatus(
+        video
+    ) {
+
+        if (
+            !canManageVideos()
+        ) {
+
+            return "";
+        }
+
+
+        const active =
+            video.is_active === true;
+
+
+        return `
+            <span
+                class="genz-video-status ${active ? "is-active" : "is-inactive"}"
+            >
+                ${active ? "ACTIVE" : "INACTIVE"}
+            </span>
+        `;
+    }
+
+
+    /* =====================================================
+       VIDEO CARD
+    ===================================================== */
+
+    function renderVideoCard(
+        video
+    ) {
+
+        if (
+            !video
+        ) {
+
+            return "";
+        }
+
+
+        const id =
+            escapeHtml(
+                video.id
+            );
+
+
+        const title =
+            escapeHtml(
+                video.title ||
+                "Untitled Video"
             );
 
 
@@ -564,25 +920,15 @@
 
         const category =
             escapeHtml(
-                video.category || "GENERAL"
+                video.category ||
+                "GENERAL"
             );
 
 
         const aspectRatio =
             escapeHtml(
-                video.aspect_ratio || "16:9"
-            );
-
-
-        const thumbnail =
-            escapeHtml(
-                video.thumbnail_url || ""
-            );
-
-
-        const videoUrl =
-            escapeHtml(
-                video.video_url || ""
+                video.aspect_ratio ||
+                "16:9"
             );
 
 
@@ -590,75 +936,33 @@
             video.is_active === true;
 
 
-        const managementAccess =
-            dashboard.isAdmin() &&
-            dashboard.isEditMode();
-
-
-        const thumbnailHtml =
-            thumbnail
-                ? `
-                    <img
-                        src="${thumbnail}"
-                        alt="${title}"
-                        class="genz-video-thumbnail"
-                        loading="lazy"
-                        decoding="async"
-                    >
-                `
-                : `
-                    <div
-                        class="genz-video-thumbnail genz-video-thumbnail-placeholder"
-                        aria-hidden="true"
-                    >
-                        <span>GEN-Z.AI</span>
-                    </div>
-                `;
-
-
-        const managementHtml =
-            managementAccess
-                ? `
-                    <div
-                        class="genz-video-management"
-                        data-management="${id}"
-                    >
-
-                        <button
-                            type="button"
-                            class="genz-video-action genz-video-edit"
-                            data-action="edit"
-                            data-video-id="${id}"
-                            aria-label="Edit ${title}"
-                        >
-                            Edit
-                        </button>
-
-                        <button
-                            type="button"
-                            class="genz-video-action genz-video-delete"
-                            data-action="delete"
-                            data-video-id="${id}"
-                            aria-label="Delete ${title}"
-                        >
-                            Hapus
-                        </button>
-
-                    </div>
-                `
+        const videoUrl =
+            typeof video.video_url ===
+            "string"
+                ? video.video_url.trim()
                 : "";
 
 
-        const statusHtml =
-            managementAccess
-                ? `
-                    <span
-                        class="genz-video-status ${active ? "is-active" : "is-inactive"}"
-                    >
-                        ${active ? "ACTIVE" : "INACTIVE"}
-                    </span>
-                `
-                : "";
+        const management =
+            renderManagementControls(
+                video
+            );
+
+
+        const status =
+            renderStatus(
+                video
+            );
+
+
+        /*
+         * Jika video URL tidak tersedia, card tetap tampil,
+         * tetapi tombol play tidak akan melakukan apa-apa
+         * selain memberikan toast.
+         */
+
+        const playable =
+            !!videoUrl;
 
 
         return `
@@ -669,26 +973,43 @@
             >
 
                 <div
-                    class="genz-video-preview"
+                    class="genz-video-preview${playable ? "" : " is-unavailable"}"
                     data-video-play="${id}"
                     role="button"
                     tabindex="0"
-                    aria-label="Putar ${title}"
+                    aria-label="${
+                        playable
+                            ? `Putar ${title}`
+                            : `Video ${title} tidak tersedia`
+                    }"
                 >
 
-                    ${thumbnailHtml}
+                    ${renderThumbnail(video)}
 
                     <div
                         class="genz-video-overlay"
                         aria-hidden="true"
                     ></div>
 
-                    <div
-                        class="genz-video-play"
-                        aria-hidden="true"
-                    >
-                        ▶
-                    </div>
+                    ${
+                        playable
+                            ? `
+                                <div
+                                    class="genz-video-play"
+                                    aria-hidden="true"
+                                >
+                                    ▶
+                                </div>
+                            `
+                            : `
+                                <div
+                                    class="genz-video-play is-disabled"
+                                    aria-hidden="true"
+                                >
+                                    !
+                                </div>
+                            `
+                    }
 
                     <div class="genz-video-meta">
 
@@ -713,7 +1034,7 @@
                             ${title}
                         </h3>
 
-                        ${statusHtml}
+                        ${status}
 
                     </div>
 
@@ -731,7 +1052,7 @@
                 </div>
 
 
-                ${managementHtml}
+                ${management}
 
             </article>
         `;
@@ -739,7 +1060,7 @@
 
 
     /* =====================================================
-       RENDER VIDEO GRID
+       RENDER VIDEOS
     ===================================================== */
 
     function renderVideos(
@@ -753,6 +1074,7 @@
         if (
             !elements.videoGrid
         ) {
+
             return;
         }
 
@@ -766,8 +1088,10 @@
         const sorted =
             typeof dashboard.sortVideos ===
             "function"
-                ? dashboard.sortVideos(source)
-                : source;
+                ? dashboard.sortVideos(
+                    source
+                )
+                : source.slice();
 
 
         renderResultLabel(
@@ -782,7 +1106,9 @@
             elements.videoGrid.innerHTML =
                 "";
 
+
             showEmpty();
+
 
             return;
         }
@@ -792,9 +1118,11 @@
             elements.videoLoading
         );
 
+
         hideElement(
             elements.videoEmpty
         );
+
 
         hideElement(
             elements.videoError
@@ -811,7 +1139,7 @@
 
 
     /* =====================================================
-       RENDER ALL
+       FULL DASHBOARD
     ===================================================== */
 
     function renderDashboard() {
@@ -848,20 +1176,28 @@
        VIDEO PLAY
     ===================================================== */
 
-    function playVideo(videoId) {
+    function playVideo(
+        videoId
+    ) {
 
         const video =
-            dashboard.getVideoById(
-                videoId
-            );
+            typeof dashboard.getVideoById ===
+            "function"
+                ? dashboard.getVideoById(
+                    videoId
+                )
+                : null;
 
 
-        if (!video) {
+        if (
+            !video
+        ) {
 
             showToast(
                 "Video tidak ditemukan.",
                 "error"
             );
+
 
             return;
         }
@@ -876,16 +1212,10 @@
                 "error"
             );
 
+
             return;
         }
 
-
-        /*
-         * Video player menggunakan elemen dialog sederhana
-         * yang dibuat secara runtime.
-         *
-         * Tidak mengubah data database.
-         */
 
         openVideoViewer(
             video
@@ -900,6 +1230,15 @@
     function openVideoViewer(
         video
     ) {
+
+        if (
+            !video ||
+            !video.video_url
+        ) {
+
+            return;
+        }
+
 
         closeVideoViewer();
 
@@ -926,13 +1265,40 @@
         );
 
 
+        const title =
+            escapeHtml(
+                video.title ||
+                "Video"
+            );
+
+
+        const description =
+            escapeHtml(
+                video.description ||
+                ""
+            );
+
+
+        const poster =
+            video.thumbnail_url
+                ? `
+                    poster="${escapeHtml(
+                        video.thumbnail_url
+                    )}"
+                `
+                : "";
+
+
         overlay.innerHTML = `
             <div
                 class="genz-video-viewer-backdrop"
                 data-viewer-close="true"
             ></div>
 
-            <div class="genz-video-viewer-dialog">
+            <div
+                class="genz-video-viewer-dialog"
+                role="document"
+            >
 
                 <button
                     type="button"
@@ -949,31 +1315,28 @@
                     autoplay
                     playsinline
                     preload="metadata"
-                    ${
-                        video.thumbnail_url
-                            ? `poster="${escapeHtml(video.thumbnail_url)}"`
-                            : ""
-                    }
+                    ${poster}
                 >
                     <source
-                        src="${escapeHtml(video.video_url)}"
+                        src="${escapeHtml(
+                            video.video_url
+                        )}"
                     >
+
                     Browser Anda tidak mendukung video.
                 </video>
 
                 <div class="genz-video-viewer-info">
 
                     <h2>
-                        ${escapeHtml(video.title)}
+                        ${title}
                     </h2>
 
                     ${
-                        video.description
+                        description
                             ? `
                                 <p>
-                                    ${escapeHtml(
-                                        video.description
-                                    )}
+                                    ${description}
                                 </p>
                             `
                             : ""
@@ -990,24 +1353,20 @@
         );
 
 
-        function closeFromViewer(
-            event
-        ) {
+        const closeTargets =
+            overlay.querySelectorAll(
+                "[data-viewer-close='true']"
+            );
 
-            if (
-                event.target.closest(
-                    "[data-viewer-close='true']"
-                )
-            ) {
 
-                closeVideoViewer();
+        closeTargets.forEach(
+            function (element) {
+
+                element.addEventListener(
+                    "click",
+                    closeVideoViewer
+                );
             }
-        }
-
-
-        overlay.addEventListener(
-            "click",
-            closeFromViewer
         );
 
 
@@ -1019,9 +1378,10 @@
                     event.key === "Escape"
                 ) {
 
+                    event.preventDefault();
+
                     closeVideoViewer();
                 }
-
             }
         );
 
@@ -1033,16 +1393,53 @@
                     "is-visible"
                 );
 
+
+                const closeButton =
+                    overlay.querySelector(
+                        ".genz-video-viewer-close"
+                    );
+
+
+                if (
+                    closeButton
+                ) {
+
+                    closeButton.focus({
+                        preventScroll: true
+                    });
+                }
+
+
                 const player =
                     overlay.querySelector(
                         "video"
                     );
 
-                if (player) {
 
-                    player.focus({
-                        preventScroll: true
-                    });
+                if (
+                    player
+                ) {
+
+                    const playPromise =
+                        player.play();
+
+
+                    if (
+                        playPromise &&
+                        typeof playPromise.catch ===
+                        "function"
+                    ) {
+
+                        playPromise.catch(
+                            function () {
+
+                                /*
+                                 * Browser dapat menolak autoplay.
+                                 * Controls tetap tersedia.
+                                 */
+                            }
+                        );
+                    }
                 }
             }
         );
@@ -1062,7 +1459,10 @@
             );
 
 
-        if (!existing) {
+        if (
+            !existing
+        ) {
+
             return;
         }
 
@@ -1073,13 +1473,24 @@
             );
 
 
-        if (player) {
+        if (
+            player
+        ) {
 
             try {
+
                 player.pause();
+
+                player.removeAttribute(
+                    "src"
+                );
+
+                player.load();
+
             } catch (error) {
+
                 console.warn(
-                    "[GEN-Z.AI] Unable to pause video:",
+                    "[GEN-Z.AI] Video cleanup failed:",
                     error
                 );
             }
@@ -1096,8 +1507,38 @@
 
 
     /* =====================================================
-       TOAST FALLBACK
-       dashboard-events / modal dapat memakai helper ini.
+       GLOBAL VIEWER ESCAPE
+    ===================================================== */
+
+    function handleViewerEscape(
+        event
+    ) {
+
+        if (
+            event.key !== "Escape"
+        ) {
+
+            return;
+        }
+
+
+        const viewer =
+            document.querySelector(
+                ".genz-video-viewer"
+            );
+
+
+        if (
+            viewer
+        ) {
+
+            closeVideoViewer();
+        }
+    }
+
+
+    /* =====================================================
+       TOAST
     ===================================================== */
 
     function showToast(
@@ -1109,18 +1550,32 @@
             getElements();
 
 
+        const text =
+            typeof message === "string"
+                ? message
+                : "";
+
+
         if (
             !elements.dashboardToast ||
             !elements.dashboardToastMessage
         ) {
 
-            console[
+            if (
                 type === "error"
-                    ? "error"
-                    : "log"
-            ](
-                message
-            );
+            ) {
+
+                console.error(
+                    text
+                );
+
+            } else {
+
+                console.log(
+                    text
+                );
+            }
+
 
             return;
         }
@@ -1135,14 +1590,15 @@
 
 
         messageElement.textContent =
-            message || "";
+            text;
 
 
         toast.dataset.type =
             type || "info";
 
 
-        toast.hidden = false;
+        toast.hidden =
+            false;
 
 
         if (
@@ -1156,15 +1612,25 @@
         }
 
 
-        dashboard.state.toastTimer =
+        const timer =
             setTimeout(
                 function () {
 
-                    toast.hidden = true;
+                    toast.hidden =
+                        true;
 
                 },
                 3500
             );
+
+
+        if (
+            dashboard.state
+        ) {
+
+            dashboard.state.toastTimer =
+                timer;
+        }
     }
 
 
@@ -1175,65 +1641,107 @@
     dashboard.escapeHtml =
         escapeHtml;
 
+
     dashboard.truncateText =
         truncateText;
+
 
     dashboard.showLoading =
         showLoading;
 
+
     dashboard.hideLoading =
         hideLoading;
+
 
     dashboard.showEmpty =
         showEmpty;
 
+
     dashboard.showError =
         showError;
+
 
     dashboard.renderCategoryFilters =
         renderCategoryFilters;
 
+
     dashboard.updateCategoryFilterState =
         updateCategoryFilterState;
+
 
     dashboard.getFilteredVideos =
         getFilteredVideos;
 
+
     dashboard.renderStats =
         renderStats;
+
 
     dashboard.renderResultLabel =
         renderResultLabel;
 
+
     dashboard.renderVideoCard =
         renderVideoCard;
+
 
     dashboard.renderVideos =
         renderVideos;
 
+
     dashboard.renderDashboard =
         renderDashboard;
+
 
     dashboard.refreshVideoView =
         refreshVideoView;
 
+
     dashboard.playVideo =
         playVideo;
+
 
     dashboard.openVideoViewer =
         openVideoViewer;
 
+
     dashboard.closeVideoViewer =
         closeVideoViewer;
+
+
+    dashboard.handleViewerEscape =
+        handleViewerEscape;
+
 
     dashboard.showToast =
         showToast;
 
 
     /* =====================================================
-       READY FLAG
+       GLOBAL ESCAPE LISTENER
     ===================================================== */
 
-    dashboard.renderReady = true;
+    if (
+        !dashboard.renderEscapeBound
+    ) {
+
+        document.addEventListener(
+            "keydown",
+            handleViewerEscape
+        );
+
+
+        dashboard.renderEscapeBound =
+            true;
+    }
+
+
+    /* =====================================================
+       READY
+    ===================================================== */
+
+    dashboard.renderReady =
+        true;
 
 })();
