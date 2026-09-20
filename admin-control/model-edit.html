@@ -9,7 +9,20 @@
 
     <title>Edit Model - GEN-Z.AI</title>
 
+    <!-- =====================================================
+         GLOBAL GEN-Z.AI PREMIUM THEME
+    ====================================================== -->
+    <link
+        rel="stylesheet"
+        href="../assets/css/genz-premium.css"
+    >
+
     <style>
+        /* =====================================================
+           MODEL EDIT PAGE
+           Premium Admin Panel compatible
+        ====================================================== */
+
         * {
             box-sizing: border-box;
         }
@@ -19,6 +32,34 @@
             margin: 0;
             padding: 0;
             min-height: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+            color: #fff;
+
+            background:
+                radial-gradient(
+                    circle at 8% 0%,
+                    rgba(255,23,68,.12),
+                    transparent 28%
+                ),
+                radial-gradient(
+                    circle at 92% 8%,
+                    rgba(255,23,68,.08),
+                    transparent 30%
+                ),
+                linear-gradient(
+                    135deg,
+                    #eeeeee 0%,
+                    #c9c9c9 15%,
+                    #777777 34%,
+                    #303034 58%,
+                    #08080b 82%,
+                    #020204 100%
+                );
+
+            background-attachment: fixed;
             font-family:
                 Inter,
                 ui-sans-serif,
@@ -27,34 +68,6 @@
                 BlinkMacSystemFont,
                 "Segoe UI",
                 sans-serif;
-        }
-
-        body {
-            min-height: 100vh;
-            color: #171717;
-
-            background:
-                radial-gradient(
-                    circle at 12% 8%,
-                    rgba(255,255,255,.98) 0%,
-                    rgba(255,255,255,.72) 25%,
-                    transparent 48%
-                ),
-                radial-gradient(
-                    circle at 88% 92%,
-                    rgba(255,255,255,.95) 0%,
-                    rgba(210,210,210,.55) 35%,
-                    transparent 65%
-                ),
-                linear-gradient(
-                    135deg,
-                    #8a8a8a 0%,
-                    #cfcfcf 28%,
-                    #f4f4f4 62%,
-                    #ffffff 100%
-                );
-
-            background-attachment: fixed;
         }
 
         button,
@@ -69,27 +82,38 @@
         }
 
         :root {
-            --neon-red: #ff1744;
-            --neon-red-dark: #d50032;
-            --neon-red-soft: rgba(255,23,68,.18);
-            --neon-red-glow: rgba(255,23,68,.42);
+            --red: #ff1744;
+            --red-dark: #d50032;
+            --red-soft: rgba(255,23,68,.12);
 
-            --white: rgba(255,255,255,.96);
-            --gray: rgba(232,232,232,.95);
+            --panel:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.085),
+                    rgba(255,255,255,.025)
+                );
+
+            --border:
+                rgba(255,255,255,.10);
+
+            --muted:
+                rgba(255,255,255,.50);
+
+            --text:
+                rgba(255,255,255,.95);
         }
 
         /* =====================================================
            APP
-        ===================================================== */
+        ====================================================== */
 
         .app {
-            display: flex;
             min-height: 100vh;
         }
 
         /* =====================================================
            NAV TOGGLE
-        ===================================================== */
+        ====================================================== */
 
         .nav-toggle {
             position: fixed;
@@ -104,43 +128,39 @@
             display: grid;
             place-items: center;
 
-            border: 1px solid rgba(255,255,255,.18);
-            border-radius: 11px;
+            border:
+                1px solid rgba(255,255,255,.15);
+
+            border-radius: 12px;
 
             color: #fff;
-            background: rgba(20,20,20,.94);
+
+            background:
+                rgba(10,10,12,.92);
 
             box-shadow:
-                0 6px 18px rgba(0,0,0,.25),
-                0 0 14px rgba(255,23,68,.18);
+                0 8px 25px rgba(0,0,0,.35),
+                0 0 18px rgba(255,23,68,.14);
 
-            font-size: 21px;
+            font-size: 20px;
             font-weight: 900;
-            line-height: 1;
 
             transition:
-                background .2s ease,
-                border-color .2s ease,
-                box-shadow .2s ease;
+                .2s ease;
         }
 
         .nav-toggle:hover {
-            background: var(--neon-red);
-            border-color: var(--neon-red);
+            background: var(--red);
+            border-color: var(--red);
 
             box-shadow:
-                0 0 18px rgba(255,23,68,.55),
-                0 8px 24px rgba(0,0,0,.25);
-        }
-
-        .nav-toggle:focus-visible {
-            outline: 3px solid rgba(255,23,68,.25);
-            outline-offset: 2px;
+                0 0 22px rgba(255,23,68,.55),
+                0 10px 30px rgba(0,0,0,.35);
         }
 
         /* =====================================================
            SIDEBAR
-        ===================================================== */
+        ====================================================== */
 
         .sidebar {
             position: fixed;
@@ -150,21 +170,23 @@
 
             padding: 22px 16px;
 
+            z-index: 200;
+
             background:
                 linear-gradient(
                     180deg,
-                    rgba(20,20,20,.98),
-                    rgba(40,40,40,.98)
+                    rgba(10,10,12,.985),
+                    rgba(25,25,28,.985)
                 );
 
             border-right:
-                1px solid rgba(255,255,255,.12);
+                1px solid rgba(255,255,255,.09);
 
-            z-index: 200;
+            box-shadow:
+                15px 0 50px rgba(0,0,0,.20);
 
             transition:
-                transform .22s ease,
-                box-shadow .22s ease;
+                transform .22s ease;
         }
 
         .app.sidebar-collapsed .sidebar {
@@ -174,9 +196,11 @@
         .brand {
             display: flex;
             align-items: center;
+
             gap: 11px;
 
-            padding: 4px 10px 25px;
+            padding:
+                4px 10px 25px;
 
             color: #fff;
         }
@@ -191,70 +215,89 @@
             border-radius: 11px;
 
             color: #fff;
-            background: var(--neon-red);
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #ff1744,
+                    #d50032
+                );
 
             font-size: 17px;
-            font-weight: 900;
+            font-weight: 950;
 
             box-shadow:
-                0 0 12px rgba(255,23,68,.75),
-                0 0 30px rgba(255,23,68,.35);
+                0 0 15px rgba(255,23,68,.65),
+                0 0 35px rgba(255,23,68,.22);
         }
 
         .brand-text {
             font-size: 18px;
-            font-weight: 900;
+            font-weight: 950;
+
             letter-spacing: .5px;
         }
 
         .brand-sub {
             margin-top: 2px;
 
-            color: #aaa;
+            color: rgba(255,255,255,.38);
 
-            font-size: 10px;
-            letter-spacing: 1.4px;
-        }
-
-        .nav-title {
-            padding: 0 11px 9px;
-
-            color: #777;
-
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 800;
 
             letter-spacing: 1.5px;
+        }
+
+        .nav-title {
+            padding:
+                0 11px 9px;
+
+            color:
+                rgba(255,255,255,.28);
+
+            font-size: 9px;
+            font-weight: 900;
+
+            letter-spacing: 1.7px;
+
             text-transform: uppercase;
         }
 
         .nav {
             display: flex;
             flex-direction: column;
+
             gap: 5px;
         }
 
         .nav a {
             display: flex;
             align-items: center;
-            gap: 12px;
 
             min-height: 44px;
 
-            padding: 0 13px;
+            gap: 12px;
 
-            color: #bdbdbd;
+            padding:
+                0 13px;
+
+            color:
+                rgba(255,255,255,.58);
 
             text-decoration: none;
 
             border-radius: 10px;
 
-            transition: .2s ease;
+            transition:
+                .2s ease;
         }
 
         .nav a:hover {
             color: #fff;
-            background: rgba(255,255,255,.08);
+
+            background:
+                rgba(255,255,255,.055);
         }
 
         .nav a.active {
@@ -263,13 +306,13 @@
             background:
                 linear-gradient(
                     90deg,
-                    rgba(255,23,68,.22),
-                    rgba(255,23,68,.07)
+                    rgba(255,23,68,.18),
+                    rgba(255,23,68,.035)
                 );
 
             box-shadow:
-                inset 3px 0 0 var(--neon-red),
-                0 0 15px rgba(255,23,68,.08);
+                inset 3px 0 0 var(--red),
+                0 0 20px rgba(255,23,68,.06);
         }
 
         .nav-icon {
@@ -277,12 +320,12 @@
 
             text-align: center;
 
-            font-size: 17px;
+            font-size: 16px;
         }
 
         .nav-label {
-            font-size: 13px;
-            font-weight: 700;
+            font-size: 12px;
+            font-weight: 750;
         }
 
         .sidebar-bottom {
@@ -295,25 +338,38 @@
 
         .logout {
             width: 100%;
+
             min-height: 42px;
 
             border:
-                1px solid rgba(255,255,255,.12);
+                1px solid rgba(255,255,255,.10);
 
             border-radius: 10px;
 
-            color: #ccc;
-            background: rgba(255,255,255,.04);
+            color:
+                rgba(255,255,255,.58);
+
+            background:
+                rgba(255,255,255,.035);
+
+            font-size: 12px;
+            font-weight: 750;
+
+            transition:
+                .2s ease;
         }
 
         .logout:hover {
             color: #fff;
 
             border-color:
-                rgba(255,23,68,.5);
+                rgba(255,23,68,.42);
 
             background:
-                rgba(255,23,68,.12);
+                rgba(255,23,68,.10);
+
+            box-shadow:
+                0 0 20px rgba(255,23,68,.08);
         }
 
         .sidebar-overlay {
@@ -324,19 +380,29 @@
 
             z-index: 150;
 
-            background: rgba(0,0,0,.38);
+            background:
+                rgba(0,0,0,.55);
+
+            backdrop-filter:
+                blur(5px);
+
+            -webkit-backdrop-filter:
+                blur(5px);
         }
 
         /* =====================================================
            MAIN
-        ===================================================== */
+        ====================================================== */
 
         .main {
             width: 100%;
 
+            min-height: 100vh;
+
             margin-left: 245px;
 
-            padding: 28px;
+            padding:
+                28px;
 
             transition:
                 margin-left .22s ease;
@@ -347,14 +413,16 @@
         }
 
         .content {
-            width: min(1100px,100%);
+            width:
+                min(1120px,100%);
 
-            margin: 0 auto;
+            margin:
+                0 auto;
         }
 
         /* =====================================================
            HEADER
-        ===================================================== */
+        ====================================================== */
 
         .page-header {
             display: flex;
@@ -363,42 +431,85 @@
 
             gap: 20px;
 
-            margin-bottom: 24px;
+            margin-bottom: 22px;
 
             padding-left: 48px;
         }
 
         .eyebrow {
-            margin-bottom: 6px;
+            display: inline-flex;
+            align-items: center;
 
-            color: var(--neon-red-dark);
+            min-height: 25px;
 
-            font-size: 11px;
+            margin-bottom: 9px;
+
+            padding:
+                0 10px;
+
+            border:
+                1px solid rgba(255,23,68,.18);
+
+            border-radius: 999px;
+
+            color:
+                rgba(255,255,255,.60);
+
+            background:
+                rgba(0,0,0,.22);
+
+            font-size: 9px;
             font-weight: 900;
 
-            letter-spacing: 2px;
+            letter-spacing: 1.7px;
+
             text-transform: uppercase;
         }
 
         h1 {
             margin: 0;
 
+            color: #fff;
+
             font-size:
-                clamp(25px,4vw,36px);
+                clamp(27px,4vw,38px);
 
-            line-height: 1.1;
+            line-height: 1.08;
 
-            letter-spacing: -1px;
+            letter-spacing:
+                -1.2px;
+
+            font-weight: 950;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #fff 0%,
+                    #fff 42%,
+                    #ff7189 72%,
+                    #ff1744 100%
+                );
+
+            -webkit-background-clip:
+                text;
+
+            background-clip:
+                text;
+
+            color: transparent;
         }
 
         .page-description {
-            max-width: 680px;
+            max-width: 720px;
 
-            margin: 9px 0 0;
+            margin:
+                10px 0 0;
 
-            color: #555;
+            color:
+                rgba(255,255,255,.48);
 
-            font-size: 13px;
+            font-size: 12px;
+
             line-height: 1.65;
         }
 
@@ -407,86 +518,131 @@
 
             min-height: 42px;
 
-            padding: 0 17px;
+            padding:
+                0 16px;
 
             border:
-                1px solid var(--neon-red);
+                1px solid rgba(255,23,68,.55);
 
             border-radius: 10px;
 
-            color: #222;
+            color: #fff;
 
             background:
-                linear-gradient(
-                    145deg,
-                    #fff,
-                    #e5e5e5
-                );
+                rgba(255,23,68,.07);
 
+            font-size: 12px;
             font-weight: 800;
 
             box-shadow:
-                0 0 5px rgba(255,23,68,.55),
-                0 0 14px rgba(255,23,68,.18),
-                0 6px 18px rgba(0,0,0,.08);
+                0 0 18px rgba(255,23,68,.08);
+
+            transition:
+                .2s ease;
         }
 
         .back-button:hover {
-            color: #fff;
-            background: var(--neon-red);
+            background:
+                var(--red);
+
+            border-color:
+                var(--red);
 
             box-shadow:
-                0 0 8px rgba(255,23,68,1),
-                0 0 22px rgba(255,23,68,.55);
+                0 0 25px rgba(255,23,68,.40);
         }
 
         /* =====================================================
-           COMMON BLOCK
-        ===================================================== */
+           ALERT
+        ====================================================== */
+
+        .alert {
+            display: none;
+
+            margin-bottom: 18px;
+
+            padding:
+                13px 15px;
+
+            border:
+                1px solid rgba(255,255,255,.10);
+
+            border-radius: 12px;
+
+            background:
+                rgba(0,0,0,.30);
+
+            color:
+                rgba(255,255,255,.78);
+
+            font-size: 12px;
+
+            line-height: 1.55;
+
+            box-shadow:
+                0 15px 45px rgba(0,0,0,.18);
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert.error {
+            border-color:
+                rgba(255,23,68,.42);
+
+            background:
+                rgba(255,23,68,.07);
+
+            color:
+                #ff9aae;
+
+            box-shadow:
+                0 0 25px rgba(255,23,68,.07);
+        }
+
+        .alert.success {
+            border-color:
+                rgba(50,205,120,.30);
+
+            background:
+                rgba(50,205,120,.06);
+
+            color:
+                #8de6b4;
+        }
+
+        /* =====================================================
+           COMMON CARDS
+        ====================================================== */
 
         .model-hero,
-        .form-card,
-        .price-box,
-        .parameter-card,
-        .status-box,
-        .alert,
-        .loading,
-        .actions {
+        .form-card {
+            position: relative;
+
+            margin-bottom: 16px;
+
             border:
-                1px solid var(--neon-red);
+                1px solid rgba(255,255,255,.095);
+
+            border-radius: 18px;
 
             background:
                 linear-gradient(
                     145deg,
-                    var(--white) 0%,
-                    rgba(247,247,247,.97) 42%,
-                    var(--gray) 100%
+                    rgba(255,255,255,.075),
+                    rgba(255,255,255,.022)
                 );
 
             box-shadow:
-                0 0 5px rgba(255,23,68,.82),
-                0 0 15px rgba(255,23,68,.30),
-                0 10px 30px rgba(0,0,0,.10);
-        }
+                0 30px 90px rgba(0,0,0,.28),
+                0 0 35px rgba(255,23,68,.035);
 
-        /* =====================================================
-           HERO
-        ===================================================== */
+            backdrop-filter:
+                blur(12px);
 
-        .model-hero {
-            position: relative;
-
-            margin-bottom: 18px;
-
-            padding: 22px;
-
-            border-radius: 18px;
-
-            box-shadow:
-                0 0 6px rgba(255,23,68,.95),
-                0 0 20px rgba(255,23,68,.45),
-                0 0 42px rgba(255,23,68,.18),
-                0 14px 40px rgba(0,0,0,.12);
+            -webkit-backdrop-filter:
+                blur(12px);
         }
 
         .model-hero::before,
@@ -495,18 +651,33 @@
 
             position: absolute;
 
-            inset: -2px;
+            inset: 0;
 
             border:
-                1px solid rgba(255,23,68,.18);
+                1px solid rgba(255,255,255,.025);
 
             border-radius: inherit;
 
             pointer-events: none;
+        }
+
+        .model-hero:hover,
+        .form-card:hover {
+            border-color:
+                rgba(255,23,68,.20);
 
             box-shadow:
-                0 0 18px rgba(255,23,68,.16),
-                0 0 35px rgba(255,23,68,.08);
+                0 35px 100px rgba(0,0,0,.34),
+                0 0 42px rgba(255,23,68,.07);
+        }
+
+        /* =====================================================
+           MODEL HERO
+        ====================================================== */
+
+        .model-hero {
+            padding:
+                22px;
         }
 
         .model-hero-top {
@@ -520,16 +691,19 @@
         .model-title {
             margin: 0;
 
-            font-size: 24px;
+            color: #fff;
+
+            font-size: 23px;
             font-weight: 900;
+
+            line-height: 1.2;
         }
 
         .model-id {
             margin-top: 8px;
 
-            color: #666;
-
-            font-size: 12px;
+            color:
+                rgba(255,255,255,.38);
 
             font-family:
                 ui-monospace,
@@ -539,33 +713,37 @@
                 Consolas,
                 monospace;
 
+            font-size: 11px;
+
             word-break: break-all;
         }
 
         .premium-badge {
             flex-shrink: 0;
 
-            padding: 7px 12px;
+            min-height: 28px;
+
+            display: inline-flex;
+            align-items: center;
+
+            padding:
+                0 11px;
 
             border:
-                1px solid var(--neon-red);
+                1px solid rgba(255,23,68,.35);
 
             border-radius: 999px;
 
-            color: var(--neon-red-dark);
+            color:
+                #ff6d88;
 
             background:
-                linear-gradient(
-                    135deg,
-                    rgba(255,255,255,.95),
-                    rgba(235,235,235,.90)
-                );
+                rgba(255,23,68,.07);
 
             box-shadow:
-                0 0 6px rgba(255,23,68,.85),
-                0 0 18px rgba(255,23,68,.30);
+                0 0 20px rgba(255,23,68,.08);
 
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 900;
 
             letter-spacing: 1px;
@@ -573,45 +751,33 @@
 
         /* =====================================================
            FORM CARD
-        ===================================================== */
+        ====================================================== */
 
         .form-card {
-            position: relative;
-
-            margin-bottom: 18px;
-
-            padding: 24px;
-
-            border-radius: 18px;
-
-            overflow: hidden;
-
-            backdrop-filter: blur(8px);
-        }
-
-        .form-card:hover,
-        .model-hero:hover {
-            box-shadow:
-                0 0 7px rgba(255,23,68,1),
-                0 0 24px rgba(255,23,68,.48),
-                0 0 45px rgba(255,23,68,.18),
-                0 14px 40px rgba(0,0,0,.12);
+            padding:
+                22px;
         }
 
         .section-title {
-            margin: 0 0 5px;
+            margin:
+                0 0 5px;
 
-            font-size: 17px;
+            color: #fff;
+
+            font-size: 16px;
             font-weight: 900;
         }
 
         .section-description {
-            margin: 0 0 20px;
+            margin:
+                0 0 20px;
 
-            color: #666;
+            color:
+                rgba(255,255,255,.42);
 
-            font-size: 12px;
-            line-height: 1.55;
+            font-size: 11px;
+
+            line-height: 1.6;
         }
 
         .form-grid {
@@ -620,7 +786,7 @@
             grid-template-columns:
                 repeat(2,minmax(0,1fr));
 
-            gap: 18px;
+            gap: 17px;
         }
 
         .field {
@@ -628,7 +794,8 @@
         }
 
         .field.full {
-            grid-column: 1 / -1;
+            grid-column:
+                1 / -1;
         }
 
         .field label {
@@ -636,19 +803,22 @@
 
             margin-bottom: 7px;
 
-            color: #333;
+            color:
+                rgba(255,255,255,.70);
 
-            font-size: 12px;
-            font-weight: 850;
+            font-size: 11px;
+            font-weight: 800;
         }
 
         .field-help {
             margin-top: 6px;
 
-            color: #777;
+            color:
+                rgba(255,255,255,.30);
 
-            font-size: 10px;
-            line-height: 1.45;
+            font-size: 9px;
+
+            line-height: 1.5;
         }
 
         input,
@@ -656,53 +826,76 @@
         select {
             width: 100%;
 
+            outline: none;
+
+            color: #fff;
+
+            background:
+                rgba(0,0,0,.28);
+
             border:
-                1px solid #cfcfcf;
+                1px solid rgba(255,255,255,.10);
 
             border-radius: 10px;
 
-            outline: none;
-
-            color: #171717;
-            background: #fff;
-
             transition:
                 border-color .18s ease,
-                box-shadow .18s ease;
+                box-shadow .18s ease,
+                background .18s ease;
         }
 
         input,
         select {
             min-height: 44px;
 
-            padding: 0 13px;
+            padding:
+                0 13px;
         }
 
         textarea {
             min-height: 100px;
 
-            padding: 12px 13px;
+            padding:
+                12px 13px;
 
             resize: vertical;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color:
+                rgba(255,255,255,.25);
         }
 
         input:focus,
         textarea:focus,
         select:focus {
-            border-color: var(--neon-red);
+            border-color:
+                rgba(255,23,68,.52);
+
+            background:
+                rgba(0,0,0,.36);
 
             box-shadow:
-                0 0 0 3px rgba(255,23,68,.10),
-                0 0 13px rgba(255,23,68,.10);
+                0 0 0 3px rgba(255,23,68,.055),
+                0 0 22px rgba(255,23,68,.06);
         }
 
         input[readonly],
         textarea[readonly] {
-            color: #555;
+            color:
+                rgba(255,255,255,.48);
 
-            background: #eee;
+            background:
+                rgba(255,255,255,.045);
 
-            cursor: not-allowed;
+            cursor:
+                not-allowed;
+        }
+
+        select option {
+            color: #fff;
+            background: #161619;
         }
 
         .readonly-value {
@@ -711,29 +904,24 @@
             display: flex;
             align-items: center;
 
-            padding: 0 13px;
+            padding:
+                0 13px;
 
             border:
-                1px solid rgba(255,23,68,.55);
+                1px solid rgba(255,255,255,.08);
 
             border-radius: 10px;
 
-            color: #555;
+            color:
+                rgba(255,255,255,.52);
 
             background:
-                linear-gradient(
-                    145deg,
-                    #fff,
-                    #e6e6e6
-                );
+                rgba(255,255,255,.045);
 
-            box-shadow:
-                inset 0 0 8px rgba(255,23,68,.05),
-                0 0 5px rgba(255,23,68,.12);
+            font-size: 12px;
 
-            font-size: 13px;
-
-            overflow-wrap: anywhere;
+            overflow-wrap:
+                anywhere;
         }
 
         .mono {
@@ -748,10 +936,10 @@
 
         /* =====================================================
            STATUS
-        ===================================================== */
+        ====================================================== */
 
         .status-box {
-            min-height: 44px;
+            min-height: 52px;
 
             display: flex;
             align-items: center;
@@ -759,25 +947,35 @@
 
             gap: 15px;
 
-            padding: 8px 12px;
+            padding:
+                9px 12px;
 
-            border-radius: 10px;
+            border:
+                1px solid rgba(255,255,255,.08);
+
+            border-radius: 11px;
+
+            background:
+                rgba(0,0,0,.24);
         }
 
         .status-info strong {
             display: block;
 
-            font-size: 13px;
+            color: #fff;
+
+            font-size: 12px;
         }
 
         .status-info span {
             display: block;
 
-            margin-top: 2px;
+            margin-top: 3px;
 
-            color: #777;
+            color:
+                rgba(255,255,255,.32);
 
-            font-size: 10px;
+            font-size: 9px;
         }
 
         .switch {
@@ -792,7 +990,11 @@
         .switch input {
             position: absolute;
 
+            width: 0;
+            height: 0;
+
             opacity: 0;
+
             pointer-events: none;
         }
 
@@ -803,11 +1005,13 @@
 
             border-radius: 999px;
 
-            background: #aaa;
-
-            transition: .2s ease;
+            background:
+                rgba(255,255,255,.16);
 
             cursor: pointer;
+
+            transition:
+                .2s ease;
         }
 
         .slider::before {
@@ -826,25 +1030,28 @@
             background: #fff;
 
             box-shadow:
-                0 2px 5px rgba(0,0,0,.25);
+                0 2px 7px rgba(0,0,0,.35);
 
-            transition: .2s ease;
+            transition:
+                .2s ease;
         }
 
         .switch input:checked + .slider {
-            background: var(--neon-red);
+            background:
+                var(--red);
 
             box-shadow:
-                0 0 12px rgba(255,23,68,.55);
+                0 0 16px rgba(255,23,68,.38);
         }
 
         .switch input:checked + .slider::before {
-            transform: translateX(24px);
+            transform:
+                translateX(24px);
         }
 
         /* =====================================================
            PRICING
-        ===================================================== */
+        ====================================================== */
 
         .price-input-wrap {
             position: relative;
@@ -856,18 +1063,20 @@
             left: 13px;
             top: 50%;
 
-            transform: translateY(-50%);
+            transform:
+                translateY(-50%);
 
-            color: #555;
+            color:
+                rgba(255,255,255,.40);
 
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 800;
 
             pointer-events: none;
         }
 
         .price-input-wrap input {
-            padding-left: 42px;
+            padding-left: 40px;
         }
 
         .price-preview {
@@ -882,78 +1091,85 @@
         }
 
         .price-box {
-            padding: 15px;
+            padding:
+                15px;
+
+            border:
+                1px solid rgba(255,255,255,.08);
 
             border-radius: 12px;
+
+            background:
+                rgba(0,0,0,.24);
         }
 
         .price-label {
-            color: #777;
+            color:
+                rgba(255,255,255,.32);
 
-            font-size: 10px;
-            font-weight: 800;
+            font-size: 9px;
+            font-weight: 850;
 
-            letter-spacing: .5px;
+            letter-spacing: .7px;
+
             text-transform: uppercase;
         }
 
         .price-value {
             margin-top: 7px;
 
-            font-size: 18px;
+            color: #fff;
+
+            font-size: 17px;
             font-weight: 950;
         }
 
         .price-box.final {
+            border-color:
+                rgba(255,23,68,.25);
+
+            background:
+                rgba(255,23,68,.055);
+
             box-shadow:
-                0 0 6px rgba(255,23,68,.95),
-                0 0 20px rgba(255,23,68,.38),
-                0 8px 24px rgba(0,0,0,.10);
+                0 0 24px rgba(255,23,68,.06);
         }
 
         .price-box.final .price-value {
-            color: var(--neon-red-dark);
+            color:
+                #ff5d7a;
         }
 
-        /* =====================================================
-           CREDIT INFO
-        ===================================================== */
-
         .credit-info {
-            margin-top: 18px;
+            margin-top: 17px;
 
-            padding: 13px 15px;
+            padding:
+                12px 14px;
 
             border:
-                1px solid var(--neon-red);
+                1px solid rgba(255,255,255,.075);
 
-            border-radius: 12px;
+            border-radius: 11px;
 
             background:
-                linear-gradient(
-                    145deg,
-                    #fff,
-                    #e5e5e5
-                );
+                rgba(255,255,255,.035);
 
-            box-shadow:
-                0 0 5px rgba(255,23,68,.55),
-                0 0 14px rgba(255,23,68,.18);
+            color:
+                rgba(255,255,255,.40);
 
-            color: #555;
+            font-size: 10px;
 
-            font-size: 11px;
-
-            line-height: 1.55;
+            line-height: 1.6;
         }
 
         .credit-info strong {
-            color: #222;
+            color:
+                rgba(255,255,255,.72);
         }
 
         /* =====================================================
            PARAMETERS
-        ===================================================== */
+        ====================================================== */
 
         .parameter-grid {
             display: grid;
@@ -969,167 +1185,150 @@
         .parameter-card {
             min-width: 0;
 
-            padding: 15px;
+            padding:
+                15px;
+
+            border:
+                1px solid rgba(255,255,255,.075);
 
             border-radius: 12px;
 
             background:
-                linear-gradient(
-                    145deg,
-                    #fff,
-                    #f3f3f3 48%,
-                    #dedede
-                );
+                rgba(0,0,0,.22);
+
+            transition:
+                .2s ease;
         }
 
         .parameter-card:hover {
+            border-color:
+                rgba(255,23,68,.20);
+
+            background:
+                rgba(255,23,68,.035);
+
             box-shadow:
-                0 0 6px rgba(255,23,68,.9),
-                0 0 20px rgba(255,23,68,.32),
-                0 8px 22px rgba(0,0,0,.10);
+                0 0 25px rgba(255,23,68,.05);
         }
 
         .parameter-label {
             margin-bottom: 8px;
 
-            color: #777;
+            color:
+                rgba(255,255,255,.30);
 
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 850;
+
+            letter-spacing: .7px;
 
             text-transform: uppercase;
         }
 
         .parameter-value {
-            color: #222;
+            color:
+                rgba(255,255,255,.78);
 
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 800;
 
             line-height: 1.55;
 
-            overflow-wrap: anywhere;
+            overflow-wrap:
+                anywhere;
         }
 
         /* =====================================================
            ACTIONS
-        ===================================================== */
+        ====================================================== */
 
         .actions {
             display: flex;
-
             align-items: center;
             justify-content: flex-end;
 
             gap: 10px;
-
-            margin-top: 0;
-
-            padding: 15px;
-
-            border-radius: 15px;
         }
 
         .btn {
             min-height: 44px;
 
-            padding: 0 18px;
+            padding:
+                0 18px;
 
             border-radius: 10px;
 
+            font-size: 12px;
             font-weight: 850;
 
             border:
                 1px solid transparent;
+
+            transition:
+                .2s ease;
         }
 
         .btn-secondary {
-            color: #333;
+            color:
+                rgba(255,255,255,.70);
 
-            background: #e9e9e9;
+            background:
+                rgba(255,255,255,.055);
 
-            border-color: #d0d0d0;
+            border-color:
+                rgba(255,255,255,.09);
         }
 
         .btn-secondary:hover {
-            background: #ddd;
+            color: #fff;
+
+            background:
+                rgba(255,255,255,.09);
+
+            border-color:
+                rgba(255,255,255,.14);
         }
 
         .btn-primary {
             color: #fff;
 
-            background: var(--neon-red);
+            background:
+                linear-gradient(
+                    145deg,
+                    #ff1744,
+                    #d50032
+                );
 
-            border-color: var(--neon-red);
+            border-color:
+                rgba(255,23,68,.85);
 
             box-shadow:
-                0 0 12px rgba(255,23,68,.4);
+                0 0 18px rgba(255,23,68,.25);
         }
 
         .btn-primary:hover {
-            background: #e60032;
-
             box-shadow:
-                0 0 20px rgba(255,23,68,.55);
+                0 0 28px rgba(255,23,68,.45),
+                0 10px 30px rgba(0,0,0,.25);
+
+            transform:
+                translateY(-1px);
         }
 
         .btn-primary:disabled {
-            opacity: .55;
+            opacity: .48;
 
-            cursor: not-allowed;
+            cursor:
+                not-allowed;
+
+            transform: none;
 
             box-shadow: none;
         }
 
         /* =====================================================
-           ALERT
-        ===================================================== */
-
-        .alert {
-            display: none;
-
-            margin-bottom: 18px;
-
-            padding: 13px 15px;
-
-            border-radius: 10px;
-
-            font-size: 12px;
-
-            line-height: 1.55;
-        }
-
-        .alert.show {
-            display: block;
-        }
-
-        .alert.error,
-        .alert.success {
-            border-color: var(--neon-red);
-
-            background:
-                linear-gradient(
-                    135deg,
-                    rgba(255,255,255,.97),
-                    rgba(235,235,235,.95)
-                );
-
-            box-shadow:
-                0 0 5px rgba(255,23,68,.65),
-                0 0 15px rgba(255,23,68,.20);
-        }
-
-        .alert.error {
-            color: #8c001d;
-        }
-
-        .alert.success {
-            color: #14532d;
-        }
-
-        /* =====================================================
            LOADING
-        ===================================================== */
+        ====================================================== */
 
         .loading {
             display: flex;
@@ -1137,13 +1336,12 @@
             align-items: center;
             justify-content: center;
 
-            min-height: 350px;
+            min-height: 320px;
 
-            border-radius: 18px;
+            color:
+                rgba(255,255,255,.48);
 
-            color: #555;
-
-            font-size: 13px;
+            font-size: 12px;
         }
 
         .spinner {
@@ -1153,10 +1351,10 @@
             margin-right: 10px;
 
             border:
-                3px solid #ddd;
+                3px solid rgba(255,255,255,.10);
 
             border-top-color:
-                var(--neon-red);
+                var(--red);
 
             border-radius: 50%;
 
@@ -1166,7 +1364,8 @@
 
         @keyframes spin {
             to {
-                transform: rotate(360deg);
+                transform:
+                    rotate(360deg);
             }
         }
 
@@ -1176,7 +1375,7 @@
 
         /* =====================================================
            RESPONSIVE
-        ===================================================== */
+        ====================================================== */
 
         @media (max-width: 900px) {
 
@@ -1190,24 +1389,19 @@
             }
 
             .price-preview {
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
             }
         }
 
         @media (max-width: 720px) {
 
             .sidebar {
-                position: fixed;
+                width:
+                    min(245px,82vw);
 
-                top: 0;
-                left: 0;
-                bottom: 0;
-
-                width: min(245px,82vw);
-
-                height: 100vh;
-
-                transform: translateX(-100%);
+                transform:
+                    translateX(-100%);
 
                 overflow-y: auto;
             }
@@ -1216,12 +1410,12 @@
                 display: block;
             }
 
-            .app:not(.sidebar-collapsed)
-            .sidebar {
-                transform: translateX(0);
+            .app:not(.sidebar-collapsed) .sidebar {
+                transform:
+                    translateX(0);
 
                 box-shadow:
-                    12px 0 35px rgba(0,0,0,.35);
+                    15px 0 45px rgba(0,0,0,.45);
             }
 
             .app:not(.sidebar-collapsed)
@@ -1231,7 +1425,9 @@
 
             .main {
                 margin-left: 0;
-                padding: 15px;
+
+                padding:
+                    15px;
             }
 
             .page-header {
@@ -1245,23 +1441,31 @@
             }
 
             .form-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
             }
 
             .field.full {
-                grid-column: auto;
+                grid-column:
+                    auto;
             }
 
             .parameter-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns:
+                    1fr;
             }
 
             .model-hero-top {
                 flex-direction: column;
             }
 
+            .premium-badge {
+                align-self: flex-start;
+            }
+
             .actions {
-                flex-direction: column-reverse;
+                flex-direction:
+                    column-reverse;
             }
 
             .actions .btn {
@@ -1325,14 +1529,14 @@
 
         <nav class="nav">
 
-            <a href="./index.html">
+            <a href="./admin-panel.html">
                 <span class="nav-icon">⌂</span>
                 <span class="nav-label">
                     Dashboard
                 </span>
             </a>
 
-            <a href="./users.html">
+            <a href="./user.html">
                 <span class="nav-icon">♙</span>
                 <span class="nav-label">
                     Users
@@ -1410,10 +1614,9 @@
 
                     <p class="page-description">
                         Konfigurasi model yang berasal dari
-                        folder model di repository.
-                        Model ID dikunci karena digunakan
-                        sebagai referensi utama pada halaman
-                        Generate.
+                        registry model di repository.
+                        Model ID dikunci karena menjadi
+                        referensi utama sistem Generate.
                     </p>
 
                 </div>
@@ -1501,9 +1704,9 @@
                     </h2>
 
                     <p class="section-description">
-                        Identitas teknis model berasal dari
-                        folder model. Hanya konfigurasi
-                        administratif yang dapat diubah.
+                        Identitas teknis model dibaca dari
+                        registry repository. Konfigurasi
+                        administratif berasal dari Supabase.
                     </p>
 
 
@@ -1545,7 +1748,7 @@
 
                             <div class="field-help">
                                 Read-only. Berasal dari
-                                config.js model.
+                                registry model.
                             </div>
 
                         </div>
@@ -1652,11 +1855,10 @@
                     </h2>
 
                     <p class="section-description">
-                        Bagian ini hanya digunakan untuk
-                        konfigurasi harga jika data harga
-                        USD memang tersedia pada konfigurasi
-                        model. Field credit tidak diperlakukan
-                        sebagai harga USD.
+                        Harga USD hanya digunakan apabila
+                        registry model menyediakan data
+                        harga USD. Nilai credit database
+                        tidak dikonversi menjadi USD.
                     </p>
 
 
@@ -1686,9 +1888,8 @@
                             </div>
 
                             <div class="field-help">
-                                Nilai USD hanya disimpan jika
-                                field harga USD tersedia pada
-                                konfigurasi yang digunakan.
+                                Nilai USD hanya digunakan
+                                jika tersedia pada registry.
                             </div>
 
                         </div>
@@ -1724,7 +1925,8 @@
                             </div>
 
                             <div class="field-help">
-                                Hanya untuk kalkulasi tampilan.
+                                Hanya untuk kalkulasi
+                                tampilan halaman ini.
                             </div>
 
                         </div>
@@ -1826,10 +2028,8 @@
                         <strong>Catatan:</strong>
                         `credit_cost` pada database adalah
                         biaya credit sistem, bukan otomatis
-                        harga USD. Karena itu halaman ini tidak
-                        mengubah `credit_cost` menjadi nilai USD.
-                        Ini mencegah konfigurasi credit rusak
-                        hanya karena admin mengedit pricing.
+                        harga USD. Halaman ini tidak mengubah
+                        `credit_cost` menjadi USD.
 
                     </div>
 
@@ -1848,9 +2048,9 @@
 
                     <p class="section-description">
                         Parameter teknis dibaca langsung dari
-                        parameters.js pada folder model.
-                        Parameter tidak dapat diedit dari
-                        halaman admin.
+                        registry model dan parameters.js.
+                        Parameter teknis tidak diedit dari
+                        halaman ini.
                     </p>
 
 
@@ -2238,7 +2438,7 @@
                 }
 
             } catch (_) {
-                /* not JSON */
+                /* bukan JSON */
             }
 
             return value
@@ -2379,10 +2579,6 @@
 
     function renderParameters(model) {
 
-        /*
-         * Duration
-         */
-
         const durationParameter =
             getParameterDefinition(
                 model,
@@ -2438,9 +2634,7 @@
         }
 
 
-        /*
-         * Aspect ratio
-         */
+        /* Aspect Ratio */
 
         let ratios =
             normalizeArray(
@@ -2482,9 +2676,7 @@
                 : "Mengikuti parameters.js";
 
 
-        /*
-         * Resolution
-         */
+        /* Resolution */
 
         let resolutions =
             normalizeArray(
@@ -2705,10 +2897,8 @@
 
 
         /*
-         * Jangan membaca credit_cost sebagai USD.
-         *
-         * Jika model registry/config memiliki
-         * price_usd, gunakan itu.
+         * credit_cost tidak pernah
+         * diperlakukan sebagai USD.
          */
 
         const registryPrice =
@@ -2726,9 +2916,7 @@
 
 
         /*
-         * Jangan hardcode kurs.
-         * Admin mengisinya sendiri untuk
-         * kalkulasi tampilan.
+         * Kurs tidak di-hardcode.
          */
 
         exchangeRate.value =
@@ -2866,10 +3054,6 @@
                 registryModel.discount_percent ??
                 0,
 
-            /*
-             * Credit tetap credit.
-             */
-
             credit_cost:
                 databaseModel.credit_cost,
 
@@ -2914,10 +3098,8 @@
         try {
 
             /*
-             * STEP 1
-             *
-             * Model HARUS berasal dari
-             * registry repository.
+             * MODEL WAJIB BERASAL DARI
+             * REGISTRY REPOSITORY.
              */
 
             let registryModel =
@@ -2939,11 +3121,6 @@
                 );
             }
 
-
-            /*
-             * Fallback jika helper tidak
-             * mengembalikan object.
-             */
 
             if (!registryModel) {
 
@@ -2979,9 +3156,8 @@
 
 
             /*
-             * Jangan pernah membuat model
-             * dari data Supabase jika model
-             * tidak ada di repository.
+             * Jangan membuat model
+             * hanya dari database.
              */
 
             if (!registryModel) {
@@ -2998,10 +3174,8 @@
 
 
             /*
-             * STEP 2
-             *
-             * Supabase hanya dipakai untuk
-             * konfigurasi administratif.
+             * SUPABASE HANYA UNTUK
+             * KONFIGURASI ADMINISTRATIF.
              */
 
             const databaseModel =
@@ -3112,10 +3286,7 @@
 
 
         /*
-         * Model ID TIDAK dimasukkan ke
-         * payload update.
-         *
-         * Model ID immutable.
+         * MODEL ID IMMUTABLE.
          */
 
         const discountPercent =
@@ -3162,16 +3333,16 @@
 
         try {
 
-            /*
-             * Gunakan UUID database jika
-             * tersedia.
-             */
-
             let query =
                 supabase
                     .from("models")
                     .update(payload);
 
+
+            /*
+             * Gunakan UUID database
+             * jika tersedia.
+             */
 
             if (
                 currentDatabaseModel?.id
@@ -3186,12 +3357,9 @@
             } else {
 
                 /*
-                 * Jika belum ada row konfigurasi,
-                 * jangan mengarang INSERT otomatis.
-                 *
-                 * Karena schema provider_id,
-                 * credit_cost, dan field wajib
-                 * lainnya belum boleh diasumsikan.
+                 * Jangan membuat INSERT
+                 * dengan schema yang belum
+                 * diverifikasi.
                  */
 
                 showAlert(
@@ -3228,6 +3396,13 @@
 
                 status:
                     payload.status
+            };
+
+
+            currentDatabaseModel = {
+                ...currentDatabaseModel,
+
+                ...payload
             };
 
 
@@ -3360,17 +3535,12 @@
        INITIAL STATE
     ===================================================== */
 
-    /*
-     * Desktop:
-     * sidebar terbuka.
-     *
-     * Mobile:
-     * sidebar tertutup.
-     */
-
     if (window.innerWidth <= 720) {
+
         setNavigation(false);
+
     } else {
+
         setNavigation(true);
     }
 
