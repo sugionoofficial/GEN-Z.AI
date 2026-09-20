@@ -1,0 +1,2882 @@
+/* =========================================================
+   GEN-Z.AI
+   GLOBAL PREMIUM UI SYSTEM
+   ---------------------------------------------------------
+   Tujuan:
+   - Menyamakan tampilan seluruh halaman dengan admin-panel
+   - Dark / black / grey premium interface
+   - Neon red GEN-Z.AI accent
+   - Glassmorphism
+   - Responsive desktop / tablet / mobile
+
+   TIDAK MENGUBAH:
+   - Supabase
+   - Authentication
+   - Role
+   - RPC
+   - CRUD
+   - API
+   - JavaScript logic
+   - Navigation logic
+========================================================= */
+
+
+/* =========================================================
+   ROOT
+========================================================= */
+
+:root {
+
+    --gz-black:
+        #020204;
+
+    --gz-black-2:
+        #050507;
+
+    --gz-black-3:
+        #08080b;
+
+    --gz-dark:
+        #111114;
+
+    --gz-dark-2:
+        #18181c;
+
+    --gz-grey:
+        #303034;
+
+    --gz-grey-2:
+        #66666b;
+
+    --gz-grey-3:
+        #a0a0a5;
+
+    --gz-light:
+        #d2d2d5;
+
+    --gz-white:
+        #ffffff;
+
+    --gz-red:
+        #ff1744;
+
+    --gz-red-bright:
+        #ff3159;
+
+    --gz-red-dark:
+        #c9002d;
+
+    --gz-red-soft:
+        rgba(255, 23, 68, .08);
+
+    --gz-red-soft-2:
+        rgba(255, 23, 68, .14);
+
+    --gz-red-border:
+        rgba(255, 23, 68, .32);
+
+    --gz-red-glow:
+        rgba(255, 23, 68, .25);
+
+    --gz-panel:
+        rgba(12, 12, 15, .84);
+
+    --gz-panel-strong:
+        rgba(5, 5, 7, .94);
+
+    --gz-panel-soft:
+        rgba(255, 255, 255, .045);
+
+    --gz-border:
+        rgba(255, 255, 255, .085);
+
+    --gz-border-soft:
+        rgba(255, 255, 255, .055);
+
+    --gz-text:
+        rgba(255, 255, 255, .94);
+
+    --gz-muted:
+        rgba(255, 255, 255, .58);
+
+    --gz-muted-2:
+        rgba(255, 255, 255, .36);
+
+    --gz-radius:
+        20px;
+
+    --gz-radius-small:
+        12px;
+
+    --gz-shadow:
+        0 25px 80px rgba(0, 0, 0, .30);
+
+    --gz-shadow-red:
+        0 0 35px rgba(255, 23, 68, .12);
+
+    --gz-transition:
+        .2s ease;
+
+}
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+*,
+*::before,
+*::after {
+
+    box-sizing:
+        border-box;
+
+}
+
+
+html {
+
+    min-height:
+        100%;
+
+    background:
+        var(--gz-black);
+
+}
+
+
+body {
+
+    margin:
+        0;
+
+    min-height:
+        100vh;
+
+    color:
+        var(--gz-text);
+
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    background:
+
+        radial-gradient(
+            circle at 8% 0%,
+            rgba(255, 23, 68, .10),
+            transparent 28%
+        ),
+
+        radial-gradient(
+            circle at 92% 8%,
+            rgba(255, 23, 68, .07),
+            transparent 30%
+        ),
+
+        linear-gradient(
+            135deg,
+            #eeeeee 0%,
+            #c9c9c9 15%,
+            #777777 34%,
+            #303034 58%,
+            #08080b 82%,
+            #020204 100%
+        );
+
+    background-attachment:
+        fixed;
+
+}
+
+
+/* =========================================================
+   BACKGROUND GRID
+========================================================= */
+
+body::before {
+
+    content:
+        "";
+
+    position:
+        fixed;
+
+    inset:
+        0;
+
+    pointer-events:
+        none;
+
+    z-index:
+        0;
+
+    background:
+
+        linear-gradient(
+            rgba(255, 255, 255, .018) 1px,
+            transparent 1px
+        ),
+
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, .018) 1px,
+            transparent 1px
+        );
+
+    background-size:
+        42px 42px;
+
+    mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 92%
+        );
+
+    -webkit-mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 92%
+        );
+
+}
+
+
+/* =========================================================
+   TOP LIGHT
+========================================================= */
+
+body::after {
+
+    content:
+        "";
+
+    position:
+        fixed;
+
+    inset:
+        0;
+
+    pointer-events:
+        none;
+
+    z-index:
+        0;
+
+    background:
+
+        linear-gradient(
+            115deg,
+            transparent 0%,
+            rgba(255,255,255,.055) 30%,
+            transparent 52%
+        );
+
+    opacity:
+        .35;
+
+}
+
+
+/* =========================================================
+   COMMON
+========================================================= */
+
+img {
+
+    max-width:
+        100%;
+
+    display:
+        block;
+
+}
+
+
+a {
+
+    color:
+        inherit;
+
+}
+
+
+button,
+input,
+textarea,
+select {
+
+    font:
+        inherit;
+
+}
+
+
+button {
+
+    -webkit-tap-highlight-color:
+        transparent;
+
+}
+
+
+/* =========================================================
+   PREMIUM CONTAINER
+========================================================= */
+
+.gz-container {
+
+    width:
+        100%;
+
+    max-width:
+        1250px;
+
+    margin:
+        0 auto;
+
+}
+
+
+/* =========================================================
+   PREMIUM PANEL
+========================================================= */
+
+.gz-panel {
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.075),
+            rgba(255,255,255,.025)
+        );
+
+    border:
+        1px solid var(--gz-border);
+
+    border-radius:
+        var(--gz-radius);
+
+    box-shadow:
+        var(--gz-shadow);
+
+    backdrop-filter:
+        blur(20px);
+
+    -webkit-backdrop-filter:
+        blur(20px);
+
+}
+
+
+.gz-panel-red {
+
+    border-color:
+        var(--gz-red-border);
+
+    box-shadow:
+        var(--gz-shadow),
+        var(--gz-shadow-red);
+
+}
+
+
+/* =========================================================
+   PREMIUM CARD
+========================================================= */
+
+.gz-card {
+
+    position:
+        relative;
+
+    overflow:
+        hidden;
+
+    padding:
+        22px;
+
+    border-radius:
+        var(--gz-radius);
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.075),
+            rgba(255,255,255,.025)
+        );
+
+    border:
+        1px solid var(--gz-border);
+
+    box-shadow:
+        var(--gz-shadow);
+
+    backdrop-filter:
+        blur(18px);
+
+    -webkit-backdrop-filter:
+        blur(18px);
+
+    transition:
+
+        transform var(--gz-transition),
+        border-color var(--gz-transition),
+        box-shadow var(--gz-transition);
+
+}
+
+
+.gz-card:hover {
+
+    border-color:
+        rgba(255,255,255,.14);
+
+    box-shadow:
+        0 30px 90px rgba(0,0,0,.34);
+
+}
+
+
+.gz-card::before {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    top:
+        0;
+
+    left:
+        0;
+
+    right:
+        0;
+
+    height:
+        1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.18),
+            transparent
+        );
+
+    pointer-events:
+        none;
+
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.gz-header {
+
+    width:
+        100%;
+
+    padding:
+        22px 28px;
+
+    background:
+        rgba(5,5,7,.72);
+
+    border-bottom:
+        1px solid rgba(255,255,255,.07);
+
+    backdrop-filter:
+        blur(22px);
+
+    -webkit-backdrop-filter:
+        blur(22px);
+
+}
+
+
+.gz-header-inner {
+
+    width:
+        100%;
+
+    max-width:
+        1250px;
+
+    margin:
+        0 auto;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        20px;
+
+}
+
+
+/* =========================================================
+   LOGO
+========================================================= */
+
+.gz-logo {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    gap:
+        12px;
+
+    text-decoration:
+        none;
+
+}
+
+
+.gz-logo-mark {
+
+    width:
+        42px;
+
+    height:
+        42px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    border-radius:
+        13px;
+
+    color:
+        #fff;
+
+    font-size:
+        18px;
+
+    font-weight:
+        950;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            #16161a,
+            #050507
+        );
+
+    border:
+        1px solid var(--gz-red-border);
+
+    box-shadow:
+
+        0 0 0 1px rgba(255,23,68,.04),
+        0 0 30px rgba(255,23,68,.12),
+        inset 0 0 25px rgba(255,23,68,.05);
+
+}
+
+
+.gz-logo-text {
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+}
+
+
+.gz-logo-name {
+
+    font-size:
+        18px;
+
+    line-height:
+        1;
+
+    font-weight:
+        950;
+
+    letter-spacing:
+        -0.8px;
+
+}
+
+
+.gz-logo-sub {
+
+    margin-top:
+        5px;
+
+    color:
+        var(--gz-muted-2);
+
+    font-size:
+        7px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        1.8px;
+
+}
+
+
+/* =========================================================
+   PAGE TITLE
+========================================================= */
+
+.gz-page-header {
+
+    margin-bottom:
+        28px;
+
+}
+
+
+.gz-eyebrow {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    padding:
+        7px 12px;
+
+    margin-bottom:
+        12px;
+
+    border-radius:
+        999px;
+
+    color:
+        rgba(255,255,255,.58);
+
+    background:
+        rgba(255,255,255,.045);
+
+    border:
+        1px solid rgba(255,255,255,.08);
+
+    font-size:
+        9px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        1.7px;
+
+    text-transform:
+        uppercase;
+
+}
+
+
+.gz-page-title {
+
+    margin:
+        0;
+
+    color:
+        #fff;
+
+    font-size:
+        clamp(30px, 4vw, 48px);
+
+    line-height:
+        1;
+
+    font-weight:
+        950;
+
+    letter-spacing:
+        -2px;
+
+}
+
+
+.gz-page-title-accent {
+
+    background:
+
+        linear-gradient(
+            90deg,
+            #fff,
+            #ff5a76,
+            #ff1744
+        );
+
+    -webkit-background-clip:
+        text;
+
+    background-clip:
+        text;
+
+    color:
+        transparent;
+
+}
+
+
+.gz-page-subtitle {
+
+    max-width:
+        700px;
+
+    margin-top:
+        12px;
+
+    color:
+        var(--gz-muted);
+
+    font-size:
+        13px;
+
+    line-height:
+        1.7;
+
+}
+
+
+/* =========================================================
+   STATUS BADGE
+========================================================= */
+
+.gz-badge {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    gap:
+        7px;
+
+    padding:
+        6px 10px;
+
+    border-radius:
+        999px;
+
+    font-size:
+        9px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        .6px;
+
+}
+
+
+.gz-badge-red {
+
+    color:
+        #ffb9c5;
+
+    background:
+        var(--gz-red-soft-2);
+
+    border:
+        1px solid var(--gz-red-border);
+
+}
+
+
+.gz-badge-dark {
+
+    color:
+        rgba(255,255,255,.62);
+
+    background:
+        rgba(255,255,255,.045);
+
+    border:
+        1px solid rgba(255,255,255,.08);
+
+}
+
+
+.gz-badge-green {
+
+    color:
+        #b7f6d8;
+
+    background:
+        rgba(16,185,129,.08);
+
+    border:
+        1px solid rgba(16,185,129,.18);
+
+}
+
+
+.gz-badge-yellow {
+
+    color:
+        #ffe1a2;
+
+    background:
+        rgba(245,158,11,.08);
+
+    border:
+        1px solid rgba(245,158,11,.18);
+
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.gz-btn {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    gap:
+        7px;
+
+    min-height:
+        40px;
+
+    padding:
+        10px 15px;
+
+    border-radius:
+        11px;
+
+    border:
+        1px solid transparent;
+
+    font-size:
+        11px;
+
+    font-weight:
+        850;
+
+    cursor:
+        pointer;
+
+    white-space:
+        nowrap;
+
+    transition:
+
+        transform var(--gz-transition),
+        background var(--gz-transition),
+        border-color var(--gz-transition),
+        box-shadow var(--gz-transition),
+        opacity var(--gz-transition);
+
+}
+
+
+.gz-btn:hover {
+
+    transform:
+        translateY(-1px);
+
+}
+
+
+.gz-btn:active {
+
+    transform:
+        translateY(0);
+
+}
+
+
+.gz-btn:disabled {
+
+    opacity:
+        .45;
+
+    cursor:
+        not-allowed;
+
+    transform:
+        none;
+
+}
+
+
+.gz-btn-primary {
+
+    color:
+        #fff;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            #ff3159,
+            #d90032
+        );
+
+    border-color:
+        rgba(255,23,68,.48);
+
+    box-shadow:
+        0 8px 28px rgba(255,23,68,.18);
+
+}
+
+
+.gz-btn-primary:hover {
+
+    box-shadow:
+        0 12px 35px rgba(255,23,68,.28);
+
+}
+
+
+.gz-btn-secondary {
+
+    color:
+        rgba(255,255,255,.82);
+
+    background:
+        rgba(255,255,255,.055);
+
+    border-color:
+        rgba(255,255,255,.09);
+
+}
+
+
+.gz-btn-secondary:hover {
+
+    background:
+        rgba(255,255,255,.09);
+
+    border-color:
+        rgba(255,255,255,.14);
+
+}
+
+
+.gz-btn-danger {
+
+    color:
+        #ffc2cb;
+
+    background:
+        rgba(239,68,68,.09);
+
+    border-color:
+        rgba(239,68,68,.18);
+
+}
+
+
+.gz-btn-danger:hover {
+
+    background:
+        rgba(239,68,68,.15);
+
+    border-color:
+        rgba(239,68,68,.28);
+
+}
+
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+.gz-input,
+.gz-select,
+.gz-textarea {
+
+    width:
+        100%;
+
+    min-height:
+        42px;
+
+    padding:
+        11px 13px;
+
+    color:
+        #fff;
+
+    background:
+        rgba(0,0,0,.24);
+
+    border:
+        1px solid rgba(255,255,255,.09);
+
+    border-radius:
+        11px;
+
+    outline:
+        none;
+
+    font-size:
+        12px;
+
+    transition:
+
+        border-color var(--gz-transition),
+        background var(--gz-transition),
+        box-shadow var(--gz-transition);
+
+}
+
+
+.gz-input::placeholder,
+.gz-textarea::placeholder {
+
+    color:
+        rgba(255,255,255,.28);
+
+}
+
+
+.gz-input:focus,
+.gz-select:focus,
+.gz-textarea:focus {
+
+    background:
+        rgba(0,0,0,.34);
+
+    border-color:
+        var(--gz-red-border);
+
+    box-shadow:
+        0 0 0 3px rgba(255,23,68,.06);
+
+}
+
+
+.gz-textarea {
+
+    min-height:
+        100px;
+
+    resize:
+        vertical;
+
+}
+
+
+.gz-select {
+
+    cursor:
+        pointer;
+
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.gz-search {
+
+    position:
+        relative;
+
+    width:
+        100%;
+
+}
+
+
+.gz-search input {
+
+    width:
+        100%;
+
+    padding-left:
+        40px;
+
+}
+
+
+.gz-search-icon {
+
+    position:
+        absolute;
+
+    left:
+        14px;
+
+    top:
+        50%;
+
+    transform:
+        translateY(-50%);
+
+    color:
+        rgba(255,255,255,.38);
+
+    pointer-events:
+        none;
+
+}
+
+
+/* =========================================================
+   FORM
+========================================================= */
+
+.gz-form-group {
+
+    margin-bottom:
+        17px;
+
+}
+
+
+.gz-form-label {
+
+    display:
+        block;
+
+    margin-bottom:
+        7px;
+
+    color:
+        rgba(255,255,255,.68);
+
+    font-size:
+        10px;
+
+    font-weight:
+        800;
+
+    letter-spacing:
+        .7px;
+
+    text-transform:
+        uppercase;
+
+}
+
+
+.gz-form-help {
+
+    margin-top:
+        6px;
+
+    color:
+        rgba(255,255,255,.32);
+
+    font-size:
+        10px;
+
+    line-height:
+        1.5;
+
+}
+
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
+.gz-toolbar {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        10px;
+
+    padding:
+        15px 20px;
+
+    border-bottom:
+        1px solid rgba(255,255,255,.06);
+
+}
+
+
+.gz-toolbar-spacer {
+
+    flex:
+        1;
+
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.gz-table-wrap {
+
+    width:
+        100%;
+
+    overflow-x:
+        auto;
+
+    -webkit-overflow-scrolling:
+        touch;
+
+}
+
+
+.gz-table {
+
+    width:
+        100%;
+
+    min-width:
+        900px;
+
+    border-collapse:
+        collapse;
+
+}
+
+
+.gz-table th,
+.gz-table td {
+
+    padding:
+        14px 16px;
+
+    text-align:
+        left;
+
+    border-bottom:
+        1px solid rgba(255,255,255,.055);
+
+}
+
+
+.gz-table th {
+
+    color:
+        rgba(255,255,255,.38);
+
+    background:
+        rgba(255,255,255,.018);
+
+    font-size:
+        9px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        1px;
+
+}
+
+
+.gz-table td {
+
+    color:
+        rgba(255,255,255,.72);
+
+    font-size:
+        12px;
+
+}
+
+
+.gz-table tbody tr {
+
+    transition:
+        background var(--gz-transition);
+
+}
+
+
+.gz-table tbody tr:hover {
+
+    background:
+        rgba(255,255,255,.025);
+
+}
+
+
+.gz-table tbody tr:last-child td {
+
+    border-bottom:
+        0;
+
+}
+
+
+/* =========================================================
+   STAT CARDS
+========================================================= */
+
+.gz-stats {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    gap:
+        16px;
+
+    margin-bottom:
+        18px;
+
+}
+
+
+.gz-stat {
+
+    position:
+        relative;
+
+    overflow:
+        hidden;
+
+    padding:
+        22px;
+
+    border-radius:
+        var(--gz-radius);
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.075),
+            rgba(255,255,255,.025)
+        );
+
+    border:
+        1px solid var(--gz-border);
+
+    box-shadow:
+        var(--gz-shadow);
+
+}
+
+
+.gz-stat::after {
+
+    content:
+        "";
+
+    position:
+        absolute;
+
+    width:
+        140px;
+
+    height:
+        140px;
+
+    right:
+        -70px;
+
+    top:
+        -70px;
+
+    border-radius:
+        50%;
+
+    background:
+
+        radial-gradient(
+            circle,
+            rgba(255,23,68,.14),
+            transparent 68%
+        );
+
+}
+
+
+.gz-stat-label {
+
+    color:
+        var(--gz-muted);
+
+    font-size:
+        9px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        1.2px;
+
+    text-transform:
+        uppercase;
+
+}
+
+
+.gz-stat-value {
+
+    margin-top:
+        9px;
+
+    color:
+        #fff;
+
+    font-size:
+        30px;
+
+    line-height:
+        1;
+
+    font-weight:
+        950;
+
+    letter-spacing:
+        -1px;
+
+}
+
+
+.gz-stat-value.red {
+
+    color:
+        var(--gz-red);
+
+    text-shadow:
+        0 0 25px rgba(255,23,68,.20);
+
+}
+
+
+/* =========================================================
+   ACTION GROUP
+========================================================= */
+
+.gz-actions {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    flex-wrap:
+        wrap;
+
+    gap:
+        7px;
+
+}
+
+
+.gz-action {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    min-height:
+        32px;
+
+    padding:
+        7px 10px;
+
+    border-radius:
+        9px;
+
+    color:
+        rgba(255,255,255,.68);
+
+    background:
+        rgba(255,255,255,.045);
+
+    border:
+        1px solid rgba(255,255,255,.07);
+
+    font-size:
+        9px;
+
+    font-weight:
+        800;
+
+    cursor:
+        pointer;
+
+    transition:
+        all var(--gz-transition);
+
+}
+
+
+.gz-action:hover {
+
+    color:
+        #fff;
+
+    background:
+        rgba(255,255,255,.08);
+
+    border-color:
+        rgba(255,255,255,.13);
+
+}
+
+
+.gz-action-red {
+
+    color:
+        #ffb8c4;
+
+    background:
+        rgba(255,23,68,.07);
+
+    border-color:
+        rgba(255,23,68,.16);
+
+}
+
+
+.gz-action-red:hover {
+
+    color:
+        #fff;
+
+    background:
+        rgba(255,23,68,.14);
+
+    border-color:
+        rgba(255,23,68,.28);
+
+}
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+.gz-empty {
+
+    padding:
+        60px 25px;
+
+    text-align:
+        center;
+
+    color:
+        rgba(255,255,255,.40);
+
+}
+
+
+.gz-empty strong {
+
+    display:
+        block;
+
+    margin-bottom:
+        8px;
+
+    color:
+        rgba(255,255,255,.72);
+
+    font-size:
+        12px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        .7px;
+
+}
+
+
+.gz-empty span {
+
+    font-size:
+        11px;
+
+}
+
+
+/* =========================================================
+   ALERT / MESSAGE
+========================================================= */
+
+.gz-message {
+
+    display:
+        none;
+
+    margin:
+        16px 20px 0;
+
+    padding:
+        12px 14px;
+
+    border-radius:
+        11px;
+
+    font-size:
+        11px;
+
+    line-height:
+        1.5;
+
+}
+
+
+.gz-message.success {
+
+    display:
+        block;
+
+    color:
+        #b8f5d8;
+
+    background:
+        rgba(16,185,129,.08);
+
+    border:
+        1px solid rgba(16,185,129,.17);
+
+}
+
+
+.gz-message.error {
+
+    display:
+        block;
+
+    color:
+        #ffc1c1;
+
+    background:
+        rgba(239,68,68,.09);
+
+    border:
+        1px solid rgba(239,68,68,.18);
+
+}
+
+
+.gz-message.warning {
+
+    display:
+        block;
+
+    color:
+        #ffe0a0;
+
+    background:
+        rgba(245,158,11,.09);
+
+    border:
+        1px solid rgba(245,158,11,.18);
+
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+.gz-modal {
+
+    position:
+        fixed;
+
+    inset:
+        0;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    padding:
+        20px;
+
+    background:
+        rgba(0,0,0,.72);
+
+    backdrop-filter:
+        blur(8px);
+
+    -webkit-backdrop-filter:
+        blur(8px);
+
+    z-index:
+        99990;
+
+    opacity:
+        0;
+
+    visibility:
+        hidden;
+
+    pointer-events:
+        none;
+
+    transition:
+        opacity var(--gz-transition),
+        visibility var(--gz-transition);
+
+}
+
+
+.gz-modal.open {
+
+    opacity:
+        1;
+
+    visibility:
+        visible;
+
+    pointer-events:
+        auto;
+
+}
+
+
+.gz-modal-content {
+
+    width:
+        100%;
+
+    max-width:
+        520px;
+
+    max-height:
+        calc(100vh - 40px);
+
+    overflow-y:
+        auto;
+
+    padding:
+        24px;
+
+    border-radius:
+        22px;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(20,20,24,.98),
+            rgba(7,7,9,.98)
+        );
+
+    border:
+        1px solid rgba(255,255,255,.10);
+
+    box-shadow:
+        0 40px 120px rgba(0,0,0,.65),
+        0 0 45px rgba(255,23,68,.08);
+
+}
+
+
+.gz-modal-title {
+
+    margin:
+        0;
+
+    color:
+        #fff;
+
+    font-size:
+        18px;
+
+    font-weight:
+        900;
+
+}
+
+
+.gz-modal-subtitle {
+
+    margin-top:
+        7px;
+
+    color:
+        var(--gz-muted);
+
+    font-size:
+        11px;
+
+    line-height:
+        1.6;
+
+}
+
+
+.gz-modal-actions {
+
+    display:
+        flex;
+
+    justify-content:
+        flex-end;
+
+    gap:
+        9px;
+
+    margin-top:
+        22px;
+
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.gz-loading {
+
+    position:
+        fixed;
+
+    inset:
+        0;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    flex-direction:
+        column;
+
+    gap:
+        16px;
+
+    background:
+        rgba(2,2,4,.96);
+
+    backdrop-filter:
+        blur(12px);
+
+    -webkit-backdrop-filter:
+        blur(12px);
+
+    z-index:
+        100000;
+
+}
+
+
+.gz-loading-logo {
+
+    width:
+        62px;
+
+    height:
+        62px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    border-radius:
+        18px;
+
+    color:
+        #fff;
+
+    font-size:
+        23px;
+
+    font-weight:
+        950;
+
+    background:
+        #070709;
+
+    border:
+        1px solid var(--gz-red-border);
+
+    box-shadow:
+        0 0 45px rgba(255,23,68,.18);
+
+}
+
+
+.gz-loading-spinner {
+
+    width:
+        28px;
+
+    height:
+        28px;
+
+    border-radius:
+        50%;
+
+    border:
+        2px solid rgba(255,255,255,.10);
+
+    border-top-color:
+        var(--gz-red);
+
+    animation:
+        gz-spin .75s linear infinite;
+
+}
+
+
+.gz-loading-text {
+
+    color:
+        rgba(255,255,255,.42);
+
+    font-size:
+        9px;
+
+    font-weight:
+        850;
+
+    letter-spacing:
+        1.8px;
+
+}
+
+
+@keyframes gz-spin {
+
+    from {
+        transform:
+            rotate(0deg);
+    }
+
+    to {
+        transform:
+            rotate(360deg);
+    }
+
+}
+
+
+/* =========================================================
+   DOT STATUS
+========================================================= */
+
+.gz-dot {
+
+    width:
+        7px;
+
+    height:
+        7px;
+
+    flex:
+        0 0 7px;
+
+    border-radius:
+        50%;
+
+    background:
+        var(--gz-red);
+
+    box-shadow:
+        0 0 12px rgba(255,23,68,.60);
+
+}
+
+
+.gz-dot.green {
+
+    background:
+        #22c55e;
+
+    box-shadow:
+        0 0 12px rgba(34,197,94,.55);
+
+}
+
+
+.gz-dot.yellow {
+
+    background:
+        #f59e0b;
+
+    box-shadow:
+        0 0 12px rgba(245,158,11,.55);
+
+}
+
+
+/* =========================================================
+   DIVIDER
+========================================================= */
+
+.gz-divider {
+
+    height:
+        1px;
+
+    margin:
+        18px 0;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.09),
+            transparent
+        );
+
+}
+
+
+/* =========================================================
+   CODE / ID DISPLAY
+========================================================= */
+
+.gz-code {
+
+    display:
+        inline-block;
+
+    max-width:
+        100%;
+
+    overflow:
+        hidden;
+
+    padding:
+        6px 8px;
+
+    border-radius:
+        7px;
+
+    color:
+        rgba(255,255,255,.58);
+
+    background:
+        rgba(0,0,0,.22);
+
+    border:
+        1px solid rgba(255,255,255,.06);
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
+
+    font-size:
+        9px;
+
+    text-overflow:
+        ellipsis;
+
+    white-space:
+        nowrap;
+
+}
+
+
+/* =========================================================
+   NAVIGATION SAFETY
+========================================================= */
+
+/*
+   navigation/navigation.js memiliki sistem z-index sendiri.
+   Jangan membuat body children menjadi stacking context baru.
+*/
+
+#navigation {
+
+    position:
+        relative;
+
+    z-index:
+        100000;
+
+}
+
+
+/* =========================================================
+   COMMON CONTENT SPACING
+========================================================= */
+
+.gz-main {
+
+    position:
+        relative;
+
+    z-index:
+        1;
+
+    width:
+        100%;
+
+    min-height:
+        100vh;
+
+    padding:
+        88px 30px 50px;
+
+}
+
+
+.gz-section {
+
+    margin-bottom:
+        22px;
+
+}
+
+
+.gz-grid-2 {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap:
+        18px;
+
+}
+
+
+.gz-grid-3 {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    gap:
+        18px;
+
+}
+
+
+/* =========================================================
+   LOGIN / REGISTER
+========================================================= */
+
+.gz-auth-page {
+
+    min-height:
+        100vh;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    padding:
+        25px;
+
+}
+
+
+.gz-auth-card {
+
+    width:
+        100%;
+
+    max-width:
+        450px;
+
+    padding:
+        30px;
+
+    border-radius:
+        24px;
+
+    background:
+
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.075),
+            rgba(255,255,255,.025)
+        );
+
+    border:
+        1px solid rgba(255,255,255,.10);
+
+    box-shadow:
+        0 35px 110px rgba(0,0,0,.45),
+        0 0 50px rgba(255,23,68,.07);
+
+    backdrop-filter:
+        blur(22px);
+
+    -webkit-backdrop-filter:
+        blur(22px);
+
+}
+
+
+.gz-auth-logo {
+
+    width:
+        58px;
+
+    height:
+        58px;
+
+    margin:
+        0 auto 20px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    border-radius:
+        17px;
+
+    color:
+        #fff;
+
+    font-size:
+        22px;
+
+    font-weight:
+        950;
+
+    background:
+        #070709;
+
+    border:
+        1px solid var(--gz-red-border);
+
+    box-shadow:
+        0 0 40px rgba(255,23,68,.13);
+
+}
+
+
+.gz-auth-title {
+
+    margin:
+        0;
+
+    text-align:
+        center;
+
+    font-size:
+        26px;
+
+    font-weight:
+        950;
+
+    letter-spacing:
+        -1px;
+
+}
+
+
+.gz-auth-subtitle {
+
+    margin:
+        9px 0 25px;
+
+    color:
+        var(--gz-muted);
+
+    text-align:
+        center;
+
+    font-size:
+        11px;
+
+    line-height:
+        1.6;
+
+}
+
+
+/* =========================================================
+   GENERATOR / MEDIA
+========================================================= */
+
+.gz-dropzone {
+
+    min-height:
+        180px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    flex-direction:
+        column;
+
+    padding:
+        25px;
+
+    text-align:
+        center;
+
+    border:
+        1px dashed rgba(255,255,255,.14);
+
+    border-radius:
+        18px;
+
+    background:
+        rgba(255,255,255,.025);
+
+    transition:
+        border-color var(--gz-transition),
+        background var(--gz-transition);
+
+}
+
+
+.gz-dropzone:hover {
+
+    border-color:
+        var(--gz-red-border);
+
+    background:
+        rgba(255,23,68,.035);
+
+}
+
+
+.gz-media-preview {
+
+    position:
+        relative;
+
+    overflow:
+        hidden;
+
+    border-radius:
+        17px;
+
+    background:
+        #050507;
+
+    border:
+        1px solid rgba(255,255,255,.08);
+
+}
+
+
+.gz-media-preview img,
+.gz-media-preview video {
+
+    width:
+        100%;
+
+    height:
+        auto;
+
+    display:
+        block;
+
+}
+
+
+/* =========================================================
+   CREDIT / MONEY
+========================================================= */
+
+.gz-money {
+
+    font-variant-numeric:
+        tabular-nums;
+
+    font-weight:
+        850;
+
+}
+
+
+.gz-money-red {
+
+    color:
+        var(--gz-red);
+
+}
+
+
+.gz-money-green {
+
+    color:
+        #34d399;
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 900px) {
+
+    .gz-main {
+
+        padding:
+            82px 20px 40px;
+
+    }
+
+
+    .gz-stats {
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+    }
+
+
+    .gz-grid-3 {
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+    }
+
+}
+
+
+@media (max-width: 640px) {
+
+    body {
+
+        background:
+
+            radial-gradient(
+                circle at 50% 0%,
+                rgba(255,23,68,.09),
+                transparent 35%
+            ),
+
+            linear-gradient(
+                160deg,
+                #55555a 0%,
+                #202024 42%,
+                #08080b 78%,
+                #020204 100%
+            );
+
+    }
+
+
+    .gz-main {
+
+        padding:
+            76px 14px 30px;
+
+    }
+
+
+    .gz-page-header {
+
+        margin-bottom:
+            20px;
+
+    }
+
+
+    .gz-page-title {
+
+        font-size:
+            32px;
+
+        letter-spacing:
+            -1.4px;
+
+    }
+
+
+    .gz-page-subtitle {
+
+        font-size:
+            11px;
+
+    }
+
+
+    .gz-stats {
+
+        grid-template-columns:
+            1fr;
+
+        gap:
+            10px;
+
+    }
+
+
+    .gz-grid-2,
+    .gz-grid-3 {
+
+        grid-template-columns:
+            1fr;
+
+        gap:
+            12px;
+
+    }
+
+
+    .gz-card {
+
+        padding:
+            17px;
+
+        border-radius:
+            17px;
+
+    }
+
+
+    .gz-toolbar {
+
+        align-items:
+            stretch;
+
+        flex-direction:
+            column;
+
+        padding:
+            13px;
+
+    }
+
+
+    .gz-toolbar .gz-btn {
+
+        width:
+            100%;
+
+    }
+
+
+    .gz-actions {
+
+        gap:
+            5px;
+
+    }
+
+
+    .gz-action {
+
+        min-height:
+            30px;
+
+        padding:
+            6px 8px;
+
+        font-size:
+            8px;
+
+    }
+
+
+    .gz-modal {
+
+        padding:
+            12px;
+
+    }
+
+
+    .gz-modal-content {
+
+        padding:
+            20px;
+
+        border-radius:
+            18px;
+
+    }
+
+
+    .gz-modal-actions {
+
+        flex-direction:
+            column;
+
+    }
+
+
+    .gz-modal-actions .gz-btn {
+
+        width:
+            100%;
+
+    }
+
+
+    .gz-auth-page {
+
+        padding:
+            14px;
+
+    }
+
+
+    .gz-auth-card {
+
+        padding:
+            22px 18px;
+
+        border-radius:
+            20px;
+
+    }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 400px) {
+
+    .gz-main {
+
+        padding-left:
+            10px;
+
+        padding-right:
+            10px;
+
+    }
+
+
+    .gz-page-title {
+
+        font-size:
+            28px;
+
+    }
+
+
+    .gz-card {
+
+        padding:
+            14px;
+
+    }
+
+
+    .gz-stat {
+
+        padding:
+            17px;
+
+    }
+
+
+    .gz-stat-value {
+
+        font-size:
+            26px;
+
+    }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+
+        animation-duration:
+            .01ms !important;
+
+        animation-iteration-count:
+            1 !important;
+
+        scroll-behavior:
+            auto !important;
+
+        transition-duration:
+            .01ms !important;
+
+    }
+
+}
+
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+* {
+
+    scrollbar-width:
+        thin;
+
+    scrollbar-color:
+        rgba(255,23,68,.35)
+        rgba(255,255,255,.035);
+
+}
+
+
+::-webkit-scrollbar {
+
+    width:
+        7px;
+
+    height:
+        7px;
+
+}
+
+
+::-webkit-scrollbar-track {
+
+    background:
+        rgba(255,255,255,.025);
+
+}
+
+
+::-webkit-scrollbar-thumb {
+
+    background:
+        rgba(255,23,68,.32);
+
+    border-radius:
+        999px;
+
+}
+
+
+::-webkit-scrollbar-thumb:hover {
+
+    background:
+        rgba(255,23,68,.55);
+
+}
+
+
+/* =========================================================
+   SELECTION
+========================================================= */
+
+::selection {
+
+    color:
+        #fff;
+
+    background:
+        rgba(255,23,68,.45);
+
+}
+
+
+/* =========================================================
+   FOCUS ACCESSIBILITY
+========================================================= */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+
+    outline:
+        2px solid rgba(255,23,68,.65);
+
+    outline-offset:
+        2px;
+
+}
+
+
+/* =========================================================
+   END
+========================================================= */
