@@ -21,6 +21,9 @@
    ACCOUNT:
        profile.credits
 
+   ROLE:
+       profile.role
+
    MODEL:
        model.pricing.credit_final
        model.credit_final
@@ -30,7 +33,7 @@
    PENTING:
    ---------------------------------------------------------
    ACCOUNT CREDIT dan MODEL CREDIT adalah dua data
-   yang berbeda dan tidak boleh saling menggantikan.
+   yang berbeda.
 
    Account Credit:
        #creditBadge
@@ -142,7 +145,7 @@ function formatNumber(
    SOURCE OF TRUTH:
        profiles.credits
 
-   0 adalah nilai valid.
+   0 adalah nilai VALID.
 
    null / undefined / empty:
        credit belum tersedia.
@@ -201,9 +204,14 @@ function normalizeAccountCredit(
     }
 
 
-    return String(
-        raw
-    ).trim();
+    const text =
+        String(
+            raw
+        ).trim();
+
+
+    return text ||
+        null;
 
 }
 
@@ -211,14 +219,14 @@ function normalizeAccountCredit(
 /* =========================================================
    GET MODEL CREDIT
    ---------------------------------------------------------
-   SOURCE OF TRUTH:
+   PRIORITAS:
 
    1. model.pricing.credit_final
    2. model.credit_final
    3. model.pricing.credit_cost
    4. model.credit_cost
 
-   Tidak melakukan kalkulasi discount.
+   Tidak menghitung discount di frontend.
 ========================================================= */
 
 export function getModelCreditCost(
@@ -255,10 +263,8 @@ export function getModelCreditCost(
     ) {
 
         /*
-         * Jangan menganggap 0 sebagai
-         * data kosong.
+         * 0 adalah nilai valid.
          */
-
         if (
             candidate === null ||
             candidate === undefined ||
@@ -290,6 +296,41 @@ export function getModelCreditCost(
 
 
     return null;
+
+}
+
+
+/* =========================================================
+   FORCE ELEMENT VISIBLE
+   ---------------------------------------------------------
+   Dipakai untuk badge/credit agar tidak kalah oleh
+   hidden attribute atau inline style lama.
+========================================================= */
+
+function forceVisible(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+
+    }
+
+
+    element.hidden =
+        false;
+
+    element.style.display =
+        "";
+
+    element.style.visibility =
+        "visible";
+
+    element.style.opacity =
+        "1";
 
 }
 
@@ -335,6 +376,9 @@ export function renderModelCredit(
             modelId:
                 model?.model_id,
 
+            modelName:
+                model?.model_name,
+
             pricing:
                 model?.pricing,
 
@@ -368,18 +412,6 @@ export function renderModelCredit(
 
     /*
      * -----------------------------------------------------
-     * GET MODEL CREDIT
-     * -----------------------------------------------------
-     */
-
-    const credit =
-        getModelCreditCost(
-            model
-        );
-
-
-    /*
-     * -----------------------------------------------------
      * CONTAINER
      * -----------------------------------------------------
      */
@@ -388,19 +420,23 @@ export function renderModelCredit(
         generateCreditCost
     ) {
 
-        generateCreditCost.hidden =
-            false;
-
-        generateCreditCost.style.display =
-            "inline-flex";
-
-        generateCreditCost.style.visibility =
-            "visible";
-
-        generateCreditCost.style.opacity =
-            "1";
+        forceVisible(
+            generateCreditCost
+        );
 
     }
+
+
+    /*
+     * -----------------------------------------------------
+     * GET CREDIT
+     * -----------------------------------------------------
+     */
+
+    const credit =
+        getModelCreditCost(
+            model
+        );
 
 
     /*
@@ -456,11 +492,6 @@ export function renderModelCredit(
         );
 
 
-    /*
-     * Simpan pada button untuk debugging
-     * dan module request bila diperlukan.
-     */
-
     if (
         generateButton
     ) {
@@ -487,8 +518,7 @@ export function renderModelCredit(
    SOURCE:
        profiles.credits
 
-   PENTING:
-   Fungsi ini TIDAK membaca current model.
+   TIDAK membaca current model.
 ========================================================= */
 
 export function renderCreditBadge(
@@ -513,25 +543,15 @@ export function renderCreditBadge(
     }
 
 
-    /*
-     * Profile harus berasal dari
-     * generate-auth.js / state.
-     */
-
-    const source =
-        profile;
-
-
     const credits =
         normalizeAccountCredit(
-            source
+            profile
         );
 
 
     /*
-     * Data tidak tersedia.
+     * Profile/credit belum tersedia.
      */
-
     if (
         credits === null
     ) {
@@ -539,17 +559,9 @@ export function renderCreditBadge(
         creditBadge.textContent =
             "Credit: -";
 
-        creditBadge.hidden =
-            false;
-
-        creditBadge.style.display =
-            "";
-
-        creditBadge.style.visibility =
-            "visible";
-
-        creditBadge.style.opacity =
-            "1";
+        forceVisible(
+            creditBadge
+        );
 
         delete creditBadge.dataset.credit;
 
@@ -559,11 +571,10 @@ export function renderCreditBadge(
 
 
     /*
-     * Credit numeric.
+     * Numeric credit.
      *
-     * 0 tetap ditampilkan.
+     * 0 tetap tampil.
      */
-
     if (
         typeof credits ===
             "number"
@@ -594,21 +605,9 @@ export function renderCreditBadge(
     }
 
 
-    /*
-     * WAJIB terlihat.
-     */
-
-    creditBadge.hidden =
-        false;
-
-    creditBadge.style.display =
-        "";
-
-    creditBadge.style.visibility =
-        "visible";
-
-    creditBadge.style.opacity =
-        "1";
+    forceVisible(
+        creditBadge
+    );
 
 
     return credits;
@@ -648,6 +647,9 @@ export function renderRoleBadge(
         ).toUpperCase();
 
 
+    /*
+     * Role belum tersedia.
+     */
     if (
         !role
     ) {
@@ -655,11 +657,9 @@ export function renderRoleBadge(
         roleBadge.textContent =
             "-";
 
-        roleBadge.hidden =
-            false;
-
-        roleBadge.style.display =
-            "";
+        forceVisible(
+            roleBadge
+        );
 
         delete roleBadge.dataset.role;
 
@@ -671,17 +671,11 @@ export function renderRoleBadge(
     roleBadge.textContent =
         role;
 
-    roleBadge.hidden =
-        false;
 
-    roleBadge.style.display =
-        "";
+    forceVisible(
+        roleBadge
+    );
 
-    roleBadge.style.visibility =
-        "visible";
-
-    roleBadge.style.opacity =
-        "1";
 
     roleBadge.dataset.role =
         role.toLowerCase();
@@ -695,18 +689,24 @@ export function renderRoleBadge(
 /* =========================================================
    AUTH BADGES
    ---------------------------------------------------------
-   Satu pintu untuk role + account credit.
+   Satu pintu untuk:
 
-   TIDAK PERNAH:
-   - mengambil credit model
-   - mengambil credit dari localStorage
-   - mengambil credit dari navigation
+   - Role
+   - Account Credit
+
+   Tidak mengambil:
+   - model credit
+   - localStorage
+   - navigation credit
 ========================================================= */
 
 export function renderAuthBadges(
     profile = getCurrentProfile()
 ) {
 
+    /*
+     * Jangan gunakan data model sebagai fallback.
+     */
     if (
         !profile ||
         typeof profile !==
@@ -717,17 +717,22 @@ export function renderAuthBadges(
             "[GEN-Z.AI][Generate UI] Profile tidak tersedia untuk auth badge."
         );
 
-        /*
-         * Jangan mengarang angka.
-         */
 
+        /*
+         * Jangan mengarang role.
+         */
         renderRoleBadge(
             null
         );
 
+
+        /*
+         * Jangan mengarang credit.
+         */
         renderCreditBadge(
             null
         );
+
 
         return null;
 
@@ -800,6 +805,14 @@ export function showStatus(
     status.hidden =
         false;
 
+
+    status.style.display =
+        "";
+
+
+    status.style.visibility =
+        "visible";
+
 }
 
 
@@ -862,6 +875,9 @@ export function showPageError(
         pageError.hidden =
             false;
 
+        pageError.style.display =
+            "";
+
     }
 
 }
@@ -902,7 +918,9 @@ export function hidePageError() {
 ========================================================= */
 
 export function showError(
-    error
+    error,
+    fallbackMessage =
+        "Terjadi kesalahan."
 ) {
 
     const message =
@@ -910,7 +928,7 @@ export function showError(
             ? error.message
             : safeString(
                 error,
-                "Terjadi kesalahan."
+                fallbackMessage
             );
 
 
@@ -933,7 +951,8 @@ export function showError(
 
 export function setLoading(
     active,
-    message = "Memproses..."
+    message =
+        "Memproses..."
 ) {
 
     const {
@@ -963,17 +982,6 @@ export function setLoading(
         loading.hidden =
             !isActive;
 
-        if (
-            isActive
-        ) {
-
-            loading.setAttribute(
-                "aria-live",
-                "polite"
-            );
-
-        }
-
     }
 
 
@@ -996,17 +1004,42 @@ export function setLoading(
 
 
         /*
-         * JANGAN menggunakan:
+         * JANGAN:
          *
          * generateButton.textContent = ...
          *
-         * karena akan menghapus
-         * #generateCreditValue.
+         * karena itu menghapus:
+         *
+         * #generateCreditValue
          */
 
-        const label =
+
+        /*
+         * Cari label utama tombol.
+         */
+        const labelCandidates = [
+
             generateButton.querySelector(
-                ".btn-icon + span"
+                ".btn-icon + span:not(.generate-button-credit)"
+            ),
+
+            generateButton.querySelector(
+                ".generate-button-label"
+            ),
+
+            generateButton.querySelector(
+                ".btn-label"
+            )
+
+        ];
+
+
+        const label =
+            labelCandidates.find(
+                element =>
+                    Boolean(
+                        element
+                    )
             );
 
 
@@ -1039,10 +1072,8 @@ export function setLoading(
 
 
         /*
-         * Model credit harus tetap ada
-         * selama loading.
+         * Model credit tetap dirender.
          */
-
         renderModelCredit(
             getCurrentModel()
         );
@@ -1068,7 +1099,7 @@ export function setLoading(
 
     /*
      * -----------------------------------------------------
-     * RESET
+     * RESET BUTTON
      * -----------------------------------------------------
      */
 
@@ -1080,6 +1111,21 @@ export function setLoading(
             isActive;
 
     }
+
+
+    /*
+     * -----------------------------------------------------
+     * ACCOUNT BADGE
+     * -----------------------------------------------------
+     *
+     * Loading tidak boleh menghapus:
+     * - role
+     * - account credit
+     */
+
+    renderAuthBadges(
+        getCurrentProfile()
+    );
 
 }
 
@@ -1104,6 +1150,13 @@ export function enableGeneration() {
     }
 
 
+    /*
+     * Hanya model yang menentukan kesiapan
+     * tombol dari sisi UI module.
+     *
+     * generate-app.js tetap bertanggung jawab
+     * memastikan auth/profile juga READY.
+     */
     const ready =
         isModelReady();
 
@@ -1119,6 +1172,14 @@ export function enableGeneration() {
 
     renderModelCredit(
         getCurrentModel()
+    );
+
+
+    /*
+     * Auth badge tidak boleh ikut berubah.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
     );
 
 }
@@ -1153,8 +1214,20 @@ export function disableGeneration() {
     );
 
 
+    /*
+     * Credit model tetap boleh ditampilkan
+     * walaupun tombol disabled.
+     */
     renderModelCredit(
         getCurrentModel()
+    );
+
+
+    /*
+     * Role + account credit tetap.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
     );
 
 }
@@ -1197,6 +1270,20 @@ export function setFormDisabled(
                 );
 
         }
+    );
+
+
+    /*
+     * Setelah semua control disabled/enabled,
+     * pastikan generate credit tetap terlihat.
+     */
+    renderModelCredit(
+        getCurrentModel()
+    );
+
+
+    renderAuthBadges(
+        getCurrentProfile()
     );
 
 }
@@ -1270,6 +1357,14 @@ export function renderModelHeader(
 
         renderModelCredit(
             null
+        );
+
+
+        /*
+         * Auth badge tetap.
+         */
+        renderAuthBadges(
+            getCurrentProfile()
         );
 
 
@@ -1380,7 +1475,7 @@ export function renderModelHeader(
      * -----------------------------------------------------
      * RENDER HEADER
      * -----------------------------------------------------
-     */
+ */
 
     if (
         modelName
@@ -1434,6 +1529,15 @@ export function renderModelHeader(
         renderModelCredit(
             model
         );
+
+
+    /*
+     * Auth badge tidak boleh tertimpa
+     * ketika model header dirender.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
+    );
 
 
     return {
@@ -1592,6 +1696,16 @@ export function showGenerateCard() {
 
     }
 
+
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    renderModelCredit(
+        getCurrentModel()
+    );
+
 }
 
 
@@ -1610,6 +1724,14 @@ export function hideGenerateCard() {
             true;
 
     }
+
+
+    /*
+     * Jangan menghapus badge.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
+    );
 
 }
 
@@ -1717,6 +1839,20 @@ export function resetResultUI() {
 
     }
 
+
+    /*
+     * Model credit + account credit
+     * tetap dipulihkan setelah reset.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    renderModelCredit(
+        getCurrentModel()
+    );
+
 }
 
 
@@ -1743,30 +1879,31 @@ export function resetUI() {
 
     resetStatusUI();
 
+
     setLoading(
         false
     );
 
 
     /*
-     * Account badge:
-     * selalu menggunakan profile saat ini.
+     * Account:
      */
-
     renderAuthBadges(
         getCurrentProfile()
     );
 
 
     /*
-     * Model header + model credit.
+     * Model:
      */
-
     renderModelHeader(
         getCurrentModel()
     );
 
 
+    /*
+     * Generate:
+     */
     if (
         isModelReady()
     ) {
@@ -1778,6 +1915,19 @@ export function resetUI() {
         disableGeneration();
 
     }
+
+
+    /*
+     * Final defensive render.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    renderModelCredit(
+        getCurrentModel()
+    );
 
 }
 
@@ -1905,6 +2055,17 @@ export function showSuccess(
     );
 
 
+    /*
+     * Account credit tetap tampil.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    /*
+     * Model credit tetap tampil.
+     */
     renderModelCredit(
         getCurrentModel()
     );
@@ -1914,6 +2075,13 @@ export function showSuccess(
 
 /* =========================================================
    READY
+   ---------------------------------------------------------
+   PENTING:
+   Jangan selalu enable button hanya karena
+   fungsi ini dipanggil.
+
+   generate-app.js adalah pemilik keputusan
+   apakah AUTH + PROFILE + MODEL sudah siap.
 ========================================================= */
 
 export function showReady(
@@ -1930,17 +2098,38 @@ export function showReady(
     );
 
 
+    /*
+     * Badge account.
+     */
     renderAuthBadges(
         getCurrentProfile()
     );
 
 
+    /*
+     * Model credit.
+     */
     renderModelCredit(
         getCurrentModel()
     );
 
 
-    enableGeneration();
+    /*
+     * Hanya enable jika model benar-benar ready.
+     *
+     * Auth/profile tetap dikontrol oleh app module.
+     */
+    if (
+        isModelReady()
+    ) {
+
+        enableGeneration();
+
+    } else {
+
+        disableGeneration();
+
+    }
 
 }
 
@@ -1963,9 +2152,38 @@ export function showBusy(
     );
 
 
+    /*
+     * Account badge sebelum loading.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    /*
+     * Model credit sebelum loading.
+     */
+    renderModelCredit(
+        getCurrentModel()
+    );
+
+
     setLoading(
         true,
         message
+    );
+
+
+    /*
+     * Defensive render setelah setLoading.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    renderModelCredit(
+        getCurrentModel()
     );
 
 }
@@ -1983,19 +2201,18 @@ export function finishRequest() {
 
 
     /*
-     * Render account credit dari profile
-     * yang saat ini ada di state.
+     * Account credit:
+     * tetap dari profile.
      */
-
     renderAuthBadges(
         getCurrentProfile()
     );
 
 
     /*
-     * Render model credit secara terpisah.
+     * Model credit:
+     * dari model.
      */
-
     renderModelCredit(
         getCurrentModel()
     );
@@ -2012,6 +2229,22 @@ export function finishRequest() {
         disableGeneration();
 
     }
+
+
+    /*
+     * Final DOM sync.
+     *
+     * Ini sengaja dilakukan karena beberapa
+     * browser/UI mutation bisa mengubah hidden/display.
+     */
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    renderModelCredit(
+        getCurrentModel()
+    );
 
 }
 
