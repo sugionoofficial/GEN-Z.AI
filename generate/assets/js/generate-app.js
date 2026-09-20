@@ -22,6 +22,18 @@
    - Credit      -> profiles.credits
    - Model       -> repository model registry
 
+   PENTING:
+   - AUTH READY
+   - PROFILE READY
+   - MODEL READY
+
+   adalah tiga status yang berbeda.
+
+   Kegagalan MODEL tidak boleh menghapus:
+   - role
+   - account credit
+   - profile
+
    Tidak bertanggung jawab:
    - Query Supabase langsung selain melalui generate-auth
    - Menentukan provider
@@ -118,14 +130,33 @@ const appState = {
     eventsBound:
         false,
 
+    /*
+     * AUTH READY:
+     * Supabase Auth session valid.
+     */
     authReady:
         false,
 
+    /*
+     * PROFILE READY:
+     * profiles row berhasil dimuat.
+     */
     profileReady:
         false,
 
+    /*
+     * MODEL READY:
+     * model executable berhasil dimuat.
+     */
     modelReady:
         false,
+
+    /*
+     * Menyimpan error model tanpa
+     * merusak auth/profile state.
+     */
+    modelError:
+        null,
 
     currentTaskId:
         null,
@@ -308,6 +339,10 @@ function getActualProfile() {
 
 /* =========================================================
    CLEAR AUTH BADGES
+   ---------------------------------------------------------
+   HANYA BOLEH dipanggil jika AUTH/PROFILE memang gagal.
+
+   TIDAK BOLEH dipanggil karena MODEL gagal.
 ========================================================= */
 
 function clearAuthBadges() {
@@ -380,11 +415,16 @@ function clearAuthBadges() {
 /* =========================================================
    FORCE AUTH BADGES
    ---------------------------------------------------------
-   Fungsi ini memastikan badge:
-   - menerima profile aktual
-   - tidak memakai OWNER hardcode
-   - tidak memakai credit hardcode
-   - tidak menyembunyikan credit = 0
+   SOURCE:
+   - role   -> profiles.role
+   - credit -> profiles.credits
+
+   Tidak ada:
+   - OWNER hardcode
+   - credit hardcode
+   - model credit sebagai account credit
+
+   Credit 0 adalah nilai VALID.
 ========================================================= */
 
 function renderActualAuthBadges(
@@ -406,6 +446,9 @@ function renderActualAuthBadges(
 
     try {
 
+        /*
+         * Render melalui UI module terlebih dahulu.
+         */
         renderAuthBadges(
             profile
         );
@@ -423,8 +466,11 @@ function renderActualAuthBadges(
 
 
     /*
-     * Pastikan badge tidak tertinggal hidden
-     * setelah renderAuthBadges().
+     * Finalisasi langsung ke DOM.
+     *
+     * Ini sengaja dilakukan supaya badge
+     * tidak bergantung pada urutan render
+     * module lain.
      */
 
     try {
@@ -446,7 +492,7 @@ function renderActualAuthBadges(
 
 
         /* =============================================
-           ROLE
+           ROLE BADGE
         ============================================= */
 
         if (
@@ -489,14 +535,16 @@ function renderActualAuthBadges(
                 roleBadge.style.display =
                     "none";
 
+                delete roleBadge.dataset.role;
+
             }
 
         }
 
 
         /* =============================================
-           CREDIT
-        ============================================= */
+           ACCOUNT CREDIT BADGE
+           ============================================= */
 
         if (
             creditBadge
@@ -507,8 +555,8 @@ function renderActualAuthBadges(
 
 
             /*
-             * NULL / undefined / empty:
-             * data memang tidak tersedia.
+             * NULL / undefined / empty
+             * berarti data belum tersedia.
              */
 
             if (
@@ -520,12 +568,6 @@ function renderActualAuthBadges(
                 creditBadge.textContent =
                     "Credit: -";
 
-                creditBadge.hidden =
-                    false;
-
-                creditBadge.style.display =
-                    "";
-
             } else {
 
                 const numericCredits =
@@ -535,9 +577,8 @@ function renderActualAuthBadges(
 
 
                 /*
-                 * 0 adalah nilai VALID.
+                 * 0 harus tetap tampil.
                  */
-
                 if (
                     Number.isFinite(
                         numericCredits
@@ -560,14 +601,14 @@ function renderActualAuthBadges(
 
                 }
 
-
-                creditBadge.hidden =
-                    false;
-
-                creditBadge.style.display =
-                    "";
-
             }
+
+
+            creditBadge.hidden =
+                false;
+
+            creditBadge.style.display =
+                "";
 
         }
 
@@ -591,12 +632,12 @@ function renderActualAuthBadges(
 /* =========================================================
    AUTH BADGE FALLBACK
    ---------------------------------------------------------
-   Fallback hanya menggunakan profile aktual yang sudah
-   tersedia di state/global.
+   Fallback hanya memakai profile aktual.
 
-   TIDAK ADA:
-   - OWNER hardcode
-   - Credit hardcode
+   Tidak pernah membuat:
+   OWNER
+   0 Credit
+   role palsu
 ========================================================= */
 
 function renderAuthFallback() {
@@ -673,11 +714,30 @@ async function handleModelChange(
         appState.modelReady =
             false;
 
+        appState.modelError =
+            null;
+
         disableGeneration();
 
         renderModelHeader(
             null
         );
+
+        /*
+         * Auth badge TETAP dipertahankan.
+         */
+        const profile =
+            getActualProfile();
+
+        if (
+            profile
+        ) {
+
+            renderActualAuthBadges(
+                profile
+            );
+
+        }
 
         return;
 
@@ -714,8 +774,8 @@ async function handleModelChange(
 
 
         /*
-         * selectModel sudah menyimpan
-         * model ke generate-state.
+         * selectModel menyimpan model
+         * ke generate-state.
          */
 
         renderModelHeader(
@@ -729,8 +789,29 @@ async function handleModelChange(
         appState.modelReady =
             true;
 
+        appState.modelError =
+            null;
+
 
         refreshGenerateAvailability();
+
+
+        /*
+         * Auth badge harus tetap hidup
+         * setelah model berubah.
+         */
+        const profile =
+            getActualProfile();
+
+        if (
+            profile
+        ) {
+
+            renderActualAuthBadges(
+                profile
+            );
+
+        }
 
 
         showReady(
@@ -745,11 +826,32 @@ async function handleModelChange(
         appState.modelReady =
             false;
 
+        appState.modelError =
+            error;
+
         disableGeneration();
 
         renderModelHeader(
             null
         );
+
+
+        /*
+         * Jangan pernah menghapus badge
+         * hanya karena model gagal.
+         */
+        const profile =
+            getActualProfile();
+
+        if (
+            profile
+        ) {
+
+            renderActualAuthBadges(
+                profile
+            );
+
+        }
 
 
         showError(
@@ -1139,9 +1241,9 @@ async function handleGenerateSubmit(
     }
 
 
-    /*
-     * Auth wajib siap.
-     */
+    /* ================================================
+       AUTH
+    ================================================ */
 
     if (
         !appState.authReady
@@ -1156,12 +1258,9 @@ async function handleGenerateSubmit(
     }
 
 
-    /*
-     * Profile wajib siap.
-     *
-     * Ini penting supaya Generate tidak berjalan
-     * tanpa mengetahui credit account aktual.
-     */
+    /* ================================================
+       PROFILE
+    ================================================ */
 
     if (
         !appState.profileReady
@@ -1176,7 +1275,12 @@ async function handleGenerateSubmit(
     }
 
 
+    /* ================================================
+       MODEL
+    ================================================ */
+
     if (
+        !appState.modelReady ||
         !isModelReady()
     ) {
 
@@ -1205,10 +1309,9 @@ async function handleGenerateSubmit(
 
 
         /*
-         * Pastikan badge masih menggunakan
-         * profile aktual sebelum generate.
+         * Pastikan badge tetap menggunakan
+         * profile aktual.
          */
-
         const profile =
             getActualProfile();
 
@@ -1225,18 +1328,15 @@ async function handleGenerateSubmit(
 
 
         /*
-         * Ambil parameter TERBARU
-         * dari form.
+         * Ambil parameter terbaru.
          */
-
         const parameters =
             collectParameters();
 
 
         /*
-         * Validasi sebelum request.
+         * Validasi.
          */
-
         if (
             !validateBeforeSubmit(
                 parameters
@@ -1254,15 +1354,9 @@ async function handleGenerateSubmit(
 
 
         /*
-         * Request backend.
-         *
-         * API key/provider tidak pernah
-         * berada di frontend.
-         *
-         * Credit juga WAJIB diverifikasi
-         * oleh backend sebelum provider dipanggil.
+         * Provider/API key/credit
+         * diverifikasi backend.
          */
-
         const data =
             await generateVideo(
                 parameters
@@ -1300,22 +1394,13 @@ async function handleGenerateSubmit(
 
 
         /*
-         * Poll provider sampai selesai.
+         * Polling.
          */
-
         const finalResult =
             await waitForTask(
                 taskId
             );
 
-
-        /*
-         * =================================================
-         * RESULT TIDAK DIRender DI GENERATE
-         * =================================================
-         *
-         * History akan menjadi tempat hasil final.
-         */
 
         const completedTaskId =
             extractTaskId(
@@ -1336,13 +1421,12 @@ async function handleGenerateSubmit(
 
 
         /*
-         * Refresh badge setelah generate.
+         * Refresh profile.
          *
-         * Backend nantinya dapat mengurangi credit.
-         * Kita ambil profile terbaru supaya angka
-         * di UI tidak menjadi fosil digital.
+         * Tujuannya supaya account credit
+         * setelah pemakaian mengambil nilai
+         * terbaru dari Supabase.
          */
-
         try {
 
             const refreshedProfile =
@@ -1373,6 +1457,25 @@ async function handleGenerateSubmit(
                 "[GEN-Z.AI][Generate] Refresh credit setelah generate gagal:",
                 refreshError
             );
+
+
+            /*
+             * Jangan menghapus badge lama
+             * jika refresh gagal.
+             */
+            const oldProfile =
+                getActualProfile();
+
+
+            if (
+                oldProfile
+            ) {
+
+                renderActualAuthBadges(
+                    oldProfile
+                );
+
+            }
 
         }
 
@@ -1417,6 +1520,24 @@ async function handleGenerateSubmit(
 
         appState.polling =
             false;
+
+
+        /*
+         * Badge account tidak disentuh
+         * di sini.
+         */
+        const profile =
+            getActualProfile();
+
+        if (
+            profile
+        ) {
+
+            renderActualAuthBadges(
+                profile
+            );
+
+        }
 
 
         refreshGenerateAvailability();
@@ -1490,10 +1611,9 @@ async function resetForm() {
 
 
     /*
-     * Badge authentication tetap dipertahankan
-     * dari profile aktual.
+     * Badge authentication HARUS tetap
+     * dipertahankan setelah reset.
      */
-
     const profile =
         getActualProfile();
 
@@ -1516,7 +1636,6 @@ async function resetForm() {
     /*
      * Model tetap dipertahankan.
      */
-
     const model =
         getCurrentModel();
 
@@ -1531,11 +1650,6 @@ async function resetForm() {
         );
 
 
-        /*
-         * Setelah reset, form dibuat kembali
-         * berdasarkan model registry.
-         */
-
         renderCurrentModelForm();
 
 
@@ -1544,6 +1658,24 @@ async function resetForm() {
 
 
         refreshGenerateAvailability();
+
+
+        /*
+         * Badge bisa saja disentuh oleh
+         * resetUI/render form, jadi restore lagi.
+         */
+        const finalProfile =
+            getActualProfile();
+
+        if (
+            finalProfile
+        ) {
+
+            renderActualAuthBadges(
+                finalProfile
+            );
+
+        }
 
 
         showReady(
@@ -1556,6 +1688,24 @@ async function resetForm() {
             false;
 
         disableGeneration();
+
+
+        /*
+         * Model gagal bukan berarti
+         * profile gagal.
+         */
+        const finalProfile =
+            getActualProfile();
+
+        if (
+            finalProfile
+        ) {
+
+            renderActualAuthBadges(
+                finalProfile
+            );
+
+        }
 
     }
 
@@ -1770,32 +1920,28 @@ function bindEvents() {
 /* =========================================================
    AUTH INITIALIZATION
    ---------------------------------------------------------
-   URUTAN WAJIB:
+   URUTAN:
    1. Supabase
    2. Auth user
    3. Profile
-   4. Role + credit badge
+   4. Role + credit
    5. Auth ready
 ========================================================= */
 
 async function initializeAuth() {
 
-    /*
-     * ================================================
-     * STEP 1
-     * Supabase client
-     * ================================================
-     */
+    /* ================================================
+       STEP 1
+       Supabase
+    ================================================ */
 
     await loadSupabase();
 
 
-    /*
-     * ================================================
-     * STEP 2
-     * User Auth
-     * ================================================
-     */
+    /* ================================================
+       STEP 2
+       Auth User
+    ================================================ */
 
     const user =
         await loadCurrentUser();
@@ -1813,21 +1959,16 @@ async function initializeAuth() {
 
 
     /*
-     * Auth session sudah valid.
+     * AUTH SUDAH VALID.
      */
-
     appState.authReady =
         true;
 
 
-    /*
-     * ================================================
-     * STEP 3
-     * Profile Supabase
-     * ================================================
-     *
-     * Role + credit WAJIB berasal dari sini.
-     */
+    /* ================================================
+       STEP 3
+       PROFILE
+    ================================================ */
 
     let profile;
 
@@ -1845,11 +1986,6 @@ async function initializeAuth() {
             false;
 
 
-        /*
-         * Jangan diam-diam melanjutkan Generate
-         * tanpa profile.
-         */
-
         clearAuthBadges();
 
 
@@ -1861,12 +1997,10 @@ async function initializeAuth() {
     }
 
 
-    /*
-     * ================================================
-     * STEP 4
-     * Validasi profile
-     * ================================================
-     */
+    /* ================================================
+       STEP 4
+       PROFILE VALIDATION
+    ================================================ */
 
     if (
         !profile ||
@@ -1876,7 +2010,6 @@ async function initializeAuth() {
 
         appState.profileReady =
             false;
-
 
         clearAuthBadges();
 
@@ -1889,9 +2022,9 @@ async function initializeAuth() {
 
 
     /*
-     * ID profile harus sama dengan Auth user.
+     * Profile ID harus sama dengan
+     * Auth user ID.
      */
-
     if (
         String(
             profile.id ||
@@ -1905,7 +2038,6 @@ async function initializeAuth() {
         appState.profileReady =
             false;
 
-
         clearAuthBadges();
 
 
@@ -1917,9 +2049,8 @@ async function initializeAuth() {
 
 
     /*
-     * Role harus tersedia.
+     * Role wajib tersedia.
      */
-
     const role =
         String(
             profile.role ||
@@ -1936,7 +2067,6 @@ async function initializeAuth() {
         appState.profileReady =
             false;
 
-
         clearAuthBadges();
 
 
@@ -1947,30 +2077,26 @@ async function initializeAuth() {
     }
 
 
-    /*
-     * ================================================
-     * STEP 5
-     * Simpan/render profile
-     * ================================================
-     */
+    /* ================================================
+       STEP 5
+       PROFILE READY
+    ================================================ */
 
     appState.profileReady =
         true;
 
 
     /*
-     * Ini sumber badge yang benar.
+     * Ini sumber badge aktual.
      */
-
     renderActualAuthBadges(
         profile
     );
 
 
     /*
-     * Pastikan global profile juga sinkron.
+     * Sinkronisasi global.
      */
-
     window.GENZ_CURRENT_PROFILE =
         profile;
 
@@ -1978,12 +2104,10 @@ async function initializeAuth() {
         profile;
 
 
-    /*
-     * ================================================
-     * STEP 6
-     * Role check
-     * ================================================
-     */
+    /* ================================================
+       STEP 6
+       ROLE CHECK
+    ================================================ */
 
     try {
 
@@ -2003,10 +2127,8 @@ async function initializeAuth() {
 
     /*
      * Debug aman.
-     *
-     * Tidak menampilkan token/API key.
+     * Tidak mencetak token/API key.
      */
-
     console.log(
         "[GEN-Z.AI][Generate] Profile loaded:",
         {
@@ -2044,7 +2166,7 @@ async function initializeModel() {
 
 
     /*
-     * Support dua kemungkinan API:
+     * Support:
      *
      * 1. { model: {...} }
      * 2. model langsung
@@ -2071,19 +2193,10 @@ async function initializeModel() {
     }
 
 
-    /*
-     * resolveInitialModel sudah
-     * menentukan model aktif.
-     */
-
     renderModelHeader(
         model
     );
 
-
-    /*
-     * Form membaca model dari state.
-     */
 
     renderCurrentModelForm();
 
@@ -2091,8 +2204,31 @@ async function initializeModel() {
     appState.modelReady =
         true;
 
+    appState.modelError =
+        null;
+
 
     refreshGenerateAvailability();
+
+
+    /*
+     * Restore auth badge karena render
+     * model/form tidak boleh mengambil
+     * alih tampilan account.
+     */
+    const profile =
+        getActualProfile();
+
+
+    if (
+        profile
+    ) {
+
+        renderActualAuthBadges(
+            profile
+        );
+
+    }
 
 
     return model;
@@ -2102,6 +2238,15 @@ async function initializeModel() {
 
 /* =========================================================
    APP INITIALIZATION
+   ---------------------------------------------------------
+   PENTING:
+   MODEL ERROR TIDAK BOLEH MENJADI AUTH ERROR.
+
+   AUTH READY  -> profile tampil
+   PROFILE READY -> credit + role tampil
+   MODEL READY -> generate aktif
+
+   APP READY hanya jika model berhasil.
 ========================================================= */
 
 export async function initializeGenerateApp() {
@@ -2113,6 +2258,13 @@ export async function initializeGenerateApp() {
         return;
 
     }
+
+
+    /*
+     * Reset model error setiap bootstrap.
+     */
+    appState.modelError =
+        null;
 
 
     try {
@@ -2168,13 +2320,43 @@ export async function initializeGenerateApp() {
 
 
             /*
-             * Jangan tampilkan badge palsu.
+             * Auth/profile benar-benar gagal.
+             * Di sini baru badge boleh dibersihkan.
              */
-
             renderAuthFallback();
 
 
             throw authError;
+
+        }
+
+
+        /*
+         * =================================================
+         * PENTING
+         * =================================================
+         *
+         * Pada titik ini:
+         *
+         * AUTH READY = TRUE
+         * PROFILE READY = TRUE
+         *
+         * Jadi role dan account credit
+         * SUDAH harus tetap tampil.
+         */
+
+
+        const authenticatedProfile =
+            getActualProfile();
+
+
+        if (
+            authenticatedProfile
+        ) {
+
+            renderActualAuthBadges(
+                authenticatedProfile
+            );
 
         }
 
@@ -2184,19 +2366,70 @@ export async function initializeGenerateApp() {
            MODEL
         ================================================ */
 
+        let modelError =
+            null;
+
+
         try {
 
             await initializeModel();
 
         } catch (
-            modelError
+            error
         ) {
+
+            modelError =
+                error;
 
             appState.modelReady =
                 false;
 
+            appState.modelError =
+                error;
 
-            throw modelError;
+
+            /*
+             * Generate memang tidak boleh aktif.
+             */
+            disableGeneration();
+
+
+            /*
+             * =================================================
+             * JANGAN THROW KE OUTER CATCH
+             * =================================================
+             *
+             * Jika error model dilempar ke outer catch,
+             * bootstrap terlihat seperti auth gagal.
+             *
+             * Akibatnya UI lain bisa ikut dibersihkan.
+             *
+             * Ini sumber masalah sebelumnya.
+             */
+
+
+            console.error(
+                "[GEN-Z.AI][Generate] Model gagal dimuat:",
+                error
+            );
+
+
+            /*
+             * Auth badge WAJIB dipulihkan.
+             */
+            const profileAfterModelError =
+                getActualProfile();
+
+
+            if (
+                profileAfterModelError
+            ) {
+
+                renderActualAuthBadges(
+                    profileAfterModelError
+                );
+
+            }
 
         }
 
@@ -2207,16 +2440,17 @@ export async function initializeGenerateApp() {
         ================================================ */
 
         /*
-         * Setelah seluruh UI selesai dirender,
-         * render badge sekali lagi dari profile
-         * aktual untuk menghindari masalah urutan DOM.
+         * Jangan pedulikan model error.
+         *
+         * Selama profileReady true,
+         * role + account credit harus tetap ada.
          */
-
         const finalProfile =
             getActualProfile();
 
 
         if (
+            appState.profileReady &&
             finalProfile
         ) {
 
@@ -2229,7 +2463,65 @@ export async function initializeGenerateApp() {
 
         /* ================================================
            STEP 7
-           READY
+           MODEL RESULT
+        ================================================ */
+
+        if (
+            modelError
+        ) {
+
+            /*
+             * Model gagal, tetapi AUTH/PROFILE sukses.
+             *
+             * Jadi:
+             *
+             * ROLE       -> tampil
+             * ACCOUNT CREDIT -> tampil
+             * MODEL      -> error
+             * GENERATE   -> disabled
+             */
+
+            appState.initialized =
+                false;
+
+
+            showPageError(
+                modelError?.message ||
+                "Model tidak dapat dimuat."
+            );
+
+
+            showError(
+                modelError,
+                "Model gagal dimuat."
+            );
+
+
+            refreshGenerateAvailability();
+
+
+            /*
+             * Jangan clear auth badge.
+             */
+            if (
+                finalProfile
+            ) {
+
+                renderActualAuthBadges(
+                    finalProfile
+                );
+
+            }
+
+
+            return;
+
+        }
+
+
+        /* ================================================
+           STEP 8
+           APP READY
         ================================================ */
 
         hidePageError();
@@ -2251,10 +2543,24 @@ export async function initializeGenerateApp() {
         error
     ) {
 
+        /*
+         * Ini sekarang khusus error bootstrap
+         * yang benar-benar fatal:
+         *
+         * - DOM gagal
+         * - validation DOM gagal
+         * - AUTH gagal
+         * - PROFILE gagal
+         */
+
         appState.initialized =
             false;
 
 
+        /*
+         * Jangan menganggap model error
+         * sebagai auth error.
+         */
         appState.modelReady =
             false;
 
@@ -2268,15 +2574,34 @@ export async function initializeGenerateApp() {
 
 
         /*
-         * Jangan menghapus badge yang sudah
-         * berhasil dimuat.
+         * Hanya fallback auth jika profile
+         * memang belum berhasil.
          */
-
         if (
             !appState.profileReady
         ) {
 
             renderAuthFallback();
+
+        } else {
+
+            /*
+             * Profile sudah valid.
+             * Jangan sentuh badge.
+             */
+            const profile =
+                getActualProfile();
+
+
+            if (
+                profile
+            ) {
+
+                renderActualAuthBadges(
+                    profile
+                );
+
+            }
 
         }
 
@@ -2340,7 +2665,39 @@ export const generateApp =
 
         isModelReady:
             () =>
-                appState.modelReady
+                appState.modelReady,
+
+        /*
+         * Tambahan status diagnostik.
+         */
+        getState:
+            () => ({
+                initialized:
+                    appState.initialized,
+
+                authReady:
+                    appState.authReady,
+
+                profileReady:
+                    appState.profileReady,
+
+                modelReady:
+                    appState.modelReady,
+
+                submitting:
+                    appState.submitting,
+
+                polling:
+                    appState.polling,
+
+                currentTaskId:
+                    appState.currentTaskId,
+
+                modelError:
+                    appState.modelError
+                        ?.message ||
+                    null
+            })
 
     });
 
