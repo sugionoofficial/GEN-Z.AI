@@ -2,50 +2,58 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Providers - GEN-Z.AI</title>
 
-    <!-- SUPABASE -->
+    <!-- =====================================================
+         SUPABASE
+    ====================================================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- GEN-Z CONFIG -->
+    <!-- =====================================================
+         GEN-Z CONFIG
+    ====================================================== -->
     <script src="../assets/js/config.js"></script>
 
+    <!-- =====================================================
+         GLOBAL PREMIUM THEME
+    ====================================================== -->
+    <link
+        rel="stylesheet"
+        href="../assets/css/genz-premium.css"
+    >
+
     <style>
+        /* =====================================================
+           PROVIDERS PAGE
+           Premium Admin Panel Theme
+        ====================================================== */
+
         :root {
-            --bg: #07090d;
-            --bg-2: #0b0f15;
-            --panel: rgba(17, 22, 31, 0.82);
-            --panel-solid: #11161f;
+            --provider-red: #ff1744;
+            --provider-red-soft: rgba(255, 23, 68, .10);
+            --provider-red-border: rgba(255, 23, 68, .28);
 
-            --text: #f5f7fb;
-            --text-soft: #c8ced8;
-            --muted: #7f8998;
+            --provider-white: #ffffff;
+            --provider-white-soft: rgba(255,255,255,.68);
+            --provider-white-muted: rgba(255,255,255,.42);
 
-            --border: rgba(255, 255, 255, 0.075);
-            --border-strong: rgba(255, 255, 255, 0.13);
+            --provider-panel:
+                linear-gradient(
+                    145deg,
+                    rgba(18,18,22,.94),
+                    rgba(5,5,7,.96)
+                );
 
-            --accent: #8b5cf6;
-            --accent-2: #6366f1;
-            --accent-soft: rgba(139, 92, 246, 0.13);
+            --provider-border:
+                rgba(255,255,255,.09);
 
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-
-            --shadow:
-                0 25px 70px rgba(0, 0, 0, 0.42);
-
-            --shadow-soft:
-                0 12px 35px rgba(0, 0, 0, 0.25);
-
-            --radius-sm: 10px;
-            --radius-md: 14px;
-            --radius-lg: 18px;
-            --radius-xl: 24px;
-
-            --transition: 180ms ease;
+            --provider-shadow:
+                0 30px 90px rgba(0,0,0,.42);
         }
 
         * {
@@ -59,7 +67,8 @@
         body {
             margin: 0;
             min-height: 100vh;
-            color: var(--text);
+
+            color: #fff;
 
             font-family:
                 Inter,
@@ -72,26 +81,31 @@
 
             background:
                 radial-gradient(
-                    circle at 15% -10%,
-                    rgba(99, 102, 241, 0.18),
-                    transparent 30%
-                ),
-                radial-gradient(
-                    circle at 90% 0%,
-                    rgba(139, 92, 246, 0.12),
+                    circle at 8% 0%,
+                    rgba(255,23,68,.10),
                     transparent 28%
                 ),
+                radial-gradient(
+                    circle at 92% 8%,
+                    rgba(255,23,68,.07),
+                    transparent 30%
+                ),
                 linear-gradient(
-                    180deg,
-                    #07090d 0%,
-                    #090c11 55%,
-                    #06080c 100%
+                    135deg,
+                    #eeeeee 0%,
+                    #c9c9c9 15%,
+                    #777777 34%,
+                    #303034 58%,
+                    #08080b 82%,
+                    #020204 100%
                 );
+
+            background-attachment: fixed;
 
             -webkit-font-smoothing: antialiased;
         }
 
-        body.menu-open {
+        body.gz-admin-nav-open {
             overflow: hidden;
         }
 
@@ -102,415 +116,33 @@
             font: inherit;
         }
 
-        button {
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        a {
-            color: inherit;
-        }
-
-        ::selection {
-            background: rgba(139, 92, 246, 0.35);
-            color: #fff;
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #272d38;
-            border-radius: 999px;
-        }
-
-        /* =====================================================
-           TOPBAR
-           ===================================================== */
-
-        .topbar {
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            right: 16px;
-            z-index: 500;
-
-            height: 64px;
-
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            padding: 0 10px 0 8px;
-
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(18, 23, 32, 0.9),
-                    rgba(10, 14, 20, 0.82)
-                );
-
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-
-            box-shadow:
-                0 12px 40px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.035);
-        }
-
-        .topbar-left,
-        .topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .menu-button {
-            width: 46px;
-            height: 46px;
-
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 13px;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    rgba(139, 92, 246, 0.95),
-                    rgba(99, 102, 241, 0.95)
-                );
-
-            color: #fff;
-            cursor: pointer;
-
-            box-shadow:
-                0 8px 25px rgba(99, 102, 241, 0.25);
-
-            transition:
-                transform var(--transition),
-                box-shadow var(--transition);
-        }
-
-        .menu-button:hover {
-            transform: translateY(-1px);
-
-            box-shadow:
-                0 12px 32px rgba(99, 102, 241, 0.34);
-        }
-
-        .menu-icon {
-            width: 20px;
-            height: 16px;
-            position: relative;
-        }
-
-        .menu-icon span {
-            position: absolute;
-            left: 0;
-
-            width: 20px;
-            height: 2px;
-
-            border-radius: 99px;
-            background: #fff;
-
-            transition: all var(--transition);
-        }
-
-        .menu-icon span:nth-child(1) {
-            top: 0;
-        }
-
-        .menu-icon span:nth-child(2) {
-            top: 7px;
-        }
-
-        .menu-icon span:nth-child(3) {
-            top: 14px;
-        }
-
-        .menu-button.active .menu-icon span:nth-child(1) {
-            top: 7px;
-            transform: rotate(45deg);
-        }
-
-        .menu-button.active .menu-icon span:nth-child(2) {
-            opacity: 0;
-        }
-
-        .menu-button.active .menu-icon span:nth-child(3) {
-            top: 7px;
-            transform: rotate(-45deg);
-        }
-
-        .topbar-brand {
-            display: flex;
-            flex-direction: column;
-            line-height: 1.1;
-        }
-
-        .topbar-brand strong {
-            font-size: 15px;
-            font-weight: 850;
-            letter-spacing: -0.025em;
-        }
-
-        .topbar-brand span {
-            margin-top: 4px;
-            color: var(--muted);
-            font-size: 9px;
-            font-weight: 800;
-            letter-spacing: 0.15em;
-        }
-
-        .back-button {
-            min-height: 42px;
-
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-
-            padding: 0 15px;
-
-            border: 1px solid var(--border-strong);
-            border-radius: 12px;
-
-            background: rgba(255, 255, 255, 0.045);
-            color: var(--text-soft);
-
-            text-decoration: none;
-
-            font-size: 12px;
-            font-weight: 800;
-
-            transition:
-                background var(--transition),
-                color var(--transition),
-                border-color var(--transition),
-                transform var(--transition);
-        }
-
-        .back-button:hover {
-            background: rgba(255, 255, 255, 0.075);
-            color: #fff;
-            border-color: rgba(139, 92, 246, 0.35);
-            transform: translateY(-1px);
-        }
-
-        /* =====================================================
-           SIDEBAR
-           ===================================================== */
-
-        .menu-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 600;
-
-            background: rgba(0, 0, 0, 0.58);
-
-            opacity: 0;
-            pointer-events: none;
-
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-
-            transition: opacity var(--transition);
-        }
-
-        .menu-overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .sidebar {
-            position: fixed;
-
-            top: 16px;
-            left: 16px;
-            bottom: 16px;
-
-            z-index: 700;
-
-            width: 275px;
-
-            padding: 22px 16px;
-
-            border: 1px solid var(--border);
-            border-radius: var(--radius-xl);
-
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(18, 23, 32, 0.98),
-                    rgba(9, 13, 19, 0.98)
-                );
-
-            box-shadow:
-                0 30px 80px rgba(0, 0, 0, 0.55),
-                inset 0 1px 0 rgba(255, 255, 255, 0.035);
-
-            backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px);
-
-            transform: translateX(calc(-100% - 35px));
-
-            transition:
-                transform 240ms cubic-bezier(.2, .8, .2, 1);
-
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar.show {
-            transform: translateX(0);
-        }
-
-        .sidebar-brand {
-            padding: 10px 12px 22px;
-
-            border-bottom: 1px solid var(--border);
-
-            margin-bottom: 18px;
-        }
-
-        .sidebar-brand strong {
-            display: block;
-
-            font-size: 23px;
-            font-weight: 900;
-            letter-spacing: -0.055em;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    #fff,
-                    #b9b5ff
-                );
-
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .sidebar-brand span {
-            display: block;
-
-            margin-top: 6px;
-
-            color: var(--muted);
-
-            font-size: 9px;
-            font-weight: 800;
-            letter-spacing: 0.16em;
-        }
-
-        .nav {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .nav a,
-        .nav button {
-            width: 100%;
-            min-height: 48px;
-
-            display: flex;
-            align-items: center;
-            gap: 12px;
-
-            padding: 0 13px;
-
-            border: 1px solid transparent;
-            border-radius: 13px;
-
-            background: transparent;
-
-            color: #9aa3b2;
-
-            text-decoration: none;
-
-            font-size: 13px;
-            font-weight: 750;
-
-            text-align: left;
-            cursor: pointer;
-
-            transition:
-                background var(--transition),
-                color var(--transition),
-                border-color var(--transition),
-                transform var(--transition);
-        }
-
-        .nav a:hover,
-        .nav button:hover {
-            background: rgba(255, 255, 255, 0.045);
-            color: #fff;
-            border-color: rgba(255, 255, 255, 0.05);
-            transform: translateX(2px);
-        }
-
-        .nav-icon {
-            width: 19px;
-            height: 19px;
-
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-
-            flex: 0 0 19px;
-        }
-
-        .nav-divider {
-            height: 1px;
-            margin: 12px 8px;
-
-            background: var(--border);
-        }
-
-        .logout-button {
-            margin-top: auto;
-
-            color: #f87171 !important;
-            background: rgba(239, 68, 68, 0.055) !important;
-        }
-
-        .logout-button:hover {
-            background: rgba(239, 68, 68, 0.11) !important;
-            border-color: rgba(239, 68, 68, 0.12) !important;
-        }
-
         /* =====================================================
            MAIN
-           ===================================================== */
+        ====================================================== */
 
-        .main {
+        .provider-main {
+            position: relative;
+            z-index: 1;
+
             width: 100%;
             min-height: 100vh;
 
             padding:
-                112px
+                88px
                 28px
                 50px;
         }
 
-        .content {
+        .provider-content {
             width: min(1380px, 100%);
             margin: 0 auto;
         }
 
-        .page-header {
+        /* =====================================================
+           HEADER
+        ====================================================== */
+
+        .provider-header {
             display: flex;
             align-items: flex-end;
             justify-content: space-between;
@@ -520,93 +152,104 @@
             margin-bottom: 26px;
         }
 
-        .eyebrow {
+        .provider-eyebrow {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 9px;
 
             margin-bottom: 11px;
 
-            color: #8e98a8;
+            color: rgba(255,255,255,.54);
 
             font-size: 10px;
             font-weight: 850;
-            letter-spacing: 0.16em;
+
+            letter-spacing: .16em;
             text-transform: uppercase;
         }
 
-        .eyebrow-dot {
+        .provider-eyebrow-dot {
             width: 7px;
             height: 7px;
 
             border-radius: 50%;
 
-            background: var(--accent);
+            background: var(--provider-red);
 
             box-shadow:
-                0 0 0 5px rgba(139, 92, 246, 0.1),
-                0 0 18px rgba(139, 92, 246, 0.55);
+                0 0 0 5px rgba(255,23,68,.08),
+                0 0 18px rgba(255,23,68,.65);
         }
 
-        .page-title {
+        .provider-title {
             margin: 0;
 
-            font-size: clamp(30px, 4vw, 46px);
+            font-size: clamp(30px,4vw,46px);
             line-height: 1;
 
             font-weight: 900;
-            letter-spacing: -0.06em;
+            letter-spacing: -.06em;
 
             background:
                 linear-gradient(
-                    135deg,
-                    #fff 10%,
-                    #c8c5ff 80%
+                    90deg,
+                    #fff 0%,
+                    #fff 42%,
+                    #ff7189 72%,
+                    #ff1744 100%
                 );
 
             -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            background-clip: text;
+
+            color: transparent;
         }
 
-        .page-subtitle {
+        .provider-subtitle {
             max-width: 720px;
 
             margin: 13px 0 0;
 
-            color: var(--muted);
+            color: rgba(255,255,255,.48);
 
             font-size: 14px;
             line-height: 1.7;
         }
 
-        .admin-user {
-            min-width: 200px;
+        .provider-admin-user {
+            min-width: 210px;
 
             padding: 13px 15px;
 
-            border: 1px solid var(--border);
+            border:
+                1px solid
+                rgba(255,255,255,.09);
+
             border-radius: 14px;
 
-            background: rgba(255, 255, 255, 0.035);
+            background:
+                rgba(0,0,0,.25);
 
-            box-shadow: var(--shadow-soft);
+            box-shadow:
+                0 20px 50px rgba(0,0,0,.22);
         }
 
-        .admin-user-label {
-            color: #697386;
+        .provider-admin-user-label {
+            color: rgba(255,255,255,.35);
 
             font-size: 9px;
             font-weight: 800;
-            letter-spacing: 0.12em;
+
+            letter-spacing: .12em;
             text-transform: uppercase;
         }
 
-        .admin-user-value {
+        .provider-admin-user-value {
             margin-top: 5px;
 
             overflow: hidden;
 
-            color: #e7eaf0;
+            color: rgba(255,255,255,.90);
 
             font-size: 12px;
             font-weight: 800;
@@ -617,58 +260,89 @@
 
         /* =====================================================
            HERO
-           ===================================================== */
+        ====================================================== */
 
-        .hero-card {
+        .provider-hero {
             position: relative;
+
             overflow: hidden;
 
             margin-bottom: 20px;
             padding: 27px;
 
-            border: 1px solid var(--border);
-            border-radius: var(--radius-xl);
+            border:
+                1px solid
+                rgba(255,255,255,.09);
+
+            border-radius: 22px;
 
             background:
                 radial-gradient(
                     circle at 90% 20%,
-                    rgba(139, 92, 246, 0.15),
+                    rgba(255,23,68,.13),
                     transparent 30%
                 ),
                 linear-gradient(
-                    135deg,
-                    rgba(20, 25, 36, 0.96),
-                    rgba(11, 15, 22, 0.92)
+                    145deg,
+                    rgba(20,20,24,.96),
+                    rgba(7,7,9,.96)
                 );
 
-            box-shadow: var(--shadow);
+            box-shadow:
+                0 30px 90px rgba(0,0,0,.34);
         }
 
-        .hero-content {
+        .provider-hero::before {
+            content: "";
+
+            position: absolute;
+
+            left: 0;
+            top: 0;
+
+            width: 180px;
+            height: 1px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(255,23,68,.85),
+                    transparent
+                );
+
+            box-shadow:
+                0 0 18px rgba(255,23,68,.35);
+        }
+
+        .provider-hero-content {
             position: relative;
             z-index: 1;
 
             display: flex;
+
             align-items: center;
             justify-content: space-between;
 
             gap: 25px;
         }
 
-        .hero-copy h2 {
+        .provider-hero-copy h2 {
             margin: 0;
+
+            color: #fff;
 
             font-size: 19px;
             font-weight: 850;
-            letter-spacing: -0.03em;
+
+            letter-spacing: -.03em;
         }
 
-        .hero-copy p {
+        .provider-hero-copy p {
             max-width: 700px;
 
             margin: 8px 0 0;
 
-            color: #858fa0;
+            color: rgba(255,255,255,.43);
 
             font-size: 13px;
             line-height: 1.65;
@@ -678,22 +352,27 @@
             min-height: 48px;
 
             display: inline-flex;
+
             align-items: center;
             justify-content: center;
+
             gap: 9px;
 
             flex-shrink: 0;
 
             padding: 0 18px;
 
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border:
+                1px solid
+                rgba(255,23,68,.38);
+
             border-radius: 13px;
 
             background:
                 linear-gradient(
                     135deg,
-                    #8b5cf6,
-                    #6366f1
+                    #ff3159,
+                    #d90032
                 );
 
             color: #fff;
@@ -704,12 +383,13 @@
             cursor: pointer;
 
             box-shadow:
-                0 12px 30px rgba(99, 102, 241, 0.24);
+                0 12px 30px
+                rgba(255,23,68,.20);
 
             transition:
-                transform var(--transition),
-                box-shadow var(--transition),
-                filter var(--transition);
+                transform .18s ease,
+                box-shadow .18s ease,
+                filter .18s ease;
         }
 
         .add-provider-button:hover {
@@ -718,119 +398,149 @@
             filter: brightness(1.08);
 
             box-shadow:
-                0 16px 38px rgba(99, 102, 241, 0.34);
+                0 16px 38px
+                rgba(255,23,68,.32);
+        }
+
+        .add-provider-button:active {
+            transform: translateY(0);
         }
 
         /* =====================================================
            STATS
-           ===================================================== */
+        ====================================================== */
 
-        .stats-grid {
+        .provider-stats {
             display: grid;
 
             grid-template-columns:
-                repeat(4, minmax(0, 1fr));
+                repeat(4,minmax(0,1fr));
 
             gap: 14px;
 
             margin-bottom: 20px;
         }
 
-        .stat-card {
+        .provider-stat-card {
             padding: 20px;
 
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
+            border:
+                1px solid
+                rgba(255,255,255,.09);
+
+            border-radius: 17px;
 
             background:
                 linear-gradient(
                     145deg,
-                    rgba(19, 24, 33, 0.9),
-                    rgba(11, 15, 21, 0.88)
+                    rgba(255,255,255,.075),
+                    rgba(255,255,255,.025)
                 );
 
-            box-shadow: var(--shadow-soft);
+            box-shadow:
+                0 25px 70px rgba(0,0,0,.25);
 
             transition:
-                transform var(--transition),
-                border-color var(--transition);
+                transform .18s ease,
+                border-color .18s ease,
+                box-shadow .18s ease;
         }
 
-        .stat-card:hover {
+        .provider-stat-card:hover {
             transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.12);
+
+            border-color:
+                rgba(255,23,68,.24);
+
+            box-shadow:
+                0 28px 80px rgba(0,0,0,.32),
+                0 0 35px rgba(255,23,68,.08);
         }
 
-        .stat-top {
+        .provider-stat-top {
             display: flex;
+
             align-items: center;
             justify-content: space-between;
         }
 
-        .stat-label {
-            color: #7f8998;
+        .provider-stat-label {
+            color: rgba(255,255,255,.38);
 
             font-size: 10px;
             font-weight: 850;
 
-            letter-spacing: 0.1em;
+            letter-spacing: .1em;
             text-transform: uppercase;
         }
 
-        .stat-icon {
+        .provider-stat-icon {
             width: 35px;
             height: 35px;
 
             display: inline-flex;
+
             align-items: center;
             justify-content: center;
 
-            border: 1px solid rgba(255, 255, 255, 0.07);
+            border:
+                1px solid
+                rgba(255,255,255,.07);
+
             border-radius: 10px;
 
-            background: rgba(255, 255, 255, 0.035);
+            background:
+                rgba(255,255,255,.035);
         }
 
-        .stat-value {
+        .provider-stat-value {
             margin-top: 13px;
+
+            color: #fff;
 
             font-size: 29px;
             line-height: 1;
 
             font-weight: 900;
-            letter-spacing: -0.045em;
+            letter-spacing: -.045em;
         }
 
-        .stat-description {
+        .provider-stat-description {
             margin-top: 7px;
 
-            color: #687384;
+            color: rgba(255,255,255,.32);
 
             font-size: 11px;
         }
 
         /* =====================================================
            PROVIDER PANEL
-           ===================================================== */
+        ====================================================== */
 
         .provider-panel {
             overflow: hidden;
 
-            border: 1px solid var(--border);
-            border-radius: var(--radius-xl);
+            border:
+                1px solid
+                rgba(255,255,255,.095);
+
+            border-radius: 22px;
 
             background:
                 linear-gradient(
                     145deg,
-                    rgba(17, 22, 31, 0.93),
-                    rgba(9, 13, 19, 0.94)
+                    rgba(255,255,255,.075),
+                    rgba(255,255,255,.025)
                 );
 
-            box-shadow: var(--shadow);
+            box-shadow:
+                0 30px 90px rgba(0,0,0,.30),
+                0 0 35px rgba(255,23,68,.035);
         }
 
-        .panel-header {
+        .provider-panel-header {
             display: flex;
+
             align-items: center;
             justify-content: space-between;
 
@@ -838,73 +548,95 @@
 
             padding: 20px 22px;
 
-            border-bottom: 1px solid var(--border);
+            border-bottom:
+                1px solid
+                rgba(255,255,255,.075);
         }
 
-        .panel-title {
+        .provider-panel-title {
             display: flex;
+
             align-items: center;
+
             gap: 11px;
         }
 
-        .panel-title-icon {
+        .provider-panel-title-icon {
             width: 35px;
             height: 35px;
 
             display: inline-flex;
+
             align-items: center;
             justify-content: center;
 
-            border: 1px solid rgba(139, 92, 246, 0.18);
+            border:
+                1px solid
+                rgba(255,23,68,.22);
+
             border-radius: 10px;
 
-            background: var(--accent-soft);
+            background:
+                rgba(255,23,68,.08);
 
-            color: #a78bfa;
+            color: #ff5575;
         }
 
-        .panel-title strong {
+        .provider-panel-title strong {
             display: block;
+
+            color: #fff;
 
             font-size: 14px;
             font-weight: 850;
         }
 
-        .panel-title span {
+        .provider-panel-title span {
             display: block;
 
             margin-top: 3px;
 
-            color: #697386;
+            color: rgba(255,255,255,.32);
 
             font-size: 10px;
         }
 
-        .panel-badge {
+        .provider-panel-badge {
             display: inline-flex;
+
             align-items: center;
+
             gap: 7px;
 
             padding: 7px 10px;
 
-            border: 1px solid rgba(255, 255, 255, 0.065);
+            border:
+                1px solid
+                rgba(255,255,255,.065);
+
             border-radius: 999px;
 
-            background: rgba(255, 255, 255, 0.03);
+            background:
+                rgba(255,255,255,.03);
 
-            color: #8892a2;
+            color: rgba(255,255,255,.43);
 
             font-size: 10px;
             font-weight: 800;
         }
 
-        .panel-badge-dot {
+        .provider-panel-badge-dot {
             width: 6px;
             height: 6px;
 
             border-radius: 50%;
 
-            background: #6366f1;
+            background:
+                var(--provider-red);
+
+            box-shadow:
+                0 0 9px
+                rgba(255,23,68,.65);
         }
 
         #providerList {
@@ -913,7 +645,7 @@
             grid-template-columns:
                 repeat(
                     auto-fit,
-                    minmax(280px, 1fr)
+                    minmax(280px,1fr)
                 );
 
             gap: 14px;
@@ -929,27 +661,92 @@
         .provider-list-empty,
         .provider-list-error {
             grid-column: 1 / -1;
+
+            color: rgba(255,255,255,.72);
+        }
+
+        /* =====================================================
+           PROVIDER CARD OVERRIDE
+           list.js menggunakan inline style.
+           Override hanya bagian visual agar konsisten.
+        ====================================================== */
+
+        #providerList .provider-card {
+            border:
+                1px solid
+                rgba(255,255,255,.09) !important;
+
+            border-radius: 17px !important;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,.065),
+                    rgba(255,255,255,.018)
+                ) !important;
+
+            box-shadow:
+                0 18px 50px rgba(0,0,0,.22) !important;
+
+            transition:
+                transform .18s ease,
+                border-color .18s ease,
+                box-shadow .18s ease;
+        }
+
+        #providerList .provider-card:hover {
+            transform: translateY(-2px);
+
+            border-color:
+                rgba(255,23,68,.28) !important;
+
+            box-shadow:
+                0 24px 65px rgba(0,0,0,.34),
+                0 0 28px rgba(255,23,68,.06) !important;
+        }
+
+        #providerList .provider-card h3 {
+            color: #fff !important;
+        }
+
+        #providerList .provider-card button {
+            transition:
+                transform .18s ease,
+                filter .18s ease,
+                border-color .18s ease;
+        }
+
+        #providerList .provider-card button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
         }
 
         /* =====================================================
            MODAL
-           ===================================================== */
+        ====================================================== */
 
         .modal-backdrop {
             position: fixed;
+
             inset: 0;
+
             z-index: 1000;
 
             display: none;
+
             align-items: center;
             justify-content: center;
 
             padding: 20px;
 
-            background: rgba(0, 0, 0, 0.72);
+            background:
+                rgba(0,0,0,.74);
 
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter:
+                blur(10px);
+
+            -webkit-backdrop-filter:
+                blur(10px);
         }
 
         .modal-backdrop.show {
@@ -957,42 +754,54 @@
         }
 
         .modal {
-            width: min(600px, 100%);
+            width: min(600px,100%);
 
-            max-height: calc(100vh - 40px);
+            max-height:
+                calc(100vh - 40px);
+
             overflow-y: auto;
 
-            border: 1px solid var(--border-strong);
+            border:
+                1px solid
+                rgba(255,255,255,.10);
+
             border-radius: 22px;
 
             background:
                 linear-gradient(
                     145deg,
-                    #151b25,
-                    #0c1118
+                    rgba(22,22,26,.98),
+                    rgba(5,5,7,.98)
                 );
 
             box-shadow:
-                0 40px 100px rgba(0, 0, 0, 0.65);
+                0 40px 120px rgba(0,0,0,.70),
+                0 0 45px rgba(255,23,68,.08);
 
             animation:
-                modalIn 180ms ease-out;
+                providerModalIn
+                180ms ease-out;
         }
 
-        @keyframes modalIn {
+        @keyframes providerModalIn {
             from {
                 opacity: 0;
-                transform: translateY(10px) scale(0.985);
+                transform:
+                    translateY(10px)
+                    scale(.985);
             }
 
             to {
                 opacity: 1;
-                transform: translateY(0) scale(1);
+                transform:
+                    translateY(0)
+                    scale(1);
             }
         }
 
         .modal-header {
             display: flex;
+
             align-items: center;
             justify-content: space-between;
 
@@ -1000,11 +809,15 @@
 
             padding: 20px 22px;
 
-            border-bottom: 1px solid var(--border);
+            border-bottom:
+                1px solid
+                rgba(255,255,255,.075);
         }
 
         .modal-title {
             margin: 0;
+
+            color: #fff;
 
             font-size: 17px;
             font-weight: 850;
@@ -1013,7 +826,7 @@
         .modal-subtitle {
             margin: 5px 0 0;
 
-            color: #697386;
+            color: rgba(255,255,255,.35);
 
             font-size: 11px;
         }
@@ -1023,21 +836,37 @@
             height: 36px;
 
             display: inline-flex;
+
             align-items: center;
             justify-content: center;
 
-            border: 1px solid var(--border);
+            border:
+                1px solid
+                rgba(255,255,255,.09);
+
             border-radius: 10px;
 
-            background: rgba(255, 255, 255, 0.035);
+            background:
+                rgba(255,255,255,.035);
 
-            color: #9aa3b2;
+            color:
+                rgba(255,255,255,.48);
 
             cursor: pointer;
+
+            transition:
+                background .18s ease,
+                color .18s ease,
+                border-color .18s ease;
         }
 
         .modal-close:hover {
-            background: rgba(255, 255, 255, 0.075);
+            background:
+                rgba(255,23,68,.08);
+
+            border-color:
+                rgba(255,23,68,.22);
+
             color: #fff;
         }
 
@@ -1049,14 +878,16 @@
             display: grid;
 
             grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+                repeat(2,minmax(0,1fr));
 
             gap: 15px;
         }
 
         .form-group {
             display: flex;
+
             flex-direction: column;
+
             gap: 7px;
         }
 
@@ -1065,12 +896,14 @@
         }
 
         .form-label {
-            color: #a6afbd;
+            color:
+                rgba(255,255,255,.54);
 
             font-size: 10px;
             font-weight: 800;
 
-            letter-spacing: 0.05em;
+            letter-spacing: .05em;
+
             text-transform: uppercase;
         }
 
@@ -1079,44 +912,66 @@
         .form-textarea {
             width: 100%;
 
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border:
+                1px solid
+                rgba(255,255,255,.10);
+
             border-radius: 11px;
 
             outline: none;
 
-            background: rgba(255, 255, 255, 0.035);
+            background:
+                rgba(0,0,0,.30);
 
-            color: #f5f7fb;
+            color: #fff;
+
+            transition:
+                border-color .18s ease,
+                box-shadow .18s ease,
+                background .18s ease;
         }
 
         .form-input,
         .form-select {
             height: 45px;
-            padding: 0 13px;
+
+            padding:
+                0
+                13px;
         }
 
         .form-textarea {
             min-height: 95px;
-            padding: 12px 13px;
+
+            padding:
+                12px
+                13px;
+
             resize: vertical;
         }
 
         .form-input::placeholder,
         .form-textarea::placeholder {
-            color: #4f5968;
+            color:
+                rgba(255,255,255,.22);
         }
 
         .form-input:focus,
         .form-select:focus,
         .form-textarea:focus {
-            border-color: rgba(139, 92, 246, 0.55);
+            border-color:
+                rgba(255,23,68,.48);
+
+            background:
+                rgba(0,0,0,.38);
 
             box-shadow:
-                0 0 0 3px rgba(139, 92, 246, 0.08);
+                0 0 0 3px
+                rgba(255,23,68,.07);
         }
 
         .form-select option {
-            background: #11161f;
+            background: #101014;
             color: #fff;
         }
 
@@ -1138,26 +993,32 @@
             height: 33px;
 
             display: inline-flex;
+
             align-items: center;
             justify-content: center;
 
             border: 0;
+
             border-radius: 8px;
 
             background: transparent;
 
-            color: #697386;
+            color:
+                rgba(255,255,255,.38);
 
             cursor: pointer;
         }
 
         .api-toggle:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background:
+                rgba(255,255,255,.05);
+
             color: #fff;
         }
 
         .modal-footer {
             display: flex;
+
             align-items: center;
             justify-content: flex-end;
 
@@ -1165,14 +1026,18 @@
 
             padding: 17px 22px;
 
-            border-top: 1px solid var(--border);
+            border-top:
+                1px solid
+                rgba(255,255,255,.075);
         }
 
         .button-secondary,
         .button-primary {
             min-height: 42px;
 
-            padding: 0 15px;
+            padding:
+                0
+                15px;
 
             border-radius: 11px;
 
@@ -1180,32 +1045,53 @@
             font-weight: 850;
 
             cursor: pointer;
+
+            transition:
+                transform .18s ease,
+                filter .18s ease,
+                border-color .18s ease;
         }
 
         .button-secondary {
-            border: 1px solid var(--border-strong);
+            border:
+                1px solid
+                rgba(255,255,255,.12);
 
-            background: rgba(255, 255, 255, 0.035);
+            background:
+                rgba(255,255,255,.035);
 
-            color: #aeb6c4;
+            color:
+                rgba(255,255,255,.58);
         }
 
         .button-primary {
-            border: 1px solid rgba(139, 92, 246, 0.3);
+            border:
+                1px solid
+                rgba(255,23,68,.34);
 
             background:
                 linear-gradient(
                     135deg,
-                    #8b5cf6,
-                    #6366f1
+                    #ff3159,
+                    #d90032
                 );
 
             color: #fff;
+
+            box-shadow:
+                0 10px 25px
+                rgba(255,23,68,.15);
+        }
+
+        .button-secondary:hover,
+        .button-primary:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.07);
         }
 
         /* =====================================================
            MESSAGE
-           ===================================================== */
+        ====================================================== */
 
         .message {
             position: fixed;
@@ -1220,62 +1106,73 @@
 
             padding: 13px 15px;
 
-            border: 1px solid var(--border-strong);
+            border:
+                1px solid
+                rgba(255,255,255,.10);
+
             border-radius: 13px;
 
             background:
                 linear-gradient(
                     145deg,
-                    #171d27,
-                    #0e131a
+                    rgba(23,23,27,.98),
+                    rgba(8,8,10,.98)
                 );
 
-            color: #e8ebf0;
+            color:
+                rgba(255,255,255,.88);
 
             font-size: 12px;
             font-weight: 750;
 
             box-shadow:
-                0 20px 50px rgba(0, 0, 0, 0.4);
+                0 20px 50px rgba(0,0,0,.45),
+                0 0 25px rgba(255,23,68,.05);
 
             opacity: 0;
-            transform: translateY(10px);
+
+            transform:
+                translateY(10px);
 
             pointer-events: none;
 
             transition:
-                opacity var(--transition),
-                transform var(--transition);
+                opacity .18s ease,
+                transform .18s ease;
         }
 
         .message.show {
             opacity: 1;
-            transform: translateY(0);
+
+            transform:
+                translateY(0);
         }
 
         /* =====================================================
            RESPONSIVE
-           ===================================================== */
+        ====================================================== */
 
-        @media (max-width: 1100px) {
-            .stats-grid {
+        @media (max-width:1100px) {
+            .provider-stats {
                 grid-template-columns:
-                    repeat(2, minmax(0, 1fr));
+                    repeat(2,minmax(0,1fr));
             }
         }
 
-        @media (max-width: 900px) {
-            .page-header {
+        @media (max-width:900px) {
+            .provider-header {
                 align-items: flex-start;
+
                 flex-direction: column;
             }
 
-            .admin-user {
+            .provider-admin-user {
                 width: 100%;
             }
 
-            .hero-content {
+            .provider-hero-content {
                 align-items: flex-start;
+
                 flex-direction: column;
             }
 
@@ -1284,39 +1181,31 @@
             }
         }
 
-        @media (max-width: 640px) {
-            .topbar {
-                top: 10px;
-                left: 10px;
-                right: 10px;
-            }
-
-            .topbar-brand {
-                display: none;
-            }
-
-            .back-button {
-                padding: 0 11px;
-            }
-
-            .main {
+        @media (max-width:640px) {
+            .provider-main {
                 padding:
-                    94px
+                    86px
                     14px
                     35px;
             }
 
-            .stats-grid {
+            .provider-title {
+                font-size: 34px;
+            }
+
+            .provider-stats {
                 grid-template-columns: 1fr;
             }
 
             #providerList {
                 grid-template-columns: 1fr;
+
                 padding: 14px;
             }
 
-            .panel-header {
+            .provider-panel-header {
                 align-items: flex-start;
+
                 flex-direction: column;
             }
 
@@ -1352,195 +1241,50 @@
 <body>
 
     <!-- =====================================================
-         TOPBAR
-         ===================================================== -->
+         SHARED NAVIGATION CONTAINER
+         navigation/navigation.js akan membuat:
+         - Hamburger
+         - Sidebar
+         - Overlay
+         - Role based menu
+         - Logout
+         - Auth validation
+    ====================================================== -->
 
-    <header class="topbar">
+    <div id="navigation"></div>
 
-        <div class="topbar-left">
 
-            <button
-                class="menu-button"
-                id="menuButton"
-                type="button"
-                onclick="openMenu()"
-                aria-label="Buka menu"
-                aria-expanded="false"
-            >
-                <span class="menu-icon">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </span>
-            </button>
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
 
-            <div class="topbar-brand">
-                <strong>GEN-Z.AI</strong>
-                <span>PROVIDER CONTROL</span>
-            </div>
+    <main class="provider-main">
 
-        </div>
+        <div class="provider-content">
 
-        <div class="topbar-right">
+            <!-- =================================================
+                 PAGE HEADER
+            ================================================== -->
 
-            <a
-                href="./admin-panel.html"
-                class="back-button"
-            >
-                <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path d="M19 12H5"></path>
-                    <path d="M12 19l-7-7 7-7"></path>
-                </svg>
-
-                Back to Admin Panel
-            </a>
-
-        </div>
-
-    </header>
-
-    <!-- MENU OVERLAY -->
-
-    <div
-        class="menu-overlay"
-        id="menuOverlay"
-        onclick="closeMenu()"
-    ></div>
-
-    <!-- SIDEBAR -->
-
-    <aside
-        class="sidebar"
-        id="sidebar"
-    >
-
-        <div class="sidebar-brand">
-            <strong>GEN-Z.AI</strong>
-            <span>ADMIN CONTROL</span>
-        </div>
-
-        <nav class="nav">
-
-            <a href="../admin/dashboard.html">
-                <span class="nav-icon">
-                    <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <path d="M3 10.5L12 3l9 7.5"></path>
-                        <path d="M5 9.5V21h14V9.5"></path>
-                        <path d="M9 21v-6h6v6"></path>
-                    </svg>
-                </span>
-                Dashboard
-            </a>
-
-            <a href="../generate/index.html">
-                <span class="nav-icon">
-                    <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path>
-                        <path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"></path>
-                    </svg>
-                </span>
-                Generate
-            </a>
-
-            <a href="../history/index.html">
-                <span class="nav-icon">
-                    <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <path d="M3 12a9 9 0 1 0 3-6.7"></path>
-                        <path d="M3 4v5h5"></path>
-                        <path d="M12 7v5l3 2"></path>
-                    </svg>
-                </span>
-                History
-            </a>
-
-        </nav>
-
-        <div class="nav-divider"></div>
-
-        <button
-            class="nav logout-button"
-            type="button"
-            onclick="logout()"
-        >
-            <span class="nav-icon">
-                <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path d="M10 17l5-5-5-5"></path>
-                    <path d="M15 12H3"></path>
-                    <path d="M21 19V5a2 2 0 0 0-2-2h-7"></path>
-                </svg>
-            </span>
-            Log Out
-        </button>
-
-    </aside>
-
-    <!-- MAIN -->
-
-    <main class="main">
-
-        <div class="content">
-
-            <!-- PAGE HEADER -->
-
-            <section class="page-header">
+            <section class="provider-header">
 
                 <div>
 
-                    <div class="eyebrow">
-                        <span class="eyebrow-dot"></span>
+                    <div class="provider-eyebrow">
+
+                        <span
+                            class="provider-eyebrow-dot"
+                        ></span>
+
                         Provider Management
+
                     </div>
 
-                    <h1 class="page-title">
+                    <h1 class="provider-title">
                         Providers
                     </h1>
 
-                    <p class="page-subtitle">
+                    <p class="provider-subtitle">
                         Kelola koneksi AI provider, API key,
                         status layanan, dan konfigurasi provider
                         dari satu tempat.
@@ -1548,14 +1292,15 @@
 
                 </div>
 
-                <div class="admin-user">
 
-                    <div class="admin-user-label">
+                <div class="provider-admin-user">
+
+                    <div class="provider-admin-user-label">
                         Signed in as
                     </div>
 
                     <div
-                        class="admin-user-value"
+                        class="provider-admin-user-value"
                         id="adminUserEmail"
                     >
                         Loading...
@@ -1565,13 +1310,16 @@
 
             </section>
 
-            <!-- HERO -->
 
-            <section class="hero-card">
+            <!-- =================================================
+                 HERO
+            ================================================== -->
 
-                <div class="hero-content">
+            <section class="provider-hero">
 
-                    <div class="hero-copy">
+                <div class="provider-hero-content">
+
+                    <div class="provider-hero-copy">
 
                         <h2>
                             AI Provider Management
@@ -1585,12 +1333,14 @@
 
                     </div>
 
+
                     <button
                         class="add-provider-button"
                         id="addProviderBtn"
                         data-provider-action="create"
                         type="button"
                     >
+
                         <svg
                             width="17"
                             height="17"
@@ -1605,31 +1355,36 @@
                         </svg>
 
                         Tambah Provider
+
                     </button>
 
                 </div>
 
             </section>
 
-            <!-- STATS -->
 
-            <section class="stats-grid">
+            <!-- =================================================
+                 STATS
+            ================================================== -->
 
-                <div class="stat-card">
+            <section class="provider-stats">
 
-                    <div class="stat-top">
+                <div class="provider-stat-card">
 
-                        <span class="stat-label">
+                    <div class="provider-stat-top">
+
+                        <span class="provider-stat-label">
                             Total Provider
                         </span>
 
-                        <span class="stat-icon">
+                        <span class="provider-stat-icon">
+
                             <svg
                                 width="17"
                                 height="17"
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#a78bfa"
+                                stroke="#ff5575"
                                 stroke-width="1.8"
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
@@ -1641,80 +1396,87 @@
                                     height="18"
                                     rx="3"
                                 ></rect>
+
                                 <path d="M8 8h8"></path>
                                 <path d="M8 12h8"></path>
                                 <path d="M8 16h5"></path>
                             </svg>
+
                         </span>
 
                     </div>
 
                     <div
-                        class="stat-value"
+                        class="provider-stat-value"
                         id="totalProviders"
                     >
                         0
                     </div>
 
-                    <div class="stat-description">
+                    <div class="provider-stat-description">
                         Provider terdaftar
                     </div>
 
                 </div>
 
-                <div class="stat-card">
 
-                    <div class="stat-top">
+                <div class="provider-stat-card">
 
-                        <span class="stat-label">
+                    <div class="provider-stat-top">
+
+                        <span class="provider-stat-label">
                             Active
                         </span>
 
-                        <span class="stat-icon">
+                        <span class="provider-stat-icon">
+
                             <svg
                                 width="17"
                                 height="17"
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#22c55e"
+                                stroke="#4ade80"
                                 stroke-width="1.8"
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                             >
                                 <path d="M20 6L9 17l-5-5"></path>
                             </svg>
+
                         </span>
 
                     </div>
 
                     <div
-                        class="stat-value"
+                        class="provider-stat-value"
                         id="activeProviders"
                     >
                         0
                     </div>
 
-                    <div class="stat-description">
+                    <div class="provider-stat-description">
                         Provider aktif
                     </div>
 
                 </div>
 
-                <div class="stat-card">
 
-                    <div class="stat-top">
+                <div class="provider-stat-card">
 
-                        <span class="stat-label">
+                    <div class="provider-stat-top">
+
+                        <span class="provider-stat-label">
                             Inactive
                         </span>
 
-                        <span class="stat-icon">
+                        <span class="provider-stat-icon">
+
                             <svg
                                 width="17"
                                 height="17"
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#ef4444"
+                                stroke="#ff5575"
                                 stroke-width="1.8"
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
@@ -1724,41 +1486,45 @@
                                     cy="12"
                                     r="9"
                                 ></circle>
+
                                 <path d="M9 9l6 6"></path>
                                 <path d="M15 9l-6 6"></path>
                             </svg>
+
                         </span>
 
                     </div>
 
                     <div
-                        class="stat-value"
+                        class="provider-stat-value"
                         id="inactiveProviders"
                     >
                         0
                     </div>
 
-                    <div class="stat-description">
+                    <div class="provider-stat-description">
                         Provider tidak aktif
                     </div>
 
                 </div>
 
-                <div class="stat-card">
 
-                    <div class="stat-top">
+                <div class="provider-stat-card">
 
-                        <span class="stat-label">
+                    <div class="provider-stat-top">
+
+                        <span class="provider-stat-label">
                             Maintenance
                         </span>
 
-                        <span class="stat-icon">
+                        <span class="provider-stat-icon">
+
                             <svg
                                 width="17"
                                 height="17"
                                 viewBox="0 0 24 24"
                                 fill="none"
-                                stroke="#f59e0b"
+                                stroke="#fbbf24"
                                 stroke-width="1.8"
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
@@ -1767,18 +1533,19 @@
                                 <path d="M12 9v4"></path>
                                 <path d="M12 17h.01"></path>
                             </svg>
+
                         </span>
 
                     </div>
 
                     <div
-                        class="stat-value"
+                        class="provider-stat-value"
                         id="maintenanceProviders"
                     >
                         0
                     </div>
 
-                    <div class="stat-description">
+                    <div class="provider-stat-description">
                         Sedang maintenance
                     </div>
 
@@ -1786,15 +1553,18 @@
 
             </section>
 
-            <!-- PROVIDER PANEL -->
+
+            <!-- =================================================
+                 PROVIDER PANEL
+            ================================================== -->
 
             <section class="provider-panel">
 
-                <div class="panel-header">
+                <div class="provider-panel-header">
 
-                    <div class="panel-title">
+                    <div class="provider-panel-title">
 
-                        <span class="panel-title-icon">
+                        <span class="provider-panel-title-icon">
 
                             <svg
                                 width="17"
@@ -1817,21 +1587,40 @@
 
                         </span>
 
+
                         <div>
-                            <strong>Provider Registry</strong>
+
+                            <strong>
+                                Provider Registry
+                            </strong>
+
                             <span>
                                 Daftar provider AI yang terhubung
                             </span>
+
                         </div>
 
                     </div>
 
-                    <div class="panel-badge">
-                        <span class="panel-badge-dot"></span>
+
+                    <div class="provider-panel-badge">
+
+                        <span
+                            class="provider-panel-badge-dot"
+                        ></span>
+
                         Provider Control
+
                     </div>
 
                 </div>
+
+
+                <!--
+                    PENTING:
+                    ID providerList dipertahankan karena
+                    providers/list.js menggunakan ID ini.
+                -->
 
                 <div
                     id="providerList"
@@ -1844,7 +1633,10 @@
 
     </main>
 
-    <!-- PROVIDER MODAL -->
+
+    <!-- =====================================================
+         PROVIDER MODAL
+    ====================================================== -->
 
     <div
         class="modal-backdrop"
@@ -1871,12 +1663,14 @@
 
                 </div>
 
+
                 <button
                     class="modal-close"
                     type="button"
                     onclick="closeProviderModal()"
                     aria-label="Tutup"
                 >
+
                     <svg
                         width="17"
                         height="17"
@@ -1889,9 +1683,11 @@
                         <path d="M6 6l12 12"></path>
                         <path d="M18 6L6 18"></path>
                     </svg>
+
                 </button>
 
             </div>
+
 
             <div class="modal-body">
 
@@ -1923,6 +1719,7 @@
 
                         </div>
 
+
                         <div class="form-group">
 
                             <label
@@ -1944,6 +1741,7 @@
 
                         </div>
 
+
                         <div class="form-group full">
 
                             <label
@@ -1952,6 +1750,7 @@
                             >
                                 API Key
                             </label>
+
 
                             <div class="api-key-wrap">
 
@@ -1964,12 +1763,14 @@
                                     autocomplete="new-password"
                                 >
 
+
                                 <button
                                     class="api-toggle"
                                     type="button"
                                     onclick="toggleApiKey()"
                                     aria-label="Tampilkan API key"
                                 >
+
                                     <svg
                                         id="apiEye"
                                         width="16"
@@ -1982,17 +1783,20 @@
                                         stroke-linejoin="round"
                                     >
                                         <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"></path>
+
                                         <circle
                                             cx="12"
                                             cy="12"
                                             r="2.5"
                                         ></circle>
                                     </svg>
+
                                 </button>
 
                             </div>
 
                         </div>
+
 
                         <div class="form-group">
 
@@ -2008,6 +1812,7 @@
                                 id="providerStatus"
                                 name="status"
                             >
+
                                 <option value="active">
                                     Aktif
                                 </option>
@@ -2015,9 +1820,11 @@
                                 <option value="inactive">
                                     Nonaktif
                                 </option>
+
                             </select>
 
                         </div>
+
 
                         <div class="form-group">
 
@@ -2041,6 +1848,7 @@
 
                     </div>
 
+
                     <div class="modal-footer">
 
                         <button
@@ -2050,6 +1858,7 @@
                         >
                             Batal
                         </button>
+
 
                         <button
                             class="button-primary"
@@ -2069,227 +1878,228 @@
 
     </div>
 
-    <!-- MESSAGE -->
+
+    <!-- =====================================================
+         MESSAGE
+    ====================================================== -->
 
     <div
         class="message"
         id="message"
     ></div>
 
+
     <!-- =====================================================
          PROVIDER MODULES
-         ===================================================== -->
+         JANGAN DIUBAH URUTANNYA
+    ====================================================== -->
 
-    <script src="providers/supabase.js?v=20260917-03"></script>
-    <script src="providers/api-key.js?v=20260917-03"></script>
-    <script src="providers/list.js?v=20260917-03"></script>
-    <script src="providers/form.js?v=20260917-03"></script>
-    <script src="providers/actions.js?v=20260917-03"></script>
+    <script
+        src="providers/supabase.js?v=20260917-03"
+    ></script>
+
+    <script
+        src="providers/api-key.js?v=20260917-03"
+    ></script>
+
+    <script
+        src="providers/list.js?v=20260917-03"
+    ></script>
+
+    <script
+        src="providers/form.js?v=20260917-03"
+    ></script>
+
+    <script
+        src="providers/actions.js?v=20260917-03"
+    ></script>
+
 
     <!-- =====================================================
          PAGE BRIDGE
-         ===================================================== -->
+    ====================================================== -->
 
     <script>
-        (function () {
+        (() => {
+
             "use strict";
 
-            /* =================================================
-               MENU
-               ================================================= */
-
-            window.openMenu = function () {
-                const sidebar =
-                    document.getElementById("sidebar");
-
-                const overlay =
-                    document.getElementById("menuOverlay");
-
-                const button =
-                    document.getElementById("menuButton");
-
-                if (sidebar) {
-                    sidebar.classList.add("show");
-                }
-
-                if (overlay) {
-                    overlay.classList.add("show");
-                }
-
-                if (button) {
-                    button.classList.add("active");
-                    button.setAttribute(
-                        "aria-expanded",
-                        "true"
-                    );
-                }
-
-                document.body.classList.add(
-                    "menu-open"
-                );
-            };
-
-            window.closeMenu = function () {
-                const sidebar =
-                    document.getElementById("sidebar");
-
-                const overlay =
-                    document.getElementById("menuOverlay");
-
-                const button =
-                    document.getElementById("menuButton");
-
-                if (sidebar) {
-                    sidebar.classList.remove("show");
-                }
-
-                if (overlay) {
-                    overlay.classList.remove("show");
-                }
-
-                if (button) {
-                    button.classList.remove("active");
-                    button.setAttribute(
-                        "aria-expanded",
-                        "false"
-                    );
-                }
-
-                document.body.classList.remove(
-                    "menu-open"
-                );
-            };
 
             /* =================================================
                PROVIDER MODAL
-               ================================================= */
+            ================================================== */
 
-            window.openProviderModal = function () {
-                const form =
-                    window.GENZProviderForm;
+            window.openProviderModal =
+                function () {
 
-                if (
-                    form &&
-                    typeof form.openCreate ===
-                        "function"
-                ) {
-                    form.openCreate();
-                    return;
-                }
+                    const form =
+                        window.GENZProviderForm;
 
-                console.error(
-                    "[GEN-Z.AI] Provider Form belum siap."
-                );
-            };
+                    if (
+                        form &&
+                        typeof form.openCreate ===
+                            "function"
+                    ) {
 
-            window.closeProviderModal = function () {
-                const form =
-                    window.GENZProviderForm;
+                        form.openCreate();
 
-                if (
-                    form &&
-                    typeof form.close ===
-                        "function"
-                ) {
-                    form.close();
-                    return;
-                }
+                        return;
+                    }
 
-                const modal =
-                    document.getElementById(
-                        "providerModal"
+                    console.error(
+                        "[GEN-Z.AI] Provider Form belum siap."
                     );
+                };
 
-                if (modal) {
-                    modal.classList.remove("show");
-                    modal.style.display = "none";
-                }
-            };
+
+            window.closeProviderModal =
+                function () {
+
+                    const form =
+                        window.GENZProviderForm;
+
+                    if (
+                        form &&
+                        typeof form.close ===
+                            "function"
+                    ) {
+
+                        form.close();
+
+                        return;
+                    }
+
+                    const modal =
+                        document.getElementById(
+                            "providerModal"
+                        );
+
+                    if (modal) {
+
+                        modal.classList.remove(
+                            "show"
+                        );
+
+                        modal.style.display =
+                            "none";
+                    }
+                };
+
 
             window.handleModalBackdrop =
                 function (event) {
+
                     if (
                         event &&
                         event.target &&
                         event.target.id ===
                             "providerModal"
                     ) {
+
                         window.closeProviderModal();
                     }
                 };
 
+
             /* =================================================
                API KEY VISIBILITY
-               ================================================= */
+            ================================================== */
 
-            window.toggleApiKey = function () {
-                const input =
-                    document.getElementById(
-                        "providerApiKey"
-                    );
+            window.toggleApiKey =
+                function () {
 
-                const eye =
-                    document.getElementById(
-                        "apiEye"
-                    );
+                    const input =
+                        document.getElementById(
+                            "providerApiKey"
+                        );
 
-                if (!input) {
-                    return;
-                }
+                    const eye =
+                        document.getElementById(
+                            "apiEye"
+                        );
 
-                if (
-                    input.type ===
-                    "password"
-                ) {
-                    input.type = "text";
-
-                    if (eye) {
-                        eye.style.opacity = "1";
+                    if (!input) {
+                        return;
                     }
-                } else {
-                    input.type = "password";
 
-                    if (eye) {
-                        eye.style.opacity = "0.65";
+
+                    if (
+                        input.type ===
+                        "password"
+                    ) {
+
+                        input.type =
+                            "text";
+
+                        if (eye) {
+                            eye.style.opacity =
+                                "1";
+                        }
+
+                    } else {
+
+                        input.type =
+                            "password";
+
+                        if (eye) {
+                            eye.style.opacity =
+                                "0.65";
+                        }
                     }
-                }
-            };
+                };
+
 
             /* =================================================
                LOGOUT
-               ================================================= */
+               
+               navigation/navigation.js
+               menjadi pemilik logout.
+               Function ini tetap disediakan untuk
+               compatibility halaman lama.
+            ================================================== */
 
-            window.logout = async function () {
-                try {
+            window.logout =
+                async function () {
+
                     const providerSupabase =
                         window.GENZProviderSupabase;
 
-                    if (
-                        providerSupabase &&
-                        providerSupabase.client
-                    ) {
-                        await providerSupabase
-                            .client
-                            .auth
-                            .signOut();
+                    try {
+
+                        if (
+                            providerSupabase &&
+                            providerSupabase.client &&
+                            providerSupabase.client.auth
+                        ) {
+
+                            await providerSupabase
+                                .client
+                                .auth
+                                .signOut();
+                        }
+
+                    } catch (error) {
+
+                        console.error(
+                            "[GEN-Z.AI] Logout error:",
+                            error
+                        );
+
+                    } finally {
+
+                        window.location.replace(
+                            "../login.html"
+                        );
                     }
-                } catch (error) {
-                    console.error(
-                        "[GEN-Z.AI] Logout error:",
-                        error
-                    );
-                } finally {
-                    window.location.replace(
-                        "../index.html"
-                    );
-                }
-            };
+                };
+
 
             /* =================================================
                ADMIN EMAIL
-               ================================================= */
+            ================================================== */
 
             async function loadAdminEmail() {
+
                 const element =
                     document.getElementById(
                         "adminUserEmail"
@@ -2299,35 +2109,46 @@
                     return;
                 }
 
+
                 try {
+
                     const module =
                         window.GENZProviderSupabase;
 
                     if (!module) {
+
                         element.textContent =
                             "Admin";
+
                         return;
                     }
+
 
                     if (
                         module.ready &&
                         typeof module.ready.then ===
                             "function"
                     ) {
+
                         await module.ready;
                     }
 
+
                     if (
                         typeof module.getUser !==
-                        "function"
+                            "function"
                     ) {
+
                         element.textContent =
                             "Admin";
+
                         return;
                     }
 
+
                     const user =
                         await module.getUser();
+
 
                     element.textContent =
                         user &&
@@ -2336,6 +2157,7 @@
                             : "Admin";
 
                 } catch (error) {
+
                     console.warn(
                         "[GEN-Z.AI] Tidak dapat membaca email admin:",
                         error
@@ -2346,11 +2168,13 @@
                 }
             }
 
+
             /* =================================================
                UPDATE STATS
-               ================================================= */
+            ================================================== */
 
             function updateStats() {
+
                 const list =
                     window.GENZProviderList;
 
@@ -2359,23 +2183,29 @@
                     typeof list.getAll !==
                         "function"
                 ) {
+
                     return;
                 }
 
+
                 const result =
                     list.getAll();
+
 
                 const providers =
                     Array.isArray(result)
                         ? result
                         : [];
 
+
                 let active = 0;
                 let inactive = 0;
                 let maintenance = 0;
 
+
                 providers.forEach(
                     function (provider) {
+
                         const status =
                             String(
                                 provider &&
@@ -2383,24 +2213,31 @@
                                     ? provider.status
                                     : ""
                             )
-                                .trim()
-                                .toLowerCase();
+                            .trim()
+                            .toLowerCase();
+
 
                         if (
                             status ===
                             "maintenance"
                         ) {
+
                             maintenance++;
+
                         } else if (
                             status ===
                             "inactive"
                         ) {
+
                             inactive++;
+
                         } else {
+
                             active++;
                         }
                     }
                 );
+
 
                 const totalElement =
                     document.getElementById(
@@ -2422,103 +2259,100 @@
                         "maintenanceProviders"
                     );
 
+
                 if (totalElement) {
+
                     totalElement.textContent =
                         String(
                             providers.length
                         );
                 }
 
+
                 if (activeElement) {
+
                     activeElement.textContent =
                         String(active);
                 }
 
+
                 if (inactiveElement) {
+
                     inactiveElement.textContent =
                         String(inactive);
                 }
 
+
                 if (maintenanceElement) {
+
                     maintenanceElement.textContent =
                         String(maintenance);
                 }
             }
 
+
             /* =================================================
                PROVIDER EVENTS
-               ================================================= */
+            ================================================== */
 
             document.addEventListener(
                 "genz:providers-ready",
                 function () {
+
                     loadAdminEmail();
+
                     updateStats();
                 }
             );
+
 
             document.addEventListener(
                 "genz:providers-rendered",
                 function () {
+
                     updateStats();
                 }
             );
 
-            /* =================================================
-               MENU LINK
-               ================================================= */
-
-            document.addEventListener(
-                "click",
-                function (event) {
-                    const link =
-                        event.target &&
-                        event.target.closest
-                            ? event.target.closest(
-                                ".sidebar a"
-                            )
-                            : null;
-
-                    if (link) {
-                        window.closeMenu();
-                    }
-                }
-            );
 
             /* =================================================
                ESC
-               ================================================= */
+            ================================================== */
 
             document.addEventListener(
                 "keydown",
                 function (event) {
+
                     if (
                         event.key ===
                         "Escape"
                     ) {
+
                         window.closeProviderModal();
-                        window.closeMenu();
                     }
                 }
             );
 
+
             /* =================================================
                PAGE API
-               ================================================= */
+            ================================================== */
 
             window.GENZProviderPage = {
+
                 updateStats,
+
                 loadAdminEmail,
-                openMenu:
-                    window.openMenu,
-                closeMenu:
-                    window.closeMenu,
+
                 openProviderModal:
                     window.openProviderModal,
+
                 closeProviderModal:
                     window.closeProviderModal,
+
                 toggleApiKey:
                     window.toggleApiKey,
+
                 logout:
                     window.logout
             };
@@ -2526,11 +2360,27 @@
         })();
     </script>
 
+
     <!-- =====================================================
          PROVIDER INIT
-         ===================================================== -->
+         ====================================================== -->
 
-    <script src="providers/init.js?v=20260917-04"></script>
+    <script
+        src="providers/init.js?v=20260917-04"
+    ></script>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+         
+         HARUS setelah Provider Supabase module,
+         karena navigation membutuhkan client
+         Supabase yang tersedia.
+    ====================================================== -->
+
+    <script
+        src="../navigation/navigation.js"
+    ></script>
 
 </body>
 </html>
