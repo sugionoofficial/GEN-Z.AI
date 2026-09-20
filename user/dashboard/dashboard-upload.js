@@ -8,17 +8,16 @@
    Tanggung jawab:
    - Submit form video
    - Membaca nilai form
-   - Validasi file
-   - Menjalankan create / update melalui DATA MODULE
-   - Menampilkan status proses
-   - Mengunci form selama proses
-   - Menutup modal setelah berhasil
-   - Memicu refresh/render setelah operasi
+   - Validasi form dan file
+   - Delegasi CREATE / UPDATE ke DATA MODULE
+   - Progress UI
+   - Lock form selama proses
+   - Refresh data setelah berhasil
 
    Tidak bertanggung jawab:
-   - Query Supabase secara langsung
-   - Storage upload secara langsung
-   - CRUD database secara langsung
+   - Query Supabase
+   - Storage upload langsung
+   - CRUD database langsung
    - Render card
    - Auth
    - Navigation
@@ -42,6 +41,13 @@
 
 
     /* =====================================================
+       INITIALIZATION GUARD
+    ===================================================== */
+
+    let initialized = false;
+
+
+    /* =====================================================
        ELEMENTS
     ===================================================== */
 
@@ -51,8 +57,10 @@
             dashboard.elements &&
             dashboard.elements.videoForm
         ) {
+
             return dashboard.elements;
         }
+
 
         if (
             typeof dashboard.cacheElements ===
@@ -62,10 +70,25 @@
             dashboard.elements =
                 dashboard.cacheElements();
 
+
             return dashboard.elements;
         }
 
+
         return {};
+    }
+
+
+    /* =====================================================
+       CONFIG
+    ===================================================== */
+
+    function getConfig() {
+
+        return (
+            dashboard.config ||
+            {}
+        );
     }
 
 
@@ -73,9 +96,14 @@
        ERROR MESSAGE
     ===================================================== */
 
-    function getErrorMessage(error) {
+    function getErrorMessage(
+        error
+    ) {
 
-        if (!error) {
+        if (
+            !error
+        ) {
+
             return "Terjadi kesalahan.";
         }
 
@@ -83,47 +111,44 @@
         if (
             typeof error === "string"
         ) {
+
             return error;
         }
 
 
-        if (
-            typeof error.message ===
-            "string" &&
-            error.message.trim()
+        const candidates = [
+
+            error.message,
+
+            error.error_description,
+
+            error.details,
+
+            error.hint
+
+        ];
+
+
+        for (
+            let index = 0;
+            index < candidates.length;
+            index += 1
         ) {
-            return error.message.trim();
+
+            if (
+                typeof candidates[index] ===
+                "string" &&
+                candidates[index].trim()
+            ) {
+
+                return candidates[index].trim();
+            }
         }
 
 
-        if (
-            typeof error.error_description ===
-            "string" &&
-            error.error_description.trim()
-        ) {
-            return error.error_description.trim();
-        }
-
-
-        if (
-            typeof error.details ===
-            "string" &&
-            error.details.trim()
-        ) {
-            return error.details.trim();
-        }
-
-
-        if (
-            typeof error.hint ===
-            "string" &&
-            error.hint.trim()
-        ) {
-            return error.hint.trim();
-        }
-
-
-        return "Terjadi kesalahan saat memproses video.";
+        return (
+            "Terjadi kesalahan saat memproses video."
+        );
     }
 
 
@@ -149,11 +174,6 @@
             return;
         }
 
-
-        /*
-         * Fallback sederhana.
-         * Tidak membuat komponen UI baru.
-         */
 
         if (
             type === "error"
@@ -184,24 +204,30 @@
         const elements =
             getElements();
 
+
         return {
+
             container:
-                elements.uploadProgress || null,
+                elements.uploadProgress ||
+                null,
 
             percent:
-                elements.uploadProgressPercent || null,
+                elements.uploadProgressPercent ||
+                null,
 
             bar:
-                elements.uploadProgressBar || null,
+                elements.uploadProgressBar ||
+                null,
 
             text:
-                elements.uploadProgressText || null
+                elements.uploadProgressText ||
+                null
         };
     }
 
 
     /* =====================================================
-       PROGRESS UI
+       PROGRESS
     ===================================================== */
 
     function setProgress(
@@ -209,7 +235,7 @@
         message
     ) {
 
-        const numericProgress =
+        const value =
             Number.isFinite(
                 Number(progress)
             )
@@ -230,7 +256,7 @@
 
 
         /*
-         * Simpan state.
+         * Simpan ke central state.
          */
 
         if (
@@ -239,9 +265,20 @@
         ) {
 
             dashboard.setUploadState(
-                numericProgress < 100,
-                numericProgress,
+                value < 100,
+                value,
                 text
+            );
+
+        } else if (
+            typeof dashboard.setUploadProgress ===
+            "function" &&
+            dashboard.setUploadProgress !==
+            setProgress
+        ) {
+
+            dashboard.setUploadProgress(
+                value
             );
         }
 
@@ -264,7 +301,7 @@
         ) {
 
             progressElements.percent.textContent =
-                numericProgress +
+                value +
                 "%";
         }
 
@@ -274,8 +311,13 @@
         ) {
 
             progressElements.bar.style.width =
-                numericProgress +
+                value +
                 "%";
+
+            progressElements.bar.setAttribute(
+                "aria-valuenow",
+                String(value)
+            );
         }
 
 
@@ -319,6 +361,11 @@
 
             progressElements.bar.style.width =
                 "0%";
+
+            progressElements.bar.setAttribute(
+                "aria-valuenow",
+                "0"
+            );
         }
 
 
@@ -326,7 +373,7 @@
             progressElements.text
         ) {
 
-            progressElements.textContent =
+            progressElements.text.textContent =
                 "Menyiapkan upload...";
         }
 
@@ -353,6 +400,14 @@
 
         const elements =
             getElements();
+
+
+        const sortOrder =
+            elements.videoSortOrder
+                ? Number(
+                    elements.videoSortOrder.value
+                )
+                : 0;
 
 
         return {
@@ -419,10 +474,8 @@
 
 
             sortOrder:
-                elements.videoSortOrder
-                    ? Number(
-                        elements.videoSortOrder.value
-                    )
+                Number.isFinite(sortOrder)
+                    ? sortOrder
                     : 0,
 
 
@@ -435,7 +488,90 @@
 
 
     /* =====================================================
-       BASIC FORM VALIDATION
+       CURRENT VIDEO
+    ===================================================== */
+
+    function getCurrentVideo(
+        videoId
+    ) {
+
+        if (
+            !videoId ||
+            typeof dashboard.getVideoById !==
+            "function"
+        ) {
+
+            return null;
+        }
+
+
+        return dashboard.getVideoById(
+            videoId
+        );
+    }
+
+
+    /* =====================================================
+       MODE
+    ===================================================== */
+
+    function getMode() {
+
+        if (
+            typeof dashboard.getModalMode ===
+            "function"
+        ) {
+
+            const modalMode =
+                dashboard.getModalMode();
+
+
+            if (
+                modalMode === "create"
+            ) {
+
+                return "create";
+            }
+
+
+            if (
+                modalMode === "add"
+            ) {
+
+                return "create";
+            }
+
+
+            if (
+                modalMode === "edit"
+            ) {
+
+                return "edit";
+            }
+        }
+
+
+        const elements =
+            getElements();
+
+
+        const videoId =
+            elements.videoId
+                ? String(
+                    elements.videoId.value ||
+                    ""
+                ).trim()
+                : "";
+
+
+        return videoId
+            ? "edit"
+            : "create";
+    }
+
+
+    /* =====================================================
+       FORM VALIDATION
     ===================================================== */
 
     function validateFormValues(
@@ -443,7 +579,24 @@
         mode
     ) {
 
-        if (!data.title) {
+        if (
+            !data ||
+            typeof data !== "object"
+        ) {
+
+            throw new Error(
+                "Data form tidak valid."
+            );
+        }
+
+
+        /* -------------------------------------------------
+           TITLE
+        ------------------------------------------------- */
+
+        if (
+            !data.title
+        ) {
 
             throw new Error(
                 "Judul video wajib diisi."
@@ -452,8 +605,7 @@
 
 
         if (
-            data.title.length >
-            150
+            data.title.length > 150
         ) {
 
             throw new Error(
@@ -462,9 +614,12 @@
         }
 
 
+        /* -------------------------------------------------
+           DESCRIPTION
+        ------------------------------------------------- */
+
         if (
-            data.description.length >
-            1000
+            data.description.length > 1000
         ) {
 
             throw new Error(
@@ -473,7 +628,13 @@
         }
 
 
-        if (!data.category) {
+        /* -------------------------------------------------
+           CATEGORY
+        ------------------------------------------------- */
+
+        if (
+            !data.category
+        ) {
 
             throw new Error(
                 "Kategori video wajib dipilih."
@@ -505,18 +666,23 @@
         }
 
 
+        /* -------------------------------------------------
+           ASPECT RATIO
+        ------------------------------------------------- */
+
+        const config =
+            getConfig();
+
+
         if (
-            typeof dashboard.config !==
-            "undefined" &&
-            dashboard.config &&
             Array.isArray(
-                dashboard.config.aspectRatios
+                config.aspectRatios
             ) &&
-            dashboard.config.aspectRatios.length
+            config.aspectRatios.length
         ) {
 
             if (
-                !dashboard.config.aspectRatios.includes(
+                !config.aspectRatios.includes(
                     data.aspectRatio
                 )
             ) {
@@ -528,34 +694,36 @@
         }
 
 
+        /* -------------------------------------------------
+           SORT ORDER
+        ------------------------------------------------- */
+
         if (
             !Number.isFinite(
-                data.sortOrder
-            ) ||
-            data.sortOrder < 0
+                Number(data.sortOrder)
+            )
         ) {
 
-            data.sortOrder = 0;
+            data.sortOrder =
+                0;
         }
 
 
         data.sortOrder =
-            Math.floor(
-                data.sortOrder
+            Math.max(
+                0,
+                Math.floor(
+                    Number(data.sortOrder)
+                )
             );
 
 
-        /*
-         * Tambah:
-         * File video wajib.
-         *
-         * Edit:
-         * File video hanya wajib jika
-         * belum ada file lama.
-         */
+        /* -------------------------------------------------
+           VIDEO FILE
+        ------------------------------------------------- */
 
         if (
-            mode === "add" &&
+            mode === "create" &&
             !data.videoFile
         ) {
 
@@ -566,12 +734,10 @@
 
 
         /*
-         * Thumbnail tidak diwajibkan.
-         * Ini menjaga kompatibilitas dengan
-         * data lama yang mungkin tidak mempunyai
-         * thumbnail.
+         * EDIT:
+         * File baru tidak wajib.
+         * Data module mempertahankan file lama.
          */
-
 
         return data;
     }
@@ -581,13 +747,24 @@
        FILE VALIDATION
     ===================================================== */
 
-    function validateFiles(data) {
+    function validateFiles(
+        data
+    ) {
 
         if (
-            data.videoFile &&
-            typeof dashboard.validateVideoFile ===
-            "function"
+            data.videoFile
         ) {
+
+            if (
+                typeof dashboard.validateVideoFile !==
+                "function"
+            ) {
+
+                throw new Error(
+                    "Validator video belum tersedia."
+                );
+            }
+
 
             dashboard.validateVideoFile(
                 data.videoFile
@@ -596,10 +773,19 @@
 
 
         if (
-            data.thumbnailFile &&
-            typeof dashboard.validateThumbnailFile ===
-            "function"
+            data.thumbnailFile
         ) {
+
+            if (
+                typeof dashboard.validateThumbnailFile !==
+                "function"
+            ) {
+
+                throw new Error(
+                    "Validator thumbnail belum tersedia."
+                );
+            }
+
 
             dashboard.validateThumbnailFile(
                 data.thumbnailFile
@@ -609,7 +795,60 @@
 
 
     /* =====================================================
-       DISABLE FORM
+       MANAGEMENT GUARD
+    ===================================================== */
+
+    function requireManagementAccess() {
+
+        if (
+            typeof dashboard.hasManagementAccess ===
+            "function"
+        ) {
+
+            if (
+                !dashboard.hasManagementAccess()
+            ) {
+
+                throw new Error(
+                    "Anda tidak memiliki akses untuk mengelola video."
+                );
+            }
+
+        } else if (
+            typeof dashboard.isAdmin ===
+            "function"
+        ) {
+
+            if (
+                !dashboard.isAdmin()
+            ) {
+
+                throw new Error(
+                    "Anda tidak memiliki akses untuk mengelola video."
+                );
+            }
+        }
+
+
+        if (
+            typeof dashboard.isEditMode ===
+            "function"
+        ) {
+
+            if (
+                !dashboard.isEditMode()
+            ) {
+
+                throw new Error(
+                    "Mode manajemen video tidak aktif."
+                );
+            }
+        }
+    }
+
+
+    /* =====================================================
+       FORM DISABLED
     ===================================================== */
 
     function setFormDisabled(
@@ -624,7 +863,10 @@
             elements.videoForm;
 
 
-        if (!form) {
+        if (
+            !form
+        ) {
+
             return;
         }
 
@@ -638,14 +880,11 @@
         controls.forEach(
             function (control) {
 
-                /*
-                 * Jangan mengubah hidden input.
-                 */
-
                 if (
                     control.type ===
                     "hidden"
                 ) {
+
                     return;
                 }
 
@@ -656,89 +895,44 @@
         );
 
 
-        /*
-         * Tandai form.
-         */
-
         form.setAttribute(
             "aria-busy",
             disabled
                 ? "true"
                 : "false"
         );
+
+
+        form.dataset.submitting =
+            disabled
+                ? "true"
+                : "false";
     }
 
 
     /* =====================================================
-       MODE
-    ===================================================== */
-
-    function getMode() {
-
-        if (
-            typeof dashboard.getModalMode ===
-            "function"
-        ) {
-
-            const mode =
-                dashboard.getModalMode();
-
-
-            if (
-                mode === "edit" ||
-                mode === "add"
-            ) {
-
-                return mode;
-            }
-        }
-
-
-        const elements =
-            getElements();
-
-
-        const videoId =
-            elements.videoId
-                ? String(
-                    elements.videoId.value ||
-                    ""
-                ).trim()
-                : "";
-
-
-        return videoId
-            ? "edit"
-            : "add";
-    }
-
-
-    /* =====================================================
-       SUCCESS REFRESH
+       REFRESH DATA
     ===================================================== */
 
     async function refreshAfterSave() {
 
-        /*
-         * Jangan mengandalkan state lokal saja.
-         *
-         * Setelah CREATE / UPDATE, reload dari Supabase
-         * agar data yang tampil benar-benar berasal dari
-         * database.
-         */
-
         if (
-            typeof dashboard.loadVideos ===
+            typeof dashboard.loadVideos !==
             "function"
         ) {
 
-            await dashboard.loadVideos({
-                includeInactive:
-                    typeof dashboard.isEditMode ===
-                    "function" &&
-                    dashboard.isEditMode()
-            });
+            throw new Error(
+                "Module data video belum tersedia."
+            );
         }
+
+
+        await dashboard.loadVideos({
+            includeInactive:
+                typeof dashboard.isEditMode ===
+                "function" &&
+                dashboard.isEditMode()
+        });
 
 
         if (
@@ -763,7 +957,7 @@
 
 
     /* =====================================================
-       CLOSE MODAL
+       CLOSE MODAL AFTER SUCCESS
     ===================================================== */
 
     function closeModalAfterSuccess() {
@@ -774,18 +968,6 @@
         ) {
 
             dashboard.closeModal();
-
-            return;
-        }
-
-
-        if (
-            dashboard.modal &&
-            typeof dashboard.modal.close ===
-            "function"
-        ) {
-
-            dashboard.modal.close();
         }
     }
 
@@ -798,7 +980,9 @@
         event
     ) {
 
-        if (event) {
+        if (
+            event
+        ) {
 
             event.preventDefault();
 
@@ -816,56 +1000,57 @@
         }
 
 
-        /*
-         * Management access tetap diverifikasi di sini
-         * sebagai guard tambahan.
-         */
-
-        if (
-            typeof dashboard.isAdmin ===
-            "function" &&
-            !dashboard.isAdmin()
-        ) {
-
-            showToast(
-                "Anda tidak memiliki akses untuk mengelola video.",
-                "error"
-            );
-
-            return false;
-        }
-
-
-        if (
-            typeof dashboard.isEditMode ===
-            "function" &&
-            !dashboard.isEditMode()
-        ) {
-
-            showToast(
-                "Mode manajemen video tidak aktif.",
-                "error"
-            );
-
-            return false;
-        }
-
-
-        const elements =
-            getElements();
-
-
-        const mode =
-            getMode();
-
-
-        let data;
+        let mode =
+            "create";
 
 
         try {
 
-            data =
+            requireManagementAccess();
+
+
+            mode =
+                getMode();
+
+
+            const data =
                 getFormValues();
+
+
+            /*
+             * Saat edit, pastikan ID benar-benar berasal
+             * dari state/form dan record memang tersedia.
+             */
+
+            if (
+                mode === "edit"
+            ) {
+
+                if (
+                    !data.videoId
+                ) {
+
+                    throw new Error(
+                        "Video ID tidak tersedia."
+                    );
+                }
+
+
+                const currentVideo =
+                    getCurrentVideo(
+                        data.videoId
+                    );
+
+
+                if (
+                    !currentVideo
+                ) {
+
+                    throw new Error(
+                        "Video yang akan diedit tidak ditemukan."
+                    );
+                }
+            }
 
 
             validateFormValues(
@@ -877,6 +1062,7 @@
             validateFiles(
                 data
             );
+
 
         } catch (error) {
 
@@ -907,8 +1093,16 @@
         }
 
 
+        const elements =
+            getElements();
+
+
+        const data =
+            getFormValues();
+
+
         /*
-         * Mulai proses.
+         * Mulai state saving.
          */
 
         if (
@@ -942,13 +1136,13 @@
 
         try {
 
-            /*
-             * Tahap 1
-             */
+            /* -------------------------------------------------
+               STEP 1
+            ------------------------------------------------- */
 
             setProgress(
                 10,
-                mode === "add"
+                mode === "create"
                     ? "Menyiapkan video baru..."
                     : "Menyiapkan perubahan..."
             );
@@ -957,12 +1151,12 @@
             let result;
 
 
-            /* =================================================
+            /* -------------------------------------------------
                CREATE
-            ================================================= */
+            ------------------------------------------------- */
 
             if (
-                mode === "add"
+                mode === "create"
             ) {
 
                 if (
@@ -971,14 +1165,14 @@
                 ) {
 
                     throw new Error(
-                        "Module data video belum tersedia."
+                        "Fungsi create video belum tersedia."
                     );
                 }
 
 
                 setProgress(
                     20,
-                    "Mengupload dan menyimpan video..."
+                    "Mengupload video..."
                 );
 
 
@@ -989,21 +1183,11 @@
             }
 
 
-            /* =================================================
+            /* -------------------------------------------------
                UPDATE
-            ================================================= */
+            ------------------------------------------------- */
 
             else {
-
-                if (
-                    !data.videoId
-                ) {
-
-                    throw new Error(
-                        "Video ID tidak tersedia."
-                    );
-                }
-
 
                 if (
                     typeof dashboard.updateVideo !==
@@ -1011,14 +1195,14 @@
                 ) {
 
                     throw new Error(
-                        "Module data video belum tersedia."
+                        "Fungsi update video belum tersedia."
                     );
                 }
 
 
                 setProgress(
                     20,
-                    "Mengupdate data video..."
+                    "Mengupdate video..."
                 );
 
 
@@ -1030,37 +1214,30 @@
             }
 
 
-            /*
-             * Data module menggunakan Supabase Storage
-             * dan Database secara berurutan.
-             *
-             * Karena Supabase Storage upload standar tidak
-             * memberikan progress byte-level pada API yang
-             * digunakan module data, angka di bawah adalah
-             * progress tahap proses, bukan persentase byte
-             * upload.
-             */
+            /* -------------------------------------------------
+               REFRESH
+            ------------------------------------------------- */
 
             setProgress(
                 80,
-                "Menyegarkan data dashboard..."
+                "Menyegarkan dashboard..."
             );
 
 
             await refreshAfterSave();
 
 
+            /* -------------------------------------------------
+               COMPLETE
+            ------------------------------------------------- */
+
             setProgress(
                 100,
-                mode === "add"
+                mode === "create"
                     ? "Video berhasil ditambahkan."
                     : "Video berhasil diperbarui."
             );
 
-
-            /*
-             * Beri waktu singkat agar status 100% terlihat.
-             */
 
             await new Promise(
                 function (resolve) {
@@ -1069,12 +1246,20 @@
                         resolve,
                         180
                     );
-
                 }
             );
 
 
             hideProgress();
+
+
+            if (
+                typeof dashboard.clearError ===
+                "function"
+            ) {
+
+                dashboard.clearError();
+            }
 
 
             if (
@@ -1088,15 +1273,6 @@
             }
 
 
-            if (
-                typeof dashboard.clearError ===
-                "function"
-            ) {
-
-                dashboard.clearError();
-            }
-
-
             setFormDisabled(
                 false
             );
@@ -1106,14 +1282,17 @@
 
 
             showToast(
-                mode === "add"
+                mode === "create"
                     ? "Video berhasil ditambahkan."
                     : "Video berhasil diperbarui.",
                 "success"
             );
 
 
-            return result || true;
+            return (
+                result ||
+                true
+            );
 
         } catch (error) {
 
@@ -1138,12 +1317,6 @@
                     error
                 );
             }
-
-
-            setProgress(
-                0,
-                message
-            );
 
 
             if (
@@ -1175,16 +1348,17 @@
             );
 
 
+            setProgress(
+                0,
+                message
+            );
+
+
             showToast(
                 message,
                 "error"
             );
 
-
-            /*
-             * Progress tetap ditampilkan sebentar supaya
-             * user tahu proses gagal, kemudian disembunyikan.
-             */
 
             setTimeout(
                 function () {
@@ -1197,7 +1371,6 @@
 
                         hideProgress();
                     }
-
                 },
                 1200
             );
@@ -1209,18 +1382,19 @@
 
 
     /* =====================================================
-       FILE INPUT PREVIEW / INFO
+       FILE INFORMATION
     ===================================================== */
 
     function updateFileHint(
         input,
-        hintElement
+        output
     ) {
 
         if (
             !input ||
-            !hintElement
+            !output
         ) {
+
             return;
         }
 
@@ -1232,7 +1406,10 @@
                 : null;
 
 
-        if (!file) {
+        if (
+            !file
+        ) {
+
             return;
         }
 
@@ -1242,7 +1419,7 @@
             "function"
         ) {
 
-            hintElement.textContent =
+            output.textContent =
                 file.name +
                 " • " +
                 dashboard.formatFileSize(
@@ -1253,7 +1430,7 @@
         }
 
 
-        hintElement.textContent =
+        output.textContent =
             file.name;
     }
 
@@ -1288,12 +1465,12 @@
        INITIALIZE
     ===================================================== */
 
-    let initialized = false;
-
-
     function initializeUpload() {
 
-        if (initialized) {
+        if (
+            initialized
+        ) {
+
             return true;
         }
 
@@ -1307,26 +1484,19 @@
         ) {
 
             console.error(
-                "[GEN-Z.AI] Dashboard upload: videoForm tidak ditemukan."
+                "[GEN-Z.AI] Dashboard upload: #videoForm tidak ditemukan."
             );
+
 
             return false;
         }
 
-
-        /*
-         * Submit handler.
-         */
 
         elements.videoForm.addEventListener(
             "submit",
             submitForm
         );
 
-
-        /*
-         * File info.
-         */
 
         if (
             elements.videoFile
@@ -1350,14 +1520,11 @@
         }
 
 
-        /*
-         * State awal.
-         */
-
         hideProgress();
 
 
-        initialized = true;
+        initialized =
+            true;
 
 
         return true;
@@ -1371,27 +1538,37 @@
     dashboard.setUploadProgress =
         setProgress;
 
+
     dashboard.hideUploadProgress =
         hideProgress;
+
 
     dashboard.getDashboardFormValues =
         getFormValues;
 
+
     dashboard.validateDashboardForm =
         validateFormValues;
+
 
     dashboard.submitDashboardForm =
         submitForm;
 
+
     dashboard.initializeUpload =
         initializeUpload;
+
 
     dashboard.setDashboardFormDisabled =
         setFormDisabled;
 
 
+    dashboard.getDashboardUploadMode =
+        getMode;
+
+
     /* =====================================================
-       READY FLAG
+       READY
     ===================================================== */
 
     dashboard.uploadReady =
