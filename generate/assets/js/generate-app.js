@@ -9,25 +9,27 @@
    - Bootstrap halaman Generate
    - Inisialisasi DOM
    - Authentication
-   - Menampilkan role + credit dari profile
+   - Memuat profile Supabase
+   - Menampilkan role + credit
    - Memuat model
    - Menghubungkan model -> form -> request
    - Menjalankan polling task
    - Reset form
 
+   SOURCE OF TRUTH:
+   - Auth        -> Supabase Auth
+   - Role        -> profiles.role
+   - Credit      -> profiles.credits
+   - Model       -> repository model registry
+
    Tidak bertanggung jawab:
-   - Query Supabase langsung
+   - Query Supabase langsung selain melalui generate-auth
    - Menentukan provider
    - Menentukan harga/model capability
    - Menyimpan API key
    - Menulis CSS
    - Query provider langsung
    - Menampilkan hasil video final
-
-   CATATAN:
-   - Result final tidak dirender di Generate.
-   - Result akan digunakan History.
-   - Role/Credit tidak dibuat secara hardcode.
 ========================================================= */
 
 
@@ -163,12 +165,14 @@ function getElements() {
 function refreshGenerateAvailability() {
 
     /*
-     * Generate hanya aktif jika:
+     * Generate hanya boleh aktif jika:
      *
-     * 1. Auth siap
-     * 2. Model siap
-     * 3. Tidak submit
-     * 4. Tidak polling
+     * 1. Auth valid
+     * 2. Profile berhasil dimuat
+     * 3. Model berhasil dimuat
+     * 4. Model benar-benar ready
+     * 5. Tidak sedang submit
+     * 6. Tidak sedang polling
      */
 
     if (
@@ -185,6 +189,7 @@ function refreshGenerateAvailability() {
 
     if (
         appState.authReady &&
+        appState.profileReady &&
         appState.modelReady &&
         isModelReady()
     ) {
@@ -202,49 +207,29 @@ function refreshGenerateAvailability() {
 
 
 /* =========================================================
-   AUTH BADGE FALLBACK
+   GET ACTUAL PROFILE
+   ---------------------------------------------------------
+   Prioritas:
+   1. generate-state
+   2. global current profile
+   3. navigation profile
 ========================================================= */
 
-function renderAuthFallback() {
+function getActualProfile() {
 
     try {
 
-        const profile =
+        const stateProfile =
             getCurrentProfile();
 
 
         if (
-            profile &&
-            typeof profile ===
+            stateProfile &&
+            typeof stateProfile ===
                 "object"
         ) {
 
-            renderAuthBadges(
-                profile
-            );
-
-            return profile;
-
-        }
-
-
-        const cachedProfile =
-            window.GENZ_CURRENT_PROFILE ||
-            window.GENZ_NAVIGATION_PROFILE ||
-            null;
-
-
-        if (
-            cachedProfile &&
-            typeof cachedProfile ===
-                "object"
-        ) {
-
-            renderAuthBadges(
-                cachedProfile
-            );
-
-            return cachedProfile;
+            return stateProfile;
 
         }
 
@@ -253,16 +238,79 @@ function renderAuthFallback() {
     ) {
 
         console.warn(
-            "[GEN-Z.AI][Generate] Auth badge fallback gagal:",
+            "[GEN-Z.AI][Generate] Gagal membaca state profile:",
             error
         );
 
     }
 
 
-    /*
-     * Tidak ada fallback palsu.
-     */
+    try {
+
+        const currentProfile =
+            window.GENZ_CURRENT_PROFILE;
+
+
+        if (
+            currentProfile &&
+            typeof currentProfile ===
+                "object"
+        ) {
+
+            return currentProfile;
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate] Gagal membaca current profile:",
+            error
+        );
+
+    }
+
+
+    try {
+
+        const navigationProfile =
+            window.GENZ_NAVIGATION_PROFILE;
+
+
+        if (
+            navigationProfile &&
+            typeof navigationProfile ===
+                "object"
+        ) {
+
+            return navigationProfile;
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate] Gagal membaca navigation profile:",
+            error
+        );
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   CLEAR AUTH BADGES
+========================================================= */
+
+function clearAuthBadges() {
 
     try {
 
@@ -274,6 +322,7 @@ function renderAuthFallback() {
             elements?.roleBadgeEl ||
             elements?.roleBadge ||
             null;
+
 
         const creditBadge =
             elements?.creditBadgeEl ||
@@ -291,6 +340,9 @@ function renderAuthFallback() {
             roleBadge.hidden =
                 true;
 
+            roleBadge.style.display =
+                "none";
+
             delete roleBadge.dataset.role;
 
         }
@@ -306,6 +358,9 @@ function renderAuthFallback() {
             creditBadge.hidden =
                 true;
 
+            creditBadge.style.display =
+                "none";
+
         }
 
     } catch (
@@ -319,19 +374,257 @@ function renderAuthFallback() {
 
     }
 
+}
 
-    return null;
+
+/* =========================================================
+   FORCE AUTH BADGES
+   ---------------------------------------------------------
+   Fungsi ini memastikan badge:
+   - menerima profile aktual
+   - tidak memakai OWNER hardcode
+   - tidak memakai credit hardcode
+   - tidak menyembunyikan credit = 0
+========================================================= */
+
+function renderActualAuthBadges(
+    profile
+) {
+
+    if (
+        !profile ||
+        typeof profile !==
+            "object"
+    ) {
+
+        clearAuthBadges();
+
+        return false;
+
+    }
+
+
+    try {
+
+        renderAuthBadges(
+            profile
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][Generate] renderAuthBadges gagal:",
+            error
+        );
+
+    }
+
+
+    /*
+     * Pastikan badge tidak tertinggal hidden
+     * setelah renderAuthBadges().
+     */
+
+    try {
+
+        const elements =
+            getElements();
+
+
+        const roleBadge =
+            elements?.roleBadgeEl ||
+            elements?.roleBadge ||
+            null;
+
+
+        const creditBadge =
+            elements?.creditBadgeEl ||
+            elements?.creditBadge ||
+            null;
+
+
+        /* =============================================
+           ROLE
+        ============================================= */
+
+        if (
+            roleBadge
+        ) {
+
+            const role =
+                String(
+                    profile.role ||
+                    ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+
+            if (
+                role
+            ) {
+
+                roleBadge.textContent =
+                    role;
+
+                roleBadge.hidden =
+                    false;
+
+                roleBadge.style.display =
+                    "";
+
+                roleBadge.dataset.role =
+                    role;
+
+            } else {
+
+                roleBadge.textContent =
+                    "";
+
+                roleBadge.hidden =
+                    true;
+
+                roleBadge.style.display =
+                    "none";
+
+            }
+
+        }
+
+
+        /* =============================================
+           CREDIT
+        ============================================= */
+
+        if (
+            creditBadge
+        ) {
+
+            const rawCredits =
+                profile.credits;
+
+
+            /*
+             * NULL / undefined / empty:
+             * data memang tidak tersedia.
+             */
+
+            if (
+                rawCredits === null ||
+                rawCredits === undefined ||
+                rawCredits === ""
+            ) {
+
+                creditBadge.textContent =
+                    "Credit: -";
+
+                creditBadge.hidden =
+                    false;
+
+                creditBadge.style.display =
+                    "";
+
+            } else {
+
+                const numericCredits =
+                    Number(
+                        rawCredits
+                    );
+
+
+                /*
+                 * 0 adalah nilai VALID.
+                 */
+
+                if (
+                    Number.isFinite(
+                        numericCredits
+                    )
+                ) {
+
+                    creditBadge.textContent =
+                        `Credit: ${new Intl.NumberFormat(
+                            "id-ID"
+                        ).format(
+                            numericCredits
+                        )}`;
+
+                } else {
+
+                    creditBadge.textContent =
+                        `Credit: ${String(
+                            rawCredits
+                        )}`;
+
+                }
+
+
+                creditBadge.hidden =
+                    false;
+
+                creditBadge.style.display =
+                    "";
+
+            }
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate] Finalisasi auth badge gagal:",
+            error
+        );
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   AUTH BADGE FALLBACK
+   ---------------------------------------------------------
+   Fallback hanya menggunakan profile aktual yang sudah
+   tersedia di state/global.
+
+   TIDAK ADA:
+   - OWNER hardcode
+   - Credit hardcode
+========================================================= */
+
+function renderAuthFallback() {
+
+    const profile =
+        getActualProfile();
+
+
+    if (
+        profile
+    ) {
+
+        return renderActualAuthBadges(
+            profile
+        );
+
+    }
+
+
+    clearAuthBadges();
+
+    return false;
 
 }
 
 
 /* =========================================================
    RENDER CURRENT MODEL FORM
-   ---------------------------------------------------------
-   generate-form.js mengambil model langsung
-   dari generate-state.js.
-
-   Tidak perlu mengirim model sebagai argumen.
 ========================================================= */
 
 function renderCurrentModelForm() {
@@ -846,12 +1139,36 @@ async function handleGenerateSubmit(
     }
 
 
+    /*
+     * Auth wajib siap.
+     */
+
     if (
         !appState.authReady
     ) {
 
         showError(
             "Sesi pengguna belum siap."
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * Profile wajib siap.
+     *
+     * Ini penting supaya Generate tidak berjalan
+     * tanpa mengetahui credit account aktual.
+     */
+
+    if (
+        !appState.profileReady
+    ) {
+
+        showError(
+            "Profile akun belum siap. Credit tidak dapat diverifikasi."
         );
 
         return;
@@ -888,6 +1205,26 @@ async function handleGenerateSubmit(
 
 
         /*
+         * Pastikan badge masih menggunakan
+         * profile aktual sebelum generate.
+         */
+
+        const profile =
+            getActualProfile();
+
+
+        if (
+            profile
+        ) {
+
+            renderActualAuthBadges(
+                profile
+            );
+
+        }
+
+
+        /*
          * Ambil parameter TERBARU
          * dari form.
          */
@@ -921,6 +1258,9 @@ async function handleGenerateSubmit(
          *
          * API key/provider tidak pernah
          * berada di frontend.
+         *
+         * Credit juga WAJIB diverifikasi
+         * oleh backend sebelum provider dipanggil.
          */
 
         const data =
@@ -974,15 +1314,7 @@ async function handleGenerateSubmit(
          * RESULT TIDAK DIRender DI GENERATE
          * =================================================
          *
-         * Hasil final akan menjadi data History.
-         *
-         * Backend History nanti menyimpan:
-         * - task_id
-         * - model_id
-         * - provider
-         * - parameter
-         * - result URL
-         * - status
+         * History akan menjadi tempat hasil final.
          */
 
         const completedTaskId =
@@ -1001,6 +1333,48 @@ async function handleGenerateSubmit(
             "Video berhasil dibuat. Hasil tersedia di History.",
             "success"
         );
+
+
+        /*
+         * Refresh badge setelah generate.
+         *
+         * Backend nantinya dapat mengurangi credit.
+         * Kita ambil profile terbaru supaya angka
+         * di UI tidak menjadi fosil digital.
+         */
+
+        try {
+
+            const refreshedProfile =
+                await loadProfile();
+
+
+            if (
+                refreshedProfile &&
+                typeof refreshedProfile ===
+                    "object"
+            ) {
+
+                appState.profileReady =
+                    true;
+
+
+                renderActualAuthBadges(
+                    refreshedProfile
+                );
+
+            }
+
+        } catch (
+            refreshError
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][Generate] Refresh credit setelah generate gagal:",
+                refreshError
+            );
+
+        }
 
 
     } catch (
@@ -1116,20 +1490,19 @@ async function resetForm() {
 
 
     /*
-     * Badge authentication tetap dipertahankan.
+     * Badge authentication tetap dipertahankan
+     * dari profile aktual.
      */
 
     const profile =
-        getCurrentProfile();
+        getActualProfile();
 
 
     if (
-        profile &&
-        typeof profile ===
-            "object"
+        profile
     ) {
 
-        renderAuthBadges(
+        renderActualAuthBadges(
             profile
         );
 
@@ -1159,8 +1532,8 @@ async function resetForm() {
 
 
         /*
-         * Setelah reset, form harus
-         * dibuat kembali dari model.
+         * Setelah reset, form dibuat kembali
+         * berdasarkan model registry.
          */
 
         renderCurrentModelForm();
@@ -1272,6 +1645,7 @@ function handleChange(
         elements?.modelSelect ||
         null;
 
+
     const statusEl =
         elements?.statusEl ||
         elements?.status ||
@@ -1326,10 +1700,12 @@ function bindEvents() {
         elements?.modelSelect ||
         null;
 
+
     const generateForm =
         elements?.generateForm ||
         elements?.generateFormEl ||
         null;
+
 
     const resetButton =
         elements?.resetButton ||
@@ -1393,19 +1769,32 @@ function bindEvents() {
 
 /* =========================================================
    AUTH INITIALIZATION
+   ---------------------------------------------------------
+   URUTAN WAJIB:
+   1. Supabase
+   2. Auth user
+   3. Profile
+   4. Role + credit badge
+   5. Auth ready
 ========================================================= */
 
 async function initializeAuth() {
 
     /*
-     * Supabase client.
+     * ================================================
+     * STEP 1
+     * Supabase client
+     * ================================================
      */
 
     await loadSupabase();
 
 
     /*
-     * User Auth.
+     * ================================================
+     * STEP 2
+     * User Auth
+     * ================================================
      */
 
     const user =
@@ -1423,44 +1812,30 @@ async function initializeAuth() {
     }
 
 
+    /*
+     * Auth session sudah valid.
+     */
+
     appState.authReady =
         true;
 
 
     /*
-     * Profile source of truth:
-     * - role
-     * - credits
+     * ================================================
+     * STEP 3
+     * Profile Supabase
+     * ================================================
+     *
+     * Role + credit WAJIB berasal dari sini.
      */
+
+    let profile;
+
 
     try {
 
-        const profile =
+        profile =
             await loadProfile();
-
-
-        if (
-            profile &&
-            typeof profile ===
-                "object"
-        ) {
-
-            appState.profileReady =
-                true;
-
-
-            renderAuthBadges(
-                profile
-            );
-
-        } else {
-
-            appState.profileReady =
-                false;
-
-            renderAuthFallback();
-
-        }
 
     } catch (
         profileError
@@ -1470,20 +1845,144 @@ async function initializeAuth() {
             false;
 
 
-        console.warn(
-            "[GEN-Z.AI][Generate] Profile gagal dimuat:",
-            profileError
+        /*
+         * Jangan diam-diam melanjutkan Generate
+         * tanpa profile.
+         */
+
+        clearAuthBadges();
+
+
+        throw new Error(
+            profileError?.message ||
+            "Profile akun gagal dimuat dari Supabase."
         );
-
-
-        renderAuthFallback();
 
     }
 
 
     /*
-     * Role hanya dibaca.
-     * Backend tetap menentukan hak akses.
+     * ================================================
+     * STEP 4
+     * Validasi profile
+     * ================================================
+     */
+
+    if (
+        !profile ||
+        typeof profile !==
+            "object"
+    ) {
+
+        appState.profileReady =
+            false;
+
+
+        clearAuthBadges();
+
+
+        throw new Error(
+            "Profile akun tidak tersedia."
+        );
+
+    }
+
+
+    /*
+     * ID profile harus sama dengan Auth user.
+     */
+
+    if (
+        String(
+            profile.id ||
+            ""
+        ) !==
+        String(
+            user.id
+        )
+    ) {
+
+        appState.profileReady =
+            false;
+
+
+        clearAuthBadges();
+
+
+        throw new Error(
+            "Profile akun tidak sesuai dengan user Auth."
+        );
+
+    }
+
+
+    /*
+     * Role harus tersedia.
+     */
+
+    const role =
+        String(
+            profile.role ||
+            ""
+        )
+            .trim()
+            .toUpperCase();
+
+
+    if (
+        !role
+    ) {
+
+        appState.profileReady =
+            false;
+
+
+        clearAuthBadges();
+
+
+        throw new Error(
+            "Role akun tidak tersedia pada profile."
+        );
+
+    }
+
+
+    /*
+     * ================================================
+     * STEP 5
+     * Simpan/render profile
+     * ================================================
+     */
+
+    appState.profileReady =
+        true;
+
+
+    /*
+     * Ini sumber badge yang benar.
+     */
+
+    renderActualAuthBadges(
+        profile
+    );
+
+
+    /*
+     * Pastikan global profile juga sinkron.
+     */
+
+    window.GENZ_CURRENT_PROFILE =
+        profile;
+
+    window.GENZ_NAVIGATION_PROFILE =
+        profile;
+
+
+    /*
+     * ================================================
+     * STEP 6
+     * Role check
+     * ================================================
      */
 
     try {
@@ -1502,7 +2001,28 @@ async function initializeAuth() {
     }
 
 
-    return true;
+    /*
+     * Debug aman.
+     *
+     * Tidak menampilkan token/API key.
+     */
+
+    console.log(
+        "[GEN-Z.AI][Generate] Profile loaded:",
+        {
+            id:
+                profile.id,
+
+            role:
+                profile.role,
+
+            credits:
+                profile.credits
+        }
+    );
+
+
+    return profile;
 
 }
 
@@ -1523,9 +2043,21 @@ async function initializeModel() {
         await resolveInitialModel();
 
 
+    /*
+     * Support dua kemungkinan API:
+     *
+     * 1. { model: {...} }
+     * 2. model langsung
+     */
+
     const model =
         resolved?.model ||
-        null;
+        (
+            resolved &&
+            resolved.model_id
+                ? resolved
+                : null
+        );
 
 
     if (
@@ -1611,7 +2143,7 @@ export async function initializeGenerateApp() {
 
         /* ================================================
            STEP 4
-           AUTH
+           AUTH + PROFILE
         ================================================ */
 
         showStatus(
@@ -1634,6 +2166,10 @@ export async function initializeGenerateApp() {
             appState.profileReady =
                 false;
 
+
+            /*
+             * Jangan tampilkan badge palsu.
+             */
 
             renderAuthFallback();
 
@@ -1667,6 +2203,32 @@ export async function initializeGenerateApp() {
 
         /* ================================================
            STEP 6
+           FINAL AUTH BADGE SYNC
+        ================================================ */
+
+        /*
+         * Setelah seluruh UI selesai dirender,
+         * render badge sekali lagi dari profile
+         * aktual untuk menghindari masalah urutan DOM.
+         */
+
+        const finalProfile =
+            getActualProfile();
+
+
+        if (
+            finalProfile
+        ) {
+
+            renderActualAuthBadges(
+                finalProfile
+            );
+
+        }
+
+
+        /* ================================================
+           STEP 7
            READY
         ================================================ */
 
@@ -1706,8 +2268,8 @@ export async function initializeGenerateApp() {
 
 
         /*
-         * Jangan menghapus badge yang
-         * sudah berhasil dimuat.
+         * Jangan menghapus badge yang sudah
+         * berhasil dimuat.
          */
 
         if (
@@ -1800,7 +2362,8 @@ if (
 
         },
         {
-            once: true
+            once:
+                true
         }
     );
 
