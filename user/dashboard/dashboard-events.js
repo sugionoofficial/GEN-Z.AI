@@ -6,23 +6,23 @@
    user/dashboard/dashboard-events.js
 
    Tanggung jawab:
-   - Event tombol Add
-   - Event Edit
-   - Event Delete
+   - Event tombol Add Video
+   - Event tombol Edit
+   - Event tombol Delete
    - Event filter kategori
-   - Event retry
-   - Event submit form
-   - Event navigasi
-   - Delegasi ke module lain
+   - Event Retry
+   - Event Generate
+   - Event Admin Back
+   - Delegasi ke module terkait
 
    Tidak bertanggung jawab:
    - Query Supabase
-   - CRUD database
-   - Upload Storage
-   - Render HTML utama
+   - CRUD langsung
+   - Upload langsung
+   - Render HTML
+   - Modal lifecycle
    - Auth
-   - Navigation implementation
-   - Modal lifecycle implementation
+   - Navigation
 ========================================================= */
 
 (function () {
@@ -42,7 +42,7 @@
 
 
     /* =====================================================
-       INTERNAL STATE
+       INTERNAL
     ===================================================== */
 
     let initialized = false;
@@ -55,24 +55,68 @@
     function getElements() {
 
         if (
-            dashboard.elements &&
-            dashboard.elements.dashboardRoot
+            dashboard.elements
         ) {
+
             return dashboard.elements;
         }
+
 
         if (
             typeof dashboard.cacheElements ===
             "function"
         ) {
 
-            dashboard.elements =
-                dashboard.cacheElements();
-
-            return dashboard.elements;
+            return dashboard.cacheElements();
         }
 
+
         return {};
+    }
+
+
+    /* =====================================================
+       ACCESS CHECK
+    ===================================================== */
+
+    function hasManagementAccess() {
+
+        if (
+            typeof dashboard.hasManagementAccess ===
+            "function"
+        ) {
+
+            return (
+                dashboard.hasManagementAccess() === true
+            );
+        }
+
+
+        /*
+         * Fallback hanya untuk kompatibilitas.
+         *
+         * Otorisasi sebenarnya tetap berasal dari
+         * dashboard-auth.js / Supabase.
+         */
+
+        const admin =
+            typeof dashboard.isAdmin ===
+            "function"
+                ? dashboard.isAdmin()
+                : false;
+
+
+        const editMode =
+            typeof dashboard.isEditMode ===
+            "function"
+                ? dashboard.isEditMode()
+                : false;
+
+
+        return (
+            admin &&
+            editMode
+        );
     }
 
 
@@ -92,59 +136,66 @@
 
             dashboard.showToast(
                 message,
-                type || "info"
+                type
             );
 
             return;
         }
+
+
+        const elements =
+            getElements();
+
+
+        const toast =
+            elements.dashboardToast;
+
+
+        const toastMessage =
+            elements.dashboardToastMessage;
+
 
         if (
-            type === "error"
+            !toast ||
+            !toastMessage
         ) {
-
-            console.error(
-                "[GEN-Z.AI Dashboard]",
-                message
-            );
 
             return;
         }
 
-        console.log(
-            "[GEN-Z.AI Dashboard]",
-            message
+
+        toastMessage.textContent =
+            message || "";
+
+
+        toast.hidden =
+            false;
+
+
+        toast.classList.remove(
+            "hidden"
         );
-    }
 
 
-    /* =====================================================
-       ERROR MESSAGE
-    ===================================================== */
+        clearTimeout(
+            dashboard.toastTimer
+        );
 
-    function getErrorMessage(error) {
 
-        if (!error) {
-            return "Terjadi kesalahan.";
-        }
+        dashboard.toastTimer =
+            setTimeout(
+                function () {
 
-        if (
-            typeof error ===
-            "string"
-        ) {
+                    toast.hidden =
+                        true;
 
-            return error;
-        }
+                    toast.classList.add(
+                        "hidden"
+                    );
 
-        if (
-            error.message &&
-            typeof error.message ===
-            "string"
-        ) {
-
-            return error.message;
-        }
-
-        return "Terjadi kesalahan pada dashboard.";
+                },
+                3500
+            );
     }
 
 
@@ -152,35 +203,24 @@
        ADD VIDEO
     ===================================================== */
 
-    function handleAddVideo() {
-
-        /*
-         * USER biasa tidak boleh membuka form management.
-         */
+    function handleAddVideo(
+        event
+    ) {
 
         if (
-            typeof dashboard.isAdmin ===
-            "function" &&
-            !dashboard.isAdmin()
+            event
         ) {
 
-            showToast(
-                "Anda tidak memiliki akses untuk menambah video.",
-                "error"
-            );
-
-            return;
+            event.preventDefault();
         }
 
 
         if (
-            typeof dashboard.isEditMode ===
-            "function" &&
-            !dashboard.isEditMode()
+            !hasManagementAccess()
         ) {
 
             showToast(
-                "Mode manajemen video tidak aktif.",
+                "Anda tidak memiliki akses untuk menambah video.",
                 "error"
             );
 
@@ -194,7 +234,7 @@
         ) {
 
             console.error(
-                "[GEN-Z.AI] openAddModal() tidak tersedia."
+                "[GEN-Z.AI Dashboard] openAddModal tidak tersedia."
             );
 
             return;
@@ -210,18 +250,22 @@
     ===================================================== */
 
     function handleEditVideo(
-        videoId
+        videoId,
+        event
     ) {
 
-        if (!videoId) {
-            return;
+        if (
+            event
+        ) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
         }
 
 
         if (
-            typeof dashboard.isAdmin ===
-            "function" &&
-            !dashboard.isAdmin()
+            !hasManagementAccess()
         ) {
 
             showToast(
@@ -234,15 +278,8 @@
 
 
         if (
-            typeof dashboard.isEditMode ===
-            "function" &&
-            !dashboard.isEditMode()
+            !videoId
         ) {
-
-            showToast(
-                "Mode manajemen video tidak aktif.",
-                "error"
-            );
 
             return;
         }
@@ -254,7 +291,7 @@
         ) {
 
             console.error(
-                "[GEN-Z.AI] openEditModal() tidak tersedia."
+                "[GEN-Z.AI Dashboard] openEditModal tidak tersedia."
             );
 
             return;
@@ -272,18 +309,22 @@
     ===================================================== */
 
     async function handleDeleteVideo(
-        videoId
+        videoId,
+        event
     ) {
 
-        if (!videoId) {
-            return;
+        if (
+            event
+        ) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
         }
 
 
         if (
-            typeof dashboard.isAdmin ===
-            "function" &&
-            !dashboard.isAdmin()
+            !hasManagementAccess()
         ) {
 
             showToast(
@@ -296,13 +337,34 @@
 
 
         if (
-            typeof dashboard.isEditMode ===
-            "function" &&
-            !dashboard.isEditMode()
+            !videoId
+        ) {
+
+            return;
+        }
+
+
+        if (
+            typeof dashboard.getVideoById !==
+            "function"
+        ) {
+
+            return;
+        }
+
+
+        const video =
+            dashboard.getVideoById(
+                videoId
+            );
+
+
+        if (
+            !video
         ) {
 
             showToast(
-                "Mode manajemen video tidak aktif.",
+                "Video tidak ditemukan.",
                 "error"
             );
 
@@ -310,39 +372,26 @@
         }
 
 
-        const video =
-            typeof dashboard.getVideoById ===
-            "function"
-                ? dashboard.getVideoById(
-                    videoId
-                )
-                : null;
-
-
         const title =
-            video &&
-            video.title
-                ? video.title
-                : "video ini";
+            video.title ||
+            "video ini";
 
 
         /*
-         * Konfirmasi native.
-         *
-         * Sengaja tidak membuat modal konfirmasi kedua.
-         * Dashboard sudah memiliki modal management sendiri.
+         * Native confirm dipakai sengaja.
+         * Tidak menambah modal kedua hanya untuk delete.
          */
 
         const confirmed =
             window.confirm(
-                'Hapus "' +
-                title +
-                '"?\n\n' +
-                "Video dan file terkait akan dihapus."
+                `Hapus "${title}"?\n\nTindakan ini tidak dapat dibatalkan.`
             );
 
 
-        if (!confirmed) {
+        if (
+            !confirmed
+        ) {
+
             return;
         }
 
@@ -360,13 +409,18 @@
             }
 
 
+            /*
+             * Data module adalah satu-satunya module
+             * yang boleh melakukan delete Supabase.
+             */
+
             if (
                 typeof dashboard.deleteVideo !==
                 "function"
             ) {
 
                 throw new Error(
-                    "Module data video belum tersedia."
+                    "deleteVideo tidak tersedia."
                 );
             }
 
@@ -377,7 +431,10 @@
 
 
             /*
-             * Pastikan tampilan mengikuti database.
+             * Reload dari Supabase.
+             *
+             * Ini memastikan UI tidak hanya bergantung
+             * pada state lokal.
              */
 
             if (
@@ -386,22 +443,15 @@
             ) {
 
                 await dashboard.loadVideos({
+
                     includeInactive:
-                        typeof dashboard.isEditMode ===
-                        "function" &&
-                        dashboard.isEditMode()
+                        hasManagementAccess()
+
                 });
             }
 
 
             if (
-                typeof dashboard.refreshVideoView ===
-                "function"
-            ) {
-
-                dashboard.refreshVideoView();
-
-            } else if (
                 typeof dashboard.renderDashboard ===
                 "function"
             ) {
@@ -415,11 +465,10 @@
                 "success"
             );
 
-
         } catch (error) {
 
             console.error(
-                "[GEN-Z.AI Dashboard] Delete error:",
+                "[GEN-Z.AI Dashboard] Delete video error:",
                 error
             );
 
@@ -436,12 +485,12 @@
 
 
             showToast(
-                getErrorMessage(
-                    error
-                ),
+                error &&
+                error.message
+                    ? error.message
+                    : "Gagal menghapus video.",
                 "error"
             );
-
 
         } finally {
 
@@ -459,18 +508,95 @@
 
 
     /* =====================================================
+       PLAY VIDEO
+    ===================================================== */
+
+    function handlePlayVideo(
+        videoId,
+        event
+    ) {
+
+        if (
+            event
+        ) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
+        }
+
+
+        if (
+            !videoId
+        ) {
+
+            return;
+        }
+
+
+        /*
+         * Player dimiliki render module.
+         */
+
+        if (
+            typeof dashboard.openVideoViewer ===
+            "function"
+        ) {
+
+            dashboard.openVideoViewer(
+                videoId
+            );
+
+            return;
+        }
+
+
+        /*
+         * Compatibility dengan nama API lain.
+         */
+
+        if (
+            typeof dashboard.playVideo ===
+            "function"
+        ) {
+
+            dashboard.playVideo(
+                videoId
+            );
+        }
+    }
+
+
+    /* =====================================================
        CATEGORY FILTER
     ===================================================== */
 
     function handleCategoryFilter(
-        category
+        category,
+        event
     ) {
 
-        const normalized =
-            typeof category ===
+        if (
+            event
+        ) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
+        }
+
+
+        if (
+            typeof category !==
             "string"
-                ? category.trim()
-                : "all";
+        ) {
+
+            return;
+        }
+
+
+        const normalized =
+            category.trim() || "all";
 
 
         if (
@@ -479,19 +605,12 @@
         ) {
 
             dashboard.setActiveCategory(
-                normalized || "all"
+                normalized
             );
         }
 
 
         if (
-            typeof dashboard.refreshVideoView ===
-            "function"
-        ) {
-
-            dashboard.refreshVideoView();
-
-        } else if (
             typeof dashboard.renderDashboard ===
             "function"
         ) {
@@ -502,266 +621,20 @@
 
 
     /* =====================================================
-       FILTER CLICK DELEGATION
-    ===================================================== */
-
-    function handleFilterContainerClick(
-        event
-    ) {
-
-        const target =
-            event.target;
-
-
-        if (!target) {
-            return;
-        }
-
-
-        const button =
-            target.closest(
-                "[data-category]"
-            );
-
-
-        if (!button) {
-            return;
-        }
-
-
-        /*
-         * Pastikan button memang berada di
-         * area category filter.
-         */
-
-        const filterContainer =
-            button.closest(
-                "[data-dashboard-category-filter]"
-            );
-
-
-        if (!filterContainer) {
-            return;
-        }
-
-
-        event.preventDefault();
-
-
-        const category =
-            button.getAttribute(
-                "data-category"
-            ) ||
-            "all";
-
-
-        /*
-         * Active class.
-         *
-         * Render module juga akan melakukan sinkronisasi
-         * saat refresh, tetapi update langsung membuat UI
-         * terasa responsif.
-         */
-
-        filterContainer
-            .querySelectorAll(
-                "[data-category]"
-            )
-            .forEach(
-                function (item) {
-
-                    item.classList.toggle(
-                        "active",
-                        item === button
-                    );
-
-                    item.setAttribute(
-                        "aria-pressed",
-                        item === button
-                            ? "true"
-                            : "false"
-                    );
-                }
-            );
-
-
-        handleCategoryFilter(
-            category
-        );
-    }
-
-
-    /* =====================================================
-       VIDEO GRID DELEGATION
-    ===================================================== */
-
-    function handleVideoGridClick(
-        event
-    ) {
-
-        const target =
-            event.target;
-
-
-        if (!target) {
-            return;
-        }
-
-
-        /*
-         * PLAY
-         */
-
-        const playButton =
-            target.closest(
-                "[data-action='play-video']"
-            );
-
-
-        if (playButton) {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            const videoId =
-                playButton.getAttribute(
-                    "data-video-id"
-                );
-
-
-            if (
-                videoId &&
-                typeof dashboard.openVideoViewer ===
-                "function"
-            ) {
-
-                dashboard.openVideoViewer(
-                    videoId
-                );
-            }
-
-
-            return;
-        }
-
-
-        /*
-         * EDIT
-         */
-
-        const editButton =
-            target.closest(
-                "[data-action='edit-video']"
-            );
-
-
-        if (editButton) {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            const videoId =
-                editButton.getAttribute(
-                    "data-video-id"
-                );
-
-
-            handleEditVideo(
-                videoId
-            );
-
-
-            return;
-        }
-
-
-        /*
-         * DELETE
-         */
-
-        const deleteButton =
-            target.closest(
-                "[data-action='delete-video']"
-            );
-
-
-        if (deleteButton) {
-
-            event.preventDefault();
-            event.stopPropagation();
-
-
-            const videoId =
-                deleteButton.getAttribute(
-                    "data-video-id"
-                );
-
-
-            handleDeleteVideo(
-                videoId
-            );
-
-
-            return;
-        }
-
-
-        /*
-         * CARD PLAY FALLBACK
-         *
-         * Jika card sendiri mempunyai data-video-id,
-         * klik card dapat membuka viewer.
-         *
-         * Jangan menjalankan ini pada tombol.
-         */
-
-        if (
-            target.closest(
-                "button, a, input, textarea, select, label"
-            )
-        ) {
-
-            return;
-        }
-
-
-        const card =
-            target.closest(
-                "[data-video-id]"
-            );
-
-
-        if (!card) {
-            return;
-        }
-
-
-        const videoId =
-            card.getAttribute(
-                "data-video-id"
-            );
-
-
-        if (
-            videoId &&
-            typeof dashboard.openVideoViewer ===
-            "function"
-        ) {
-
-            dashboard.openVideoViewer(
-                videoId
-            );
-        }
-    }
-
-
-    /* =====================================================
        RETRY
     ===================================================== */
 
-    async function handleRetry() {
+    async function handleRetry(
+        event
+    ) {
+
+        if (
+            event
+        ) {
+
+            event.preventDefault();
+        }
+
 
         try {
 
@@ -775,48 +648,31 @@
 
 
             if (
-                typeof dashboard.showLoading ===
-                "function"
-            ) {
-
-                dashboard.showLoading();
-            }
-
-
-            if (
                 typeof dashboard.loadVideos !==
                 "function"
             ) {
 
                 throw new Error(
-                    "Module data video belum tersedia."
+                    "loadVideos tidak tersedia."
                 );
             }
 
 
             await dashboard.loadVideos({
+
                 includeInactive:
-                    typeof dashboard.isEditMode ===
-                    "function" &&
-                    dashboard.isEditMode()
+                    hasManagementAccess()
+
             });
 
 
             if (
-                typeof dashboard.refreshVideoView ===
-                "function"
-            ) {
-
-                dashboard.refreshVideoView();
-
-            } else if (
                 typeof dashboard.renderDashboard ===
                 "function"
             ) {
 
                 dashboard.renderDashboard();
             }
-
 
         } catch (error) {
 
@@ -844,306 +700,447 @@
 
                 dashboard.renderDashboard();
             }
-
-
-            showToast(
-                getErrorMessage(
-                    error
-                ),
-                "error"
-            );
         }
     }
 
 
     /* =====================================================
-       BACK TO NORMAL DASHBOARD
+       GENERATE
     ===================================================== */
 
-    function handleBackToDashboard(
+    function handleGenerate(
         event
     ) {
 
-        /*
-         * Tombol ini biasanya berupa anchor.
-         * Jangan melakukan preventDefault agar browser
-         * tetap menggunakan href apabila tersedia.
-         */
-
-        const element =
-            event.currentTarget;
-
-
-        if (!element) {
-            return;
-        }
-
-
-        const href =
-            element.getAttribute(
-                "href"
-            );
-
-
         if (
-            href &&
-            href !== "#" &&
-            href !== "javascript:void(0)"
-        ) {
-
-            return;
-        }
-
-
-        event.preventDefault();
-
-
-        if (
-            typeof dashboard.isEditMode ===
-            "function" &&
-            dashboard.isEditMode()
-        ) {
-
-            window.location.href =
-                "./dashboard.html";
-        }
-    }
-
-
-    /* =====================================================
-       ADMIN MODE TOGGLE
-    ===================================================== */
-
-    function handleAdminModeClick(
-        event
-    ) {
-
-        const target =
-            event.currentTarget;
-
-
-        if (!target) {
-            return;
-        }
-
-
-        /*
-         * Jika sudah berada di edit mode,
-         * jangan membuka form secara otomatis.
-         */
-
-        if (
-            typeof dashboard.isEditMode ===
-            "function" &&
-            dashboard.isEditMode()
-        ) {
-
-            return;
-        }
-
-
-        /*
-         * Hanya admin / owner.
-         */
-
-        if (
-            typeof dashboard.isAdmin ===
-            "function" &&
-            !dashboard.isAdmin()
+            event
         ) {
 
             event.preventDefault();
-
-            showToast(
-                "Akses management hanya untuk Admin / Owner.",
-                "error"
-            );
-
-            return;
         }
+
+
+        const config =
+            dashboard.config;
+
+
+        const target =
+            config &&
+            config.routes &&
+            config.routes.generate
+                ? config.routes.generate
+                : "../generate/index.html";
+
+
+        window.location.href =
+            target;
     }
 
 
     /* =====================================================
-       ADD BUTTON LISTENER
+       ADMIN BACK
     ===================================================== */
 
-    function bindAddButton(
-        elements
+    function handleAdminBack(
+        event
     ) {
 
-        const button =
-            elements.addVideoButton;
+        /*
+         * Jika element berupa anchor dengan href,
+         * biarkan browser melakukan navigasi normal.
+         *
+         * Event handler hanya mencegah navigasi apabila
+         * href tidak tersedia.
+         */
 
+        const elements =
+            getElements();
 
-        if (!button) {
-            return;
-        }
-
-
-        button.addEventListener(
-            "click",
-            function (event) {
-
-                event.preventDefault();
-
-                handleAddVideo();
-            }
-        );
-    }
-
-
-    /* =====================================================
-       FILTER LISTENER
-    ===================================================== */
-
-    function bindFilter(
-        elements
-    ) {
-
-        const container =
-            elements.categoryFilters;
-
-
-        if (!container) {
-            return;
-        }
-
-
-        container.addEventListener(
-            "click",
-            handleFilterContainerClick
-        );
-    }
-
-
-    /* =====================================================
-       VIDEO GRID LISTENER
-    ===================================================== */
-
-    function bindVideoGrid(
-        elements
-    ) {
-
-        const grid =
-            elements.videoGrid;
-
-
-        if (!grid) {
-            return;
-        }
-
-
-        grid.addEventListener(
-            "click",
-            handleVideoGridClick
-        );
-    }
-
-
-    /* =====================================================
-       RETRY LISTENER
-    ===================================================== */
-
-    function bindRetry(
-        elements
-    ) {
-
-        const retryButton =
-            elements.retryButton;
-
-
-        if (!retryButton) {
-            return;
-        }
-
-
-        retryButton.addEventListener(
-            "click",
-            function (event) {
-
-                event.preventDefault();
-
-                handleRetry();
-            }
-        );
-    }
-
-
-    /* =====================================================
-       BACK LISTENER
-    ===================================================== */
-
-    function bindBackButton(
-        elements
-    ) {
 
         const button =
             elements.adminBackButton;
 
 
-        if (!button) {
+        if (
+            !button
+        ) {
+
             return;
         }
 
 
-        button.addEventListener(
-            "click",
-            handleBackToDashboard
-        );
+        const href =
+            button.getAttribute(
+                "href"
+            );
+
+
+        if (
+            !href
+        ) {
+
+            if (
+                event
+            ) {
+
+                event.preventDefault();
+            }
+
+
+            const config =
+                dashboard.config;
+
+
+            const target =
+                config &&
+                config.routes &&
+                config.routes.adminPanel
+                    ? config.routes.adminPanel
+                    : "../admin-control/admin-panel.html";
+
+
+            window.location.href =
+                target;
+        }
     }
 
 
     /* =====================================================
-       MANAGEMENT BUTTON
+       MANAGEMENT MODE
     ===================================================== */
 
-    function bindManagementButton(
-        elements
+    function handleManagementMode(
+        event
     ) {
 
-        const button =
-            elements.managementButton;
+        if (
+            event
+        ) {
 
-
-        if (!button) {
-            return;
+            event.preventDefault();
         }
 
 
-        button.addEventListener(
-            "click",
-            handleAdminModeClick
-        );
-    }
+        if (
+            !dashboard.isAdmin ||
+            !dashboard.isAdmin()
+        ) {
 
-
-    /* =====================================================
-       FORM
-    ===================================================== */
-
-    function bindForm(
-        elements
-    ) {
-
-        const form =
-            elements.videoForm;
-
-
-        if (!form) {
             return;
         }
 
 
         /*
-         * Upload module adalah pemilik submit.
-         *
-         * Di sini hanya fallback apabila upload module
-         * belum memasang listener.
+         * Jangan memanipulasi URL secara manual di sini.
+         * Halaman dashboard menggunakan ?edit=1 sebagai
+         * mode management.
          */
 
+        const currentUrl =
+            new URL(
+                window.location.href
+            );
+
+
+        currentUrl.searchParams.set(
+            "edit",
+            "1"
+        );
+
+
+        window.location.href =
+            currentUrl.toString();
+    }
+
+
+    /* =====================================================
+       VIDEO GRID DELEGATION
+    ===================================================== */
+
+    function bindVideoGrid(
+        grid
+    ) {
+
         if (
-            typeof dashboard.submitDashboardForm !==
+            !grid
+        ) {
+
+            return;
+        }
+
+
+        if (
+            grid.dataset.eventsBound ===
+            "true"
+        ) {
+
+            return;
+        }
+
+
+        grid.dataset.eventsBound =
+            "true";
+
+
+        grid.addEventListener(
+            "click",
+            function (event) {
+
+                const target =
+                    event.target;
+
+
+                /*
+                 * PLAY
+                 */
+
+                const playButton =
+                    target.closest(
+                        "[data-action='play-video']"
+                    );
+
+
+                if (
+                    playButton &&
+                    grid.contains(
+                        playButton
+                    )
+                ) {
+
+                    const videoId =
+                        playButton.dataset.videoId;
+
+
+                    handlePlayVideo(
+                        videoId,
+                        event
+                    );
+
+                    return;
+                }
+
+
+                /*
+                 * EDIT
+                 */
+
+                const editButton =
+                    target.closest(
+                        "[data-action='edit-video']"
+                    );
+
+
+                if (
+                    editButton &&
+                    grid.contains(
+                        editButton
+                    )
+                ) {
+
+                    const videoId =
+                        editButton.dataset.videoId;
+
+
+                    handleEditVideo(
+                        videoId,
+                        event
+                    );
+
+                    return;
+                }
+
+
+                /*
+                 * DELETE
+                 */
+
+                const deleteButton =
+                    target.closest(
+                        "[data-action='delete-video']"
+                    );
+
+
+                if (
+                    deleteButton &&
+                    grid.contains(
+                        deleteButton
+                    )
+                ) {
+
+                    const videoId =
+                        deleteButton.dataset.videoId;
+
+
+                    handleDeleteVideo(
+                        videoId,
+                        event
+                    );
+
+                    return;
+                }
+
+
+                /*
+                 * CARD PLAY FALLBACK
+                 *
+                 * Hanya jika klik bukan pada button,
+                 * link, input, select, textarea, atau label.
+                 */
+
+                const card =
+                    target.closest(
+                        "[data-video-id]"
+                    );
+
+
+                if (
+                    !card ||
+                    !grid.contains(
+                        card
+                    )
+                ) {
+
+                    return;
+                }
+
+
+                if (
+                    target.closest(
+                        "button,a,input,select,textarea,label"
+                    )
+                ) {
+
+                    return;
+                }
+
+
+                const cardVideoId =
+                    card.dataset.videoId;
+
+
+                if (
+                    cardVideoId
+                ) {
+
+                    handlePlayVideo(
+                        cardVideoId,
+                        event
+                    );
+                }
+
+            }
+        );
+    }
+
+
+    /* =====================================================
+       CATEGORY FILTER EVENTS
+    ===================================================== */
+
+    function bindCategoryFilters(
+        container
+    ) {
+
+        if (
+            !container
+        ) {
+
+            return;
+        }
+
+
+        if (
+            container.dataset.eventsBound ===
+            "true"
+        ) {
+
+            return;
+        }
+
+
+        container.dataset.eventsBound =
+            "true";
+
+
+        container.addEventListener(
+            "click",
+            function (event) {
+
+                const button =
+                    event.target.closest(
+                        "[data-category]"
+                    );
+
+
+                if (
+                    !button ||
+                    !container.contains(
+                        button
+                    )
+                ) {
+
+                    return;
+                }
+
+
+                const category =
+                    button.dataset.category;
+
+
+                handleCategoryFilter(
+                    category,
+                    event
+                );
+            }
+        );
+    }
+
+
+    /* =====================================================
+       FORM GUARD
+    ===================================================== */
+
+    function bindFormGuard(
+        form
+    ) {
+
+        if (
+            !form
+        ) {
+
+            return;
+        }
+
+
+        /*
+         * Submit listener sengaja TIDAK dipasang.
+         *
+         * dashboard-upload.js adalah pemilik submit
+         * form agar tidak terjadi:
+         *
+         * submit → upload module
+         * submit → events module
+         * submit → upload module lagi
+         *
+         * yang berujung duplicate request / stack error.
+         */
+
+        return true;
+    }
+
+
+    /* =====================================================
+       SIMPLE EVENT
+    ===================================================== */
+
+    function bindClick(
+        element,
+        handler
+    ) {
+
+        if (
+            !element ||
+            typeof handler !==
             "function"
         ) {
 
@@ -1151,49 +1148,36 @@
         }
 
 
-        /*
-         * Jangan menambahkan listener submit kedua.
-         *
-         * Upload module sudah bertanggung jawab atas
-         * submit form.
-         */
-    }
-
-
-    /* =====================================================
-       GLOBAL ESCAPE
-    ===================================================== */
-
-    function handleGlobalEscape(
-        event
-    ) {
-
         if (
-            event.key !==
-            "Escape"
+            element.dataset.eventBound ===
+            "true"
         ) {
 
             return;
         }
 
 
-        /*
-         * Modal module menangani modal.
-         * Viewer juga menangani viewer sendiri.
-         *
-         * Event ini sengaja tidak menutup apa pun,
-         * sehingga tidak terjadi double-close.
-         */
+        element.dataset.eventBound =
+            "true";
+
+
+        element.addEventListener(
+            "click",
+            handler
+        );
     }
 
 
     /* =====================================================
-       INITIALIZE
+       INITIALIZE EVENTS
     ===================================================== */
 
     function initializeEvents() {
 
-        if (initialized) {
+        if (
+            initialized
+        ) {
+
             return true;
         }
 
@@ -1203,64 +1187,98 @@
 
 
         /*
-         * Pastikan element cache tersedia.
+         * ADD
          */
 
-        if (
-            !elements ||
-            Object.keys(elements).length === 0
-        ) {
-
-            console.error(
-                "[GEN-Z.AI] Dashboard events: element cache tidak tersedia."
-            );
-
-            return false;
-        }
-
-
-        bindAddButton(
-            elements
+        bindClick(
+            elements.addVideoButton,
+            handleAddVideo
         );
 
 
-        bindFilter(
-            elements
+        /*
+         * GENERATE
+         */
+
+        bindClick(
+            elements.generateButton,
+            handleGenerate
         );
 
+
+        /*
+         * RETRY
+         *
+         * Penting:
+         * Config memakai retryVideoButton,
+         * bukan retryButton.
+         */
+
+        bindClick(
+            elements.retryVideoButton,
+            handleRetry
+        );
+
+
+        /*
+         * ADMIN BACK
+         */
+
+        bindClick(
+            elements.adminBackButton,
+            handleAdminBack
+        );
+
+
+        /*
+         * MANAGEMENT
+         */
+
+        bindClick(
+            elements.managementButton,
+            handleManagementMode
+        );
+
+
+        /*
+         * CATEGORY
+         */
+
+        bindCategoryFilters(
+            elements.categoryFilters
+        );
+
+
+        /*
+         * VIDEO GRID
+         */
 
         bindVideoGrid(
-            elements
+            elements.videoGrid
         );
 
 
-        bindRetry(
-            elements
+        /*
+         * FORM
+         *
+         * Hanya guard. Submit dimiliki upload module.
+         */
+
+        bindFormGuard(
+            elements.videoForm
         );
 
 
-        bindBackButton(
-            elements
-        );
+        initialized =
+            true;
 
 
-        bindManagementButton(
-            elements
-        );
+        dashboard.eventsInitialized =
+            true;
 
 
-        bindForm(
-            elements
-        );
-
-
-        document.addEventListener(
-            "keydown",
-            handleGlobalEscape
-        );
-
-
-        initialized = true;
+        dashboard.eventsReady =
+            true;
 
 
         return true;
@@ -1274,24 +1292,45 @@
     dashboard.handleAddVideo =
         handleAddVideo;
 
+
     dashboard.handleEditVideo =
         handleEditVideo;
+
 
     dashboard.handleDeleteVideo =
         handleDeleteVideo;
 
+
+    dashboard.handlePlayVideo =
+        handlePlayVideo;
+
+
     dashboard.handleCategoryFilter =
         handleCategoryFilter;
 
+
     dashboard.handleRetry =
         handleRetry;
+
+
+    dashboard.handleGenerate =
+        handleGenerate;
+
+
+    dashboard.handleAdminBack =
+        handleAdminBack;
+
+
+    dashboard.handleManagementMode =
+        handleManagementMode;
+
 
     dashboard.initializeEvents =
         initializeEvents;
 
 
     /* =====================================================
-       READY FLAG
+       READY
     ===================================================== */
 
     dashboard.eventsReady =
