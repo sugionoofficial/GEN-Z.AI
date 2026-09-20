@@ -33,12 +33,10 @@
             padding: 0;
         }
 
-
         html {
             width: 100%;
             min-height: 100%;
         }
-
 
         body {
 
@@ -84,11 +82,9 @@
             background-attachment: fixed;
         }
 
-
         a {
             color: inherit;
         }
-
 
         button,
         a {
@@ -98,8 +94,8 @@
 
 
         /* =====================================================
-           LOADING
-        ====================================================== */
+           PAGE LOADING
+           ====================================================== */
 
         #loading {
 
@@ -107,7 +103,7 @@
 
             inset: 0;
 
-            z-index: 99999;
+            z-index: 99998;
 
             display: flex;
 
@@ -128,7 +124,6 @@
 
             backdrop-filter: blur(14px);
         }
-
 
         .loading-logo {
 
@@ -161,7 +156,6 @@
                 rgba(255,23,68,0.14);
         }
 
-
         .loading-g {
 
             font-size: 31px;
@@ -186,7 +180,6 @@
             color: transparent;
         }
 
-
         .loading-spinner {
 
             width: 25px;
@@ -208,7 +201,6 @@
                 infinite;
         }
 
-
         .loading-text {
 
             color:
@@ -222,7 +214,6 @@
 
             text-transform: uppercase;
         }
-
 
         @keyframes loadingSpin {
 
@@ -249,7 +240,6 @@
             position: relative;
         }
 
-
         .page::before {
 
             content: "";
@@ -272,7 +262,6 @@
 
             z-index: 0;
         }
-
 
         .container {
 
@@ -338,7 +327,6 @@
             overflow: hidden;
         }
 
-
         .page-header::before {
 
             content: "";
@@ -362,7 +350,6 @@
 
             pointer-events: none;
         }
-
 
         .page-header::after {
 
@@ -453,7 +440,6 @@
             isolation: isolate;
         }
 
-
         .holo-logo::before {
 
             content: "";
@@ -485,7 +471,6 @@
             z-index: -2;
         }
 
-
         .holo-logo::after {
 
             content: "";
@@ -505,7 +490,6 @@
 
             z-index: -1;
         }
-
 
         .holo-g {
 
@@ -554,7 +538,6 @@
                 );
         }
 
-
         .holo-scan {
 
             position: absolute;
@@ -587,7 +570,6 @@
                 infinite;
         }
 
-
         @keyframes holoRotate {
 
             from {
@@ -600,7 +582,6 @@
                     rotate(360deg);
             }
         }
-
 
         @keyframes holoScan {
 
@@ -642,7 +623,6 @@
             min-width: 0;
         }
 
-
         .brand-name {
 
             font-size:
@@ -671,7 +651,6 @@
 
             color: transparent;
         }
-
 
         .brand-subtitle {
 
@@ -734,7 +713,6 @@
                 rgba(255,23,68,0.10);
         }
 
-
         .header-badge-dot {
 
             width: 7px;
@@ -792,7 +770,6 @@
             overflow: hidden;
         }
 
-
         .hero::before {
 
             content: "";
@@ -819,7 +796,6 @@
 
             pointer-events: none;
         }
-
 
         .eyebrow {
 
@@ -858,7 +834,6 @@
                 uppercase;
         }
 
-
         .hero h1 {
 
             position: relative;
@@ -873,7 +848,6 @@
             letter-spacing:
                 -2.2px;
         }
-
 
         .hero h1 span {
 
@@ -895,7 +869,6 @@
             color:
                 transparent;
         }
-
 
         .hero p {
 
@@ -990,7 +963,6 @@
                 background 0.28s ease;
         }
 
-
         .feature-card::before {
 
             content: "";
@@ -1016,7 +988,6 @@
                 none;
         }
 
-
         .feature-card::after {
 
             content: "";
@@ -1039,7 +1010,6 @@
 
             opacity: 0.45;
         }
-
 
         .feature-card:hover {
 
@@ -1122,7 +1092,6 @@
                 box-shadow 0.28s ease;
         }
 
-
         .feature-card:hover
         .feature-icon {
 
@@ -1141,7 +1110,6 @@
                 rgba(255,23,68,0.08);
         }
 
-
         .feature-card h2 {
 
             position: relative;
@@ -1155,7 +1123,6 @@
             letter-spacing:
                 -0.4px;
         }
-
 
         .feature-card p {
 
@@ -1172,7 +1139,6 @@
 
             max-width: 330px;
         }
-
 
         .feature-arrow {
 
@@ -1208,7 +1174,6 @@
                 transform 0.28s ease,
                 background 0.28s ease;
         }
-
 
         .feature-card:hover
         .feature-arrow {
@@ -1255,7 +1220,6 @@
                 rgba(0,0,0,0.18);
         }
 
-
         .status-left {
 
             display: flex;
@@ -1266,7 +1230,6 @@
 
             min-width: 0;
         }
-
 
         .status-dot {
 
@@ -1286,7 +1249,6 @@
                 rgba(54,229,140,0.80);
         }
 
-
         .status-text {
 
             color:
@@ -1296,7 +1258,6 @@
 
             font-weight: 700;
         }
-
 
         .status-role {
 
@@ -1352,7 +1313,6 @@
                     35px;
             }
 
-
             .page-header {
 
                 padding:
@@ -1362,12 +1322,10 @@
                     19px;
             }
 
-
             .brand-area {
 
                 gap: 11px;
             }
-
 
             .holo-logo {
 
@@ -1381,25 +1339,21 @@
                     15px;
             }
 
-
             .holo-logo::after {
 
                 border-radius:
                     13px;
             }
 
-
             .holo-g {
 
                 font-size: 26px;
             }
 
-
             .brand-name {
 
                 font-size: 20px;
             }
-
 
             .brand-subtitle {
 
@@ -1409,12 +1363,10 @@
                     1.2px;
             }
 
-
             .header-badge {
 
                 display: none;
             }
-
 
             .hero {
 
@@ -1427,13 +1379,11 @@
                     19px;
             }
 
-
             .hero h1 {
 
                 font-size:
                     clamp(30px, 12vw, 44px);
             }
-
 
             .feature-grid {
 
@@ -1443,7 +1393,6 @@
                 gap: 13px;
             }
 
-
             .feature-card {
 
                 min-height:
@@ -1452,7 +1401,6 @@
                 padding:
                     21px;
             }
-
 
             .system-status {
 
@@ -1473,17 +1421,32 @@
 
 
     <!-- =====================================================
-         SHARED NAVIGATION CONTAINER
+         SHARED NAVIGATION
          
-         navigation/navigation.js akan mengisi container ini.
-         Auth + role juga ditangani navigation.js.
+         WAJIB menggunakan:
+         navigation/navigation.js
+
+         navigation.js menangani:
+         - Supabase session
+         - authentication
+         - profile
+         - role
+         - sidebar
+         - active menu
+         - logout
+         - redirect
+         
+         Halaman ini TIDAK membuat navigasi sendiri.
     ====================================================== -->
 
     <div id="navigation"></div>
 
 
     <!-- =====================================================
-         LOADING
+         PAGE LOADING
+         
+         Loading ini khusus halaman Admin Control.
+         Loading auth utama tetap milik navigation.js.
     ====================================================== -->
 
     <div
@@ -1499,9 +1462,7 @@
 
         </div>
 
-
         <div class="loading-spinner"></div>
-
 
         <div class="loading-text">
             Memverifikasi akses admin...
@@ -1513,8 +1474,10 @@
     <!-- =====================================================
          ADMIN PAGE
          
-         Disembunyikan sementara sampai navigation.js
-         selesai memverifikasi session + profile + role.
+         Ditampilkan hanya setelah:
+         navigation.js
+         selesai memverifikasi:
+         session + profile + role.
     ====================================================== -->
 
     <main
@@ -1533,7 +1496,6 @@
             <header class="page-header">
 
                 <div class="brand-area">
-
 
                     <div class="holo-logo">
 
@@ -1804,17 +1766,14 @@
          
          BUKAN AUTH.
          
-         Hanya membuat satu client Supabase global agar
-         navigation.js dan modul halaman lain menggunakan
-         instance yang sama.
-         
-         navigation.js tetap menjadi pemilik:
-         - session
-         - authentication
-         - profile
-         - role
-         - redirect
-         - navigation
+         Hanya membuat SATU Supabase client global.
+
+         navigation/navigation.js akan memakai:
+         window.GENZ_SUPABASE
+         atau
+         window.supabaseClient
+
+         Tidak ada auth/query profile/role di sini.
     ====================================================== -->
 
     <script>
@@ -1824,10 +1783,11 @@
             "use strict";
 
 
-            let supabaseClient = null;
-
-
             try {
+
+                /*
+                 * Pastikan library Supabase tersedia.
+                 */
 
                 if (
                     !window.supabase ||
@@ -1840,6 +1800,10 @@
                     );
                 }
 
+
+                /*
+                 * Pastikan config tersedia.
+                 */
 
                 if (
                     !window.GENZ_CONFIG ||
@@ -1854,10 +1818,45 @@
 
 
                 /*
-                 * Buat SATU Supabase client.
+                 * Jangan membuat client kedua jika
+                 * halaman/modul lain sudah membuatnya.
                  */
 
-                supabaseClient =
+                if (
+                    window.GENZ_SUPABASE &&
+                    window.GENZ_SUPABASE.auth &&
+                    typeof
+                        window.GENZ_SUPABASE.auth.getSession ===
+                        "function"
+                ) {
+
+                    window.supabaseClient =
+                        window.GENZ_SUPABASE;
+
+                    return;
+                }
+
+
+                if (
+                    window.supabaseClient &&
+                    window.supabaseClient.auth &&
+                    typeof
+                        window.supabaseClient.auth.getSession ===
+                        "function"
+                ) {
+
+                    window.GENZ_SUPABASE =
+                        window.supabaseClient;
+
+                    return;
+                }
+
+
+                /*
+                 * Buat satu client.
+                 */
+
+                const client =
                     window.supabase.createClient(
                         window.GENZ_CONFIG.SUPABASE_URL,
                         window.GENZ_CONFIG.SUPABASE_KEY
@@ -1865,17 +1864,14 @@
 
 
                 /*
-                 * Ekspos ke global.
-                 *
-                 * navigation.js akan menggunakan instance
-                 * yang sama.
+                 * Global bridge.
                  */
 
                 window.GENZ_SUPABASE =
-                    supabaseClient;
+                    client;
 
                 window.supabaseClient =
-                    supabaseClient;
+                    client;
 
 
             } catch (error) {
@@ -1895,13 +1891,23 @@
     <!-- =====================================================
          SHARED NAVIGATION
          
-         WAJIB setelah:
-         1. config.js
-         2. Supabase library
-         3. Supabase client bridge
-         
-         navigation.js menjadi satu-satunya pemilik auth,
-         profile, role, redirect, dan navigation.
+         File yang digunakan:
+         ../navigation/navigation.js
+
+         Karena file halaman ini berada di:
+         /admin-control/admin-panel.html
+
+         maka ../navigation/navigation.js
+         adalah path yang benar.
+
+         navigation.js adalah satu-satunya pemilik:
+         - Authentication
+         - Session
+         - Profile
+         - Role
+         - Navigation
+         - Logout
+         - Redirect
     ====================================================== -->
 
     <script
@@ -1912,10 +1918,16 @@
     <!-- =====================================================
          PAGE INITIALIZER
          
-         Tidak melakukan query Supabase.
-         Tidak melakukan auth sendiri.
-         Tidak membuat client kedua.
-         Hanya menunggu navigation.js selesai.
+         TIDAK:
+         - query Supabase
+         - getSession()
+         - query profiles
+         - membuat role
+         - membuat sidebar
+         - redirect sendiri
+         - logout sendiri
+         
+         Hanya membaca hasil navigation.js.
     ====================================================== -->
 
     <script>
@@ -2028,6 +2040,14 @@
                     .toLowerCase();
 
 
+                /*
+                 * Halaman Admin Control hanya dapat
+                 * digunakan oleh admin atau owner.
+                 *
+                 * Role tersebut sudah ditentukan
+                 * navigation.js dari profiles.role.
+                 */
+
                 return (
                     role === "admin" ||
                     role === "owner"
@@ -2036,12 +2056,10 @@
             }
 
 
-            function start() {
+            async function start() {
 
                 /*
-                 * navigation.js harus sudah selesai
-                 * memverifikasi user sebelum halaman
-                 * admin ditampilkan.
+                 * navigation.js menjadi sumber kebenaran.
                  */
 
                 if (
@@ -2051,54 +2069,77 @@
                         "function"
                 ) {
 
-                    window.GENZNavigationReady
-                        .then(() => {
+                    try {
 
-                            if (
-                                hasAdminAccess()
-                            ) {
-
-                                updateStatus();
-
-                                showAdminPage();
-
-                                return;
-                            }
+                        const navigationReady =
+                            await
+                                window.GENZNavigationReady;
 
 
-                            /*
-                             * navigation.js menangani
-                             * redirect untuk role yang
-                             * tidak memiliki akses.
-                             *
-                             * Jangan membuat redirect
-                             * kedua di halaman ini.
-                             */
+                        /*
+                         * Jika navigation.js gagal
+                         * memvalidasi authentication,
+                         * jangan tampilkan halaman.
+                         *
+                         * navigation.js sendiri yang
+                         * menangani redirect.
+                         */
+
+                        if (
+                            navigationReady !== true
+                        ) {
 
                             hideLoading();
 
-                        })
-                        .catch((error) => {
+                            return;
+                        }
 
-                            console.error(
-                                "[GEN-Z.AI] Navigation initialization failed:",
-                                error
-                            );
 
-                            hideLoading();
+                        /*
+                         * Role berasal langsung dari
+                         * navigation.js.
+                         */
 
-                        });
+                        if (
+                            hasAdminAccess()
+                        ) {
+
+                            updateStatus();
+
+                            showAdminPage();
+
+                            return;
+                        }
+
+
+                        /*
+                         * Jangan membuat redirect kedua.
+                         *
+                         * navigation.js tetap menjadi
+                         * pemilik redirect.
+                         */
+
+                        hideLoading();
+
+                    } catch (error) {
+
+                        console.error(
+                            "[GEN-Z.AI] Navigation initialization failed:",
+                            error
+                        );
+
+                        hideLoading();
+
+                    }
 
                     return;
                 }
 
 
                 /*
-                 * Fallback jika navigation.js belum
-                 * menyediakan Promise ready.
+                 * Fallback kompatibilitas.
                  *
-                 * Beri waktu agar navigation.js
-                 * menyelesaikan initialization.
+                 * Tidak membuat auth sendiri.
                  */
 
                 let attempts = 0;
