@@ -98,6 +98,142 @@
 
 
         /* =====================================================
+           LOADING
+        ====================================================== */
+
+        #loading {
+
+            position: fixed;
+
+            inset: 0;
+
+            z-index: 99999;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            flex-direction: column;
+
+            gap: 18px;
+
+            background:
+                radial-gradient(
+                    circle at center,
+                    rgba(255,23,68,0.10),
+                    rgba(5,5,7,0.98) 55%
+                );
+
+            backdrop-filter: blur(14px);
+        }
+
+
+        .loading-logo {
+
+            width: 64px;
+            height: 64px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 18px;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,0.16),
+                    rgba(255,255,255,0.025)
+                );
+
+            border:
+                1px solid
+                rgba(255,23,68,0.50);
+
+            box-shadow:
+                0 0 12px
+                rgba(255,23,68,0.35),
+
+                0 0 30px
+                rgba(255,23,68,0.14);
+        }
+
+
+        .loading-g {
+
+            font-size: 31px;
+
+            font-weight: 950;
+
+            letter-spacing: -3px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #ffffff,
+                    #53efff,
+                    #b36cff,
+                    #ff3159
+                );
+
+            -webkit-background-clip: text;
+
+            background-clip: text;
+
+            color: transparent;
+        }
+
+
+        .loading-spinner {
+
+            width: 25px;
+            height: 25px;
+
+            border-radius: 50%;
+
+            border:
+                2px solid
+                rgba(255,255,255,0.12);
+
+            border-top-color:
+                #ff3159;
+
+            animation:
+                loadingSpin
+                0.8s
+                linear
+                infinite;
+        }
+
+
+        .loading-text {
+
+            color:
+                rgba(255,255,255,0.55);
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            letter-spacing: 1.4px;
+
+            text-transform: uppercase;
+        }
+
+
+        @keyframes loadingSpin {
+
+            to {
+                transform:
+                    rotate(360deg);
+            }
+        }
+
+
+        /* =====================================================
            PAGE
         ====================================================== */
 
@@ -1001,8 +1137,8 @@
                 0 0 20px
                 rgba(255,23,68,0.15),
 
-                inset 0 0 14px
-                rgba(255,23,68,0.09);
+                inset 0 0 12px
+                rgba(255,23,68,0.08);
         }
 
 
@@ -1010,12 +1146,14 @@
 
             position: relative;
 
-            font-size: 17px;
+            font-size: 18px;
 
-            font-weight: 800;
+            line-height: 1.25;
+
+            font-weight: 850;
 
             letter-spacing:
-                -0.25px;
+                -0.4px;
         }
 
 
@@ -1025,14 +1163,14 @@
 
             margin-top: 9px;
 
-            max-width: 90%;
-
             color:
-                rgba(255,255,255,0.48);
+                rgba(255,255,255,0.50);
 
             font-size: 12px;
 
             line-height: 1.65;
+
+            max-width: 330px;
         }
 
 
@@ -1043,18 +1181,32 @@
             right: 21px;
             bottom: 19px;
 
-            color:
-                rgba(255,255,255,0.38);
+            display: flex;
 
-            font-size: 19px;
+            align-items: center;
+
+            justify-content: center;
+
+            width: 30px;
+            height: 30px;
+
+            border-radius: 50%;
+
+            background:
+                rgba(255,23,68,0.08);
+
+            border:
+                1px solid
+                rgba(255,23,68,0.28);
+
+            color:
+                rgba(255,255,255,0.70);
+
+            font-size: 15px;
 
             transition:
-
-                transform 0.25s ease,
-
-                color 0.25s ease,
-
-                text-shadow 0.25s ease;
+                transform 0.28s ease,
+                background 0.28s ease;
         }
 
 
@@ -1062,14 +1214,10 @@
         .feature-arrow {
 
             transform:
-                translateX(6px);
+                translateX(4px);
 
-            color:
-                #ff496a;
-
-            text-shadow:
-                0 0 10px
-                rgba(255,23,68,0.7);
+            background:
+                rgba(255,23,68,0.18);
         }
 
 
@@ -1079,13 +1227,11 @@
 
         .system-status {
 
-            position: relative;
-
-            margin-top: 19px;
+            margin-top: 22px;
 
             padding:
-                17px
-                20px;
+                15px
+                18px;
 
             display: flex;
 
@@ -1098,23 +1244,15 @@
             border-radius: 18px;
 
             background:
-                linear-gradient(
-                    145deg,
-                    rgba(12,12,14,0.90),
-                    rgba(5,5,6,0.78)
-                );
+                rgba(5,5,7,0.72);
 
             border:
                 1px solid
-                rgba(255,23,68,0.30);
+                rgba(255,255,255,0.08);
 
             box-shadow:
-
-                0 0 5px
-                rgba(255,23,68,0.13),
-
-                inset 0 0 16px
-                rgba(255,23,68,0.025);
+                0 10px 30px
+                rgba(0,0,0,0.18);
         }
 
 
@@ -1124,66 +1262,39 @@
 
             align-items: center;
 
-            gap: 11px;
+            gap: 10px;
+
+            min-width: 0;
         }
 
 
         .status-dot {
 
-            width: 9px;
-            height: 9px;
+            width: 8px;
+            height: 8px;
 
             flex:
-                0 0 9px;
+                0 0 8px;
 
             border-radius: 50%;
 
             background:
-                #ff3159;
+                #36e58c;
 
             box-shadow:
-
-                0 0 6px
-                rgba(255,23,68,0.85),
-
-                0 0 15px
-                rgba(255,23,68,0.45);
-
-            animation:
-                statusPulse
-                2s
-                ease-in-out
-                infinite;
-        }
-
-
-        @keyframes statusPulse {
-
-            0%,
-            100% {
-
-                opacity: 0.65;
-
-                transform:
-                    scale(0.9);
-            }
-
-            50% {
-
-                opacity: 1;
-
-                transform:
-                    scale(1.08);
-            }
+                0 0 10px
+                rgba(54,229,140,0.80);
         }
 
 
         .status-text {
 
-            font-size: 12px;
-
             color:
-                rgba(255,255,255,0.65);
+                rgba(255,255,255,0.62);
+
+            font-size: 11px;
+
+            font-weight: 700;
         }
 
 
@@ -1195,189 +1306,22 @@
 
             border-radius: 999px;
 
-            color:
-                #ff8095;
-
             background:
-                rgba(255,23,68,0.07);
+                rgba(255,23,68,0.08);
 
             border:
                 1px solid
-                rgba(255,23,68,0.24);
+                rgba(255,23,68,0.28);
 
-            font-size: 10px;
+            color:
+                #ff8ba0;
 
-            font-weight: 800;
+            font-size: 9px;
+
+            font-weight: 850;
 
             letter-spacing:
-                1px;
-
-            text-transform:
-                uppercase;
-        }
-
-
-        /* =====================================================
-           LOADING
-        ====================================================== */
-
-        .loading {
-
-            position: fixed;
-
-            inset: 0;
-
-            z-index: 9000;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            background:
-                radial-gradient(
-                    circle at center,
-                    #222 0%,
-                    #090909 58%,
-                    #020202 100%
-                );
-        }
-
-
-        .loading-box {
-
-            width:
-                min(90vw, 330px);
-
-            padding:
-                30px
-                24px;
-
-            text-align:
-                center;
-
-            border-radius:
-                22px;
-
-            background:
-                rgba(10,10,12,0.94);
-
-            border:
-                1px solid
-                rgba(255,23,68,0.42);
-
-            box-shadow:
-
-                0 0 10px
-                rgba(255,23,68,0.25),
-
-                0 0 30px
-                rgba(255,23,68,0.10);
-        }
-
-
-        .loading-logo {
-
-            width: 58px;
-            height: 58px;
-
-            margin:
-                0
-                auto
-                18px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            border-radius: 17px;
-
-            border:
-                1px solid
-                rgba(255,23,68,0.55);
-
-            color:
-                #ffffff;
-
-            font-size:
-                27px;
-
-            font-weight:
-                950;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,23,68,0.15),
-                    rgba(255,255,255,0.03)
-                );
-
-            box-shadow:
-                0 0 10px
-                rgba(255,23,68,0.38);
-        }
-
-
-        .loader {
-
-            width: 34px;
-            height: 34px;
-
-            margin:
-                0
-                auto
-                14px;
-
-            border-radius: 50%;
-
-            border:
-                3px solid
-                rgba(255,255,255,0.08);
-
-            border-top-color:
-                #ff3159;
-
-            border-right-color:
-                rgba(0,240,255,0.8);
-
-            animation:
-                spin
-                0.8s
-                linear
-                infinite;
-
-            box-shadow:
-                0 0 14px
-                rgba(255,23,68,0.24);
-        }
-
-
-        .loading-text {
-
-            font-size: 10px;
-
-            font-weight: 700;
-
-            letter-spacing:
-                1.5px;
-
-            color:
-                rgba(255,255,255,0.45);
-
-            text-transform:
-                uppercase;
-        }
-
-
-        @keyframes spin {
-
-            to {
-                transform:
-                    rotate(360deg);
-            }
+                1.2px;
         }
 
 
@@ -1395,16 +1339,15 @@
                         minmax(0, 1fr)
                     );
             }
-
         }
 
 
-        @media (max-width: 620px) {
+        @media (max-width: 640px) {
 
             .page {
 
                 padding:
-                    94px
+                    88px
                     14px
                     35px;
             }
@@ -1416,13 +1359,13 @@
                     16px;
 
                 border-radius:
-                    20px;
+                    19px;
             }
 
 
             .brand-area {
 
-                gap: 12px;
+                gap: 11px;
             }
 
 
@@ -1431,34 +1374,39 @@
                 width: 52px;
                 height: 52px;
 
-                flex-basis: 52px;
+                flex:
+                    0 0 52px;
 
                 border-radius:
                     15px;
             }
 
 
+            .holo-logo::after {
+
+                border-radius:
+                    13px;
+            }
+
+
             .holo-g {
 
-                font-size:
-                    26px;
+                font-size: 26px;
             }
 
 
             .brand-name {
 
-                font-size:
-                    19px;
+                font-size: 20px;
             }
 
 
             .brand-subtitle {
 
-                font-size:
-                    8px;
+                font-size: 8px;
 
                 letter-spacing:
-                    1.5px;
+                    1.2px;
             }
 
 
@@ -1472,18 +1420,18 @@
 
                 padding:
                     24px
-                    16px
-                    27px;
+                    15px
+                    26px;
 
                 border-radius:
-                    20px;
+                    19px;
             }
 
 
             .hero h1 {
 
-                letter-spacing:
-                    -1.3px;
+                font-size:
+                    clamp(30px, 12vw, 44px);
             }
 
 
@@ -1492,20 +1440,17 @@
                 grid-template-columns:
                     1fr;
 
-                gap: 14px;
+                gap: 13px;
             }
 
 
             .feature-card {
 
                 min-height:
-                    190px;
+                    185px;
 
                 padding:
-                    22px;
-
-                border-radius:
-                    19px;
+                    21px;
             }
 
 
@@ -1517,26 +1462,6 @@
                 flex-direction:
                     column;
             }
-
-        }
-
-
-        @media (prefers-reduced-motion: reduce) {
-
-            *,
-            *::before,
-            *::after {
-
-                animation-duration:
-                    0.01ms !important;
-
-                animation-iteration-count:
-                    1 !important;
-
-                transition-duration:
-                    0.01ms !important;
-            }
-
         }
 
     </style>
@@ -1548,45 +1473,53 @@
 
 
     <!-- =====================================================
-         GLOBAL NAVIGATION
-         ====================================================== -->
+         SHARED NAVIGATION CONTAINER
+         
+         navigation/navigation.js akan mengisi container ini.
+         Auth + role juga ditangani navigation.js.
+    ====================================================== -->
 
     <div id="navigation"></div>
 
 
     <!-- =====================================================
-         PAGE AUTH LOADING
+         LOADING
     ====================================================== -->
 
     <div
         id="loading"
-        class="loading"
+        aria-live="polite"
     >
 
-        <div class="loading-box">
+        <div class="loading-logo">
 
-            <div class="loading-logo">
+            <span class="loading-g">
                 G
-            </div>
+            </span>
 
-            <div class="loader"></div>
+        </div>
 
-            <div class="loading-text">
-                Memverifikasi akses admin...
-            </div>
 
+        <div class="loading-spinner"></div>
+
+
+        <div class="loading-text">
+            Memverifikasi akses admin...
         </div>
 
     </div>
 
 
     <!-- =====================================================
-         MAIN PAGE
+         ADMIN PAGE
+         
+         Disembunyikan sementara sampai navigation.js
+         selesai memverifikasi session + profile + role.
     ====================================================== -->
 
     <main
-        class="page"
         id="adminPage"
+        class="page"
         style="display:none;"
     >
 
@@ -1602,10 +1535,7 @@
                 <div class="brand-area">
 
 
-                    <div
-                        class="holo-logo"
-                        aria-label="GEN-Z.AI"
-                    >
+                    <div class="holo-logo">
 
                         <span class="holo-g">
                             G
@@ -1870,7 +1800,21 @@
 
 
     <!-- =====================================================
-         ADMIN AUTH
+         SUPABASE CLIENT BRIDGE
+         
+         BUKAN AUTH.
+         
+         Hanya membuat satu client Supabase global agar
+         navigation.js dan modul halaman lain menggunakan
+         instance yang sama.
+         
+         navigation.js tetap menjadi pemilik:
+         - session
+         - authentication
+         - profile
+         - role
+         - redirect
+         - navigation
     ====================================================== -->
 
     <script>
@@ -1879,15 +1823,6 @@
 
             "use strict";
 
-
-            /* =================================================
-               SUPABASE CLIENT
-               
-               PENTING:
-               Client dibuat sekali dan diekspos ke window
-               agar navigation/navigation.js menggunakan
-               client yang SAMA.
-            ================================================== */
 
             let supabaseClient = null;
 
@@ -1919,7 +1854,7 @@
 
 
                 /*
-                 * Buat SATU client.
+                 * Buat SATU Supabase client.
                  */
 
                 supabaseClient =
@@ -1930,16 +1865,10 @@
 
 
                 /*
-                 * =================================================
-                 * PENTING
+                 * Ekspos ke global.
                  *
-                 * navigation/navigation.js mencari client melalui:
-                 *
-                 * window.GENZ_SUPABASE
-                 * window.supabaseClient
-                 *
-                 * Jadi keduanya diarahkan ke instance yang sama.
-                 * =================================================
+                 * navigation.js akan menggunakan instance
+                 * yang sama.
                  */
 
                 window.GENZ_SUPABASE =
@@ -1958,10 +1887,43 @@
 
             }
 
+        })();
 
-            /* =================================================
-               ELEMENTS
-            ================================================== */
+    </script>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+         
+         WAJIB setelah:
+         1. config.js
+         2. Supabase library
+         3. Supabase client bridge
+         
+         navigation.js menjadi satu-satunya pemilik auth,
+         profile, role, redirect, dan navigation.
+    ====================================================== -->
+
+    <script
+        src="../navigation/navigation.js"
+    ></script>
+
+
+    <!-- =====================================================
+         PAGE INITIALIZER
+         
+         Tidak melakukan query Supabase.
+         Tidak melakukan auth sendiri.
+         Tidak membuat client kedua.
+         Hanya menunggu navigation.js selesai.
+    ====================================================== -->
+
+    <script>
+
+        (() => {
+
+            "use strict";
+
 
             const loading =
                 document.getElementById(
@@ -1987,24 +1949,6 @@
                 );
 
 
-            /* =================================================
-               REDIRECT
-            ================================================== */
-
-            function redirect(
-                path
-            ) {
-
-                window.location.replace(
-                    path
-                );
-            }
-
-
-            /* =================================================
-               HIDE LOADING
-            ================================================== */
-
             function hideLoading() {
 
                 if (loading) {
@@ -2012,16 +1956,11 @@
                     loading.style.display =
                         "none";
                 }
+
             }
 
 
-            /* =================================================
-               SHOW ADMIN
-            ================================================== */
-
-            function showAdmin(
-                profile
-            ) {
+            function showAdminPage() {
 
                 if (adminPage) {
 
@@ -2029,287 +1968,179 @@
                         "";
                 }
 
+                hideLoading();
+
+            }
+
+
+            function updateStatus() {
 
                 const role =
                     String(
-                        profile.role || ""
+                        window.GENZ_NAVIGATION_ROLE ||
+                        ""
                     )
                     .trim()
                     .toUpperCase();
 
 
+                const profile =
+                    window.GENZ_NAVIGATION_PROFILE ||
+                    null;
+
+
                 if (statusRole) {
 
                     statusRole.textContent =
-                        role;
+                        role ||
+                        "ADMIN";
                 }
 
 
                 if (statusText) {
 
+                    const email =
+                        profile &&
+                        profile.email
+                            ? String(
+                                profile.email
+                            )
+                            : "";
+
+
                     statusText.textContent =
-                        "Sistem admin aktif • Akses terverifikasi";
+                        email
+                            ? "Sistem admin aktif • Akses terverifikasi"
+                            : "Sistem admin aktif • Akses terverifikasi";
                 }
 
-
-                hideLoading();
             }
 
 
-            /* =================================================
-               AUTH CHECK
-            ================================================== */
+            function hasAdminAccess() {
 
-            async function checkAccess() {
-
-                try {
-
-                    if (!supabaseClient) {
-
-                        throw new Error(
-                            "Supabase client tidak tersedia."
-                        );
-                    }
+                const role =
+                    String(
+                        window.GENZ_NAVIGATION_ROLE ||
+                        ""
+                    )
+                    .trim()
+                    .toLowerCase();
 
 
-                    /* =========================================
-                       SESSION
-                    ========================================== */
+                return (
+                    role === "admin" ||
+                    role === "owner"
+                );
 
-                    const {
-                        data: sessionData,
-                        error: sessionError
-                    } =
-                        await supabaseClient
-                            .auth
-                            .getSession();
-
-
-                    if (
-                        sessionError ||
-                        !sessionData ||
-                        !sessionData.session ||
-                        !sessionData.session.user
-                    ) {
-
-                        redirect(
-                            "../login.html"
-                        );
-
-                        return;
-                    }
-
-
-                    const currentUser =
-                        sessionData.session.user;
-
-
-                    /* =========================================
-                       PROFILE
-                    ========================================== */
-
-                    const {
-                        data: profile,
-                        error: profileError
-                    } =
-                        await supabaseClient
-                            .from("profiles")
-                            .select(
-                                "id,email,role,status"
-                            )
-                            .eq(
-                                "id",
-                                currentUser.id
-                            )
-                            .maybeSingle();
-
-
-                    if (
-                        profileError ||
-                        !profile
-                    ) {
-
-                        console.error(
-                            "[GEN-Z.AI] Profile error:",
-                            profileError
-                        );
-
-                        redirect(
-                            "../login.html"
-                        );
-
-                        return;
-                    }
-
-
-                    /* =========================================
-                       PROFILE ID
-                    ========================================== */
-
-                    if (
-                        profile.id !==
-                        currentUser.id
-                    ) {
-
-                        console.error(
-                            "[GEN-Z.AI] Profile/Auth ID mismatch."
-                        );
-
-                        redirect(
-                            "../login.html"
-                        );
-
-                        return;
-                    }
-
-
-                    /* =========================================
-                       STATUS
-                    ========================================== */
-
-                    const status =
-                        String(
-                            profile.status || ""
-                        )
-                        .trim()
-                        .toLowerCase();
-
-
-                    if (
-                        status !==
-                        "active"
-                    ) {
-
-                        console.warn(
-                            "[GEN-Z.AI] Account status:",
-                            profile.status
-                        );
-
-                        redirect(
-                            "../login.html"
-                        );
-
-                        return;
-                    }
-
-
-                    /* =========================================
-                       ROLE
-                    ========================================== */
-
-                    const role =
-                        String(
-                            profile.role || ""
-                        )
-                        .trim()
-                        .toUpperCase();
-
-
-                    const allowed =
-                        role === "ADMIN" ||
-                        role === "OWNER";
-
-
-                    if (!allowed) {
-
-                        redirect(
-                            "../user/dashboard.html"
-                        );
-
-                        return;
-                    }
-
-
-                    /* =========================================
-                       ACCESS GRANTED
-                    ========================================== */
-
-                    showAdmin(
-                        profile
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        "[GEN-Z.AI] Admin access error:",
-                        error
-                    );
-
-                    redirect(
-                        "../login.html"
-                    );
-                }
             }
 
 
-            /* =================================================
-               AUTH STATE
-            ================================================== */
+            function start() {
 
-            function bindAuthState() {
+                /*
+                 * navigation.js harus sudah selesai
+                 * memverifikasi user sebelum halaman
+                 * admin ditampilkan.
+                 */
 
                 if (
-                    !supabaseClient ||
-                    !supabaseClient.auth
+                    window.GENZNavigationReady &&
+                    typeof
+                        window.GENZNavigationReady.then ===
+                        "function"
                 ) {
+
+                    window.GENZNavigationReady
+                        .then(() => {
+
+                            if (
+                                hasAdminAccess()
+                            ) {
+
+                                updateStatus();
+
+                                showAdminPage();
+
+                                return;
+                            }
+
+
+                            /*
+                             * navigation.js menangani
+                             * redirect untuk role yang
+                             * tidak memiliki akses.
+                             *
+                             * Jangan membuat redirect
+                             * kedua di halaman ini.
+                             */
+
+                            hideLoading();
+
+                        })
+                        .catch((error) => {
+
+                            console.error(
+                                "[GEN-Z.AI] Navigation initialization failed:",
+                                error
+                            );
+
+                            hideLoading();
+
+                        });
 
                     return;
                 }
 
 
-                supabaseClient
-                    .auth
-                    .onAuthStateChange(
-                        (
-                            event,
-                            session
-                        ) => {
-
-                            /*
-                             * Jangan melakukan signOut
-                             * dari sini.
-                             *
-                             * Jika session benar-benar hilang,
-                             * arahkan ke login.
-                             */
-
-                            if (
-                                event ===
-                                    "SIGNED_OUT" ||
-                                !session
-                            ) {
-
-                                if (
-                                    window.location.pathname !==
-                                    "/login.html"
-                                ) {
-
-                                    redirect(
-                                        "../login.html"
-                                    );
-                                }
-
-                            }
-
-                        }
-                    );
-            }
-
-
-            /* =================================================
-               START
-            ================================================== */
-
-            async function start() {
-
                 /*
-                 * Client global HARUS sudah tersedia
-                 * sebelum navigation.js dijalankan.
+                 * Fallback jika navigation.js belum
+                 * menyediakan Promise ready.
+                 *
+                 * Beri waktu agar navigation.js
+                 * menyelesaikan initialization.
                  */
 
-                bindAuthState();
+                let attempts = 0;
 
-                await checkAccess();
+                const timer =
+                    setInterval(
+                        () => {
+
+                            attempts++;
+
+
+                            if (
+                                hasAdminAccess()
+                            ) {
+
+                                clearInterval(
+                                    timer
+                                );
+
+                                updateStatus();
+
+                                showAdminPage();
+
+                                return;
+                            }
+
+
+                            if (
+                                window.GENZ_NAVIGATION_PROFILE ||
+                                attempts >= 100
+                            ) {
+
+                                clearInterval(
+                                    timer
+                                );
+
+                                hideLoading();
+                            }
+
+                        },
+                        100
+                    );
 
             }
 
@@ -2336,22 +2167,6 @@
         })();
 
     </script>
-
-
-    <!-- =====================================================
-         SHARED NAVIGATION
-         
-         HARUS setelah Supabase client dibuat.
-         navigation.js sekarang akan menemukan:
-         
-         window.GENZ_SUPABASE
-         
-         dan menggunakan client yang sama.
-    ====================================================== -->
-
-    <script
-        src="../navigation/navigation.js"
-    ></script>
 
 
 </body>
