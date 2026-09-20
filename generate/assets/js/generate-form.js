@@ -6,22 +6,22 @@
    generate/assets/js/generate-form.js
 
    Tanggung jawab:
-   - Render parameter form berdasarkan model.parameters
-   - Input gambar: URL atau Upload
-   - Preview gambar upload
-   - Hapus gambar dengan tombol X
+   - Render parameter berdasarkan model.parameters
+   - Input gambar URL / Upload
+   - Maksimal gambar mengikuti maxItems
+   - Preview + tombol X
    - Checkbox-style ratio / resolution
    - Duration slider
    - Collect parameter form
+   - Reset form
 
-   Source of truth:
+   SOURCE OF TRUTH:
    - models/*/parameters.js
 
-   Catatan:
-   - image_urls maksimal mengikuti definition.maxItems
-   - Saat ini Grok Image to Video = maxItems 1
-   - URL dan Upload adalah dua metode untuk SATU gambar
-   - Tidak mengirim task_id
+   CATATAN:
+   - task_id bukan input user
+   - task_id tidak pernah dikirim
+   - image_urls hanya berisi SATU sumber aktif
 ========================================================= */
 
 import {
@@ -33,18 +33,12 @@ import {
 
 
 /* =========================================================
-   INTERNAL PARAMETERS
+   CONSTANTS
 ========================================================= */
 
-const INTERNAL_PARAMETERS =
-    new Set([
-        "task_id"
-    ]);
-
-
-/* =========================================================
-   UI PARAMETER ORDER
-========================================================= */
+const INTERNAL_PARAMETERS = new Set([
+    "task_id"
+]);
 
 const GENERATE_PARAMETER_ORDER = [
     "image_urls",
@@ -55,25 +49,30 @@ const GENERATE_PARAMETER_ORDER = [
     "duration"
 ];
 
+const STORAGE_BUCKET = "dashboard-videos";
+
+const ALLOWED_IMAGE_TYPES = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+]);
+
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
 function getContainer() {
-
-    const elements =
-        getGenerateElements();
+    const elements = getGenerateElements();
 
     return elements?.dynamicFields || null;
-
 }
 
 
 function getParameterDefinitions() {
-
-    const model =
-        getCurrentModel();
+    const model = getCurrentModel();
 
     if (!model) {
         return {};
@@ -91,76 +90,52 @@ function getParameterDefinitions() {
         return {};
     }
 
-    return parameters;
+    if (
+        parameters.parameters &&
+        typeof parameters.parameters === "object"
+    ) {
+        return parameters.parameters;
+    }
 
+    return parameters;
 }
 
 
-function parameterDefinition(
-    name
-) {
-
-    const definitions =
-        getParameterDefinitions();
+function parameterDefinition(name) {
+    const definitions = getParameterDefinitions();
 
     return definitions[name] || null;
-
 }
 
 
-function createFieldId(
-    name
-) {
-
+function createFieldId(name) {
     return (
         "generate-field-" +
         String(name)
-            .replace(
-                /[^a-zA-Z0-9_-]/g,
-                "-"
-            )
+            .replace(/[^a-zA-Z0-9_-]/g, "-")
     );
-
 }
 
 
-function getDefaultValue(
-    definition
-) {
-
+function getDefaultValue(definition) {
     if (
         !definition ||
         typeof definition !== "object"
     ) {
-        return "";
+        return undefined;
     }
 
     return definition.default;
-
 }
 
 
-function isInternalParameter(
-    name
-) {
-
-    return INTERNAL_PARAMETERS.has(
-        name
-    );
-
+function isInternalParameter(name) {
+    return INTERNAL_PARAMETERS.has(name);
 }
 
 
-function isRenderableParameter(
-    name,
-    definition
-) {
-
-    if (
-        isInternalParameter(
-            name
-        )
-    ) {
+function isRenderableParameter(name, definition) {
+    if (isInternalParameter(name)) {
         return false;
     }
 
@@ -171,12 +146,68 @@ function isRenderableParameter(
         return false;
     }
 
-    return (
-        GENERATE_PARAMETER_ORDER.includes(
-            name
-        )
-    );
+    return GENERATE_PARAMETER_ORDER.includes(name);
+}
 
+
+function normalizeArray(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map(item => String(item ?? "").trim())
+            .filter(Boolean);
+    }
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return [];
+    }
+
+    if (typeof value === "string") {
+        const text = value.trim();
+
+        if (!text) {
+            return [];
+        }
+
+        if (
+            text.startsWith("[") &&
+            text.endsWith("]")
+        ) {
+            try {
+                const parsed = JSON.parse(text);
+
+                if (Array.isArray(parsed)) {
+                    return normalizeArray(parsed);
+                }
+            } catch {
+                /* fallback */
+            }
+        }
+
+        if (
+            text.startsWith("{") &&
+            text.endsWith("}")
+        ) {
+            return text
+                .slice(1, -1)
+                .split(",")
+                .map(item =>
+                    item
+                        .trim()
+                        .replace(/^"(.*)"$/, "$1")
+                )
+                .filter(Boolean);
+        }
+
+        return text
+            .split(",")
+            .map(item => item.trim())
+            .filter(Boolean);
+    }
+
+    return [String(value)];
 }
 
 
@@ -184,88 +215,52 @@ function isRenderableParameter(
    FIELD WRAPPER
 ========================================================= */
 
-function createFieldWrapper(
-    name,
-    label
-) {
+function createFieldWrapper(name, label) {
+    const field = document.createElement("div");
 
-    const field =
-        document.createElement(
-            "div"
-        );
+    field.className = "generate-field";
+    field.dataset.parameter = name;
 
-    field.className =
-        "generate-field";
+    const title = document.createElement("label");
 
-    field.dataset.parameter =
-        name;
+    title.className = "generate-field-label";
+    title.textContent = label;
 
-    const title =
-        document.createElement(
-            "label"
-        );
-
-    title.className =
-        "generate-field-label";
-
-    title.textContent =
-        label;
-
-    field.appendChild(
-        title
-    );
+    field.appendChild(title);
 
     return {
         field,
         title
     };
-
 }
 
 
 /* =========================================================
    IMAGE INPUT
    ---------------------------------------------------------
-   SATU SLOT GAMBAR
+   SATU SLOT
 
-   Pilihan:
-   1. Gunakan URL
-   2. Upload Gambar
+   URL:
+   image_urls = [url]
 
-   Hanya salah satu yang aktif.
+   UPLOAD:
+   image_urls = [publicUrl]
+
+   Hanya satu sumber aktif.
 ========================================================= */
 
-function createImageInput(
-    definition,
-    name
-) {
+function createImageInput(definition, name) {
+    const wrapper = document.createElement("div");
 
-    const wrapper =
-        document.createElement(
-            "div"
-        );
+    wrapper.className = "generate-image-input";
 
-    wrapper.className =
-        "generate-image-input";
-
-
-    /* -----------------------------------------------------
-       MAX ITEMS
-    ----------------------------------------------------- */
-
-    const maxItemsNumber =
-        Number(
-            definition?.maxItems
-        );
+    const maxItemsRaw = Number(
+        definition?.maxItems
+    );
 
     const maxItems =
-        Number.isFinite(
-            maxItemsNumber
-        )
-            ? Math.max(
-                1,
-                maxItemsNumber
-            )
+        Number.isFinite(maxItemsRaw)
+            ? Math.max(0, Math.floor(maxItemsRaw))
             : 1;
 
 
@@ -273,224 +268,127 @@ function createImageInput(
        STATE
     ----------------------------------------------------- */
 
-    let inputMode =
-        "url";
-
-    let uploadedPath =
-        "";
-
-    let uploadedUrl =
-        "";
+    let inputMode = "url";
+    let uploadedPath = "";
+    let uploadedUrl = "";
 
 
     /* -----------------------------------------------------
        MODE BUTTONS
     ----------------------------------------------------- */
 
-    const modeGroup =
-        document.createElement(
-            "div"
-        );
+    const modeGroup = document.createElement("div");
 
-    modeGroup.className =
-        "generate-image-mode";
+    modeGroup.className = "generate-image-mode";
 
 
-    const urlModeButton =
-        document.createElement(
-            "button"
-        );
+    const urlModeButton = document.createElement("button");
 
-    urlModeButton.type =
-        "button";
-
+    urlModeButton.type = "button";
     urlModeButton.className =
         "generate-image-mode-button active";
-
-    urlModeButton.textContent =
-        "Gunakan URL";
+    urlModeButton.textContent = "Gunakan URL";
 
 
-    const uploadModeButton =
-        document.createElement(
-            "button"
-        );
+    const uploadModeButton = document.createElement("button");
 
-    uploadModeButton.type =
-        "button";
-
+    uploadModeButton.type = "button";
     uploadModeButton.className =
         "generate-image-mode-button";
-
-    uploadModeButton.textContent =
-        "Upload Gambar";
+    uploadModeButton.textContent = "Upload Gambar";
 
 
-    modeGroup.appendChild(
-        urlModeButton
-    );
+    modeGroup.appendChild(urlModeButton);
+    modeGroup.appendChild(uploadModeButton);
 
-    modeGroup.appendChild(
-        uploadModeButton
-    );
-
-    wrapper.appendChild(
-        modeGroup
-    );
+    wrapper.appendChild(modeGroup);
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        URL PANEL
-    ===================================================== */
+    ----------------------------------------------------- */
 
-    const urlPanel =
-        document.createElement(
-            "div"
-        );
+    const urlPanel = document.createElement("div");
 
-    urlPanel.className =
-        "generate-image-url-panel";
+    urlPanel.className = "generate-image-url-panel";
 
 
-    const urlInput =
-        document.createElement(
-            "input"
-        );
+    const urlInput = document.createElement("input");
 
-    urlInput.type =
-        "url";
-
-    urlInput.id =
-        createFieldId(
-            name
-        );
-
-    urlInput.name =
-        name;
-
-    urlInput.inputMode =
-        "url";
-
-    urlInput.autocomplete =
-        "off";
-
-    urlInput.className =
-        "form-control";
-
+    urlInput.type = "url";
+    urlInput.id = createFieldId(name);
+    urlInput.name = name;
+    urlInput.className = "form-control";
+    urlInput.inputMode = "url";
+    urlInput.autocomplete = "off";
     urlInput.placeholder =
         "Tempel URL gambar...";
 
 
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
+    const defaultValue = getDefaultValue(definition);
+
+    const defaultImages =
+        normalizeArray(defaultValue);
 
 
-    if (
-        Array.isArray(
-            defaultValue
-        ) &&
-        defaultValue.length
-    ) {
-
-        urlInput.value =
-            String(
-                defaultValue[0] ||
-                ""
-            );
-
-    } else if (
-        defaultValue !== null &&
-        defaultValue !== undefined &&
-        defaultValue !== ""
-    ) {
-
-        urlInput.value =
-            String(
-                defaultValue
-            );
-
+    if (defaultImages.length) {
+        urlInput.value = defaultImages[0];
     }
 
 
-    urlPanel.appendChild(
-        urlInput
-    );
+    urlPanel.appendChild(urlInput);
+
+    wrapper.appendChild(urlPanel);
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        UPLOAD PANEL
-    ===================================================== */
+    ----------------------------------------------------- */
 
-    const uploadPanel =
-        document.createElement(
-            "div"
-        );
+    const uploadPanel = document.createElement("div");
 
     uploadPanel.className =
         "generate-image-upload-panel";
 
-    uploadPanel.hidden =
-        true;
+    uploadPanel.hidden = true;
 
 
-    const fileInput =
-        document.createElement(
-            "input"
-        );
+    const fileInput = document.createElement("input");
 
-    fileInput.type =
-        "file";
-
+    fileInput.type = "file";
     fileInput.accept =
-        "image/*";
-
-    fileInput.hidden =
-        true;
+        ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+    fileInput.hidden = true;
 
 
-    const chooseButton =
-        document.createElement(
-            "button"
-        );
+    const chooseButton = document.createElement("button");
 
-    chooseButton.type =
-        "button";
-
+    chooseButton.type = "button";
     chooseButton.className =
         "generate-image-upload-button";
-
     chooseButton.textContent =
         "+ Tambah Gambar";
 
 
-    const uploadStatus =
-        document.createElement(
-            "div"
-        );
+    const uploadStatus = document.createElement("div");
 
     uploadStatus.className =
         "generate-image-upload-status";
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        PREVIEW
-    ===================================================== */
+    ----------------------------------------------------- */
 
-    const preview =
-        document.createElement(
-            "div"
-        );
+    const preview = document.createElement("div");
 
     preview.className =
         "generate-image-preview";
 
+    preview.hidden = true;
 
-    const previewImage =
-        document.createElement(
-            "img"
-        );
+
+    const previewImage = document.createElement("img");
 
     previewImage.className =
         "generate-image-preview-image";
@@ -498,94 +396,45 @@ function createImageInput(
     previewImage.alt =
         "Preview gambar referensi";
 
-    previewImage.hidden =
-        true;
 
+    /* -----------------------------------------------------
+       REMOVE
+    ----------------------------------------------------- */
 
-    /* =====================================================
-       REMOVE BUTTON
-    ===================================================== */
+    const removeButton = document.createElement("button");
 
-    const removeButton =
-        document.createElement(
-            "button"
-        );
-
-    removeButton.type =
-        "button";
-
+    removeButton.type = "button";
     removeButton.className =
         "generate-image-remove";
-
-    removeButton.textContent =
-        "×";
-
+    removeButton.textContent = "×";
+    removeButton.title = "Hapus gambar";
     removeButton.setAttribute(
         "aria-label",
         "Hapus gambar"
     );
 
-    removeButton.title =
-        "Hapus gambar";
 
-    removeButton.hidden =
-        true;
+    preview.appendChild(previewImage);
+    preview.appendChild(removeButton);
 
+    uploadPanel.appendChild(fileInput);
+    uploadPanel.appendChild(chooseButton);
+    uploadPanel.appendChild(uploadStatus);
+    uploadPanel.appendChild(preview);
 
-    preview.appendChild(
-        previewImage
-    );
-
-    preview.appendChild(
-        removeButton
-    );
-
-
-    uploadPanel.appendChild(
-        fileInput
-    );
-
-    uploadPanel.appendChild(
-        chooseButton
-    );
-
-    uploadPanel.appendChild(
-        uploadStatus
-    );
-
-    uploadPanel.appendChild(
-        preview
-    );
-
-
-    wrapper.appendChild(
-        urlPanel
-    );
-
-    wrapper.appendChild(
-        uploadPanel
-    );
+    wrapper.appendChild(uploadPanel);
 
 
     /* =====================================================
        CLEAR PREVIEW
     ===================================================== */
 
-    function clearPreviewOnly() {
+    function clearPreview() {
+        previewImage.removeAttribute("src");
 
-        previewImage.removeAttribute(
-            "src"
-        );
+        preview.hidden = true;
 
-        previewImage.hidden =
-            true;
-
-        removeButton.hidden =
-            true;
-
-        uploadedUrl =
-            "";
-
+        uploadedUrl = "";
     }
 
 
@@ -594,87 +443,58 @@ function createImageInput(
     ===================================================== */
 
     async function removeUploadedFile() {
+        const path = uploadedPath;
 
-        const path =
-            uploadedPath;
+        uploadedPath = "";
+        uploadedUrl = "";
 
-        uploadedPath =
-            "";
-
-        uploadedUrl =
-            "";
-
-        clearPreviewOnly();
-
+        clearPreview();
 
         if (!path) {
             return;
         }
 
-
-        const client =
-            getSupabaseClient();
-
+        const client = getSupabaseClient();
 
         if (
             !client ||
             !client.storage
         ) {
-
             return;
-
         }
-
 
         try {
-
             await client
                 .storage
-                .from(
-                    "dashboard-videos"
-                )
-                .remove([
-                    path
-                ]);
-
-        } catch (
-            error
-        ) {
-
+                .from(STORAGE_BUCKET)
+                .remove([path]);
+        } catch (error) {
             console.warn(
-                "[GEN-Z.AI][Generate Form] Gagal menghapus file Storage:",
+                "[GEN-Z.AI][Generate Form] Storage remove failed:",
                 error
             );
-
         }
-
     }
 
 
     /* =====================================================
-       SET INPUT MODE
+       SET MODE
     ===================================================== */
 
-    function setMode(
-        mode
-    ) {
-
-        inputMode =
+    async function setMode(mode) {
+        const nextMode =
             mode === "upload"
                 ? "upload"
                 : "url";
 
+        inputMode = nextMode;
 
         const isUpload =
-            inputMode ===
-            "upload";
+            inputMode === "upload";
 
 
-        urlPanel.hidden =
-            isUpload;
-
-        uploadPanel.hidden =
-            !isUpload;
+        urlPanel.hidden = isUpload;
+        uploadPanel.hidden = !isUpload;
 
 
         urlModeButton.classList.toggle(
@@ -688,194 +508,125 @@ function createImageInput(
         );
 
 
-        if (
-            isUpload
-        ) {
-
-            /*
-             * Upload menjadi sumber tunggal.
-             * URL dikosongkan agar tidak ikut terkirim.
-             */
-
-            urlInput.value =
-                "";
-
-        } else {
-
-            /*
-             * URL menjadi sumber tunggal.
-             * Upload sebelumnya dibersihkan.
-             */
-
-            if (
-                uploadedPath
-            ) {
-
-                removeUploadedFile();
-
-            }
-
-            clearPreviewOnly();
-
-            uploadStatus.textContent =
-                "";
-
+        if (isUpload) {
+            urlInput.value = "";
+            return;
         }
 
+
+        if (uploadedPath) {
+            await removeUploadedFile();
+        } else {
+            clearPreview();
+        }
+
+        uploadStatus.textContent = "";
     }
 
 
     /* =====================================================
-       UPLOAD REFERENCE IMAGE
+       UPLOAD IMAGE
     ===================================================== */
 
-    async function uploadReferenceImage(
-        file
-    ) {
-
+    async function uploadReferenceImage(file) {
         if (!file) {
             return;
         }
 
 
-        /* -------------------------------------------------
-           TYPE
-        ------------------------------------------------- */
-
-        if (
-            !String(
-                file.type ||
-                ""
-            )
-                .toLowerCase()
-                .startsWith(
-                    "image/"
-                )
-        ) {
-
+        if (maxItems < 1) {
             uploadStatus.textContent =
-                "File harus berupa gambar.";
+                "Model tidak mendukung gambar referensi.";
 
             return;
-
         }
 
 
-        /* -------------------------------------------------
-           MAX ITEMS
-        ------------------------------------------------- */
+        const type =
+            String(file.type || "")
+                .toLowerCase();
 
-        if (
-            maxItems < 1
-        ) {
 
+        if (!ALLOWED_IMAGE_TYPES.has(type)) {
             uploadStatus.textContent =
-                "Model tidak mengizinkan gambar referensi.";
+                "Format gambar harus JPG, PNG, atau WebP.";
+
+            fileInput.value = "";
 
             return;
-
         }
 
 
-        /* -------------------------------------------------
-           SUPABASE
-        ------------------------------------------------- */
+        if (
+            Number(file.size) >
+            MAX_IMAGE_SIZE
+        ) {
+            uploadStatus.textContent =
+                "Ukuran gambar maksimal 10 MB.";
 
-        const client =
-            getSupabaseClient();
+            fileInput.value = "";
 
-        const user =
-            getCurrentUser();
+            return;
+        }
+
+
+        const client = getSupabaseClient();
+        const user = getCurrentUser();
 
 
         if (
             !client ||
             !client.storage
         ) {
-
             uploadStatus.textContent =
                 "Storage belum tersedia.";
 
             return;
-
         }
 
 
-        if (
-            !user?.id
-        ) {
-
+        if (!user?.id) {
             uploadStatus.textContent =
                 "Session user belum tersedia.";
 
             return;
-
         }
 
 
-        /* -------------------------------------------------
-           DELETE OLD UPLOAD
-        ------------------------------------------------- */
-
-        if (
-            uploadedPath
-        ) {
-
+        if (uploadedPath) {
             await removeUploadedFile();
-
         }
 
 
-        /* -------------------------------------------------
-           FILE EXTENSION
-        ------------------------------------------------- */
+        chooseButton.disabled = true;
+
+        uploadStatus.textContent =
+            "Mengunggah gambar...";
+
+
+        const extensionMap = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp"
+        };
 
         const extension =
-            String(
-                file.name ||
-                ""
-            )
-                .split(
-                    "."
-                )
-                .pop()
-                .toLowerCase()
-                .replace(
-                    /[^a-z0-9]/g,
-                    ""
-                ) ||
-                "jpg";
+            extensionMap[type] || "jpg";
 
-
-        /* -------------------------------------------------
-           RANDOM ID
-        ------------------------------------------------- */
 
         const randomPart =
             globalThis.crypto &&
             typeof globalThis.crypto.randomUUID ===
                 "function"
-
                 ? globalThis.crypto.randomUUID()
-
                 : (
-                    String(
-                        Date.now()
-                    ) +
+                    Date.now() +
                     "-" +
                     Math.random()
-                        .toString(
-                            36
-                        )
-                        .slice(
-                            2
-                        )
+                        .toString(36)
+                        .slice(2)
                 );
 
-
-        /* -------------------------------------------------
-           STORAGE PATH
-        ------------------------------------------------- */
 
         const path =
             "generate-inputs/" +
@@ -888,64 +639,32 @@ function createImageInput(
             extension;
 
 
-        chooseButton.disabled =
-            true;
-
-        uploadStatus.textContent =
-            "Mengunggah gambar...";
-
-
         try {
-
-            /* ---------------------------------------------
-               UPLOAD
-            --------------------------------------------- */
-
             const result =
                 await client
                     .storage
-                    .from(
-                        "dashboard-videos"
-                    )
+                    .from(STORAGE_BUCKET)
                     .upload(
                         path,
                         file,
                         {
-                            cacheControl:
-                                "3600",
-
-                            upsert:
-                                false,
-
-                            contentType:
-                                file.type ||
-                                "image/jpeg"
+                            cacheControl: "3600",
+                            upsert: false,
+                            contentType: type
                         }
                     );
 
 
-            if (
-                result.error
-            ) {
-
+            if (result?.error) {
                 throw result.error;
-
             }
 
-
-            /* ---------------------------------------------
-               PUBLIC URL
-            --------------------------------------------- */
 
             const publicResult =
                 client
                     .storage
-                    .from(
-                        "dashboard-videos"
-                    )
-                    .getPublicUrl(
-                        path
-                    );
+                    .from(STORAGE_BUCKET)
+                    .getPublicUrl(path);
 
 
             const publicUrl =
@@ -957,75 +676,45 @@ function createImageInput(
                 ).trim();
 
 
-            if (
-                !publicUrl
-            ) {
-
+            if (!publicUrl) {
                 throw new Error(
-                    "URL publik gambar tidak tersedia."
+                    "URL gambar tidak tersedia."
                 );
-
             }
 
 
-            /* ---------------------------------------------
-               SAVE STATE
-            --------------------------------------------- */
-
-            uploadedPath =
-                path;
-
-            uploadedUrl =
-                publicUrl;
+            uploadedPath = path;
+            uploadedUrl = publicUrl;
 
 
-            /* ---------------------------------------------
-               PREVIEW
-            --------------------------------------------- */
-
-            previewImage.src =
-                publicUrl;
-
-            previewImage.hidden =
-                false;
-
-            removeButton.hidden =
-                false;
+            previewImage.src = publicUrl;
+            preview.hidden = false;
 
 
             uploadStatus.textContent =
                 "Gambar siap digunakan.";
 
-        } catch (
-            error
-        ) {
 
-            uploadedPath =
-                "";
+        } catch (error) {
+            uploadedPath = "";
+            uploadedUrl = "";
 
-            uploadedUrl =
-                "";
-
-            clearPreviewOnly();
-
+            clearPreview();
 
             uploadStatus.textContent =
                 error?.message ||
                 "Gagal mengunggah gambar.";
 
-
             console.error(
-                "[GEN-Z.AI][Generate Form] Upload gambar gagal:",
+                "[GEN-Z.AI][Generate Form] Upload gagal:",
                 error
             );
 
+
         } finally {
-
-            chooseButton.disabled =
-                false;
-
+            chooseButton.disabled = false;
+            fileInput.value = "";
         }
-
     }
 
 
@@ -1036,11 +725,7 @@ function createImageInput(
     urlModeButton.addEventListener(
         "click",
         () => {
-
-            setMode(
-                "url"
-            );
-
+            void setMode("url");
         }
     );
 
@@ -1048,11 +733,7 @@ function createImageInput(
     uploadModeButton.addEventListener(
         "click",
         () => {
-
-            setMode(
-                "upload"
-            );
-
+            void setMode("upload");
         }
     );
 
@@ -1060,98 +741,85 @@ function createImageInput(
     chooseButton.addEventListener(
         "click",
         () => {
+            if (maxItems < 1) {
+                uploadStatus.textContent =
+                    "Model tidak mendukung gambar referensi.";
+
+                return;
+            }
 
             fileInput.click();
-
         }
     );
 
 
     fileInput.addEventListener(
         "change",
-        async () => {
-
+        event => {
             const file =
-                fileInput.files?.[0] ||
+                event.target?.files?.[0] ||
                 null;
 
-
-            if (!file) {
-                return;
-            }
-
-
-            await uploadReferenceImage(
-                file
-            );
-
-
-            /*
-             * Reset input supaya file yang sama
-             * dapat dipilih kembali setelah dihapus.
-             */
-
-            fileInput.value =
-                "";
-
+            void uploadReferenceImage(file);
         }
     );
 
 
     removeButton.addEventListener(
         "click",
-        async () => {
+        () => {
+            void removeUploadedFile();
 
-            await removeUploadedFile();
-
-            uploadStatus.textContent =
-                "";
-
-            fileInput.value =
-                "";
-
+            uploadStatus.textContent = "";
         }
     );
 
 
     /* =====================================================
-       PUBLIC HELPERS
+       PUBLIC IMAGE API
     ===================================================== */
 
-    wrapper.getInputMode =
-        () => inputMode;
+    wrapper.getInputMode = () => inputMode;
+
+    wrapper.getUrlInput = () => urlInput;
+
+    wrapper.getUploadedUrl = () => uploadedUrl;
+
+    wrapper.getUploadedPath = () => uploadedPath;
+
+    wrapper.getReferenceFiles = () =>
+        uploadedUrl
+            ? [uploadedUrl]
+            : [];
 
 
-    wrapper.getUrlInput =
-        () => urlInput;
+    wrapper.clearUploadedFile = async () => {
+        await removeUploadedFile();
+
+        uploadStatus.textContent = "";
+        fileInput.value = "";
+    };
 
 
-    wrapper.getUploadedUrl =
-        () => uploadedUrl;
+    wrapper.setMode = setMode;
 
 
-    wrapper.getUploadedPath =
-        () => uploadedPath;
+    /* =====================================================
+       MODEL DOES NOT SUPPORT IMAGE
+    ===================================================== */
 
+    if (maxItems < 1) {
+        urlModeButton.disabled = true;
+        uploadModeButton.disabled = true;
+        urlInput.disabled = true;
+        chooseButton.disabled = true;
 
-    wrapper.clearUploadedFile =
-        removeUploadedFile;
-
-
-    wrapper.getReferenceFiles =
-        () => {
-
-            return uploadedUrl
-                ? [
-                    uploadedUrl
-                ]
-                : [];
-
-        };
+        uploadStatus.textContent =
+            "Model ini tidak mendukung gambar referensi.";
+    }
 
 
     return wrapper;
-
 }
 
 
@@ -1159,73 +827,39 @@ function createImageInput(
    TEXTAREA
 ========================================================= */
 
-function createTextarea(
-    definition,
-    name
-) {
-
+function createTextarea(definition, name) {
     const textarea =
-        document.createElement(
-            "textarea"
-        );
+        document.createElement("textarea");
 
-    textarea.id =
-        createFieldId(
-            name
-        );
-
-    textarea.name =
-        name;
-
-    textarea.className =
-        "form-control";
-
-    textarea.rows =
-        5;
-
+    textarea.id = createFieldId(name);
+    textarea.name = name;
+    textarea.className = "form-control";
+    textarea.rows = 5;
     textarea.placeholder =
-        "Tulis prompt...";
+        "Tulis prompt video...";
 
 
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
+    const maxLength =
+        Number(definition?.maxLength);
 
-
-    if (
-        defaultValue !==
-            undefined &&
-        defaultValue !==
-            null
-    ) {
-
-        textarea.value =
-            String(
-                defaultValue
-            );
-
+    if (Number.isFinite(maxLength)) {
+        textarea.maxLength = maxLength;
     }
 
 
+    const defaultValue =
+        getDefaultValue(definition);
+
     if (
-        Number.isFinite(
-            Number(
-                definition?.maxLength
-            )
-        )
+        defaultValue !== null &&
+        defaultValue !== undefined
     ) {
-
-        textarea.maxLength =
-            Number(
-                definition.maxLength
-            );
-
+        textarea.value =
+            String(defaultValue);
     }
 
 
     return textarea;
-
 }
 
 
@@ -1233,75 +867,45 @@ function createTextarea(
    TEXT INPUT
 ========================================================= */
 
-function createTextInput(
-    definition,
-    name
-) {
-
+function createTextInput(definition, name) {
     const input =
-        document.createElement(
-            "input"
-        );
+        document.createElement("input");
 
-    input.type =
-        "text";
-
-    input.id =
-        createFieldId(
-            name
-        );
-
-    input.name =
-        name;
-
-    input.className =
-        "form-control";
+    input.type = "text";
+    input.id = createFieldId(name);
+    input.name = name;
+    input.className = "form-control";
 
 
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
+    const maxLength =
+        Number(definition?.maxLength);
 
-
-    if (
-        defaultValue !==
-            undefined &&
-        defaultValue !==
-            null
-    ) {
-
-        input.value =
-            String(
-                defaultValue
-            );
-
+    if (Number.isFinite(maxLength)) {
+        input.maxLength = maxLength;
     }
 
 
+    const defaultValue =
+        getDefaultValue(definition);
+
     if (
-        Number.isFinite(
-            Number(
-                definition?.maxLength
-            )
-        )
+        defaultValue !== null &&
+        defaultValue !== undefined
     ) {
-
-        input.maxLength =
-            Number(
-                definition.maxLength
-            );
-
+        input.value =
+            String(defaultValue);
     }
 
 
     return input;
-
 }
 
 
 /* =========================================================
-   CHECKBOX STYLE SINGLE SELECT
+   OPTION CARDS
+   ---------------------------------------------------------
+   Radio secara logic.
+   CSS dapat membuatnya terlihat seperti checkbox/card.
 ========================================================= */
 
 function createOptionCards(
@@ -1309,348 +913,165 @@ function createOptionCards(
     name,
     options
 ) {
+    const wrapper =
+        document.createElement("div");
 
-    const group =
-        document.createElement(
-            "div"
-        );
-
-    group.className =
-        "generate-option-group";
+    wrapper.className =
+        "generate-option-cards";
 
 
     const defaultValue =
-        getDefaultValue(
-            definition
-        );
+        getDefaultValue(definition);
 
 
-    let selectedValue =
-        defaultValue;
+    options.forEach(option => {
+        const label =
+            document.createElement("label");
+
+        label.className =
+            "generate-option-card";
 
 
-    if (
-        selectedValue ===
-            undefined ||
-        selectedValue ===
-            null
-    ) {
+        const radio =
+            document.createElement("input");
 
-        selectedValue =
-            options?.[0];
-
-    }
+        radio.type = "radio";
+        radio.name = name;
+        radio.value = String(option);
 
 
-    options.forEach(
-        (
-            option,
-            index
-        ) => {
-
-            const value =
-                typeof option ===
-                    "object"
-
-                    ? option.value
-
-                    : option;
-
-
-            const label =
-                typeof option ===
-                    "object"
-
-                    ? (
-                        option.label ??
-                        option.value
-                    )
-
-                    : option;
-
-
-            const id =
-                createFieldId(
-                    name
-                ) +
-                "-" +
-                index;
-
-
-            const item =
-                document.createElement(
-                    "label"
-                );
-
-            item.className =
-                "generate-option-card";
-
-
-            const input =
-                document.createElement(
-                    "input"
-                );
-
-            input.type =
-                "radio";
-
-            input.name =
-                name;
-
-            input.value =
-                String(
-                    value
-                );
-
-            input.id =
-                id;
-
-
-            if (
-                String(
-                    value
-                ) ===
-                String(
-                    selectedValue
-                )
-            ) {
-
-                input.checked =
-                    true;
-
-                item.classList.add(
-                    "active"
-                );
-
-            }
-
-
-            const visual =
-                document.createElement(
-                    "span"
-                );
-
-            visual.className =
-                "generate-option-check";
-
-
-            const text =
-                document.createElement(
-                    "span"
-                );
-
-            text.className =
-                "generate-option-text";
-
-            text.textContent =
-                String(
-                    label
-                );
-
-
-            item.appendChild(
-                input
-            );
-
-            item.appendChild(
-                visual
-            );
-
-            item.appendChild(
-                text
-            );
-
-
-            input.addEventListener(
-                "change",
-                () => {
-
-                    group
-                        .querySelectorAll(
-                            ".generate-option-card"
-                        )
-                        .forEach(
-                            element => {
-
-                                element.classList.remove(
-                                    "active"
-                                );
-
-                            }
-                        );
-
-
-                    if (
-                        input.checked
-                    ) {
-
-                        item.classList.add(
-                            "active"
-                        );
-
-                    }
-
-                }
-            );
-
-
-            group.appendChild(
-                item
-            );
-
+        if (
+            String(option) ===
+            String(defaultValue)
+        ) {
+            radio.checked = true;
+            label.classList.add("active");
         }
-    );
 
 
-    return group;
+        const text =
+            document.createElement("span");
 
+        text.className =
+            "generate-option-card-text";
+
+        text.textContent =
+            String(option);
+
+
+        label.appendChild(radio);
+        label.appendChild(text);
+
+        wrapper.appendChild(label);
+
+
+        radio.addEventListener(
+            "change",
+            () => {
+                wrapper
+                    .querySelectorAll(
+                        ".generate-option-card"
+                    )
+                    .forEach(card => {
+                        const input =
+                            card.querySelector(
+                                'input[type="radio"]'
+                            );
+
+                        card.classList.toggle(
+                            "active",
+                            Boolean(
+                                input?.checked
+                            )
+                        );
+                    });
+            }
+        );
+    });
+
+
+    return wrapper;
 }
 
 
 /* =========================================================
-   RANGE SLIDER
+   RANGE
 ========================================================= */
 
 function createRangeInput(
     definition,
     name
 ) {
-
     const wrapper =
-        document.createElement(
-            "div"
-        );
+        document.createElement("div");
 
     wrapper.className =
         "generate-range-wrapper";
 
 
     const range =
-        document.createElement(
-            "input"
-        );
+        document.createElement("input");
 
-    range.type =
-        "range";
-
-    range.id =
-        createFieldId(
-            name
-        );
-
-    range.name =
-        name;
-
+    range.type = "range";
+    range.id = createFieldId(name);
+    range.name = name;
     range.className =
         "generate-range";
 
 
     const min =
-        Number(
-            definition?.min
-        );
+        Number(definition?.min);
 
     const max =
-        Number(
-            definition?.max
-        );
+        Number(definition?.max);
 
     const step =
-        Number(
-            definition?.step
-        );
-
-
-    if (
-        Number.isFinite(
-            min
-        )
-    ) {
-
-        range.min =
-            String(
-                min
-            );
-
-    }
-
-
-    if (
-        Number.isFinite(
-            max
-        )
-    ) {
-
-        range.max =
-            String(
-                max
-            );
-
-    }
-
-
-    if (
-        Number.isFinite(
-            step
-        ) &&
-        step > 0
-    ) {
-
-        range.step =
-            String(
-                step
-            );
-
-    }
-
+        Number(definition?.step);
 
     const defaultValue =
-        Number(
-            getDefaultValue(
-                definition
-            )
-        );
+        Number(definition?.default);
 
+
+    if (Number.isFinite(min)) {
+        range.min = String(min);
+    }
+
+    if (Number.isFinite(max)) {
+        range.max = String(max);
+    }
 
     if (
-        Number.isFinite(
-            defaultValue
-        )
+        Number.isFinite(step) &&
+        step > 0
     ) {
+        range.step = String(step);
+    }
 
+
+    if (Number.isFinite(defaultValue)) {
         range.value =
-            String(
-                defaultValue
-            );
-
-    } else if (
-        Number.isFinite(
-            min
-        )
-    ) {
-
+            String(defaultValue);
+    } else if (Number.isFinite(min)) {
         range.value =
-            String(
-                min
-            );
-
+            String(min);
     }
 
 
     const valueDisplay =
-        document.createElement(
-            "span"
-        );
+        document.createElement("span");
 
     valueDisplay.className =
         "generate-range-value";
 
 
     function updateValue() {
-
-        valueDisplay.textContent =
+        const value =
             range.value;
 
+        valueDisplay.textContent =
+            value
+                ? `${value} detik`
+                : "-";
     }
 
 
@@ -1663,17 +1084,11 @@ function createRangeInput(
     );
 
 
-    wrapper.appendChild(
-        range
-    );
-
-    wrapper.appendChild(
-        valueDisplay
-    );
+    wrapper.appendChild(range);
+    wrapper.appendChild(valueDisplay);
 
 
     return wrapper;
-
 }
 
 
@@ -1685,82 +1100,44 @@ function createSelectInput(
     definition,
     name
 ) {
-
     const select =
-        document.createElement(
-            "select"
-        );
+        document.createElement("select");
 
-    select.id =
-        createFieldId(
-            name
-        );
-
-    select.name =
-        name;
-
+    select.id = createFieldId(name);
+    select.name = name;
     select.className =
         "form-control";
 
 
     const options =
-        Array.isArray(
-            definition?.enum
-        )
+        Array.isArray(definition?.enum)
             ? definition.enum
             : [];
 
 
     const defaultValue =
-        getDefaultValue(
-            definition
-        );
+        getDefaultValue(definition);
 
 
-    options.forEach(
-        option => {
+    options.forEach(option => {
+        const item =
+            document.createElement("option");
 
-            const item =
-                document.createElement(
-                    "option"
-                );
+        item.value =
+            String(option);
 
-            item.value =
-                String(
-                    option
-                );
+        item.textContent =
+            String(option);
 
-            item.textContent =
-                String(
-                    option
-                );
+        item.selected =
+            String(option) ===
+            String(defaultValue);
 
-
-            if (
-                String(
-                    option
-                ) ===
-                String(
-                    defaultValue
-                )
-            ) {
-
-                item.selected =
-                    true;
-
-            }
-
-
-            select.appendChild(
-                item
-            );
-
-        }
-    );
+        select.appendChild(item);
+    });
 
 
     return select;
-
 }
 
 
@@ -1772,29 +1149,22 @@ function createFieldInput(
     definition,
     name
 ) {
-
     if (
         name === "image_urls" ||
         name === "image_url"
     ) {
-
         return createImageInput(
             definition,
             name
         );
-
     }
 
 
-    if (
-        name === "prompt"
-    ) {
-
+    if (name === "prompt") {
         return createTextarea(
             definition,
             name
         );
-
     }
 
 
@@ -1802,48 +1172,35 @@ function createFieldInput(
         name === "aspect_ratio" ||
         name === "resolution"
     ) {
-
         const options =
-            Array.isArray(
-                definition?.enum
-            )
+            Array.isArray(definition?.enum)
                 ? definition.enum
                 : [];
-
 
         return createOptionCards(
             definition,
             name,
             options
         );
-
     }
 
 
-    if (
-        name === "duration"
-    ) {
-
+    if (name === "duration") {
         return createRangeInput(
             definition,
             name
         );
-
     }
 
 
     if (
-        Array.isArray(
-            definition?.enum
-        ) &&
+        Array.isArray(definition?.enum) &&
         definition.enum.length
     ) {
-
         return createSelectInput(
             definition,
             name
         );
-
     }
 
 
@@ -1851,7 +1208,6 @@ function createFieldInput(
         definition,
         name
     );
-
 }
 
 
@@ -1863,27 +1219,13 @@ function renderParameter(
     name,
     definition
 ) {
-
     const labelMap = {
-
-        image_urls:
-            "Gambar Referensi",
-
-        image_url:
-            "Gambar Referensi",
-
-        prompt:
-            "Prompt",
-
-        aspect_ratio:
-            "Aspect Ratio",
-
-        resolution:
-            "Resolution",
-
-        duration:
-            "Duration"
-
+        image_urls: "Gambar Referensi",
+        image_url: "Gambar Referensi",
+        prompt: "Prompt",
+        aspect_ratio: "Aspect Ratio",
+        resolution: "Resolution",
+        duration: "Duration"
     };
 
 
@@ -1893,13 +1235,11 @@ function renderParameter(
 
 
     const {
-        field,
-        title
-    } =
-        createFieldWrapper(
-            name,
-            label
-        );
+        field
+    } = createFieldWrapper(
+        name,
+        label
+    );
 
 
     const input =
@@ -1909,13 +1249,9 @@ function renderParameter(
         );
 
 
-    field.appendChild(
-        input
-    );
-
+    field.appendChild(input);
 
     return field;
-
 }
 
 
@@ -1924,20 +1260,15 @@ function renderParameter(
 ========================================================= */
 
 export function renderGenerateForm() {
-
     const container =
         getContainer();
 
-
     if (!container) {
-
         return;
-
     }
 
 
-    container.innerHTML =
-        "";
+    container.innerHTML = "";
 
 
     const definitions =
@@ -1945,33 +1276,24 @@ export function renderGenerateForm() {
 
 
     const names =
-        GENERATE_PARAMETER_ORDER
-            .filter(
-                name =>
-                    isRenderableParameter(
-                        name,
-                        definitions[name]
-                    )
-            );
-
-
-    names.forEach(
-        name => {
-
-            const field =
-                renderParameter(
+        GENERATE_PARAMETER_ORDER.filter(
+            name =>
+                isRenderableParameter(
                     name,
                     definitions[name]
-                );
+                )
+        );
 
 
-            container.appendChild(
-                field
+    names.forEach(name => {
+        const field =
+            renderParameter(
+                name,
+                definitions[name]
             );
 
-        }
-    );
-
+        container.appendChild(field);
+    });
 }
 
 
@@ -1979,34 +1301,32 @@ export function renderGenerateForm() {
    FIND FIELD
 ========================================================= */
 
-function findField(
-    name
-) {
-
+function findField(name) {
     const container =
         getContainer();
-
 
     if (!container) {
         return null;
     }
 
 
-    const field =
-        Array.from(
-            container.querySelectorAll(
-                ".generate-field"
-            )
-        )
-            .find(
-                element =>
-                    element.dataset.parameter ===
-                    name
-            );
+    const fields =
+        container.querySelectorAll(
+            ".generate-field"
+        );
 
 
-    return field || null;
+    for (const field of fields) {
+        if (
+            field.dataset.parameter ===
+            name
+        ) {
+            return field;
+        }
+    }
 
+
+    return null;
 }
 
 
@@ -2014,10 +1334,7 @@ function findField(
    READ FIELD VALUE
 ========================================================= */
 
-function readFieldValue(
-    field
-) {
-
+function readFieldValue(field) {
     if (!field) {
         return undefined;
     }
@@ -2029,12 +1346,8 @@ function readFieldValue(
         );
 
 
-    if (
-        radio
-    ) {
-
+    if (radio) {
         return radio.value;
-
     }
 
 
@@ -2053,57 +1366,20 @@ function readFieldValue(
         input.type ===
         "checkbox"
     ) {
-
         return input.checked;
-
     }
 
 
     return input.value;
-
 }
 
 
 /* =========================================================
-   NORMALIZE IMAGE VALUE
+   NORMALIZE IMAGE
 ========================================================= */
 
-function normalizeImageValue(
-    value
-) {
-
-    if (
-        Array.isArray(
-            value
-        )
-    ) {
-
-        return value
-            .map(
-                item =>
-                    String(
-                        item || ""
-                    ).trim()
-            )
-            .filter(
-                Boolean
-            );
-
-    }
-
-
-    const text =
-        String(
-            value || ""
-        ).trim();
-
-
-    return text
-        ? [
-            text
-        ]
-        : [];
-
+function normalizeImageValue(value) {
+    return normalizeArray(value);
 }
 
 
@@ -2112,216 +1388,144 @@ function normalizeImageValue(
 ========================================================= */
 
 export function getFormParameters() {
-
     const container =
         getContainer();
 
-
     if (!container) {
-
         return {};
-
     }
 
 
-    const parameters =
-        {};
-
+    const parameters = {};
 
     const definitions =
         getParameterDefinitions();
 
 
     const names =
-        GENERATE_PARAMETER_ORDER
-            .filter(
-                name =>
-                    isRenderableParameter(
-                        name,
-                        definitions[name]
-                    )
-            );
+        GENERATE_PARAMETER_ORDER.filter(
+            name =>
+                isRenderableParameter(
+                    name,
+                    definitions[name]
+                )
+        );
 
 
-    names.forEach(
-        name => {
+    names.forEach(name => {
+        const field =
+            findField(name);
 
-            const field =
-                findField(
-                    name
+        if (!field) {
+            return;
+        }
+
+
+        let value;
+
+
+        /* -------------------------------------------------
+           IMAGE
+        ------------------------------------------------- */
+
+        if (
+            name === "image_urls" ||
+            name === "image_url"
+        ) {
+            const imageInput =
+                field.querySelector(
+                    ".generate-image-input"
                 );
 
 
-            if (!field) {
-                return;
-            }
+            if (imageInput) {
+                const mode =
+                    typeof imageInput.getInputMode ===
+                        "function"
+                        ? imageInput.getInputMode()
+                        : "url";
 
 
-            let value;
-
-
-            /*
-             * Input gambar:
-             *
-             * URL:
-             * image_urls = [url]
-             *
-             * Upload:
-             * image_urls = [publicUrl]
-             *
-             * Hanya sumber aktif yang dikirim.
-             */
-
-            if (
-                name === "image_urls" ||
-                name === "image_url"
-            ) {
-
-                const imageInput =
-                    field.querySelector(
-                        ".generate-image-input"
-                    );
-
-
-                if (
-                    imageInput
-                ) {
-
-                    const mode =
-                        typeof imageInput.getInputMode ===
+                if (mode === "upload") {
+                    value =
+                        typeof imageInput.getUploadedUrl ===
                             "function"
-
-                            ? imageInput.getInputMode()
-
-                            : "url";
-
-
-                    if (
-                        mode ===
-                        "upload"
-                    ) {
-
-                        value =
-                            typeof imageInput.getUploadedUrl ===
-                                "function"
-
-                                ? imageInput.getUploadedUrl()
-
-                                : "";
-
-                    } else {
-
-                        const urlInput =
-                            typeof imageInput.getUrlInput ===
-                                "function"
-
-                                ? imageInput.getUrlInput()
-
-                                : field.querySelector(
-                                    "input[type=\"url\"]"
-                                );
-
-
-                        value =
-                            String(
-                                urlInput?.value ||
-                                ""
-                            ).trim();
-
-                    }
-
+                            ? imageInput.getUploadedUrl()
+                            : "";
                 } else {
+                    const urlInput =
+                        typeof imageInput.getUrlInput ===
+                            "function"
+                            ? imageInput.getUrlInput()
+                            : field.querySelector(
+                                'input[type="url"]'
+                            );
 
                     value =
-                        readFieldValue(
-                            field
-                        );
-
+                        String(
+                            urlInput?.value ||
+                            ""
+                        ).trim();
                 }
-
             } else {
-
                 value =
-                    readFieldValue(
-                        field
+                    readFieldValue(field);
+            }
+
+
+            const images =
+                normalizeImageValue(value);
+
+
+            if (images.length) {
+                parameters.image_urls =
+                    images.slice(
+                        0,
+                        Math.max(
+                            1,
+                            Number(
+                                definitions[name]
+                                    ?.maxItems
+                            ) || 1
+                        )
                     );
-
             }
 
 
-            if (
-                value === undefined
-            ) {
-
-                return;
-
-            }
-
-
-            /*
-             * image_urls selalu array.
-             */
-
-            if (
-                name ===
-                    "image_urls" ||
-                name ===
-                    "image_url"
-            ) {
-
-                const images =
-                    normalizeImageValue(
-                        value
-                    );
-
-
-                if (
-                    images.length
-                ) {
-
-                    parameters.image_urls =
-                        images;
-
-                }
-
-
-                return;
-
-            }
-
-
-            /*
-             * Jangan mengirim parameter kosong
-             * kecuali memang bernilai false / 0.
-             */
-
-            if (
-                value === "" ||
-                value === null ||
-                value === undefined
-            ) {
-
-                return;
-
-            }
-
-
-            parameters[name] =
-                value;
-
+            return;
         }
-    );
 
 
-    /*
-     * task_id sengaja tidak pernah dikirim.
-     */
+        /* -------------------------------------------------
+           OTHER PARAMETERS
+        ------------------------------------------------- */
+
+        value =
+            readFieldValue(field);
+
+
+        if (
+            value === "" ||
+            value === null ||
+            value === undefined
+        ) {
+            return;
+        }
+
+
+        parameters[name] =
+            value;
+    });
+
+
+    /* -----------------------------------------------------
+       NEVER SEND TASK ID
+    ----------------------------------------------------- */
 
     delete parameters.task_id;
 
 
     return parameters;
-
 }
 
 
@@ -2330,9 +1534,7 @@ export function getFormParameters() {
 ========================================================= */
 
 export function getFormData() {
-
     return getFormParameters();
-
 }
 
 
@@ -2344,27 +1546,22 @@ export function setFieldValue(
     name,
     value
 ) {
-
     const field =
-        findField(
-            name
-        );
-
+        findField(name);
 
     if (!field) {
         return false;
     }
 
 
-    /*
-     * IMAGE
-     */
+    /* -----------------------------------------------------
+       IMAGE
+    ----------------------------------------------------- */
 
     if (
         name === "image_urls" ||
         name === "image_url"
     ) {
-
         const imageInput =
             field.querySelector(
                 ".generate-image-input"
@@ -2375,39 +1572,40 @@ export function setFieldValue(
             imageInput &&
             typeof imageInput.getUrlInput ===
                 "function"
-
                 ? imageInput.getUrlInput()
-
                 : field.querySelector(
-                    "input[type=\"url\"]"
+                    'input[type="url"]'
                 );
 
 
         const images =
-            normalizeImageValue(
-                value
-            );
+            normalizeImageValue(value);
 
 
-        if (
-            urlInput
-        ) {
-
+        if (urlInput) {
             urlInput.value =
-                images[0] ||
-                "";
+                images[0] || "";
+        }
 
+
+        if (images.length) {
+            if (
+                imageInput &&
+                typeof imageInput.setMode ===
+                    "function"
+            ) {
+                void imageInput.setMode("url");
+            }
         }
 
 
         return true;
-
     }
 
 
-    /*
-     * RADIO
-     */
+    /* -----------------------------------------------------
+       RADIO
+    ----------------------------------------------------- */
 
     const radios =
         field.querySelectorAll(
@@ -2415,69 +1613,47 @@ export function setFieldValue(
         );
 
 
-    if (
-        radios.length
-    ) {
-
-        let found =
-            false;
+    if (radios.length) {
+        let found = false;
 
 
-        radios.forEach(
-            radio => {
-
-                const checked =
-                    String(
-                        radio.value
-                    ) ===
-                    String(
-                        value
-                    );
+        radios.forEach(radio => {
+            const checked =
+                String(radio.value) ===
+                String(value);
 
 
-                radio.checked =
-                    checked;
+            radio.checked =
+                checked;
 
 
-                const card =
-                    radio.closest(
-                        ".generate-option-card"
-                    );
+            const card =
+                radio.closest(
+                    ".generate-option-card"
+                );
 
 
-                if (
-                    card
-                ) {
-
-                    card.classList.toggle(
-                        "active",
-                        checked
-                    );
-
-                }
-
-
-                if (
+            if (card) {
+                card.classList.toggle(
+                    "active",
                     checked
-                ) {
-
-                    found =
-                        true;
-
-                }
-
+                );
             }
-        );
+
+
+            if (checked) {
+                found = true;
+            }
+        });
 
 
         return found;
-
     }
 
 
-    /*
-     * NORMAL INPUT
-     */
+    /* -----------------------------------------------------
+       NORMAL INPUT
+    ----------------------------------------------------- */
 
     const input =
         field.querySelector(
@@ -2490,17 +1666,23 @@ export function setFieldValue(
     }
 
 
-    input.value =
-        value ??
-        "";
+    if (
+        input.type ===
+        "checkbox"
+    ) {
+        input.checked =
+            Boolean(value);
+    } else {
+        input.value =
+            value ?? "";
+    }
 
 
     input.dispatchEvent(
         new Event(
             "input",
             {
-                bubbles:
-                    true
+                bubbles: true
             }
         )
     );
@@ -2510,15 +1692,13 @@ export function setFieldValue(
         new Event(
             "change",
             {
-                bubbles:
-                    true
+                bubbles: true
             }
         )
     );
 
 
     return true;
-
 }
 
 
@@ -2527,19 +1707,13 @@ export function setFieldValue(
 ========================================================= */
 
 export async function resetDynamicFields() {
-
     const container =
         getContainer();
-
 
     if (!container) {
         return;
     }
 
-
-    /*
-     * Hapus upload Storage yang masih aktif.
-     */
 
     const imageInputs =
         container.querySelectorAll(
@@ -2550,110 +1724,78 @@ export async function resetDynamicFields() {
     for (
         const imageInput of imageInputs
     ) {
-
         if (
             typeof imageInput.clearUploadedFile ===
             "function"
         ) {
-
             try {
-
                 await imageInput.clearUploadedFile();
-
-            } catch (
-                error
-            ) {
-
+            } catch (error) {
                 console.warn(
                     "[GEN-Z.AI][Generate Form] Reset upload gagal:",
                     error
                 );
-
             }
-
         }
-
     }
 
 
     renderGenerateForm();
-
 }
 
 
 /* =========================================================
-   SET FORM DISABLED
+   DISABLE FORM
 ========================================================= */
 
 export function setFormDisabled(
     disabled
 ) {
-
     const container =
         getContainer();
-
 
     if (!container) {
         return;
     }
 
 
-    const controls =
-        container.querySelectorAll(
+    container
+        .querySelectorAll(
             "input, textarea, select, button"
-        );
-
-
-    controls.forEach(
-        control => {
-
+        )
+        .forEach(control => {
             control.disabled =
-                Boolean(
-                    disabled
-                );
-
-        }
-    );
-
+                Boolean(disabled);
+        });
 }
 
 
 /* =========================================================
-   GET MEDIA PARAMETERS
+   MEDIA PARAMETERS
 ========================================================= */
 
 export function getMediaParameters() {
-
     const data =
         getFormParameters();
 
 
     return {
-
         image_urls:
-            Array.isArray(
-                data.image_urls
-            )
+            Array.isArray(data.image_urls)
                 ? data.image_urls
                 : []
-
     };
-
 }
 
 
 /* =========================================================
-   GET PARAMETER DEFINITION
+   PARAMETER DEFINITION
 ========================================================= */
 
 export function getParameterDefinition(
     name
 ) {
-
-    return parameterDefinition(
-        name
-    );
-
+    return parameterDefinition(name);
 }
 
 
@@ -2662,9 +1804,7 @@ export function getParameterDefinition(
 ========================================================= */
 
 export function initGenerateForm() {
-
     renderGenerateForm();
-
 }
 
 
@@ -2674,7 +1814,6 @@ export function initGenerateForm() {
 
 export const generateForm =
     Object.freeze({
-
         render:
             renderGenerateForm,
 
@@ -2697,7 +1836,6 @@ export const generateForm =
 
         parameterDefinition:
             getParameterDefinition
-
     });
 
 
