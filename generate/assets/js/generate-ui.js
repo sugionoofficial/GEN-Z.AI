@@ -9,27 +9,42 @@
    - Render status
    - Render model header
    - Render MODEL CREDIT
-   - Render account OWNER
-   - Render account CREDIT
+   - Render ACCOUNT ROLE
+   - Render ACCOUNT CREDIT
    - Loading state
    - Error state
    - Generate button state
    - Reset UI
 
-   CATATAN PENTING:
+   SUMBER DATA:
    ---------------------------------------------------------
-   ACCOUNT CREDIT:
+   ACCOUNT:
        profile.credits
 
-   MODEL CREDIT:
+   MODEL:
        model.pricing.credit_final
-       fallback:
        model.credit_final
+       model.pricing.credit_cost
        model.credit_cost
 
-   Model credit TIDAK dihitung dari frontend.
+   PENTING:
+   ---------------------------------------------------------
+   ACCOUNT CREDIT dan MODEL CREDIT adalah dua data
+   yang berbeda dan tidak boleh saling menggantikan.
+
+   Account Credit:
+       #creditBadge
+
+   Model Credit:
+       #generateCreditValue
+
+   Tidak melakukan kalkulasi discount di frontend.
 ========================================================= */
 
+
+/* =========================================================
+   STATE
+========================================================= */
 
 import {
     getGenerateElements,
@@ -111,7 +126,8 @@ function formatNumber(
     return new Intl.NumberFormat(
         "id-ID",
         {
-            maximumFractionDigits: 2
+            maximumFractionDigits:
+                2
         }
     ).format(
         number
@@ -121,9 +137,81 @@ function formatNumber(
 
 
 /* =========================================================
+   NORMALIZE ACCOUNT CREDIT
+   ---------------------------------------------------------
+   SOURCE OF TRUTH:
+       profiles.credits
+
+   0 adalah nilai valid.
+
+   null / undefined / empty:
+       credit belum tersedia.
+
+   Tidak pernah mengambil:
+       model.credit_final
+       model.credit_cost
+       localStorage
+       navigation credit
+========================================================= */
+
+function normalizeAccountCredit(
+    profile
+) {
+
+    if (
+        !profile ||
+        typeof profile !==
+            "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const raw =
+        profile.credits;
+
+
+    if (
+        raw === null ||
+        raw === undefined ||
+        raw === ""
+    ) {
+
+        return null;
+
+    }
+
+
+    const numeric =
+        Number(
+            raw
+        );
+
+
+    if (
+        Number.isFinite(
+            numeric
+        )
+    ) {
+
+        return numeric;
+
+    }
+
+
+    return String(
+        raw
+    ).trim();
+
+}
+
+
+/* =========================================================
    GET MODEL CREDIT
    ---------------------------------------------------------
-   PRIORITY:
+   SOURCE OF TRUTH:
 
    1. model.pricing.credit_final
    2. model.credit_final
@@ -131,7 +219,6 @@ function formatNumber(
    4. model.credit_cost
 
    Tidak melakukan kalkulasi discount.
-   Backend adalah source of truth.
 ========================================================= */
 
 export function getModelCreditCost(
@@ -140,7 +227,8 @@ export function getModelCreditCost(
 
     if (
         !model ||
-        typeof model !== "object"
+        typeof model !==
+            "object"
     ) {
 
         return null;
@@ -165,6 +253,11 @@ export function getModelCreditCost(
         const candidate
         of candidates
     ) {
+
+        /*
+         * Jangan menganggap 0 sebagai
+         * data kosong.
+         */
 
         if (
             candidate === null ||
@@ -203,6 +296,16 @@ export function getModelCreditCost(
 
 /* =========================================================
    RENDER MODEL CREDIT
+   ---------------------------------------------------------
+   Target:
+       #generateCreditCost
+       #generateCreditValue
+
+   Contoh:
+       ◆ 20 Credit
+
+   Tidak menyentuh:
+       #creditBadge
 ========================================================= */
 
 export function renderModelCredit(
@@ -211,7 +314,8 @@ export function renderModelCredit(
 
     const {
         generateCreditCost,
-        generateCreditValue
+        generateCreditValue,
+        generateButton
     } = elements();
 
 
@@ -245,7 +349,7 @@ export function renderModelCredit(
 
     /*
      * -----------------------------------------------------
-     * ELEMENT TIDAK ADA
+     * ELEMENT VALIDATION
      * -----------------------------------------------------
      */
 
@@ -264,7 +368,7 @@ export function renderModelCredit(
 
     /*
      * -----------------------------------------------------
-     * AMBIL CREDIT
+     * GET MODEL CREDIT
      * -----------------------------------------------------
      */
 
@@ -276,7 +380,7 @@ export function renderModelCredit(
 
     /*
      * -----------------------------------------------------
-     * CONTAINER SELALU DITAMPILKAN
+     * CONTAINER
      * -----------------------------------------------------
      */
 
@@ -290,12 +394,18 @@ export function renderModelCredit(
         generateCreditCost.style.display =
             "inline-flex";
 
+        generateCreditCost.style.visibility =
+            "visible";
+
+        generateCreditCost.style.opacity =
+            "1";
+
     }
 
 
     /*
      * -----------------------------------------------------
-     * CREDIT TIDAK TERSEDIA
+     * CREDIT BELUM TERSEDIA
      * -----------------------------------------------------
      */
 
@@ -308,6 +418,15 @@ export function renderModelCredit(
 
         generateCreditValue.dataset.credit =
             "";
+
+
+        if (
+            generateButton
+        ) {
+
+            delete generateButton.dataset.modelCredit;
+
+        }
 
 
         return null;
@@ -338,14 +457,9 @@ export function renderModelCredit(
 
 
     /*
-     * Simpan juga pada button agar
-     * mudah diperiksa dari browser.
+     * Simpan pada button untuk debugging
+     * dan module request bila diperlukan.
      */
-
-    const {
-        generateButton
-    } = elements();
-
 
     if (
         generateButton
@@ -365,6 +479,289 @@ export function renderModelCredit(
 
 
 /* =========================================================
+   RENDER ACCOUNT CREDIT
+   ---------------------------------------------------------
+   Target:
+       #creditBadge
+
+   SOURCE:
+       profiles.credits
+
+   PENTING:
+   Fungsi ini TIDAK membaca current model.
+========================================================= */
+
+export function renderCreditBadge(
+    profile = getCurrentProfile()
+) {
+
+    const {
+        creditBadge
+    } = elements();
+
+
+    if (
+        !creditBadge
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][Generate UI] #creditBadge tidak ditemukan."
+        );
+
+        return null;
+
+    }
+
+
+    /*
+     * Profile harus berasal dari
+     * generate-auth.js / state.
+     */
+
+    const source =
+        profile;
+
+
+    const credits =
+        normalizeAccountCredit(
+            source
+        );
+
+
+    /*
+     * Data tidak tersedia.
+     */
+
+    if (
+        credits === null
+    ) {
+
+        creditBadge.textContent =
+            "Credit: -";
+
+        creditBadge.hidden =
+            false;
+
+        creditBadge.style.display =
+            "";
+
+        creditBadge.style.visibility =
+            "visible";
+
+        creditBadge.style.opacity =
+            "1";
+
+        delete creditBadge.dataset.credit;
+
+        return null;
+
+    }
+
+
+    /*
+     * Credit numeric.
+     *
+     * 0 tetap ditampilkan.
+     */
+
+    if (
+        typeof credits ===
+            "number"
+    ) {
+
+        creditBadge.textContent =
+            `Credit: ${formatNumber(
+                credits
+            )}`;
+
+        creditBadge.dataset.credit =
+            String(
+                credits
+            );
+
+    } else {
+
+        creditBadge.textContent =
+            `Credit: ${safeString(
+                credits
+            )}`;
+
+        creditBadge.dataset.credit =
+            String(
+                credits
+            );
+
+    }
+
+
+    /*
+     * WAJIB terlihat.
+     */
+
+    creditBadge.hidden =
+        false;
+
+    creditBadge.style.display =
+        "";
+
+    creditBadge.style.visibility =
+        "visible";
+
+    creditBadge.style.opacity =
+        "1";
+
+
+    return credits;
+
+}
+
+
+/* =========================================================
+   ROLE BADGE
+========================================================= */
+
+export function renderRoleBadge(
+    profile = getCurrentProfile()
+) {
+
+    const {
+        roleBadge
+    } = elements();
+
+
+    if (
+        !roleBadge
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][Generate UI] #roleBadge tidak ditemukan."
+        );
+
+        return null;
+
+    }
+
+
+    const role =
+        safeString(
+            profile?.role
+        ).toUpperCase();
+
+
+    if (
+        !role
+    ) {
+
+        roleBadge.textContent =
+            "-";
+
+        roleBadge.hidden =
+            false;
+
+        roleBadge.style.display =
+            "";
+
+        delete roleBadge.dataset.role;
+
+        return null;
+
+    }
+
+
+    roleBadge.textContent =
+        role;
+
+    roleBadge.hidden =
+        false;
+
+    roleBadge.style.display =
+        "";
+
+    roleBadge.style.visibility =
+        "visible";
+
+    roleBadge.style.opacity =
+        "1";
+
+    roleBadge.dataset.role =
+        role.toLowerCase();
+
+
+    return role;
+
+}
+
+
+/* =========================================================
+   AUTH BADGES
+   ---------------------------------------------------------
+   Satu pintu untuk role + account credit.
+
+   TIDAK PERNAH:
+   - mengambil credit model
+   - mengambil credit dari localStorage
+   - mengambil credit dari navigation
+========================================================= */
+
+export function renderAuthBadges(
+    profile = getCurrentProfile()
+) {
+
+    if (
+        !profile ||
+        typeof profile !==
+            "object"
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate UI] Profile tidak tersedia untuk auth badge."
+        );
+
+        /*
+         * Jangan mengarang angka.
+         */
+
+        renderRoleBadge(
+            null
+        );
+
+        renderCreditBadge(
+            null
+        );
+
+        return null;
+
+    }
+
+
+    renderRoleBadge(
+        profile
+    );
+
+
+    renderCreditBadge(
+        profile
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate UI] Auth badges rendered:",
+        {
+            role:
+                profile.role,
+
+            credits:
+                profile.credits
+        }
+    );
+
+
+    return profile;
+
+}
+
+
+/* =========================================================
    STATUS
 ========================================================= */
 
@@ -378,7 +775,9 @@ export function showStatus(
     } = elements();
 
 
-    if (!status) {
+    if (
+        !status
+    ) {
 
         return;
 
@@ -411,7 +810,9 @@ export function hideStatus() {
     } = elements();
 
 
-    if (!status) {
+    if (
+        !status
+    ) {
 
         return;
 
@@ -595,11 +996,11 @@ export function setLoading(
 
 
         /*
-         * Jangan menggunakan:
+         * JANGAN menggunakan:
          *
          * generateButton.textContent = ...
          *
-         * karena itu akan menghapus
+         * karena akan menghapus
          * #generateCreditValue.
          */
 
@@ -638,7 +1039,8 @@ export function setLoading(
 
 
         /*
-         * Credit model tetap render.
+         * Model credit harus tetap ada
+         * selama loading.
          */
 
         renderModelCredit(
@@ -1054,8 +1456,6 @@ export function renderModelHeader(
 
 /* =========================================================
    RESULT
-   ---------------------------------------------------------
-   Generate page tidak menampilkan video.
 ========================================================= */
 
 export function hideResult() {
@@ -1168,226 +1568,6 @@ export function renderResult(
             []
 
     };
-
-}
-
-
-/* =========================================================
-   PROFILE NORMALIZER
-========================================================= */
-
-function normalizeProfile(
-    profile
-) {
-
-    if (
-        !profile ||
-        typeof profile !==
-            "object"
-    ) {
-
-        return null;
-
-    }
-
-
-    const role =
-        safeString(
-            profile.role
-        ).toUpperCase();
-
-
-    let credits =
-        null;
-
-
-    if (
-        profile.credits !== null &&
-        profile.credits !== undefined &&
-        profile.credits !== ""
-    ) {
-
-        const numeric =
-            Number(
-                profile.credits
-            );
-
-
-        credits =
-            Number.isFinite(
-                numeric
-            )
-                ? numeric
-                : profile.credits;
-
-    }
-
-
-    return {
-
-        role,
-
-        credits
-
-    };
-
-}
-
-
-/* =========================================================
-   ROLE BADGE
-========================================================= */
-
-export function renderRoleBadge(
-    profile
-) {
-
-    const {
-        roleBadge
-    } = elements();
-
-
-    if (
-        !roleBadge
-    ) {
-
-        return;
-
-    }
-
-
-    const source =
-        profile ||
-        getCurrentProfile();
-
-
-    const normalized =
-        normalizeProfile(
-            source
-        );
-
-
-    const role =
-        normalized?.role ||
-        "";
-
-
-    roleBadge.textContent =
-        role;
-
-
-    roleBadge.hidden =
-        !role;
-
-
-    if (
-        role
-    ) {
-
-        roleBadge.dataset.role =
-            role.toLowerCase();
-
-    } else {
-
-        delete roleBadge.dataset.role;
-
-    }
-
-}
-
-
-/* =========================================================
-   ACCOUNT CREDIT BADGE
-========================================================= */
-
-export function renderCreditBadge(
-    profile
-) {
-
-    const {
-        creditBadge
-    } = elements();
-
-
-    if (
-        !creditBadge
-    ) {
-
-        return;
-
-    }
-
-
-    const source =
-        profile ||
-        getCurrentProfile();
-
-
-    const normalized =
-        normalizeProfile(
-            source
-        );
-
-
-    const credits =
-        normalized?.credits;
-
-
-    if (
-        credits === null ||
-        credits === undefined ||
-        credits === ""
-    ) {
-
-        creditBadge.textContent =
-            "";
-
-        creditBadge.hidden =
-            true;
-
-        return;
-
-    }
-
-
-    creditBadge.textContent =
-        typeof credits === "number"
-
-            ? `Credit: ${formatNumber(credits)}`
-
-            : `Credit: ${safeString(credits)}`;
-
-
-    creditBadge.hidden =
-        false;
-
-}
-
-
-/* =========================================================
-   AUTH BADGES
-========================================================= */
-
-export function renderAuthBadges(
-    profile
-) {
-
-    const source =
-        profile ||
-        getCurrentProfile();
-
-
-    renderRoleBadge(
-        source
-    );
-
-
-    renderCreditBadge(
-        source
-    );
-
-
-    return source || null;
 
 }
 
@@ -1568,10 +1748,19 @@ export function resetUI() {
     );
 
 
+    /*
+     * Account badge:
+     * selalu menggunakan profile saat ini.
+     */
+
     renderAuthBadges(
         getCurrentProfile()
     );
 
+
+    /*
+     * Model header + model credit.
+     */
 
     renderModelHeader(
         getCurrentModel()
@@ -1741,6 +1930,11 @@ export function showReady(
     );
 
 
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
     renderModelCredit(
         getCurrentModel()
     );
@@ -1788,6 +1982,20 @@ export function finishRequest() {
     );
 
 
+    /*
+     * Render account credit dari profile
+     * yang saat ini ada di state.
+     */
+
+    renderAuthBadges(
+        getCurrentProfile()
+    );
+
+
+    /*
+     * Render model credit secara terpisah.
+     */
+
     renderModelCredit(
         getCurrentModel()
     );
@@ -1829,6 +2037,12 @@ export const generateUI =
 
         getModelCreditCost,
 
+        renderRoleBadge,
+
+        renderCreditBadge,
+
+        renderAuthBadges,
+
         setLoading,
 
         enableGeneration,
@@ -1844,12 +2058,6 @@ export const generateUI =
         showResult,
 
         renderResult,
-
-        renderRoleBadge,
-
-        renderCreditBadge,
-
-        renderAuthBadges,
 
         showGenerateCard,
 
