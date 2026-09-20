@@ -31,8 +31,10 @@
    - ADMIN
    - OWNER
 
-   Status valid:
-   - active
+   Status:
+   - active jika kolom tersedia
+   - jika kolom status tidak tersedia, profile tetap
+     dianggap valid selama profile + role valid
 ========================================================= */
 
 import {
@@ -265,6 +267,23 @@ function createSupabaseClient() {
 
 
 /* =========================================================
+   CHECK VALID SUPABASE CLIENT
+========================================================= */
+
+function isValidSupabaseClient(
+    client
+) {
+
+    return Boolean(
+        client &&
+        client.auth &&
+        typeof client.auth.getSession ===
+            "function"
+    );
+}
+
+
+/* =========================================================
    LOAD SUPABASE
 ========================================================= */
 
@@ -273,19 +292,22 @@ export async function loadSupabase() {
     const existingClient =
         getSupabaseClient();
 
-    if (existingClient) {
+    if (
+        isValidSupabaseClient(
+            existingClient
+        )
+    ) {
         return existingClient;
     }
 
     /*
-     * Prioritaskan client global yang mungkin
-     * sudah dibuat oleh modul lain.
+     * Prioritaskan client global yang sudah
+     * dibuat navigation atau modul lain.
      */
     if (
-        window.GENZ_SUPABASE &&
-        typeof window.GENZ_SUPABASE.auth
-            ?.getSession ===
-            "function"
+        isValidSupabaseClient(
+            window.GENZ_SUPABASE
+        )
     ) {
 
         setSupabaseClient(
@@ -299,10 +321,9 @@ export async function loadSupabase() {
     }
 
     if (
-        window.supabaseClient &&
-        typeof window.supabaseClient.auth
-            ?.getSession ===
-            "function"
+        isValidSupabaseClient(
+            window.supabaseClient
+        )
     ) {
 
         setSupabaseClient(
@@ -316,7 +337,8 @@ export async function loadSupabase() {
     }
 
     /*
-     * Pastikan library Supabase tersedia.
+     * window.supabase biasanya adalah
+     * library Supabase, BUKAN client.
      */
     if (
         !window.supabase ||
@@ -330,9 +352,7 @@ export async function loadSupabase() {
         createSupabaseClient();
 
     /*
-     * Simpan satu client saja.
-     * Ini penting agar session tidak dibuat
-     * ulang oleh setiap modul.
+     * Simpan satu client global.
      */
     setSupabaseClient(
         client
@@ -357,8 +377,11 @@ async function getCurrentSession() {
     const client =
         getSupabaseClient();
 
-    if (!client) {
-
+    if (
+        !isValidSupabaseClient(
+            client
+        )
+    ) {
         throw new Error(
             "Supabase client belum tersedia."
         );
@@ -401,8 +424,11 @@ export async function loadCurrentUser() {
     const client =
         getSupabaseClient();
 
-    if (!client) {
-
+    if (
+        !isValidSupabaseClient(
+            client
+        )
+    ) {
         throw new Error(
             "Supabase client belum tersedia."
         );
@@ -411,10 +437,6 @@ export async function loadCurrentUser() {
     const session =
         await getCurrentSession();
 
-    /*
-     * Validasi ulang user menggunakan access token.
-     * Jangan hanya percaya object session di browser.
-     */
     const {
         data,
         error
@@ -441,10 +463,6 @@ export async function loadCurrentUser() {
         );
     }
 
-    /*
-     * Pastikan user dari Auth sama dengan
-     * user yang berada pada session.
-     */
     if (
         data.user.id !==
         session.user.id
@@ -520,10 +538,6 @@ function validateProfile(
         );
     }
 
-    /*
-     * profiles.id harus sama dengan
-     * auth.users.id.
-     */
     if (
         String(profile.id || "") !==
         String(user.id)
@@ -535,18 +549,29 @@ function validateProfile(
     }
 
     /*
-     * Generate hanya boleh digunakan oleh
-     * akun yang aktif.
+     * Jika status memang tersedia, akun harus active.
+     *
+     * Jika status tidak tersedia pada schema,
+     * validasi status dilewati. Jangan membuat
+     * user valid gagal login hanya karena schema
+     * tidak memiliki kolom status.
      */
     if (
-        normalizeStatus(
-            profile.status
-        ) !== ACTIVE_STATUS
+        profile.status !== undefined &&
+        profile.status !== null &&
+        String(profile.status).trim() !== ""
     ) {
 
-        throw new Error(
-            "Akun tidak aktif."
-        );
+        if (
+            normalizeStatus(
+                profile.status
+            ) !== ACTIVE_STATUS
+        ) {
+
+            throw new Error(
+                "Akun tidak aktif."
+            );
+        }
     }
 
     const role =
@@ -595,8 +620,9 @@ function updateAuthBadges(
     if (roleBadge) {
 
         roleBadge.textContent =
-            profile.role ||
-            "USER";
+            normalizeRole(
+                profile.role
+            ) || "USER";
     }
 
     if (!creditBadge) {
@@ -606,6 +632,10 @@ function updateAuthBadges(
     const credits =
         profile.credits;
 
+    /*
+     * NULL / undefined berarti data memang
+     * tidak tersedia.
+     */
     if (
         credits === null ||
         credits === undefined ||
@@ -621,6 +651,11 @@ function updateAuthBadges(
     const numericCredits =
         Number(credits);
 
+    /*
+     * Angka 0 tetap ditampilkan sebagai 0.
+     * Jangan menggunakan || 0 karena itu bisa
+     * menyamarkan data database.
+     */
     if (
         Number.isFinite(
             numericCredits
@@ -635,15 +670,128 @@ function updateAuthBadges(
         return;
     }
 
-    /*
-     * Jangan membuat angka palsu jika
-     * database mengirim nilai yang tidak
-     * bisa dikonversi.
-     */
     creditBadge.textContent =
         `Credit: ${String(
             credits
         )}`;
+}
+
+
+/* =========================================================
+   PROFILE SELECTOR
+========================================================= */
+
+function getProfileSelectColumns() {
+
+    return [
+        "id",
+        "email",
+        "name",
+        "role",
+        "credits",
+        "status"
+    ];
+}
+
+
+/* =========================================================
+   LOAD PROFILE WITH STATUS
+========================================================= */
+
+async function queryProfileWithStatus(
+    client,
+    user
+) {
+
+    return await client
+        .from("profiles")
+        .select(
+            getProfileSelectColumns().join(",")
+        )
+        .eq(
+            "id",
+            user.id
+        )
+        .maybeSingle();
+}
+
+
+/* =========================================================
+   LOAD PROFILE WITHOUT STATUS
+========================================================= */
+
+async function queryProfileWithoutStatus(
+    client,
+    user
+) {
+
+    return await client
+        .from("profiles")
+        .select(
+            "id,email,name,role,credits"
+        )
+        .eq(
+            "id",
+            user.id
+        )
+        .maybeSingle();
+}
+
+
+/* =========================================================
+   DETECT MISSING STATUS COLUMN
+========================================================= */
+
+function isMissingStatusColumnError(
+    error
+) {
+
+    if (!error) {
+        return false;
+    }
+
+    const message =
+        String(
+            error.message ||
+            ""
+        ).toLowerCase();
+
+    const details =
+        String(
+            error.details ||
+            ""
+        ).toLowerCase();
+
+    const hint =
+        String(
+            error.hint ||
+            ""
+        ).toLowerCase();
+
+    const combined =
+        `${message} ${details} ${hint}`;
+
+    return (
+        combined.includes(
+            "profiles.status"
+        ) ||
+        (
+            combined.includes(
+                "column"
+            ) &&
+            combined.includes(
+                "status"
+            ) &&
+            (
+                combined.includes(
+                    "does not exist"
+                ) ||
+                combined.includes(
+                    "not exist"
+                )
+            )
+        )
+    );
 }
 
 
@@ -656,8 +804,11 @@ export async function loadProfile() {
     const client =
         getSupabaseClient();
 
-    if (!client) {
-
+    if (
+        !isValidSupabaseClient(
+            client
+        )
+    ) {
         throw new Error(
             "Supabase client belum tersedia."
         );
@@ -676,35 +827,74 @@ export async function loadProfile() {
         );
     }
 
-    const {
-        data,
-        error
-    } =
-        await client
-            .from("profiles")
-            .select(
-                "id,email,name,role,credits,status"
-            )
-            .eq(
-                "id",
-                user.id
-            )
-            .maybeSingle();
+    /*
+     * Jika navigation sudah berhasil membaca
+     * profile untuk user yang sama, gunakan data
+     * tersebut terlebih dahulu.
+     */
+    const navigationProfile =
+        window.GENZ_NAVIGATION_PROFILE;
 
-    if (error) {
+    if (
+        navigationProfile &&
+        String(
+            navigationProfile.id || ""
+        ) === String(user.id)
+    ) {
 
-        throw new Error(
-            "Gagal mengambil profile: " +
-            error.message
+        const validatedNavigationProfile =
+            validateProfile(
+                navigationProfile,
+                user
+            );
+
+        setCurrentProfile(
+            validatedNavigationProfile
         );
+
+        updateAuthBadges(
+            validatedNavigationProfile
+        );
+
+        return validatedNavigationProfile;
     }
 
     /*
-     * Jangan menggunakan {} sebagai profile
-     * fallback. Profile kosong berarti
-     * profile tidak ada.
+     * Query normal dengan status.
      */
-    if (!data) {
+    let result =
+        await queryProfileWithStatus(
+            client,
+            user
+        );
+
+    /*
+     * Jika status tidak ada di schema,
+     * ulangi query tanpa status.
+     */
+    if (
+        result.error &&
+        isMissingStatusColumnError(
+            result.error
+        )
+    ) {
+
+        result =
+            await queryProfileWithoutStatus(
+                client,
+                user
+            );
+    }
+
+    if (result.error) {
+
+        throw new Error(
+            "Gagal mengambil profile: " +
+            result.error.message
+        );
+    }
+
+    if (!result.data) {
 
         await safeSignOut();
 
@@ -715,7 +905,7 @@ export async function loadProfile() {
 
     const profile =
         validateProfile(
-            data,
+            result.data,
             user
         );
 
@@ -726,6 +916,17 @@ export async function loadProfile() {
     updateAuthBadges(
         profile
     );
+
+    /*
+     * Sinkronkan juga ke global navigation
+     * agar modul lain mendapatkan profile yang
+     * sama dan tidak membuat asumsi berbeda.
+     */
+    window.GENZ_NAVIGATION_PROFILE =
+        profile;
+
+    window.GENZ_CURRENT_PROFILE =
+        profile;
 
     return profile;
 }
@@ -740,8 +941,11 @@ export async function getAccessToken() {
     const client =
         getSupabaseClient();
 
-    if (!client) {
-
+    if (
+        !isValidSupabaseClient(
+            client
+        )
+    ) {
         throw new Error(
             "Supabase client belum tersedia."
         );
@@ -773,35 +977,99 @@ export async function getAccessToken() {
 
 export async function ensureAuthenticated() {
 
-    const user =
-        getCurrentUser();
-
-    const profile =
-        getCurrentProfile();
-
-    if (
-        user &&
-        profile
-    ) {
-        return {
-            user,
-            profile
-        };
-    }
-
+    /*
+     * Pastikan shared client tersedia.
+     */
     await loadSupabase();
 
-    const currentUser =
-        getCurrentUser() ||
-        await loadCurrentUser();
+    let user =
+        getCurrentUser();
 
-    const currentProfile =
-        getCurrentProfile() ||
-        await loadProfile();
+    /*
+     * Jika state lokal kosong tetapi navigation
+     * sudah membaca user, gunakan global user.
+     */
+    if (
+        !user &&
+        window.GENZ_NAVIGATION_USER
+    ) {
+
+        user =
+            window.GENZ_NAVIGATION_USER;
+
+        setCurrentUser(
+            user
+        );
+    }
+
+    /*
+     * Jika tetap belum ada, baca langsung
+     * dari Supabase Auth.
+     */
+    if (!user) {
+
+        user =
+            await loadCurrentUser();
+    }
+
+    let profile =
+        getCurrentProfile();
+
+    /*
+     * Gunakan profile dari navigation jika ada.
+     */
+    if (
+        !profile &&
+        window.GENZ_NAVIGATION_PROFILE
+    ) {
+
+        if (
+            String(
+                window.GENZ_NAVIGATION_PROFILE.id ||
+                ""
+            ) ===
+            String(
+                user.id
+            )
+        ) {
+
+            profile =
+                validateProfile(
+                    window.GENZ_NAVIGATION_PROFILE,
+                    user
+                );
+
+            setCurrentProfile(
+                profile
+            );
+
+            updateAuthBadges(
+                profile
+            );
+        }
+    }
+
+    /*
+     * Jika profile belum ada, ambil dari
+     * Supabase profiles.
+     */
+    if (!profile) {
+
+        profile =
+            await loadProfile();
+    }
+
+    /*
+     * Pastikan badge selalu diperbarui
+     * berdasarkan data database terbaru.
+     */
+    updateAuthBadges(
+        profile
+    );
 
     return {
-        user: currentUser,
-        profile: currentProfile
+        user,
+        profile
     };
 }
 
@@ -815,7 +1083,11 @@ export async function safeSignOut() {
     const client =
         getSupabaseClient();
 
-    if (!client) {
+    if (
+        !isValidSupabaseClient(
+            client
+        )
+    ) {
         return;
     }
 
