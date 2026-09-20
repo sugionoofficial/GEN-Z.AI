@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -14,53 +17,73 @@
 
     <title>GEN-Z.AI — Dashboard</title>
 
+
     <!-- =====================================================
-         GEN-Z.AI PREMIUM GLOBAL CSS
-         Semua styling dashboard berasal dari stylesheet global.
-         Jangan tambahkan <style> lokal di file ini.
+         GLOBAL PREMIUM CSS
+         -----------------------------------------------------
+         Dashboard tidak memiliki <style> lokal.
+         Seluruh styling berasal dari stylesheet global.
     ====================================================== -->
+
     <link
         rel="stylesheet"
         href="../assets/css/genz-premium.css"
     >
+
 </head>
+
 
 <body
     class="genz-page"
     data-page="user-dashboard"
+    data-dashboard-shell="true"
 >
 
+
     <!-- =====================================================
-         NAVIGATION
-         navigation.js menangani:
-         - Auth
+         SHARED NAVIGATION
+         -----------------------------------------------------
+         navigation/navigation.js bertanggung jawab terhadap:
+
+         - Session
+         - Profile
          - Role
-         - Navigasi USER / ADMIN / OWNER
+         - USER navigation
+         - ADMIN navigation
+         - OWNER navigation
          - Mobile navigation
+         - Logout
     ====================================================== -->
+
     <div
         id="genz-navigation"
         class="genz-navigation"
     ></div>
 
 
+
     <!-- =====================================================
-         PAGE SHELL
+         DASHBOARD PAGE
     ====================================================== -->
+
     <main
         id="dashboardPage"
         class="genz-dashboard"
     >
 
+
         <!-- =================================================
-             TOP HEADER
+             DASHBOARD HEADER
         ================================================== -->
+
         <header
             id="dashboardHeader"
             class="genz-dashboard-header"
         >
 
-            <div class="genz-dashboard-heading">
+            <div
+                class="genz-dashboard-heading"
+            >
 
                 <div
                     class="genz-eyebrow"
@@ -69,9 +92,11 @@
                     GEN-Z.AI STUDIO
                 </div>
 
+
                 <h1 id="dashboardTitle">
                     Video Dashboard
                 </h1>
+
 
                 <p id="dashboardSubtitle">
                     Koleksi video dan aset kreatif GEN-Z.AI.
@@ -80,35 +105,57 @@
             </div>
 
 
+
             <!-- =============================================
                  HEADER ACTIONS
             ============================================== -->
+
             <div
                 id="dashboardActions"
                 class="genz-dashboard-actions"
             >
 
                 <!-- Generate -->
+
                 <button
                     type="button"
                     id="generateButton"
                     class="genz-btn genz-btn-primary"
                 >
-                    <span aria-hidden="true">＋</span>
-                    <span>Generate</span>
+
+                    <span
+                        aria-hidden="true"
+                    >
+                        ＋
+                    </span>
+
+                    <span>
+                        Generate
+                    </span>
+
                 </button>
 
 
                 <!-- Add Video
-                     Hanya ditampilkan untuk ADMIN / OWNER -->
+                     Hanya ADMIN / OWNER + edit mode -->
+
                 <button
                     type="button"
                     id="addVideoButton"
                     class="genz-btn genz-btn-secondary"
                     hidden
                 >
-                    <span aria-hidden="true">＋</span>
-                    <span>Tambah Video</span>
+
+                    <span
+                        aria-hidden="true"
+                    >
+                        ＋
+                    </span>
+
+                    <span>
+                        Tambah Video
+                    </span>
+
                 </button>
 
             </div>
@@ -116,31 +163,47 @@
         </header>
 
 
+
         <!-- =================================================
              EDIT MODE BANNER
-             Hanya untuk ADMIN / OWNER ketika ?edit=1
+             -------------------------------------------------
+             Ditampilkan hanya ketika:
+
+             ADMIN / OWNER
+             +
+             ?edit=1
         ================================================== -->
+
         <section
             id="editModeBanner"
             class="genz-dashboard-banner"
             hidden
         >
 
-            <div class="genz-dashboard-banner-content">
+            <div
+                class="genz-dashboard-banner-content"
+            >
 
-                <div class="genz-dashboard-banner-icon">
+                <div
+                    class="genz-dashboard-banner-icon"
+                    aria-hidden="true"
+                >
                     ✦
                 </div>
 
+
                 <div>
+
                     <strong>
                         Mode Manajemen Video
                     </strong>
+
 
                     <p>
                         Anda memiliki akses untuk menambah,
                         mengedit, dan menghapus video dashboard.
                     </p>
+
                 </div>
 
             </div>
@@ -157,24 +220,31 @@
         </section>
 
 
+
         <!-- =================================================
-             DASHBOARD STATS
+             DASHBOARD STATISTICS
         ================================================== -->
+
         <section
             id="dashboardStats"
             class="genz-dashboard-stats"
             aria-label="Statistik dashboard"
         >
 
-            <!-- Total -->
+
+            <!-- Total Video -->
+
             <article
                 class="genz-stat-card"
                 data-stat="total"
             >
 
-                <span class="genz-stat-label">
+                <span
+                    class="genz-stat-label"
+                >
                     Total Video
                 </span>
+
 
                 <strong
                     id="totalVideoCount"
@@ -186,15 +256,20 @@
             </article>
 
 
-            <!-- Active -->
+
+            <!-- Active Video -->
+
             <article
                 class="genz-stat-card"
                 data-stat="active"
             >
 
-                <span class="genz-stat-label">
+                <span
+                    class="genz-stat-label"
+                >
                     Aktif
                 </span>
+
 
                 <strong
                     id="activeVideoCount"
@@ -206,15 +281,20 @@
             </article>
 
 
-            <!-- Categories -->
+
+            <!-- Category -->
+
             <article
                 class="genz-stat-card"
                 data-stat="categories"
             >
 
-                <span class="genz-stat-label">
+                <span
+                    class="genz-stat-label"
+                >
                     Kategori
                 </span>
+
 
                 <strong
                     id="categoryCount"
@@ -228,26 +308,36 @@
         </section>
 
 
+
         <!-- =================================================
              CATEGORY FILTER
         ================================================== -->
+
         <section
             id="categorySection"
             class="genz-dashboard-filters"
             aria-label="Filter video"
         >
 
-            <div class="genz-section-heading">
+            <div
+                class="genz-section-heading"
+            >
 
                 <div>
-                    <span class="genz-eyebrow">
+
+                    <span
+                        class="genz-eyebrow"
+                    >
                         LIBRARY
                     </span>
+
 
                     <h2>
                         Video Collection
                     </h2>
+
                 </div>
+
 
                 <span
                     id="videoResultLabel"
@@ -259,7 +349,10 @@
             </div>
 
 
-            <!-- Filter buttons dibuat oleh dashboard-render.js -->
+            <!--
+                Filter dibuat oleh dashboard-render.js
+            -->
+
             <div
                 id="categoryFilters"
                 class="genz-filter-list"
@@ -270,14 +363,18 @@
         </section>
 
 
+
         <!-- =================================================
-             VIDEO GRID
-             Isi dibuat oleh dashboard-render.js
+             VIDEO SECTION
         ================================================== -->
+
         <section
             id="videoSection"
             class="genz-video-section"
         >
+
+
+            <!-- Video Grid -->
 
             <div
                 id="videoGrid"
@@ -286,7 +383,11 @@
             ></div>
 
 
-            <!-- Loading -->
+
+            <!-- =============================================
+                 LOADING STATE
+            ============================================== -->
+
             <div
                 id="videoLoading"
                 class="genz-dashboard-state"
@@ -297,6 +398,7 @@
                     aria-hidden="true"
                 ></div>
 
+
                 <p>
                     Memuat koleksi video...
                 </p>
@@ -304,7 +406,11 @@
             </div>
 
 
-            <!-- Empty -->
+
+            <!-- =============================================
+                 EMPTY STATE
+            ============================================== -->
+
             <div
                 id="videoEmpty"
                 class="genz-dashboard-state"
@@ -318,9 +424,11 @@
                     ◇
                 </div>
 
+
                 <h3>
                     Belum ada video
                 </h3>
+
 
                 <p>
                     Belum ada video yang tersedia
@@ -330,7 +438,11 @@
             </div>
 
 
-            <!-- Error -->
+
+            <!-- =============================================
+                 ERROR STATE
+            ============================================== -->
+
             <div
                 id="videoError"
                 class="genz-dashboard-state"
@@ -344,14 +456,17 @@
                     !
                 </div>
 
+
                 <h3>
                     Gagal memuat video
                 </h3>
+
 
                 <p id="videoErrorMessage">
                     Terjadi kesalahan saat mengambil
                     data video.
                 </p>
+
 
                 <button
                     type="button"
@@ -368,13 +483,19 @@
     </main>
 
 
+
     <!-- =====================================================
-         VIDEO MODAL
-         Penting:
-         - hidden adalah state awal
-         - tidak boleh otomatis terbuka
-         - dashboard-modal.js mengontrol buka/tutup
+         VIDEO MANAGEMENT MODAL
+         -----------------------------------------------------
+         State awal HARUS:
+
+         hidden
+         aria-hidden="true"
+
+         dashboard-modal.js menjadi satu-satunya pemilik
+         lifecycle modal.
     ====================================================== -->
+
     <div
         id="videoModal"
         class="genz-modal"
@@ -385,25 +506,44 @@
         aria-labelledby="modalTitle"
     >
 
+
+        <!-- Modal Backdrop -->
+
         <div
             class="genz-modal-backdrop"
             data-modal-close="true"
         ></div>
 
 
-        <div class="genz-modal-dialog">
 
-            <!-- Modal Header -->
-            <header class="genz-modal-header">
+        <!-- Modal Dialog -->
+
+        <div
+            class="genz-modal-dialog"
+        >
+
+
+            <!-- =============================================
+                 MODAL HEADER
+            ============================================== -->
+
+            <header
+                class="genz-modal-header"
+            >
 
                 <div>
-                    <span class="genz-eyebrow">
+
+                    <span
+                        class="genz-eyebrow"
+                    >
                         VIDEO MANAGEMENT
                     </span>
+
 
                     <h2 id="modalTitle">
                         Tambah Video
                     </h2>
+
                 </div>
 
 
@@ -419,14 +559,19 @@
             </header>
 
 
-            <!-- =================================================
-                 FORM
-            ================================================== -->
+
+            <!-- =============================================
+                 VIDEO FORM
+            ============================================== -->
+
             <form
                 id="videoForm"
                 class="genz-modal-form"
                 novalidate
             >
+
+
+                <!-- Video ID -->
 
                 <input
                     type="hidden"
@@ -435,12 +580,21 @@
                 >
 
 
-                <!-- Title -->
-                <div class="genz-form-group">
 
-                    <label for="videoTitle">
+                <!-- =========================================
+                     TITLE
+                ========================================== -->
+
+                <div
+                    class="genz-form-group"
+                >
+
+                    <label
+                        for="videoTitle"
+                    >
                         Judul Video
                     </label>
+
 
                     <input
                         type="text"
@@ -454,12 +608,21 @@
                 </div>
 
 
-                <!-- Description -->
-                <div class="genz-form-group">
 
-                    <label for="videoDescription">
+                <!-- =========================================
+                     DESCRIPTION
+                ========================================== -->
+
+                <div
+                    class="genz-form-group"
+                >
+
+                    <label
+                        for="videoDescription"
+                    >
                         Deskripsi
                     </label>
+
 
                     <textarea
                         id="videoDescription"
@@ -471,14 +634,28 @@
                 </div>
 
 
-                <!-- Category -->
-                <div class="genz-form-row">
 
-                    <div class="genz-form-group">
+                <!-- =========================================
+                     CATEGORY + ASPECT RATIO
+                ========================================== -->
 
-                        <label for="videoCategory">
+                <div
+                    class="genz-form-row"
+                >
+
+
+                    <!-- Category -->
+
+                    <div
+                        class="genz-form-group"
+                    >
+
+                        <label
+                            for="videoCategory"
+                        >
                             Kategori
                         </label>
+
 
                         <select
                             id="videoCategory"
@@ -490,33 +667,41 @@
                                 Pilih kategori
                             </option>
 
+
                             <option value="TEXT TO VIDEO">
                                 TEXT TO VIDEO
                             </option>
+
 
                             <option value="IMAGE TO VIDEO">
                                 IMAGE TO VIDEO
                             </option>
 
+
                             <option value="CHARACTER">
                                 CHARACTER
                             </option>
+
 
                             <option value="PRODUCT">
                                 PRODUCT
                             </option>
 
+
                             <option value="FASHION">
                                 FASHION
                             </option>
+
 
                             <option value="CINEMATIC">
                                 CINEMATIC
                             </option>
 
+
                             <option value="SOCIAL MEDIA">
                                 SOCIAL MEDIA
                             </option>
+
 
                             <option value="STORY">
                                 STORY
@@ -527,12 +712,19 @@
                     </div>
 
 
-                    <!-- Aspect Ratio -->
-                    <div class="genz-form-group">
 
-                        <label for="videoAspectRatio">
+                    <!-- Aspect Ratio -->
+
+                    <div
+                        class="genz-form-group"
+                    >
+
+                        <label
+                            for="videoAspectRatio"
+                        >
                             Aspect Ratio
                         </label>
+
 
                         <select
                             id="videoAspectRatio"
@@ -543,13 +735,16 @@
                                 16:9
                             </option>
 
+
                             <option value="9:16">
                                 9:16
                             </option>
 
+
                             <option value="1:1">
                                 1:1
                             </option>
+
 
                             <option value="4:5">
                                 4:5
@@ -562,12 +757,21 @@
                 </div>
 
 
-                <!-- Video File -->
-                <div class="genz-form-group">
 
-                    <label for="videoFile">
+                <!-- =========================================
+                     VIDEO FILE
+                ========================================== -->
+
+                <div
+                    class="genz-form-group"
+                >
+
+                    <label
+                        for="videoFile"
+                    >
                         File Video
                     </label>
+
 
                     <input
                         type="file"
@@ -575,6 +779,7 @@
                         name="videoFile"
                         accept="video/*"
                     >
+
 
                     <small
                         id="currentVideoFile"
@@ -584,12 +789,21 @@
                 </div>
 
 
-                <!-- Thumbnail -->
-                <div class="genz-form-group">
 
-                    <label for="thumbnailFile">
+                <!-- =========================================
+                     THUMBNAIL
+                ========================================== -->
+
+                <div
+                    class="genz-form-group"
+                >
+
+                    <label
+                        for="thumbnailFile"
+                    >
                         Thumbnail
                     </label>
+
 
                     <input
                         type="file"
@@ -597,6 +811,7 @@
                         name="thumbnailFile"
                         accept="image/*"
                     >
+
 
                     <small
                         id="currentThumbnailFile"
@@ -606,14 +821,28 @@
                 </div>
 
 
-                <!-- Sort Order -->
-                <div class="genz-form-row">
 
-                    <div class="genz-form-group">
+                <!-- =========================================
+                     SORT ORDER + ACTIVE
+                ========================================== -->
 
-                        <label for="videoSortOrder">
+                <div
+                    class="genz-form-row"
+                >
+
+
+                    <!-- Sort Order -->
+
+                    <div
+                        class="genz-form-group"
+                    >
+
+                        <label
+                            for="videoSortOrder"
+                        >
                             Urutan
                         </label>
+
 
                         <input
                             type="number"
@@ -627,14 +856,23 @@
                     </div>
 
 
-                    <!-- Active -->
-                    <div class="genz-form-group genz-form-toggle">
 
-                        <label for="videoIsActive">
+                    <!-- Active -->
+
+                    <div
+                        class="genz-form-group genz-form-toggle"
+                    >
+
+                        <label
+                            for="videoIsActive"
+                        >
                             Status Video
                         </label>
 
-                        <label class="genz-toggle">
+
+                        <label
+                            class="genz-toggle"
+                        >
 
                             <input
                                 type="checkbox"
@@ -642,6 +880,7 @@
                                 name="isActive"
                                 checked
                             >
+
 
                             <span>
                                 Aktif
@@ -654,44 +893,64 @@
                 </div>
 
 
-                <!-- Upload Progress -->
+
+                <!-- =========================================
+                     UPLOAD PROGRESS
+                ========================================== -->
+
                 <div
                     id="uploadProgress"
                     class="genz-upload-progress"
                     hidden
                 >
 
-                    <div class="genz-upload-progress-header">
+                    <div
+                        class="genz-upload-progress-header"
+                    >
 
                         <span>
                             Uploading...
                         </span>
 
-                        <strong id="uploadProgressPercent">
+
+                        <strong
+                            id="uploadProgressPercent"
+                        >
                             0%
                         </strong>
 
                     </div>
 
-                    <div class="genz-progress-track">
+
+                    <div
+                        class="genz-progress-track"
+                    >
 
                         <div
                             id="uploadProgressBar"
                             class="genz-progress-bar"
-                            style="width: 0%"
                         ></div>
 
                     </div>
 
-                    <small id="uploadProgressText">
+
+                    <small
+                        id="uploadProgressText"
+                    >
                         Menyiapkan upload...
                     </small>
 
                 </div>
 
 
-                <!-- Form Actions -->
-                <footer class="genz-modal-footer">
+
+                <!-- =========================================
+                     FORM ACTIONS
+                ========================================== -->
+
+                <footer
+                    class="genz-modal-footer"
+                >
 
                     <button
                         type="button"
@@ -700,6 +959,7 @@
                     >
                         Batal
                     </button>
+
 
                     <button
                         type="submit"
@@ -718,9 +978,11 @@
     </div>
 
 
+
     <!-- =====================================================
          TOAST
     ====================================================== -->
+
     <div
         id="dashboardToast"
         class="genz-toast"
@@ -728,75 +990,140 @@
         role="status"
         aria-live="polite"
     >
-        <span id="dashboardToastMessage"></span>
+
+        <span
+            id="dashboardToastMessage"
+        ></span>
+
     </div>
 
 
+
     <!-- =====================================================
-         SUPABASE
-         Satu client untuk seluruh modul.
+         SUPABASE CLIENT
+         -----------------------------------------------------
+         Hanya satu CDN client.
+         Tidak ada module dashboard yang membuat client kedua.
     ====================================================== -->
+
     <script
         src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
     ></script>
 
 
+
     <!-- =====================================================
          GLOBAL CONFIG
     ====================================================== -->
+
     <script
         src="../assets/js/config.js"
     ></script>
 
 
+
     <!-- =====================================================
          SHARED NAVIGATION
+         -----------------------------------------------------
+         Harus dimuat sebelum dashboard-init.
     ====================================================== -->
+
     <script
         src="../navigation/navigation.js"
     ></script>
 
 
+
     <!-- =====================================================
-         DASHBOARD MODULES
-         Urutan sengaja eksplisit.
+         DASHBOARD CONFIG
     ====================================================== -->
 
     <script
         src="./dashboard/dashboard-config.js"
     ></script>
 
+
+
+    <!-- =====================================================
+         DASHBOARD STATE
+    ====================================================== -->
+
     <script
         src="./dashboard/dashboard-state.js"
     ></script>
+
+
+
+    <!-- =====================================================
+         DASHBOARD AUTH
+    ====================================================== -->
 
     <script
         src="./dashboard/dashboard-auth.js"
     ></script>
 
+
+
+    <!-- =====================================================
+         DASHBOARD DATA
+    ====================================================== -->
+
     <script
         src="./dashboard/dashboard-data.js"
     ></script>
+
+
+
+    <!-- =====================================================
+         DASHBOARD RENDER
+    ====================================================== -->
 
     <script
         src="./dashboard/dashboard-render.js"
     ></script>
 
+
+
+    <!-- =====================================================
+         DASHBOARD MODAL
+    ====================================================== -->
+
     <script
         src="./dashboard/dashboard-modal.js"
     ></script>
+
+
+
+    <!-- =====================================================
+         DASHBOARD UPLOAD
+    ====================================================== -->
 
     <script
         src="./dashboard/dashboard-upload.js"
     ></script>
 
+
+
+    <!-- =====================================================
+         DASHBOARD EVENTS
+    ====================================================== -->
+
     <script
         src="./dashboard/dashboard-events.js"
     ></script>
 
+
+
+    <!-- =====================================================
+         DASHBOARD INIT
+         -----------------------------------------------------
+         Harus paling terakhir karena menjadi orchestrator.
+    ====================================================== -->
+
     <script
         src="./dashboard/dashboard-init.js"
     ></script>
+
 
 </body>
 </html>
