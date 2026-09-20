@@ -9,52 +9,54 @@
  * Endpoint:
  *   POST /api/generate
  *
+ * =========================================================
+ *
  * ARSITEKTUR
  *
- *   Request
+ *   Frontend
+ *      ↓
+ *   POST /api/generate
  *      ↓
  *   Supabase Auth
  *      ↓
- *   Supabase models
+ *   MODEL REGISTRY
  *      ↓
- *   models.model_id
+ *   models/<model-folder>
+ *      ├── config.js
+ *      ├── parameters.js
+ *      ├── create-task.js
+ *      └── query-task.js
  *      ↓
- *   Model Adapter
+ *   Optional Supabase admin config
  *      ↓
- *   models.provider_id
- *      ↓
- *   Supabase providers
+ *   Provider
  *      ↓
  *   provider_credentials
- *      ↓
- *   Provider API Key
- *      ↓
- *   Model Adapter
  *      ↓
  *   Provider API
  *      ↓
  *   taskId
  *
- * MODEL SOURCE OF TRUTH:
- *   Supabase -> models
  *
- * PROVIDER SOURCE OF TRUTH:
- *   Supabase -> providers
+ * MODEL SOURCE OF TRUTH
  *
- * CREDENTIAL SOURCE OF TRUTH:
- *   Supabase -> provider_credentials
+ *   Repository model folder
  *
- * MODEL REGISTRY:
- *   Hanya digunakan untuk memetakan:
  *
- *      model_id -> adapter
+ * ADMIN CONFIG SOURCE
  *
- * Registry TIDAK menentukan:
- *   - model yang tersedia
- *   - provider database
- *   - provider credential
- *   - pricing administratif
- *   - status administratif
+ *   Supabase models
+ *
+ *
+ * PROVIDER SOURCE
+ *
+ *   Supabase providers
+ *
+ *
+ * CREDENTIAL SOURCE
+ *
+ *   Supabase provider_credentials
+ *
  *
  * =========================================================
  */
@@ -93,23 +95,16 @@ const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
 
 
 /* =========================================================
-   MODEL ADAPTER REGISTRY
+   MODEL REGISTRY
    ---------------------------------------------------------
-   Registry ini BUKAN daftar model.
- *
- * Supabase models adalah source of truth.
- *
- * Registry hanya menentukan adapter yang digunakan
- * untuk menjalankan model tertentu.
- *
- * ========================================================= */
+   Registry adalah daftar model yang tersedia di repository.
+   ========================================================= */
 
-const MODEL_REGISTRY = Object.freeze({
+const MODEL_REGISTRY = Object.freeze([
 
-    "grok-imagine/image-to-video":
-        grokImagineImageToVideo
+    grokImagineImageToVideo
 
-});
+]);
 
 
 /* =========================================================
@@ -241,7 +236,8 @@ async function supabaseRequest(
         await response.text();
 
 
-    let data = null;
+    let data =
+        null;
 
 
     if (text) {
@@ -326,17 +322,14 @@ async function authenticateUser(
 
     if (!authorization) {
 
-        const error =
+        throw Object.assign(
             new Error(
                 "Authorization header is required"
-            );
-
-
-        error.status =
-            401;
-
-
-        throw error;
+            ),
+            {
+                status: 401
+            }
+        );
 
     }
 
@@ -349,17 +342,14 @@ async function authenticateUser(
 
     if (!match) {
 
-        const error =
+        throw Object.assign(
             new Error(
                 "Invalid Authorization header"
-            );
-
-
-        error.status =
-            401;
-
-
-        throw error;
+            ),
+            {
+                status: 401
+            }
+        );
 
     }
 
@@ -370,17 +360,14 @@ async function authenticateUser(
 
     if (!accessToken) {
 
-        const error =
+        throw Object.assign(
             new Error(
                 "Access token is missing"
-            );
-
-
-        error.status =
-            401;
-
-
-        throw error;
+            ),
+            {
+                status: 401
+            }
+        );
 
     }
 
@@ -412,17 +399,14 @@ async function authenticateUser(
         !user.id
     ) {
 
-        const error =
+        throw Object.assign(
             new Error(
                 "Invalid or expired session"
-            );
-
-
-        error.status =
-            401;
-
-
-        throw error;
+            ),
+            {
+                status: 401
+            }
+        );
 
     }
 
@@ -433,7 +417,7 @@ async function authenticateUser(
 
 
 /* =========================================================
-   REQUEST BODY
+   READ BODY
    ========================================================= */
 
 async function readBody(
@@ -441,8 +425,7 @@ async function readBody(
 ) {
 
     /*
-     * Vercel biasanya sudah
-     * mem-parsing req.body.
+     * Vercel biasanya sudah mem-parsing req.body.
      */
 
     if (
@@ -485,17 +468,14 @@ async function readBody(
 
     } catch {
 
-        const error =
+        throw Object.assign(
             new Error(
                 "Request body must be valid JSON"
-            );
-
-
-        error.status =
-            400;
-
-
-        throw error;
+            ),
+            {
+                status: 400
+            }
+        );
 
     }
 
@@ -503,7 +483,7 @@ async function readBody(
 
 
 /* =========================================================
-   MODEL ID
+   GET MODEL ID
    ========================================================= */
 
 function getModelId(
@@ -526,7 +506,7 @@ function getModelId(
 
 
 /* =========================================================
-   PARAMETERS
+   GET PARAMETERS
    ========================================================= */
 
 function getParameters(
@@ -560,8 +540,9 @@ function getParameters(
 
 
     /*
-     * Kompatibilitas dengan frontend
-     * yang mengirim parameter langsung.
+     * Compatibility fallback.
+     *
+     * Parameter tetap dibatasi.
      */
 
     const parameters = {};
@@ -570,8 +551,6 @@ function getParameters(
     const allowedKeys = [
 
         "image_urls",
-
-        "task_id",
 
         "index",
 
@@ -615,7 +594,7 @@ function getParameters(
 
 
 /* =========================================================
-   MODEL ADAPTER LOOKUP
+   MODEL REGISTRY LOOKUP
    ========================================================= */
 
 function getModelAdapter(
@@ -629,11 +608,31 @@ function getModelAdapter(
     }
 
 
+    const normalizedId =
+        String(
+            modelId
+        ).trim();
+
+
     return (
 
-        MODEL_REGISTRY[
-            modelId
-        ] ||
+        MODEL_REGISTRY.find(
+            adapter => {
+
+                const adapterId =
+                    String(
+                        adapter?.config?.id ||
+                        ""
+                    ).trim();
+
+
+                return (
+                    adapterId ===
+                    normalizedId
+                );
+
+            }
+        ) ||
 
         null
 
@@ -643,13 +642,11 @@ function getModelAdapter(
 
 
 /* =========================================================
-   LOAD MODEL FROM SUPABASE
+   LOAD OPTIONAL DATABASE MODEL
    ---------------------------------------------------------
-   models adalah SOURCE OF TRUTH.
- *
- * Model wajib ada di database.
- *
- * ========================================================= */
+   Supabase models BUKAN source of truth model.
+   Row ini hanya konfigurasi administratif.
+   ========================================================= */
 
 async function loadDatabaseModel(
     modelId
@@ -660,9 +657,7 @@ async function loadDatabaseModel(
         !SUPABASE_SERVICE_ROLE_KEY
     ) {
 
-        throw new Error(
-            "Supabase configuration is not available"
-        );
+        return null;
 
     }
 
@@ -684,11 +679,6 @@ async function loadDatabaseModel(
     );
 
 
-    /*
-     * URLSearchParams melakukan
-     * encoding sendiri.
-     */
-
     params.set(
         "model_id",
         `eq.${modelId}`
@@ -701,39 +691,55 @@ async function loadDatabaseModel(
     );
 
 
-    const rows =
-        await supabaseRequest(
-            `/rest/v1/models?${params.toString()}`,
-            {
-                method:
-                    "GET"
-            }
+    try {
+
+        const rows =
+            await supabaseRequest(
+                `/rest/v1/models?${params.toString()}`,
+                {
+                    method:
+                        "GET"
+                }
+            );
+
+
+        if (
+            !Array.isArray(
+                rows
+            ) ||
+            !rows.length
+        ) {
+
+            return null;
+
+        }
+
+
+        return rows[0];
+
+    } catch (error) {
+
+        /*
+         * Admin config gagal dibaca tidak boleh
+         * mengubah model repository menjadi
+         * "Model not found".
+         */
+
+        console.warn(
+            "[generate] Failed loading optional admin model config:",
+            error
         );
 
-
-    if (
-        !Array.isArray(
-            rows
-        ) ||
-        !rows.length
-    ) {
 
         return null;
 
     }
-
-
-    return rows[0];
 
 }
 
 
 /* =========================================================
    PROVIDER LOOKUP BY DATABASE ID
-   ---------------------------------------------------------
-   models.provider_id
-          ↓
-   providers.id
    ========================================================= */
 
 async function loadProviderByDatabaseId(
@@ -799,47 +805,228 @@ async function loadProviderByDatabaseId(
 
 
 /* =========================================================
-   PROVIDER RESOLUTION
+   PROVIDER LOOKUP BY PROVIDER CODE
    ---------------------------------------------------------
-   Provider WAJIB mengikuti:
-
-       models.provider_id
-              ↓
-       providers.id
-
-   Tidak ada fallback ke provider dari
-   model folder.
-
+   Digunakan ketika model belum mempunyai row
+   administratif di tabel models.
    ========================================================= */
 
-async function resolveProvider(
-    databaseModel
+async function loadProviderByCode(
+    providerCode
 ) {
 
-    if (
-        !databaseModel?.provider_id
-    ) {
+    if (!providerCode) {
 
-        return {
-
-            provider:
-                null,
-
-            error:
-                "Model provider is not configured"
-
-        };
+        return null;
 
     }
 
 
-    const provider =
-        await loadProviderByDatabaseId(
-            databaseModel.provider_id
+    const normalizedCode =
+        String(
+            providerCode
+        ).trim();
+
+
+    if (!normalizedCode) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Primary lookup:
+     *
+     * providers.provider_id
+     */
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "select",
+        "*"
+    );
+
+
+    params.set(
+        "provider_id",
+        `eq.${normalizedCode}`
+    );
+
+
+    params.set(
+        "limit",
+        "1"
+    );
+
+
+    const providers =
+        await supabaseRequest(
+            `/rest/v1/providers?${params.toString()}`,
+            {
+                method:
+                    "GET"
+            }
         );
 
 
-    if (!provider) {
+    if (
+        Array.isArray(
+            providers
+        ) &&
+        providers.length
+    ) {
+
+        return providers[0];
+
+    }
+
+
+    /*
+     * Compatibility fallback:
+     *
+     * provider_name
+     */
+
+    const nameParams =
+        new URLSearchParams();
+
+
+    nameParams.set(
+        "select",
+        "*"
+    );
+
+
+    nameParams.set(
+        "provider_name",
+        `eq.${normalizedCode}`
+    );
+
+
+    nameParams.set(
+        "limit",
+        "1"
+    );
+
+
+    const namedProviders =
+        await supabaseRequest(
+            `/rest/v1/providers?${nameParams.toString()}`,
+            {
+                method:
+                    "GET"
+            }
+        );
+
+
+    if (
+        Array.isArray(
+            namedProviders
+        ) &&
+        namedProviders.length
+    ) {
+
+        return namedProviders[0];
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   RESOLVE PROVIDER
+   ---------------------------------------------------------
+   Prioritas:
+ *
+ *   1. models.provider_id
+ *   2. model config providerId
+ *
+ * Model folder tetap menjadi fallback agar
+ * model repository bisa berjalan walaupun row
+ * models belum dibuat.
+ * ========================================================= */
+
+async function resolveProvider(
+    adapter,
+    databaseModel
+) {
+
+    /*
+     * =====================================================
+     * PRIORITAS 1
+     * Supabase models.provider_id
+     * =====================================================
+     */
+
+    const databaseProviderId =
+        databaseModel?.provider_id ||
+        null;
+
+
+    if (
+        databaseProviderId
+    ) {
+
+        const provider =
+            await loadProviderByDatabaseId(
+                databaseProviderId
+            );
+
+
+        if (provider) {
+
+            return {
+                provider,
+                error:
+                    null
+            };
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * PRIORITAS 2
+     * Model folder config.js
+     * =====================================================
+     */
+
+    const registryProviderId =
+        String(
+            adapter?.config?.providerId ||
+            ""
+        ).trim();
+
+
+    if (
+        registryProviderId
+    ) {
+
+        const provider =
+            await loadProviderByCode(
+                registryProviderId
+            );
+
+
+        if (provider) {
+
+            return {
+                provider,
+                error:
+                    null
+            };
+
+        }
+
 
         return {
 
@@ -851,52 +1038,8 @@ async function resolveProvider(
 
             details: {
 
-                provider_database_id:
-                    databaseModel.provider_id
-
-            }
-
-        };
-
-    }
-
-
-    const providerStatus =
-        String(
-            provider.status ||
-            ""
-        )
-            .trim()
-            .toLowerCase();
-
-
-    if (
-        providerStatus !==
-        "active"
-    ) {
-
-        return {
-
-            provider:
-                null,
-
-            error:
-                "Provider is not active",
-
-            details: {
-
                 provider_id:
-                    provider.provider_id ||
-                    null,
-
-                provider_name:
-                    provider.provider_name ||
-                    provider.name ||
-                    null,
-
-                status:
-                    provider.status ||
-                    null
+                    registryProviderId
 
             }
 
@@ -907,10 +1050,11 @@ async function resolveProvider(
 
     return {
 
-        provider,
+        provider:
+            null,
 
         error:
-            null
+            "Model provider is not configured"
 
     };
 
@@ -918,7 +1062,7 @@ async function resolveProvider(
 
 
 /* =========================================================
-   CREDENTIAL KEY
+   ENCRYPTION KEY
    ========================================================= */
 
 function getEncryptionKey() {
@@ -975,12 +1119,16 @@ function getEncryptionKey() {
         }
 
     } catch {
-        /* fallback */
+
+        /*
+         * fallback
+         */
+
     }
 
 
     /*
-     * Fallback deterministic SHA-256.
+     * Deterministic SHA-256 fallback.
      */
 
     return crypto
@@ -1036,7 +1184,11 @@ function decodeBuffer(
             );
 
         } catch {
-            /* fallback */
+
+            /*
+             * fallback
+             */
+
         }
 
     }
@@ -1064,7 +1216,11 @@ function decodeBuffer(
         }
 
     } catch {
-        /* fallback */
+
+        /*
+         * fallback
+         */
+
     }
 
 
@@ -1222,7 +1378,11 @@ function decryptCredential(
             }
 
         } catch {
-            /* fallback */
+
+            /*
+             * fallback
+             */
+
         }
 
     }
@@ -1276,9 +1436,11 @@ function decryptCredential(
                 );
 
             } catch {
+
                 /*
                  * Bukan encrypted format.
                  */
+
             }
 
         }
@@ -1287,7 +1449,7 @@ function decryptCredential(
 
 
     /*
-     * Fallback plaintext.
+     * Plaintext fallback.
      */
 
     return text;
@@ -1297,9 +1459,6 @@ function decryptCredential(
 
 /* =========================================================
    LOAD PROVIDER API KEY
-   ---------------------------------------------------------
-   provider_credentials.provider_id
-   menggunakan provider.provider_id.
    ========================================================= */
 
 async function loadProviderApiKey(
@@ -1397,7 +1556,7 @@ async function loadProviderApiKey(
 
 
     /*
-     * Cari field API key.
+     * Cari field credential.
      */
 
     const encryptedApiKey =
@@ -1501,7 +1660,7 @@ function normalizeArray(
 
 
         /*
-         * PostgreSQL array.
+         * PostgreSQL array:
          *
          * {"2:3","9:16"}
          */
@@ -1512,10 +1671,12 @@ function normalizeArray(
         ) {
 
             const content =
-                trimmed.slice(
-                    1,
-                    -1
-                ).trim();
+                trimmed
+                    .slice(
+                        1,
+                        -1
+                    )
+                    .trim();
 
 
             if (!content) {
@@ -1575,14 +1736,18 @@ function normalizeArray(
                 }
 
             } catch {
-                /* fallback */
+
+                /*
+                 * fallback
+                 */
+
             }
 
         }
 
 
         /*
-         * Comma separated.
+         * CSV.
          */
 
         return [
@@ -1607,6 +1772,9 @@ function normalizeArray(
 
 /* =========================================================
    DATABASE PARAMETER RESTRICTION
+   ---------------------------------------------------------
+   Supabase hanya boleh memberikan restriction tambahan.
+   Technical source tetap parameters.js.
    ========================================================= */
 
 function validateDatabaseRestrictions(
@@ -1615,6 +1783,18 @@ function validateDatabaseRestrictions(
 ) {
 
     const errors = [];
+
+
+    /*
+     * Jika tidak ada row admin,
+     * tidak ada restriction database.
+     */
+
+    if (!model) {
+
+        return errors;
+
+    }
 
 
     /*
@@ -1892,6 +2072,9 @@ function validateAdapterInput(
 
 /* =========================================================
    SANITIZE PARAMETERS
+   ---------------------------------------------------------
+   task_id SENGAJA tidak termasuk.
+   task_id adalah hasil createTask, bukan input user.
    ========================================================= */
 
 function sanitizeParameters(
@@ -1901,8 +2084,6 @@ function sanitizeParameters(
     const allowedKeys = [
 
         "image_urls",
-
-        "task_id",
 
         "index",
 
@@ -1958,9 +2139,9 @@ export default async function handler(
 ) {
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * METHOD
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     if (
@@ -1984,9 +2165,9 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
-     * ENVIRONMENT
-     * -------------------------------------------------------
+     * =====================================================
+     * SERVER CONFIG
+     * =====================================================
      */
 
     if (
@@ -2004,10 +2185,10 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * AUTH
-     * -------------------------------------------------------
- */
+     * =====================================================
+     */
 
     let user;
 
@@ -2025,6 +2206,7 @@ export default async function handler(
             res,
             error.status ||
                 401,
+
             error.message ||
                 "Unauthorized"
         );
@@ -2033,9 +2215,9 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * BODY
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     let body;
@@ -2054,6 +2236,7 @@ export default async function handler(
             res,
             error.status ||
                 400,
+
             error.message ||
                 "Invalid request body"
         );
@@ -2062,9 +2245,9 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * MODEL ID
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     const modelId =
@@ -2085,104 +2268,15 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
-     * DATABASE MODEL
-     * -------------------------------------------------------
+     * =====================================================
+     * MODEL REGISTRY
+     * =====================================================
      *
-     * MODEL WAJIB ADA DI SUPABASE.
-     */
-
-    let databaseModel;
-
-
-    try {
-
-        databaseModel =
-            await loadDatabaseModel(
-                modelId
-            );
-
-    } catch (error) {
-
-        console.error(
-            "[generate] Failed to load model from Supabase:",
-            error
-        );
-
-
-        return failure(
-            res,
-            500,
-            "Failed to load model configuration"
-        );
-
-    }
-
-
-    /*
-     * Model tidak ditemukan.
-     */
-
-    if (!databaseModel) {
-
-        return failure(
-            res,
-            404,
-            "Model not found",
-            {
-                model_id:
-                    modelId
-            }
-        );
-
-    }
-
-
-    /*
-     * -------------------------------------------------------
-     * MODEL STATUS
-     * -------------------------------------------------------
-     */
-
-    const databaseStatus =
-        String(
-            databaseModel.status ||
-            ""
-        )
-            .trim()
-            .toLowerCase();
-
-
-    if (
-        databaseStatus !==
-        "active"
-    ) {
-
-        return failure(
-            res,
-            409,
-            "Model is not active",
-            {
-                model_id:
-                    modelId,
-
-                status:
-                    databaseModel.status ||
-                    null
-            }
-        );
-
-    }
-
-
-    /*
-     * -------------------------------------------------------
-     * MODEL ADAPTER
-     * -------------------------------------------------------
+     * INI TITIK PENTING.
      *
-     * Supabase menentukan model.
+     * Model dicari dari repository,
+     * bukan dari Supabase models.
      *
-     * Registry menentukan adapter.
      */
 
     const adapter =
@@ -2196,10 +2290,15 @@ export default async function handler(
         return failure(
             res,
             404,
-            "Model adapter is not registered",
+            "Model not found",
             {
+
                 model_id:
-                    modelId
+                    modelId,
+
+                source:
+                    "repository"
+
             }
         );
 
@@ -2207,20 +2306,15 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
-     * MODEL FOLDER CONFIG
-     * -------------------------------------------------------
+     * =====================================================
+     * MODEL CONFIG
+     * =====================================================
      */
 
     const modelConfig =
         adapter.config ||
         {};
 
-
-    /*
-     * Pastikan adapter memang untuk
-     * model yang diminta.
-     */
 
     const adapterModelId =
         String(
@@ -2230,9 +2324,27 @@ export default async function handler(
 
 
     if (
-        adapterModelId &&
+        !adapterModelId
+    ) {
+
+        return failure(
+            res,
+            500,
+            "Model configuration is invalid",
+            {
+
+                model_id:
+                    modelId
+
+            }
+        );
+
+    }
+
+
+    if (
         adapterModelId !==
-            modelId
+        modelId
     ) {
 
         return failure(
@@ -2240,11 +2352,13 @@ export default async function handler(
             500,
             "Model adapter ID mismatch",
             {
+
                 requested_model:
                     modelId,
 
                 adapter_model:
                     adapterModelId
+
             }
         );
 
@@ -2252,9 +2366,100 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
+     * OPTIONAL ADMIN CONFIG
+     * =====================================================
+     *
+     * Tidak wajib.
+     *
+     * Model repo tetap valid tanpa row database.
+     *
+     */
+
+    let databaseModel =
+        null;
+
+
+    try {
+
+        databaseModel =
+            await loadDatabaseModel(
+                modelId
+            );
+
+    } catch (error) {
+
+        /*
+         * Jangan gagal hanya karena konfigurasi
+         * administratif tidak tersedia.
+         */
+
+        console.warn(
+            "[generate] Optional admin model config unavailable:",
+            error
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * MODEL STATUS
+     * =====================================================
+     *
+     * Tanpa row:
+     *
+     *   active
+     *
+     * Dengan row:
+     *
+     *   status database dihormati.
+     *
+     */
+
+    if (
+        databaseModel
+    ) {
+
+        const status =
+            String(
+                databaseModel.status ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+
+        if (
+            status &&
+            status !==
+                "active"
+        ) {
+
+            return failure(
+                res,
+                409,
+                "Model is not active",
+                {
+
+                    model_id:
+                        modelId,
+
+                    status:
+                        databaseModel.status
+
+                }
+            );
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
      * PARAMETERS
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     const rawParameters =
@@ -2270,9 +2475,9 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * DATABASE RESTRICTIONS
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     const databaseErrors =
@@ -2291,8 +2496,10 @@ export default async function handler(
             422,
             "Invalid model parameters",
             {
+
                 errors:
                     databaseErrors
+
             }
         );
 
@@ -2300,9 +2507,9 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * ADAPTER VALIDATION
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     let adapterErrors;
@@ -2329,10 +2536,14 @@ export default async function handler(
             422,
             "Invalid model parameters",
             {
+
                 errors: [
+
                     error.message ||
                         "Invalid model parameters"
+
                 ]
+
             }
         );
 
@@ -2348,8 +2559,10 @@ export default async function handler(
             422,
             "Invalid model parameters",
             {
+
                 errors:
                     adapterErrors
+
             }
         );
 
@@ -2357,15 +2570,18 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * PROVIDER
-     * -------------------------------------------------------
+     * =====================================================
      *
-     * Provider HARUS berasal dari:
+     * Prioritas:
      *
-     * models.provider_id
-     *        ↓
-     * providers.id
+     *   models.provider_id
+     *
+     * atau:
+     *
+     *   config.providerId
+     *
      */
 
     let providerResult;
@@ -2375,6 +2591,7 @@ export default async function handler(
 
         providerResult =
             await resolveProvider(
+                adapter,
                 databaseModel
             );
 
@@ -2399,15 +2616,23 @@ export default async function handler(
         providerResult.error
     ) {
 
+        const providerError =
+            providerResult.error;
+
+
+        const statusCode =
+            providerError ===
+                "Provider is not active"
+
+                ? 409
+
+                : 404;
+
+
         return failure(
             res,
-            providerResult.error ===
-                "Provider is not active"
-                ? 409
-                : 404,
-
-            providerResult.error,
-
+            statusCode,
+            providerError,
             providerResult.details ||
                 {}
         );
@@ -2419,18 +2644,27 @@ export default async function handler(
         providerResult.provider;
 
 
+    if (!provider) {
+
+        return failure(
+            res,
+            404,
+            "Provider not found"
+        );
+
+    }
+
+
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * PROVIDER CODE
-     * -------------------------------------------------------
-     *
-     * Sekarang provider code hanya boleh
-     * berasal dari provider Supabase.
+     * =====================================================
      */
 
     const providerCode =
         String(
             provider.provider_id ||
+            modelConfig.providerId ||
             ""
         ).trim();
 
@@ -2447,9 +2681,9 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * PROVIDER API KEY
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     let providerApiKey;
@@ -2475,8 +2709,10 @@ export default async function handler(
             500,
             "Provider API credential is unavailable",
             {
+
                 provider_id:
                     providerCode
+
             }
         );
 
@@ -2484,15 +2720,15 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * CREATE TASK
-     * -------------------------------------------------------
+     * =====================================================
+     *
+     * Server only.
      *
      * API key tidak pernah dikirim
-     * ke frontend.
+     * ke browser.
      *
-     * Adapter menerima credential
-     * hanya di server.
      */
 
     let task;
@@ -2541,9 +2777,11 @@ export default async function handler(
             error.message ||
                 "Failed to create generation task",
             {
+
                 code:
                     error.code ||
                     "GENERATION_CREATE_FAILED"
+
             }
         );
 
@@ -2551,9 +2789,9 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * TASK ID
-     * -------------------------------------------------------
+     * =====================================================
      */
 
     const taskId =
@@ -2581,8 +2819,10 @@ export default async function handler(
             502,
             "Provider did not return a task ID",
             {
+
                 code:
                     "TASK_ID_MISSING"
+
             }
         );
 
@@ -2590,44 +2830,41 @@ export default async function handler(
 
 
     /*
-     * -------------------------------------------------------
+     * =====================================================
      * RESPONSE
-     * -------------------------------------------------------
+     * =====================================================
+     *
+     * Jangan kirim credential.
      */
 
     return success(
         res,
         {
 
-            /*
-             * User.
-             */
-
             user_id:
                 user.id,
 
 
             /*
-             * Model.
+             * Model identity.
              *
-             * Identity berasal dari Supabase.
+             * Source:
+             * repository config.js
              */
 
             model:
-                databaseModel.model_id,
+                modelConfig.id,
 
             model_id:
-                databaseModel.model_id,
+                modelConfig.id,
 
             model_name:
-                databaseModel.model_name ||
-                modelId,
+                modelConfig.name ||
+                modelConfig.id,
 
 
             /*
              * Provider.
-             *
-             * Identity berasal dari Supabase.
              */
 
             provider:
@@ -2653,11 +2890,11 @@ export default async function handler(
 
 
             /*
-             * Database model ID.
+             * Database config ID jika ada.
              */
 
             model_database_id:
-                databaseModel.id ||
+                databaseModel?.id ||
                 null
 
         }
