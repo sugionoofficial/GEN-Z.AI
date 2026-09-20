@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -9,22 +11,21 @@
 
     <title>GEN-Z.AI • Admin Control</title>
 
+
     <!-- =====================================================
          SUPABASE
     ====================================================== -->
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script src="../assets/js/config.js"></script>
+
 
     <!-- =====================================================
          PAGE STYLE
     ====================================================== -->
 
     <style>
-
-        /* =====================================================
-           RESET
-        ====================================================== */
 
         * {
             box-sizing: border-box;
@@ -40,6 +41,7 @@
 
 
         body {
+
             width: 100%;
             min-height: 100vh;
 
@@ -56,22 +58,20 @@
 
             color: #ffffff;
 
-            /*
-             * NEW GLOBAL STYLE
-             * Light grey -> black
-             */
-
             background:
+
                 radial-gradient(
                     circle at 10% 0%,
-                    rgba(255, 23, 68, 0.10),
+                    rgba(255,23,68,0.10),
                     transparent 28%
                 ),
+
                 radial-gradient(
                     circle at 90% 10%,
-                    rgba(255, 23, 68, 0.07),
+                    rgba(255,23,68,0.07),
                     transparent 30%
                 ),
+
                 linear-gradient(
                     135deg,
                     #eeeeee 0%,
@@ -92,7 +92,8 @@
 
         button,
         a {
-            -webkit-tap-highlight-color: transparent;
+            -webkit-tap-highlight-color:
+                transparent;
         }
 
 
@@ -101,6 +102,7 @@
         ====================================================== */
 
         .page {
+
             min-height: 100vh;
 
             padding:
@@ -113,9 +115,11 @@
 
 
         .page::before {
+
             content: "";
 
             position: fixed;
+
             inset: 0;
 
             pointer-events: none;
@@ -135,12 +139,15 @@
 
 
         .container {
+
             width: 100%;
+
             max-width: 1180px;
 
             margin: 0 auto;
 
             position: relative;
+
             z-index: 1;
         }
 
@@ -154,7 +161,9 @@
             position: relative;
 
             display: flex;
+
             align-items: center;
+
             justify-content: space-between;
 
             gap: 25px;
@@ -168,6 +177,7 @@
             border-radius: 24px;
 
             background:
+
                 linear-gradient(
                     145deg,
                     rgba(18,18,21,0.94),
@@ -175,12 +185,19 @@
                 );
 
             border:
-                1px solid rgba(255,23,68,0.48);
+                1px solid
+                rgba(255,23,68,0.48);
 
             box-shadow:
-                0 0 7px rgba(255,23,68,0.28),
-                0 0 25px rgba(255,23,68,0.12),
-                inset 0 0 25px rgba(255,23,68,0.025);
+
+                0 0 7px
+                rgba(255,23,68,0.28),
+
+                0 0 25px
+                rgba(255,23,68,0.12),
+
+                inset 0 0 25px
+                rgba(255,23,68,0.025);
 
             overflow: hidden;
         }
@@ -242,6 +259,7 @@
         .brand-area {
 
             display: flex;
+
             align-items: center;
 
             gap: 17px;
@@ -261,10 +279,13 @@
             width: 64px;
             height: 64px;
 
-            flex: 0 0 64px;
+            flex:
+                0 0 64px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             border-radius: 19px;
@@ -277,12 +298,19 @@
                 );
 
             border:
-                1px solid rgba(255,255,255,0.22);
+                1px solid
+                rgba(255,255,255,0.22);
 
             box-shadow:
-                0 0 8px rgba(255,23,68,0.55),
-                0 0 22px rgba(255,23,68,0.24),
-                inset 0 0 20px rgba(255,255,255,0.05);
+
+                0 0 8px
+                rgba(255,23,68,0.55),
+
+                0 0 22px
+                rgba(255,23,68,0.24),
+
+                inset 0 0 20px
+                rgba(255,255,255,0.05);
 
             overflow: hidden;
 
@@ -313,7 +341,10 @@
             opacity: 0.65;
 
             animation:
-                holoRotate 7s linear infinite;
+                holoRotate
+                7s
+                linear
+                infinite;
 
             z-index: -2;
         }
@@ -352,7 +383,8 @@
 
             letter-spacing: -3px;
 
-            transform: skew(-5deg);
+            transform:
+                skew(-5deg);
 
             background:
                 linear-gradient(
@@ -366,13 +398,18 @@
                 );
 
             -webkit-background-clip: text;
+
             background-clip: text;
 
             color: transparent;
 
             text-shadow:
-                0 0 8px rgba(0,240,255,0.42),
-                0 0 15px rgba(255,23,68,0.30);
+
+                0 0 8px
+                rgba(0,240,255,0.42),
+
+                0 0 15px
+                rgba(255,23,68,0.30);
 
             filter:
                 drop-shadow(
@@ -408,18 +445,23 @@
             opacity: 0.8;
 
             animation:
-                holoScan 3.2s ease-in-out infinite;
+                holoScan
+                3.2s
+                ease-in-out
+                infinite;
         }
 
 
         @keyframes holoRotate {
 
             from {
-                transform: rotate(0deg);
+                transform:
+                    rotate(0deg);
             }
 
             to {
-                transform: rotate(360deg);
+                transform:
+                    rotate(360deg);
             }
         }
 
@@ -427,6 +469,7 @@
         @keyframes holoScan {
 
             0% {
+
                 transform:
                     translateY(-10px);
 
@@ -446,6 +489,7 @@
             }
 
             100% {
+
                 transform:
                     translateY(64px);
 
@@ -473,7 +517,8 @@
             letter-spacing:
                 -0.7px;
 
-            white-space: nowrap;
+            white-space:
+                nowrap;
 
             background:
                 linear-gradient(
@@ -485,13 +530,10 @@
                 );
 
             -webkit-background-clip: text;
+
             background-clip: text;
 
             color: transparent;
-
-            text-shadow:
-                0 0 16px
-                rgba(0,240,255,0.15);
         }
 
 
@@ -503,8 +545,7 @@
 
             font-weight: 700;
 
-            letter-spacing:
-                2.1px;
+            letter-spacing: 2.1px;
 
             text-transform:
                 uppercase;
@@ -521,6 +562,7 @@
         .header-badge {
 
             display: inline-flex;
+
             align-items: center;
 
             gap: 8px;
@@ -604,8 +646,10 @@
                 rgba(255,23,68,0.35);
 
             box-shadow:
+
                 0 0 6px
                 rgba(255,23,68,0.18),
+
                 0 0 22px
                 rgba(255,23,68,0.08);
 
@@ -646,6 +690,7 @@
             position: relative;
 
             display: inline-flex;
+
             align-items: center;
 
             padding:
@@ -675,10 +720,6 @@
 
             text-transform:
                 uppercase;
-
-            box-shadow:
-                0 0 10px
-                rgba(255,23,68,0.12);
         }
 
 
@@ -709,14 +750,14 @@
                     #ffffff
                 );
 
-            -webkit-background-clip: text;
-            background-clip: text;
+            -webkit-background-clip:
+                text;
 
-            color: transparent;
+            background-clip:
+                text;
 
-            text-shadow:
-                0 0 20px
-                rgba(255,23,68,0.15);
+            color:
+                transparent;
         }
 
 
@@ -749,7 +790,10 @@
             display: grid;
 
             grid-template-columns:
-                repeat(3, minmax(0, 1fr));
+                repeat(
+                    3,
+                    minmax(0, 1fr)
+                );
 
             gap: 17px;
         }
@@ -765,8 +809,7 @@
 
             min-height: 205px;
 
-            padding:
-                24px;
+            padding: 24px;
 
             display: block;
 
@@ -788,19 +831,26 @@
                 rgba(255,23,68,0.34);
 
             box-shadow:
+
                 0 0 5px
                 rgba(255,23,68,0.14),
+
                 0 12px 38px
                 rgba(0,0,0,0.22),
+
                 inset 0 0 18px
                 rgba(255,23,68,0.018);
 
             overflow: hidden;
 
             transition:
+
                 transform 0.28s ease,
+
                 border-color 0.28s ease,
+
                 box-shadow 0.28s ease,
+
                 background 0.28s ease;
         }
 
@@ -826,10 +876,8 @@
                     transparent 68%
                 );
 
-            pointer-events: none;
-
-            transition:
-                opacity 0.3s ease;
+            pointer-events:
+                none;
         }
 
 
@@ -873,19 +921,18 @@
                 );
 
             box-shadow:
+
                 0 0 8px
                 rgba(255,23,68,0.48),
+
                 0 0 25px
                 rgba(255,23,68,0.20),
+
                 0 22px 55px
                 rgba(0,0,0,0.38),
+
                 inset 0 0 20px
                 rgba(255,23,68,0.045);
-        }
-
-
-        .feature-card:hover::before {
-            opacity: 1.4;
         }
 
 
@@ -901,7 +948,9 @@
             height: 52px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             margin-bottom: 22px;
@@ -925,8 +974,10 @@
             font-size: 22px;
 
             box-shadow:
+
                 0 0 9px
                 rgba(255,23,68,0.22),
+
                 inset 0 0 12px
                 rgba(255,23,68,0.06);
 
@@ -943,10 +994,13 @@
                 translateY(-2px);
 
             box-shadow:
+
                 0 0 10px
                 rgba(255,23,68,0.48),
+
                 0 0 20px
                 rgba(255,23,68,0.15),
+
                 inset 0 0 14px
                 rgba(255,23,68,0.09);
         }
@@ -995,8 +1049,11 @@
             font-size: 19px;
 
             transition:
+
                 transform 0.25s ease,
+
                 color 0.25s ease,
+
                 text-shadow 0.25s ease;
         }
 
@@ -1031,7 +1088,9 @@
                 20px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: space-between;
 
             gap: 20px;
@@ -1050,8 +1109,10 @@
                 rgba(255,23,68,0.30);
 
             box-shadow:
+
                 0 0 5px
                 rgba(255,23,68,0.13),
+
                 inset 0 0 16px
                 rgba(255,23,68,0.025);
         }
@@ -1060,6 +1121,7 @@
         .status-left {
 
             display: flex;
+
             align-items: center;
 
             gap: 11px;
@@ -1071,7 +1133,8 @@
             width: 9px;
             height: 9px;
 
-            flex: 0 0 9px;
+            flex:
+                0 0 9px;
 
             border-radius: 50%;
 
@@ -1079,13 +1142,18 @@
                 #ff3159;
 
             box-shadow:
+
                 0 0 6px
                 rgba(255,23,68,0.85),
+
                 0 0 15px
                 rgba(255,23,68,0.45);
 
             animation:
-                statusPulse 2s ease-in-out infinite;
+                statusPulse
+                2s
+                ease-in-out
+                infinite;
         }
 
 
@@ -1093,13 +1161,19 @@
 
             0%,
             100% {
+
                 opacity: 0.65;
-                transform: scale(0.9);
+
+                transform:
+                    scale(0.9);
             }
 
             50% {
+
                 opacity: 1;
-                transform: scale(1.08);
+
+                transform:
+                    scale(1.08);
             }
         }
 
@@ -1156,7 +1230,9 @@
             z-index: 9000;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             background:
@@ -1178,9 +1254,11 @@
                 30px
                 24px;
 
-            text-align: center;
+            text-align:
+                center;
 
-            border-radius: 22px;
+            border-radius:
+                22px;
 
             background:
                 rgba(10,10,12,0.94);
@@ -1190,8 +1268,10 @@
                 rgba(255,23,68,0.42);
 
             box-shadow:
+
                 0 0 10px
                 rgba(255,23,68,0.25),
+
                 0 0 30px
                 rgba(255,23,68,0.10);
         }
@@ -1208,7 +1288,9 @@
                 18px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             border-radius: 17px;
@@ -1220,9 +1302,11 @@
             color:
                 #ffffff;
 
-            font-size: 27px;
+            font-size:
+                27px;
 
-            font-weight: 950;
+            font-weight:
+                950;
 
             background:
                 linear-gradient(
@@ -1260,7 +1344,10 @@
                 rgba(0,240,255,0.8);
 
             animation:
-                spin 0.8s linear infinite;
+                spin
+                0.8s
+                linear
+                infinite;
 
             box-shadow:
                 0 0 14px
@@ -1291,62 +1378,6 @@
                 transform:
                     rotate(360deg);
             }
-        }
-
-
-        /* =====================================================
-           ACCESS ERROR
-        ====================================================== */
-
-        .access-error {
-
-            display: none;
-
-            max-width: 500px;
-
-            margin:
-                150px
-                auto
-                0;
-
-            padding:
-                28px;
-
-            text-align: center;
-
-            border-radius: 22px;
-
-            background:
-                rgba(8,8,9,0.94);
-
-            border:
-                1px solid
-                rgba(255,23,68,0.45);
-
-            box-shadow:
-                0 0 20px
-                rgba(255,23,68,0.15);
-        }
-
-
-        .access-error h2 {
-
-            color:
-                #ff6c86;
-
-            margin-bottom:
-                10px;
-        }
-
-
-        .access-error p {
-
-            color:
-                rgba(255,255,255,0.52);
-
-            font-size: 13px;
-
-            line-height: 1.6;
         }
 
 
@@ -1509,22 +1540,22 @@
         }
 
     </style>
+
 </head>
 
 
 <body>
 
+
     <!-- =====================================================
          GLOBAL NAVIGATION
-         navigation/navigation.js adalah satu-satunya
-         navigasi utama GEN-Z.AI.
-    ====================================================== -->
+         ====================================================== -->
 
     <div id="navigation"></div>
 
 
     <!-- =====================================================
-         AUTH LOADING
+         PAGE AUTH LOADING
     ====================================================== -->
 
     <div
@@ -1550,7 +1581,7 @@
 
 
     <!-- =====================================================
-         MAIN
+         MAIN PAGE
     ====================================================== -->
 
     <main
@@ -1569,6 +1600,7 @@
             <header class="page-header">
 
                 <div class="brand-area">
+
 
                     <div
                         class="holo-logo"
@@ -1645,7 +1677,7 @@
 
 
             <!-- =================================================
-                 FEATURE GRID
+                 MODULES
             ================================================== -->
 
             <section
@@ -1653,10 +1685,6 @@
                 aria-label="Admin Control Modules"
             >
 
-
-                <!-- =============================================
-                     DASHBOARD USER
-                ============================================== -->
 
                 <a
                     class="feature-card"
@@ -1667,17 +1695,14 @@
                         ◫
                     </div>
 
-
                     <h2>
                         Edit Dashboard User
                     </h2>
-
 
                     <p>
                         Kelola dan edit tampilan dashboard
                         yang digunakan oleh pengguna.
                     </p>
-
 
                     <span
                         class="feature-arrow"
@@ -1688,10 +1713,6 @@
 
                 </a>
 
-
-                <!-- =============================================
-                     USERS
-                ============================================== -->
 
                 <a
                     class="feature-card"
@@ -1702,17 +1723,14 @@
                         ◎
                     </div>
 
-
                     <h2>
                         Edit User
                     </h2>
-
 
                     <p>
                         Kelola akun, status, role,
                         dan data pengguna GEN-Z.AI.
                     </p>
-
 
                     <span
                         class="feature-arrow"
@@ -1723,10 +1741,6 @@
 
                 </a>
 
-
-                <!-- =============================================
-                     PROVIDERS
-                ============================================== -->
 
                 <a
                     class="feature-card"
@@ -1737,17 +1751,14 @@
                         ◈
                     </div>
 
-
                     <h2>
                         Edit Providers
                     </h2>
-
 
                     <p>
                         Kelola konfigurasi provider
                         engine AI yang digunakan aplikasi.
                     </p>
-
 
                     <span
                         class="feature-arrow"
@@ -1758,10 +1769,6 @@
 
                 </a>
 
-
-                <!-- =============================================
-                     MODELS
-                ============================================== -->
 
                 <a
                     class="feature-card"
@@ -1772,18 +1779,15 @@
                         ◇
                     </div>
 
-
                     <h2>
                         Edit Model
                     </h2>
-
 
                     <p>
                         Kelola model AI, konfigurasi,
                         serta model yang tersedia
                         untuk proses generate.
                     </p>
-
 
                     <span
                         class="feature-arrow"
@@ -1795,10 +1799,6 @@
                 </a>
 
 
-                <!-- =============================================
-                     CREDIT
-                ============================================== -->
-
                 <a
                     class="feature-card"
                     href="./credit.html"
@@ -1808,17 +1808,14 @@
                         ◉
                     </div>
 
-
                     <h2>
                         Edit Credit
                     </h2>
-
 
                     <p>
                         Kelola sistem credit dan
                         pengaturan saldo pengguna.
                     </p>
-
 
                     <span
                         class="feature-arrow"
@@ -1873,27 +1870,6 @@
 
 
     <!-- =====================================================
-         ACCESS ERROR
-    ====================================================== -->
-
-    <section
-        class="access-error"
-        id="accessError"
-    >
-
-        <h2>
-            Akses Ditolak
-        </h2>
-
-        <p>
-            Akun tidak memiliki izin untuk membuka
-            Admin Control.
-        </p>
-
-    </section>
-
-
-    <!-- =====================================================
          ADMIN AUTH
     ====================================================== -->
 
@@ -1905,7 +1881,12 @@
 
 
             /* =================================================
-               SUPABASE
+               SUPABASE CLIENT
+               
+               PENTING:
+               Client dibuat sekali dan diekspos ke window
+               agar navigation/navigation.js menggunakan
+               client yang SAMA.
             ================================================== */
 
             let supabaseClient = null;
@@ -1920,7 +1901,7 @@
                 ) {
 
                     throw new Error(
-                        "Supabase client tidak tersedia."
+                        "Supabase library tidak tersedia."
                     );
                 }
 
@@ -1932,16 +1913,41 @@
                 ) {
 
                     throw new Error(
-                        "GENZ_CONFIG tidak tersedia."
+                        "Konfigurasi Supabase tidak tersedia."
                     );
                 }
 
+
+                /*
+                 * Buat SATU client.
+                 */
 
                 supabaseClient =
                     window.supabase.createClient(
                         window.GENZ_CONFIG.SUPABASE_URL,
                         window.GENZ_CONFIG.SUPABASE_KEY
                     );
+
+
+                /*
+                 * =================================================
+                 * PENTING
+                 *
+                 * navigation/navigation.js mencari client melalui:
+                 *
+                 * window.GENZ_SUPABASE
+                 * window.supabaseClient
+                 *
+                 * Jadi keduanya diarahkan ke instance yang sama.
+                 * =================================================
+                 */
+
+                window.GENZ_SUPABASE =
+                    supabaseClient;
+
+                window.supabaseClient =
+                    supabaseClient;
+
 
             } catch (error) {
 
@@ -1969,12 +1975,6 @@
                 );
 
 
-            const accessError =
-                document.getElementById(
-                    "accessError"
-                );
-
-
             const statusText =
                 document.getElementById(
                     "statusText"
@@ -1985,6 +1985,20 @@
                 document.getElementById(
                     "statusRole"
                 );
+
+
+            /* =================================================
+               REDIRECT
+            ================================================== */
+
+            function redirect(
+                path
+            ) {
+
+                window.location.replace(
+                    path
+                );
+            }
 
 
             /* =================================================
@@ -2016,13 +2030,6 @@
                 }
 
 
-                if (accessError) {
-
-                    accessError.style.display =
-                        "none";
-                }
-
-
                 const role =
                     String(
                         profile.role || ""
@@ -2050,20 +2057,6 @@
 
 
             /* =================================================
-               REDIRECT
-            ================================================== */
-
-            function redirect(
-                path
-            ) {
-
-                window.location.replace(
-                    path
-                );
-            }
-
-
-            /* =================================================
                AUTH CHECK
             ================================================== */
 
@@ -2080,7 +2073,7 @@
 
 
                     /* =========================================
-                       GET SESSION
+                       SESSION
                     ========================================== */
 
                     const {
@@ -2112,7 +2105,7 @@
 
 
                     /* =========================================
-                       GET PROFILE
+                       PROFILE
                     ========================================== */
 
                     const {
@@ -2141,23 +2134,6 @@
                             profileError
                         );
 
-
-                        try {
-
-                            await supabaseClient
-                                .auth
-                                .signOut();
-
-                        } catch (
-                            signOutError
-                        ) {
-
-                            console.error(
-                                signOutError
-                            );
-                        }
-
-
                         redirect(
                             "../login.html"
                         );
@@ -2167,7 +2143,7 @@
 
 
                     /* =========================================
-                       VERIFY PROFILE ID
+                       PROFILE ID
                     ========================================== */
 
                     if (
@@ -2176,25 +2152,8 @@
                     ) {
 
                         console.error(
-                            "[GEN-Z.AI] Profile ID mismatch."
+                            "[GEN-Z.AI] Profile/Auth ID mismatch."
                         );
-
-
-                        try {
-
-                            await supabaseClient
-                                .auth
-                                .signOut();
-
-                        } catch (
-                            signOutError
-                        ) {
-
-                            console.error(
-                                signOutError
-                            );
-                        }
-
 
                         redirect(
                             "../login.html"
@@ -2221,21 +2180,10 @@
                         "active"
                     ) {
 
-                        try {
-
-                            await supabaseClient
-                                .auth
-                                .signOut();
-
-                        } catch (
-                            signOutError
-                        ) {
-
-                            console.error(
-                                signOutError
-                            );
-                        }
-
+                        console.warn(
+                            "[GEN-Z.AI] Account status:",
+                            profile.status
+                        );
 
                         redirect(
                             "../login.html"
@@ -2273,13 +2221,12 @@
 
 
                     /* =========================================
-                       SUCCESS
+                       ACCESS GRANTED
                     ========================================== */
 
                     showAdmin(
                         profile
                     );
-
 
                 } catch (error) {
 
@@ -2287,7 +2234,6 @@
                         "[GEN-Z.AI] Admin access error:",
                         error
                     );
-
 
                     redirect(
                         "../login.html"
@@ -2311,44 +2257,42 @@
                 }
 
 
-                try {
+                supabaseClient
+                    .auth
+                    .onAuthStateChange(
+                        (
+                            event,
+                            session
+                        ) => {
 
-                    supabaseClient
-                        .auth
-                        .onAuthStateChange(
-                            (
-                                event,
-                                session
-                            ) => {
+                            /*
+                             * Jangan melakukan signOut
+                             * dari sini.
+                             *
+                             * Jika session benar-benar hilang,
+                             * arahkan ke login.
+                             */
+
+                            if (
+                                event ===
+                                    "SIGNED_OUT" ||
+                                !session
+                            ) {
 
                                 if (
-                                    event ===
-                                        "SIGNED_OUT" ||
-                                    !session
+                                    window.location.pathname !==
+                                    "/login.html"
                                 ) {
 
-                                    if (
-                                        window.location.pathname !==
-                                        "/login.html"
-                                    ) {
-
-                                        redirect(
-                                            "../login.html"
-                                        );
-                                    }
-
+                                    redirect(
+                                        "../login.html"
+                                    );
                                 }
 
                             }
-                        );
 
-                } catch (error) {
-
-                    console.error(
-                        "[GEN-Z.AI] Auth listener error:",
-                        error
+                        }
                     );
-                }
             }
 
 
@@ -2357,6 +2301,11 @@
             ================================================== */
 
             async function start() {
+
+                /*
+                 * Client global HARUS sudah tersedia
+                 * sebelum navigation.js dijalankan.
+                 */
 
                 bindAuthState();
 
@@ -2391,12 +2340,19 @@
 
     <!-- =====================================================
          SHARED NAVIGATION
-         WAJIB memakai navigation/navigation.js
+         
+         HARUS setelah Supabase client dibuat.
+         navigation.js sekarang akan menemukan:
+         
+         window.GENZ_SUPABASE
+         
+         dan menggunakan client yang sama.
     ====================================================== -->
 
     <script
         src="../navigation/navigation.js"
     ></script>
+
 
 </body>
 </html>
