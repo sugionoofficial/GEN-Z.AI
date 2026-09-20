@@ -19,10 +19,12 @@
    - Tidak menganggap profile.status kosong sebagai inactive
    - Tidak redirect pada setiap auth event
    - Login page tidak dikenakan auth guard
+   - Menggunakan SATU shared Supabase client
    ========================================================= */
 
 (() => {
     "use strict";
+
 
     /* =========================================================
        PREVENT DOUBLE INITIALIZATION
@@ -43,7 +45,8 @@
 
     const NAVIGATION_CONTAINER_IDS = [
         "genz-navigation",
-        "navigation"
+        "navigation",
+        "adminNavigation"
     ];
 
     const LOGIN_PATH = "/login.html";
@@ -150,26 +153,168 @@
 
     /* =========================================================
        SUPABASE CLIENT
+       ---------------------------------------------------------
+       PENTING:
+
+       window.supabase adalah library Supabase JS.
+
+       Contoh:
+           window.supabase.createClient(...)
+
+       BUKAN authenticated Supabase client.
+
+       Karena itu jangan memasukkan window.supabase
+       ke dalam daftar authenticated client.
+
+       Navigation membuat SATU shared client apabila
+       client belum tersedia.
        ========================================================= */
 
     function getSupabaseClient() {
-        const candidates = [
+
+        /*
+         * PRIORITAS 1
+         *
+         * Client global yang sudah dibuat oleh aplikasi.
+         */
+
+        const existingClients = [
             window.GENZ_SUPABASE,
-            window.supabaseClient,
-            window.supabase
+            window.supabaseClient
         ];
 
-        for (const client of candidates) {
+
+        for (const client of existingClients) {
+
             if (
                 client &&
                 client.auth &&
                 typeof client.auth.getSession === "function"
             ) {
+
+                /*
+                 * Pastikan dua alias menunjuk ke
+                 * client yang sama.
+                 */
+
+                window.GENZ_SUPABASE = client;
+                window.supabaseClient = client;
+
                 return client;
             }
         }
 
-        return null;
+
+        /*
+         * PRIORITAS 2
+         *
+         * Buat client dari GENZ_CONFIG.
+         *
+         * Supabase library harus sudah tersedia
+         * melalui script CDN pada halaman.
+         */
+
+        const supabaseLibrary =
+            window.supabase;
+
+        const config =
+            window.GENZ_CONFIG;
+
+
+        if (
+            !supabaseLibrary ||
+            typeof supabaseLibrary.createClient !== "function"
+        ) {
+
+            console.error(
+                "[GENZ Navigation] Supabase JS library tidak tersedia."
+            );
+
+            return null;
+        }
+
+
+        if (!config) {
+
+            console.error(
+                "[GENZ Navigation] GENZ_CONFIG tidak tersedia."
+            );
+
+            return null;
+        }
+
+
+        const supabaseUrl =
+            String(
+                config.SUPABASE_URL || ""
+            ).trim();
+
+        const supabaseKey =
+            String(
+                config.SUPABASE_KEY || ""
+            ).trim();
+
+
+        if (
+            !supabaseUrl ||
+            !supabaseKey
+        ) {
+
+            console.error(
+                "[GENZ Navigation] SUPABASE_URL atau SUPABASE_KEY tidak tersedia."
+            );
+
+            return null;
+        }
+
+
+        /*
+         * Buat SATU client.
+         */
+
+        try {
+
+            const client =
+                supabaseLibrary.createClient(
+                    supabaseUrl,
+                    supabaseKey,
+                    {
+                        auth: {
+                            persistSession: true,
+                            autoRefreshToken: true,
+                            detectSessionInUrl: true
+                        }
+                    }
+                );
+
+
+            /*
+             * Simpan sebagai shared client.
+             */
+
+            window.GENZ_SUPABASE =
+                client;
+
+            window.supabaseClient =
+                client;
+
+
+            console.log(
+                "[GENZ Navigation] Shared Supabase client initialized."
+            );
+
+
+            return client;
+
+        } catch (error) {
+
+            console.error(
+                "[GENZ Navigation] Gagal membuat Supabase client:",
+                error
+            );
+
+            return null;
+        }
     }
 
 
@@ -182,9 +327,13 @@
        ========================================================= */
 
     async function getAuthenticatedUser() {
-        const supabase = getSupabaseClient();
+
+        const supabase =
+            getSupabaseClient();
+
 
         if (!supabase) {
+
             console.error(
                 "[GENZ Navigation] Supabase client tidak ditemukan."
             );
@@ -192,37 +341,52 @@
             return null;
         }
 
+
         let lastError = null;
+
 
         for (
             let attempt = 1;
             attempt <= SESSION_RETRY_COUNT;
             attempt++
         ) {
+
             try {
+
                 const result =
                     await supabase.auth.getSession();
 
+
                 const session =
                     result?.data?.session || null;
+
 
                 if (
                     session &&
                     session.user
                 ) {
+
                     return session.user;
                 }
 
+
                 if (result?.error) {
-                    lastError = result.error;
+
+                    lastError =
+                        result.error;
+
 
                     console.warn(
                         `[GENZ Navigation] getSession attempt ${attempt}:`,
                         result.error
                     );
                 }
+
             } catch (error) {
-                lastError = error;
+
+                lastError =
+                    error;
+
 
                 console.warn(
                     `[GENZ Navigation] getSession exception attempt ${attempt}:`,
@@ -230,21 +394,26 @@
                 );
             }
 
+
             if (
                 attempt < SESSION_RETRY_COUNT
             ) {
+
                 await delay(
                     SESSION_RETRY_DELAY
                 );
             }
         }
 
+
         if (lastError) {
+
             console.error(
                 "[GENZ Navigation] Session gagal dibaca:",
                 lastError
             );
         }
+
 
         return null;
     }
@@ -255,12 +424,14 @@
        ========================================================= */
 
     function isMissingStatusColumnError(error) {
+
         const message =
             String(
                 error?.message ||
                 error?.details ||
                 ""
             ).toLowerCase();
+
 
         return (
             (
@@ -277,6 +448,7 @@
         supabase,
         userId
     ) {
+
         /*
          * Percobaan pertama.
          *
@@ -303,9 +475,6 @@
         /*
          * Kalau kolom status ternyata tidak ada,
          * ulangi tanpa status.
-         *
-         * Ini penting supaya schema lama tidak
-         * menyebabkan user otomatis logout.
          */
 
         if (
@@ -314,9 +483,11 @@
                 result.error
             )
         ) {
+
             console.warn(
                 "[GENZ Navigation] Kolom profiles.status tidak tersedia. Melanjutkan tanpa status."
             );
+
 
             result =
                 await supabase
@@ -340,49 +511,70 @@
 
 
     async function getUserProfile(userId) {
+
         const supabase =
             getSupabaseClient();
 
-        if (!supabase || !userId) {
+
+        if (
+            !supabase ||
+            !userId
+        ) {
+
             return {
                 profile: null,
-                error: new Error(
-                    "Supabase client atau user ID tidak tersedia."
-                )
+
+                error:
+                    new Error(
+                        "Supabase client atau user ID tidak tersedia."
+                    )
             };
         }
 
+
         let lastError = null;
+
 
         for (
             let attempt = 1;
             attempt <= PROFILE_RETRY_COUNT;
             attempt++
         ) {
+
             try {
+
                 const result =
                     await queryUserProfile(
                         supabase,
                         userId
                     );
 
+
                 if (!result?.error) {
+
                     return {
                         profile:
                             result?.data || null,
+
                         error: null
                     };
                 }
 
+
                 lastError =
                     result.error;
+
 
                 console.warn(
                     `[GENZ Navigation] Profile query attempt ${attempt}:`,
                     result.error
                 );
+
             } catch (error) {
-                lastError = error;
+
+                lastError =
+                    error;
+
 
                 console.warn(
                     `[GENZ Navigation] Profile exception attempt ${attempt}:`,
@@ -390,14 +582,17 @@
                 );
             }
 
+
             if (
                 attempt < PROFILE_RETRY_COUNT
             ) {
+
                 await delay(
                     PROFILE_RETRY_DELAY
                 );
             }
         }
+
 
         return {
             profile: null,
@@ -411,6 +606,7 @@
        ========================================================= */
 
     function normalizeRole(role) {
+
         const value =
             String(
                 role || ""
@@ -418,19 +614,24 @@
                 .trim()
                 .toLowerCase();
 
+
         if (
             value === "owner" ||
             value === "pemilik"
         ) {
+
             return "owner";
         }
+
 
         if (
             value === "admin" ||
             value === "administrator"
         ) {
+
             return "admin";
         }
+
 
         return "user";
     }
@@ -441,13 +642,10 @@
        ========================================================= */
 
     function isProfileActive(profile) {
+
         /*
          * Kalau status tidak tersedia,
          * jangan anggap user inactive.
-         *
-         * Ini penting untuk kompatibilitas
-         * dengan schema profiles yang belum memiliki
-         * kolom status.
          */
 
         const status =
@@ -457,9 +655,11 @@
                 .trim()
                 .toLowerCase();
 
+
         if (!status) {
             return true;
         }
+
 
         return [
             "active",
@@ -474,6 +674,7 @@
        ========================================================= */
 
     function isAllowedRole(role) {
+
         return [
             "user",
             "admin",
@@ -487,19 +688,24 @@
        ========================================================= */
 
     function redirectToLogin() {
+
         if (isLoginPage()) {
             return;
         }
+
 
         if (redirectingToLogin) {
             return;
         }
 
+
         redirectingToLogin = true;
+
 
         console.warn(
             "[GENZ Navigation] Session tidak valid. Redirect ke login."
         );
+
 
         window.location.replace(
             LOGIN_PATH
@@ -512,6 +718,7 @@
        ========================================================= */
 
     async function validateAuthentication() {
+
         /*
          * LOGIN PAGE
          *
@@ -534,11 +741,14 @@
          */
 
         if (!user) {
+
             console.warn(
                 "[GENZ Navigation] User session tidak ditemukan."
             );
 
+
             redirectToLogin();
+
 
             return false;
         }
@@ -557,26 +767,56 @@
         /*
          * PENTING:
          *
-         * Jangan signOut kalau query profile error.
+         * Error query profile BUKAN berarti
+         * session Auth invalid.
          *
-         * Error database / RLS / jaringan bukan berarti
-         * session user tidak valid.
+         * Jangan redirect ke login hanya karena
+         * Supabase database / RLS / jaringan bermasalah.
+         *
+         * Halaman Generate masih dapat melakukan
+         * validasi profile sendiri menggunakan
+         * shared client yang sama.
          */
 
         if (profileResult.error) {
+
             console.error(
                 "[GENZ Navigation] Gagal membaca profile:",
                 profileResult.error
             );
 
+
             /*
-             * Jangan panggil auth.signOut().
+             * Simpan minimal user Auth.
              *
-             * Biarkan session tetap hidup.
-             * Redirect hanya sebagai fallback.
+             * Jangan menghapus session.
              */
 
-            redirectToLogin();
+            currentUser =
+                user;
+
+            currentProfile =
+                null;
+
+            currentRole =
+                null;
+
+
+            window.GENZ_NAVIGATION_USER =
+                currentUser;
+
+            window.GENZ_NAVIGATION_PROFILE =
+                null;
+
+            window.GENZ_NAVIGATION_ROLE =
+                null;
+
+
+            /*
+             * Return false tanpa redirect.
+             *
+             * Ini mencegah login loop.
+             */
 
             return false;
         }
@@ -591,12 +831,37 @@
          */
 
         if (!profile) {
+
             console.error(
                 "[GENZ Navigation] Profile user tidak ditemukan:",
                 user.id
             );
 
-            redirectToLogin();
+
+            /*
+             * Session Auth tetap valid.
+             * Jangan signOut dan jangan membuat login loop.
+             */
+
+            currentUser =
+                user;
+
+            currentProfile =
+                null;
+
+            currentRole =
+                null;
+
+
+            window.GENZ_NAVIGATION_USER =
+                currentUser;
+
+            window.GENZ_NAVIGATION_PROFILE =
+                null;
+
+            window.GENZ_NAVIGATION_ROLE =
+                null;
+
 
             return false;
         }
@@ -612,11 +877,11 @@
             String(profile.id) !==
             String(user.id)
         ) {
+
             console.error(
                 "[GENZ Navigation] Profile ID tidak cocok dengan Auth User."
             );
 
-            redirectToLogin();
 
             return false;
         }
@@ -631,12 +896,15 @@
         if (
             !isProfileActive(profile)
         ) {
+
             console.error(
                 "[GENZ Navigation] Profile user tidak aktif:",
                 profile.status
             );
 
+
             redirectToLogin();
+
 
             return false;
         }
@@ -653,12 +921,12 @@
 
 
         if (!isAllowedRole(role)) {
+
             console.error(
                 "[GENZ Navigation] Role tidak diizinkan:",
                 profile.role
             );
 
-            redirectToLogin();
 
             return false;
         }
@@ -668,9 +936,14 @@
          * Simpan state.
          */
 
-        currentUser = user;
-        currentProfile = profile;
-        currentRole = role;
+        currentUser =
+            user;
+
+        currentProfile =
+            profile;
+
+        currentRole =
+            role;
 
 
         /*
@@ -712,67 +985,83 @@
     const NAVIGATION_BY_ROLE = {
 
         user: [
+
             {
                 label: "Dashboard",
                 href: "/user/dashboard.html",
                 icon: "* "
             },
+
             {
                 label: "Generate",
                 href: "/generate/index.html",
                 icon: "* "
             },
+
             {
                 label: "History",
                 href: "/history/index.html",
                 icon: "* "
             }
+
         ],
+
 
         admin: [
+
             {
                 label: "Dashboard",
                 href: "/admin/dashboard.html",
                 icon: "* "
             },
+
             {
                 label: "Generate",
                 href: "/generate/index.html",
                 icon: "* "
             },
+
             {
                 label: "History",
                 href: "/history/index.html",
                 icon: "* "
             },
+
             {
                 label: "Admin Panel",
                 href: "/admin-control/admin-panel.html",
                 icon: "* "
             }
+
         ],
 
+
         owner: [
+
             {
                 label: "Dashboard",
                 href: "/admin/dashboard.html",
                 icon: "* "
             },
+
             {
                 label: "Generate",
                 href: "/generate/index.html",
                 icon: "* "
             },
+
             {
                 label: "History",
                 href: "/history/index.html",
                 icon: "* "
             },
+
             {
                 label: "Admin Panel",
                 href: "/admin-control/admin-panel.html",
                 icon: "* "
-            },   
+            }
+
         ]
     };
 
@@ -782,11 +1071,14 @@
        ========================================================= */
 
     function getNavigationContainer() {
+
         for (
             const id of NAVIGATION_CONTAINER_IDS
         ) {
+
             const existing =
                 document.getElementById(id);
+
 
             if (existing) {
                 return existing;
@@ -802,12 +1094,15 @@
         const container =
             document.createElement("div");
 
+
         container.id =
             "genz-navigation";
+
 
         document.body.prepend(
             container
         );
+
 
         return container;
     }
@@ -818,28 +1113,35 @@
        ========================================================= */
 
     function isActiveLink(href) {
+
         try {
+
             const target =
                 new URL(
                     href,
                     window.location.origin
                 );
 
+
             const current =
                 normalizePath(
                     window.location.pathname
                 );
+
 
             const targetPath =
                 normalizePath(
                     target.pathname
                 );
 
+
             if (
                 targetPath === "/"
             ) {
+
                 return current === "/";
             }
+
 
             return (
                 current === targetPath ||
@@ -847,7 +1149,9 @@
                     targetPath + "/"
                 )
             );
+
         } catch {
+
             return false;
         }
     }
@@ -858,8 +1162,10 @@
        ========================================================= */
 
     function renderNavigation() {
+
         const container =
             getNavigationContainer();
+
 
         if (!container) {
             return;
@@ -869,8 +1175,10 @@
         const role =
             currentRole || "user";
 
+
         const profile =
             currentProfile || {};
+
 
         const items =
             NAVIGATION_BY_ROLE[role] ||
@@ -891,10 +1199,12 @@
         const navigationItems =
             items
                 .map((item) => {
+
                     const active =
                         isActiveLink(
                             item.href
                         );
+
 
                     return `
                         <a
@@ -915,6 +1225,7 @@
 
 
         container.innerHTML = `
+
             <aside
                 class="genz-sidebar"
                 id="genz-sidebar"
@@ -923,6 +1234,7 @@
                 <div class="genz-sidebar-header">
 
                     <div class="genz-brand">
+
                         <div class="genz-brand-title">
                             GEN-Z.AI
                         </div>
@@ -930,7 +1242,9 @@
                         <div class="genz-brand-subtitle">
                             AI Platform
                         </div>
+
                     </div>
+
 
                     <button
                         type="button"
@@ -949,6 +1263,7 @@
                     <div class="genz-user-avatar">
                         ${String(displayName).charAt(0).toUpperCase()}
                     </div>
+
 
                     <div class="genz-user-info">
 
@@ -977,6 +1292,7 @@
                         id="genz-logout"
                         class="genz-logout-button"
                     >
+
                         <span class="genz-nav-icon">
                             ⇥
                         </span>
@@ -984,6 +1300,7 @@
                         <span>
                             Logout
                         </span>
+
                     </button>
 
                 </div>
@@ -1005,6 +1322,7 @@
                 class="genz-sidebar-overlay"
                 id="genz-sidebar-overlay"
             ></div>
+
         `;
 
 
@@ -1017,25 +1335,30 @@
        ========================================================= */
 
     function bindNavigationEvents() {
+
         const toggle =
             document.getElementById(
                 "genz-mobile-toggle"
             );
+
 
         const close =
             document.getElementById(
                 "genz-mobile-close"
             );
 
+
         const sidebar =
             document.getElementById(
                 "genz-sidebar"
             );
 
+
         const overlay =
             document.getElementById(
                 "genz-sidebar-overlay"
             );
+
 
         const logout =
             document.getElementById(
@@ -1044,13 +1367,16 @@
 
 
         function openMenu() {
+
             sidebar?.classList.add(
                 "open"
             );
 
+
             overlay?.classList.add(
                 "open"
             );
+
 
             document.body.classList.add(
                 "genz-menu-open"
@@ -1059,13 +1385,16 @@
 
 
         function closeMenu() {
+
             sidebar?.classList.remove(
                 "open"
             );
 
+
             overlay?.classList.remove(
                 "open"
             );
+
 
             document.body.classList.remove(
                 "genz-menu-open"
@@ -1078,10 +1407,12 @@
             openMenu
         );
 
+
         close?.addEventListener(
             "click",
             closeMenu
         );
+
 
         overlay?.addEventListener(
             "click",
@@ -1094,10 +1425,12 @@
                 ".genz-nav-item"
             )
             .forEach((item) => {
+
                 item.addEventListener(
                     "click",
                     closeMenu
                 );
+
             });
 
 
@@ -1116,6 +1449,7 @@
         window.toggleMenu =
             openMenu;
 
+
         window.closeMenu =
             closeMenu;
     }
@@ -1126,22 +1460,36 @@
        ========================================================= */
 
     async function logoutUser() {
+
         const supabase =
             getSupabaseClient();
 
+
         try {
+
             if (supabase) {
+
                 await supabase.auth.signOut();
             }
+
         } catch (error) {
+
             console.error(
                 "[GENZ Navigation] Logout error:",
                 error
             );
+
         } finally {
-            currentUser = null;
-            currentProfile = null;
-            currentRole = null;
+
+            currentUser =
+                null;
+
+            currentProfile =
+                null;
+
+            currentRole =
+                null;
+
 
             window.GENZ_NAVIGATION_USER =
                 null;
@@ -1151,6 +1499,17 @@
 
             window.GENZ_NAVIGATION_ROLE =
                 null;
+
+
+            window.GENZ_CURRENT_USER =
+                null;
+
+            window.GENZ_CURRENT_PROFILE =
+                null;
+
+            window.GENZ_CURRENT_ROLE =
+                null;
+
 
             window.location.replace(
                 LOGIN_PATH
@@ -1171,20 +1530,25 @@
        ========================================================= */
 
     function bindAuthStateListener() {
+
         if (authListenerBound) {
             return;
         }
 
+
         const supabase =
             getSupabaseClient();
 
+
         if (!supabase) {
+
             console.error(
                 "[GENZ Navigation] Tidak dapat bind auth listener karena Supabase tidak tersedia."
             );
 
             return;
         }
+
 
         authListenerBound = true;
 
@@ -1207,9 +1571,16 @@
                     if (
                         event === "SIGNED_OUT"
                     ) {
-                        currentUser = null;
-                        currentProfile = null;
-                        currentRole = null;
+
+                        currentUser =
+                            null;
+
+                        currentProfile =
+                            null;
+
+                        currentRole =
+                            null;
+
 
                         window.GENZ_NAVIGATION_USER =
                             null;
@@ -1220,70 +1591,85 @@
                         window.GENZ_NAVIGATION_ROLE =
                             null;
 
+
+                        window.GENZ_CURRENT_USER =
+                            null;
+
+                        window.GENZ_CURRENT_PROFILE =
+                            null;
+
+                        window.GENZ_CURRENT_ROLE =
+                            null;
+
+
                         redirectToLogin();
+
 
                         return;
                     }
 
 
                     /*
-                     * INITIAL_SESSION:
-                     *
-                     * Jangan melakukan redirect di sini.
-                     *
-                     * validateAuthentication() yang menentukan
-                     * apakah session benar-benar valid.
+                     * INITIAL_SESSION
                      */
 
                     if (
                         event === "INITIAL_SESSION"
                     ) {
+
                         return;
                     }
 
 
                     /*
-                     * TOKEN_REFRESHED:
-                     *
-                     * Jangan redirect jika session sementara
-                     * tidak tersedia.
+                     * TOKEN_REFRESHED
                      */
 
                     if (
                         event === "TOKEN_REFRESHED"
                     ) {
+
                         if (session?.user) {
+
                             currentUser =
                                 session.user;
 
+
                             window.GENZ_NAVIGATION_USER =
                                 currentUser;
+
+
+                            window.GENZ_CURRENT_USER =
+                                currentUser;
                         }
+
 
                         return;
                     }
 
 
                     /*
-                     * SIGNED_IN:
-                     *
-                     * Jangan melakukan redirect atau
-                     * signOut dari dalam callback.
-                     *
-                     * Session akan diproses oleh halaman
-                     * melalui init().
+                     * SIGNED_IN
                      */
 
                     if (
                         event === "SIGNED_IN"
                     ) {
+
                         if (session?.user) {
+
                             currentUser =
                                 session.user;
 
+
                             window.GENZ_NAVIGATION_USER =
                                 currentUser;
+
+
+                            window.GENZ_CURRENT_USER =
+                                currentUser;
                         }
+
 
                         return;
                     }
@@ -1302,11 +1688,13 @@
        ========================================================= */
 
     function injectStyles() {
+
         if (
             document.getElementById(
                 STYLE_ID
             )
         ) {
+
             return;
         }
 
@@ -1314,11 +1702,13 @@
         const style =
             document.createElement("style");
 
+
         style.id =
             STYLE_ID;
 
 
         style.textContent = `
+
             .genz-sidebar {
                 position: fixed;
                 top: 0;
@@ -1335,6 +1725,7 @@
                 transition: transform .25s ease;
             }
 
+
             .genz-sidebar-header {
                 display: flex;
                 align-items: center;
@@ -1343,17 +1734,20 @@
                 border-bottom: 1px solid rgba(255,255,255,.07);
             }
 
+
             .genz-brand-title {
                 font-size: 20px;
                 font-weight: 800;
                 letter-spacing: .5px;
             }
 
+
             .genz-brand-subtitle {
                 margin-top: 3px;
                 font-size: 11px;
                 color: rgba(255,255,255,.5);
             }
+
 
             .genz-mobile-close {
                 display: none;
@@ -1364,6 +1758,7 @@
                 cursor: pointer;
             }
 
+
             .genz-user-box {
                 display: flex;
                 align-items: center;
@@ -1373,6 +1768,7 @@
                 border-radius: 12px;
                 background: rgba(255,255,255,.05);
             }
+
 
             .genz-user-avatar {
                 width: 38px;
@@ -1386,9 +1782,11 @@
                 font-weight: 700;
             }
 
+
             .genz-user-info {
                 min-width: 0;
             }
+
 
             .genz-user-name {
                 font-size: 13px;
@@ -1398,6 +1796,7 @@
                 text-overflow: ellipsis;
             }
 
+
             .genz-user-role {
                 margin-top: 3px;
                 font-size: 10px;
@@ -1405,10 +1804,12 @@
                 letter-spacing: .5px;
             }
 
+
             .genz-nav-menu {
                 flex: 1;
                 padding: 4px 12px;
             }
+
 
             .genz-nav-item {
                 display: flex;
@@ -1425,15 +1826,18 @@
                     color .15s ease;
             }
 
+
             .genz-nav-item:hover {
                 background: rgba(255,255,255,.06);
                 color: #ffffff;
             }
 
+
             .genz-nav-item.active {
                 background: rgba(255,255,255,.1);
                 color: #ffffff;
             }
+
 
             .genz-nav-icon {
                 width: 22px;
@@ -1442,15 +1846,18 @@
                 font-size: 16px;
             }
 
+
             .genz-nav-label {
                 font-size: 13px;
                 font-weight: 600;
             }
 
+
             .genz-sidebar-footer {
                 padding: 14px 12px 18px;
                 border-top: 1px solid rgba(255,255,255,.07);
             }
+
 
             .genz-logout-button {
                 width: 100%;
@@ -1470,10 +1877,12 @@
                 text-align: left;
             }
 
+
             .genz-logout-button:hover {
                 background: rgba(255,255,255,.06);
                 color: #ffffff;
             }
+
 
             .genz-mobile-toggle {
                 display: none;
@@ -1491,6 +1900,7 @@
                 font-size: 20px;
             }
 
+
             .genz-sidebar-overlay {
                 display: none;
                 position: fixed;
@@ -1499,9 +1909,11 @@
                 background: rgba(0,0,0,.55);
             }
 
+
             body.genz-menu-open {
                 overflow: hidden;
             }
+
 
             @media (max-width: 768px) {
 
@@ -1509,13 +1921,16 @@
                     transform: translateX(-100%);
                 }
 
+
                 .genz-sidebar.open {
                     transform: translateX(0);
                 }
 
+
                 .genz-mobile-close {
                     display: block;
                 }
+
 
                 .genz-mobile-toggle {
                     display: flex;
@@ -1523,10 +1938,12 @@
                     justify-content: center;
                 }
 
+
                 .genz-sidebar-overlay.open {
                     display: block;
                 }
             }
+
 
             @media (min-width: 769px) {
 
@@ -1548,10 +1965,12 @@
        ========================================================= */
 
     function showLoading() {
+
         let loading =
             document.getElementById(
                 "genz-navigation-loading"
             );
+
 
         if (loading) {
             return;
@@ -1560,6 +1979,7 @@
 
         loading =
             document.createElement("div");
+
 
         loading.id =
             "genz-navigation-loading";
@@ -1588,6 +2008,7 @@
 
 
         if (spinner) {
+
             spinner.style.cssText = `
                 width: 30px;
                 height: 30px;
@@ -1604,14 +2025,18 @@
                 "genz-navigation-loading-style"
             )
         ) {
+
             const style =
                 document.createElement("style");
+
 
             style.id =
                 "genz-navigation-loading-style";
 
+
             style.textContent = `
                 @keyframes genz-navigation-spin {
+
                     from {
                         transform: rotate(0deg);
                     }
@@ -1619,8 +2044,10 @@
                     to {
                         transform: rotate(360deg);
                     }
+
                 }
             `;
+
 
             document.head.appendChild(
                 style
@@ -1635,14 +2062,17 @@
 
 
     function hideLoading() {
+
         const loading =
             document.getElementById(
                 "genz-navigation-loading"
             );
 
+
         if (!loading) {
             return;
         }
+
 
         loading.remove();
     }
@@ -1653,9 +2083,11 @@
        ========================================================= */
 
     async function initNavigation() {
+
         if (initializationStarted) {
             return;
         }
+
 
         initializationStarted = true;
 
@@ -1666,6 +2098,7 @@
          */
 
         if (isLoginPage()) {
+
             resolveNavigationReady(
                 false
             );
@@ -1680,6 +2113,43 @@
 
 
         try {
+
+            /*
+             * Pastikan shared Supabase client tersedia
+             * sebelum auth listener dan validation.
+             */
+
+            const supabase =
+                getSupabaseClient();
+
+
+            if (!supabase) {
+
+                console.error(
+                    "[GENZ Navigation] Shared Supabase client tidak tersedia."
+                );
+
+
+                hideLoading();
+
+
+                resolveNavigationReady(
+                    false
+                );
+
+
+                /*
+                 * Jangan redirect di sini.
+                 *
+                 * Redirect tanpa mengetahui apakah masalah
+                 * berasal dari session atau library hanya
+                 * akan menciptakan login loop.
+                 */
+
+                return;
+            }
+
+
             /*
              * Validasi auth.
              */
@@ -1689,11 +2159,14 @@
 
 
             if (!authenticated) {
+
                 hideLoading();
+
 
                 resolveNavigationReady(
                     false
                 );
+
 
                 return;
             }
@@ -1720,6 +2193,16 @@
                 currentRole;
 
 
+            window.GENZ_CURRENT_USER =
+                currentUser;
+
+            window.GENZ_CURRENT_PROFILE =
+                currentProfile;
+
+            window.GENZ_CURRENT_ROLE =
+                currentRole;
+
+
             window.GENZ_NAVIGATION_READY =
                 true;
 
@@ -1735,18 +2218,27 @@
             console.log(
                 "[GENZ Navigation] Ready:",
                 {
-                    user: currentUser?.email,
-                    role: currentRole
+                    user:
+                        currentUser?.email,
+
+                    role:
+                        currentRole,
+
+                    credits:
+                        currentProfile?.credits
                 }
             );
 
         } catch (error) {
+
             console.error(
                 "[GENZ Navigation] Initialization error:",
                 error
             );
 
+
             hideLoading();
+
 
             resolveNavigationReady(
                 false
@@ -1754,11 +2246,11 @@
 
 
             /*
-             * Jangan signOut user hanya karena
-             * initialization error.
+             * Jangan signOut atau redirect otomatis
+             * hanya karena initialization error.
+             *
+             * Session Auth tetap dipertahankan.
              */
-
-            redirectToLogin();
         }
     }
 
@@ -1774,6 +2266,7 @@
          */
 
         if (isLoginPage()) {
+
             resolveNavigationReady(
                 false
             );
@@ -1793,6 +2286,7 @@
             document.readyState ===
             "loading"
         ) {
+
             document.addEventListener(
                 "DOMContentLoaded",
                 () => {
@@ -1802,6 +2296,7 @@
                     once: true
                 }
             );
+
 
             return;
         }
@@ -1816,25 +2311,49 @@
        ========================================================= */
 
     window.GENZNavigation = {
+
         getUser: () =>
             currentUser,
+
 
         getProfile: () =>
             currentProfile,
 
+
         getRole: () =>
             currentRole,
+
 
         isAuthenticated: () =>
             !!currentUser,
 
+
         logout:
             logoutUser,
 
+
         refresh: async () => {
-            initializationStarted = false;
+
+            /*
+             * Reset initialization flag agar refresh
+             * dapat menjalankan validation kembali.
+             */
+
+            initializationStarted =
+                false;
+
+
+            /*
+             * Reset redirect guard.
+             */
+
+            redirectingToLogin =
+                false;
+
+
             await initNavigation();
         }
+
     };
 
 
