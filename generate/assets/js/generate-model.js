@@ -27,11 +27,11 @@
    - Provider    : Supabase providers
    - Adapter     : model adapter registry
 
-   CATATAN:
-   - Model aktif tetap boleh tampil walaupun adapter
-     belum tersedia.
-   - Adapter hanya menentukan apakah model siap
-     dieksekusi.
+   PENTING:
+   - Tidak menggunakan generate-utils.js
+   - Model active tetap boleh tampil walaupun
+     adapter belum tersedia
+   - Model tanpa adapter tidak dianggap executable
 ========================================================= */
 
 import {
@@ -44,12 +44,6 @@ import {
     setModelLoaded,
     isModelLoaded
 } from "./generate-state.js";
-
-import {
-    getStoredModelId,
-    saveSelectedModelId,
-    safeString
-} from "./generate-utils.js";
 
 import {
     getAccessToken
@@ -65,7 +59,117 @@ const MODEL_CONFIG_ENDPOINT =
 
 
 /* =========================================================
-   HELPERS
+   LOCAL HELPERS
+   ---------------------------------------------------------
+   generate-utils.js tidak tersedia di repository.
+   Fungsi yang diperlukan dibuat lokal agar module
+   tidak mempunyai dependency yang rusak.
+========================================================= */
+
+
+/* =========================================================
+   SAFE STRING
+========================================================= */
+
+function safeString(
+    value,
+    fallback = ""
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return fallback;
+
+    }
+
+    const result =
+        String(
+            value
+        ).trim();
+
+    return result ||
+        fallback;
+
+}
+
+
+/* =========================================================
+   STORAGE KEY
+========================================================= */
+
+const SELECTED_MODEL_STORAGE_KEY =
+    "genz_generate_selected_model";
+
+
+/* =========================================================
+   GET STORED MODEL ID
+========================================================= */
+
+function getStoredModelId() {
+
+    try {
+
+        return String(
+            localStorage.getItem(
+                SELECTED_MODEL_STORAGE_KEY
+            ) ||
+            ""
+        ).trim();
+
+    } catch (error) {
+
+        return "";
+
+    }
+
+}
+
+
+/* =========================================================
+   SAVE SELECTED MODEL ID
+========================================================= */
+
+function saveSelectedModelId(
+    modelId
+) {
+
+    const normalizedId =
+        String(
+            modelId ||
+            ""
+        ).trim();
+
+
+    if (!normalizedId) {
+        return;
+    }
+
+
+    try {
+
+        localStorage.setItem(
+            SELECTED_MODEL_STORAGE_KEY,
+            normalizedId
+        );
+
+    } catch (error) {
+
+        /*
+         * localStorage bukan source of truth.
+         * Jika browser memblokir storage,
+         * Generate tetap dapat berjalan.
+         */
+
+    }
+
+}
+
+
+/* =========================================================
+   GET ELEMENTS
 ========================================================= */
 
 function getElements() {
@@ -75,11 +179,18 @@ function getElements() {
 }
 
 
-function getModelId(model) {
+/* =========================================================
+   GET MODEL ID
+========================================================= */
+
+function getModelId(
+    model
+) {
 
     if (!model) {
         return "";
     }
+
 
     return String(
         model.model_id ||
@@ -90,11 +201,18 @@ function getModelId(model) {
 }
 
 
-function getModelName(model) {
+/* =========================================================
+   GET MODEL NAME
+========================================================= */
+
+function getModelName(
+    model
+) {
 
     if (!model) {
         return "Model";
     }
+
 
     return safeString(
         model.model_name ||
@@ -107,26 +225,35 @@ function getModelName(model) {
 }
 
 
-function getProviderName(model) {
+/* =========================================================
+   GET PROVIDER NAME
+========================================================= */
+
+function getProviderName(
+    model
+) {
 
     if (!model) {
         return "-";
     }
 
+
     if (
         typeof model.provider ===
-        "object" &&
+            "object" &&
         model.provider
     ) {
 
         return safeString(
             model.provider.provider_name ||
             model.provider.name ||
-            model.provider.provider_id,
+            model.provider.provider_id ||
+            model.provider.id,
             "-"
         );
 
     }
+
 
     return safeString(
         model.provider_name ||
@@ -140,7 +267,7 @@ function getProviderName(model) {
 /* =========================================================
    MODEL VISIBILITY VALIDATION
    ---------------------------------------------------------
-   Menentukan apakah model boleh DITAMPILKAN.
+   Menentukan apakah model boleh ditampilkan.
 
    TIDAK memeriksa adapter.
 
@@ -151,94 +278,124 @@ function getProviderName(model) {
    - provider tersedia
    - provider active jika status tersedia
    - provider ID tersedia
-
-   adapter_available TIDAK digunakan di sini.
 ========================================================= */
 
-function isVisibleModel(model) {
+function isVisibleModel(
+    model
+) {
 
     if (
         !model ||
-        typeof model !== "object"
+        typeof model !==
+            "object"
     ) {
+
         return false;
+
     }
+
 
     const modelId =
         getModelId(
             model
         );
 
+
     if (!modelId) {
         return false;
     }
 
+
     /*
-     * Jika backend mengirim status model,
-     * hanya model active yang ditampilkan.
+     * Jika status dikirim backend,
+     * hanya active yang ditampilkan.
      *
-     * Jika status kosong / undefined,
-     * jangan membuat asumsi inactive.
+     * Jika tidak ada status, jangan
+     * mengarang status inactive.
      */
+
     const modelStatus =
         String(
-            model.status || ""
+            model.status ||
+            ""
         )
             .trim()
             .toLowerCase();
+
 
     if (
         modelStatus &&
         modelStatus !== "active"
     ) {
+
         return false;
+
     }
 
+
     /*
-     * Provider wajib tersedia.
+     * Provider wajib berupa object.
      */
+
     const provider =
         model.provider;
 
+
     if (
         !provider ||
-        typeof provider !== "object"
+        typeof provider !==
+            "object"
     ) {
+
         return false;
+
     }
 
+
     /*
-     * Jika backend memberikan status provider,
+     * Jika provider memiliki status,
      * provider harus active.
      */
+
     const providerStatus =
         String(
-            provider.status || ""
+            provider.status ||
+            ""
         )
             .trim()
             .toLowerCase();
+
 
     if (
         providerStatus &&
         providerStatus !== "active"
     ) {
+
         return false;
+
     }
+
 
     /*
      * Provider ID.
      */
+
     const providerId =
         String(
             model.provider_code ||
+            model.provider_id ||
             provider.provider_id ||
             provider.id ||
             ""
         ).trim();
 
+
     if (!providerId) {
+
         return false;
+
     }
+
 
     return true;
 
@@ -248,44 +405,30 @@ function isVisibleModel(model) {
 /* =========================================================
    MODEL EXECUTION VALIDATION
    ---------------------------------------------------------
-   Menentukan apakah model benar-benar siap
-   digunakan untuk execution.
+   Model visible belum tentu executable.
 
-   Berbeda dengan isVisibleModel().
-
-   Model yang:
-   - active
-   - provider active
-   - tetapi adapter belum tersedia
-
-   tetap boleh tampil.
-
-   Namun model tersebut TIDAK executable.
+   Adapter WAJIB tersedia untuk execution.
 ========================================================= */
 
-function isExecutableModel(model) {
+function isExecutableModel(
+    model
+) {
 
-    /*
-     * Pertama model harus visible.
-     */
     if (
         !isVisibleModel(
             model
         )
     ) {
+
         return false;
+
     }
 
-    /*
-     * Adapter WAJIB tersedia untuk execution.
-     */
-    if (
-        model.adapter_available !== true
-    ) {
-        return false;
-    }
 
-    return true;
+    return (
+        model.adapter_available ===
+        true
+    );
 
 }
 
@@ -301,6 +444,7 @@ async function requestModelConfig(
     const accessToken =
         await getAccessToken();
 
+
     if (!accessToken) {
 
         throw new Error(
@@ -308,6 +452,7 @@ async function requestModelConfig(
         );
 
     }
+
 
     const response =
         await fetch(
@@ -323,11 +468,14 @@ async function requestModelConfig(
                         `Bearer ${accessToken}`
                 },
 
-                credentials: "same-origin"
+                credentials:
+                    "same-origin"
             }
         );
 
+
     let data = null;
+
 
     try {
 
@@ -341,6 +489,7 @@ async function requestModelConfig(
         );
 
     }
+
 
     if (!response.ok) {
 
@@ -356,11 +505,13 @@ async function requestModelConfig(
             ) ||
             `Gagal memuat model (${response.status}).`;
 
+
         throw new Error(
             message
         );
 
     }
+
 
     if (
         data &&
@@ -374,6 +525,7 @@ async function requestModelConfig(
         );
 
     }
+
 
     return data;
 
@@ -389,12 +541,15 @@ function extractModels(
 ) {
 
     if (
-        Array.isArray(data)
+        Array.isArray(
+            data
+        )
     ) {
 
         return data;
 
     }
+
 
     if (
         Array.isArray(
@@ -406,6 +561,7 @@ function extractModels(
 
     }
 
+
     if (
         Array.isArray(
             data?.data
@@ -416,6 +572,7 @@ function extractModels(
 
     }
 
+
     if (
         Array.isArray(
             data?.data?.models
@@ -425,6 +582,7 @@ function extractModels(
         return data.data.models;
 
     }
+
 
     return [];
 
@@ -442,23 +600,19 @@ export async function loadAvailableModels() {
             MODEL_CONFIG_ENDPOINT
         );
 
+
     const models =
         extractModels(
             data
         );
 
+
     /*
-     * Source tetap:
-     *
-     * /api/model-config
+     * Model berasal langsung dari backend.
      *
      * Tidak ada model hardcoded.
-     *
-     * PENTING:
-     * Jangan gunakan isExecutableModel()
-     * di sini karena adapter yang belum tersedia
-     * tidak boleh membuat model menghilang.
      */
+
     const validModels =
         models.filter(
             model =>
@@ -467,23 +621,11 @@ export async function loadAvailableModels() {
                 )
         );
 
-    /*
-     * Jika tidak ada model visible.
-     */
+
     if (
-        validModels.length === 0
+        validModels.length ===
+            0
     ) {
-
-        const hasModels =
-            models.length > 0;
-
-        if (hasModels) {
-
-            throw new Error(
-                "Tidak ada model aktif yang tersedia."
-            );
-
-        }
 
         throw new Error(
             "Tidak ada model aktif yang tersedia."
@@ -491,9 +633,11 @@ export async function loadAvailableModels() {
 
     }
 
+
     setAvailableModels(
         validModels
     );
+
 
     return validModels;
 
@@ -512,14 +656,18 @@ export function renderModelSelector(
     const elements =
         getElements();
 
+
     if (!elements) {
         return null;
     }
 
+
     const {
         modelSelector,
         modelSelect
-    } = elements;
+    } =
+        elements;
+
 
     if (!modelSelect) {
 
@@ -529,20 +677,23 @@ export function renderModelSelector(
 
     }
 
-    /*
-     * Bersihkan selector.
-     */
-    modelSelect.innerHTML = "";
+
+    modelSelect.innerHTML =
+        "";
+
 
     /*
      * Placeholder.
      */
+
     const placeholder =
         document.createElement(
             "option"
         );
 
-    placeholder.value = "";
+
+    placeholder.value =
+        "";
 
     placeholder.textContent =
         "Pilih model...";
@@ -553,19 +704,21 @@ export function renderModelSelector(
     placeholder.selected =
         true;
 
+
     modelSelect.appendChild(
         placeholder
     );
 
+
     /*
-     * Hanya model visible yang dirender.
-     *
-     * JANGAN menggunakan isExecutableModel()
-     * karena model tanpa adapter tetap harus
-     * terlihat di daftar.
+     * Hanya model visible yang
+     * ditampilkan.
      */
+
     const normalizedModels =
-        Array.isArray(models)
+        Array.isArray(
+            models
+        )
             ? models.filter(
                 model =>
                     isVisibleModel(
@@ -574,9 +727,11 @@ export function renderModelSelector(
             )
             : [];
 
+
     /*
-     * Tambahkan model dari API.
+     * Render model.
      */
+
     normalizedModels.forEach(
         model => {
 
@@ -585,27 +740,33 @@ export function renderModelSelector(
                     model
                 );
 
+
             if (!modelId) {
                 return;
             }
+
 
             const option =
                 document.createElement(
                     "option"
                 );
 
+
             option.value =
                 modelId;
+
 
             const modelName =
                 getModelName(
                     model
                 );
 
+
             const providerName =
                 getProviderName(
                     model
                 );
+
 
             option.textContent =
                 providerName &&
@@ -613,15 +774,13 @@ export function renderModelSelector(
                     ? `${modelName} • ${providerName}`
                     : modelName;
 
-            /*
-             * Simpan informasi adapter pada
-             * option untuk kebutuhan UI/debug
-             * tanpa mengubah source model.
-             */
+
             option.dataset.adapterAvailable =
-                model.adapter_available === true
+                model.adapter_available ===
+                    true
                     ? "true"
                     : "false";
+
 
             modelSelect.appendChild(
                 option
@@ -630,19 +789,25 @@ export function renderModelSelector(
         }
     );
 
+
     /*
      * Tentukan model pilihan.
      *
      * Prioritas:
      *
-     * 1. preferredModelId
-     * 2. stored model
+     * 1. preferredModelId yang valid
+     * 2. stored model yang valid
      * 3. executable model pertama
-     * 4. model visible pertama
+     * 4. visible model pertama
      */
+
     let selectedModelId =
-        preferredModelId ||
-        getStoredModelId();
+        String(
+            preferredModelId ||
+            getStoredModelId() ||
+            ""
+        ).trim();
+
 
     const preferredExists =
         normalizedModels.some(
@@ -653,14 +818,11 @@ export function renderModelSelector(
                 selectedModelId
         );
 
+
     if (
         !preferredExists
     ) {
 
-        /*
-         * Utamakan model yang benar-benar
-         * mempunyai adapter.
-         */
         const executableModel =
             normalizedModels.find(
                 model =>
@@ -669,30 +831,47 @@ export function renderModelSelector(
                     )
             );
 
-        selectedModelId =
-            getModelId(
-                executableModel ||
-                normalizedModels[0]
-            );
+
+        if (executableModel) {
+
+            selectedModelId =
+                getModelId(
+                    executableModel
+                );
+
+        } else {
+
+            selectedModelId =
+                getModelId(
+                    normalizedModels[0]
+                );
+
+        }
 
     }
+
 
     if (selectedModelId) {
 
         modelSelect.value =
             selectedModelId;
 
+
         saveSelectedModelId(
             selectedModelId
         );
+
 
         placeholder.selected =
             false;
 
     }
 
+
     modelSelect.disabled =
-        normalizedModels.length === 0;
+        normalizedModels.length ===
+        0;
+
 
     if (modelSelector) {
 
@@ -702,7 +881,11 @@ export function renderModelSelector(
 
     }
 
-    return selectedModelId || null;
+
+    return (
+        selectedModelId ||
+        null
+    );
 
 }
 
@@ -717,16 +900,90 @@ export function findModel(
 
     const normalizedId =
         String(
-            modelId || ""
+            modelId ||
+            ""
         ).trim();
+
 
     if (!normalizedId) {
         return null;
     }
 
+
     return findAvailableModel(
         normalizedId
     );
+
+}
+
+
+/* =========================================================
+   EXTRACT SINGLE MODEL
+========================================================= */
+
+function extractSingleModel(
+    data
+) {
+
+    if (
+        data?.model &&
+        typeof data.model ===
+            "object"
+    ) {
+
+        return data.model;
+
+    }
+
+
+    if (
+        data?.data?.model &&
+        typeof data.data.model ===
+            "object"
+    ) {
+
+        return data.data.model;
+
+    }
+
+
+    if (
+        data?.data &&
+        typeof data.data ===
+            "object" &&
+        !Array.isArray(
+            data.data
+        ) &&
+        (
+            data.data.model_id ||
+            data.data.id
+        )
+    ) {
+
+        return data.data;
+
+    }
+
+
+    if (
+        data &&
+        typeof data ===
+            "object" &&
+        !Array.isArray(
+            data
+        ) &&
+        (
+            data.model_id ||
+            data.id
+        )
+    ) {
+
+        return data;
+
+    }
+
+
+    return null;
 
 }
 
@@ -741,8 +998,10 @@ export async function loadModelConfig(
 
     const normalizedId =
         String(
-            modelId || ""
+            modelId ||
+            ""
         ).trim();
+
 
     if (!normalizedId) {
 
@@ -752,12 +1011,15 @@ export async function loadModelConfig(
 
     }
 
+
     /*
      * Pastikan model memang berasal dari
-     * daftar model yang telah dimuat.
+     * daftar yang sudah dimuat.
      */
+
     const availableModels =
         getAvailableModels();
+
 
     const availableModel =
         availableModels.find(
@@ -768,9 +1030,8 @@ export async function loadModelConfig(
                 normalizedId
         );
 
-    if (
-        !availableModel
-    ) {
+
+    if (!availableModel) {
 
         throw new Error(
             "Model yang dipilih tidak tersedia."
@@ -778,56 +1039,28 @@ export async function loadModelConfig(
 
     }
 
+
     const params =
         new URLSearchParams();
+
 
     params.set(
         "model_id",
         normalizedId
     );
 
+
     const data =
         await requestModelConfig(
             `${MODEL_CONFIG_ENDPOINT}?${params.toString()}`
         );
 
-    /*
-     * Endpoint detail dapat mengembalikan:
-     *
-     * {
-     *   model: {...}
-     * }
-     *
-     * atau:
-     *
-     * {
-     *   data: {
-     *      model: {...}
-     *   }
-     * }
-     *
-     * atau object model langsung.
-     */
-    let model =
-        data?.model ||
-        data?.data?.model ||
-        data?.data;
 
-    if (
-        !model &&
-        data &&
-        typeof data === "object" &&
-        !Array.isArray(data) &&
-        (
-            data.model_id ||
-            data.id
-        )
-    ) {
+    const model =
+        extractSingleModel(
+            data
+        );
 
-        model =
-            data;
-
-    }
 
     if (
         !model ||
@@ -842,10 +1075,12 @@ export async function loadModelConfig(
 
     }
 
+
     const serverModelId =
         getModelId(
             model
         );
+
 
     if (
         serverModelId !==
@@ -858,18 +1093,16 @@ export async function loadModelConfig(
 
     }
 
+
     /*
-     * =====================================================
-     * PENTING
-     * =====================================================
+     * Detail endpoint memang mensyaratkan
+     * adapter untuk execution.
      *
-     * Detail model yang dipilih tetap harus
-     * executable.
-     *
-     * Model tanpa adapter boleh TAMPIL,
-     * tetapi tidak boleh dianggap siap
-     * untuk execution.
+     * Model tanpa adapter tetap terlihat
+     * di selector, tetapi tidak dijadikan
+     * current executable model.
      */
+
     if (
         !isExecutableModel(
             model
@@ -877,22 +1110,26 @@ export async function loadModelConfig(
     ) {
 
         throw new Error(
-            `Model "${serverModelId}" tidak dapat digunakan. Provider atau adapter model tidak aktif.`
+            `Model "${serverModelId}" belum siap digunakan. Provider atau adapter model tidak aktif.`
         );
 
     }
+
 
     setCurrentModel(
         model
     );
 
+
     setModelLoaded(
         true
     );
 
+
     saveSelectedModelId(
         serverModelId
     );
+
 
     return model;
 
@@ -909,8 +1146,10 @@ export async function selectModel(
 
     const normalizedId =
         String(
-            modelId || ""
+            modelId ||
+            ""
         ).trim();
+
 
     if (!normalizedId) {
 
@@ -926,12 +1165,10 @@ export async function selectModel(
 
     }
 
-    /*
-     * Selector harus berasal dari model
-     * yang diberikan endpoint.
-     */
+
     const available =
         getAvailableModels();
+
 
     const selectedModel =
         available.find(
@@ -942,9 +1179,8 @@ export async function selectModel(
                 normalizedId
         );
 
-    if (
-        !selectedModel
-    ) {
+
+    if (!selectedModel) {
 
         throw new Error(
             "Model yang dipilih tidak tersedia."
@@ -952,13 +1188,7 @@ export async function selectModel(
 
     }
 
-    /*
-     * Model visible belum tentu executable.
-     *
-     * Di sini kita memberikan error yang
-     * jelas jika user memilih model yang
-     * adapter-nya belum tersedia.
-     */
+
     if (
         !isExecutableModel(
             selectedModel
@@ -970,6 +1200,7 @@ export async function selectModel(
         );
 
     }
+
 
     return loadModelConfig(
         normalizedId
@@ -987,15 +1218,19 @@ export async function resolveInitialModel() {
     const storedModelId =
         getStoredModelId();
 
+
     const models =
         await loadAvailableModels();
 
+
     /*
-     * Model tersimpan boleh digunakan jika
-     * model tersebut masih visible.
+     * Hanya gunakan stored model jika
+     * masih tersedia dan executable.
      */
+
     let selectedModelId =
-        storedModelId;
+        null;
+
 
     const storedModel =
         models.find(
@@ -1003,14 +1238,32 @@ export async function resolveInitialModel() {
                 getModelId(
                     model
                 ) ===
-                selectedModelId
+                storedModelId
         );
 
-    if (!storedModel) {
 
-        /*
-         * Prioritas model yang executable.
-         */
+    if (
+        storedModel &&
+        isExecutableModel(
+            storedModel
+        )
+    ) {
+
+        selectedModelId =
+            getModelId(
+                storedModel
+            );
+
+    }
+
+
+    /*
+     * Jika stored model tidak executable,
+     * cari executable model pertama.
+     */
+
+    if (!selectedModelId) {
+
         const executableModel =
             models.find(
                 model =>
@@ -1019,44 +1272,71 @@ export async function resolveInitialModel() {
                     )
             );
 
-        selectedModelId =
-            getModelId(
-                executableModel ||
-                models[0]
-            );
+
+        if (executableModel) {
+
+            selectedModelId =
+                getModelId(
+                    executableModel
+                );
+
+        }
 
     }
+
+
+    /*
+     * Render semua model active.
+     *
+     * Kalau tidak ada adapter sama sekali,
+     * daftar model tetap tampil.
+     */
+
+    const renderedModelId =
+        renderModelSelector(
+            models,
+            selectedModelId
+        );
+
+
+    /*
+     * Tidak ada model executable.
+     *
+     * Jangan memanggil detail endpoint,
+     * karena backend memang akan menolaknya.
+     */
 
     if (!selectedModelId) {
 
-        throw new Error(
-            "Model awal tidak dapat ditentukan."
+        setCurrentModel(
+            null
         );
+
+        setModelLoaded(
+            false
+        );
+
+
+        return {
+            model: null,
+            models,
+            executable: false,
+            selectedModelId:
+                renderedModelId
+        };
 
     }
 
-    renderModelSelector(
-        models,
-        selectedModelId
-    );
 
-    /*
-     * Load detail model.
-     *
-     * Jika model pertama ternyata belum
-     * mempunyai adapter, fungsi ini akan
-     * memberi error execution readiness.
-     */
     const model =
         await loadModelConfig(
             selectedModelId
         );
 
-    /*
-     * Pastikan selector tetap sinkron.
-     */
+
     const elements =
         getElements();
+
 
     if (
         elements?.modelSelect
@@ -1069,7 +1349,14 @@ export async function resolveInitialModel() {
 
     }
 
-    return model;
+
+    return {
+        model,
+        models,
+        executable: true,
+        selectedModelId:
+            selectedModelId
+    };
 
 }
 
@@ -1085,11 +1372,74 @@ export async function refreshModels(
     const models =
         await loadAvailableModels();
 
-    const selectedModelId =
+
+    /*
+     * Hanya gunakan preferred model
+     * jika executable.
+     */
+
+    let executablePreferred =
+        null;
+
+
+    if (
+        preferredModelId
+    ) {
+
+        executablePreferred =
+            models.find(
+                model =>
+                    getModelId(
+                        model
+                    ) ===
+                    String(
+                        preferredModelId
+                    ).trim() &&
+                    isExecutableModel(
+                        model
+                    )
+            );
+
+    }
+
+
+    let selectedModelId =
+        executablePreferred
+            ? getModelId(
+                executablePreferred
+            )
+            : null;
+
+
+    if (!selectedModelId) {
+
+        const executableModel =
+            models.find(
+                model =>
+                    isExecutableModel(
+                        model
+                    )
+            );
+
+
+        if (executableModel) {
+
+            selectedModelId =
+                getModelId(
+                    executableModel
+                );
+
+        }
+
+    }
+
+
+    const renderedModelId =
         renderModelSelector(
             models,
-            preferredModelId
+            selectedModelId
         );
+
 
     if (!selectedModelId) {
 
@@ -1101,21 +1451,29 @@ export async function refreshModels(
             false
         );
 
+
         return {
             models,
-            model: null
+            model: null,
+            executable: false,
+            selectedModelId:
+                renderedModelId
         };
 
     }
+
 
     const model =
         await loadModelConfig(
             selectedModelId
         );
 
+
     return {
         models,
-        model
+        model,
+        executable: true,
+        selectedModelId
     };
 
 }
@@ -1140,6 +1498,7 @@ export function isModelReady() {
 
     const model =
         getCurrentModel();
+
 
     return Boolean(
         isModelLoaded() &&
