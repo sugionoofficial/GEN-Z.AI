@@ -6,28 +6,25 @@
    generate/assets/js/generate-model.js
 
    Tanggung jawab:
-   - Load daftar model dari /api/model-config
-   - Resolve model dari repository registry
-   - Render model selector
-   - Authorization Bearer
+   - Load model dari /api/model-config
+   - Menampilkan model aktif
+   - Resolve model terpilih
    - Menyimpan model terpilih
-   - Menyediakan model lengkap untuk module Generate
-   - Menormalisasi CREDIT model secara konsisten
+   - Menyediakan model lengkap untuk Generate Form
+   - Menyediakan credit pemakaian model
 
    SOURCE OF TRUTH:
-   - Model identity      : repository model registry
-   - Model parameters    : model folder parameters.js
-   - Provider identity   : model config / Supabase provider
-   - Admin configuration : optional Supabase models row
-   - Model credit        : models.credit_final
+   - Model              : /api/model-config
+   - Model identity     : repository model registry
+   - Parameters         : repository model parameters
+   - Provider           : provider dari model-config
+   - Model credit       : credit_final
 
-   Catatan:
-   - Tidak membuat model sendiri.
-   - Tidak membuat parameter sendiri.
-   - Tidak menganggap provider selalu berupa object.
-   - Tidak melakukan request detail kedua jika model lengkap
-     sudah tersedia dari endpoint list.
-   - Credit model TIDAK mengambil credit account/profile.
+   PENTING:
+   - Tidak membuat model palsu
+   - Tidak membuat parameter palsu
+   - Tidak mengambil credit akun/profile
+   - Tidak mengganggu auth/profile/OWNER
 ========================================================= */
 
 import {
@@ -58,7 +55,7 @@ const SELECTED_MODEL_STORAGE_KEY =
 
 
 /* =========================================================
-   SAFE STRING
+   SAFE HELPERS
 ========================================================= */
 
 function safeString(
@@ -70,25 +67,15 @@ function safeString(
         value === null ||
         value === undefined
     ) {
-
         return fallback;
     }
 
-
     const result =
-        String(
-            value
-        ).trim();
+        String(value).trim();
 
-
-    return result ||
-        fallback;
+    return result || fallback;
 }
 
-
-/* =========================================================
-   SAFE BOOLEAN
-========================================================= */
 
 function safeBoolean(
     value,
@@ -99,10 +86,8 @@ function safeBoolean(
         typeof value ===
         "boolean"
     ) {
-
         return value;
     }
-
 
     if (
         typeof value ===
@@ -118,7 +103,6 @@ function safeBoolean(
             normalized ===
             "true"
         ) {
-
             return true;
         }
 
@@ -126,23 +110,13 @@ function safeBoolean(
             normalized ===
             "false"
         ) {
-
             return false;
         }
     }
 
-
     return fallback;
 }
 
-
-/* =========================================================
-   SAFE NUMBER
-   ---------------------------------------------------------
-   Penting:
-   - 0 adalah nilai valid.
-   - null/undefined/"" dianggap tidak tersedia.
-========================================================= */
 
 function safeNumber(
     value,
@@ -154,20 +128,13 @@ function safeNumber(
         value === undefined ||
         value === ""
     ) {
-
         return fallback;
     }
 
-
     const number =
-        Number(
-            value
-        );
+        Number(value);
 
-
-    return Number.isFinite(
-        number
-    )
+    return Number.isFinite(number)
         ? number
         : fallback;
 }
@@ -198,28 +165,23 @@ function saveSelectedModelId(
     modelId
 ) {
 
-    const normalizedId =
-        safeString(
-            modelId
-        );
+    const normalized =
+        safeString(modelId);
 
-    if (!normalizedId) {
+    if (!normalized) {
         return;
     }
-
 
     try {
 
         localStorage.setItem(
             SELECTED_MODEL_STORAGE_KEY,
-            normalizedId
+            normalized
         );
 
     } catch {
 
-        /*
-         * localStorage bukan source of truth.
-         */
+        /* localStorage optional */
     }
 }
 
@@ -230,17 +192,29 @@ function saveSelectedModelId(
 
 function getElements() {
 
-    return getGenerateElements();
+    try {
+
+        return getGenerateElements();
+
+    } catch {
+
+        return {
+            modelSelector:
+                document.getElementById(
+                    "modelSelector"
+                ),
+
+            modelSelect:
+                document.getElementById(
+                    "modelSelect"
+                )
+        };
+    }
 }
 
 
 /* =========================================================
    MODEL ID
-   ---------------------------------------------------------
-   PRIORITAS:
-   1. model.model_id
-   2. model.config.id
-   3. model.id
 ========================================================= */
 
 function getModelId(
@@ -250,7 +224,6 @@ function getModelId(
     if (!model) {
         return "";
     }
-
 
     return safeString(
         model.model_id ||
@@ -272,7 +245,6 @@ function getModelName(
         return "Model";
     }
 
-
     return safeString(
         model.model_name ||
         model.name ||
@@ -286,7 +258,7 @@ function getModelName(
 
 
 /* =========================================================
-   PROVIDER OBJECT
+   PROVIDER
 ========================================================= */
 
 function getProviderObject(
@@ -302,24 +274,16 @@ function getProviderObject(
         return model.provider;
     }
 
-
     return null;
 }
 
-
-/* =========================================================
-   PROVIDER ID
-========================================================= */
 
 function getProviderId(
     model
 ) {
 
     const provider =
-        getProviderObject(
-            model
-        );
-
+        getProviderObject(model);
 
     return safeString(
         model?.provider_code ||
@@ -331,19 +295,12 @@ function getProviderId(
 }
 
 
-/* =========================================================
-   PROVIDER NAME
-========================================================= */
-
 function getProviderName(
     model
 ) {
 
     const provider =
-        getProviderObject(
-            model
-        );
-
+        getProviderObject(model);
 
     return safeString(
         model?.provider_name ||
@@ -357,19 +314,12 @@ function getProviderName(
 }
 
 
-/* =========================================================
-   PROVIDER STATUS
-========================================================= */
-
 function getProviderStatus(
     model
 ) {
 
     const provider =
-        getProviderObject(
-            model
-        );
-
+        getProviderObject(model);
 
     return safeString(
         model?.provider_status ||
@@ -395,7 +345,7 @@ function getModelStatus(
 
 
 /* =========================================================
-   ADAPTER STATUS
+   ADAPTER
 ========================================================= */
 
 function hasAdapter(
@@ -416,7 +366,6 @@ function hasAdapter(
         );
     }
 
-
     if (
         model?.adapter &&
         typeof model.adapter ===
@@ -426,13 +375,16 @@ function hasAdapter(
         return true;
     }
 
-
+    /*
+     * Endpoint /api/model-config
+     * saat ini mengirim adapter_available.
+     */
     return false;
 }
 
 
 /* =========================================================
-   PARAMETER AVAILABILITY
+   PARAMETERS
 ========================================================= */
 
 function hasParameters(
@@ -443,23 +395,15 @@ function hasParameters(
         return false;
     }
 
-
     const parameters =
         model.parameters;
 
-
     if (
-        Array.isArray(
-            parameters
-        )
+        Array.isArray(parameters)
     ) {
 
-        return (
-            parameters.length >
-            0
-        );
+        return parameters.length > 0;
     }
-
 
     if (
         parameters &&
@@ -468,40 +412,187 @@ function hasParameters(
     ) {
 
         return (
-            Object.keys(
-                parameters
-            ).length > 0
+            Object.keys(parameters)
+                .length > 0
         );
     }
-
 
     return false;
 }
 
 
 /* =========================================================
+   MODEL VISIBILITY
+   ---------------------------------------------------------
+   FIX UTAMA #1
+
+   Sebelumnya fungsi ini dipanggil tetapi tidak ada.
+
+   Model dari repository tetap boleh tampil apabila:
+   - model ID ada
+   - status model bukan inactive/disabled
+   - provider tidak secara eksplisit inactive
+
+   Tidak mensyaratkan parameter atau provider harus ada
+   agar selector tetap bisa mengetahui model repository.
+========================================================= */
+
+function isVisibleModel(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+            "object"
+    ) {
+
+        return false;
+    }
+
+    const modelId =
+        getModelId(model);
+
+    if (!modelId) {
+        return false;
+    }
+
+    const status =
+        getModelStatus(model);
+
+    const hiddenStatuses = [
+        "inactive",
+        "disabled",
+        "deleted",
+        "archived"
+    ];
+
+    if (
+        hiddenStatuses.includes(
+            status
+        )
+    ) {
+
+        return false;
+    }
+
+    const providerStatus =
+        getProviderStatus(model);
+
+    const hiddenProviderStatuses = [
+        "inactive",
+        "disabled",
+        "deleted",
+        "suspended"
+    ];
+
+    if (
+        hiddenProviderStatuses.includes(
+            providerStatus
+        )
+    ) {
+
+        return false;
+    }
+
+    return true;
+}
+
+
+/* =========================================================
+   MODEL EXECUTABLE
+   ---------------------------------------------------------
+   FIX UTAMA #2
+
+   Model dari /api/model-config mempunyai:
+     adapter_available: true
+
+   Provider aktif tidak boleh ditolak hanya karena
+   provider object / provider status tidak dikirim dalam
+   format tertentu.
+
+   Yang wajib:
+   - model_id valid
+   - model visible
+   - adapter tidak secara eksplisit false
+   - provider tidak secara eksplisit inactive
+========================================================= */
+
+function isExecutableModel(
+    model
+) {
+
+    if (
+        !isVisibleModel(model)
+    ) {
+
+        return false;
+    }
+
+    const modelId =
+        getModelId(model);
+
+    if (!modelId) {
+        return false;
+    }
+
+    /*
+     * Jika backend secara eksplisit mengatakan
+     * adapter false, jangan menjalankan model.
+     */
+    if (
+        Object.prototype.hasOwnProperty.call(
+            model,
+            "adapter_available"
+        )
+    ) {
+
+        if (
+            safeBoolean(
+                model.adapter_available,
+                false
+            ) === false
+        ) {
+
+            return false;
+        }
+    }
+
+    /*
+     * Provider hanya ditolak jika statusnya
+     * secara eksplisit bukan active.
+     *
+     * Status kosong berarti backend belum
+     * mengirim status provider, bukan otomatis error.
+     */
+    const providerStatus =
+        getProviderStatus(model);
+
+    if (
+        providerStatus &&
+        providerStatus !== "active"
+    ) {
+
+        return false;
+    }
+
+    return true;
+}
+
+
+/* =========================================================
    MODEL CREDIT
    ---------------------------------------------------------
-   SOURCE OF TRUTH:
+   CREDIT PEMAKAIAN MODEL.
 
-   models.credit_final
+   BUKAN:
+   profiles.credits
 
-   Backend juga menyediakan:
-
-   pricing.credit_final
-
-   Compatibility:
-
-   credit_cost
-   discount_percent
-
-   Urutan:
+   Prioritas:
    1. pricing.credit_final
    2. credit_final
    3. pricing.credit_cost
    4. credit_cost
-
-   Jika credit_final tersedia, JANGAN menghitung ulang.
 ========================================================= */
 
 function getModelCredit(
@@ -521,14 +612,12 @@ function getModelCredit(
         };
     }
 
-
     const pricing =
         model.pricing &&
         typeof model.pricing ===
             "object"
             ? model.pricing
             : {};
-
 
     const pricingCreditFinal =
         safeNumber(
@@ -557,10 +646,8 @@ function getModelCredit(
             0
         );
 
-
     let creditFinal =
         pricingCreditFinal;
-
 
     if (
         creditFinal === null
@@ -570,7 +657,12 @@ function getModelCredit(
             rootCreditFinal;
     }
 
-
+    /*
+     * Compatibility legacy.
+     *
+     * Kalau backend belum mempunyai credit_final,
+     * credit_cost masih dapat digunakan.
+     */
     if (
         creditFinal === null &&
         pricingCreditCost !== null
@@ -579,7 +671,6 @@ function getModelCredit(
         creditFinal =
             pricingCreditCost;
     }
-
 
     if (
         creditFinal === null &&
@@ -590,12 +681,10 @@ function getModelCredit(
             rootCreditCost;
     }
 
-
     const creditCost =
         pricingCreditCost !== null
             ? pricingCreditCost
             : rootCreditCost;
-
 
     return {
         creditCost,
@@ -607,16 +696,6 @@ function getModelCredit(
 
 /* =========================================================
    NORMALIZE MODEL
-   ---------------------------------------------------------
-   Fokus penting:
-
-   normalized.pricing.credit_final
-   normalized.credit_final
-
-   HARUS selalu sinkron.
-
-   Ini memastikan UI Generate dapat membaca credit
-   walaupun backend/legacy module mengirim format berbeda.
 ========================================================= */
 
 function normalizeModel(
@@ -632,39 +711,21 @@ function normalizeModel(
         return null;
     }
 
-
     const normalized = {
         ...model
     };
 
-
     const modelId =
-        getModelId(
-            model
-        );
-
+        getModelId(model);
 
     const modelName =
-        getModelName(
-            model
-        );
-
+        getModelName(model);
 
     const providerId =
-        getProviderId(
-            model
-        );
-
+        getProviderId(model);
 
     const providerName =
-        getProviderName(
-            model
-        );
-
-
-    /* =====================================================
-       MODEL ID
-    ===================================================== */
+        getProviderName(model);
 
     if (
         !normalized.model_id &&
@@ -675,11 +736,6 @@ function normalizeModel(
             modelId;
     }
 
-
-    /* =====================================================
-       MODEL NAME
-    ===================================================== */
-
     if (
         !normalized.model_name &&
         modelName
@@ -688,11 +744,6 @@ function normalizeModel(
         normalized.model_name =
             modelName;
     }
-
-
-    /* =====================================================
-       PROVIDER
-    ===================================================== */
 
     if (
         !normalized.provider_id &&
@@ -703,7 +754,6 @@ function normalizeModel(
             providerId;
     }
 
-
     if (
         !normalized.provider_name &&
         providerName
@@ -713,27 +763,29 @@ function normalizeModel(
             providerName;
     }
 
+    /*
+     * Provider status compatibility.
+     */
+    if (
+        !normalized.provider_status
+    ) {
 
-    /* =====================================================
-       CREDIT NORMALIZATION
-    ===================================================== */
-
-    const credit =
-        getModelCredit(
-            model
-        );
-
+        normalized.provider_status =
+            getProviderStatus(model);
+    }
 
     /*
-     * pricing harus selalu berupa object.
+     * Credit.
      */
+    const credit =
+        getModelCredit(model);
+
     const existingPricing =
         normalized.pricing &&
         typeof normalized.pricing ===
             "object"
             ? normalized.pricing
             : {};
-
 
     normalized.pricing = {
         ...existingPricing,
@@ -748,53 +800,67 @@ function normalizeModel(
             credit.creditFinal
     };
 
-
-    /*
-     * Compatibility root fields.
-     */
     normalized.credit_cost =
         credit.creditCost;
-
 
     normalized.discount_percent =
         credit.discountPercent;
 
-
     normalized.credit_final =
         credit.creditFinal;
 
-
     /*
-     * Debug khusus credit model.
-     * Tidak mengganggu UI.
+     * Compatibility flags.
      */
+    normalized.model_id =
+        safeString(
+            normalized.model_id
+        );
+
+    normalized.model_name =
+        safeString(
+            normalized.model_name,
+            "Model"
+        );
+
+    normalized.provider_name =
+        safeString(
+            normalized.provider_name,
+            "-"
+        );
+
     console.debug(
-        "[GEN-Z.AI][Generate Model] Credit normalized:",
+        "[GEN-Z.AI][Generate Model] Normalized:",
         {
             model_id:
                 normalized.model_id,
 
-            credit_cost:
-                normalized.credit_cost,
+            model_name:
+                normalized.model_name,
 
-            discount_percent:
-                normalized.discount_percent,
+            provider:
+                normalized.provider_name,
+
+            status:
+                normalized.status,
+
+            adapter_available:
+                normalized.adapter_available,
 
             credit_final:
                 normalized.credit_final,
 
-            pricing:
-                normalized.pricing
+            parameters:
+                normalized.parameters
         }
     );
-
 
     return normalized;
 }
 
 
 /* =========================================================
-   MERGE MODEL CONFIGURATION
+   MERGE MODEL
 ========================================================= */
 
 function mergeModelConfiguration(
@@ -803,27 +869,26 @@ function mergeModelConfiguration(
 ) {
 
     if (!detailModel) {
+
         return normalizeModel(
             listModel
         );
     }
 
-
     if (!listModel) {
+
         return normalizeModel(
             detailModel
         );
     }
-
 
     const merged = {
         ...listModel,
         ...detailModel
     };
 
-
     /*
-     * Parameter detail prioritas.
+     * Detail parameter lebih tinggi.
      */
     if (
         hasParameters(
@@ -844,7 +909,6 @@ function mergeModelConfiguration(
             listModel.parameters;
     }
 
-
     /*
      * Config fallback.
      */
@@ -857,9 +921,8 @@ function mergeModelConfiguration(
             listModel.config;
     }
 
-
     /*
-     * Compatibility parameter schema.
+     * Schema fallback.
      */
     if (
         !merged.parameter_schema &&
@@ -870,7 +933,6 @@ function mergeModelConfiguration(
             listModel.parameter_schema;
     }
 
-
     if (
         !merged.parameterSchema &&
         listModel.parameterSchema
@@ -880,10 +942,8 @@ function mergeModelConfiguration(
             listModel.parameterSchema;
     }
 
-
     /*
-     * Credit harus berasal dari detail jika tersedia.
-     * Jika detail tidak membawa credit, pertahankan list.
+     * Credit detail lebih tinggi.
      */
     const detailCredit =
         getModelCredit(
@@ -895,45 +955,20 @@ function mergeModelConfiguration(
             listModel
         );
 
+    merged.credit_final =
+        detailCredit.creditFinal !== null
+            ? detailCredit.creditFinal
+            : listCredit.creditFinal;
 
-    if (
-        detailCredit.creditFinal !==
-        null
-    ) {
-
-        merged.credit_final =
-            detailCredit.creditFinal;
-
-    } else {
-
-        merged.credit_final =
-            listCredit.creditFinal;
-    }
-
-
-    if (
-        detailCredit.creditCost !==
-        null
-    ) {
-
-        merged.credit_cost =
-            detailCredit.creditCost;
-
-    } else {
-
-        merged.credit_cost =
-            listCredit.creditCost;
-    }
-
+    merged.credit_cost =
+        detailCredit.creditCost !== null
+            ? detailCredit.creditCost
+            : listCredit.creditCost;
 
     merged.discount_percent =
-        detailCredit.discountPercent !==
-            null &&
-        detailCredit.discountPercent !==
-            undefined
-            ? detailCredit.discountPercent
-            : listCredit.discountPercent;
-
+        detailCredit.discountPercent ??
+        listCredit.discountPercent ??
+        0;
 
     merged.pricing = {
         ...(listModel.pricing || {}),
@@ -949,7 +984,6 @@ function mergeModelConfiguration(
             merged.credit_final
     };
 
-
     return normalizeModel(
         merged
     );
@@ -957,7 +991,7 @@ function mergeModelConfiguration(
 
 
 /* =========================================================
-   API REQUEST
+   REQUEST MODEL CONFIG
 ========================================================= */
 
 async function requestModelConfig(
@@ -967,7 +1001,6 @@ async function requestModelConfig(
     const accessToken =
         await getAccessToken();
 
-
     if (!accessToken) {
 
         throw new Error(
@@ -975,13 +1008,11 @@ async function requestModelConfig(
         );
     }
 
-
     const response =
         await fetch(
             url,
             {
-                method:
-                    "GET",
+                method: "GET",
 
                 headers: {
                     Accept:
@@ -996,9 +1027,7 @@ async function requestModelConfig(
             }
         );
 
-
     let data = null;
-
 
     try {
 
@@ -1008,10 +1037,9 @@ async function requestModelConfig(
     } catch {
 
         throw new Error(
-            `Server mengembalikan response yang tidak valid (${response.status}).`
+            `Server mengembalikan response tidak valid (${response.status}).`
         );
     }
-
 
     if (!response.ok) {
 
@@ -1027,12 +1055,10 @@ async function requestModelConfig(
             ) ||
             `Gagal memuat model (${response.status}).`;
 
-
         throw new Error(
             message
         );
     }
-
 
     if (
         data &&
@@ -1046,13 +1072,12 @@ async function requestModelConfig(
         );
     }
 
-
     return data;
 }
 
 
 /* =========================================================
-   EXTRACT MODEL ARRAY
+   EXTRACT MODELS
 ========================================================= */
 
 function extractModels(
@@ -1060,14 +1085,11 @@ function extractModels(
 ) {
 
     if (
-        Array.isArray(
-            data
-        )
+        Array.isArray(data)
     ) {
 
         return data;
     }
-
 
     if (
         Array.isArray(
@@ -1078,7 +1100,6 @@ function extractModels(
         return data.models;
     }
 
-
     if (
         Array.isArray(
             data?.data
@@ -1088,7 +1109,6 @@ function extractModels(
         return data.data;
     }
 
-
     if (
         Array.isArray(
             data?.data?.models
@@ -1097,7 +1117,6 @@ function extractModels(
 
         return data.data.models;
     }
-
 
     return [];
 }
@@ -1120,7 +1139,6 @@ function extractSingleModel(
         return data.model;
     }
 
-
     if (
         data?.data?.model &&
         typeof data.data.model ===
@@ -1129,7 +1147,6 @@ function extractSingleModel(
 
         return data.data.model;
     }
-
 
     if (
         data?.data &&
@@ -1147,14 +1164,11 @@ function extractSingleModel(
         return data.data;
     }
 
-
     if (
         data &&
         typeof data ===
             "object" &&
-        !Array.isArray(
-            data
-        ) &&
+        !Array.isArray(data) &&
         (
             data.model_id ||
             data.id
@@ -1163,7 +1177,6 @@ function extractSingleModel(
 
         return data;
     }
-
 
     return null;
 }
@@ -1180,23 +1193,15 @@ export async function loadAvailableModels() {
             MODEL_CONFIG_ENDPOINT
         );
 
-
     const models =
-        extractModels(
-            data
-        );
+        extractModels(data);
 
-
-    /*
-     * Normalize tanpa membuat model baru.
-     */
     const normalizedModels =
         models
             .map(
                 normalizeModel
             )
             .filter(Boolean);
-
 
     const visibleModels =
         normalizedModels.filter(
@@ -1206,10 +1211,9 @@ export async function loadAvailableModels() {
                 )
         );
 
-
     if (
         visibleModels.length ===
-            0
+        0
     ) {
 
         throw new Error(
@@ -1217,17 +1221,41 @@ export async function loadAvailableModels() {
         );
     }
 
-
     setAvailableModels(
         visibleModels
     );
 
+    console.log(
+        "[GEN-Z.AI][Generate Model] AVAILABLE MODELS:",
+        visibleModels.map(
+            model => ({
+                id:
+                    getModelId(
+                        model
+                    ),
 
-    console.debug(
-        "[GEN-Z.AI][Generate Model] Loaded models:",
-        visibleModels
+                name:
+                    getModelName(
+                        model
+                    ),
+
+                provider:
+                    getProviderName(
+                        model
+                    ),
+
+                executable:
+                    isExecutableModel(
+                        model
+                    ),
+
+                credit:
+                    getModelCredit(
+                        model
+                    )
+            })
+        )
     );
-
 
     return visibleModels;
 }
@@ -1245,18 +1273,15 @@ export function renderModelSelector(
     const elements =
         getElements();
 
-
     if (!elements) {
         return null;
     }
 
+    const modelSelect =
+        elements.modelSelect;
 
-    const {
-        modelSelector,
-        modelSelect
-    } =
-        elements;
-
+    const modelSelector =
+        elements.modelSelector;
 
     if (!modelSelect) {
 
@@ -1265,16 +1290,13 @@ export function renderModelSelector(
         );
     }
 
-
     modelSelect.innerHTML =
         "";
-
 
     const placeholder =
         document.createElement(
             "option"
         );
-
 
     placeholder.value =
         "";
@@ -1288,64 +1310,45 @@ export function renderModelSelector(
     placeholder.selected =
         true;
 
-
     modelSelect.appendChild(
         placeholder
     );
 
-
     const normalizedModels =
-        Array.isArray(
-            models
-        )
+        Array.isArray(models)
             ? models
                 .map(
                     normalizeModel
                 )
-                .filter(
-                    Boolean
-                )
+                .filter(Boolean)
                 .filter(
                     isVisibleModel
                 )
             : [];
 
-
     normalizedModels.forEach(
         model => {
 
             const modelId =
-                getModelId(
-                    model
-                );
-
+                getModelId(model);
 
             if (!modelId) {
                 return;
             }
-
 
             const option =
                 document.createElement(
                     "option"
                 );
 
-
             option.value =
                 modelId;
 
-
             const modelName =
-                getModelName(
-                    model
-                );
-
+                getModelName(model);
 
             const providerName =
-                getProviderName(
-                    model
-                );
-
+                getProviderName(model);
 
             option.textContent =
                 providerName &&
@@ -1353,55 +1356,46 @@ export function renderModelSelector(
                     ? `${modelName} • ${providerName}`
                     : modelName;
 
-
-            option.dataset.adapterAvailable =
-                hasAdapter(
-                    model
-                )
-                    ? "true"
-                    : "false";
-
-
-            option.dataset.parametersAvailable =
-                hasParameters(
-                    model
-                )
-                    ? "true"
-                    : "false";
-
+            option.dataset.modelId =
+                modelId;
 
             option.dataset.providerId =
-                getProviderId(
-                    model
-                );
+                getProviderId(model);
 
+            option.dataset.providerName =
+                providerName;
 
-            const modelCredit =
-                getModelCredit(
-                    model
-                );
+            option.dataset.adapterAvailable =
+                hasAdapter(model)
+                    ? "true"
+                    : "false";
 
+            option.dataset.parametersAvailable =
+                hasParameters(model)
+                    ? "true"
+                    : "false";
 
-            /*
-             * Simpan credit pada option juga.
-             * Berguna untuk debugging dan kompatibilitas.
-             */
+            const credit =
+                getModelCredit(model);
+
             option.dataset.creditCost =
-                modelCredit.creditCost !==
-                null
+                credit.creditCost !== null
                     ? String(
-                        modelCredit.creditCost
+                        credit.creditCost
                     )
                     : "";
 
             option.dataset.creditFinal =
-                modelCredit.creditFinal !==
-                null
+                credit.creditFinal !== null
                     ? String(
-                        modelCredit.creditFinal
+                        credit.creditFinal
                     )
                     : "";
 
+            option.dataset.executable =
+                isExecutableModel(model)
+                    ? "true"
+                    : "false";
 
             modelSelect.appendChild(
                 option
@@ -1409,23 +1403,18 @@ export function renderModelSelector(
         }
     );
 
-
     let selectedModelId =
         safeString(
             preferredModelId ||
             getStoredModelId()
         );
 
-
     const preferredExists =
         normalizedModels.some(
             model =>
-                getModelId(
-                    model
-                ) ===
+                getModelId(model) ===
                 selectedModelId
         );
-
 
     if (
         !preferredExists
@@ -1439,7 +1428,6 @@ export function renderModelSelector(
                     )
             );
 
-
         if (
             executableModel
         ) {
@@ -1449,44 +1437,78 @@ export function renderModelSelector(
                     executableModel
                 );
 
-        } else {
+        } else if (
+            normalizedModels.length
+        ) {
 
             selectedModelId =
                 getModelId(
                     normalizedModels[0]
                 );
+
+        } else {
+
+            selectedModelId =
+                "";
         }
     }
 
-
-    if (selectedModelId) {
+    if (
+        selectedModelId
+    ) {
 
         modelSelect.value =
             selectedModelId;
-
 
         saveSelectedModelId(
             selectedModelId
         );
 
-
         placeholder.selected =
             false;
     }
-
 
     modelSelect.disabled =
         normalizedModels.length ===
         0;
 
-
-    if (modelSelector) {
+    if (
+        modelSelector
+    ) {
 
         modelSelector.classList.add(
             "show"
         );
+
+        modelSelector.hidden =
+            false;
     }
 
+    console.log(
+        "[GEN-Z.AI][Generate Model] Selector rendered:",
+        {
+            total:
+                normalizedModels.length,
+
+            selected:
+                selectedModelId,
+
+            models:
+                normalizedModels.map(
+                    model => ({
+                        id:
+                            getModelId(
+                                model
+                            ),
+
+                        executable:
+                            isExecutableModel(
+                                model
+                            )
+                    })
+                )
+        }
+    );
 
     return (
         selectedModelId ||
@@ -1504,21 +1526,16 @@ export function findModel(
 ) {
 
     const normalizedId =
-        safeString(
-            modelId
-        );
-
+        safeString(modelId);
 
     if (!normalizedId) {
         return null;
     }
 
-
     const model =
         findAvailableModel(
             normalizedId
         );
-
 
     return normalizeModel(
         model
@@ -1535,10 +1552,7 @@ export async function loadModelConfig(
 ) {
 
     const normalizedId =
-        safeString(
-            modelId
-        );
-
+        safeString(modelId);
 
     if (!normalizedId) {
 
@@ -1547,25 +1561,23 @@ export async function loadModelConfig(
         );
     }
 
-
     const availableModels =
         getAvailableModels();
-
 
     const availableModel =
         availableModels.find(
             model =>
-                getModelId(
-                    model
-                ) ===
+                getModelId(model) ===
                 normalizedId
         );
 
-
     /*
-     * =====================================================
      * FAST PATH
-     * =====================================================
+     *
+     * /api/model-config sudah mengirim
+     * parameter + credit + provider.
+     *
+     * Tidak perlu request kedua.
      */
     if (
         availableModel
@@ -1576,7 +1588,6 @@ export async function loadModelConfig(
                 availableModel
             );
 
-
         if (
             !isExecutableModel(
                 model
@@ -1584,10 +1595,9 @@ export async function loadModelConfig(
         ) {
 
             throw new Error(
-                `Model "${normalizedId}" belum siap digunakan. Provider atau adapter model tidak aktif.`
+                `Model "${normalizedId}" belum siap digunakan.`
             );
         }
-
 
         setCurrentModel(
             model
@@ -1597,71 +1607,65 @@ export async function loadModelConfig(
             true
         );
 
-
         saveSelectedModelId(
             normalizedId
         );
 
+        console.log(
+            "[GEN-Z.AI][Generate Model] MODEL SELECTED:",
+            {
+                model_id:
+                    getModelId(
+                        model
+                    ),
 
-        console.debug(
-            "[GEN-Z.AI][Generate Model] Selected model:",
-            model
+                model_name:
+                    getModelName(
+                        model
+                    ),
+
+                provider:
+                    getProviderName(
+                        model
+                    ),
+
+                credit:
+                    getModelCredit(
+                        model
+                    ),
+
+                parameters:
+                    model.parameters
+            }
         );
-
-
-        console.debug(
-            "[GEN-Z.AI][Generate Model] Model credit:",
-            getModelCredit(
-                model
-            )
-        );
-
-
-        console.debug(
-            "[GEN-Z.AI][Generate Model] Parameters:",
-            model.parameters || {}
-        );
-
 
         return model;
     }
 
-
     /*
-     * =====================================================
-     * FALLBACK DETAIL REQUEST
-     * =====================================================
+     * DETAIL FALLBACK
      */
-
     const params =
         new URLSearchParams();
-
 
     params.set(
         "model_id",
         normalizedId
     );
 
-
     const data =
         await requestModelConfig(
             `${MODEL_CONFIG_ENDPOINT}?${params.toString()}`
         );
 
-
     const detailModel =
         normalizeModel(
-            extractSingleModel(
-                data
-            )
+            extractSingleModel(data)
         );
-
 
     if (
         !detailModel ||
-        !getModelId(
-            detailModel
-        )
+        !getModelId(detailModel)
     ) {
 
         throw new Error(
@@ -1669,12 +1673,10 @@ export async function loadModelConfig(
         );
     }
 
-
     const serverModelId =
         getModelId(
             detailModel
         );
-
 
     if (
         serverModelId !==
@@ -1686,7 +1688,6 @@ export async function loadModelConfig(
         );
     }
 
-
     if (
         !isExecutableModel(
             detailModel
@@ -1694,10 +1695,9 @@ export async function loadModelConfig(
     ) {
 
         throw new Error(
-            `Model "${serverModelId}" belum siap digunakan. Provider atau adapter model tidak aktif.`
+            `Model "${serverModelId}" belum siap digunakan.`
         );
     }
-
 
     const model =
         mergeModelConfiguration(
@@ -1705,41 +1705,17 @@ export async function loadModelConfig(
             availableModel
         );
 
-
     setCurrentModel(
         model
     );
-
 
     setModelLoaded(
         true
     );
 
-
     saveSelectedModelId(
         serverModelId
     );
-
-
-    console.debug(
-        "[GEN-Z.AI][Generate Model] Selected model:",
-        model
-    );
-
-
-    console.debug(
-        "[GEN-Z.AI][Generate Model] Model credit:",
-        getModelCredit(
-            model
-        )
-    );
-
-
-    console.debug(
-        "[GEN-Z.AI][Generate Model] Parameters:",
-        model?.parameters || {}
-    );
-
 
     return model;
 }
@@ -1754,10 +1730,7 @@ export async function selectModel(
 ) {
 
     const normalizedId =
-        safeString(
-            modelId
-        );
-
+        safeString(modelId);
 
     if (!normalizedId) {
 
@@ -1772,34 +1745,29 @@ export async function selectModel(
         return null;
     }
 
-
     const available =
         getAvailableModels();
-
 
     const selectedModel =
         available.find(
             model =>
-                getModelId(
-                    model
-                ) ===
+                getModelId(model) ===
                 normalizedId
         );
 
-
-    if (!selectedModel) {
+    if (
+        !selectedModel
+    ) {
 
         throw new Error(
             "Model yang dipilih tidak tersedia."
         );
     }
 
-
     const normalizedModel =
         normalizeModel(
             selectedModel
         );
-
 
     if (
         !isExecutableModel(
@@ -1811,7 +1779,6 @@ export async function selectModel(
             "Model yang dipilih belum memiliki adapter/provider aktif dan belum siap digunakan."
         );
     }
-
 
     return loadModelConfig(
         normalizedId
@@ -1828,35 +1795,27 @@ export async function resolveInitialModel() {
     const storedModelId =
         getStoredModelId();
 
-
     const models =
         await loadAvailableModels();
-
 
     let selectedModelId =
         null;
 
-
     /*
-     * Prioritas:
-     * 1. model tersimpan dan executable
-     * 2. model executable pertama
+     * 1. Model tersimpan dan executable.
      */
     const storedModel =
         models.find(
             model =>
-                getModelId(
+                getModelId(model) ===
+                storedModelId &&
+                isExecutableModel(
                     model
-                ) ===
-                storedModelId
+                )
         );
 
-
     if (
-        storedModel &&
-        isExecutableModel(
-            storedModel
-        )
+        storedModel
     ) {
 
         selectedModelId =
@@ -1865,8 +1824,12 @@ export async function resolveInitialModel() {
             );
     }
 
-
-    if (!selectedModelId) {
+    /*
+     * 2. Model executable pertama.
+     */
+    if (
+        !selectedModelId
+    ) {
 
         const executableModel =
             models.find(
@@ -1875,7 +1838,6 @@ export async function resolveInitialModel() {
                         model
                     )
             );
-
 
         if (
             executableModel
@@ -1888,15 +1850,18 @@ export async function resolveInitialModel() {
         }
     }
 
-
+    /*
+     * 3. Render selector.
+     */
     const renderedModelId =
         renderModelSelector(
             models,
             selectedModelId
         );
 
-
-    if (!selectedModelId) {
+    if (
+        !selectedModelId
+    ) {
 
         setCurrentModel(
             null
@@ -1905,7 +1870,6 @@ export async function resolveInitialModel() {
         setModelLoaded(
             false
         );
-
 
         return {
             model:
@@ -1921,27 +1885,24 @@ export async function resolveInitialModel() {
         };
     }
 
-
+    /*
+     * 4. Resolve model.
+     */
     const model =
         await loadModelConfig(
             selectedModelId
         );
 
-
     const elements =
         getElements();
-
 
     if (
         elements?.modelSelect
     ) {
 
         elements.modelSelect.value =
-            getModelId(
-                model
-            );
+            getModelId(model);
     }
-
 
     return {
         model,
@@ -1967,33 +1928,27 @@ export async function refreshModels(
     const models =
         await loadAvailableModels();
 
-
     let selectedModelId =
         null;
 
-
-    const normalizedPreferredId =
+    const preferredId =
         safeString(
             preferredModelId
         );
 
-
     if (
-        normalizedPreferredId
+        preferredId
     ) {
 
         const preferredModel =
             models.find(
                 model =>
-                    getModelId(
-                        model
-                    ) ===
-                    normalizedPreferredId &&
+                    getModelId(model) ===
+                    preferredId &&
                     isExecutableModel(
                         model
                     )
             );
-
 
         if (
             preferredModel
@@ -2006,8 +1961,9 @@ export async function refreshModels(
         }
     }
 
-
-    if (!selectedModelId) {
+    if (
+        !selectedModelId
+    ) {
 
         const executableModel =
             models.find(
@@ -2016,7 +1972,6 @@ export async function refreshModels(
                         model
                     )
             );
-
 
         if (
             executableModel
@@ -2029,15 +1984,15 @@ export async function refreshModels(
         }
     }
 
-
     const renderedModelId =
         renderModelSelector(
             models,
             selectedModelId
         );
 
-
-    if (!selectedModelId) {
+    if (
+        !selectedModelId
+    ) {
 
         setCurrentModel(
             null
@@ -2046,7 +2001,6 @@ export async function refreshModels(
         setModelLoaded(
             false
         );
-
 
         return {
             models,
@@ -2062,12 +2016,10 @@ export async function refreshModels(
         };
     }
 
-
     const model =
         await loadModelConfig(
             selectedModelId
         );
-
 
     return {
         models,
@@ -2093,7 +2045,7 @@ export function getModel() {
 
 
 /* =========================================================
-   MODEL STATUS
+   MODEL READY
 ========================================================= */
 
 export function isModelReady() {
@@ -2101,16 +2053,11 @@ export function isModelReady() {
     const model =
         getCurrentModel();
 
-
     return Boolean(
         isModelLoaded() &&
         model &&
-        getModelId(
-            model
-        ) &&
-        isExecutableModel(
-            model
-        )
+        getModelId(model) &&
+        isExecutableModel(model)
     );
 }
 
