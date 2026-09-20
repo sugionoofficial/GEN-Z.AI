@@ -28,11 +28,6 @@
     >
 
     <style>
-        /* =====================================================
-           PROVIDERS PAGE
-           Premium Admin Panel Theme
-        ====================================================== */
-
         :root {
             --provider-red: #ff1744;
             --provider-red-soft: rgba(255, 23, 68, .10);
@@ -666,9 +661,7 @@
         }
 
         /* =====================================================
-           PROVIDER CARD OVERRIDE
-           list.js menggunakan inline style.
-           Override hanya bagian visual agar konsisten.
+           PROVIDER CARD
         ====================================================== */
 
         #providerList .provider-card {
@@ -1242,13 +1235,6 @@
 
     <!-- =====================================================
          SHARED NAVIGATION CONTAINER
-         navigation/navigation.js akan membuat:
-         - Hamburger
-         - Sidebar
-         - Overlay
-         - Role based menu
-         - Logout
-         - Auth validation
     ====================================================== -->
 
     <div id="navigation"></div>
@@ -1261,10 +1247,6 @@
     <main class="provider-main">
 
         <div class="provider-content">
-
-            <!-- =================================================
-                 PAGE HEADER
-            ================================================== -->
 
             <section class="provider-header">
 
@@ -1616,12 +1598,6 @@
                 </div>
 
 
-                <!--
-                    PENTING:
-                    ID providerList dipertahankan karena
-                    providers/list.js menggunakan ID ini.
-                -->
-
                 <div
                     id="providerList"
                     class="provider-list"
@@ -1751,7 +1727,6 @@
                                 API Key
                             </label>
 
-
                             <div class="api-key-wrap">
 
                                 <input
@@ -1762,7 +1737,6 @@
                                     placeholder="Masukkan API key provider"
                                     autocomplete="new-password"
                                 >
-
 
                                 <button
                                     class="api-toggle"
@@ -1890,28 +1864,103 @@
 
 
     <!-- =====================================================
-         PROVIDER MODULES
-         JANGAN DIUBAH URUTANNYA
+         PROVIDER SUPABASE
+         HARUS PALING AWAL
     ====================================================== -->
 
     <script
-        src="providers/supabase.js?v=20260917-03"
+        src="providers/supabase.js?v=20260920-01"
+    ></script>
+
+
+    <!-- =====================================================
+         SUPABASE BRIDGE
+         
+         Provider module membuat:
+             GENZProviderSupabase.client
+
+         Shared navigation mencari:
+             GENZ_SUPABASE
+             supabaseClient
+
+         Bridge ini membuat keduanya menunjuk
+         ke CLIENT YANG SAMA.
+
+         Tidak membuat client kedua.
+    ====================================================== -->
+
+    <script>
+        (() => {
+
+            "use strict";
+
+            const providerSupabase =
+                window.GENZProviderSupabase;
+
+            if (
+                providerSupabase &&
+                providerSupabase.client &&
+                providerSupabase.client.auth
+            ) {
+
+                /*
+                 * Shared navigation client
+                 */
+                window.GENZ_SUPABASE =
+                    providerSupabase.client;
+
+                /*
+                 * Compatibility alias
+                 */
+                window.supabaseClient =
+                    providerSupabase.client;
+
+                console.log(
+                    "[GEN-Z.AI] Supabase bridge Provider -> Navigation siap."
+                );
+
+            } else {
+
+                console.error(
+                    "[GEN-Z.AI] Supabase bridge gagal: client Provider tidak tersedia."
+                );
+            }
+
+        })();
+    </script>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+         
+         DIMUAT SETELAH SUPABASE BRIDGE.
+         Jadi navigation tidak mengira session hilang.
+    ====================================================== -->
+
+    <script
+        src="../navigation/navigation.js?v=20260920-01"
+    ></script>
+
+
+    <!-- =====================================================
+         PROVIDER MODULES
+         URUTAN CRUD TETAP
+    ====================================================== -->
+
+    <script
+        src="providers/api-key.js?v=20260920-01"
     ></script>
 
     <script
-        src="providers/api-key.js?v=20260917-03"
+        src="providers/list.js?v=20260920-01"
     ></script>
 
     <script
-        src="providers/list.js?v=20260917-03"
+        src="providers/form.js?v=20260920-01"
     ></script>
 
     <script
-        src="providers/form.js?v=20260917-03"
-    ></script>
-
-    <script
-        src="providers/actions.js?v=20260917-03"
+        src="providers/actions.js?v=20260920-01"
     ></script>
 
 
@@ -2052,10 +2101,8 @@
             /* =================================================
                LOGOUT
                
-               navigation/navigation.js
-               menjadi pemilik logout.
-               Function ini tetap disediakan untuk
-               compatibility halaman lama.
+               Compatibility function.
+               Auth/logout tetap milik navigation.
             ================================================== */
 
             window.logout =
@@ -2316,6 +2363,38 @@
 
 
             /* =================================================
+               NAVIGATION READY
+               
+               Setelah navigation selesai validasi,
+               refresh email agar profile/session sudah siap.
+            ================================================== */
+
+            if (
+                window.GENZNavigationReady &&
+                typeof window.GENZNavigationReady.then ===
+                    "function"
+            ) {
+
+                window.GENZNavigationReady
+                    .then(
+                        function () {
+
+                            loadAdminEmail();
+                        }
+                    )
+                    .catch(
+                        function (error) {
+
+                            console.warn(
+                                "[GEN-Z.AI] Navigation ready error:",
+                                error
+                            );
+                        }
+                    );
+            }
+
+
+            /* =================================================
                ESC
             ================================================== */
 
@@ -2363,23 +2442,17 @@
 
     <!-- =====================================================
          PROVIDER INIT
-         ====================================================== -->
-
-    <script
-        src="providers/init.js?v=20260917-04"
-    ></script>
-
-
-    <!-- =====================================================
-         SHARED NAVIGATION
          
-         HARUS setelah Provider Supabase module,
-         karena navigation membutuhkan client
-         Supabase yang tersedia.
+         DOMContentLoaded akan menjalankan start().
+         Pada saat itu:
+         - Supabase sudah tersedia
+         - Bridge sudah tersedia
+         - Navigation sudah dimuat
+         - Semua module Provider sudah tersedia
     ====================================================== -->
 
     <script
-        src="../navigation/navigation.js"
+        src="providers/init.js?v=20260920-02"
     ></script>
 
 </body>
