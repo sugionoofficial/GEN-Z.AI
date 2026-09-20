@@ -8,21 +8,31 @@
    Tanggung jawab:
    - Query dashboard_videos
    - Load video
+   - Get single video
    - Create video
    - Update video
    - Delete video
    - Storage upload/delete
    - Public URL video & thumbnail
+   - Data validation
+   - Sinkronisasi video dengan dashboard state
 
    Tidak bertanggung jawab:
-   - Auth
+   - Auth implementation
+   - Navigation
    - Render UI
    - Modal
    - Event listener
 ========================================================= */
 
 (function () {
+
     "use strict";
+
+
+    /* =====================================================
+       NAMESPACE
+    ===================================================== */
 
     window.GENZDashboard =
         window.GENZDashboard || {};
@@ -37,24 +47,37 @@
 
     function getClient() {
 
+        /*
+         * Jangan pernah membuat Supabase client baru
+         * di module ini.
+         *
+         * Gunakan client yang sudah dibuat aplikasi.
+         */
+
         if (
             typeof dashboard.requireSupabase ===
             "function"
         ) {
+
             return dashboard.requireSupabase();
         }
+
 
         if (
             window.supabaseClient
         ) {
+
             return window.supabaseClient;
         }
+
 
         if (
             window.GENZ_SUPABASE
         ) {
+
             return window.GENZ_SUPABASE;
         }
+
 
         throw new Error(
             "Supabase client belum tersedia."
@@ -64,34 +87,139 @@
 
     function getConfig() {
 
-        if (!dashboard.config) {
+        if (
+            !dashboard.config
+        ) {
 
             throw new Error(
                 "Dashboard config belum tersedia."
             );
         }
 
+
         return dashboard.config;
     }
 
 
     /* =====================================================
-       TABLE
+       TABLE / STORAGE
     ===================================================== */
 
     function getVideoTable() {
 
-        return getConfig()
-            .tables
-            .videos;
+        const config =
+            getConfig();
+
+
+        if (
+            !config.tables ||
+            !config.tables.videos
+        ) {
+
+            throw new Error(
+                "Table dashboard video belum dikonfigurasi."
+            );
+        }
+
+
+        return config.tables.videos;
     }
 
 
     function getStorageBucket() {
 
-        return getConfig()
-            .storage
-            .bucket;
+        const config =
+            getConfig();
+
+
+        if (
+            !config.storage ||
+            !config.storage.bucket
+        ) {
+
+            throw new Error(
+                "Storage bucket dashboard belum dikonfigurasi."
+            );
+        }
+
+
+        return config.storage.bucket;
+    }
+
+
+    /* =====================================================
+       MANAGEMENT ACCESS
+    ===================================================== */
+
+    function hasManagementAccess() {
+
+        if (
+            typeof dashboard.hasManagementAccess ===
+            "function"
+        ) {
+
+            return (
+                dashboard.hasManagementAccess()
+            );
+        }
+
+
+        if (
+            typeof dashboard.isAdmin ===
+            "function"
+        ) {
+
+            return (
+                dashboard.isAdmin()
+            );
+        }
+
+
+        return false;
+    }
+
+
+    function isManagementMode() {
+
+        if (
+            typeof dashboard.isEditMode ===
+            "function"
+        ) {
+
+            return (
+                dashboard.isEditMode()
+            );
+        }
+
+
+        return false;
+    }
+
+
+    function requireManagementAccess(
+        action
+    ) {
+
+        if (
+            !hasManagementAccess()
+        ) {
+
+            throw new Error(
+                "Anda tidak memiliki akses untuk " +
+                action +
+                "."
+            );
+        }
+
+
+        if (
+            !isManagementMode()
+        ) {
+
+            throw new Error(
+                "Mode manajemen video belum aktif."
+            );
+        }
     }
 
 
@@ -99,57 +227,79 @@
        NORMALIZE VIDEO
     ===================================================== */
 
-    function normalizeVideo(video) {
+    function normalizeVideo(
+        video
+    ) {
 
-        if (!video) {
+        if (
+            !video
+        ) {
+
             return null;
         }
 
+
         return {
-            id: video.id ?? null,
+
+            id:
+                video.id ?? null,
+
 
             title:
                 typeof video.title === "string"
                     ? video.title
                     : "",
 
+
             description:
                 typeof video.description === "string"
                     ? video.description
                     : "",
+
 
             category:
                 typeof video.category === "string"
                     ? video.category
                     : "",
 
+
             aspect_ratio:
                 typeof video.aspect_ratio === "string"
                     ? video.aspect_ratio
                     : "16:9",
+
 
             video_path:
                 typeof video.video_path === "string"
                     ? video.video_path
                     : "",
 
+
             thumbnail_path:
                 typeof video.thumbnail_path === "string"
                     ? video.thumbnail_path
                     : "",
 
+
             sort_order:
                 Number.isFinite(
-                    Number(video.sort_order)
+                    Number(
+                        video.sort_order
+                    )
                 )
-                    ? Number(video.sort_order)
+                    ? Number(
+                        video.sort_order
+                    )
                     : 0,
+
 
             is_active:
                 video.is_active === true,
 
+
             created_at:
                 video.created_at ?? null,
+
 
             updated_at:
                 video.updated_at ?? null
@@ -157,15 +307,25 @@
     }
 
 
-    function normalizeVideos(videos) {
+    function normalizeVideos(
+        videos
+    ) {
 
-        if (!Array.isArray(videos)) {
+        if (
+            !Array.isArray(videos)
+        ) {
+
             return [];
         }
 
+
         return videos
-            .map(normalizeVideo)
-            .filter(Boolean);
+            .map(
+                normalizeVideo
+            )
+            .filter(
+                Boolean
+            );
     }
 
 
@@ -173,23 +333,33 @@
        PUBLIC STORAGE URL
     ===================================================== */
 
-    function getPublicUrl(path) {
+    function getPublicUrl(
+        path
+    ) {
 
         if (
             !path ||
             typeof path !== "string"
         ) {
+
             return "";
         }
+
 
         const supabase =
             getClient();
 
+
         const result =
             supabase
                 .storage
-                .from(getStorageBucket())
-                .getPublicUrl(path);
+                .from(
+                    getStorageBucket()
+                )
+                .getPublicUrl(
+                    path
+                );
+
 
         return (
             result &&
@@ -201,13 +371,20 @@
     }
 
 
-    function attachPublicUrls(video) {
+    function attachPublicUrls(
+        video
+    ) {
 
-        if (!video) {
+        if (
+            !video
+        ) {
+
             return null;
         }
 
+
         return {
+
             ...video,
 
             video_url:
@@ -227,38 +404,32 @@
        LOAD VIDEOS
     ===================================================== */
 
-    async function loadVideos(options = {}) {
+    async function loadVideos(
+        options = {}
+    ) {
 
         const supabase =
             getClient();
+
 
         const config =
             getConfig();
 
 
-        /*
-         * Edit mode hanya boleh digunakan jika auth module
-         * sudah memberikan akses management.
-         */
-
         const editMode =
-            typeof dashboard.isEditMode === "function"
-                ? dashboard.isEditMode()
-                : false;
+            isManagementMode();
+
 
         const managementAccess =
-            typeof dashboard.hasManagementAccess ===
-            "function"
-                ? dashboard.hasManagementAccess()
-                : false;
+            hasManagementAccess();
 
 
         /*
-         * Normal USER:
-         * hanya video aktif.
+         * Inactive hanya boleh masuk hasil query ketika:
          *
-         * ADMIN / OWNER:
-         * dapat melihat semua video ketika edit mode.
+         * 1. edit mode aktif
+         * 2. user memiliki management access
+         * 3. caller secara eksplisit meminta inactive
          */
 
         const includeInactive =
@@ -270,7 +441,7 @@
         let query =
             supabase
                 .from(
-                    config.tables.videos
+                    getVideoTable()
                 )
                 .select(
                     config.videoSelect
@@ -290,7 +461,20 @@
                 );
 
 
-        if (!includeInactive) {
+        /*
+         * USER normal:
+         * hanya active.
+         *
+         * ADMIN / OWNER normal mode:
+         * tetap hanya active.
+         *
+         * ADMIN / OWNER edit mode:
+         * dapat include inactive.
+         */
+
+        if (
+            !includeInactive
+        ) {
 
             query =
                 query.eq(
@@ -304,7 +488,10 @@
             await query;
 
 
-        if (result.error) {
+        if (
+            result.error
+        ) {
+
             throw result.error;
         }
 
@@ -312,17 +499,30 @@
         const videos =
             normalizeVideos(
                 result.data || []
-            ).map(
-                attachPublicUrls
+            )
+                .map(
+                    attachPublicUrls
+                );
+
+
+        if (
+            typeof dashboard.setVideos ===
+            "function"
+        ) {
+
+            dashboard.setVideos(
+                videos
             );
+        }
 
 
-        dashboard.setVideos(
-            videos
-        );
+        if (
+            typeof dashboard.clearError ===
+            "function"
+        ) {
 
-
-        dashboard.clearError();
+            dashboard.clearError();
+        }
 
 
         return videos;
@@ -333,16 +533,23 @@
        GET SINGLE VIDEO
     ===================================================== */
 
-    async function getVideo(videoId) {
+    async function getVideo(
+        videoId
+    ) {
 
-        if (!videoId) {
+        if (
+            !videoId
+        ) {
+
             throw new Error(
                 "Video ID tidak tersedia."
             );
         }
 
+
         const supabase =
             getClient();
+
 
         const config =
             getConfig();
@@ -351,7 +558,7 @@
         const result =
             await supabase
                 .from(
-                    config.tables.videos
+                    getVideoTable()
                 )
                 .select(
                     config.videoSelect
@@ -363,12 +570,18 @@
                 .maybeSingle();
 
 
-        if (result.error) {
+        if (
+            result.error
+        ) {
+
             throw result.error;
         }
 
 
-        if (!result.data) {
+        if (
+            !result.data
+        ) {
+
             return null;
         }
 
@@ -385,69 +598,86 @@
        VALIDATION
     ===================================================== */
 
-    function validateTitle(title) {
+    function validateTitle(
+        title
+    ) {
 
         const value =
             typeof title === "string"
                 ? title.trim()
                 : "";
 
-        if (!value) {
+
+        if (
+            !value
+        ) {
 
             throw new Error(
                 "Judul video wajib diisi."
             );
         }
 
-        if (value.length > 150) {
+
+        if (
+            value.length > 150
+        ) {
 
             throw new Error(
                 "Judul video maksimal 150 karakter."
             );
         }
 
+
         return value;
     }
 
 
-    function validateDescription(description) {
+    function validateDescription(
+        description
+    ) {
 
         if (
             description === null ||
             typeof description === "undefined"
         ) {
+
             return "";
         }
 
-        const value =
-            String(description).trim();
 
-        if (value.length > 1000) {
+        const value =
+            String(
+                description
+            ).trim();
+
+
+        if (
+            value.length > 1000
+        ) {
 
             throw new Error(
                 "Deskripsi maksimal 1000 karakter."
             );
         }
 
+
         return value;
     }
 
 
-    function validateCategory(category) {
+    function validateCategory(
+        category
+    ) {
 
         const value =
             typeof category === "string"
                 ? category.trim()
                 : "";
 
-        const categories =
-            typeof dashboard.getCategoryValues ===
-            "function"
-                ? dashboard.getCategoryValues()
-                : [];
 
-
-        if (!value) {
+        if (
+            !value
+        ) {
 
             throw new Error(
                 "Kategori video wajib dipilih."
@@ -455,9 +685,42 @@
         }
 
 
+        let categories = [];
+
+
+        if (
+            typeof dashboard.getCategoryValues ===
+            "function"
+        ) {
+
+            categories =
+                dashboard.getCategoryValues();
+        }
+
+
+        /*
+         * Jangan menganggap "all" sebagai category database.
+         */
+
+        categories =
+            categories.filter(
+                function (item) {
+
+                    return (
+                        String(
+                            item
+                        ).toLowerCase() !==
+                        "all"
+                    );
+                }
+            );
+
+
         if (
             categories.length &&
-            !categories.includes(value)
+            !categories.includes(
+                value
+            )
         ) {
 
             throw new Error(
@@ -470,12 +733,15 @@
     }
 
 
-    function validateAspectRatio(aspectRatio) {
+    function validateAspectRatio(
+        aspectRatio
+    ) {
 
         const value =
             typeof aspectRatio === "string"
                 ? aspectRatio.trim()
                 : "16:9";
+
 
         const ratios =
             getConfig()
@@ -484,7 +750,9 @@
 
         if (
             ratios.length &&
-            !ratios.includes(value)
+            !ratios.includes(
+                value
+            )
         ) {
 
             throw new Error(
@@ -497,10 +765,14 @@
     }
 
 
-    function validateSortOrder(sortOrder) {
+    function validateSortOrder(
+        sortOrder
+    ) {
 
         const value =
-            Number(sortOrder);
+            Number(
+                sortOrder
+            );
 
 
         if (
@@ -512,7 +784,9 @@
         }
 
 
-        return Math.floor(value);
+        return Math.floor(
+            value
+        );
     }
 
 
@@ -520,9 +794,14 @@
        FILE VALIDATION
     ===================================================== */
 
-    function validateVideoFile(file) {
+    function validateVideoFile(
+        file
+    ) {
 
-        if (!file) {
+        if (
+            !file
+        ) {
+
             return;
         }
 
@@ -530,7 +809,9 @@
         if (
             typeof dashboard.isVideoFile ===
             "function" &&
-            !dashboard.isVideoFile(file)
+            !dashboard.isVideoFile(
+                file
+            )
         ) {
 
             throw new Error(
@@ -546,23 +827,41 @@
 
 
         if (
-            Number(file.size) >
-            maxSize
+            Number(
+                file.size
+            ) > maxSize
         ) {
 
             throw new Error(
                 "Ukuran video terlalu besar. " +
                 "Maksimal " +
-                dashboard.formatFileSize(maxSize) +
+                (
+                    typeof dashboard.formatFileSize ===
+                    "function"
+                        ? dashboard.formatFileSize(
+                            maxSize
+                        )
+                        : (
+                            maxSize /
+                            1024 /
+                            1024
+                        ).toFixed(0) +
+                        " MB"
+                ) +
                 "."
             );
         }
     }
 
 
-    function validateThumbnailFile(file) {
+    function validateThumbnailFile(
+        file
+    ) {
 
-        if (!file) {
+        if (
+            !file
+        ) {
+
             return;
         }
 
@@ -570,7 +869,9 @@
         if (
             typeof dashboard.isImageFile ===
             "function" &&
-            !dashboard.isImageFile(file)
+            !dashboard.isImageFile(
+                file
+            )
         ) {
 
             throw new Error(
@@ -586,14 +887,27 @@
 
 
         if (
-            Number(file.size) >
-            maxSize
+            Number(
+                file.size
+            ) > maxSize
         ) {
 
             throw new Error(
                 "Ukuran thumbnail terlalu besar. " +
                 "Maksimal " +
-                dashboard.formatFileSize(maxSize) +
+                (
+                    typeof dashboard.formatFileSize ===
+                    "function"
+                        ? dashboard.formatFileSize(
+                            maxSize
+                        )
+                        : (
+                            maxSize /
+                            1024 /
+                            1024
+                        ).toFixed(0) +
+                        " MB"
+                ) +
                 "."
             );
         }
@@ -601,13 +915,25 @@
 
 
     /* =====================================================
-       PATH GENERATOR
+       USER ID
     ===================================================== */
 
     function getCurrentUserId() {
 
+        if (
+            typeof dashboard.getCurrentUser !==
+            "function"
+        ) {
+
+            throw new Error(
+                "Dashboard auth state belum tersedia."
+            );
+        }
+
+
         const user =
             dashboard.getCurrentUser();
+
 
         if (
             !user ||
@@ -619,26 +945,37 @@
             );
         }
 
+
         return user.id;
     }
 
 
-    function createSafeExtension(file, fallback) {
+    /* =====================================================
+       FILE NAME
+    ===================================================== */
+
+    function createSafeExtension(
+        file,
+        fallback
+    ) {
 
         if (
             !file ||
             typeof file.name !== "string"
         ) {
+
             return fallback;
         }
 
 
         const parts =
-            file.name
-                .split(".");
+            file.name.split(".");
 
 
-        if (parts.length < 2) {
+        if (
+            parts.length < 2
+        ) {
+
             return fallback;
         }
 
@@ -653,11 +990,17 @@
                 );
 
 
-        return extension || fallback;
+        return (
+            extension ||
+            fallback
+        );
     }
 
 
-    function createUniqueName(file, fallback) {
+    function createUniqueName(
+        file,
+        fallback
+    ) {
 
         const extension =
             createSafeExtension(
@@ -669,7 +1012,10 @@
         const randomPart =
             Math.random()
                 .toString(36)
-                .slice(2, 12);
+                .slice(
+                    2,
+                    12
+                );
 
 
         const timestamp =
@@ -686,7 +1032,9 @@
     }
 
 
-    function createVideoPath(file) {
+    function createVideoPath(
+        file
+    ) {
 
         const userId =
             getCurrentUserId();
@@ -704,7 +1052,9 @@
     }
 
 
-    function createThumbnailPath(file) {
+    function createThumbnailPath(
+        file
+    ) {
 
         const userId =
             getCurrentUserId();
@@ -732,8 +1082,21 @@
         options = {}
     ) {
 
-        if (!file) {
+        if (
+            !file
+        ) {
+
             return null;
+        }
+
+
+        if (
+            !path
+        ) {
+
+            throw new Error(
+                "Storage path tidak tersedia."
+            );
         }
 
 
@@ -744,7 +1107,9 @@
         const result =
             await supabase
                 .storage
-                .from(getStorageBucket())
+                .from(
+                    getStorageBucket()
+                )
                 .upload(
                     path,
                     file,
@@ -757,18 +1122,25 @@
                             false,
 
                         contentType:
-                            file.type || undefined
+                            file.type ||
+                            undefined
                     }
                 );
 
 
-        if (result.error) {
+        if (
+            result.error
+        ) {
+
             throw result.error;
         }
 
 
         return {
-            path: path,
+
+            path:
+                path,
+
             fullPath:
                 result.data &&
                 result.data.fullPath
@@ -782,34 +1154,45 @@
        STORAGE DELETE
     ===================================================== */
 
-    async function deleteStorageFiles(paths) {
+    async function deleteStorageFiles(
+        paths
+    ) {
 
         if (
             !Array.isArray(paths) ||
             paths.length === 0
         ) {
+
             return {
+
                 success: true,
+
                 removed: []
             };
         }
 
 
         const validPaths =
-            paths.filter(function (path) {
+            paths.filter(
+                function (path) {
 
-                return (
-                    typeof path === "string" &&
-                    path.trim()
-                );
+                    return (
+                        typeof path === "string" &&
+                        path.trim()
+                    );
 
-            });
+                }
+            );
 
 
-        if (!validPaths.length) {
+        if (
+            !validPaths.length
+        ) {
 
             return {
+
                 success: true,
+
                 removed: []
             };
         }
@@ -822,77 +1205,95 @@
         const result =
             await supabase
                 .storage
-                .from(getStorageBucket())
+                .from(
+                    getStorageBucket()
+                )
                 .remove(
                     validPaths
                 );
 
 
-        if (result.error) {
+        if (
+            result.error
+        ) {
+
             throw result.error;
         }
 
 
         return {
+
             success: true,
-            removed: validPaths
+
+            removed:
+                validPaths
         };
     }
 
 
     /* =====================================================
-       BUILD INSERT DATA
+       INSERT PAYLOAD
     ===================================================== */
 
-    function buildInsertPayload(data) {
+    function buildInsertPayload(
+        data
+    ) {
 
-        const payload = {
+        return {
 
             title:
                 validateTitle(
                     data.title
                 ),
 
+
             description:
                 validateDescription(
                     data.description
                 ),
+
 
             category:
                 validateCategory(
                     data.category
                 ),
 
+
             aspect_ratio:
                 validateAspectRatio(
                     data.aspectRatio
                 ),
 
+
             video_path:
-                data.videoPath || null,
+                data.videoPath ||
+                null,
+
 
             thumbnail_path:
-                data.thumbnailPath || null,
+                data.thumbnailPath ||
+                null,
+
 
             sort_order:
                 validateSortOrder(
                     data.sortOrder
                 ),
+
 
             is_active:
                 data.isActive !== false
         };
-
-
-        return payload;
     }
 
 
     /* =====================================================
-       BUILD UPDATE DATA
+       UPDATE PAYLOAD
     ===================================================== */
 
-    function buildUpdatePayload(data) {
+    function buildUpdatePayload(
+        data
+    ) {
 
         const payload = {
 
@@ -901,25 +1302,30 @@
                     data.title
                 ),
 
+
             description:
                 validateDescription(
                     data.description
                 ),
+
 
             category:
                 validateCategory(
                     data.category
                 ),
 
+
             aspect_ratio:
                 validateAspectRatio(
                     data.aspectRatio
                 ),
 
+
             sort_order:
                 validateSortOrder(
                     data.sortOrder
                 ),
+
 
             is_active:
                 data.isActive !== false
@@ -927,14 +1333,13 @@
 
 
         /*
-         * Path hanya dimasukkan jika file baru berhasil
-         * di-upload. Dengan begitu edit metadata tidak
-         * menghapus file lama.
+         * Hanya ubah path jika file baru memang diberikan.
          */
 
         if (
             data.videoPath
         ) {
+
             payload.video_path =
                 data.videoPath;
         }
@@ -943,6 +1348,7 @@
         if (
             data.thumbnailPath
         ) {
+
             payload.thumbnail_path =
                 data.thumbnailPath;
         }
@@ -956,86 +1362,89 @@
        CREATE VIDEO
     ===================================================== */
 
-    async function createVideo(data) {
+    async function createVideo(
+        data = {}
+    ) {
 
-        if (
-            !dashboard.isAdmin()
-        ) {
-
-            throw new Error(
-                "Anda tidak memiliki akses untuk menambah video."
-            );
-        }
-
-
-        if (
-            !dashboard.isEditMode()
-        ) {
-
-            throw new Error(
-                "Mode manajemen video tidak aktif."
-            );
-        }
+        requireManagementAccess(
+            "menambah video"
+        );
 
 
         const supabase =
             getClient();
 
-        const config =
-            getConfig();
+
+        let videoPath =
+            null;
 
 
-        let videoPath = null;
+        let thumbnailPath =
+            null;
 
-        let thumbnailPath = null;
 
-        let uploadedPaths = [];
+        const uploadedPaths =
+            [];
 
 
         try {
 
             /* ---------------------------------------------
-               Validate files
+               Validation
             --------------------------------------------- */
 
             validateVideoFile(
                 data.videoFile
             );
 
+
             validateThumbnailFile(
                 data.thumbnailFile
             );
 
 
-            /* ---------------------------------------------
-               Video upload
-            --------------------------------------------- */
+            /*
+             * Video wajib pada CREATE.
+             */
 
-            if (data.videoFile) {
+            if (
+                !data.videoFile
+            ) {
 
-                videoPath =
-                    createVideoPath(
-                        data.videoFile
-                    );
-
-
-                await uploadFile(
-                    data.videoFile,
-                    videoPath
-                );
-
-
-                uploadedPaths.push(
-                    videoPath
+                throw new Error(
+                    "File video wajib dipilih."
                 );
             }
 
 
             /* ---------------------------------------------
-               Thumbnail upload
+               Upload video
             --------------------------------------------- */
 
-            if (data.thumbnailFile) {
+            videoPath =
+                createVideoPath(
+                    data.videoFile
+                );
+
+
+            await uploadFile(
+                data.videoFile,
+                videoPath
+            );
+
+
+            uploadedPaths.push(
+                videoPath
+            );
+
+
+            /* ---------------------------------------------
+               Upload thumbnail
+            --------------------------------------------- */
+
+            if (
+                data.thumbnailFile
+            ) {
 
                 thumbnailPath =
                     createThumbnailPath(
@@ -1056,14 +1465,17 @@
 
 
             /* ---------------------------------------------
-               Insert database
+               Database insert
             --------------------------------------------- */
 
             const payload =
                 buildInsertPayload({
+
                     ...data,
+
                     videoPath:
                         videoPath,
+
                     thumbnailPath:
                         thumbnailPath
                 });
@@ -1072,18 +1484,21 @@
             const result =
                 await supabase
                     .from(
-                        config.tables.videos
+                        getVideoTable()
                     )
                     .insert(
                         payload
                     )
                     .select(
-                        config.videoSelect
+                        getConfig().videoSelect
                     )
                     .single();
 
 
-            if (result.error) {
+            if (
+                result.error
+            ) {
+
                 throw result.error;
             }
 
@@ -1096,9 +1511,15 @@
                 );
 
 
-            dashboard.addVideo(
-                video
-            );
+            if (
+                typeof dashboard.addVideo ===
+                "function"
+            ) {
+
+                dashboard.addVideo(
+                    video
+                );
+            }
 
 
             return video;
@@ -1106,9 +1527,8 @@
         } catch (error) {
 
             /*
-             * Jika database insert gagal setelah file sudah
-             * ter-upload, bersihkan file agar tidak menjadi
-             * orphan storage.
+             * Database gagal setelah Storage berhasil:
+             * bersihkan semua file baru.
              */
 
             if (
@@ -1142,30 +1562,17 @@
 
     async function updateVideo(
         videoId,
-        data
+        data = {}
     ) {
 
-        if (
-            !dashboard.isAdmin()
-        ) {
-
-            throw new Error(
-                "Anda tidak memiliki akses untuk mengedit video."
-            );
-        }
+        requireManagementAccess(
+            "mengedit video"
+        );
 
 
         if (
-            !dashboard.isEditMode()
+            !videoId
         ) {
-
-            throw new Error(
-                "Mode manajemen video tidak aktif."
-            );
-        }
-
-
-        if (!videoId) {
 
             throw new Error(
                 "Video ID tidak tersedia."
@@ -1176,13 +1583,11 @@
         const supabase =
             getClient();
 
-        const config =
-            getConfig();
-
 
         /*
-         * Ambil data lama terlebih dahulu agar path storage
-         * lama dapat dibersihkan jika file diganti.
+         * Ambil record lama untuk:
+         * - memastikan video ada
+         * - mendapatkan storage path lama
          */
 
         const existing =
@@ -1191,7 +1596,9 @@
             );
 
 
-        if (!existing) {
+        if (
+            !existing
+        ) {
 
             throw new Error(
                 "Video tidak ditemukan."
@@ -1199,22 +1606,28 @@
         }
 
 
-        let newVideoPath = null;
+        let newVideoPath =
+            null;
 
-        let newThumbnailPath = null;
 
-        let uploadedPaths = [];
+        let newThumbnailPath =
+            null;
+
+
+        const uploadedPaths =
+            [];
 
 
         try {
 
             /* ---------------------------------------------
-               Validate new files
+               Validation
             --------------------------------------------- */
 
             validateVideoFile(
                 data.videoFile
             );
+
 
             validateThumbnailFile(
                 data.thumbnailFile
@@ -1225,7 +1638,9 @@
                New video
             --------------------------------------------- */
 
-            if (data.videoFile) {
+            if (
+                data.videoFile
+            ) {
 
                 newVideoPath =
                     createVideoPath(
@@ -1249,7 +1664,9 @@
                New thumbnail
             --------------------------------------------- */
 
-            if (data.thumbnailFile) {
+            if (
+                data.thumbnailFile
+            ) {
 
                 newThumbnailPath =
                     createThumbnailPath(
@@ -1270,11 +1687,12 @@
 
 
             /* ---------------------------------------------
-               Update database
+               Database update
             --------------------------------------------- */
 
             const payload =
                 buildUpdatePayload({
+
                     ...data,
 
                     videoPath:
@@ -1288,7 +1706,7 @@
             const result =
                 await supabase
                     .from(
-                        config.tables.videos
+                        getVideoTable()
                     )
                     .update(
                         payload
@@ -1298,12 +1716,15 @@
                         videoId
                     )
                     .select(
-                        config.videoSelect
+                        getConfig().videoSelect
                     )
                     .single();
 
 
-            if (result.error) {
+            if (
+                result.error
+            ) {
+
                 throw result.error;
             }
 
@@ -1316,18 +1737,28 @@
                 );
 
 
-            dashboard.updateVideo(
-                videoId,
-                updatedVideo
-            );
+            /* ---------------------------------------------
+               Update local state
+            --------------------------------------------- */
+
+            if (
+                typeof dashboard.updateVideo ===
+                "function"
+            ) {
+
+                dashboard.updateVideo(
+                    videoId,
+                    updatedVideo
+                );
+            }
 
 
             /* ---------------------------------------------
-               Cleanup old files
-               Hanya setelah DB berhasil di-update.
+               Cleanup old Storage files
             --------------------------------------------- */
 
-            const oldPaths = [];
+            const oldPaths =
+                [];
 
 
             if (
@@ -1352,7 +1783,9 @@
             }
 
 
-            if (oldPaths.length) {
+            if (
+                oldPaths.length
+            ) {
 
                 try {
 
@@ -1361,6 +1794,13 @@
                     );
 
                 } catch (cleanupError) {
+
+                    /*
+                     * DB sudah benar.
+                     *
+                     * Jangan membatalkan update karena
+                     * cleanup storage gagal.
+                     */
 
                     console.error(
                         "[GEN-Z.AI] Old storage cleanup failed:",
@@ -1375,8 +1815,10 @@
         } catch (error) {
 
             /*
-             * Jika update database gagal setelah file baru
-             * ter-upload, hapus file baru.
+             * Update gagal:
+             * hapus file BARU saja.
+             *
+             * File lama tidak disentuh.
              */
 
             if (
@@ -1408,29 +1850,18 @@
        DELETE VIDEO
     ===================================================== */
 
-    async function deleteVideo(videoId) {
+    async function deleteVideo(
+        videoId
+    ) {
 
-        if (
-            !dashboard.isAdmin()
-        ) {
-
-            throw new Error(
-                "Anda tidak memiliki akses untuk menghapus video."
-            );
-        }
+        requireManagementAccess(
+            "menghapus video"
+        );
 
 
         if (
-            !dashboard.isEditMode()
+            !videoId
         ) {
-
-            throw new Error(
-                "Mode manajemen video tidak aktif."
-            );
-        }
-
-
-        if (!videoId) {
 
             throw new Error(
                 "Video ID tidak tersedia."
@@ -1441,12 +1872,9 @@
         const supabase =
             getClient();
 
-        const config =
-            getConfig();
-
 
         /*
-         * Ambil path sebelum row dihapus.
+         * Ambil record sebelum delete.
          */
 
         const existing =
@@ -1455,7 +1883,9 @@
             );
 
 
-        if (!existing) {
+        if (
+            !existing
+        ) {
 
             throw new Error(
                 "Video tidak ditemukan."
@@ -1463,14 +1893,14 @@
         }
 
 
-        /* -------------------------------------------------
-           Delete database row terlebih dahulu.
-        ------------------------------------------------- */
+        /* ---------------------------------------------
+           Delete database row
+        --------------------------------------------- */
 
         const result =
             await supabase
                 .from(
-                    config.tables.videos
+                    getVideoTable()
                 )
                 .delete()
                 .eq(
@@ -1479,20 +1909,20 @@
                 );
 
 
-        if (result.error) {
+        if (
+            result.error
+        ) {
+
             throw result.error;
         }
 
 
-        /*
-         * Database berhasil dihapus.
-         * Baru bersihkan storage.
-         *
-         * Jika storage cleanup gagal, data database tetap
-         * sudah benar dan error dicatat untuk debugging.
-         */
+        /* ---------------------------------------------
+           Cleanup Storage
+        --------------------------------------------- */
 
-        const storagePaths = [];
+        const storagePaths =
+            [];
 
 
         if (
@@ -1527,6 +1957,13 @@
 
             } catch (storageError) {
 
+                /*
+                 * Row database sudah berhasil dihapus.
+                 *
+                 * Jangan mengembalikan state database
+                 * hanya karena Storage cleanup gagal.
+                 */
+
                 console.error(
                     "[GEN-Z.AI] Storage cleanup after delete failed:",
                     storageError
@@ -1535,22 +1972,34 @@
         }
 
 
-        dashboard.removeVideo(
-            videoId
-        );
+        /* ---------------------------------------------
+           Local state
+        --------------------------------------------- */
+
+        if (
+            typeof dashboard.removeVideo ===
+            "function"
+        ) {
+
+            dashboard.removeVideo(
+                videoId
+            );
+        }
 
 
         return {
-            success: true,
-            id: videoId
+
+            success:
+                true,
+
+            id:
+                videoId
         };
     }
 
 
     /* =====================================================
-       SEARCH LOCAL VIDEO
-       Tidak query Supabase.
-       Digunakan oleh render/filter.
+       LOCAL FILTER
     ===================================================== */
 
     function filterVideos(
@@ -1561,16 +2010,30 @@
         const source =
             Array.isArray(videos)
                 ? videos
-                : dashboard.getVideos();
+                : (
+                    typeof dashboard.getVideos ===
+                    "function"
+                        ? dashboard.getVideos()
+                        : []
+                );
 
 
         if (
             !category ||
-            category === "all"
+            String(
+                category
+            ).toLowerCase() === "all"
         ) {
 
             return source.slice();
         }
+
+
+        const target =
+            String(
+                category
+            ).trim()
+            .toUpperCase();
 
 
         return source.filter(
@@ -1578,10 +2041,14 @@
 
                 return (
                     String(
-                        video.category || ""
-                    ).toUpperCase() ===
-                    String(category)
-                        .toUpperCase()
+                        video &&
+                        video.category
+                            ? video.category
+                            : ""
+                    )
+                        .trim()
+                        .toUpperCase() ===
+                    target
                 );
 
             }
@@ -1590,10 +2057,12 @@
 
 
     /* =====================================================
-       SORT LOCAL VIDEO
+       LOCAL SORT
     ===================================================== */
 
-    function sortVideos(videos) {
+    function sortVideos(
+        videos
+    ) {
 
         const source =
             Array.isArray(videos)
@@ -1605,24 +2074,46 @@
             function (a, b) {
 
                 const orderA =
-                    Number(a.sort_order);
+                    Number(
+                        a &&
+                        a.sort_order
+                    );
 
 
                 const orderB =
-                    Number(b.sort_order);
+                    Number(
+                        b &&
+                        b.sort_order
+                    );
+
+
+                const validA =
+                    Number.isFinite(
+                        orderA
+                    );
+
+
+                const validB =
+                    Number.isFinite(
+                        orderB
+                    );
 
 
                 if (
-                    Number.isFinite(orderA) &&
-                    Number.isFinite(orderB) &&
+                    validA &&
+                    validB &&
                     orderA !== orderB
                 ) {
 
-                    return orderA - orderB;
+                    return (
+                        orderA -
+                        orderB
+                    );
                 }
 
 
                 const dateA =
+                    a &&
                     a.created_at
                         ? new Date(
                             a.created_at
@@ -1631,6 +2122,7 @@
 
 
                 const dateB =
+                    b &&
                     b.created_at
                         ? new Date(
                             b.created_at
@@ -1638,7 +2130,10 @@
                         : 0;
 
 
-                return dateB - dateA;
+                return (
+                    dateB -
+                    dateA
+                );
             }
         );
     }
@@ -1651,59 +2146,76 @@
     dashboard.getVideoTable =
         getVideoTable;
 
+
     dashboard.getStorageBucket =
         getStorageBucket;
+
 
     dashboard.normalizeVideo =
         normalizeVideo;
 
+
     dashboard.normalizeVideos =
         normalizeVideos;
+
 
     dashboard.getPublicUrl =
         getPublicUrl;
 
+
     dashboard.attachPublicUrls =
         attachPublicUrls;
+
 
     dashboard.loadVideos =
         loadVideos;
 
+
     dashboard.getVideo =
         getVideo;
+
 
     dashboard.uploadFile =
         uploadFile;
 
+
     dashboard.deleteStorageFiles =
         deleteStorageFiles;
+
 
     dashboard.validateVideoFile =
         validateVideoFile;
 
+
     dashboard.validateThumbnailFile =
         validateThumbnailFile;
+
 
     dashboard.createVideo =
         createVideo;
 
+
     dashboard.updateVideo =
         updateVideo;
+
 
     dashboard.deleteVideo =
         deleteVideo;
 
+
     dashboard.filterVideos =
         filterVideos;
+
 
     dashboard.sortVideos =
         sortVideos;
 
 
     /* =====================================================
-       READY FLAG
+       READY
     ===================================================== */
 
-    dashboard.dataReady = true;
+    dashboard.dataReady =
+        true;
 
 })();
