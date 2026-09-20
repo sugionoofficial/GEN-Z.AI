@@ -1,41 +1,39 @@
- /* =========================================================
-    GEN-Z.AI
-    GENERATE VALIDATION MODULE
-    ---------------------------------------------------------
-    File:
-    generate/assets/js/generate-validation.js
+/* =========================================================
+   GEN-Z.AI
+   GENERATE VALIDATION MODULE
+   ---------------------------------------------------------
+   File:
+   generate/assets/js/generate-validation.js
 
-    Tanggung jawab:
-    - Validasi parameter sebelum generate
-    - Validasi required field
-    - Validasi pilihan parameter
-    - Validasi numeric min / max / step
-    - Validasi aspect ratio
-    - Validasi resolution
-    - Validasi duration
-    - Validasi kombinasi image_urls + task_id
+   Tanggung jawab:
+   - Validasi parameter sebelum generate
+   - Validasi required field
+   - Validasi pilihan parameter
+   - Validasi numeric min / max / step
+   - Validasi aspect ratio
+   - Validasi resolution
+   - Validasi duration
+   - Validasi kombinasi image_urls + task_id
 
-    Sumber aturan:
-    - currentModel dari /api/model-config
-    - parameter definitions dari backend
+   Sumber aturan:
+   - currentModel dari /api/model-config
+   - parameter definitions dari backend
 
-    Tidak bertanggung jawab:
-    - Query Supabase
-    - API request
-    - Provider
-    - Credit deduction
-    - Render UI
- ========================================================= */
+   Tidak bertanggung jawab:
+   - Query Supabase
+   - API request
+   - Provider
+   - Credit deduction
+   - Render UI
+
+   Catatan:
+   - Tidak bergantung pada generate-utils.js
+   - Semua helper yang diperlukan tersedia lokal
+========================================================= */
 
 import {
     getCurrentModel
 } from "./generate-state.js";
-
-import {
-    normalizeArray,
-    toFiniteNumber,
-    isEmpty
-} from "./generate-utils.js";
 
 import {
     parameterDefinition
@@ -43,8 +41,180 @@ import {
 
 
 /* =========================================================
-   HELPERS
- ========================================================= */
+   LOCAL HELPERS
+========================================================= */
+
+function normalizeArray(
+    value
+) {
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return value
+            .filter(
+                item =>
+                    item !== null &&
+                    item !== undefined
+            )
+            .map(
+                item =>
+                    typeof item === "string"
+                        ? item.trim()
+                        : item
+            )
+            .filter(
+                item =>
+                    item !== ""
+            );
+    }
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return [];
+    }
+
+    if (
+        typeof value === "string"
+    ) {
+
+        const text =
+            value.trim();
+
+        if (!text) {
+            return [];
+        }
+
+        /*
+         * Support JSON array.
+         */
+        if (
+            text.startsWith("[") &&
+            text.endsWith("]")
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        text
+                    );
+
+                if (
+                    Array.isArray(parsed)
+                ) {
+
+                    return normalizeArray(
+                        parsed
+                    );
+                }
+
+            } catch {
+                /*
+                 * Bukan JSON valid.
+                 * Lanjut sebagai string.
+                 */
+            }
+        }
+
+        /*
+         * Support comma-separated values.
+         */
+        return text
+            .split(",")
+            .map(
+                item =>
+                    item.trim()
+            )
+            .filter(
+                Boolean
+            );
+    }
+
+    /*
+     * Support object values.
+     */
+    if (
+        typeof value === "object"
+    ) {
+
+        return Object.values(
+            value
+        ).filter(
+            item =>
+                item !== null &&
+                item !== undefined
+        );
+    }
+
+    return [
+        value
+    ];
+}
+
+
+function toFiniteNumber(
+    value,
+    fallback = null
+) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return fallback;
+    }
+
+    const number =
+        Number(value);
+
+    return Number.isFinite(
+        number
+    )
+        ? number
+        : fallback;
+}
+
+
+function isEmpty(
+    value
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return true;
+    }
+
+    if (
+        typeof value === "string"
+    ) {
+
+        return value.trim() === "";
+    }
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return value.length === 0;
+    }
+
+    return false;
+}
+
+
+/* =========================================================
+   MODEL PARAMETERS
+========================================================= */
 
 function getModelParameters(
     model = getCurrentModel()
@@ -106,6 +276,10 @@ function getModelParameters(
 }
 
 
+/* =========================================================
+   PARAMETER NAME
+========================================================= */
+
 function getParameterName(
     definition
 ) {
@@ -118,6 +292,10 @@ function getParameterName(
     ).trim();
 }
 
+
+/* =========================================================
+   PARAMETER TYPE
+========================================================= */
 
 function getParameterType(
     definition
@@ -139,6 +317,7 @@ function getParameterType(
         type === "float" ||
         type === "decimal"
     ) {
+
         return "number";
     }
 
@@ -147,6 +326,7 @@ function getParameterType(
         type === "bool" ||
         type === "checkbox"
     ) {
+
         return "checkbox";
     }
 
@@ -155,18 +335,24 @@ function getParameterType(
         type === "dropdown" ||
         type === "enum"
     ) {
+
         return "select";
     }
 
     if (
         type === "radio"
     ) {
+
         return "radio";
     }
 
     return "text";
 }
 
+
+/* =========================================================
+   OPTIONS
+========================================================= */
 
 function getOptions(
     definition
@@ -185,30 +371,32 @@ function getOptions(
         )
     ) {
 
-        return source.map(
-            option => {
+        return source
+            .map(
+                option => {
 
-                if (
-                    option &&
-                    typeof option ===
-                        "object"
-                ) {
+                    if (
+                        option &&
+                        typeof option ===
+                            "object"
+                    ) {
+
+                        return String(
+                            option.value ??
+                            option.id ??
+                            option.key ??
+                            ""
+                        );
+                    }
 
                     return String(
-                        option.value ??
-                        option.id ??
-                        option.key ??
-                        ""
+                        option
                     );
                 }
-
-                return String(
-                    option
-                );
-            }
-        ).filter(
-            Boolean
-        );
+            )
+            .filter(
+                Boolean
+            );
     }
 
     return normalizeArray(
@@ -216,6 +404,10 @@ function getOptions(
     );
 }
 
+
+/* =========================================================
+   REQUIRED
+========================================================= */
 
 function getRequired(
     definition
@@ -235,7 +427,7 @@ function getRequired(
 
 /* =========================================================
    VALIDATE REQUIRED
- ========================================================= */
+========================================================= */
 
 function validateRequired(
     definition,
@@ -248,6 +440,7 @@ function validateRequired(
             definition
         )
     ) {
+
         return;
     }
 
@@ -276,7 +469,7 @@ function validateRequired(
 
 /* =========================================================
    VALIDATE OPTIONS
- ========================================================= */
+========================================================= */
 
 function validateOptions(
     definition,
@@ -293,6 +486,7 @@ function validateOptions(
         type !== "select" &&
         type !== "radio"
     ) {
+
         return;
     }
 
@@ -301,6 +495,7 @@ function validateOptions(
             value
         )
     ) {
+
         return;
     }
 
@@ -312,6 +507,7 @@ function validateOptions(
     if (
         options.length === 0
     ) {
+
         return;
     }
 
@@ -340,7 +536,7 @@ function validateOptions(
 
 /* =========================================================
    VALIDATE NUMBER
- ========================================================= */
+========================================================= */
 
 function validateNumber(
     definition,
@@ -353,6 +549,7 @@ function validateNumber(
             definition
         ) !== "number"
     ) {
+
         return;
     }
 
@@ -361,6 +558,7 @@ function validateNumber(
             value
         )
     ) {
+
         return;
     }
 
@@ -468,7 +666,7 @@ function validateNumber(
 
 /* =========================================================
    VALIDATE MODEL RATIOS
- ========================================================= */
+========================================================= */
 
 function validateAspectRatio(
     parameters,
@@ -490,6 +688,7 @@ function validateAspectRatio(
             value
         )
     ) {
+
         return;
     }
 
@@ -501,6 +700,7 @@ function validateAspectRatio(
     if (
         supported.length === 0
     ) {
+
         return;
     }
 
@@ -522,7 +722,7 @@ function validateAspectRatio(
 
 /* =========================================================
    VALIDATE RESOLUTION
- ========================================================= */
+========================================================= */
 
 function validateResolution(
     parameters,
@@ -544,6 +744,7 @@ function validateResolution(
             value
         )
     ) {
+
         return;
     }
 
@@ -555,6 +756,7 @@ function validateResolution(
     if (
         supported.length === 0
     ) {
+
         return;
     }
 
@@ -576,7 +778,7 @@ function validateResolution(
 
 /* =========================================================
    VALIDATE DURATION
- ========================================================= */
+========================================================= */
 
 function validateDuration(
     parameters,
@@ -595,6 +797,7 @@ function validateDuration(
             parameters.duration
         )
     ) {
+
         return;
     }
 
@@ -624,6 +827,7 @@ function validateDuration(
         typeof modelDuration !==
             "object"
     ) {
+
         return;
     }
 
@@ -663,7 +867,7 @@ function validateDuration(
 
 /* =========================================================
    VALIDATE PROMPT
- ========================================================= */
+========================================================= */
 
 function validatePrompt(
     parameters,
@@ -689,7 +893,7 @@ function validatePrompt(
 
 /* =========================================================
    VALIDATE IMAGE URL / TASK ID
- ========================================================= */
+========================================================= */
 
 function validateImageAndTask(
     parameters,
@@ -730,7 +934,7 @@ function validateImageAndTask(
 
 /* =========================================================
    VALIDATE PARAMETERS AGAINST DEFINITIONS
- ========================================================= */
+========================================================= */
 
 function validateDefinitions(
     parameters,
@@ -800,7 +1004,7 @@ function validateDefinitions(
 
 /* =========================================================
    VALIDATE UNKNOWN PARAMETERS
- ========================================================= */
+========================================================= */
 
 function validateKnownSpecialFields(
     parameters,
@@ -834,13 +1038,14 @@ function validateKnownSpecialFields(
      * terakhir.
      */
     void known;
+    void parameters;
     void errors;
 }
 
 
 /* =========================================================
    MAIN VALIDATION
- ========================================================= */
+========================================================= */
 
 export function validateClientParameters(
     parameters = {}
@@ -921,7 +1126,7 @@ export function validateClientParameters(
 
 /* =========================================================
    BOOLEAN VALIDATION
- ========================================================= */
+========================================================= */
 
 export function isValidParameters(
     parameters = {}
@@ -937,7 +1142,7 @@ export function isValidParameters(
 
 /* =========================================================
    FIRST ERROR
- ========================================================= */
+========================================================= */
 
 export function getFirstValidationError(
     parameters = {}
@@ -957,7 +1162,7 @@ export function getFirstValidationError(
 
 /* =========================================================
    VALIDATE SINGLE PARAMETER
- ========================================================= */
+========================================================= */
 
 export function validateParameter(
     name,
@@ -1005,7 +1210,7 @@ export function validateParameter(
 
 /* =========================================================
    EXPORT VALIDATION API
- ========================================================= */
+========================================================= */
 
 export const generateValidation =
     Object.freeze({
