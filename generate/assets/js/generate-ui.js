@@ -947,6 +947,22 @@ export function showError(
 
 /* =========================================================
    LOADING
+   ---------------------------------------------------------
+   INACTIVE:
+       #loading hidden
+       display:none
+       visibility:hidden
+       opacity:0
+
+   ACTIVE:
+       #loading visible
+       display:inline-flex
+       visibility:visible
+       opacity:1
+
+   Tujuan:
+   Indikator "Memproses..." TIDAK BOLEH muncul
+   sebelum tombol Generate diproses.
 ========================================================= */
 
 export function setLoading(
@@ -969,27 +985,86 @@ export function setLoading(
         );
 
 
-    /*
-     * -----------------------------------------------------
-     * LOADING INDICATOR
-     * -----------------------------------------------------
-     */
+    /* =====================================================
+       LOADING INDICATOR
+    ====================================================== */
 
     if (
         loading
     ) {
 
+        /*
+         * Attribute hidden.
+         */
         loading.hidden =
             !isActive;
+
+
+        /*
+         * Defensive display state.
+         *
+         * CSS .loading tidak boleh mengalahkan
+         * kondisi inactive.
+         */
+        loading.style.display =
+            isActive
+                ? "inline-flex"
+                : "none";
+
+
+        loading.style.visibility =
+            isActive
+                ? "visible"
+                : "hidden";
+
+
+        loading.style.opacity =
+            isActive
+                ? "1"
+                : "0";
+
+
+        loading.setAttribute(
+            "aria-hidden",
+            String(
+                !isActive
+            )
+        );
+
+
+        /*
+         * Update text hanya ketika loading aktif.
+         */
+        if (
+            isActive
+        ) {
+
+            const textElement =
+                loading.querySelector(
+                    "span:not(.spinner)"
+                );
+
+
+            if (
+                textElement
+            ) {
+
+                textElement.textContent =
+                    safeString(
+                        message,
+                        "Memproses..."
+                    );
+
+            }
+
+        }
 
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * GENERATE BUTTON
-     * -----------------------------------------------------
-     */
+    /* =====================================================
+       GENERATE BUTTON
+    ====================================================== */
 
     if (
         generateButton
@@ -1008,7 +1083,7 @@ export function setLoading(
          *
          * generateButton.textContent = ...
          *
-         * karena itu menghapus:
+         * karena akan menghapus:
          *
          * #generateCreditValue
          */
@@ -1081,11 +1156,9 @@ export function setLoading(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * MODEL SELECT
-     * -----------------------------------------------------
-     */
+    /* =====================================================
+       MODEL SELECT
+    ====================================================== */
 
     if (
         modelSelect
@@ -1097,11 +1170,9 @@ export function setLoading(
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * RESET BUTTON
-     * -----------------------------------------------------
-     */
+    /* =====================================================
+       RESET BUTTON
+    ====================================================== */
 
     if (
         resetButton
@@ -1113,12 +1184,13 @@ export function setLoading(
     }
 
 
+    /* =====================================================
+       ACCOUNT BADGE
+    ====================================================== */
+
     /*
-     * -----------------------------------------------------
-     * ACCOUNT BADGE
-     * -----------------------------------------------------
-     *
      * Loading tidak boleh menghapus:
+     *
      * - role
      * - account credit
      */
@@ -1455,7 +1527,7 @@ export function renderModelHeader(
      * -----------------------------------------------------
      * MODEL ID
      * -----------------------------------------------------
-     */
+ */
 
     const modelId =
         safeString(
@@ -2117,7 +2189,8 @@ export function showReady(
     /*
      * Hanya enable jika model benar-benar ready.
      *
-     * Auth/profile tetap dikontrol oleh app module.
+     * Auth/profile tetap dikontrol
+     * oleh app module.
      */
     if (
         isModelReady()
@@ -2233,9 +2306,6 @@ export function finishRequest() {
 
     /*
      * Final DOM sync.
-     *
-     * Ini sengaja dilakukan karena beberapa
-     * browser/UI mutation bisa mengubah hidden/display.
      */
     renderAuthBadges(
         getCurrentProfile()
@@ -2247,6 +2317,97 @@ export function finishRequest() {
     );
 
 }
+
+
+/* =========================================================
+   INITIAL LOADING STATE
+   ---------------------------------------------------------
+   PENTING:
+
+   Ketika modul UI pertama kali dimuat,
+   indikator processing HARUS mati.
+
+   Ini hanya mengatur #loading.
+   Tidak menyentuh:
+       - Owner
+       - Account Credit
+       - Model Credit
+       - Dynamic Parameters
+       - Model
+========================================================= */
+
+function initializeLoadingState() {
+
+    const {
+        loading
+    } = elements();
+
+
+    if (
+        !loading
+    ) {
+
+        return;
+
+    }
+
+
+    loading.hidden =
+        true;
+
+
+    loading.style.display =
+        "none";
+
+
+    loading.style.visibility =
+        "hidden";
+
+
+    loading.style.opacity =
+        "0";
+
+
+    loading.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+}
+
+
+/* =========================================================
+   INITIALIZE LOADING STATE
+   ---------------------------------------------------------
+   DOM harus sudah tersedia sebelum mengambil element.
+========================================================= */
+
+function scheduleInitialLoadingState() {
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeLoadingState,
+            {
+                once:
+                    true
+            }
+        );
+
+    } else {
+
+        initializeLoadingState();
+
+    }
+
+}
+
+
+scheduleInitialLoadingState();
 
 
 /* =========================================================
