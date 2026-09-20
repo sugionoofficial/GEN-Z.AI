@@ -6,32 +6,88 @@
 
     <title>Users - GEN-Z.AI</title>
 
+    <!-- =====================================================
+         SUPABASE
+    ====================================================== -->
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/config.js"></script>
     <script src="supabase.js"></script>
 
+    <!-- =====================================================
+         SHARED PREMIUM NAVIGATION
+    ====================================================== -->
+
+    <script src="../navigation/navigation.js"></script>
+
+    <!-- =====================================================
+         GLOBAL PREMIUM CSS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="../assets/css/genz-premium.css"
+    >
+
     <style>
+
+        /* =====================================================
+           BASE
+        ====================================================== */
+
         * {
             box-sizing: border-box;
         }
 
         :root {
-            --bg: #06070d;
-            --panel: rgba(255,255,255,0.055);
-            --border: rgba(255,255,255,0.09);
-            --text: #ffffff;
-            --muted: rgba(255,255,255,0.54);
-            --muted-2: rgba(255,255,255,0.35);
+
+            --bg: #020204;
+
+            --panel:
+                rgba(255,255,255,0.045);
+
+            --panel-strong:
+                rgba(255,255,255,0.065);
+
+            --border:
+                rgba(255,255,255,0.085);
+
+            --text:
+                #ffffff;
+
+            --muted:
+                rgba(255,255,255,0.54);
+
+            --muted-2:
+                rgba(255,255,255,0.35);
+
+            --red:
+                #ff1744;
+
+            --red-soft:
+                rgba(255,23,68,0.08);
+
+            --red-border:
+                rgba(255,23,68,0.30);
+
         }
+
 
         html {
-            background: var(--bg);
+            background:
+                #020204;
         }
 
+
         body {
+
             margin: 0;
+
             min-height: 100vh;
-            color: var(--text);
+
+            color:
+                var(--text);
+
             font-family:
                 Inter,
                 ui-sans-serif,
@@ -42,50 +98,75 @@
                 sans-serif;
 
             background:
+
                 radial-gradient(
-                    circle at 15% 10%,
-                    rgba(117,91,255,0.14),
+                    circle at 8% 0%,
+                    rgba(255,23,68,0.11),
+                    transparent 27%
+                ),
+
+                radial-gradient(
+                    circle at 92% 8%,
+                    rgba(255,23,68,0.07),
                     transparent 30%
                 ),
-                radial-gradient(
-                    circle at 85% 15%,
-                    rgba(74,144,226,0.10),
-                    transparent 28%
-                ),
-                radial-gradient(
-                    circle at 50% 100%,
-                    rgba(178,89,255,0.08),
-                    transparent 30%
-                ),
-                #06070d;
+
+                linear-gradient(
+                    135deg,
+                    #eeeeee 0%,
+                    #c9c9c9 14%,
+                    #777777 31%,
+                    #303034 53%,
+                    #08080b 79%,
+                    #020204 100%
+                );
+
+            background-attachment:
+                fixed;
+
+            overflow-x:
+                hidden;
         }
 
+
         body::before {
+
             content: "";
+
             position: fixed;
+
             inset: 0;
-            pointer-events: none;
+
+            pointer-events:
+                none;
+
+            z-index:
+                0;
 
             background:
+
                 linear-gradient(
-                    rgba(255,255,255,0.018) 1px,
+                    rgba(255,255,255,0.014) 1px,
                     transparent 1px
                 ),
+
                 linear-gradient(
                     90deg,
-                    rgba(255,255,255,0.018) 1px,
+                    rgba(255,255,255,0.014) 1px,
                     transparent 1px
                 );
 
-            background-size: 42px 42px;
+            background-size:
+                42px 42px;
 
             mask-image:
                 linear-gradient(
                     to bottom,
                     black,
-                    transparent 90%
+                    transparent 92%
                 );
         }
+
 
         button,
         input,
@@ -93,468 +174,458 @@
             font: inherit;
         }
 
+
         button {
-            -webkit-tap-highlight-color: transparent;
+            -webkit-tap-highlight-color:
+                transparent;
         }
 
-        /* ========================================
-           HAMBURGER
-        ======================================== */
 
-        .menu-button {
-            position: fixed;
+        /* =====================================================
+           NAVIGATION CONTAINER
+        ====================================================== */
 
-            top: 20px;
-            left: 20px;
-
-            width: 46px;
-            height: 46px;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            border-radius: 14px;
-
-            color: #fff;
-
-            background:
-                rgba(255,255,255,0.065);
-
-            border:
-                1px solid rgba(255,255,255,0.10);
-
-            box-shadow:
-                0 12px 35px rgba(0,0,0,0.25);
-
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-
-            cursor: pointer;
-
-            z-index: 200;
-
-            transition:
-                transform .2s ease,
-                background .2s ease;
-        }
-
-        .menu-button:hover {
-            transform: translateY(-1px);
-
-            background:
-                rgba(255,255,255,0.10);
-        }
-
-        .menu-icon {
-            width: 19px;
-            height: 14px;
-
+        #navigation {
             position: relative;
-
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            z-index: 9999;
         }
 
-        .menu-icon span {
-            width: 100%;
-            height: 2px;
 
-            border-radius: 999px;
-
-            background: #fff;
-
-            transition:
-                transform .2s ease,
-                opacity .2s ease;
-        }
-
-        .menu-button.open .menu-icon span:nth-child(1) {
-            transform:
-                translateY(6px)
-                rotate(45deg);
-        }
-
-        .menu-button.open .menu-icon span:nth-child(2) {
-            opacity: 0;
-        }
-
-        .menu-button.open .menu-icon span:nth-child(3) {
-            transform:
-                translateY(-6px)
-                rotate(-45deg);
-        }
-
-        /* ========================================
-           NAVIGATION
-        ======================================== */
-
-        .sidebar {
-            position: fixed;
-
-            left: 0;
-            top: 0;
-            bottom: 0;
-
-            width: 280px;
-
-            padding: 28px 18px;
-
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(13,14,23,0.98),
-                    rgba(8,9,15,0.97)
-                );
-
-            border-right:
-                1px solid rgba(255,255,255,0.07);
-
-            backdrop-filter: blur(22px);
-            -webkit-backdrop-filter: blur(22px);
-
-            z-index: 150;
-
-            transform: translateX(-100%);
-
-            transition:
-                transform .25s ease;
-
-            box-shadow:
-                20px 0 70px rgba(0,0,0,0.30);
-        }
-
-        .sidebar.open {
-            transform: translateX(0);
-        }
-
-        .brand {
-            padding:
-                18px 12px 0;
-
-            font-size: 24px;
-            font-weight: 900;
-
-            letter-spacing: -1px;
-        }
-
-        .brand span {
-            background:
-                linear-gradient(
-                    90deg,
-                    #fff,
-                    #bbb9ff,
-                    #e2c7ff
-                );
-
-            -webkit-background-clip: text;
-            background-clip: text;
-
-            color: transparent;
-        }
-
-        .brand-sub {
-            padding:
-                5px 12px 28px;
-
-            color:
-                var(--muted-2);
-
-            font-size: 9px;
-            font-weight: 800;
-
-            letter-spacing: 2px;
-        }
-
-        .nav {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .nav a,
-        .logout-button {
-            width: 100%;
-
-            min-height: 50px;
-
-            display: flex;
-            align-items: center;
-
-            padding: 12px 14px;
-
-            border-radius: 14px;
-
-            text-decoration: none;
-
-            color:
-                rgba(255,255,255,0.76);
-
-            background:
-                rgba(255,255,255,0.025);
-
-            border:
-                1px solid rgba(255,255,255,0.055);
-
-            font-size: 13px;
-            font-weight: 700;
-
-            cursor: pointer;
-
-            transition:
-                transform .2s ease,
-                background .2s ease,
-                border-color .2s ease,
-                color .2s ease;
-        }
-
-        .nav a:hover,
-        .logout-button:hover {
-            transform: translateX(3px);
-
-            background:
-                rgba(255,255,255,0.075);
-
-            border-color:
-                rgba(255,255,255,0.12);
-
-            color: #fff;
-        }
-
-        .nav-icon {
-            width: 32px;
-            flex: 0 0 32px;
-
-            font-size: 17px;
-        }
-
-        .logout-button {
-            margin-top: 18px;
-
-            color: #ffb5b5;
-
-            background:
-                rgba(239,68,68,0.045);
-
-            border-color:
-                rgba(239,68,68,0.10);
-        }
-
-        .logout-button:hover {
-            color: #fff;
-
-            background:
-                rgba(239,68,68,0.10);
-
-            border-color:
-                rgba(239,68,68,0.20);
-        }
-
-        .nav-overlay {
-            position: fixed;
-            inset: 0;
-
-            background:
-                rgba(0,0,0,0.55);
-
-            backdrop-filter: blur(3px);
-            -webkit-backdrop-filter: blur(3px);
-
-            z-index: 140;
-
-            opacity: 0;
-            visibility: hidden;
-
-            transition:
-                opacity .25s ease,
-                visibility .25s ease;
-        }
-
-        .nav-overlay.open {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* ========================================
+        /* =====================================================
            MAIN
-        ======================================== */
+        ====================================================== */
 
         .main {
-            min-height: 100vh;
+
+            position:
+                relative;
+
+            z-index:
+                1;
+
+            min-height:
+                100vh;
 
             padding:
                 88px 30px 50px;
         }
 
+
         .topbar {
-            width: 100%;
-            max-width: 1250px;
+
+            width:
+                100%;
+
+            max-width:
+                1250px;
 
             margin:
                 0 auto 30px;
 
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display:
+                flex;
 
-            gap: 20px;
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                20px;
         }
+
 
         .eyebrow {
-            display: inline-flex;
-            align-items: center;
 
-            padding: 7px 12px;
+            display:
+                inline-flex;
 
-            margin-bottom: 13px;
+            align-items:
+                center;
 
-            border-radius: 999px;
+            padding:
+                7px 12px;
+
+            margin-bottom:
+                13px;
+
+            border-radius:
+                999px;
 
             background:
-                rgba(255,255,255,0.045);
+                rgba(0,0,0,0.25);
 
             border:
-                1px solid rgba(255,255,255,0.08);
+                1px solid
+                rgba(255,23,68,0.24);
 
             color:
-                rgba(255,255,255,0.55);
+                rgba(255,255,255,0.60);
 
-            font-size: 9px;
-            font-weight: 800;
+            font-size:
+                9px;
 
-            letter-spacing: 1.7px;
-            text-transform: uppercase;
+            font-weight:
+                800;
+
+            letter-spacing:
+                1.7px;
+
+            text-transform:
+                uppercase;
+
+            box-shadow:
+                0 0 25px
+                rgba(255,23,68,0.045);
         }
 
+
         .page-title {
-            margin: 0;
+
+            margin:
+                0;
 
             font-size:
                 clamp(30px,4vw,48px);
 
-            line-height: 1;
+            line-height:
+                1;
 
-            font-weight: 900;
+            font-weight:
+                900;
 
-            letter-spacing: -2px;
+            letter-spacing:
+                -2px;
 
             background:
+
                 linear-gradient(
                     90deg,
-                    #fff,
-                    #c5c3ff,
-                    #e5d0ff
+                    #ffffff 0%,
+                    #ffffff 42%,
+                    #ff7189 72%,
+                    #ff1744 100%
                 );
 
-            -webkit-background-clip: text;
-            background-clip: text;
+            -webkit-background-clip:
+                text;
 
-            color: transparent;
-        }
-
-        .page-subtitle {
-            margin-top: 12px;
+            background-clip:
+                text;
 
             color:
-                var(--muted);
+                transparent;
 
-            font-size: 13px;
-            line-height: 1.7;
+            text-shadow:
+                0 0 35px
+                rgba(255,23,68,0.08);
         }
+
+
+        .page-subtitle {
+
+            margin-top:
+                12px;
+
+            color:
+                rgba(255,255,255,0.58);
+
+            font-size:
+                13px;
+
+            line-height:
+                1.7;
+        }
+
 
         .top-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                10px;
         }
 
+
         .back-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
 
-            padding: 11px 15px;
+            display:
+                inline-flex;
 
-            border-radius: 12px;
+            align-items:
+                center;
 
-            text-decoration: none;
+            gap:
+                8px;
+
+            padding:
+                11px 15px;
+
+            border-radius:
+                12px;
+
+            text-decoration:
+                none;
 
             color:
                 rgba(255,255,255,0.78);
 
             background:
-                rgba(255,255,255,0.045);
+                rgba(0,0,0,0.28);
 
             border:
-                1px solid rgba(255,255,255,0.09);
+                1px solid
+                rgba(255,255,255,0.10);
 
-            font-size: 12px;
-            font-weight: 750;
+            font-size:
+                12px;
+
+            font-weight:
+                750;
 
             transition:
                 transform .2s ease,
-                background .2s ease;
+                background .2s ease,
+                border-color .2s ease,
+                box-shadow .2s ease;
         }
+
 
         .back-button:hover {
-            transform: translateY(-2px);
+
+            transform:
+                translateY(-2px);
 
             background:
-                rgba(255,255,255,0.08);
+                rgba(255,23,68,0.07);
 
-            color: #fff;
-        }
-
-        .user-info {
-            padding: 10px 13px;
-
-            border-radius: 12px;
-
-            background:
-                rgba(255,255,255,0.035);
-
-            border:
-                1px solid rgba(255,255,255,0.07);
+            border-color:
+                rgba(255,23,68,0.25);
 
             color:
-                rgba(255,255,255,0.55);
+                #ffffff;
 
-            font-size: 11px;
+            box-shadow:
+                0 0 20px
+                rgba(255,23,68,0.07);
         }
 
-        /* ========================================
+
+        .user-info {
+
+            padding:
+                10px 13px;
+
+            border-radius:
+                12px;
+
+            background:
+                rgba(0,0,0,0.28);
+
+            border:
+                1px solid
+                rgba(255,255,255,0.08);
+
+            color:
+                rgba(255,255,255,0.58);
+
+            font-size:
+                11px;
+
+            white-space:
+                nowrap;
+        }
+
+
+        /* =====================================================
            CONTENT
-        ======================================== */
+        ====================================================== */
 
         .container {
-            width: 100%;
-            max-width: 1250px;
 
-            margin: 0 auto;
+            width:
+                100%;
+
+            max-width:
+                1250px;
+
+            margin:
+                0 auto;
         }
 
+
+        /* =====================================================
+           STATS
+        ====================================================== */
+
         .stats {
-            display: grid;
+
+            display:
+                grid;
 
             grid-template-columns:
                 repeat(3,minmax(0,1fr));
 
-            gap: 16px;
+            gap:
+                16px;
 
-            margin-bottom: 18px;
+            margin-bottom:
+                18px;
         }
 
+
         .stat-card {
-            position: relative;
 
-            overflow: hidden;
+            position:
+                relative;
 
-            padding: 22px;
+            overflow:
+                hidden;
 
-            border-radius: 20px;
+            padding:
+                22px;
+
+            border-radius:
+                20px;
 
             background:
+
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,0.085),
+                    rgba(255,255,255,0.025)
+                );
+
+            border:
+                1px solid
+                rgba(255,255,255,0.10);
+
+            box-shadow:
+
+                0 25px 70px
+                rgba(0,0,0,0.25),
+
+                0 0 35px
+                rgba(255,23,68,0.035);
+
+            backdrop-filter:
+                blur(15px);
+
+            -webkit-backdrop-filter:
+                blur(15px);
+
+            transition:
+                border-color .2s ease,
+                box-shadow .2s ease,
+                transform .2s ease;
+        }
+
+
+        .stat-card:hover {
+
+            transform:
+                translateY(-2px);
+
+            border-color:
+                rgba(255,23,68,0.24);
+
+            box-shadow:
+
+                0 28px 80px
+                rgba(0,0,0,0.32),
+
+                0 0 35px
+                rgba(255,23,68,0.08);
+        }
+
+
+        .stat-card::after {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            width:
+                120px;
+
+            height:
+                120px;
+
+            right:
+                -60px;
+
+            top:
+                -60px;
+
+            border-radius:
+                50%;
+
+            background:
+
+                radial-gradient(
+                    circle,
+                    rgba(255,23,68,0.12),
+                    transparent 68%
+                );
+        }
+
+
+        .stat-label {
+
+            color:
+                rgba(255,255,255,0.50);
+
+            font-size:
+                9px;
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                1.3px;
+        }
+
+
+        .stat-value {
+
+            margin-top:
+                10px;
+
+            color:
+                #ffffff;
+
+            font-size:
+                30px;
+
+            font-weight:
+                900;
+
+            letter-spacing:
+                -1px;
+        }
+
+
+        /* =====================================================
+           CARD
+        ====================================================== */
+
+        .card {
+
+            overflow:
+                hidden;
+
+            border-radius:
+                22px;
+
+            background:
+
                 linear-gradient(
                     145deg,
                     rgba(255,255,255,0.075),
@@ -562,198 +633,255 @@
                 );
 
             border:
-                1px solid rgba(255,255,255,0.08);
+                1px solid
+                rgba(255,255,255,0.095);
 
             box-shadow:
-                0 18px 60px rgba(0,0,0,0.18);
 
-            backdrop-filter: blur(15px);
+                0 30px 90px
+                rgba(0,0,0,0.30),
+
+                0 0 35px
+                rgba(255,23,68,0.035);
+
+            backdrop-filter:
+                blur(20px);
+
+            -webkit-backdrop-filter:
+                blur(20px);
         }
 
-        .stat-card::after {
-            content: "";
-
-            position: absolute;
-
-            width: 120px;
-            height: 120px;
-
-            right: -60px;
-            top: -60px;
-
-            border-radius: 50%;
-
-            background:
-                radial-gradient(
-                    circle,
-                    rgba(255,255,255,0.10),
-                    transparent 68%
-                );
-        }
-
-        .stat-label {
-            color:
-                var(--muted);
-
-            font-size: 9px;
-            font-weight: 800;
-
-            letter-spacing: 1.3px;
-        }
-
-        .stat-value {
-            margin-top: 10px;
-
-            font-size: 30px;
-            font-weight: 900;
-
-            letter-spacing: -1px;
-        }
-
-        /* ========================================
-           CARD
-        ======================================== */
-
-        .card {
-            overflow: hidden;
-
-            border-radius: 22px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,0.065),
-                    rgba(255,255,255,0.025)
-                );
-
-            border:
-                1px solid rgba(255,255,255,0.085);
-
-            box-shadow:
-                0 25px 80px rgba(0,0,0,0.22);
-
-            backdrop-filter: blur(20px);
-        }
 
         .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
 
-            gap: 20px;
+            display:
+                flex;
 
-            padding: 21px 22px;
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                20px;
+
+            padding:
+                21px 22px;
 
             border-bottom:
-                1px solid rgba(255,255,255,0.07);
+                1px solid
+                rgba(255,255,255,0.075);
         }
+
 
         .card-title {
-            margin: 0;
 
-            font-size: 17px;
-            font-weight: 850;
-        }
-
-        .card-subtitle {
-            margin-top: 5px;
+            margin:
+                0;
 
             color:
-                var(--muted);
+                #ffffff;
 
-            font-size: 11px;
+            font-size:
+                17px;
+
+            font-weight:
+                850;
         }
+
+
+        .card-subtitle {
+
+            margin-top:
+                5px;
+
+            color:
+                rgba(255,255,255,0.48);
+
+            font-size:
+                11px;
+        }
+
+
+        /* =====================================================
+           TOOLBAR
+        ====================================================== */
 
         .toolbar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
 
-            padding: 15px 20px;
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                10px;
+
+            padding:
+                15px 20px;
 
             border-bottom:
-                1px solid rgba(255,255,255,0.06);
+                1px solid
+                rgba(255,255,255,0.06);
         }
+
 
         .search {
-            flex: 1;
 
-            min-width: 0;
+            flex:
+                1;
 
-            padding: 12px 14px;
+            min-width:
+                0;
 
-            border-radius: 12px;
+            padding:
+                12px 14px;
 
-            outline: none;
+            border-radius:
+                12px;
 
-            color: #fff;
+            outline:
+                none;
+
+            color:
+                #ffffff;
 
             background:
-                rgba(0,0,0,0.20);
+                rgba(0,0,0,0.28);
 
             border:
-                1px solid rgba(255,255,255,0.08);
+                1px solid
+                rgba(255,255,255,0.10);
 
-            font-size: 12px;
+            font-size:
+                12px;
+
+            transition:
+                border-color .2s ease,
+                box-shadow .2s ease;
         }
 
+
         .search::placeholder {
+
             color:
                 rgba(255,255,255,0.30);
         }
 
+
         .search:focus {
-            background:
-                rgba(0,0,0,0.28);
 
             border-color:
-                rgba(255,255,255,0.20);
+                rgba(255,23,68,0.42);
+
+            box-shadow:
+                0 0 0 3px
+                rgba(255,23,68,0.06);
         }
 
+
+        /* =====================================================
+           BUTTONS
+        ====================================================== */
+
         .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 7px;
 
-            border: 0;
-            border-radius: 11px;
+            display:
+                inline-flex;
 
-            padding: 11px 15px;
+            align-items:
+                center;
 
-            font-size: 11px;
-            font-weight: 800;
+            justify-content:
+                center;
 
-            cursor: pointer;
-            white-space: nowrap;
+            gap:
+                7px;
+
+            border:
+                0;
+
+            border-radius:
+                11px;
+
+            padding:
+                11px 15px;
+
+            font-size:
+                11px;
+
+            font-weight:
+                800;
+
+            cursor:
+                pointer;
+
+            white-space:
+                nowrap;
 
             transition:
                 transform .18s ease,
-                opacity .18s ease;
+                opacity .18s ease,
+                box-shadow .18s ease,
+                border-color .18s ease;
         }
+
 
         .btn:hover {
-            transform: translateY(-1px);
+
+            transform:
+                translateY(-1px);
         }
+
 
         .btn:disabled {
-            opacity: .45;
-            cursor: not-allowed;
-            transform: none;
+
+            opacity:
+                .45;
+
+            cursor:
+                not-allowed;
+
+            transform:
+                none;
         }
+
 
         .btn-primary {
-            color: #0a0b10;
+
+            color:
+                #ffffff;
 
             background:
+
                 linear-gradient(
                     135deg,
-                    #fff,
-                    #d8d5ff
+                    #ff3159,
+                    #d90032
                 );
+
+            border:
+                1px solid
+                rgba(255,23,68,0.55);
+
+            box-shadow:
+                0 0 20px
+                rgba(255,23,68,0.10);
         }
 
+
+        .btn-primary:hover {
+
+            box-shadow:
+                0 0 28px
+                rgba(255,23,68,0.18);
+        }
+
+
         .btn-secondary {
+
             color:
                 rgba(255,255,255,0.82);
 
@@ -761,170 +889,261 @@
                 rgba(255,255,255,0.065);
 
             border:
-                1px solid rgba(255,255,255,0.09);
+                1px solid
+                rgba(255,255,255,0.09);
         }
 
+
         .btn-danger {
-            color: #ffd2d2;
+
+            color:
+                #ffd2d2;
 
             background:
                 rgba(239,68,68,0.10);
 
             border:
-                1px solid rgba(239,68,68,0.16);
+                1px solid
+                rgba(239,68,68,0.16);
         }
 
-        /* ========================================
+
+        /* =====================================================
            MESSAGE
-        ======================================== */
+        ====================================================== */
 
         .message {
-            display: none;
+
+            display:
+                none;
 
             margin:
                 16px 20px 0;
 
-            padding: 12px 14px;
+            padding:
+                12px 14px;
 
-            border-radius: 12px;
+            border-radius:
+                12px;
 
-            font-size: 12px;
-            line-height: 1.5;
+            font-size:
+                12px;
+
+            line-height:
+                1.5;
         }
 
-        .message.success {
-            display: block;
 
-            color: #baf8dd;
+        .message.success {
+
+            display:
+                block;
+
+            color:
+                #baf8dd;
 
             background:
                 rgba(16,185,129,0.09);
 
             border:
-                1px solid rgba(16,185,129,0.18);
+                1px solid
+                rgba(16,185,129,0.18);
         }
 
-        .message.error {
-            display: block;
 
-            color: #ffc0c0;
+        .message.error {
+
+            display:
+                block;
+
+            color:
+                #ffc0c0;
 
             background:
                 rgba(239,68,68,0.09);
 
             border:
-                1px solid rgba(239,68,68,0.18);
+                1px solid
+                rgba(239,68,68,0.18);
         }
 
-        .message.warning {
-            display: block;
 
-            color: #ffe1a2;
+        .message.warning {
+
+            display:
+                block;
+
+            color:
+                #ffe1a2;
 
             background:
                 rgba(245,158,11,0.09);
 
             border:
-                1px solid rgba(245,158,11,0.18);
+                1px solid
+                rgba(245,158,11,0.18);
         }
 
-        /* ========================================
+
+        /* =====================================================
            TABLE
-        ======================================== */
+        ====================================================== */
 
         .table-wrap {
-            width: 100%;
-            overflow-x: auto;
+
+            width:
+                100%;
+
+            overflow-x:
+                auto;
         }
 
+
         table {
-            width: 100%;
-            min-width: 1080px;
-            border-collapse: collapse;
+
+            width:
+                100%;
+
+            min-width:
+                1080px;
+
+            border-collapse:
+                collapse;
         }
+
 
         th,
         td {
-            padding: 15px 17px;
 
-            text-align: left;
+            padding:
+                15px 17px;
+
+            text-align:
+                left;
 
             border-bottom:
-                1px solid rgba(255,255,255,0.055);
+                1px solid
+                rgba(255,255,255,0.055);
 
-            font-size: 12px;
+            font-size:
+                12px;
         }
+
 
         th {
+
             color:
-                rgba(255,255,255,0.36);
+                rgba(255,255,255,0.38);
 
             background:
-                rgba(255,255,255,0.018);
+                rgba(255,23,68,0.025);
 
-            font-size: 9px;
-            font-weight: 850;
+            font-size:
+                9px;
 
-            letter-spacing: 1px;
+            font-weight:
+                850;
+
+            letter-spacing:
+                1px;
         }
+
+
+        tbody tr {
+
+            transition:
+                background .15s ease;
+        }
+
 
         tbody tr:hover {
+
             background:
-                rgba(255,255,255,0.025);
+                rgba(255,23,68,0.025);
         }
+
 
         tbody tr:last-child td {
-            border-bottom: 0;
+
+            border-bottom:
+                0;
         }
+
 
         .email {
-            font-weight: 750;
+
+            font-weight:
+                750;
+
             color:
-                rgba(255,255,255,0.90);
+                rgba(255,255,255,0.94);
         }
 
+
         .name {
+
             color:
-                rgba(255,255,255,0.70);
+                rgba(255,255,255,0.62);
         }
+
 
         .role,
         .status,
         .verified {
-            display: inline-flex;
-            align-items: center;
 
-            padding: 5px 9px;
+            display:
+                inline-flex;
 
-            border-radius: 999px;
+            align-items:
+                center;
 
-            font-size: 9px;
-            font-weight: 850;
+            padding:
+                5px 9px;
 
-            letter-spacing: .4px;
+            border-radius:
+                999px;
+
+            font-size:
+                9px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                .4px;
         }
 
+
         .role.owner {
-            color: #e2c8ff;
+
+            color:
+                #e2c8ff;
 
             background:
                 rgba(168,85,247,0.12);
 
             border:
-                1px solid rgba(168,85,247,0.16);
+                1px solid
+                rgba(168,85,247,0.16);
         }
 
+
         .role.admin {
-            color: #bfd5ff;
+
+            color:
+                #bfd5ff;
 
             background:
                 rgba(59,130,246,0.11);
 
             border:
-                1px solid rgba(59,130,246,0.15);
+                1px solid
+                rgba(59,130,246,0.15);
         }
 
+
         .role.user {
+
             color:
                 rgba(255,255,255,0.62);
 
@@ -932,60 +1151,93 @@
                 rgba(255,255,255,0.055);
 
             border:
-                1px solid rgba(255,255,255,0.07);
+                1px solid
+                rgba(255,255,255,0.07);
         }
+
 
         .status.active,
         .verified.yes {
-            color: #a9f3d1;
+
+            color:
+                #a9f3d1;
 
             background:
                 rgba(16,185,129,0.10);
 
             border:
-                1px solid rgba(16,185,129,0.14);
+                1px solid
+                rgba(16,185,129,0.14);
         }
+
 
         .status.inactive,
         .status.suspended,
         .verified.no {
-            color: #ffe09a;
+
+            color:
+                #ffe09a;
 
             background:
                 rgba(245,158,11,0.10);
 
             border:
-                1px solid rgba(245,158,11,0.14);
+                1px solid
+                rgba(245,158,11,0.14);
         }
 
+
         .status.banned {
-            color: #ffc1c1;
+
+            color:
+                #ffc1c1;
 
             background:
                 rgba(239,68,68,0.10);
 
             border:
-                1px solid rgba(239,68,68,0.14);
+                1px solid
+                rgba(239,68,68,0.14);
         }
+
 
         .credit {
-            font-weight: 850;
+
+            font-weight:
+                850;
+
+            color:
+                #ffffff;
         }
+
 
         .actions {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                6px;
+
+            flex-wrap:
+                wrap;
         }
 
-        .action-btn {
-            padding: 7px 9px;
 
-            border-radius: 9px;
+        .action-btn {
+
+            padding:
+                7px 9px;
+
+            border-radius:
+                9px;
 
             border:
-                1px solid rgba(255,255,255,0.08);
+                1px solid
+                rgba(255,255,255,0.08);
 
             background:
                 rgba(255,255,255,0.045);
@@ -993,15 +1245,37 @@
             color:
                 rgba(255,255,255,0.72);
 
-            font-size: 9px;
-            font-weight: 800;
+            font-size:
+                9px;
 
-            cursor: pointer;
-            white-space: nowrap;
+            font-weight:
+                800;
+
+            cursor:
+                pointer;
+
+            white-space:
+                nowrap;
+
+            transition:
+                transform .18s ease,
+                background .18s ease,
+                border-color .18s ease,
+                box-shadow .18s ease;
         }
 
+
+        .action-btn:hover {
+
+            transform:
+                translateY(-1px);
+        }
+
+
         .action-btn.confirm {
-            color: #b8f6d9;
+
+            color:
+                #b8f6d9;
 
             background:
                 rgba(16,185,129,0.08);
@@ -1010,8 +1284,11 @@
                 rgba(16,185,129,0.15);
         }
 
+
         .action-btn.resend {
-            color: #ffe0a0;
+
+            color:
+                #ffe0a0;
 
             background:
                 rgba(245,158,11,0.07);
@@ -1020,8 +1297,11 @@
                 rgba(245,158,11,0.13);
         }
 
+
         .action-btn.delete {
-            color: #ffc1c1;
+
+            color:
+                #ffc1c1;
 
             background:
                 rgba(239,68,68,0.07);
@@ -1030,132 +1310,216 @@
                 rgba(239,68,68,0.13);
         }
 
+
         .action-btn:disabled {
-            opacity: .4;
-            cursor: not-allowed;
+
+            opacity:
+                .4;
+
+            cursor:
+                not-allowed;
         }
 
-        /* ========================================
-           LOADING
-        ======================================== */
+
+        /* =====================================================
+           LOADING / EMPTY
+        ====================================================== */
 
         .loading,
         .empty {
-            padding: 65px 20px;
 
-            text-align: center;
+            padding:
+                65px 20px;
+
+            text-align:
+                center;
 
             color:
-                var(--muted);
+                rgba(255,255,255,0.50);
 
-            font-size: 12px;
+            font-size:
+                12px;
         }
 
-        .empty strong {
-            display: block;
 
-            margin-bottom: 8px;
+        .empty strong {
+
+            display:
+                block;
+
+            margin-bottom:
+                8px;
 
             color:
                 rgba(255,255,255,0.85);
 
-            font-size: 13px;
+            font-size:
+                13px;
         }
 
-        /* ========================================
+
+        /* =====================================================
            MODAL
-        ======================================== */
+        ====================================================== */
 
         .modal-backdrop {
-            position: fixed;
-            inset: 0;
 
-            display: none;
+            position:
+                fixed;
 
-            align-items: center;
-            justify-content: center;
+            inset:
+                0;
 
-            padding: 20px;
+            display:
+                none;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                20px;
 
             background:
-                rgba(0,0,0,0.72);
+                rgba(0,0,0,0.74);
 
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter:
+                blur(10px);
 
-            z-index: 300;
+            -webkit-backdrop-filter:
+                blur(10px);
+
+            z-index:
+                100000;
         }
+
 
         .modal-backdrop.open {
-            display: flex;
+
+            display:
+                flex;
         }
 
+
         .modal {
-            width: 100%;
-            max-width: 500px;
+
+            width:
+                100%;
+
+            max-width:
+                500px;
 
             max-height:
                 calc(100vh - 40px);
 
-            overflow-y: auto;
+            overflow-y:
+                auto;
 
-            padding: 24px;
+            padding:
+                24px;
 
-            border-radius: 22px;
+            border-radius:
+                22px;
 
             background:
+
                 linear-gradient(
                     145deg,
-                    #151722,
-                    #0d0f17
+                    rgba(22,22,26,0.98),
+                    rgba(5,5,7,0.98)
                 );
 
             border:
-                1px solid rgba(255,255,255,0.10);
+                1px solid
+                rgba(255,255,255,0.10);
 
             box-shadow:
-                0 35px 120px rgba(0,0,0,0.55);
+
+                0 40px 120px
+                rgba(0,0,0,0.70),
+
+                0 0 45px
+                rgba(255,23,68,0.08);
         }
+
 
         .modal.small {
-            max-width: 420px;
+
+            max-width:
+                420px;
         }
+
 
         .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
 
-            gap: 20px;
+            display:
+                flex;
 
-            margin-bottom: 22px;
+            justify-content:
+                space-between;
+
+            align-items:
+                flex-start;
+
+            gap:
+                20px;
+
+            margin-bottom:
+                22px;
         }
+
 
         .modal-title {
-            margin: 0;
 
-            font-size: 21px;
-            font-weight: 850;
-        }
-
-        .modal-subtitle {
-            margin-top: 7px;
+            margin:
+                0;
 
             color:
-                var(--muted);
+                #ffffff;
 
-            font-size: 11px;
-            line-height: 1.6;
+            font-size:
+                21px;
+
+            font-weight:
+                850;
         }
 
-        .close-button {
-            width: 34px;
-            height: 34px;
 
-            border-radius: 10px;
+        .modal-subtitle {
+
+            margin-top:
+                7px;
+
+            color:
+                rgba(255,255,255,0.50);
+
+            font-size:
+                11px;
+
+            line-height:
+                1.6;
+        }
+
+
+        .close-button {
+
+            width:
+                34px;
+
+            height:
+                34px;
+
+            flex:
+                0 0 34px;
+
+            border-radius:
+                10px;
 
             border:
-                1px solid rgba(255,255,255,0.08);
+                1px solid
+                rgba(255,255,255,0.08);
 
             background:
                 rgba(255,255,255,0.045);
@@ -1163,263 +1527,381 @@
             color:
                 rgba(255,255,255,0.70);
 
-            cursor: pointer;
+            cursor:
+                pointer;
 
-            font-size: 18px;
+            font-size:
+                18px;
+
+            transition:
+                background .18s ease,
+                border-color .18s ease;
         }
 
+
+        .close-button:hover {
+
+            background:
+                rgba(255,23,68,0.10);
+
+            border-color:
+                rgba(255,23,68,0.25);
+
+            color:
+                #ffffff;
+        }
+
+
+        /* =====================================================
+           FORM
+        ====================================================== */
+
         .form-grid {
-            display: grid;
+
+            display:
+                grid;
 
             grid-template-columns:
                 repeat(2,minmax(0,1fr));
 
-            gap: 14px;
+            gap:
+                14px;
         }
+
 
         .field {
-            display: flex;
-            flex-direction: column;
-            gap: 7px;
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            gap:
+                7px;
         }
+
 
         .field.full {
-            grid-column: 1 / -1;
+
+            grid-column:
+                1 / -1;
         }
 
+
         .field label {
+
             color:
                 rgba(255,255,255,0.60);
 
-            font-size: 10px;
-            font-weight: 800;
+            font-size:
+                10px;
 
-            letter-spacing: .6px;
+            font-weight:
+                800;
+
+            letter-spacing:
+                .6px;
         }
+
 
         .field input,
         .field select {
-            width: 100%;
 
-            padding: 12px 13px;
+            width:
+                100%;
 
-            border-radius: 11px;
+            padding:
+                12px 13px;
 
-            outline: none;
+            border-radius:
+                11px;
 
-            color: #fff;
+            outline:
+                none;
+
+            color:
+                #ffffff;
 
             background:
                 rgba(0,0,0,0.22);
 
             border:
-                1px solid rgba(255,255,255,0.09);
+                1px solid
+                rgba(255,255,255,0.09);
 
-            font-size: 12px;
+            font-size:
+                12px;
+
+            transition:
+                border-color .2s ease,
+                box-shadow .2s ease;
         }
+
+
+        .field input:focus,
+        .field select:focus {
+
+            border-color:
+                rgba(255,23,68,0.42);
+
+            box-shadow:
+                0 0 0 3px
+                rgba(255,23,68,0.06);
+        }
+
 
         .field select option {
-            background: #10121b;
-            color: #fff;
+
+            background:
+                #10121b;
+
+            color:
+                #ffffff;
         }
+
 
         .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 9px;
 
-            margin-top: 22px;
+            display:
+                flex;
+
+            justify-content:
+                flex-end;
+
+            gap:
+                9px;
+
+            margin-top:
+                22px;
         }
 
+
         .delete-warning {
-            padding: 14px;
 
-            border-radius: 13px;
+            padding:
+                14px;
 
-            color: #ffcaca;
+            border-radius:
+                13px;
+
+            color:
+                #ffcaca;
 
             background:
                 rgba(239,68,68,0.08);
 
             border:
-                1px solid rgba(239,68,68,0.14);
+                1px solid
+                rgba(239,68,68,0.14);
 
-            font-size: 11px;
-            line-height: 1.6;
+            font-size:
+                11px;
+
+            line-height:
+                1.6;
         }
 
+
         .delete-user-name {
-            margin-top: 12px;
 
-            padding: 13px;
+            margin-top:
+                12px;
 
-            border-radius: 12px;
+            padding:
+                13px;
+
+            border-radius:
+                12px;
 
             background:
                 rgba(255,255,255,0.045);
 
             border:
-                1px solid rgba(255,255,255,0.07);
+                1px solid
+                rgba(255,255,255,0.07);
 
-            font-size: 12px;
-            font-weight: 750;
+            color:
+                rgba(255,255,255,0.90);
+
+            font-size:
+                12px;
+
+            font-weight:
+                750;
         }
 
-        /* ========================================
+
+        /* =====================================================
            MOBILE
-        ======================================== */
+        ====================================================== */
 
         @media (max-width: 900px) {
 
             .main {
+
                 padding:
                     82px 18px 40px;
             }
 
+
             .topbar {
-                flex-direction: column;
-                align-items: flex-start;
+
+                flex-direction:
+                    column;
+
+                align-items:
+                    flex-start;
             }
+
 
             .top-actions {
-                width: 100%;
+
+                width:
+                    100%;
             }
+
 
             .back-button {
-                flex: 1;
-                justify-content: center;
+
+                flex:
+                    1;
+
+                justify-content:
+                    center;
             }
+
 
             .user-info {
-                flex: 1;
-                text-align: center;
+
+                flex:
+                    1;
+
+                text-align:
+                    center;
             }
 
+
             .stats {
-                grid-template-columns: 1fr;
+
+                grid-template-columns:
+                    1fr;
             }
         }
+
 
         @media (max-width: 600px) {
 
-            .sidebar {
-                width: min(290px, 88vw);
+            .main {
+
+                padding:
+                    82px 14px 30px;
             }
+
+
+            .card {
+
+                border-radius:
+                    17px;
+            }
+
 
             .card-header {
-                flex-direction: column;
-                align-items: stretch;
+
+                flex-direction:
+                    column;
+
+                align-items:
+                    stretch;
             }
+
 
             .toolbar {
-                flex-direction: column;
-                align-items: stretch;
+
+                flex-direction:
+                    column;
+
+                align-items:
+                    stretch;
             }
+
 
             .form-grid {
-                grid-template-columns: 1fr;
+
+                grid-template-columns:
+                    1fr;
             }
+
 
             .field.full {
-                grid-column: auto;
+
+                grid-column:
+                    auto;
             }
+
 
             .modal-actions {
-                flex-direction: column-reverse;
+
+                flex-direction:
+                    column-reverse;
             }
+
 
             .modal-actions .btn {
-                width: 100%;
+
+                width:
+                    100%;
             }
 
+
             .top-actions {
-                flex-direction: column;
+
+                flex-direction:
+                    column;
             }
+
 
             .back-button,
             .user-info {
-                width: 100%;
-                flex: none;
+
+                width:
+                    100%;
+
+                flex:
+                    none;
+            }
+
+
+            .page-title {
+
+                font-size:
+                    34px;
             }
         }
+
     </style>
 </head>
 
+
 <body>
 
-<button
-    class="menu-button"
-    id="menuButton"
-    type="button"
-    aria-label="Buka menu"
-    aria-expanded="false"
-    onclick="toggleMenu()"
->
-    <span class="menu-icon">
-        <span></span>
-        <span></span>
-        <span></span>
-    </span>
-</button>
+<!-- =========================================================
+     SHARED NAVIGATION
+
+     navigation/navigation.js akan:
+     - validasi session
+     - membaca profiles.role
+     - menampilkan menu USER / ADMIN / OWNER
+     - menangani hamburger
+     - menangani logout
+========================================================== -->
+
+<div id="navigation"></div>
 
 
-<div
-    class="nav-overlay"
-    id="navOverlay"
-    onclick="closeMenu()"
-></div>
-
-
-<aside
-    class="sidebar"
-    id="sidebar"
->
-
-    <div class="brand">
-        <span>GEN-Z.AI</span>
-    </div>
-
-    <div class="brand-sub">
-        ADMIN CONTROL
-    </div>
-
-    <nav class="nav">
-
-        <a
-            href="../admin/dashboard.html"
-            onclick="closeMenu()"
-        >
-            <span class="nav-icon">⌂</span>
-            DASHBOARD
-        </a>
-
-        <a
-            href="/generate/index.html"
-        >
-            <span class="nav-icon">✦</span>
-            GENERATE
-        </a>
-
-        <a
-            href="/history/index.html"
-        >
-            <span class="nav-icon">◷</span>
-            HISTORY
-        </a>
-
-    </nav>
-
-    <button
-        class="logout-button"
-        type="button"
-        onclick="logout()"
-    >
-        <span class="nav-icon">↪</span>
-        LOG OUT
-    </button>
-
-</aside>
-
+<!-- =========================================================
+     MAIN
+========================================================== -->
 
 <main class="main">
 
@@ -1442,6 +1924,7 @@
 
         </div>
 
+
         <div class="top-actions">
 
             <div
@@ -1450,6 +1933,7 @@
             >
                 Memuat...
             </div>
+
 
             <a
                 href="admin-panel.html"
@@ -1465,7 +1949,13 @@
 
     <div class="container">
 
+
+        <!-- =================================================
+             STATISTICS
+        ================================================== -->
+
         <div class="stats">
+
 
             <div class="stat-card">
 
@@ -1514,10 +2004,16 @@
 
             </div>
 
+
         </div>
 
 
+        <!-- =================================================
+             USER DATABASE
+        ================================================== -->
+
         <section class="card">
+
 
             <div class="card-header">
 
@@ -1546,6 +2042,10 @@
             </div>
 
 
+            <!-- =================================================
+                 TOOLBAR
+            ================================================== -->
+
             <div class="toolbar">
 
                 <input
@@ -1569,11 +2069,19 @@
             </div>
 
 
+            <!-- =================================================
+                 MESSAGE
+            ================================================== -->
+
             <div
                 id="message"
                 class="message"
             ></div>
 
+
+            <!-- =================================================
+                 USER TABLE
+            ================================================== -->
 
             <div id="userContainer">
 
@@ -1583,6 +2091,7 @@
 
             </div>
 
+
         </section>
 
     </div>
@@ -1590,7 +2099,9 @@
 </main>
 
 
-<!-- ADD USER MODAL -->
+<!-- =========================================================
+     ADD USER MODAL
+========================================================== -->
 
 <div
     class="modal-backdrop"
@@ -1598,6 +2109,7 @@
 >
 
     <div class="modal">
+
 
         <div class="modal-header">
 
@@ -1614,10 +2126,12 @@
 
             </div>
 
+
             <button
                 class="close-button"
                 type="button"
                 onclick="closeAddModal()"
+                aria-label="Tutup"
             >
                 ×
             </button>
@@ -1630,11 +2144,15 @@
             onsubmit="submitAddUser(event)"
         >
 
+
             <div class="form-grid">
+
 
                 <div class="field full">
 
-                    <label>EMAIL</label>
+                    <label>
+                        EMAIL
+                    </label>
 
                     <input
                         type="email"
@@ -1649,7 +2167,9 @@
 
                 <div class="field full">
 
-                    <label>PASSWORD</label>
+                    <label>
+                        PASSWORD
+                    </label>
 
                     <input
                         type="password"
@@ -1665,7 +2185,9 @@
 
                 <div class="field">
 
-                    <label>NAMA</label>
+                    <label>
+                        NAMA
+                    </label>
 
                     <input
                         type="text"
@@ -1678,7 +2200,9 @@
 
                 <div class="field">
 
-                    <label>ROLE</label>
+                    <label>
+                        ROLE
+                    </label>
 
                     <select id="newRole">
 
@@ -1700,7 +2224,9 @@
 
                 <div class="field">
 
-                    <label>CREDIT</label>
+                    <label>
+                        CREDIT
+                    </label>
 
                     <input
                         type="number"
@@ -1715,7 +2241,9 @@
 
                 <div class="field">
 
-                    <label>STATUS</label>
+                    <label>
+                        STATUS
+                    </label>
 
                     <select id="newStatus">
 
@@ -1735,10 +2263,12 @@
 
                 </div>
 
+
             </div>
 
 
             <div class="modal-actions">
+
 
                 <button
                     type="button"
@@ -1748,6 +2278,7 @@
                     BATAL
                 </button>
 
+
                 <button
                     type="submit"
                     class="btn btn-primary"
@@ -1756,7 +2287,9 @@
                     BUAT USER
                 </button>
 
+
             </div>
+
 
         </form>
 
@@ -1765,7 +2298,9 @@
 </div>
 
 
-<!-- DELETE MODAL -->
+<!-- =========================================================
+     DELETE MODAL
+========================================================== -->
 
 <div
     class="modal-backdrop"
@@ -1773,6 +2308,7 @@
 >
 
     <div class="modal small">
+
 
         <div class="modal-header">
 
@@ -1788,10 +2324,12 @@
 
             </div>
 
+
             <button
                 class="close-button"
                 type="button"
                 onclick="closeDeleteModal()"
+                aria-label="Tutup"
             >
                 ×
             </button>
@@ -1818,6 +2356,7 @@
 
         <div class="modal-actions">
 
+
             <button
                 type="button"
                 class="btn btn-secondary"
@@ -1825,6 +2364,7 @@
             >
                 BATAL
             </button>
+
 
             <button
                 type="button"
@@ -1835,6 +2375,7 @@
                 HAPUS USER
             </button>
 
+
         </div>
 
     </div>
@@ -1844,13 +2385,25 @@
 
 <script>
 
+/* =========================================================
+   SHARED SUPABASE CLIENT
+========================================================== */
+
 const supabaseClient =
     window.GENZ_SUPABASE;
 
 
+/* =========================================================
+   API
+========================================================== */
+
 const API_URL =
     "../api/admin-users";
 
+
+/* =========================================================
+   STATE
+========================================================== */
 
 let currentUser = null;
 
@@ -1863,90 +2416,9 @@ let filteredUsers = [];
 let userToDelete = null;
 
 
-/* ========================================
-   HAMBURGER
-======================================== */
-
-function toggleMenu() {
-
-    const sidebar =
-        document.getElementById("sidebar");
-
-    const overlay =
-        document.getElementById("navOverlay");
-
-    const button =
-        document.getElementById("menuButton");
-
-    const isOpen =
-        sidebar.classList.toggle("open");
-
-    overlay.classList.toggle(
-        "open",
-        isOpen
-    );
-
-    button.classList.toggle(
-        "open",
-        isOpen
-    );
-
-    button.setAttribute(
-        "aria-expanded",
-        String(isOpen)
-    );
-
-}
-
-
-function closeMenu() {
-
-    const sidebar =
-        document.getElementById("sidebar");
-
-    const overlay =
-        document.getElementById("navOverlay");
-
-    const button =
-        document.getElementById("menuButton");
-
-    sidebar.classList.remove("open");
-
-    overlay.classList.remove("open");
-
-    button.classList.remove("open");
-
-    button.setAttribute(
-        "aria-expanded",
-        "false"
-    );
-
-}
-
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.key === "Escape"
-        ) {
-
-            closeMenu();
-
-            closeAddModal();
-
-            closeDeleteModal();
-
-        }
-
-    }
-);
-
-
-/* ========================================
+/* =========================================================
    HELPERS
-======================================== */
+========================================================== */
 
 function escapeHtml(value) {
 
@@ -1959,12 +2431,28 @@ function escapeHtml(value) {
 
     }
 
+
     return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 
 }
 
@@ -2008,11 +2496,14 @@ function showMessage(
             "message"
         );
 
+
     message.textContent =
         text;
 
+
     message.className =
         "message " + type;
+
 
     window.scrollTo({
         top: 0,
@@ -2029,8 +2520,10 @@ function clearMessage() {
             "message"
         );
 
+
     message.textContent =
         "";
+
 
     message.className =
         "message";
@@ -2038,9 +2531,9 @@ function clearMessage() {
 }
 
 
-/* ========================================
+/* =========================================================
    AUTH
-======================================== */
+========================================================== */
 
 async function checkAuth() {
 
@@ -2050,8 +2543,10 @@ async function checkAuth() {
             "GEN-Z.AI: Supabase client tidak tersedia."
         );
 
+
         window.location.href =
             "../index.html";
+
 
         return false;
 
@@ -2073,6 +2568,7 @@ async function checkAuth() {
 
         window.location.href =
             "../index.html";
+
 
         return false;
 
@@ -2104,10 +2600,18 @@ async function checkAuth() {
         !profile
     ) {
 
+        console.error(
+            "PROFILE ERROR:",
+            error
+        );
+
+
         await supabaseClient.auth.signOut();
+
 
         window.location.href =
             "../index.html";
+
 
         return false;
 
@@ -2117,22 +2621,29 @@ async function checkAuth() {
     const role =
         String(
             profile.role || ""
-        ).toUpperCase();
+        )
+            .trim()
+            .toUpperCase();
 
 
     const status =
         String(
             profile.status || ""
-        ).toLowerCase();
+        )
+            .trim()
+            .toLowerCase();
 
 
     if (
-        !["ADMIN", "OWNER"].includes(role) ||
+        !["ADMIN", "OWNER"].includes(
+            role
+        ) ||
         status !== "active"
     ) {
 
         window.location.href =
             "../user/dashboard.html";
+
 
         return false;
 
@@ -2140,16 +2651,36 @@ async function checkAuth() {
 
 
     currentProfile = {
+
         ...profile,
+
         role
+
     };
 
 
-    document.getElementById(
-        "userInfo"
-    ).textContent =
-        `${profile.email || currentUser.email} • ${role}`;
+    const userInfo =
+        document.getElementById(
+            "userInfo"
+        );
 
+
+    if (userInfo) {
+
+        userInfo.textContent =
+            `${
+                profile.email ||
+                currentUser.email ||
+                "-"
+            } • ${role}`;
+
+    }
+
+
+    /*
+     * ADMIN tidak boleh membuat ADMIN.
+     * OWNER tetap dapat melihat opsi ADMIN.
+     */
 
     if (
         role === "ADMIN"
@@ -2177,14 +2708,23 @@ async function checkAuth() {
 }
 
 
-/* ========================================
-   API
-======================================== */
+/* =========================================================
+   API REQUEST
+========================================================== */
 
 async function apiRequest(
     method,
     body = null
 ) {
+
+    if (!supabaseClient) {
+
+        throw new Error(
+            "Supabase client tidak tersedia."
+        );
+
+    }
+
 
     const {
         data: {
@@ -2290,9 +2830,9 @@ async function apiRequest(
 }
 
 
-/* ========================================
+/* =========================================================
    LOAD USERS
-======================================== */
+========================================================== */
 
 async function loadUsers() {
 
@@ -2312,14 +2852,17 @@ async function loadUsers() {
 
 
     container.innerHTML = `
+
         <div class="loading">
             Menghubungkan ke Supabase...
         </div>
+
     `;
 
 
     refreshButton.disabled =
         true;
+
 
     refreshButton.textContent =
         "LOADING...";
@@ -2343,6 +2886,7 @@ async function loadUsers() {
 
         updateStats();
 
+
         filterUsers();
 
 
@@ -2355,6 +2899,7 @@ async function loadUsers() {
 
 
         container.innerHTML = `
+
             <div class="empty">
 
                 <strong>
@@ -2369,6 +2914,7 @@ async function loadUsers() {
                 </span>
 
             </div>
+
         `;
 
 
@@ -2384,6 +2930,7 @@ async function loadUsers() {
         refreshButton.disabled =
             false;
 
+
         refreshButton.textContent =
             "↻ REFRESH";
 
@@ -2392,9 +2939,9 @@ async function loadUsers() {
 }
 
 
-/* ========================================
+/* =========================================================
    STATS
-======================================== */
+========================================================== */
 
 function updateStats() {
 
@@ -2407,7 +2954,9 @@ function updateStats() {
             user =>
                 String(
                     user.status || ""
-                ).toLowerCase() ===
+                )
+                    .trim()
+                    .toLowerCase() ===
                 "active"
         ).length;
 
@@ -2419,7 +2968,9 @@ function updateStats() {
                 const role =
                     String(
                         user.role || ""
-                    ).toUpperCase();
+                    )
+                        .trim()
+                        .toUpperCase();
 
 
                 return (
@@ -2434,26 +2985,32 @@ function updateStats() {
     document.getElementById(
         "totalUsers"
     ).textContent =
-        formatNumber(total);
+        formatNumber(
+            total
+        );
 
 
     document.getElementById(
         "activeUsers"
     ).textContent =
-        formatNumber(active);
+        formatNumber(
+            active
+        );
 
 
     document.getElementById(
         "adminUsers"
     ).textContent =
-        formatNumber(admins);
+        formatNumber(
+            admins
+        );
 
 }
 
 
-/* ========================================
+/* =========================================================
    FILTER
-======================================== */
+========================================================== */
 
 function filterUsers() {
 
@@ -2474,7 +3031,9 @@ function filterUsers() {
     if (!keyword) {
 
         filteredUsers =
-            [...allUsers];
+            [
+                ...allUsers
+            ];
 
     } else {
 
@@ -2507,10 +3066,23 @@ function filterUsers() {
 
 
                     return (
-                        email.includes(keyword) ||
-                        name.includes(keyword) ||
-                        role.includes(keyword) ||
-                        status.includes(keyword)
+
+                        email.includes(
+                            keyword
+                        ) ||
+
+                        name.includes(
+                            keyword
+                        ) ||
+
+                        role.includes(
+                            keyword
+                        ) ||
+
+                        status.includes(
+                            keyword
+                        )
+
                     );
 
                 }
@@ -2526,9 +3098,9 @@ function filterUsers() {
 }
 
 
-/* ========================================
-   RENDER
-======================================== */
+/* =========================================================
+   RENDER USERS
+========================================================== */
 
 function renderUsers(users) {
 
@@ -2544,6 +3116,7 @@ function renderUsers(users) {
     ) {
 
         container.innerHTML = `
+
             <div class="empty">
 
                 <strong>
@@ -2555,7 +3128,9 @@ function renderUsers(users) {
                 </span>
 
             </div>
+
         `;
+
 
         return;
 
@@ -2572,25 +3147,40 @@ function renderUsers(users) {
 
                     <tr>
 
-                        <th>EMAIL</th>
+                        <th>
+                            EMAIL
+                        </th>
 
-                        <th>NAMA</th>
+                        <th>
+                            NAMA
+                        </th>
 
-                        <th>ROLE</th>
+                        <th>
+                            ROLE
+                        </th>
 
-                        <th>CREDIT</th>
+                        <th>
+                            CREDIT
+                        </th>
 
-                        <th>STATUS</th>
+                        <th>
+                            STATUS
+                        </th>
 
-                        <th>EMAIL</th>
+                        <th>
+                            EMAIL
+                        </th>
 
-                        <th>ACTION</th>
+                        <th>
+                            ACTION
+                        </th>
 
                     </tr>
 
                 </thead>
 
                 <tbody>
+
     `;
 
 
@@ -2600,13 +3190,17 @@ function renderUsers(users) {
             const role =
                 String(
                     user.role || "USER"
-                ).toUpperCase();
+                )
+                    .trim()
+                    .toUpperCase();
 
 
             const status =
                 String(
                     user.status || "active"
-                ).toLowerCase();
+                )
+                    .trim()
+                    .toLowerCase();
 
 
             const emailConfirmed =
@@ -2616,9 +3210,11 @@ function renderUsers(users) {
 
 
             const isSelf =
-                currentUser &&
-                user.id ===
-                    currentUser.id;
+                Boolean(
+                    currentUser &&
+                    user.id ===
+                    currentUser.id
+                );
 
 
             const isOwner =
@@ -2626,20 +3222,32 @@ function renderUsers(users) {
 
 
             const adminCanManage =
-                currentProfile?.role === "OWNER" ||
+
+                currentProfile?.role ===
+                    "OWNER"
+
+                ||
+
                 (
-                    currentProfile?.role === "ADMIN" &&
-                    role === "USER"
+                    currentProfile?.role ===
+                        "ADMIN"
+
+                    &&
+                    
+                    role ===
+                        "USER"
                 );
 
 
             const canDelete =
+
                 !isSelf &&
                 !isOwner &&
                 adminCanManage;
 
 
             const canConfirm =
+
                 !isSelf &&
                 !isOwner &&
                 adminCanManage &&
@@ -2647,6 +3255,7 @@ function renderUsers(users) {
 
 
             const canResend =
+
                 !isSelf &&
                 !isOwner &&
                 adminCanManage &&
@@ -2657,31 +3266,43 @@ function renderUsers(users) {
 
                 <tr>
 
+
                     <td>
+
                         <div class="email">
                             ${escapeHtml(
                                 user.email || "-"
                             )}
                         </div>
+
                     </td>
 
+
                     <td>
+
                         <div class="name">
                             ${escapeHtml(
                                 user.name || "-"
                             )}
                         </div>
+
                     </td>
+
 
                     <td>
 
                         <span
-                            class="role ${getRoleClass(role)}"
+                            class="role ${getRoleClass(
+                                role
+                            )}"
                         >
-                            ${escapeHtml(role)}
+                            ${escapeHtml(
+                                role
+                            )}
                         </span>
 
                     </td>
+
 
                     <td>
 
@@ -2693,15 +3314,21 @@ function renderUsers(users) {
 
                     </td>
 
+
                     <td>
 
                         <span
-                            class="status ${getStatusClass(status)}"
+                            class="status ${getStatusClass(
+                                status
+                            )}"
                         >
-                            ${escapeHtml(status)}
+                            ${escapeHtml(
+                                status
+                            )}
                         </span>
 
                     </td>
+
 
                     <td>
 
@@ -2709,69 +3336,103 @@ function renderUsers(users) {
                             emailConfirmed
 
                             ? `
+
                                 <span class="verified yes">
                                     ✓ VERIFIED
                                 </span>
+
                             `
 
                             : `
+
                                 <span class="verified no">
                                     ⚠ UNVERIFIED
                                 </span>
+
                             `
                         }
 
                     </td>
 
+
                     <td>
 
                         <div class="actions">
 
+
                             ${
                                 canConfirm
+
                                 ? `
+
                                     <button
                                         class="action-btn confirm"
+                                        type="button"
                                         onclick="confirmEmail(
-                                            '${escapeHtml(user.id)}',
-                                            '${escapeHtml(user.email || "")}'
+                                            '${escapeHtml(
+                                                user.id
+                                            )}',
+                                            '${escapeHtml(
+                                                user.email || ""
+                                            )}'
                                         )"
                                     >
                                         ✓ KONFIRMASI
                                     </button>
+
                                 `
+
                                 : ""
                             }
 
+
                             ${
                                 canResend
+
                                 ? `
+
                                     <button
                                         class="action-btn resend"
+                                        type="button"
                                         onclick="resendEmail(
-                                            '${escapeHtml(user.email || "")}'
+                                            '${escapeHtml(
+                                                user.email || ""
+                                            )}'
                                         )"
                                     >
                                         ↻ KIRIM ULANG
                                     </button>
+
                                 `
+
                                 : ""
                             }
 
+
                             ${
                                 canDelete
+
                                 ? `
+
                                     <button
                                         class="action-btn delete"
+                                        type="button"
                                         onclick="openDeleteModal(
-                                            '${escapeHtml(user.id)}',
-                                            '${escapeHtml(user.email || "")}'
+                                            '${escapeHtml(
+                                                user.id
+                                            )}',
+                                            '${escapeHtml(
+                                                user.email || ""
+                                            )}'
                                         )"
                                     >
                                         × HAPUS
                                     </button>
+
                                 `
+
                                 : `
+
                                     <span
                                         style="
                                             color:rgba(255,255,255,.25);
@@ -2780,14 +3441,18 @@ function renderUsers(users) {
                                     >
                                         —
                                     </span>
+
                                 `
                             }
+
 
                         </div>
 
                     </td>
 
+
                 </tr>
+
             `;
 
         }
@@ -2801,6 +3466,7 @@ function renderUsers(users) {
             </table>
 
         </div>
+
     `;
 
 
@@ -2810,33 +3476,40 @@ function renderUsers(users) {
 }
 
 
-/* ========================================
-   ADD USER
-======================================== */
+/* =========================================================
+   ADD USER MODAL
+========================================================== */
 
 function openAddModal() {
 
     clearMessage();
 
 
-    document.getElementById(
-        "addUserForm"
-    ).reset();
+    const form =
+        document.getElementById(
+            "addUserForm"
+        );
+
+
+    form.reset();
 
 
     document.getElementById(
         "newCredits"
-    ).value = "0";
+    ).value =
+        "0";
 
 
     document.getElementById(
         "newStatus"
-    ).value = "active";
+    ).value =
+        "active";
 
 
     document.getElementById(
         "newRole"
-    ).value = "USER";
+    ).value =
+        "USER";
 
 
     document.getElementById(
@@ -2849,9 +3522,17 @@ function openAddModal() {
     setTimeout(
         () => {
 
-            document.getElementById(
-                "newEmail"
-            ).focus();
+            const email =
+                document.getElementById(
+                    "newEmail"
+                );
+
+
+            if (email) {
+
+                email.focus();
+
+            }
 
         },
         100
@@ -2871,6 +3552,10 @@ function closeAddModal() {
 }
 
 
+/* =========================================================
+   SUBMIT ADD USER
+========================================================== */
+
 async function submitAddUser(
     event
 ) {
@@ -2887,7 +3572,8 @@ async function submitAddUser(
     const email =
         document.getElementById(
             "newEmail"
-        ).value
+        )
+            .value
             .trim()
             .toLowerCase();
 
@@ -2895,34 +3581,39 @@ async function submitAddUser(
     const password =
         document.getElementById(
             "newPassword"
-        ).value;
+        )
+            .value;
 
 
     const name =
         document.getElementById(
             "newName"
-        ).value
+        )
+            .value
             .trim();
 
 
     const role =
         document.getElementById(
             "newRole"
-        ).value;
+        )
+            .value;
 
 
     const credits =
         Number(
             document.getElementById(
                 "newCredits"
-            ).value || 0
+            )
+                .value || 0
         );
 
 
     const status =
         document.getElementById(
             "newStatus"
-        ).value;
+        )
+            .value;
 
 
     if (!email) {
@@ -2952,7 +3643,9 @@ async function submitAddUser(
 
 
     if (
-        !Number.isFinite(credits) ||
+        !Number.isFinite(
+            credits
+        ) ||
         credits < 0
     ) {
 
@@ -2966,8 +3659,32 @@ async function submitAddUser(
     }
 
 
+    /*
+     * Proteksi UI tambahan.
+     * Otorisasi sebenarnya tetap harus dilakukan
+     * oleh endpoint/RPC/Supabase.
+     */
+
+    if (
+        currentProfile?.role ===
+            "ADMIN" &&
+        role !==
+            "USER"
+    ) {
+
+        showMessage(
+            "ADMIN hanya dapat membuat role USER.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
     createButton.disabled =
         true;
+
 
     createButton.textContent =
         "MEMBUAT...";
@@ -2979,24 +3696,35 @@ async function submitAddUser(
             await apiRequest(
                 "POST",
                 {
-                    action: "create",
+
+                    action:
+                        "create",
+
                     email,
+
                     password,
+
                     name,
+
                     role,
+
                     credits,
+
                     status
+
                 }
             );
 
 
         closeAddModal();
 
+
         await loadUsers();
 
 
         if (
-            data.emailSent === false
+            data.emailSent ===
+            false
         ) {
 
             showMessage(
@@ -3035,6 +3763,7 @@ async function submitAddUser(
         createButton.disabled =
             false;
 
+
         createButton.textContent =
             "BUAT USER";
 
@@ -3043,9 +3772,9 @@ async function submitAddUser(
 }
 
 
-/* ========================================
+/* =========================================================
    CONFIRM EMAIL
-======================================== */
+========================================================== */
 
 async function confirmEmail(
     userId,
@@ -3054,12 +3783,17 @@ async function confirmEmail(
 
     const confirmed =
         window.confirm(
-            `Konfirmasi email untuk ${email || "user ini"}?\n\nUser akan dianggap sudah memverifikasi email.`
+            `Konfirmasi email untuk ${
+                email ||
+                "user ini"
+            }?\n\nUser akan dianggap sudah memverifikasi email.`
         );
 
 
     if (!confirmed) {
+
         return;
+
     }
 
 
@@ -3068,8 +3802,12 @@ async function confirmEmail(
         await apiRequest(
             "PATCH",
             {
-                action: "confirm",
+
+                action:
+                    "confirm",
+
                 userId
+
             }
         );
 
@@ -3078,7 +3816,9 @@ async function confirmEmail(
 
 
         showMessage(
-            `Email ${email} berhasil dikonfirmasi secara manual.`,
+            `Email ${
+                email
+            } berhasil dikonfirmasi secara manual.`,
             "success"
         );
 
@@ -3102,9 +3842,9 @@ async function confirmEmail(
 }
 
 
-/* ========================================
+/* =========================================================
    RESEND EMAIL
-======================================== */
+========================================================== */
 
 async function resendEmail(
     email
@@ -3129,7 +3869,9 @@ async function resendEmail(
 
 
     if (!confirmed) {
+
         return;
+
     }
 
 
@@ -3138,8 +3880,12 @@ async function resendEmail(
         await apiRequest(
             "POST",
             {
-                action: "resend",
+
+                action:
+                    "resend",
+
                 email
+
             }
         );
 
@@ -3169,9 +3915,9 @@ async function resendEmail(
 }
 
 
-/* ========================================
-   DELETE
-======================================== */
+/* =========================================================
+   DELETE MODAL
+========================================================== */
 
 function openDeleteModal(
     userId,
@@ -3179,15 +3925,21 @@ function openDeleteModal(
 ) {
 
     userToDelete = {
-        id: userId,
-        email
+
+        id:
+            userId,
+
+        email:
+            email
+
     };
 
 
     document.getElementById(
         "deleteUserName"
     ).textContent =
-        email || "User";
+        email ||
+        "User";
 
 
     document.getElementById(
@@ -3214,6 +3966,10 @@ function closeDeleteModal() {
 }
 
 
+/* =========================================================
+   CONFIRM DELETE
+========================================================== */
+
 async function confirmDeleteUser() {
 
     if (
@@ -3238,6 +3994,7 @@ async function confirmDeleteUser() {
     deleteButton.disabled =
         true;
 
+
     deleteButton.textContent =
         "MENGHAPUS...";
 
@@ -3247,18 +4004,25 @@ async function confirmDeleteUser() {
         await apiRequest(
             "DELETE",
             {
-                userId: target.id
+
+                userId:
+                    target.id
+
             }
         );
 
 
         closeDeleteModal();
 
+
         await loadUsers();
 
 
         showMessage(
-            `User ${target.email || ""} berhasil dihapus.`,
+            `User ${
+                target.email ||
+                ""
+            } berhasil dihapus.`,
             "success"
         );
 
@@ -3283,6 +4047,7 @@ async function confirmDeleteUser() {
         deleteButton.disabled =
             false;
 
+
         deleteButton.textContent =
             "HAPUS USER";
 
@@ -3291,35 +4056,9 @@ async function confirmDeleteUser() {
 }
 
 
-/* ========================================
-   LOGOUT
-======================================== */
-
-async function logout() {
-
-    try {
-
-        if (
-            supabaseClient
-        ) {
-
-            await supabaseClient.auth.signOut();
-
-        }
-
-    } finally {
-
-        window.location.href =
-            "../index.html";
-
-    }
-
-}
-
-
-/* ========================================
+/* =========================================================
    MODAL EVENTS
-======================================== */
+========================================================== */
 
 document.getElementById(
     "addModal"
@@ -3359,11 +4098,35 @@ document.getElementById(
 );
 
 
-/* ========================================
-   INIT
-======================================== */
+/* =========================================================
+   ESCAPE FOR MODALS
+   Navigation sendiri menangani ESC untuk menu.
+========================================================== */
 
-async function init() {
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key ===
+            "Escape"
+        ) {
+
+            closeAddModal();
+
+            closeDeleteModal();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   INIT
+========================================================== */
+
+async function initUsersPage() {
 
     const authenticated =
         await checkAuth();
@@ -3383,7 +4146,11 @@ async function init() {
 }
 
 
-init();
+/* =========================================================
+   START
+========================================================== */
+
+initUsersPage();
 
 </script>
 
