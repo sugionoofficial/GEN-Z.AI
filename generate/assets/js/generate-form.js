@@ -8,22 +8,19 @@
    Tanggung jawab:
    - Render dynamic parameter form
    - Membaca parameter dari currentModel
-   - Membuat input sesuai definisi model
-   - Menjaga name/key parameter
+   - Membaca parameter dari adapter model
+   - Menjaga nama/key parameter
    - Mengambil nilai form
    - Reset form
-   - Sinkronisasi field yang saling terkait
+   - Sinkronisasi field
 
-   Tidak bertanggung jawab:
-   - Supabase authentication
-   - Model API
-   - /api/generate
-   - Provider API key
-   - Credit deduction
+   SUMBER PARAMETER:
+   - model.parameters
+   - model.config.parameters
+   - model.parameter_schema
+   - model.config.parameter_schema
 
-   Catatan:
-   - Tidak bergantung pada generate-utils.js
-   - Helper lokal digunakan agar module tetap mandiri
+   Tidak ada parameter model yang di-hardcode.
 ========================================================= */
 
 import {
@@ -34,10 +31,6 @@ import {
 
 /* =========================================================
    LOCAL HELPERS
-   ---------------------------------------------------------
-   Helper sebelumnya berasal dari generate-utils.js.
-   File tersebut tidak tersedia di repository, sehingga
-   helper yang memang dibutuhkan form didefinisikan lokal.
 ========================================================= */
 
 function safeString(
@@ -55,8 +48,7 @@ function safeString(
     const result =
         String(value).trim();
 
-    return result ||
-        fallback;
+    return result || fallback;
 }
 
 
@@ -64,9 +56,7 @@ function normalizeArray(
     value
 ) {
 
-    if (
-        Array.isArray(value)
-    ) {
+    if (Array.isArray(value)) {
 
         return value
             .filter(
@@ -86,6 +76,7 @@ function normalizeArray(
             );
     }
 
+
     if (
         value === null ||
         value === undefined
@@ -93,6 +84,7 @@ function normalizeArray(
 
         return [];
     }
+
 
     if (
         typeof value === "string"
@@ -105,22 +97,19 @@ function normalizeArray(
             return [];
         }
 
+
         /*
-         * Support JSON array.
+         * JSON array.
          */
         if (
-            (
-                text.startsWith("[") &&
-                text.endsWith("]")
-            )
+            text.startsWith("[") &&
+            text.endsWith("]")
         ) {
 
             try {
 
                 const parsed =
-                    JSON.parse(
-                        text
-                    );
+                    JSON.parse(text);
 
                 if (
                     Array.isArray(parsed)
@@ -132,14 +121,47 @@ function normalizeArray(
                 }
 
             } catch {
-                /*
-                 * Lanjut sebagai string biasa.
-                 */
+                /* fallback */
             }
         }
 
+
         /*
-         * Support comma-separated values.
+         * PostgreSQL array.
+         *
+         * {"2:3","9:16"}
+         */
+        if (
+            text.startsWith("{") &&
+            text.endsWith("}")
+        ) {
+
+            const content =
+                text
+                    .slice(1, -1)
+                    .trim();
+
+            if (!content) {
+                return [];
+            }
+
+            return content
+                .split(",")
+                .map(
+                    item =>
+                        item
+                            .trim()
+                            .replace(
+                                /^"(.*)"$/,
+                                "$1"
+                            )
+                )
+                .filter(Boolean);
+        }
+
+
+        /*
+         * CSV.
          */
         return text
             .split(",")
@@ -147,13 +169,12 @@ function normalizeArray(
                 item =>
                     item.trim()
             )
-            .filter(
-                Boolean
-            );
+            .filter(Boolean);
     }
 
+
     /*
-     * Support object values.
+     * Object values.
      */
     if (
         typeof value === "object"
@@ -169,34 +190,8 @@ function normalizeArray(
             );
     }
 
-    return [
-        value
-    ];
-}
 
-
-function toFiniteNumber(
-    value,
-    fallback = null
-) {
-
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
-
-        return fallback;
-    }
-
-    const number =
-        Number(value);
-
-    return Number.isFinite(
-        number
-    )
-        ? number
-        : fallback;
+    return [value];
 }
 
 
@@ -214,12 +209,14 @@ function toBoolean(
         return fallback;
     }
 
+
     if (
         typeof value === "boolean"
     ) {
 
         return value;
     }
+
 
     if (
         typeof value === "number"
@@ -228,10 +225,12 @@ function toBoolean(
         return value !== 0;
     }
 
+
     const normalized =
         String(value)
             .trim()
             .toLowerCase();
+
 
     if (
         [
@@ -250,6 +249,7 @@ function toBoolean(
         return true;
     }
 
+
     if (
         [
             "false",
@@ -267,12 +267,13 @@ function toBoolean(
         return false;
     }
 
+
     return fallback;
 }
 
 
 /* =========================================================
-   HELPERS
+   ELEMENT
 ========================================================= */
 
 function getDynamicFieldsElement() {
@@ -288,65 +289,327 @@ function getDynamicFieldsElement() {
 }
 
 
-function getModelParameters(
-    model = getCurrentModel()
+/* =========================================================
+   PARAMETER SOURCE RESOLUTION
+   ---------------------------------------------------------
+   Adapter dari model folder menggunakan:
+
+   const parameters = {
+       prompt: {...},
+       mode: {...},
+       ...
+   };
+
+   API model-config mengirim object tersebut
+   sebagai:
+
+       model.parameters
+
+   Tetapi module ini juga mendukung beberapa
+   bentuk kompatibilitas lain.
+========================================================= */
+
+function resolveParameterSource(
+    model
 ) {
 
     if (!model) {
+        return null;
+    }
+
+
+    /*
+     * PRIORITAS 1
+     *
+     * API utama.
+     */
+    if (
+        model.parameters &&
+        typeof model.parameters === "object"
+    ) {
+
+        return model.parameters;
+    }
+
+
+    /*
+     * PRIORITAS 2
+     *
+     * Beberapa adapter/config wrapper.
+     */
+    if (
+        model.config?.parameters &&
+        typeof model.config.parameters === "object"
+    ) {
+
+        return model.config.parameters;
+    }
+
+
+    /*
+     * PRIORITAS 3
+     */
+    if (
+        model.parameter_schema &&
+        typeof model.parameter_schema === "object"
+    ) {
+
+        return model.parameter_schema;
+    }
+
+
+    /*
+     * PRIORITAS 4
+     */
+    if (
+        model.parameterSchema &&
+        typeof model.parameterSchema === "object"
+    ) {
+
+        return model.parameterSchema;
+    }
+
+
+    /*
+     * PRIORITAS 5
+     */
+    if (
+        model.config?.parameter_schema &&
+        typeof model.config.parameter_schema === "object"
+    ) {
+
+        return model.config.parameter_schema;
+    }
+
+
+    /*
+     * PRIORITAS 6
+     */
+    if (
+        model.config?.parameterSchema &&
+        typeof model.config.parameterSchema === "object"
+    ) {
+
+        return model.config.parameterSchema;
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   NORMALIZE PARAMETER DEFINITIONS
+   ---------------------------------------------------------
+   Mendukung:
+
+   1. Array
+   [
+       {
+           name: "prompt",
+           type: "string"
+       }
+   ]
+
+   2. Object keyed
+   {
+       prompt: {
+           type: "string"
+       }
+   }
+
+   3. Single wrapper
+   {
+       parameters: {...}
+   }
+========================================================= */
+
+function normalizeParameterDefinitions(
+    source
+) {
+
+    if (!source) {
         return [];
     }
 
-    const parameters =
-        model.parameters;
-
-    if (
-        Array.isArray(parameters)
-    ) {
-        return parameters;
-    }
 
     /*
-     * Beberapa konfigurasi dapat menggunakan
-     * object keyed by parameter name.
+     * Array.
      */
     if (
-        parameters &&
-        typeof parameters === "object"
+        Array.isArray(source)
+    ) {
+
+        return source
+            .map(
+                definition =>
+                    normalizeParameterDefinition(
+                        definition
+                    )
+            )
+            .filter(Boolean);
+    }
+
+
+    /*
+     * Object wrapper.
+     */
+    if (
+        source.parameters &&
+        typeof source.parameters === "object"
+    ) {
+
+        return normalizeParameterDefinitions(
+            source.parameters
+        );
+    }
+
+
+    /*
+     * Object keyed by parameter name.
+     */
+    if (
+        typeof source === "object"
     ) {
 
         return Object.entries(
-            parameters
-        ).map(
-            ([key, definition]) => {
-
-                if (
-                    definition &&
-                    typeof definition ===
-                        "object"
-                ) {
-
-                    return {
-                        key,
-                        name:
-                            definition.name ||
-                            key,
-                        ...definition
-                    };
-                }
-
-                return {
-                    key,
-                    name: key,
-                    type:
-                        typeof definition
-                };
-            }
-        );
+            source
+        )
+            .map(
+                ([key, definition]) =>
+                    normalizeParameterDefinition(
+                        definition,
+                        key
+                    )
+            )
+            .filter(Boolean);
     }
+
 
     return [];
 }
 
+
+/* =========================================================
+   NORMALIZE SINGLE DEFINITION
+========================================================= */
+
+function normalizeParameterDefinition(
+    definition,
+    fallbackName = ""
+) {
+
+    /*
+     * Primitive definition.
+     *
+     * Contoh:
+     *
+     * prompt: "string"
+     */
+    if (
+        definition === null ||
+        definition === undefined
+    ) {
+
+        if (!fallbackName) {
+            return null;
+        }
+
+        return {
+            name: fallbackName,
+            key: fallbackName,
+            type: "text"
+        };
+    }
+
+
+    if (
+        typeof definition !== "object"
+    ) {
+
+        return {
+            name:
+                fallbackName,
+
+            key:
+                fallbackName,
+
+            type:
+                typeof definition
+        };
+    }
+
+
+    const name =
+        safeString(
+            definition.name ||
+            definition.key ||
+            definition.parameter ||
+            definition.id ||
+            fallbackName
+        );
+
+
+    if (!name) {
+        return null;
+    }
+
+
+    /*
+     * Copy seluruh definisi asli.
+     *
+     * Ini penting supaya:
+     *
+     * min
+     * max
+     * enum
+     * default
+     * required
+     * maxLength
+     * maxItems
+     * dll.
+     *
+     * tetap tersedia untuk frontend.
+     */
+    return {
+        ...definition,
+
+        name,
+
+        key:
+            definition.key ||
+            name
+    };
+}
+
+
+/* =========================================================
+   GET MODEL PARAMETERS
+========================================================= */
+
+function getModelParameters(
+    model = getCurrentModel()
+) {
+
+    const source =
+        resolveParameterSource(
+            model
+        );
+
+    if (!source) {
+        return [];
+    }
+
+
+    return normalizeParameterDefinitions(
+        source
+    );
+}
+
+
+/* =========================================================
+   PARAMETER NAME
+========================================================= */
 
 function getParameterName(
     definition
@@ -356,14 +619,20 @@ function getParameterName(
         return "";
     }
 
-    return String(
+
+    return safeString(
         definition.name ||
         definition.key ||
         definition.parameter ||
+        definition.id ||
         ""
-    ).trim();
+    );
 }
 
+
+/* =========================================================
+   PARAMETER TYPE
+========================================================= */
 
 function getParameterType(
     definition
@@ -379,31 +648,78 @@ function getParameterType(
             .trim()
             .toLowerCase();
 
+
     const aliases = {
-        string: "text",
-        text: "text",
-        textarea: "textarea",
-        multiline: "textarea",
-        number: "number",
-        integer: "number",
-        float: "number",
-        decimal: "number",
-        boolean: "checkbox",
-        bool: "checkbox",
-        checkbox: "checkbox",
-        select: "select",
-        dropdown: "select",
-        enum: "select",
-        radio: "radio",
-        url: "url",
-        image: "url",
-        image_url: "url",
-        video_url: "url"
+
+        string:
+            "text",
+
+        text:
+            "text",
+
+        textarea:
+            "textarea",
+
+        multiline:
+            "textarea",
+
+        number:
+            "number",
+
+        integer:
+            "number",
+
+        float:
+            "number",
+
+        decimal:
+            "number",
+
+        boolean:
+            "checkbox",
+
+        bool:
+            "checkbox",
+
+        checkbox:
+            "checkbox",
+
+        select:
+            "select",
+
+        dropdown:
+            "select",
+
+        enum:
+            "select",
+
+        radio:
+            "radio",
+
+        url:
+            "url",
+
+        image:
+            "url",
+
+        image_url:
+            "url",
+
+        video_url:
+            "url"
     };
 
-    return aliases[raw] || "text";
+
+    return (
+        aliases[raw] ||
+        "text"
+    );
 }
 
+
+/* =========================================================
+   LABEL
+========================================================= */
 
 function getParameterLabel(
     definition,
@@ -421,6 +737,10 @@ function getParameterLabel(
 }
 
 
+/* =========================================================
+   DESCRIPTION
+========================================================= */
+
 function getParameterDescription(
     definition
 ) {
@@ -435,6 +755,10 @@ function getParameterDescription(
 }
 
 
+/* =========================================================
+   PLACEHOLDER
+========================================================= */
+
 function getParameterPlaceholder(
     definition
 ) {
@@ -447,33 +771,86 @@ function getParameterPlaceholder(
 }
 
 
+/* =========================================================
+   REQUIRED
+========================================================= */
+
 function isRequired(
     definition
 ) {
 
     return (
         definition?.required === true ||
+        definition?.required === "true" ||
         definition?.is_required === true ||
-        definition?.required === "true"
+        definition?.is_required === "true"
     );
 }
 
 
 /* =========================================================
    OPTIONS
+   ---------------------------------------------------------
+   Sumber:
+
+   enum
+   options
+   values
+   choices
+
+   Tidak ada nilai model yang ditulis manual.
 ========================================================= */
 
 function getOptions(
     definition
 ) {
 
-    const source =
-        definition?.options ??
-        definition?.values ??
-        definition?.choices ??
-        definition?.enum ??
-        [];
+    let source =
+        definition?.options;
 
+
+    if (
+        source === undefined ||
+        source === null
+    ) {
+
+        source =
+            definition?.values;
+    }
+
+
+    if (
+        source === undefined ||
+        source === null
+    ) {
+
+        source =
+            definition?.choices;
+    }
+
+
+    if (
+        source === undefined ||
+        source === null
+    ) {
+
+        source =
+            definition?.enum;
+    }
+
+
+    if (
+        source === undefined ||
+        source === null
+    ) {
+
+        return [];
+    }
+
+
+    /*
+     * Array.
+     */
     if (
         Array.isArray(source)
     ) {
@@ -488,33 +865,43 @@ function getOptions(
                             "object"
                     ) {
 
+                        const value =
+                            option.value ??
+                            option.id ??
+                            option.key ??
+                            option.name ??
+                            "";
+
+                        const label =
+                            option.label ??
+                            option.name ??
+                            option.title ??
+                            option.value ??
+                            option.id ??
+                            option.key ??
+                            "";
+
                         return {
                             value:
                                 String(
-                                    option.value ??
-                                    option.id ??
-                                    option.key ??
-                                    ""
+                                    value
                                 ),
+
                             label:
                                 safeString(
-                                    option.label ??
-                                    option.name ??
-                                    option.title ??
-                                    option.value ??
-                                    option.id ??
-                                    option.key ??
-                                    "",
-                                    ""
+                                    label,
+                                    value
                                 )
                         };
                     }
+
 
                     return {
                         value:
                             String(
                                 option
                             ),
+
                         label:
                             String(
                                 option
@@ -528,55 +915,63 @@ function getOptions(
             );
     }
 
+
     /*
-     * Support object:
+     * Object:
      *
      * {
-     *   "16:9": "16:9",
-     *   "9:16": "9:16"
+     *     "16:9": "16:9"
      * }
      */
     if (
-        source &&
         typeof source === "object"
     ) {
 
         return Object.entries(
             source
-        ).map(
-            ([value, label]) => ({
-                value:
-                    String(value),
-                label:
-                    safeString(
-                        label,
-                        value
-                    )
-            })
-        );
+        )
+            .map(
+                ([value, label]) => ({
+
+                    value:
+                        String(value),
+
+                    label:
+                        safeString(
+                            label,
+                            value
+                        )
+
+                })
+            )
+            .filter(
+                option =>
+                    option.value
+            );
     }
 
-    /*
-     * Support string values.
-     */
-    const normalized =
-        normalizeArray(
-            source
-        );
 
-    return normalized.map(
+    /*
+     * String / CSV / JSON.
+     */
+    return normalizeArray(
+        source
+    ).map(
         value => ({
+
             value:
                 String(value),
+
             label:
                 String(value)
+
         })
     );
 }
 
 
 /* =========================================================
-   DEFAULT VALUE
+   DEFAULT
 ========================================================= */
 
 function getDefaultValue(
@@ -589,8 +984,10 @@ function getDefaultValue(
             "default"
         )
     ) {
+
         return definition.default;
     }
+
 
     if (
         Object.prototype.hasOwnProperty.call(
@@ -598,8 +995,10 @@ function getDefaultValue(
             "default_value"
         )
     ) {
+
         return definition.default_value;
     }
+
 
     if (
         Object.prototype.hasOwnProperty.call(
@@ -607,15 +1006,17 @@ function getDefaultValue(
             "defaultValue"
         )
     ) {
+
         return definition.defaultValue;
     }
+
 
     return "";
 }
 
 
 /* =========================================================
-   CREATE ID
+   FIELD ID
 ========================================================= */
 
 function createFieldId(
@@ -635,7 +1036,7 @@ function createFieldId(
 
 
 /* =========================================================
-   CREATE LABEL
+   LABEL ELEMENT
 ========================================================= */
 
 function createLabel(
@@ -658,6 +1059,7 @@ function createLabel(
     label.textContent =
         labelText;
 
+
     if (required) {
 
         const requiredMark =
@@ -676,12 +1078,13 @@ function createLabel(
         );
     }
 
+
     return label;
 }
 
 
 /* =========================================================
-   APPLY COMMON ATTRIBUTES
+   COMMON ATTRIBUTES
 ========================================================= */
 
 function applyCommonAttributes(
@@ -698,20 +1101,12 @@ function applyCommonAttributes(
             name
         );
 
-    if (
-        definition?.autocomplete
-    ) {
-
-        element.autocomplete =
-            String(
-                definition.autocomplete
-            );
-    }
 
     const placeholder =
         getParameterPlaceholder(
             definition
         );
+
 
     if (
         placeholder &&
@@ -721,6 +1116,7 @@ function applyCommonAttributes(
         element.placeholder =
             placeholder;
     }
+
 
     if (
         isRequired(
@@ -732,6 +1128,7 @@ function applyCommonAttributes(
             true;
     }
 
+
     if (
         definition?.disabled === true
     ) {
@@ -739,6 +1136,7 @@ function applyCommonAttributes(
         element.disabled =
             true;
     }
+
 
     if (
         definition?.readonly === true ||
@@ -749,9 +1147,9 @@ function applyCommonAttributes(
             true;
     }
 
+
     /*
-     * Min / max / step hanya digunakan jika
-     * memang diberikan oleh konfigurasi model.
+     * Numeric constraints.
      */
     if (
         definition?.min !== undefined &&
@@ -765,6 +1163,7 @@ function applyCommonAttributes(
             );
     }
 
+
     if (
         definition?.max !== undefined &&
         definition?.max !== null &&
@@ -777,6 +1176,7 @@ function applyCommonAttributes(
             );
     }
 
+
     if (
         definition?.step !== undefined &&
         definition?.step !== null &&
@@ -788,11 +1188,43 @@ function applyCommonAttributes(
                 definition.step
             );
     }
+
+
+    /*
+     * maxlength.
+     */
+    if (
+        definition?.maxLength !== undefined &&
+        definition?.maxLength !== null &&
+        "maxLength" in element
+    ) {
+
+        element.maxLength =
+            Number(
+                definition.maxLength
+            );
+    }
+
+
+    /*
+     * minlength.
+     */
+    if (
+        definition?.minLength !== undefined &&
+        definition?.minLength !== null &&
+        "minLength" in element
+    ) {
+
+        element.minLength =
+            Number(
+                definition.minLength
+            );
+    }
 }
 
 
 /* =========================================================
-   CREATE TEXT INPUT
+   TEXT INPUT
 ========================================================= */
 
 function createTextInput(
@@ -805,10 +1237,12 @@ function createTextInput(
             "input"
         );
 
+
     input.type =
         getParameterType(
             definition
         );
+
 
     applyCommonAttributes(
         input,
@@ -816,10 +1250,12 @@ function createTextInput(
         name
     );
 
+
     const defaultValue =
         getDefaultValue(
             definition
         );
+
 
     if (
         defaultValue !== null &&
@@ -832,12 +1268,13 @@ function createTextInput(
             );
     }
 
+
     return input;
 }
 
 
 /* =========================================================
-   CREATE TEXTAREA
+   TEXTAREA
 ========================================================= */
 
 function createTextarea(
@@ -850,35 +1287,32 @@ function createTextarea(
             "textarea"
         );
 
+
     applyCommonAttributes(
         textarea,
         definition,
         name
     );
 
+
     const rows =
         Number(
             definition?.rows
         );
 
-    if (
+
+    textarea.rows =
         Number.isFinite(rows) &&
         rows > 0
-    ) {
+            ? rows
+            : 5;
 
-        textarea.rows =
-            rows;
-
-    } else {
-
-        textarea.rows =
-            5;
-    }
 
     const defaultValue =
         getDefaultValue(
             definition
         );
+
 
     if (
         defaultValue !== null &&
@@ -891,12 +1325,13 @@ function createTextarea(
             );
     }
 
+
     return textarea;
 }
 
 
 /* =========================================================
-   CREATE NUMBER INPUT
+   NUMBER
 ========================================================= */
 
 function createNumberInput(
@@ -909,8 +1344,10 @@ function createNumberInput(
             "input"
         );
 
+
     input.type =
         "number";
+
 
     applyCommonAttributes(
         input,
@@ -918,10 +1355,12 @@ function createNumberInput(
         name
     );
 
+
     const defaultValue =
         getDefaultValue(
             definition
         );
+
 
     if (
         defaultValue !== null &&
@@ -935,12 +1374,13 @@ function createNumberInput(
             );
     }
 
+
     return input;
 }
 
 
 /* =========================================================
-   CREATE CHECKBOX
+   CHECKBOX
 ========================================================= */
 
 function createCheckbox(
@@ -953,16 +1393,20 @@ function createCheckbox(
             "label"
         );
 
+
     wrapper.className =
         "generate-checkbox";
+
 
     const input =
         document.createElement(
             "input"
         );
 
+
     input.type =
         "checkbox";
+
 
     applyCommonAttributes(
         input,
@@ -970,31 +1414,28 @@ function createCheckbox(
         name
     );
 
-    /*
-     * Checkbox tidak menggunakan value sebagai
-     * nilai boolean utama. checked adalah sumbernya.
-     */
-    const defaultValue =
-        getDefaultValue(
-            definition
-        );
 
     input.checked =
         toBoolean(
-            defaultValue,
+            getDefaultValue(
+                definition
+            ),
             false
         );
+
 
     const text =
         document.createElement(
             "span"
         );
 
+
     text.textContent =
         getParameterLabel(
             definition,
             name
         );
+
 
     wrapper.appendChild(
         input
@@ -1004,12 +1445,13 @@ function createCheckbox(
         text
     );
 
+
     return wrapper;
 }
 
 
 /* =========================================================
-   CREATE SELECT
+   SELECT
 ========================================================= */
 
 function createSelect(
@@ -1022,16 +1464,19 @@ function createSelect(
             "select"
         );
 
+
     applyCommonAttributes(
         select,
         definition,
         name
     );
 
+
     const options =
         getOptions(
             definition
         );
+
 
     const defaultValue =
         String(
@@ -1040,34 +1485,11 @@ function createSelect(
             ) ?? ""
         );
 
-    if (
-        options.length === 0
-    ) {
 
-        const emptyOption =
-            document.createElement(
-                "option"
-            );
-
-        emptyOption.value =
-            "";
-
-        emptyOption.textContent =
-            "Tidak ada pilihan";
-
-        emptyOption.disabled =
-            true;
-
-        emptyOption.selected =
-            true;
-
-        select.appendChild(
-            emptyOption
-        );
-
-        return select;
-    }
-
+    /*
+     * Jika enum/options tersedia,
+     * render semuanya.
+     */
     options.forEach(
         optionData => {
 
@@ -1076,11 +1498,14 @@ function createSelect(
                     "option"
                 );
 
+
             option.value =
                 optionData.value;
 
+
             option.textContent =
                 optionData.label;
+
 
             if (
                 optionData.value ===
@@ -1091,18 +1516,57 @@ function createSelect(
                     true;
             }
 
+
             select.appendChild(
                 option
             );
         }
     );
 
+
+    /*
+     * Tidak ada options.
+     *
+     * Jangan membuat pilihan palsu.
+     */
+    if (
+        options.length === 0
+    ) {
+
+        const emptyOption =
+            document.createElement(
+                "option"
+            );
+
+
+        emptyOption.value =
+            "";
+
+
+        emptyOption.textContent =
+            "Tidak ada pilihan";
+
+
+        emptyOption.disabled =
+            true;
+
+
+        emptyOption.selected =
+            true;
+
+
+        select.appendChild(
+            emptyOption
+        );
+    }
+
+
     return select;
 }
 
 
 /* =========================================================
-   CREATE RADIO
+   RADIO
 ========================================================= */
 
 function createRadioGroup(
@@ -1115,13 +1579,16 @@ function createRadioGroup(
             "div"
         );
 
+
     wrapper.className =
         "generate-radio-group";
+
 
     const options =
         getOptions(
             definition
         );
+
 
     const defaultValue =
         String(
@@ -1130,52 +1597,61 @@ function createRadioGroup(
             ) ?? ""
         );
 
+
     options.forEach(
-        (optionData, index) => {
+        (
+            optionData,
+            index
+        ) => {
 
             const label =
                 document.createElement(
                     "label"
                 );
 
+
             label.className =
                 "generate-radio-option";
+
 
             const input =
                 document.createElement(
                     "input"
                 );
 
+
             input.type =
                 "radio";
 
+
             input.name =
                 name;
+
 
             input.id =
                 `${createFieldId(
                     name
                 )}-${index}`;
 
+
             input.value =
                 optionData.value;
 
-            if (
-                optionData.value ===
-                defaultValue
-            ) {
 
-                input.checked =
-                    true;
-            }
+            input.checked =
+                optionData.value ===
+                defaultValue;
+
 
             const text =
                 document.createElement(
                     "span"
                 );
 
+
             text.textContent =
                 optionData.label;
+
 
             label.appendChild(
                 input
@@ -1185,18 +1661,20 @@ function createRadioGroup(
                 text
             );
 
+
             wrapper.appendChild(
                 label
             );
         }
     );
 
+
     return wrapper;
 }
 
 
 /* =========================================================
-   CREATE INPUT
+   INPUT DISPATCH
 ========================================================= */
 
 function createInput(
@@ -1209,39 +1687,51 @@ function createInput(
             definition
         );
 
+
     switch (type) {
 
         case "textarea":
+
             return createTextarea(
                 definition,
                 name
             );
 
+
         case "number":
+
             return createNumberInput(
                 definition,
                 name
             );
 
+
         case "checkbox":
+
             return createCheckbox(
                 definition,
                 name
             );
 
+
         case "select":
+
             return createSelect(
                 definition,
                 name
             );
 
+
         case "radio":
+
             return createRadioGroup(
                 definition,
                 name
             );
 
+
         case "url":
+
             return createTextInput(
                 {
                     ...definition,
@@ -1250,8 +1740,11 @@ function createInput(
                 name
             );
 
+
         case "text":
+
         default:
+
             return createTextInput(
                 definition,
                 name
@@ -1261,7 +1754,7 @@ function createInput(
 
 
 /* =========================================================
-   CREATE FIELD DESCRIPTION
+   DESCRIPTION
 ========================================================= */
 
 function createDescription(
@@ -1273,27 +1766,32 @@ function createDescription(
             definition
         );
 
+
     if (!description) {
         return null;
     }
+
 
     const element =
         document.createElement(
             "small"
         );
 
+
     element.className =
         "generate-field-description";
 
+
     element.textContent =
         description;
+
 
     return element;
 }
 
 
 /* =========================================================
-   CREATE FIELD WRAPPER
+   FIELD
 ========================================================= */
 
 function createField(
@@ -1305,53 +1803,59 @@ function createField(
             definition
         );
 
+
     if (!name) {
         return null;
     }
+
 
     const field =
         document.createElement(
             "div"
         );
 
+
     field.className =
         "generate-field";
 
+
     field.dataset.parameter =
         name;
+
 
     const type =
         getParameterType(
             definition
         );
 
+
     /*
-     * Checkbox dan radio sudah mempunyai
-     * label internal.
+     * Checkbox dan radio memiliki label
+     * sendiri.
      */
     if (
         type !== "checkbox" &&
         type !== "radio"
     ) {
 
-        const label =
+        field.appendChild(
             createLabel(
                 getParameterLabel(
                     definition,
                     name
                 ),
+
                 createFieldId(
                     name
                 ),
+
                 isRequired(
                     definition
                 )
-            );
-
-        field.appendChild(
-            label
+            )
         );
     }
+
 
     const input =
         createInput(
@@ -1359,18 +1863,22 @@ function createField(
             name
         );
 
+
     if (!input) {
         return null;
     }
+
 
     field.appendChild(
         input
     );
 
+
     const description =
         createDescription(
             definition
         );
+
 
     if (description) {
 
@@ -1378,6 +1886,7 @@ function createField(
             description
         );
     }
+
 
     return field;
 }
@@ -1394,6 +1903,7 @@ export function renderDynamicFields(
     const container =
         getDynamicFieldsElement();
 
+
     if (!container) {
 
         throw new Error(
@@ -1401,18 +1911,41 @@ export function renderDynamicFields(
         );
     }
 
+
     container.innerHTML =
         "";
+
 
     if (!model) {
 
         return [];
     }
 
+
     const parameters =
         getModelParameters(
             model
         );
+
+
+    /*
+     * Debug hanya untuk membantu verifikasi
+     * konfigurasi yang benar-benar diterima
+     * frontend.
+     */
+    console.debug(
+        "[GEN-Z.AI][Generate Form] Model:",
+        model?.model_id ||
+        model?.id ||
+        null
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] Parameters:",
+        parameters
+    );
+
 
     if (
         parameters.length === 0
@@ -1423,21 +1956,27 @@ export function renderDynamicFields(
                 "div"
             );
 
+
         message.className =
             "generate-empty-fields";
 
+
         message.textContent =
             "Model ini tidak memiliki parameter tambahan.";
+
 
         container.appendChild(
             message
         );
 
+
         return [];
     }
 
+
     const renderedFields =
         [];
+
 
     parameters.forEach(
         definition => {
@@ -1447,19 +1986,23 @@ export function renderDynamicFields(
                     definition
                 );
 
+
             if (!field) {
                 return;
             }
 
+
             container.appendChild(
                 field
             );
+
 
             renderedFields.push(
                 field
             );
         }
     );
+
 
     return renderedFields;
 }
@@ -1476,18 +2019,22 @@ export function findField(
     const container =
         getDynamicFieldsElement();
 
+
     if (!container) {
         return null;
     }
+
 
     const normalizedName =
         String(
             name || ""
         ).trim();
 
+
     if (!normalizedName) {
         return null;
     }
+
 
     return container.querySelector(
         `[name="${CSS.escape(
@@ -1498,7 +2045,7 @@ export function findField(
 
 
 /* =========================================================
-   GET FIELD VALUE
+   READ FIELD VALUE
 ========================================================= */
 
 function readFieldValue(
@@ -1509,8 +2056,9 @@ function readFieldValue(
         return undefined;
     }
 
+
     /*
-     * Radio group.
+     * Radio.
      */
     if (
         field.type ===
@@ -1521,8 +2069,10 @@ function readFieldValue(
             return undefined;
         }
 
+
         return field.value;
     }
+
 
     /*
      * Checkbox.
@@ -1536,6 +2086,7 @@ function readFieldValue(
             field.checked
         );
     }
+
 
     /*
      * Number.
@@ -1552,10 +2103,12 @@ function readFieldValue(
             return "";
         }
 
+
         const value =
             Number(
                 field.value
             );
+
 
         return Number.isFinite(
             value
@@ -1563,6 +2116,7 @@ function readFieldValue(
             ? value
             : field.value;
     }
+
 
     return field.value;
 }
@@ -1577,17 +2131,21 @@ export function getFormParameters() {
     const container =
         getDynamicFieldsElement();
 
+
     if (!container) {
         return {};
     }
 
+
     const parameters =
         {};
+
 
     const fields =
         container.querySelectorAll(
             "[name]"
         );
+
 
     fields.forEach(
         field => {
@@ -1597,46 +2155,52 @@ export function getFormParameters() {
                     field.name || ""
                 ).trim();
 
+
             if (!name) {
                 return;
             }
 
+
             /*
-             * Radio yang tidak checked tidak boleh
-             * menimpa nilai radio yang checked.
+             * Radio yang tidak aktif
+             * tidak boleh menimpa radio aktif.
              */
             if (
                 field.type ===
-                "radio"
+                "radio" &&
+                !field.checked
             ) {
 
-                if (!field.checked) {
-                    return;
-                }
+                return;
             }
+
 
             const value =
                 readFieldValue(
                     field
                 );
 
+
             if (
                 value === undefined
             ) {
+
                 return;
             }
+
 
             parameters[name] =
                 value;
         }
     );
 
+
     return parameters;
 }
 
 
 /* =========================================================
-   GET ALL FORM DATA
+   GET FORM DATA
 ========================================================= */
 
 export function getFormData() {
@@ -1644,37 +2208,37 @@ export function getFormData() {
     const elements =
         getGenerateElements();
 
+
     if (!elements) {
         return {};
     }
 
+
     const form =
         elements.generateForm;
+
 
     if (!form) {
         return {};
     }
 
+
     const data =
         getFormParameters();
 
-    /*
-     * FormData digunakan hanya sebagai fallback
-     * untuk elemen statis yang mungkin ada di
-     * HTML lama.
-     *
-     * Dynamic fields tetap menjadi sumber utama.
-     */
+
     const formData =
         new FormData(
             form
         );
 
+
     for (
         const [
             key,
             value
-        ] of formData.entries()
+        ]
+        of formData.entries()
     ) {
 
         if (
@@ -1683,22 +2247,25 @@ export function getFormData() {
                 key
             )
         ) {
+
             continue;
         }
 
-        /*
-         * Jangan memasukkan File object ke
-         * request JSON secara otomatis.
-         */
+
         if (
+            typeof File !==
+                "undefined" &&
             value instanceof File
         ) {
+
             continue;
         }
+
 
         data[key] =
             value;
     }
+
 
     return data;
 }
@@ -1716,18 +2283,22 @@ export function setFieldValue(
     const container =
         getDynamicFieldsElement();
 
+
     if (!container) {
         return false;
     }
+
 
     const normalizedName =
         String(
             name || ""
         ).trim();
 
+
     if (!normalizedName) {
         return false;
     }
+
 
     const fields =
         container.querySelectorAll(
@@ -1736,12 +2307,14 @@ export function setFieldValue(
             )}"]`
         );
 
+
     if (
         fields.length === 0
     ) {
 
         return false;
     }
+
 
     fields.forEach(
         field => {
@@ -1760,6 +2333,7 @@ export function setFieldValue(
                 return;
             }
 
+
             if (
                 field.type ===
                 "radio"
@@ -1776,6 +2350,7 @@ export function setFieldValue(
                 return;
             }
 
+
             field.value =
                 value === null ||
                 value === undefined
@@ -1786,12 +2361,13 @@ export function setFieldValue(
         }
     );
 
+
     return true;
 }
 
 
 /* =========================================================
-   RESET DYNAMIC FIELDS
+   RESET
 ========================================================= */
 
 export function resetDynamicFields() {
@@ -1799,18 +2375,16 @@ export function resetDynamicFields() {
     const container =
         getDynamicFieldsElement();
 
+
     if (!container) {
         return;
     }
 
+
     const model =
         getCurrentModel();
 
-    /*
-     * Render ulang dari konfigurasi model.
-     * Ini lebih aman daripada mengandalkan
-     * HTML lama yang mungkin sudah berubah.
-     */
+
     renderDynamicFields(
         model
     );
@@ -1818,7 +2392,7 @@ export function resetDynamicFields() {
 
 
 /* =========================================================
-   DISABLE FORM
+   DISABLE
 ========================================================= */
 
 export function setFormDisabled(
@@ -1828,25 +2402,26 @@ export function setFormDisabled(
     const container =
         getDynamicFieldsElement();
 
+
     if (!container) {
         return;
     }
+
 
     const fields =
         container.querySelectorAll(
             "input, textarea, select, button"
         );
 
+
+    const definitions =
+        getModelParameters();
+
+
     fields.forEach(
         field => {
 
-            /*
-             * Jangan mengubah readonly menjadi
-             * editable.
-             */
-            if (
-                disabled
-            ) {
+            if (disabled) {
 
                 field.disabled =
                     true;
@@ -1854,21 +2429,16 @@ export function setFormDisabled(
                 return;
             }
 
-            /*
-             * Saat enable kembali, hormati
-             * konfigurasi disabled/readOnly.
-             */
-            const name =
-                field.name;
 
             const definition =
-                getModelParameters()
-                    .find(
-                        item =>
-                            getParameterName(
-                                item
-                            ) === name
-                    );
+                definitions.find(
+                    item =>
+                        getParameterName(
+                            item
+                        ) ===
+                        field.name
+                );
+
 
             field.disabled =
                 definition?.disabled ===
@@ -1879,34 +2449,28 @@ export function setFormDisabled(
 
 
 /* =========================================================
-   COLLECT FILE / URL INPUTS
+   MEDIA PARAMETERS
 ========================================================= */
 
 export function getMediaParameters(
-    parameters = getFormParameters()
+    parameters =
+        getFormParameters()
 ) {
 
     const result =
         {};
 
-    /*
-     * Pertahankan nama parameter asli.
-     * Tidak mengubah payload menjadi format baru.
-     */
+
     Object.entries(
         parameters
     ).forEach(
         ([key, value]) => {
 
             if (
-                key ===
-                "image_urls" ||
-                key ===
-                "image_url" ||
-                key ===
-                "video_url" ||
-                key ===
-                "audio_url"
+                key === "image_urls" ||
+                key === "image_url" ||
+                key === "video_url" ||
+                key === "audio_url"
             ) {
 
                 result[key] =
@@ -1914,6 +2478,7 @@ export function getMediaParameters(
             }
         }
     );
+
 
     return result;
 }
@@ -1932,9 +2497,11 @@ export function parameterDefinition(
             name || ""
         ).trim();
 
+
     if (!normalizedName) {
         return null;
     }
+
 
     return (
         getModelParameters()
@@ -1951,7 +2518,7 @@ export function parameterDefinition(
 
 
 /* =========================================================
-   EXPORT FORM API
+   PUBLIC API
 ========================================================= */
 
 export const generateForm =
