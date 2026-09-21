@@ -21,7 +21,7 @@
    models/<model-folder>/
 
    MODEL ID:
-   - Berasal dari config.js
+   - Berasal dari config.js / model registry
    - Tidak dapat diedit dari UI
    - Tetap menjadi referensi Generate
 
@@ -31,13 +31,17 @@
    - credit_1080p
    - discount_percent
 
+   RUMUS CREDIT FINAL:
+   credit - (credit * discount_percent / 100)
+
    LEGACY PRICING:
-   - credit_cost      -> TIDAK DIGUNAKAN
-   - credit_final     -> TIDAK DIGUNAKAN
+   - credit_cost  -> TIDAK DIGUNAKAN
+   - credit_final -> TIDAK DIGUNAKAN
 
    CREDIT FINAL:
-   - Dihitung di aplikasi
-   - Tidak disimpan di Supabase
+   - Dihitung runtime di browser
+   - Tidak dibaca dari Supabase
+   - Tidak disimpan ke Supabase
 
    Tidak bertanggung jawab:
    - Search
@@ -262,6 +266,106 @@
         return Number.isFinite(number)
             ? number
             : fallback;
+
+    }
+
+
+    /* =========================================================
+       DISCOUNT
+       ---------------------------------------------------------
+       Hanya mengambil discount_percent.
+       Tidak menggunakan field legacy.
+       ========================================================= */
+
+    function normalizeDiscountPercent(value) {
+
+        const discount =
+            normalizeNumber(
+                value,
+                0
+            );
+
+
+        if (!Number.isFinite(discount)) {
+
+            return 0;
+
+        }
+
+
+        return Math.min(
+            100,
+            Math.max(
+                0,
+                discount
+            )
+        );
+
+    }
+
+
+    /* =========================================================
+       CALCULATE CREDIT FINAL
+       ---------------------------------------------------------
+       Runtime only.
+       Tidak pernah disimpan ke Supabase.
+       ========================================================= */
+
+    function calculateResolutionCreditFinal(
+        credit,
+        discountPercent
+    ) {
+
+        /*
+         * Nilai null/undefined berarti pricing
+         * memang belum tersedia.
+         */
+
+        if (
+            credit === null ||
+            credit === undefined ||
+            credit === ""
+        ) {
+
+            return null;
+
+        }
+
+
+        const numericCredit =
+            Number(credit);
+
+
+        if (
+            !Number.isFinite(
+                numericCredit
+            )
+        ) {
+
+            return null;
+
+        }
+
+
+        const numericDiscount =
+            normalizeDiscountPercent(
+                discountPercent
+            );
+
+
+        const finalCredit =
+            numericCredit -
+            (
+                numericCredit *
+                numericDiscount /
+                100
+            );
+
+
+        return Math.max(
+            0,
+            finalCredit
+        );
 
     }
 
@@ -549,46 +653,36 @@
         ===================================================== */
 
         /*
-         * ACTIVE PRICING SOURCE:
+         * SATU-SATUNYA SUMBER PRICING:
          *
          *   credit_480p
          *   credit_720p
          *   credit_1080p
          *   discount_percent
          *
-         * credit_cost TIDAK DIGUNAKAN.
-         * credit_final TIDAK DIGUNAKAN.
+         * Field berikut sengaja TIDAK digunakan:
          *
-         * Credit final dihitung dari:
+         *   credit_cost
+         *   credit_final
          *
-         *   credit -
-         *   (credit * discount / 100)
-         *
-         * Hasil perhitungan hanya berada
-         * di memory aplikasi.
+         * Tidak ada fallback ke field legacy.
          */
 
+
         const discountPercent =
-            Math.min(
-                100,
-                Math.max(
-                    0,
-                    normalizeNumber(
-                        model.discount_percent ??
-                        model.discountPercent ??
-                        0,
-                        0
-                    )
-                )
+            normalizeDiscountPercent(
+                model.discount_percent ??
+                model.discountPercent ??
+                0
             );
 
 
         /*
-         * Jangan gunakan fallback ke credit_cost.
+         * Nilai null tetap null.
          *
-         * null tetap null agar data pricing
-         * yang belum tersedia tidak dianggap
-         * memiliki harga 0.
+         * Jangan mengubah pricing kosong
+         * menjadi 0 karena 0 dan "belum tersedia"
+         * adalah dua kondisi yang berbeda.
          */
 
         const credit480p =
@@ -615,55 +709,34 @@
             );
 
 
-        function calculateResolutionCreditFinal(
-            credit
-        ) {
-
-            if (
-                credit === null ||
-                credit === undefined ||
-                !Number.isFinite(
-                    Number(credit)
-                )
-            ) {
-
-                return null;
-
-            }
-
-
-            const finalCredit =
-                Number(credit) -
-                (
-                    Number(credit) *
-                    discountPercent /
-                    100
-                );
-
-
-            return Math.max(
-                0,
-                finalCredit
-            );
-
-        }
-
+        /*
+         * Credit final dihitung runtime.
+         *
+         * Tidak membaca:
+         * model.credit_final
+         * model.credit_final_480p
+         * model.credit_final_720p
+         * model.credit_final_1080p
+         */
 
         const creditFinal480p =
             calculateResolutionCreditFinal(
-                credit480p
+                credit480p,
+                discountPercent
             );
 
 
         const creditFinal720p =
             calculateResolutionCreditFinal(
-                credit720p
+                credit720p,
+                discountPercent
             );
 
 
         const creditFinal1080p =
             calculateResolutionCreditFinal(
-                credit1080p
+                credit1080p,
+                discountPercent
             );
 
 
@@ -722,9 +795,10 @@
 
             type,
 
-            /*
-             * Active resolution pricing.
-             */
+
+            /* =================================================
+               ACTIVE RESOLUTION PRICING
+               ================================================= */
 
             credit_480p:
                 credit480p,
@@ -735,11 +809,12 @@
             credit_1080p:
                 credit1080p,
 
-            /*
-             * Runtime-only calculated values.
-             *
-             * These are NOT database columns.
-             */
+
+            /* =================================================
+               RUNTIME-ONLY CREDIT FINAL
+               =================================================
+               BUKAN DATABASE COLUMN.
+               ================================================= */
 
             credit_final_480p:
                 creditFinal480p,
@@ -750,8 +825,10 @@
             credit_final_1080p:
                 creditFinal1080p,
 
+
             discount_percent:
                 discountPercent,
+
 
             min_duration:
                 minDuration,
@@ -777,6 +854,14 @@
                 null,
 
             parameters,
+
+            /*
+             * Simpan object asli untuk kompatibilitas
+             * dengan module lain.
+             *
+             * Pricing aktif tetap berasal dari field
+             * normalized di atas, bukan dari original.
+             */
 
             original:
                 model
@@ -874,10 +959,10 @@
     /* =========================================================
        FORMAT CREDIT
        ---------------------------------------------------------
-       PENTING:
-       Credit dapat berupa desimal.
        Contoh:
+       50   -> 50 Credit
        67.5 -> 67,5 Credit
+       90   -> 90 Credit
        ========================================================= */
 
     function formatCredit(value) {
@@ -1155,18 +1240,17 @@
 
     /* =========================================================
        RENDER PRICE
-    ========================================================= */
+       ========================================================= */
 
     function renderPrice(model) {
 
         const discount =
-            Number(
+            normalizeDiscountPercent(
                 model?.discount_percent
             );
 
 
         const hasDiscount =
-            Number.isFinite(discount) &&
             discount > 0;
 
 
@@ -1180,7 +1264,10 @@
                     model?.credit_480p,
 
                 finalCredit:
-                    model?.credit_final_480p
+                    calculateResolutionCreditFinal(
+                        model?.credit_480p,
+                        discount
+                    )
 
             },
 
@@ -1192,7 +1279,10 @@
                     model?.credit_720p,
 
                 finalCredit:
-                    model?.credit_final_720p
+                    calculateResolutionCreditFinal(
+                        model?.credit_720p,
+                        discount
+                    )
 
             },
 
@@ -1204,7 +1294,10 @@
                     model?.credit_1080p,
 
                 finalCredit:
-                    model?.credit_final_1080p
+                    calculateResolutionCreditFinal(
+                        model?.credit_1080p,
+                        discount
+                    )
 
             }
 
@@ -2140,6 +2233,10 @@
             normalizeArray,
 
             normalizeNumber,
+
+            normalizeDiscountPercent,
+
+            calculateResolutionCreditFinal,
 
             normalizeModel,
 
