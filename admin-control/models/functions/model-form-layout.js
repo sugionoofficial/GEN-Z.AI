@@ -25,6 +25,18 @@
    - Edit database operation
    - Delete database operation
    - Provider lifecycle
+
+   Pricing source:
+   - credit_480p
+   - credit_720p
+   - credit_1080p
+   - discount_percent
+
+   Credit Final:
+   - runtime only
+   - tidak disimpan ke database
+   - tidak menggunakan credit_cost
+   - tidak menggunakan credit_final
    ========================================================= */
 
 (function () {
@@ -367,6 +379,12 @@
             "[name='model_description']"
         ],
 
+        /*
+         * Legacy pricing selectors sengaja dipertahankan
+         * hanya sebagai compatibility terhadap DOM lama.
+         *
+         * Tidak dibaca / ditulis sebagai sumber pricing.
+         */
         creditCost: [
             "#creditCost",
             "#credit_cost",
@@ -449,13 +467,19 @@
        CREDIT
        ========================================================= */
 
+    /*
+     * Runtime-only discounted credit.
+     *
+     * Tidak menggunakan credit_cost.
+     * Tidak membaca credit_final dari database.
+     */
     function calculateCreditFinal(
-        creditCost,
+        credit,
         discountPercent
     ) {
-        const cost =
+        const baseCredit =
             normalizeNumber(
-                creditCost,
+                credit,
                 0
             );
 
@@ -472,9 +496,9 @@
             );
 
         const result =
-            cost -
+            baseCredit -
             (
-                cost *
+                baseCredit *
                 discount /
                 100
             );
@@ -516,6 +540,79 @@
         return fallback;
     }
 
+    function getRuntimeCreditValues(
+        model
+    ) {
+        const source =
+            model &&
+            typeof model === "object"
+                ? model
+                : {};
+
+        const discountPercent =
+            normalizeNumber(
+                source.discount_percent ??
+                source.discountPercent,
+                0
+            );
+
+        const credit480p =
+            readCreditField(
+                source,
+                "credit_480p",
+                "credit480p",
+                0
+            );
+
+        const credit720p =
+            readCreditField(
+                source,
+                "credit_720p",
+                "credit720p",
+                0
+            );
+
+        const credit1080p =
+            readCreditField(
+                source,
+                "credit_1080p",
+                "credit1080p",
+                0
+            );
+
+        return {
+            credit_480p:
+                credit480p,
+
+            credit_720p:
+                credit720p,
+
+            credit_1080p:
+                credit1080p,
+
+            discount_percent:
+                discountPercent,
+
+            credit_final_480p:
+                calculateCreditFinal(
+                    credit480p,
+                    discountPercent
+                ),
+
+            credit_final_720p:
+                calculateCreditFinal(
+                    credit720p,
+                    discountPercent
+                ),
+
+            credit_final_1080p:
+                calculateCreditFinal(
+                    credit1080p,
+                    discountPercent
+                )
+        };
+    }
+
     /* =========================================================
        MODEL NORMALIZATION
        ---------------------------------------------------------
@@ -534,13 +631,6 @@
             return null;
         }
 
-        const creditCost =
-            normalizeNumber(
-                model.credit_cost ??
-                model.creditCost,
-                0
-            );
-
         const discountPercent =
             normalizeNumber(
                 model.discount_percent ??
@@ -548,138 +638,39 @@
                 0
             );
 
-        const hasCreditFinal =
-            (
-                hasOwn(
-                    model,
-                    "credit_final"
-                ) &&
-                hasValue(
-                    model.credit_final
-                )
-            ) ||
-            (
-                hasOwn(
-                    model,
-                    "creditFinal"
-                ) &&
-                hasValue(
-                    model.creditFinal
-                )
-            );
-
-        const creditFinal =
-            hasCreditFinal
-                ? normalizeNumber(
-                    model.credit_final ??
-                    model.creditFinal,
-                    0
-                )
-                : calculateCreditFinal(
-                    creditCost,
-                    discountPercent
-                );
-
         /*
-         * Untuk per-resolution credit:
+         * Pricing hanya menggunakan:
+         * - credit_480p
+         * - credit_720p
+         * - credit_1080p
+         * - discount_percent
          *
-         * 1. nilai DB yang eksplisit dipakai.
-         * 2. nilai 0 tetap valid.
-         * 3. hanya field yang benar-benar tidak ada
-         *    yang boleh fallback ke credit_final.
-         *
-         * Ini menjaga row lama yang belum punya
-         * kolom credit resolution.
+         * Tidak ada fallback ke credit_cost
+         * atau credit_final.
          */
-        const has480 =
-            (
-                hasOwn(
-                    model,
-                    "credit_480p"
-                ) &&
-                hasValue(
-                    model.credit_480p
-                )
-            ) ||
-            (
-                hasOwn(
-                    model,
-                    "credit480p"
-                ) &&
-                hasValue(
-                    model.credit480p
-                )
-            );
-
-        const has720 =
-            (
-                hasOwn(
-                    model,
-                    "credit_720p"
-                ) &&
-                hasValue(
-                    model.credit_720p
-                )
-            ) ||
-            (
-                hasOwn(
-                    model,
-                    "credit720p"
-                ) &&
-                hasValue(
-                    model.credit720p
-                )
-            );
-
-        const has1080 =
-            (
-                hasOwn(
-                    model,
-                    "credit_1080p"
-                ) &&
-                hasValue(
-                    model.credit_1080p
-                )
-            ) ||
-            (
-                hasOwn(
-                    model,
-                    "credit1080p"
-                ) &&
-                hasValue(
-                    model.credit1080p
-                )
-            );
-
         const credit480p =
-            has480
-                ? readCreditField(
-                    model,
-                    "credit_480p",
-                    "credit480p",
-                    0
-                )
-                : creditFinal;
+            readCreditField(
+                model,
+                "credit_480p",
+                "credit480p",
+                0
+            );
 
         const credit720p =
-            has720
-                ? readCreditField(
-                    model,
-                    "credit_720p",
-                    "credit720p",
-                    0
-                )
-                : creditFinal;
+            readCreditField(
+                model,
+                "credit_720p",
+                "credit720p",
+                0
+            );
 
         const credit1080p =
-            has1080
-                ? readCreditField(
-                    model,
-                    "credit_1080p",
-                    "credit1080p",
-                    0
-                )
-                : creditFinal;
+            readCreditField(
+                model,
+                "credit_1080p",
+                "credit1080p",
+                0
+            );
 
         const supportedRatios =
             uniqueArray(
@@ -754,14 +745,8 @@
                     model.description
                 ),
 
-            credit_cost:
-                creditCost,
-
             discount_percent:
                 discountPercent,
-
-            credit_final:
-                creditFinal,
 
             credit_480p:
                 credit480p,
@@ -1589,28 +1574,17 @@
 
         /*
          * Credits.
+         *
+         * Hanya credit per resolution dan discount.
+         *
+         * credit_cost dan credit_final tidak lagi
+         * menjadi bagian dari state pricing.
          */
-        setValue(
-            form,
-            FIELD.creditCost,
-            data
-                ? data.credit_cost
-                : ""
-        );
-
         setValue(
             form,
             FIELD.discountPercent,
             data
                 ? data.discount_percent
-                : ""
-        );
-
-        setValue(
-            form,
-            FIELD.creditFinal,
-            data
-                ? data.credit_final
                 : ""
         );
 
@@ -1636,6 +1610,24 @@
             data
                 ? data.credit_1080p
                 : ""
+        );
+
+        /*
+         * Legacy DOM fields tidak digunakan.
+         *
+         * Jika masih ada di HTML lama, kosongkan agar
+         * tidak ikut membawa nilai pricing lama.
+         */
+        setValue(
+            form,
+            FIELD.creditCost,
+            ""
+        );
+
+        setValue(
+            form,
+            FIELD.creditFinal,
+            ""
         );
 
         /*
@@ -1825,20 +1817,8 @@
 
         setValue(
             form,
-            FIELD.creditCost,
-            data.credit_cost
-        );
-
-        setValue(
-            form,
             FIELD.discountPercent,
             data.discount_percent
-        );
-
-        setValue(
-            form,
-            FIELD.creditFinal,
-            data.credit_final
         );
 
         setValue(
@@ -1857,6 +1837,21 @@
             form,
             FIELD.credit1080p,
             data.credit_1080p
+        );
+
+        /*
+         * Bersihkan field legacy bila masih ada.
+         */
+        setValue(
+            form,
+            FIELD.creditCost,
+            ""
+        );
+
+        setValue(
+            form,
+            FIELD.creditFinal,
+            ""
         );
 
         setValue(
@@ -1887,6 +1882,10 @@
             form,
             data.supported_ratios,
             data.supported_resolutions
+        );
+
+        updateCreditFinalPreview(
+            form
         );
 
         return data;
@@ -1997,6 +1996,9 @@
             ""
         );
 
+        /*
+         * Legacy pricing field tidak lagi digunakan.
+         */
         setValue(
             root,
             FIELD.creditCost,
@@ -2068,44 +2070,133 @@
         const form =
             getRoot(root);
 
-        const cost =
-            getValue(
-                form,
-                FIELD.creditCost,
-                ""
+        const discount =
+            normalizeNumber(
+                getValue(
+                    form,
+                    FIELD.discountPercent,
+                    0
+                ),
+                0
             );
 
-        const discount =
-            getValue(
-                form,
-                FIELD.discountPercent,
-                ""
+        const credit480p =
+            normalizeNumber(
+                getValue(
+                    form,
+                    FIELD.credit480p,
+                    0
+                ),
+                0
+            );
+
+        const credit720p =
+            normalizeNumber(
+                getValue(
+                    form,
+                    FIELD.credit720p,
+                    0
+                ),
+                0
+            );
+
+        const credit1080p =
+            normalizeNumber(
+                getValue(
+                    form,
+                    FIELD.credit1080p,
+                    0
+                ),
+                0
+            );
+
+        const final480p =
+            calculateCreditFinal(
+                credit480p,
+                discount
+            );
+
+        const final720p =
+            calculateCreditFinal(
+                credit720p,
+                discount
+            );
+
+        const final1080p =
+            calculateCreditFinal(
+                credit1080p,
+                discount
             );
 
         /*
-         * Jika field normal dan discount tersedia,
-         * Credit Final selalu disinkronkan.
+         * Jika UI mempunyai preview khusus per resolution,
+         * sinkronkan runtime value.
+         *
+         * Field-field ini bukan database fields.
          */
-        if (
-            hasValue(cost) ||
-            hasValue(discount)
-        ) {
-            const final =
-                calculateCreditFinal(
-                    cost,
-                    discount
-                );
+        const previewSelectors = {
+            "480p": [
+                "#creditFinal480p",
+                "#credit_final_480p",
+                "[data-credit-final='480p']",
+                "[data-credit-final-480p]"
+            ],
 
-            setValue(
-                form,
-                FIELD.creditFinal,
-                final
-            );
+            "720p": [
+                "#creditFinal720p",
+                "#credit_final_720p",
+                "[data-credit-final='720p']",
+                "[data-credit-final-720p]"
+            ],
 
-            return final;
-        }
+            "1080p": [
+                "#creditFinal1080p",
+                "#credit_final_1080p",
+                "[data-credit-final='1080p']",
+                "[data-credit-final-1080p]"
+            ]
+        };
 
-        return null;
+        setValue(
+            form,
+            previewSelectors["480p"],
+            final480p
+        );
+
+        setValue(
+            form,
+            previewSelectors["720p"],
+            final720p
+        );
+
+        setValue(
+            form,
+            previewSelectors["1080p"],
+            final1080p
+        );
+
+        /*
+         * Legacy single Credit Final tidak lagi
+         * menjadi bagian dari pricing state.
+         *
+         * Kosongkan bila elemen lama masih ada.
+         */
+        setValue(
+            form,
+            FIELD.creditFinal,
+            ""
+        );
+
+        return {
+            "480p":
+                final480p,
+
+            "720p":
+                final720p,
+
+            "1080p":
+                final1080p
+        };
     }
 
     /* =========================================================
@@ -2148,6 +2239,12 @@
                 : selectData
                     .supported_resolutions;
 
+        /*
+         * Hanya kirim field pricing yang memang
+         * menjadi source of truth.
+         *
+         * Credit Final TIDAK dikirim.
+         */
         return {
             provider_id:
                 normalizeId(
@@ -2185,31 +2282,11 @@
                     )
                 ),
 
-            credit_cost:
-                normalizeNumber(
-                    getValue(
-                        form,
-                        FIELD.creditCost,
-                        0
-                    ),
-                    0
-                ),
-
             discount_percent:
                 normalizeNumber(
                     getValue(
                         form,
                         FIELD.discountPercent,
-                        0
-                    ),
-                    0
-                ),
-
-            credit_final:
-                normalizeNumber(
-                    getValue(
-                        form,
-                        FIELD.creditFinal,
                         0
                     ),
                     0
@@ -2299,13 +2376,6 @@
                 ? data
                 : {};
 
-        const creditCost =
-            normalizeNumber(
-                source.credit_cost ??
-                source.creditCost,
-                0
-            );
-
         const discountPercent =
             normalizeNumber(
                 source.discount_percent ??
@@ -2314,43 +2384,11 @@
             );
 
         /*
-         * credit_final compatibility.
-         */
-        const hasFinal =
-            (
-                hasOwn(
-                    source,
-                    "credit_final"
-                ) &&
-                hasValue(
-                    source.credit_final
-                )
-            ) ||
-            (
-                hasOwn(
-                    source,
-                    "creditFinal"
-                ) &&
-                hasValue(
-                    source.creditFinal
-                )
-            );
-
-        const creditFinal =
-            hasFinal
-                ? normalizeNumber(
-                    source.credit_final ??
-                    source.creditFinal,
-                    0
-                )
-                : calculateCreditFinal(
-                    creditCost,
-                    discountPercent
-                );
-
-        /*
          * Resolution credits:
          * preserve explicit values including 0.
+         *
+         * Tidak ada fallback ke credit_cost
+         * atau credit_final.
          */
         const credit480p =
             readCreditField(
@@ -2400,14 +2438,8 @@
                     source.description
                 ),
 
-            credit_cost:
-                creditCost,
-
             discount_percent:
                 discountPercent,
-
-            credit_final:
-                creditFinal,
 
             credit_480p:
                 credit480p,
@@ -2496,21 +2528,9 @@
             );
         }
 
-        const creditCost =
-            normalizeNumber(
-                model.credit_cost,
-                0
-            );
-
         const discountPercent =
             normalizeNumber(
                 model.discount_percent,
-                0
-            );
-
-        const creditFinal =
-            normalizeNumber(
-                model.credit_final,
                 0
             );
 
@@ -2533,27 +2553,11 @@
             );
 
         if (
-            creditCost < 0
-        ) {
-            errors.push(
-                "Credit Normal tidak boleh negatif."
-            );
-        }
-
-        if (
             discountPercent < 0 ||
             discountPercent > 100
         ) {
             errors.push(
                 "Discount harus berada di antara 0 dan 100."
-            );
-        }
-
-        if (
-            creditFinal < 0
-        ) {
-            errors.push(
-                "Credit Final tidak boleh negatif."
             );
         }
 
@@ -2812,16 +2816,28 @@
                 FIELD.modelId
             );
 
-        const creditCostField =
-            queryFirst(
-                form,
-                FIELD.creditCost
-            );
-
         const discountField =
             queryFirst(
                 form,
                 FIELD.discountPercent
+            );
+
+        const credit480pField =
+            queryFirst(
+                form,
+                FIELD.credit480p
+            );
+
+        const credit720pField =
+            queryFirst(
+                form,
+                FIELD.credit720p
+            );
+
+        const credit1080pField =
+            queryFirst(
+                form,
+                FIELD.credit1080p
             );
 
         if (providerField) {
@@ -2850,27 +2866,37 @@
             );
         }
 
-        if (creditCostField) {
-            creditCostField.addEventListener(
-                "input",
-                () => {
-                    updateCreditFinalPreview(
-                        form
-                    );
-                }
-            );
-        }
+        /*
+         * Credit final adalah runtime preview.
+         * Setiap perubahan base credit atau discount
+         * langsung menghitung ulang ketiga resolusi.
+         */
+        [
+            discountField,
+            credit480pField,
+            credit720pField,
+            credit1080pField
+        ]
+            .filter(Boolean)
+            .forEach(field => {
+                field.addEventListener(
+                    "input",
+                    () => {
+                        updateCreditFinalPreview(
+                            form
+                        );
+                    }
+                );
 
-        if (discountField) {
-            discountField.addEventListener(
-                "input",
-                () => {
-                    updateCreditFinalPreview(
-                        form
-                    );
-                }
-            );
-        }
+                field.addEventListener(
+                    "change",
+                    () => {
+                        updateCreditFinalPreview(
+                            form
+                        );
+                    }
+                );
+            });
 
         form.dataset
             .modelFormLayoutEventsAttached =
@@ -2886,6 +2912,8 @@
     const API = {
         FIELD,
 
+        RESOLUTION_ORDER,
+
         normalizeId,
         normalizeText,
         normalizeNumber,
@@ -2895,6 +2923,7 @@
         normalizeFormModel,
 
         calculateCreditFinal,
+        getRuntimeCreditValues,
 
         resolveProvider,
         findModel,
