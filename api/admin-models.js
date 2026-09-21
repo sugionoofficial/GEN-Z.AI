@@ -17,9 +17,7 @@
 // - Hapus model
 // - Provider validation
 // - Duplicate model validation
-// - Credit cost
 // - Discount percent
-// - Credit final
 // - Credit 480p
 // - Credit 720p
 // - Credit 1080p
@@ -28,6 +26,21 @@
 // - Resolution
 // - Status
 // - KIE.AI pricing
+//
+// PRICING MODEL:
+// - credit_480p
+// - credit_720p
+// - credit_1080p
+// - discount_percent
+//
+// CREDIT FINAL:
+// - Tidak disimpan ke database.
+// - Tidak dibaca dari database.
+// - Dihitung runtime oleh Generate/API generate.
+//
+// LEGACY:
+// - credit_cost tidak lagi digunakan.
+// - credit_final tidak lagi digunakan.
 //
 // Keamanan:
 // - Wajib login Supabase
@@ -492,6 +505,20 @@ const verifyAdmin = async (
 // ========================================
 // MODEL FIELDS
 // ========================================
+//
+// IMPORTANT:
+// credit_cost dan credit_final sengaja
+// tidak lagi diambil dari database.
+//
+// Harga model sekarang menggunakan:
+//
+// credit_480p
+// credit_720p
+// credit_1080p
+// discount_percent
+//
+// Credit final dihitung runtime.
+//
 
 const MODEL_FIELDS = [
 
@@ -505,25 +532,7 @@ const MODEL_FIELDS = [
 
     "description",
 
-    "credit_cost",
-
     "discount_percent",
-
-    "credit_final",
-
-    /*
-     * Credit per resolution.
-     *
-     * Nilai ini disimpan langsung dari
-     * konfigurasi Admin Models.
-     *
-     * Tidak dihitung dari:
-     * - KIE price
-     * - USD / IDR
-     * - duration
-     * - ratio
-     * - credit_final
-     */
 
     "credit_480p",
 
@@ -670,10 +679,6 @@ const parseNumber = (
     integer = false
 ) => {
 
-    const number =
-        Number(value);
-
-
     if (
         value === "" ||
         value === null ||
@@ -685,6 +690,10 @@ const parseNumber = (
         );
 
     }
+
+
+    const number =
+        Number(value);
 
 
     if (
@@ -843,40 +852,6 @@ const cleanModel = (
 
 
     // ====================================
-    // CREDIT COST
-    // ====================================
-
-    if (
-        input.credit_cost !== undefined &&
-        input.credit_cost !== ""
-    ) {
-
-        const value =
-            parseNumber(
-                input.credit_cost,
-                "credit_cost",
-                true
-            );
-
-
-        if (
-            value < 0
-        ) {
-
-            throw new Error(
-                "credit_cost tidak boleh negatif."
-            );
-
-        }
-
-
-        model.credit_cost =
-            value;
-
-    }
-
-
-    // ====================================
     // DISCOUNT PERCENT
     // ====================================
 
@@ -914,11 +889,6 @@ const cleanModel = (
     // ====================================
     // CREDIT 480P
     // ====================================
-    //
-    // Nilai berdiri sendiri.
-    // Tidak dihitung dari credit_final.
-    // Tidak dihitung dari harga KIE.
-    //
 
     if (
         input.credit_480p !== undefined &&
@@ -1228,22 +1198,6 @@ const validateModel = (
             );
 
         }
-
-    }
-
-
-    // ====================================
-    // CREDIT COST
-    // ====================================
-
-    if (
-        model.credit_cost !== undefined &&
-        model.credit_cost < 0
-    ) {
-
-        return (
-            "Credit cost tidak boleh negatif."
-        );
 
     }
 
@@ -2623,18 +2577,8 @@ const createModel = async (
 
 
     // ====================================
-    // DEFAULT
+    // DEFAULT DISCOUNT
     // ====================================
-
-    if (
-        model.credit_cost === undefined
-    ) {
-
-        model.credit_cost =
-            0;
-
-    }
-
 
     if (
         model.discount_percent === undefined
@@ -2646,6 +2590,10 @@ const createModel = async (
     }
 
 
+    // ====================================
+    // DEFAULT STATUS
+    // ====================================
+
     if (
         model.status === undefined
     ) {
@@ -2654,37 +2602,6 @@ const createModel = async (
             "active";
 
     }
-
-
-    /*
-     * ====================================
-     * RESOLUTION CREDIT
-     * ====================================
-     *
-     * Tidak menggunakan credit_final
-     * sebagai sumber kalkulasi.
-     *
-     * Jika frontend tidak mengirim nilai,
-     * database DEFAULT akan menangani nilai.
-     *
-     * Jika frontend mengirim 0,
-     * nilai 0 tetap disimpan.
-     */
-
-
-    // ====================================
-    // LEGACY CREDIT FINAL
-    // ====================================
-    //
-    // credit_final tetap ada di database
-    // untuk backward compatibility.
-    //
-    // Nilainya tidak ditulis oleh endpoint
-    // ini karena credit resolution sekarang
-    // menjadi sumber harga per resolusi.
-    //
-
-    delete model.credit_final;
 
 
     // ====================================
@@ -2942,21 +2859,6 @@ const updateModel = async (
         }
 
     }
-
-
-    // ====================================
-    // LEGACY CREDIT FINAL
-    // ====================================
-    //
-    // credit_final tetap tersedia untuk
-    // backward compatibility.
-    //
-    // Jangan menimpanya secara otomatis
-    // ketika Admin mengubah credit per
-    // resolution.
-    //
-
-    delete model.credit_final;
 
 
     // ====================================
