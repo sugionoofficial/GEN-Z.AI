@@ -1,1929 +1,980 @@
 /* =========================================================
    GEN-Z.AI
-   MODEL FORM EVENTS MODULE
+   MODEL SEARCH EVENTS
    ---------------------------------------------------------
    File:
-   admin-control/models/functions/model-form-events.js
+   admin-control/models/functions/model-search-events.js
 
    Tanggung jawab:
-   - Event binding Model Form
-   - Submit delegation
-   - Provider change delegation
-   - Model change delegation
-   - Modal open / close
-   - Cancel / Escape / Backdrop
-   - Sinkronisasi data ke module lain
+   - Event input Model ID
+   - Focus Model ID
+   - Keyboard navigation
+   - Click hasil dropdown
+   - Provider changed
+   - Click outside
+   - Event delegation
 
    Tidak bertanggung jawab:
    - Query Supabase
-   - Render form
-   - Create logic
-   - Edit logic
-   - Delete logic
-   - Model Search logic
-   - Provider lifecycle
+   - Search logic
+   - Render result
+   - Selection logic
+   - CRUD
+   - Membuat Model ID
    ========================================================= */
 
 (function () {
+
     "use strict";
 
-    let initialized = false;
 
-    let handlers = {};
+    /* =====================================================
+       STATE
+    ===================================================== */
 
-    let currentModels = [];
-    let currentProviders = [];
+    let bound = false;
 
-    let currentRoot = null;
+    let handlers = null;
 
-    let submitLocked = false;
 
-    /* =========================================================
-       BASIC HELPERS
-       ========================================================= */
+    /* =====================================================
+       SELECTORS
+    ===================================================== */
 
-    function normalizeId(value) {
-        if (
-            value === null ||
-            value === undefined
-        ) {
-            return "";
-        }
+    /*
+     * Model ID search input.
+     *
+     * Mendukung struktur lama dan baru.
+     */
+    const INPUT_SELECTOR = [
+        "#modelCodeSearch",
+        "#modelSearch",
+        "#modelIdSearch",
+        "#modelId",
+        "#model_id",
+        "[name='model_id']",
+        "[name='modelId']"
+    ].join(", ");
 
-        return String(value).trim();
-    }
 
-    function normalizeText(value) {
-        if (
-            value === null ||
-            value === undefined
-        ) {
-            return "";
-        }
+    /*
+     * Container hasil search.
+     *
+     * Selector item hasil sengaja tidak dimasukkan
+     * di sini karena container dapat berbeda.
+     */
+    const RESULT_SELECTOR = [
+        "#modelSearchResults",
+        "#modelResults",
+        "#modelDropdown"
+    ].join(", ");
 
-        return String(value).trim();
-    }
 
-    function isElement(value) {
-        return (
-            typeof Element !== "undefined" &&
-            value instanceof Element
+    /*
+     * Item hasil.
+     */
+    const RESULT_ITEM_SELECTOR = [
+        ".model-search-item",
+        "[data-model-id]",
+        "[data-model-search-item]"
+    ].join(", ");
+
+
+    /*
+     * Semua kemungkinan event Provider yang pernah
+     * digunakan oleh module GEN-Z.AI.
+     *
+     * Kita dengarkan semuanya agar module tetap
+     * kompatibel selama migrasi arsitektur.
+     */
+    const PROVIDER_EVENTS = [
+        "genz-model-provider-changed",
+        "genz-models-provider-changed",
+        "genz-provider-changed"
+    ];
+
+
+    /* =====================================================
+       GET INPUT
+    ===================================================== */
+
+    function getInput() {
+
+        return document.querySelector(
+            INPUT_SELECTOR
         );
     }
 
-    function getForm(root = currentRoot) {
-        if (isElement(root)) {
-            if (
-                typeof root.matches === "function" &&
-                root.matches("form")
-            ) {
-                return root;
-            }
 
-            const nestedForm =
-                root.querySelector(
-                    "#modelForm, #modelsForm, form[data-model-form]"
-                );
+    /* =====================================================
+       GET RESULT BOX
+    ===================================================== */
 
-            if (nestedForm) {
-                return nestedForm;
-            }
-        }
+    function getResultsBox() {
 
-        return (
-            document.getElementById("modelForm") ||
-            document.getElementById("modelsForm") ||
-            document.querySelector(
-                "form[data-model-form]"
-            )
-        );
-    }
-
-    function getRootElement(root = currentRoot) {
-        return (
-            root ||
-            getForm() ||
-            document
-        );
-    }
-
-    function queryFirst(root, selectors) {
-        const container = isElement(root)
-            ? root
-            : getRootElement();
-
-        for (const selector of selectors) {
-            try {
-                const element =
-                    container.querySelector(
-                        selector
-                    );
-
-                if (element) {
-                    return element;
-                }
-            } catch (_) {
-                /* ignore invalid selector */
-            }
-        }
-
-        return null;
-    }
-
-    function queryAll(root, selectors) {
-        const container = isElement(root)
-            ? root
-            : getRootElement();
-
-        const result = [];
-
-        for (const selector of selectors) {
-            try {
-                container
-                    .querySelectorAll(selector)
-                    .forEach(element => {
-                        if (
-                            !result.includes(
-                                element
-                            )
-                        ) {
-                            result.push(
-                                element
-                            );
-                        }
-                    });
-            } catch (_) {
-                /* ignore invalid selector */
-            }
-        }
-
-        return result;
-    }
-
-    /* =========================================================
-       MODULE ACCESS
-       ========================================================= */
-
-    function getCreateModule() {
-        return (
-            window.GENZModelFormCreate ||
-            null
-        );
-    }
-
-    function getEditModule() {
-        return (
-            window.GENZModelFormEdit ||
-            null
-        );
-    }
-
-    function getDeleteModule() {
-        return (
-            window.GENZModelDelete ||
-            window.GENZModelFormDelete ||
-            null
-        );
-    }
-
-    function getCoordinator() {
-        return (
-            window.GENZModelFormCoordinator ||
-            null
-        );
-    }
-
-    function getLayout() {
-        return (
-            window.GENZModelFormLayout ||
-            null
-        );
-    }
-
-    function getSearchModule() {
-        return (
-            window.GENZModelsSearch ||
-            window.GENZModelSearch ||
-            null
-        );
-    }
-
-    /* =========================================================
-       DATA
-       ========================================================= */
-
-    function setData(data = {}) {
-        if (
-            Array.isArray(data.models)
-        ) {
-            currentModels =
-                data.models;
-        }
-
-        if (
-            Array.isArray(data.providers)
-        ) {
-            currentProviders =
-                data.providers;
-        }
-
-        if (
-            data.root !== undefined
-        ) {
-            currentRoot =
-                data.root;
-        }
-
-        return getData();
-    }
-
-    function getData() {
-        return {
-            models:
-                currentModels,
-
-            providers:
-                currentProviders,
-
-            root:
-                currentRoot
-        };
-    }
-
-    /* =========================================================
-       LISTENER REGISTRY
-       ========================================================= */
-
-    function getElementKey(element) {
-        if (!element) {
-            return "unknown";
-        }
-
-        if (element.id) {
-            return element.id;
-        }
-
-        if (
-            element.dataset &&
-            element.dataset
-                .genzModelEventKey
-        ) {
-            return (
-                element.dataset
-                    .genzModelEventKey
-            );
-        }
-
-        const key =
-            `model-event-${Math.random()
-                .toString(36)
-                .slice(2)}`;
-
-        try {
-            element.dataset
-                .genzModelEventKey =
-                key;
-        } catch (_) {
-            return key;
-        }
-
-        return key;
-    }
-
-    function registerListener(
-        element,
-        eventName,
-        handler,
-        options = false,
-        key = null
-    ) {
-        if (!element) {
-            return false;
-        }
-
-        const recordKey =
-            key ||
-            `${eventName}:${getElementKey(
-                element
-            )}`;
-
-        if (
-            handlers[recordKey]
-        ) {
-            removeListenerRecord(
-                handlers[recordKey]
-            );
-        }
-
-        element.addEventListener(
-            eventName,
-            handler,
-            options
-        );
-
-        handlers[recordKey] = {
-            element,
-            eventName,
-            handler,
-            options
-        };
-
-        return true;
-    }
-
-    function removeListenerRecord(
-        record
-    ) {
-        if (
-            !record ||
-            !record.element
-        ) {
-            return;
-        }
-
-        try {
-            record.element.removeEventListener(
-                record.eventName,
-                record.handler,
-                record.options
-            );
-        } catch (_) {
-            /* non-fatal */
-        }
-    }
-
-    function unbind() {
-        Object.keys(
-            handlers
-        ).forEach(key => {
-            removeListenerRecord(
-                handlers[key]
-            );
-        });
-
-        handlers = {};
-
-        initialized = false;
-
-        submitLocked = false;
-    }
-
-    /* =========================================================
-       MODAL
-       ========================================================= */
-
-    function getModal() {
         return (
             document.getElementById(
-                "modelModal"
+                "modelSearchResults"
             ) ||
+
+            document.getElementById(
+                "modelResults"
+            ) ||
+
+            document.getElementById(
+                "modelDropdown"
+            ) ||
+
             document.querySelector(
-                "[data-model-modal]"
+                "[data-model-search-results]"
             )
         );
     }
 
-    function isModalOpen() {
-        const modal =
-            getModal();
 
-        if (!modal) {
-            return false;
+    /* =====================================================
+       GET TARGET
+    ===================================================== */
+
+    function getClosestTarget(
+        event,
+        selector
+    ) {
+
+        const target =
+            event?.target;
+
+
+        if (
+            !target ||
+            typeof target.closest !==
+                "function"
+        ) {
+
+            return null;
         }
 
-        return (
-            modal.classList.contains(
-                "show"
-            ) ||
-            modal.classList.contains(
-                "active"
-            ) ||
-            modal.classList.contains(
-                "open"
-            ) ||
-            modal.getAttribute(
-                "aria-hidden"
-            ) === "false" ||
-            modal.style.display ===
-                "flex" ||
-            modal.style.display ===
-                "block"
+
+        return target.closest(
+            selector
         );
     }
 
-    function closeSearchDropdowns() {
-        const search =
-            getSearchModule();
 
-        if (!search) {
+    /* =====================================================
+       IS MODEL INPUT
+    ===================================================== */
+
+    function getInputTarget(
+        event
+    ) {
+
+        return getClosestTarget(
+            event,
+            INPUT_SELECTOR
+        );
+    }
+
+
+    /* =====================================================
+       IS RESULT CONTAINER
+    ===================================================== */
+
+    function getResultTarget(
+        event
+    ) {
+
+        return getClosestTarget(
+            event,
+            RESULT_SELECTOR
+        );
+    }
+
+
+    /* =====================================================
+       IS RESULT ITEM
+    ===================================================== */
+
+    function getResultItem(
+        event
+    ) {
+
+        return getClosestTarget(
+            event,
+            RESULT_ITEM_SELECTOR
+        );
+    }
+
+
+    /* =====================================================
+       STOP EVENT SAFELY
+    ===================================================== */
+
+    function stopEvent(
+        event
+    ) {
+
+        if (
+            !event
+        ) {
+
             return;
         }
 
-        const methods = [
-            "close",
-            "closeDropdown",
-            "hideDropdown"
-        ];
 
-        for (const method of methods) {
-            if (
-                typeof search[method] ===
+        if (
+            typeof event.preventDefault ===
                 "function"
-            ) {
-                try {
-                    search[method]();
-                } catch (_) {
-                    /* search cleanup is non-fatal */
-                }
-            }
+        ) {
+
+            event.preventDefault();
         }
     }
 
-    function resetEditState() {
-        const edit =
-            getEditModule();
 
-        if (!edit) {
-            return;
+    /* =====================================================
+       BIND
+    ===================================================== */
+
+    function bind(
+        api
+    ) {
+
+        /*
+         * Hindari duplicate listener.
+         */
+        if (
+            bound
+        ) {
+
+            return true;
         }
 
-        try {
-            /*
-             * cancelEditModel harus diprioritaskan
-             * karena module Edit memiliki original
-             * snapshot yang perlu dipulihkan.
-             */
-            if (
-                typeof edit
-                    .cancelEditModel ===
+
+        if (
+            !document.body
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] document.body belum tersedia."
+            );
+
+            return false;
+        }
+
+
+        /*
+         * Semua callback utama wajib tersedia.
+         */
+        if (
+            !api ||
+            typeof api.onInput !==
+                "function" ||
+            typeof api.onFocus !==
+                "function" ||
+            typeof api.onKeydown !==
+                "function" ||
+            typeof api.onResultsClick !==
+                "function" ||
+            typeof api.onProviderChanged !==
+                "function" ||
+            typeof api.onDocumentClick !==
                 "function"
+        ) {
+
+            console.error(
+                "[GEN-Z.AI] Model Search Events menerima handler yang tidak lengkap.",
+                api
+            );
+
+            return false;
+        }
+
+
+        handlers = {
+
+            onInput:
+                api.onInput,
+
+            onFocus:
+                api.onFocus,
+
+            onKeydown:
+                api.onKeydown,
+
+            onResultsClick:
+                api.onResultsClick,
+
+            onProviderChanged:
+                api.onProviderChanged,
+
+            onDocumentClick:
+                api.onDocumentClick
+        };
+
+
+        /* =================================================
+           INPUT
+           ================================================= */
+
+        function delegatedInput(
+            event
+        ) {
+
+            const input =
+                getInputTarget(
+                    event
+                );
+
+
+            if (
+                !input
             ) {
-                edit.cancelEditModel();
+
                 return;
             }
 
-            if (
-                typeof edit
-                    .clearEditingModel ===
-                "function"
-            ) {
-                edit.clearEditingModel();
-            }
-        } catch (_) {
-            /* state cleanup remains non-fatal */
-        }
-    }
 
-    function resetCreateState() {
-        const create =
-            getCreateModule();
+            try {
 
-        if (!create) {
-            return;
-        }
+                handlers.onInput(
+                    event
+                );
 
-        try {
-            if (
-                typeof create
-                    .closeCreate ===
-                "function"
-            ) {
-                create.closeCreate();
-            }
-        } catch (_) {
-            /* state cleanup remains non-fatal */
-        }
-    }
+            } catch (error) {
 
-    function closeCoordinatorState() {
-        const coordinator =
-            getCoordinator();
-
-        if (!coordinator) {
-            return;
-        }
-
-        /*
-         * Hanya panggil method yang memang tersedia.
-         *
-         * Jangan memanggil submit/create/update
-         * dari sini karena dapat menyebabkan lifecycle
-         * recursive.
-         */
-        const methods = [
-            "cancel",
-            "reset",
-            "clear",
-            "resetFormState"
-        ];
-
-        for (const method of methods) {
-            if (
-                typeof coordinator[method] ===
-                "function"
-            ) {
-                try {
-                    coordinator[method]();
-                    return;
-                } catch (_) {
-                    /* try compatible fallback */
-                }
+                console.error(
+                    "[GEN-Z.AI] Model Search input handler error:",
+                    error
+                );
             }
         }
-    }
 
-    function closeModal(options = {}) {
-        const modal =
-            getModal();
 
-        const cleanup =
-            options.cleanup !== false;
+        /* =================================================
+           FOCUS
+           ================================================= */
 
-        if (cleanup) {
+        function delegatedFocus(
+            event
+        ) {
+
+            const input =
+                getInputTarget(
+                    event
+                );
+
+
+            if (
+                !input
+            ) {
+
+                return;
+            }
+
+
+            try {
+
+                handlers.onFocus(
+                    event
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Model Search focus handler error:",
+                    error
+                );
+            }
+        }
+
+
+        /* =================================================
+           KEYDOWN
+           ================================================= */
+
+        function delegatedKeydown(
+            event
+        ) {
+
+            const input =
+                getInputTarget(
+                    event
+                );
+
+
+            if (
+                !input
+            ) {
+
+                return;
+            }
+
+
+            try {
+
+                handlers.onKeydown(
+                    event
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Model Search keyboard handler error:",
+                    error
+                );
+            }
+        }
+
+
+        /* =================================================
+           RESULT CLICK
+           ================================================= */
+
+        function delegatedResultsClick(
+            event
+        ) {
+
+            const resultContainer =
+                getResultTarget(
+                    event
+                );
+
+
+            if (
+                !resultContainer
+            ) {
+
+                return;
+            }
+
+
             /*
-             * Urutan penting:
+             * Pastikan klik benar-benar berada
+             * pada item hasil, bukan area kosong
+             * di dalam dropdown.
+             */
+            const item =
+                getResultItem(
+                    event
+                );
+
+
+            if (
+                !item
+            ) {
+
+                return;
+            }
+
+
+            try {
+
+                handlers.onResultsClick(
+                    event
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Model Search result click error:",
+                    error
+                );
+            }
+        }
+
+
+        /* =================================================
+           PROVIDER CHANGED
+           ================================================= */
+
+        function delegatedProviderChanged(
+            event
+        ) {
+
+            try {
+
+                handlers.onProviderChanged(
+                    event
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Model Search Provider change error:",
+                    error
+                );
+            }
+        }
+
+
+        /* =================================================
+           DOCUMENT CLICK
+           ================================================= */
+
+        function delegatedDocumentClick(
+            event
+        ) {
+
+            /*
+             * Jika klik berada di input atau hasil,
+             * jangan dianggap sebagai outside click.
              *
-             * 1. Edit mengembalikan snapshot.
-             * 2. Create dibersihkan.
-             * 3. Coordinator dibersihkan.
-             * 4. Search dropdown ditutup.
+             * Ini penting agar klik Model tidak
+             * ditutup oleh listener document sebelum
+             * selection selesai.
              */
-            resetEditState();
-            resetCreateState();
-            closeCoordinatorState();
-            closeSearchDropdowns();
-        }
+            const input =
+                getInputTarget(
+                    event
+                );
 
-        if (!modal) {
-            submitLocked = false;
-            return false;
-        }
 
-        modal.classList.remove(
-            "show",
-            "active",
-            "open"
-        );
-
-        modal.setAttribute(
-            "aria-hidden",
-            "true"
-        );
-
-        /*
-         * Hanya mengubah display jika modal
-         * memang menggunakan inline display.
-         */
-        if (
-            modal.style.display ===
-                "flex" ||
-            modal.style.display ===
-                "block"
-        ) {
-            modal.style.display =
-                "none";
-        }
-
-        document.body.classList.remove(
-            "modal-open"
-        );
-
-        document.body.style.removeProperty(
-            "overflow"
-        );
-
-        submitLocked = false;
-
-        try {
-            document.dispatchEvent(
-                new CustomEvent(
-                    "genz-model-modal-closed",
-                    {
-                        detail: {
-                            modal,
-                            reason:
-                                options.reason ||
-                                "programmatic"
-                        }
-                    }
-                )
-            );
-        } catch (_) {
-            /* CustomEvent compatibility */
-        }
-
-        return true;
-    }
-
-    function openModal(options = {}) {
-        const modal =
-            getModal();
-
-        if (!modal) {
-            return false;
-        }
-
-        if (
-            Array.isArray(
-                options.models
-            ) ||
-            Array.isArray(
-                options.providers
-            ) ||
-            options.root !== undefined
-        ) {
-            setData(options);
-        }
-
-        modal.classList.add(
-            "show"
-        );
-
-        modal.setAttribute(
-            "aria-hidden",
-            "false"
-        );
-
-        if (
-            modal.style.display ===
-            "none"
-        ) {
-            modal.style.display =
-                "flex";
-        }
-
-        document.body.classList.add(
-            "modal-open"
-        );
-
-        submitLocked = false;
-
-        return true;
-    }
-
-    /* =========================================================
-       MODEL FIELD
-       ========================================================= */
-
-    function getModelField(
-        form
-    ) {
-        return queryFirst(
-            form,
-            [
-                "#modelCodeSearch",
-                "#modelId",
-                "#model_id",
-                "[name='model_id']",
-                "[name='modelId']"
-            ]
-        );
-    }
-
-    function getCurrentModelId(
-        form
-    ) {
-        const field =
-            getModelField(form);
-
-        if (!field) {
-            return "";
-        }
-
-        return normalizeId(
-            field.value
-        );
-    }
-
-    function getModelIdFromObject(
-        model
-    ) {
-        if (!model) {
-            return "";
-        }
-
-        return normalizeId(
-            model.model_id ??
-            model.modelId ??
-            model.id
-        );
-    }
-
-    function findCurrentModel(
-        modelId
-    ) {
-        const target =
-            normalizeId(
-                modelId
-            ).toLowerCase();
-
-        if (!target) {
-            return null;
-        }
-
-        return (
-            currentModels.find(
-                model => {
-                    return (
-                        getModelIdFromObject(
-                            model
-                        ).toLowerCase() ===
-                        target
-                    );
-                }
-            ) || null
-        );
-    }
-
-    function getSelectedModelFromSearch() {
-        const search =
-            getSearchModule();
-
-        if (!search) {
-            return null;
-        }
-
-        const methods = [
-            "getSelectedModel",
-            "getSelectedResult",
-            "getSelected",
-            "getCurrentModel"
-        ];
-
-        for (const method of methods) {
             if (
-                typeof search[method] ===
-                "function"
+                input
             ) {
-                try {
-                    const result =
-                        search[method]();
 
-                    if (
-                        result &&
-                        typeof result ===
-                            "object"
-                    ) {
-                        return result;
-                    }
-                } catch (_) {
-                    /* continue compatibility lookup */
-                }
-            }
-        }
-
-        return null;
-    }
-
-    function getSelectedModelFromEvent(
-        event
-    ) {
-        const detail =
-            event?.detail;
-
-        if (!detail) {
-            return null;
-        }
-
-        if (
-            detail.model &&
-            typeof detail.model ===
-                "object"
-        ) {
-            return detail.model;
-        }
-
-        if (
-            detail.result &&
-            typeof detail.result ===
-                "object"
-        ) {
-            return detail.result;
-        }
-
-        return null;
-    }
-
-    /* =========================================================
-       SUBMIT
-       ========================================================= */
-
-    async function handleSubmit(
-        event
-    ) {
-        if (
-            event &&
-            typeof event.preventDefault ===
-                "function"
-        ) {
-            event.preventDefault();
-        }
-
-        if (
-            event &&
-            typeof event.stopPropagation ===
-                "function"
-        ) {
-            event.stopPropagation();
-        }
-
-        /*
-         * Jangan gunakan stopImmediatePropagation
-         * karena module lain dapat memiliki listener
-         * yang memang dibutuhkan untuk lifecycle.
-         */
-
-        if (submitLocked) {
-            return false;
-        }
-
-        submitLocked = true;
-
-        try {
-            const coordinator =
-                getCoordinator();
-
-            const edit =
-                getEditModule();
-
-            const create =
-                getCreateModule();
-
-            /*
-             * Coordinator adalah jalur utama.
-             *
-             * Penting:
-             * jika sedang edit, jangan pernah
-             * menjalankan createFromForm.
-             */
-            if (coordinator) {
-                const editing =
-                    edit &&
-                    typeof edit.isEditing ===
-                        "function" &&
-                    edit.isEditing();
-
-                if (editing) {
-                    if (
-                        typeof coordinator
-                            .updateFromForm ===
-                        "function"
-                    ) {
-                        return await coordinator
-                            .updateFromForm(
-                                event
-                            );
-                    }
-                } else {
-                    if (
-                        typeof coordinator
-                            .createFromForm ===
-                        "function"
-                    ) {
-                        return await coordinator
-                            .createFromForm(
-                                event
-                            );
-                    }
-                }
+                return;
             }
 
-            /*
-             * Fallback Edit.
-             */
+
+            const resultContainer =
+                getResultTarget(
+                    event
+                );
+
+
             if (
-                edit &&
-                typeof edit.isEditing ===
-                    "function" &&
-                edit.isEditing()
+                resultContainer
             ) {
-                if (
-                    typeof edit
-                        .updateFromForm ===
-                    "function"
-                ) {
-                    return await edit
-                        .updateFromForm(
-                            event
-                        );
-                }
 
-                if (
-                    typeof edit
-                        .submitEditModel ===
-                    "function"
-                ) {
-                    return await edit
-                        .submitEditModel(
-                            event
-                        );
-                }
+                return;
             }
 
-            /*
-             * Fallback Create.
-             */
-            if (
-                create &&
-                typeof create
-                    .createFromForm ===
-                "function"
-            ) {
-                return await create
-                    .createFromForm(
-                        event
-                    );
-            }
-
-            throw new Error(
-                "Model Form Coordinator/Create/Edit module tidak tersedia."
-            );
-        } finally {
-            /*
-             * Lock hanya aktif selama operasi
-             * async berlangsung.
-             */
-            submitLocked = false;
-        }
-    }
-
-    /* =========================================================
-       PROVIDER CHANGE
-       ========================================================= */
-
-    function handleProviderChange(
-        event
-    ) {
-        const form =
-            getForm();
-
-        if (!form) {
-            return;
-        }
-
-        const layout =
-            getLayout();
-
-        if (
-            layout &&
-            typeof layout
-                .handleProviderChange ===
-            "function"
-        ) {
-            try {
-                layout.handleProviderChange(
-                    form,
-                    currentModels,
-                    currentProviders
-                );
-            } catch (_) {
-                /* layout synchronization is non-fatal */
-            }
-        }
-
-        /*
-         * Provider berubah.
-         * Hasil search dari provider sebelumnya
-         * tidak boleh dipakai lagi.
-         */
-        closeSearchDropdowns();
-
-        try {
-            document.dispatchEvent(
-                new CustomEvent(
-                    "genz-model-provider-changed",
-                    {
-                        detail: {
-                            providerId:
-                                normalizeId(
-                                    event?.target
-                                        ?.value
-                                ),
-                            form
-                        }
-                    }
-                )
-            );
-        } catch (_) {
-            /* compatibility */
-        }
-    }
-
-    /* =========================================================
-       MODEL CHANGE
-       ========================================================= */
-
-    function handleModelChange(
-        event
-    ) {
-        const form =
-            getForm();
-
-        if (!form) {
-            return null;
-        }
-
-        const modelFromEvent =
-            getSelectedModelFromEvent(
-                event
-            );
-
-        const modelId =
-            normalizeId(
-                event?.target?.value ??
-                event?.detail?.modelId ??
-                getModelIdFromObject(
-                    modelFromEvent
-                ) ??
-                getCurrentModelId(form)
-            );
-
-        if (!modelId) {
-            return null;
-        }
-
-        /*
-         * Model dari event Search memiliki prioritas
-         * karena hasil tersebut bisa berasal langsung
-         * dari Supabase dan belum berada di currentModels.
-         */
-        let selected =
-            modelFromEvent;
-
-        /*
-         * Jika event tidak membawa model,
-         * coba selected result milik Search module.
-         */
-        if (!selected) {
-            selected =
-                getSelectedModelFromSearch();
-        }
-
-        /*
-         * Berikutnya baru cari di currentModels.
-         */
-        if (!selected) {
-            selected =
-                findCurrentModel(
-                    modelId
-                );
-        }
-
-        const selectedId =
-            getModelIdFromObject(
-                selected
-            );
-
-        /*
-         * Jangan mengisi field dengan model
-         * yang berbeda dari input aktif.
-         */
-        const selectedMatches =
-            selected &&
-            selectedId &&
-            selectedId.toLowerCase() ===
-                modelId.toLowerCase();
-
-        const layout =
-            getLayout();
-
-        /*
-         * Layout hanya menerima model lokal.
-         *
-         * Jika Search mendapatkan model Supabase
-         * yang belum masuk currentModels, jangan
-         * memaksa layout memakai array yang salah.
-         */
-        if (
-            selectedMatches &&
-            layout
-        ) {
-            /*
-             * Jika layout menyediakan method khusus
-             * untuk model terpilih, gunakan method itu.
-             */
-            if (
-                typeof layout
-                    .updateSelectedModel ===
-                "function"
-            ) {
-                try {
-                    layout.updateSelectedModel(
-                        form,
-                        selected
-                    );
-                } catch (_) {
-                    /* compatibility */
-                }
-            } else if (
-                typeof layout
-                    .updateSelectedModelFields ===
-                "function" &&
-                currentModels.includes(
-                    selected
-                )
-            ) {
-                try {
-                    layout.updateSelectedModelFields(
-                        form,
-                        currentModels
-                    );
-                } catch (_) {
-                    /* compatibility */
-                }
-            }
-        } else if (
-            !selected &&
-            layout &&
-            typeof layout
-                .updateSelectedModelFields ===
-                "function"
-        ) {
-            /*
-             * Hanya sinkronkan layout jika model memang
-             * tersedia dalam currentModels.
-             */
-            const localModel =
-                findCurrentModel(
-                    modelId
-                );
-
-            if (localModel) {
-                try {
-                    layout.updateSelectedModelFields(
-                        form,
-                        currentModels
-                    );
-                } catch (_) {
-                    /* compatibility */
-                }
-            }
-        }
-
-        if (selectedMatches) {
-            try {
-                document.dispatchEvent(
-                    new CustomEvent(
-                        "genz-model-selected",
-                        {
-                            detail: {
-                                model:
-                                    selected,
-                                modelId,
-                                form,
-                                source:
-                                    modelFromEvent
-                                        ? "search-event"
-                                        : "search-or-local"
-                            }
-                        }
-                    )
-                );
-            } catch (_) {
-                /* compatibility */
-            }
-
-            return selected;
-        }
-
-        /*
-         * Jangan mengirim "not found".
-         *
-         * Search Supabase dapat berjalan async.
-         * Events module hanya memberitahu bahwa
-         * Model ID berubah.
-         */
-        try {
-            document.dispatchEvent(
-                new CustomEvent(
-                    "genz-model-id-changed",
-                    {
-                        detail: {
-                            modelId,
-                            form
-                        }
-                    }
-                )
-            );
-        } catch (_) {
-            /* compatibility */
-        }
-
-        return null;
-    }
-
-    /* =========================================================
-       MODEL INPUT
-       ========================================================= */
-
-    function handleModelInput(
-        event
-    ) {
-        const value =
-            normalizeText(
-                event?.target?.value
-            );
-
-        const form =
-            getForm();
-
-        /*
-         * Search module tetap pemilik utama
-         * pencarian as-you-type.
-         */
-        if (!value) {
-            closeSearchDropdowns();
 
             try {
-                document.dispatchEvent(
-                    new CustomEvent(
-                        "genz-model-search-input",
-                        {
-                            detail: {
-                                value: "",
-                                form
-                            }
-                        }
-                    )
+
+                handlers.onDocumentClick(
+                    event
                 );
-            } catch (_) {
-                /* compatibility */
-            }
 
-            return;
-        }
+            } catch (error) {
 
-        /*
-         * Jika exact match lokal tersedia,
-         * sinkronkan field tanpa query baru.
-         */
-        const localModel =
-            findCurrentModel(
-                value
-            );
-
-        if (localModel) {
-            handleModelChange(
-                event
-            );
-        }
-
-        /*
-         * Informasikan Search module.
-         * Search module yang melakukan query Supabase.
-         */
-        try {
-            document.dispatchEvent(
-                new CustomEvent(
-                    "genz-model-search-input",
-                    {
-                        detail: {
-                            value,
-                            form,
-                            providerId:
-                                normalizeId(
-                                    queryFirst(
-                                        form,
-                                        [
-                                            "#providerId",
-                                            "#provider_id",
-                                            "[name='provider_id']",
-                                            "[name='providerId']"
-                                        ]
-                                    )?.value
-                                )
-                        }
-                    }
-                )
-            );
-        } catch (_) {
-            /* compatibility */
-        }
-    }
-
-    /* =========================================================
-       CANCEL
-       ========================================================= */
-
-    function handleCancel(
-        event
-    ) {
-        if (
-            event &&
-            typeof event.preventDefault ===
-                "function"
-        ) {
-            event.preventDefault();
-        }
-
-        if (
-            event &&
-            typeof event.stopPropagation ===
-                "function"
-        ) {
-            event.stopPropagation();
-        }
-
-        const edit =
-            getEditModule();
-
-        /*
-         * Jika sedang edit, Edit module wajib
-         * memulihkan original snapshot terlebih dahulu.
-         */
-        if (
-            edit &&
-            typeof edit.isEditing ===
-                "function" &&
-            edit.isEditing()
-        ) {
-            try {
-                if (
-                    typeof edit
-                        .cancelEditModel ===
-                    "function"
-                ) {
-                    edit.cancelEditModel();
-                } else if (
-                    typeof edit
-                        .clearEditingModel ===
-                    "function"
-                ) {
-                    edit.clearEditingModel();
-                }
-            } catch (_) {
-                /* continue modal cleanup */
+                console.error(
+                    "[GEN-Z.AI] Model Search document click error:",
+                    error
+                );
             }
         }
 
-        /*
-         * Create module hanya ditutup.
-         */
-        resetCreateState();
 
-        /*
-         * Search dropdown dibersihkan.
-         */
-        closeSearchDropdowns();
+        /* =================================================
+           STORE WRAPPERS
+           ================================================= */
 
-        /*
-         * Coordinator dibersihkan tanpa submit.
-         */
-        closeCoordinatorState();
+        handlers.delegatedInput =
+            delegatedInput;
 
-        /*
-         * closeModal tidak melakukan cleanup kedua kali.
-         */
-        closeModal({
-            cleanup: false,
-            reason: "cancel"
-        });
+        handlers.delegatedFocus =
+            delegatedFocus;
 
-        return false;
-    }
+        handlers.delegatedKeydown =
+            delegatedKeydown;
 
-    /* =========================================================
-       CLOSE BUTTON
-       ========================================================= */
+        handlers.delegatedResultsClick =
+            delegatedResultsClick;
 
-    function handleClose(
-        event
-    ) {
-        if (
-            event &&
-            typeof event.preventDefault ===
-                "function"
-        ) {
-            event.preventDefault();
-        }
+        handlers.delegatedProviderChanged =
+            delegatedProviderChanged;
 
-        if (
-            event &&
-            typeof event.stopPropagation ===
-                "function"
-        ) {
-            event.stopPropagation();
-        }
+        handlers.delegatedDocumentClick =
+            delegatedDocumentClick;
 
-        closeModal({
-            cleanup: true,
-            reason: "close"
-        });
 
-        return false;
-    }
+        /* =================================================
+           REGISTER INPUT
+           ================================================= */
 
-    /* =========================================================
-       BACKDROP
-       ========================================================= */
-
-    function handleBackdrop(
-        event
-    ) {
-        const modal =
-            getModal();
-
-        if (!modal) {
-            return;
-        }
-
-        /*
-         * Hanya backdrop langsung.
-         * Klik di dalam konten modal tidak menutup modal.
-         */
-        if (
-            event.target !== modal
-        ) {
-            return;
-        }
-
-        closeModal({
-            cleanup: true,
-            reason: "backdrop"
-        });
-    }
-
-    /* =========================================================
-       ESCAPE
-       ========================================================= */
-
-    function handleEscape(
-        event
-    ) {
-        if (
-            !event ||
-            (
-                event.key !== "Escape" &&
-                event.key !== "Esc"
-            )
-        ) {
-            return;
-        }
-
-        const modal =
-            getModal();
-
-        if (
-            !modal ||
-            !isModalOpen()
-        ) {
-            return;
-        }
-
-        /*
-         * Escape pertama digunakan Search untuk
-         * menutup dropdown jika sedang terbuka.
-         */
-        const search =
-            getSearchModule();
-
-        if (
-            search &&
-            typeof search.isOpen ===
-                "function"
-        ) {
-            try {
-                if (
-                    search.isOpen()
-                ) {
-                    closeSearchDropdowns();
-
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    return;
-                }
-            } catch (_) {
-                /* continue modal handling */
-            }
-        }
-
-        event.preventDefault();
-
-        closeModal({
-            cleanup: true,
-            reason: "escape"
-        });
-    }
-
-    /* =========================================================
-       BIND FORM
-       ========================================================= */
-
-    function bindSubmit(
-        form
-    ) {
-        if (!form) {
-            return;
-        }
-
-        registerListener(
-            form,
-            "submit",
-            handleSubmit,
-            false,
-            "submit"
-        );
-    }
-
-    function bindProvider(
-        form
-    ) {
-        const provider =
-            queryFirst(
-                form,
-                [
-                    "#providerId",
-                    "#provider_id",
-                    "[name='provider_id']",
-                    "[name='providerId']"
-                ]
-            );
-
-        if (!provider) {
-            return;
-        }
-
-        registerListener(
-            provider,
-            "change",
-            handleProviderChange,
-            false,
-            "providerChange"
-        );
-    }
-
-    function bindModel(
-        form
-    ) {
-        /*
-         * Model search input hanya di-bind ke satu
-         * field utama agar tidak terjadi double query.
-         */
-        const model =
-            queryFirst(
-                form,
-                [
-                    "#modelCodeSearch",
-                    "#modelId",
-                    "#model_id",
-                    "[name='model_id']",
-                    "[name='modelId']"
-                ]
-            );
-
-        if (!model) {
-            return;
-        }
-
-        registerListener(
-            model,
-            "change",
-            handleModelChange,
-            false,
-            "modelChange"
-        );
-
-        registerListener(
-            model,
+        document.addEventListener(
             "input",
-            handleModelInput,
-            false,
-            "modelInput"
+            delegatedInput,
+            false
         );
-    }
 
-    function bindCloseButtons() {
-        const modal =
-            getModal();
 
-        if (!modal) {
-            return;
-        }
+        /* =================================================
+           REGISTER FOCUS
+           ================================================= */
 
-        const closeButtons =
-            queryAll(
-                modal,
-                [
-                    "[data-model-modal-close]",
-                    "[data-modal-close]",
-                    ".model-modal-close",
-                    ".modal-close",
-                    ".close-modal",
-                    "#closeModelModal"
-                ]
-            );
-
-        closeButtons.forEach(
-            (button, index) => {
-                registerListener(
-                    button,
-                    "click",
-                    handleClose,
-                    false,
-                    `close-${index}`
-                );
-            }
+        document.addEventListener(
+            "focusin",
+            delegatedFocus,
+            false
         );
-    }
 
-    function bindCancelButtons() {
-        const modal =
-            getModal();
 
-        if (!modal) {
-            return;
-        }
+        /* =================================================
+           REGISTER KEYBOARD
+           ================================================= */
 
-        const cancelButtons =
-            queryAll(
-                modal,
-                [
-                    "[data-model-cancel]",
-                    "[data-cancel-model]",
-                    "[data-action='cancel-model']",
-                    ".model-cancel",
-                    "#cancelModel"
-                ]
-            );
-
-        cancelButtons.forEach(
-            (button, index) => {
-                /*
-                 * Jika #cancelModel juga masuk close selector,
-                 * cancel harus memiliki handler khusus.
-                 */
-                registerListener(
-                    button,
-                    "click",
-                    handleCancel,
-                    false,
-                    `cancel-${index}`
-                );
-            }
-        );
-    }
-
-    function bindBackdrop() {
-        const modal =
-            getModal();
-
-        if (!modal) {
-            return;
-        }
-
-        registerListener(
-            modal,
-            "click",
-            handleBackdrop,
-            false,
-            "backdrop"
-        );
-    }
-
-    function bindEscape() {
-        registerListener(
-            document,
+        document.addEventListener(
             "keydown",
-            handleEscape,
-            false,
-            "escape"
+            delegatedKeydown,
+            false
         );
+
+
+        /* =================================================
+           REGISTER RESULT CLICK
+           ================================================= */
+
+        document.addEventListener(
+            "click",
+            delegatedResultsClick,
+            false
+        );
+
+
+        /* =================================================
+           REGISTER PROVIDER EVENTS
+           ================================================= */
+
+        handlers.providerEventNames =
+            PROVIDER_EVENTS.slice();
+
+
+        PROVIDER_EVENTS.forEach(
+            function (eventName) {
+
+                document.addEventListener(
+                    eventName,
+                    delegatedProviderChanged,
+                    false
+                );
+            }
+        );
+
+
+        /* =================================================
+           REGISTER DOCUMENT CLICK
+           ================================================= */
+
+        document.addEventListener(
+            "click",
+            delegatedDocumentClick,
+            false
+        );
+
+
+        /* =================================================
+           DROPDOWN POSITION
+           ================================================= */
+
+        const dropdown =
+            window.GENZModelSearchDropdown;
+
+
+        if (
+            dropdown &&
+            typeof dropdown.bindPositionEvents ===
+                "function"
+        ) {
+
+            try {
+
+                dropdown.bindPositionEvents();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Dropdown position event gagal dipasang:",
+                    error
+                );
+            }
+        }
+
+
+        /* =================================================
+           MARK BOUND
+           ================================================= */
+
+        bound =
+            true;
+
+
+        console.info(
+            "[GEN-Z.AI] GENZModelSearchEvents bound."
+        );
+
+
+        /*
+         * Input boleh belum ada karena form dapat
+         * dibuat setelah page bootstrap.
+         *
+         * Delegation tetap akan menangkap input
+         * ketika element dibuat kemudian.
+         */
+        const input =
+            getInput();
+
+
+        if (
+            input
+        ) {
+
+            console.info(
+                "[GEN-Z.AI] Model ID input terdeteksi:",
+                input.id ||
+                input.name ||
+                "unnamed"
+            );
+
+        } else {
+
+            console.info(
+                "[GEN-Z.AI] Model ID input belum ada. Event delegation tetap aktif."
+            );
+        }
+
+
+        return true;
     }
 
-    /* =========================================================
-       BIND
-       ========================================================= */
 
-    function bind(
-        options = {}
+    /* =====================================================
+       UNBIND
+    ===================================================== */
+
+    function unbind() {
+
+        if (
+            !bound ||
+            !handlers
+        ) {
+
+            return true;
+        }
+
+
+        /* =================================================
+           REMOVE INPUT
+           ================================================= */
+
+        if (
+            handlers.delegatedInput
+        ) {
+
+            document.removeEventListener(
+                "input",
+                handlers.delegatedInput,
+                false
+            );
+        }
+
+
+        /* =================================================
+           REMOVE FOCUS
+           ================================================= */
+
+        if (
+            handlers.delegatedFocus
+        ) {
+
+            document.removeEventListener(
+                "focusin",
+                handlers.delegatedFocus,
+                false
+            );
+        }
+
+
+        /* =================================================
+           REMOVE KEYBOARD
+           ================================================= */
+
+        if (
+            handlers.delegatedKeydown
+        ) {
+
+            document.removeEventListener(
+                "keydown",
+                handlers.delegatedKeydown,
+                false
+            );
+        }
+
+
+        /* =================================================
+           REMOVE RESULT CLICK
+           ================================================= */
+
+        if (
+            handlers.delegatedResultsClick
+        ) {
+
+            document.removeEventListener(
+                "click",
+                handlers.delegatedResultsClick,
+                false
+            );
+        }
+
+
+        /* =================================================
+           REMOVE PROVIDER EVENTS
+           ================================================= */
+
+        const providerEventNames =
+            Array.isArray(
+                handlers.providerEventNames
+            )
+                ? handlers.providerEventNames
+                : PROVIDER_EVENTS;
+
+
+        providerEventNames.forEach(
+            function (eventName) {
+
+                if (
+                    handlers.delegatedProviderChanged
+                ) {
+
+                    document.removeEventListener(
+                        eventName,
+                        handlers.delegatedProviderChanged,
+                        false
+                    );
+                }
+            }
+        );
+
+
+        /* =================================================
+           REMOVE DOCUMENT CLICK
+           ================================================= */
+
+        if (
+            handlers.delegatedDocumentClick
+        ) {
+
+            document.removeEventListener(
+                "click",
+                handlers.delegatedDocumentClick,
+                false
+            );
+        }
+
+
+        /* =================================================
+           RESET
+           ================================================= */
+
+        handlers =
+            null;
+
+        bound =
+            false;
+
+
+        /* =================================================
+           HIDE DROPDOWN
+           ================================================= */
+
+        const dropdown =
+            window.GENZModelSearchDropdown;
+
+
+        if (
+            dropdown &&
+            typeof dropdown.hide ===
+                "function"
+        ) {
+
+            try {
+
+                dropdown.hide();
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal menutup dropdown saat unbind:",
+                    error
+                );
+            }
+        }
+
+
+        console.info(
+            "[GEN-Z.AI] GENZModelSearchEvents unbound."
+        );
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       REBIND
+    ===================================================== */
+
+    function rebind(
+        api
     ) {
-        /*
-         * Bersihkan binding lama terlebih dahulu.
-         *
-         * Ini penting setelah render/re-render modal
-         * agar event submit tidak terpasang berkali-kali.
-         */
+
         unbind();
 
-        if (
-            options.root !== undefined
-        ) {
-            currentRoot =
-                options.root;
-        } else if (
-            !currentRoot
-        ) {
-            currentRoot =
-                getForm();
-        }
-
-        if (
-            Array.isArray(
-                options.models
-            ) ||
-            Array.isArray(
-                options.providers
-            )
-        ) {
-            setData(options);
-        }
-
-        const form =
-            getForm(
-                currentRoot
-            );
-
-        if (form) {
-            bindSubmit(form);
-            bindProvider(form);
-            bindModel(form);
-        }
-
-        bindCloseButtons();
-        bindCancelButtons();
-        bindBackdrop();
-        bindEscape();
-
-        initialized = true;
-
-        return true;
+        return bind(
+            api
+        );
     }
 
-    /* =========================================================
+
+    /* =====================================================
+       IS BOUND
+    ===================================================== */
+
+    function isBound() {
+
+        return bound;
+    }
+
+
+    /* =====================================================
        INITIALIZE
-       ========================================================= */
+    ===================================================== */
 
     function initialize(
-        options = {}
+        api
     ) {
-        setData(options);
 
-        /*
-         * Reset state hanya jika caller memang meminta.
-         *
-         * Jangan otomatis menghapus state Edit setiap
-         * kali module diinisialisasi karena initialize
-         * dapat dipanggil ulang saat lifecycle page.
-         */
-        if (
-            options.resetState === true
-        ) {
-            resetEditState();
-            resetCreateState();
-        }
-
-        return bind(options);
+        return bind(
+            api
+        );
     }
 
-    /* =========================================================
-       UPDATE DATA
-       ========================================================= */
 
-    function updateData(
-        data = {}
-    ) {
-        setData(data);
-
-        const form =
-            getForm(
-                currentRoot
-            );
-
-        const layout =
-            getLayout();
-
-        if (
-            form &&
-            layout
-        ) {
-            if (
-                typeof layout
-                    .updateModelIdOptions ===
-                "function"
-            ) {
-                try {
-                    layout.updateModelIdOptions(
-                        form,
-                        currentModels
-                    );
-                } catch (_) {
-                    /* non-fatal */
-                }
-            }
-
-            if (
-                typeof layout
-                    .updateProviderStatus ===
-                "function"
-            ) {
-                try {
-                    layout.updateProviderStatus(
-                        form,
-                        currentProviders
-                    );
-                } catch (_) {
-                    /* non-fatal */
-                }
-            }
-
-            if (
-                typeof layout
-                    .updateCreditFinalPreview ===
-                "function"
-            ) {
-                try {
-                    layout.updateCreditFinalPreview(
-                        form
-                    );
-                } catch (_) {
-                    /* non-fatal */
-                }
-            }
-        }
-
-        /*
-         * Search menerima data baru jika API tersedia.
-         *
-         * Events tetap tidak melakukan query.
-         */
-        const search =
-            getSearchModule();
-
-        if (
-            search &&
-            typeof search.setData ===
-                "function"
-        ) {
-            try {
-                search.setData({
-                    models:
-                        currentModels,
-                    providers:
-                        currentProviders
-                });
-            } catch (_) {
-                /* Search update is non-fatal */
-            }
-        }
-
-        return getData();
-    }
-
-    /* =========================================================
-       DESTROY
-       ========================================================= */
-
-    function destroy() {
-        unbind();
-
-        /*
-         * Data models/providers bukan milik module Events.
-         * Karena itu data tidak dihapus.
-         */
-        currentRoot = null;
-
-        submitLocked = false;
-
-        return true;
-    }
-
-    /* =========================================================
+    /* =====================================================
        PUBLIC API
-       ========================================================= */
+    ===================================================== */
 
-    const API = {
-        initialize,
-        bind,
-        unbind,
-        destroy,
+    window.GENZModelSearchEvents =
+        Object.freeze({
 
-        setData,
-        getData,
-        updateData,
+            bind,
 
-        openModal,
-        closeModal,
-        isModalOpen,
+            unbind,
 
-        handleSubmit,
-        handleProviderChange,
-        handleModelChange,
-        handleModelInput,
+            rebind,
 
-        handleCancel,
-        handleClose,
-        handleBackdrop,
-        handleEscape,
+            initialize,
 
-        getForm,
+            isBound
 
-        get initialized() {
-            return initialized;
-        }
-    };
+        });
 
-    window.GENZModelFormEvents =
-        API;
+
+    console.info(
+        "[GEN-Z.AI] GENZModelSearchEvents loaded."
+    );
 
 })();
