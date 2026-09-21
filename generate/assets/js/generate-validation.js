@@ -27,17 +27,13 @@
    - Query Supabase
    - API request
    - Provider
-   - Credit deduction
+   - Credit calculation
    - Render UI
 ========================================================= */
 
 import {
     getCurrentModel
 } from "./generate-state.js";
-
-import {
-    parameterDefinition
-} from "./generate-form.js";
 
 
 /* =========================================================
@@ -95,7 +91,9 @@ function normalizeArray(
         const text =
             value.trim();
 
+
         if (!text) {
+
             return [];
         }
 
@@ -115,8 +113,11 @@ function normalizeArray(
                         text
                     );
 
+
                 if (
-                    Array.isArray(parsed)
+                    Array.isArray(
+                        parsed
+                    )
                 ) {
 
                     return normalizeArray(
@@ -142,12 +143,18 @@ function normalizeArray(
 
             const content =
                 text
-                    .slice(1, -1)
+                    .slice(
+                        1,
+                        -1
+                    )
                     .trim();
 
+
             if (!content) {
+
                 return [];
             }
+
 
             return content
                 .split(",")
@@ -160,7 +167,9 @@ function normalizeArray(
                                 "$1"
                             )
                 )
-                .filter(Boolean);
+                .filter(
+                    Boolean
+                );
         }
 
 
@@ -173,7 +182,9 @@ function normalizeArray(
                 item =>
                     item.trim()
             )
-            .filter(Boolean);
+            .filter(
+                Boolean
+            );
     }
 
 
@@ -272,9 +283,31 @@ function isEmpty(
 
 
 /* =========================================================
+   PARAMETER NAME
+========================================================= */
+
+function getParameterName(
+    definition
+) {
+
+    return String(
+        definition?.name ||
+        definition?.key ||
+        definition?.parameter ||
+        definition?.id ||
+        ""
+    ).trim();
+}
+
+
+/* =========================================================
    MODEL PARAMETERS
    ---------------------------------------------------------
-   Hanya model.parameters.
+   SOURCE OF TRUTH:
+   currentModel.parameters
+
+   Tidak mengambil parameter dari
+   generate-form.js.
 ========================================================= */
 
 function getModelParameters(
@@ -282,6 +315,7 @@ function getModelParameters(
 ) {
 
     if (!model) {
+
         return [];
     }
 
@@ -290,6 +324,16 @@ function getModelParameters(
         model.parameters;
 
 
+    /*
+     * Array:
+     *
+     * [
+     *   {
+     *      name: "prompt",
+     *      type: "text"
+     *   }
+     * ]
+     */
     if (
         Array.isArray(
             parameters
@@ -307,6 +351,15 @@ function getModelParameters(
     }
 
 
+    /*
+     * Object:
+     *
+     * {
+     *    prompt: {
+     *       type: "text"
+     *    }
+     * }
+     */
     if (
         parameters &&
         typeof parameters ===
@@ -317,7 +370,9 @@ function getModelParameters(
          * Wrapper:
          *
          * {
-         *     parameters: {...}
+         *     parameters: {
+         *         ...
+         *     }
          * }
          */
         if (
@@ -328,6 +383,7 @@ function getModelParameters(
 
             return getModelParameters({
                 ...model,
+
                 parameters:
                     parameters.parameters
             });
@@ -385,20 +441,57 @@ function getModelParameters(
 
 
 /* =========================================================
-   PARAMETER NAME
+   GET PARAMETER DEFINITION
+   ---------------------------------------------------------
+   Pengganti:
+   parameterDefinition()
+
+   Tidak lagi bergantung pada generate-form.js.
 ========================================================= */
 
-function getParameterName(
-    definition
+function getParameterDefinition(
+    name,
+    model = getCurrentModel()
 ) {
 
-    return String(
-        definition?.name ||
-        definition?.key ||
-        definition?.parameter ||
-        definition?.id ||
-        ""
-    ).trim();
+    const normalizedName =
+        String(
+            name || ""
+        ).trim();
+
+
+    if (!normalizedName) {
+
+        return null;
+    }
+
+
+    if (
+        INTERNAL_PARAMETERS.has(
+            normalizedName
+        )
+    ) {
+
+        return null;
+    }
+
+
+    const definitions =
+        getModelParameters(
+            model
+        );
+
+
+    return (
+        definitions.find(
+            definition =>
+                getParameterName(
+                    definition
+                ) ===
+                normalizedName
+        ) ||
+        null
+    );
 }
 
 
@@ -573,7 +666,9 @@ function getOptions(
     )
         .map(
             value =>
-                String(value)
+                String(
+                    value
+                )
         )
         .filter(
             Boolean
@@ -637,7 +732,8 @@ function validateStringLength(
 
 
     if (
-        typeof value !== "string"
+        typeof value !==
+            "string"
     ) {
 
         return;
@@ -652,14 +748,16 @@ function validateStringLength(
 
     const minLength =
         toFiniteNumber(
-            definition?.minLength,
+            definition?.minLength ??
+            definition?.min_length,
             null
         );
 
 
     const maxLength =
         toFiniteNumber(
-            definition?.maxLength,
+            definition?.maxLength ??
+            definition?.max_length,
             null
         );
 
@@ -735,14 +833,16 @@ function validateArray(
 
     const minItems =
         toFiniteNumber(
-            definition?.minItems,
+            definition?.minItems ??
+            definition?.min_items,
             null
         );
 
 
     const maxItems =
         toFiniteNumber(
-            definition?.maxItems,
+            definition?.maxItems ??
+            definition?.max_items,
             null
         );
 
@@ -812,8 +912,10 @@ function validateOptions(
 
 
     /*
-     * Kalau model memang tidak memberikan
-     * daftar pilihan, jangan mengarang pilihan.
+     * Jangan membuat pilihan sendiri.
+     *
+     * Kalau model tidak menyediakan
+     * options, validasi pilihan dilewati.
      */
     if (
         options.length === 0
@@ -826,8 +928,12 @@ function validateOptions(
     const valid =
         options.some(
             option =>
-                String(option) ===
-                String(value)
+                String(
+                    option
+                ) ===
+                String(
+                    value
+                )
         );
 
 
@@ -900,14 +1006,16 @@ function validateNumber(
 
     const min =
         toFiniteNumber(
-            definition?.min,
+            definition?.min ??
+            definition?.minimum,
             null
         );
 
 
     const max =
         toFiniteNumber(
-            definition?.max,
+            definition?.max ??
+            definition?.maximum,
             null
         );
 
@@ -942,8 +1050,8 @@ function validateNumber(
 
 
     /*
-     * Validasi step hanya jika memang
-     * diberikan oleh parameters.js.
+     * Validasi step hanya jika model
+     * memang mendefinisikannya.
      */
     if (
         step !== null &&
@@ -997,6 +1105,7 @@ function getSupportedRatios(
 ) {
 
     if (!model) {
+
         return [];
     }
 
@@ -1015,6 +1124,7 @@ function getSupportedResolutions(
 ) {
 
     if (!model) {
+
         return [];
     }
 
@@ -1045,9 +1155,6 @@ function getDurationLimits(
     }
 
 
-    /*
-     * Bentuk langsung dari API.
-     */
     let min =
         toFiniteNumber(
             model.min_duration,
@@ -1065,7 +1172,9 @@ function getDurationLimits(
     /*
      * CamelCase.
      */
-    if (min === null) {
+    if (
+        min === null
+    ) {
 
         min =
             toFiniteNumber(
@@ -1075,7 +1184,9 @@ function getDurationLimits(
     }
 
 
-    if (max === null) {
+    if (
+        max === null
+    ) {
 
         max =
             toFiniteNumber(
@@ -1094,7 +1205,9 @@ function getDurationLimits(
             "object"
     ) {
 
-        if (min === null) {
+        if (
+            min === null
+        ) {
 
             min =
                 toFiniteNumber(
@@ -1104,7 +1217,9 @@ function getDurationLimits(
         }
 
 
-        if (max === null) {
+        if (
+            max === null
+        ) {
 
             max =
                 toFiniteNumber(
@@ -1124,7 +1239,9 @@ function getDurationLimits(
             "object"
     ) {
 
-        if (min === null) {
+        if (
+            min === null
+        ) {
 
             min =
                 toFiniteNumber(
@@ -1134,11 +1251,37 @@ function getDurationLimits(
         }
 
 
-        if (max === null) {
+        if (
+            max === null
+        ) {
 
             max =
                 toFiniteNumber(
                     model.config.max_duration,
+                    null
+                );
+        }
+
+
+        if (
+            min === null
+        ) {
+
+            min =
+                toFiniteNumber(
+                    model.config.minDuration,
+                    null
+                );
+        }
+
+
+        if (
+            max === null
+        ) {
+
+            max =
+                toFiniteNumber(
+                    model.config.maxDuration,
                     null
                 );
         }
@@ -1166,6 +1309,7 @@ function validateModelCapabilities(
 
 
     if (!model) {
+
         return;
     }
 
@@ -1193,7 +1337,9 @@ function validateModelCapabilities(
             supported.length > 0 &&
             !supported.some(
                 ratio =>
-                    String(ratio) ===
+                    String(
+                        ratio
+                    ) ===
                     String(
                         parameters.aspect_ratio
                     )
@@ -1230,7 +1376,9 @@ function validateModelCapabilities(
             supported.length > 0 &&
             !supported.some(
                 resolution =>
-                    String(resolution) ===
+                    String(
+                        resolution
+                    ) ===
                     String(
                         parameters.resolution
                     )
@@ -1330,13 +1478,13 @@ function validateDefinitions(
 
 
             if (!name) {
+
                 return;
             }
 
 
             /*
-             * task_id tidak pernah menjadi
-             * parameter Generate.
+             * task_id bukan input Generate.
              */
             if (
                 INTERNAL_PARAMETERS.has(
@@ -1368,7 +1516,9 @@ function validateDefinitions(
 
 
             const value =
-                parameters[name];
+                parameters[
+                    name
+                ];
 
 
             validateRequired(
@@ -1411,10 +1561,6 @@ function validateDefinitions(
 
 /* =========================================================
    REMOVE INTERNAL PARAMETERS
-   ---------------------------------------------------------
-   Defensive cleanup sebelum validation.
-
-   Ini bukan mutasi object asli.
 ========================================================= */
 
 function sanitizeParameters(
@@ -1424,7 +1570,10 @@ function sanitizeParameters(
     if (
         !parameters ||
         typeof parameters !==
-            "object"
+            "object" ||
+        Array.isArray(
+            parameters
+        )
     ) {
 
         return {};
@@ -1450,7 +1599,9 @@ function sanitizeParameters(
             }
 
 
-            sanitized[key] =
+            sanitized[
+                key
+            ] =
                 value;
         }
     );
@@ -1490,7 +1641,9 @@ export function validateClientParameters(
         !parameters ||
         typeof parameters !==
             "object" ||
-        Array.isArray(parameters)
+        Array.isArray(
+            parameters
+        )
     ) {
 
         errors.push(
@@ -1508,7 +1661,7 @@ export function validateClientParameters(
 
 
     /*
-     * Semua aturan berasal dari
+     * Validasi berdasarkan
      * model.parameters.
      */
     validateDefinitions(
@@ -1518,8 +1671,7 @@ export function validateClientParameters(
 
 
     /*
-     * Capability model berasal dari
-     * model-config, bukan aturan hardcode.
+     * Validasi capability model.
      */
     validateModelCapabilities(
         sanitized,
@@ -1590,13 +1742,14 @@ export function validateParameter(
 
 
     if (!normalizedName) {
+
         return [];
     }
 
 
     /*
-     * Internal parameter tidak boleh
-     * divalidasi sebagai input user.
+     * Internal parameter tidak divalidasi
+     * sebagai input user.
      */
     if (
         INTERNAL_PARAMETERS.has(
@@ -1612,8 +1765,20 @@ export function validateParameter(
         [];
 
 
+    /*
+     * PENTING:
+     *
+     * Tidak ada lagi:
+     *
+     * import {
+     *     parameterDefinition
+     * } from "./generate-form.js";
+     *
+     * Definisi parameter dicari langsung
+     * dari currentModel.parameters.
+     */
     const definition =
-        parameterDefinition(
+        getParameterDefinition(
             normalizedName
         );
 
@@ -1661,14 +1826,16 @@ export function validateParameter(
 
     return [
         ...new Set(
-            errors
+            errors.filter(
+                Boolean
+            )
         )
     ];
 }
 
 
 /* =========================================================
-   EXPORT VALIDATION API
+   PUBLIC VALIDATION API
 ========================================================= */
 
 export const generateValidation =
@@ -1684,5 +1851,9 @@ export const generateValidation =
 
     });
 
+
+/* =========================================================
+   DEFAULT EXPORT
+========================================================= */
 
 export default generateValidation;
