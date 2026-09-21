@@ -12,6 +12,7 @@
    - Parse response JSON
    - Menangani error HTTP/API
    - Memastikan model yang digunakan valid
+   - Meneruskan diagnostic response dari backend secara aman
 
    Tidak bertanggung jawab:
    - Render UI
@@ -21,6 +22,7 @@
    - API key provider
    - Credit calculation
    - Model configuration
+   - Pengumpulan parameter form
  ========================================================= */
 
 import {
@@ -48,8 +50,7 @@ const GENERATE_ENDPOINT =
    ERROR CLASS
  ========================================================= */
 
-export class GenerateRequestError
-    extends Error {
+export class GenerateRequestError extends Error {
 
     constructor(
         message,
@@ -57,7 +58,10 @@ export class GenerateRequestError
     ) {
 
         super(
-            message
+            String(
+                message ||
+                "Generate gagal diproses."
+            )
         );
 
         this.name =
@@ -73,11 +77,28 @@ export class GenerateRequestError
             null;
 
         this.details =
-            options.details ||
+            options.details ??
             null;
 
         this.response =
-            options.response ||
+            options.response ??
+            null;
+
+        /*
+         * Diagnostic tambahan.
+         *
+         * Tidak berisi API key.
+         */
+        this.provider =
+            options.provider ??
+            null;
+
+        this.providerResponse =
+            options.providerResponse ??
+            null;
+
+        this.taskId =
+            options.taskId ??
             null;
     }
 }
@@ -91,16 +112,29 @@ async function parseResponseJson(
     response
 ) {
 
+    if (!response) {
+
+        throw new GenerateRequestError(
+            "Response server tidak tersedia.",
+            {
+                code:
+                    "EMPTY_RESPONSE"
+            }
+        );
+    }
+
     const contentType =
         String(
-            response.headers.get(
+            response.headers?.get(
                 "content-type"
             ) || ""
         ).toLowerCase();
 
-    /*
-     * JSON response normal.
-     */
+
+    /* -----------------------------------------------------
+       JSON response normal
+    ----------------------------------------------------- */
+
     if (
         contentType.includes(
             "application/json"
@@ -120,23 +154,67 @@ async function parseResponseJson(
                 {
                     status:
                         response.status,
+
+                    code:
+                        "INVALID_JSON_RESPONSE",
+
                     details:
-                        error
+                        {
+                            message:
+                                error?.message ||
+                                String(
+                                    error
+                                )
+                        }
                 }
             );
         }
     }
 
-    /*
-     * Fallback jika backend tidak mengirim
-     * Content-Type JSON tetapi body berisi JSON.
-     */
-    const text =
-        await response.text();
+
+    /* -----------------------------------------------------
+       Fallback jika Content-Type bukan JSON.
+       Backend mungkin tetap mengirim JSON.
+    ----------------------------------------------------- */
+
+    let text = "";
+
+    try {
+
+        text =
+            await response.text();
+
+    } catch (
+        error
+    ) {
+
+        throw new GenerateRequestError(
+            "Response server tidak dapat dibaca.",
+            {
+                status:
+                    response.status,
+
+                code:
+                    "RESPONSE_READ_FAILED",
+
+                details:
+                    {
+                        message:
+                            error?.message ||
+                            String(
+                                error
+                            )
+                    }
+            }
+        );
+    }
+
 
     if (!text) {
+
         return {};
     }
+
 
     try {
 
@@ -149,6 +227,7 @@ async function parseResponseJson(
         return {
             success:
                 response.ok,
+
             message:
                 text
         };
@@ -162,17 +241,20 @@ async function parseResponseJson(
 
 function extractErrorMessage(
     data,
-    fallback
+    fallback =
+        "Generate gagal diproses."
 ) {
 
     if (!data) {
+
         return fallback;
     }
 
-    /*
-     * Bentuk umum:
-     * { error: "..." }
-     */
+
+    /* -----------------------------------------------------
+       { error: "..." }
+    ----------------------------------------------------- */
+
     if (
         typeof data.error ===
             "string" &&
@@ -182,10 +264,11 @@ function extractErrorMessage(
         return data.error.trim();
     }
 
-    /*
-     * Bentuk:
-     * { message: "..." }
-     */
+
+    /* -----------------------------------------------------
+       { message: "..." }
+    ----------------------------------------------------- */
+
     if (
         typeof data.message ===
             "string" &&
@@ -195,10 +278,41 @@ function extractErrorMessage(
         return data.message.trim();
     }
 
-    /*
-     * Bentuk:
-     * { errors: ["...", "..."] }
-     */
+
+    /* -----------------------------------------------------
+       { error: { message: "..." } }
+    ----------------------------------------------------- */
+
+    if (
+        data.error &&
+        typeof data.error ===
+            "object"
+    ) {
+
+        if (
+            typeof data.error.message ===
+                "string" &&
+            data.error.message.trim()
+        ) {
+
+            return data.error.message.trim();
+        }
+
+        if (
+            typeof data.error.error ===
+                "string" &&
+            data.error.error.trim()
+        ) {
+
+            return data.error.error.trim();
+        }
+    }
+
+
+    /* -----------------------------------------------------
+       { errors: [...] }
+    ----------------------------------------------------- */
+
     if (
         Array.isArray(
             data.errors
@@ -206,48 +320,59 @@ function extractErrorMessage(
         data.errors.length
     ) {
 
-        return data.errors
-            .map(
-                item => {
+        const messages =
+            data.errors
+                .map(
+                    item => {
 
-                    if (
-                        typeof item ===
-                            "string"
-                    ) {
+                        if (
+                            typeof item ===
+                                "string"
+                        ) {
 
-                        return item;
-                    }
+                            return item;
+                        }
 
-                    if (
-                        item &&
-                        typeof item ===
-                            "object"
-                    ) {
+                        if (
+                            item &&
+                            typeof item ===
+                                "object"
+                        ) {
 
-                        return (
-                            item.message ||
-                            item.error ||
-                            JSON.stringify(
-                                item
-                            )
+                            return (
+                                item.message ||
+                                item.error ||
+                                item.detail ||
+                                JSON.stringify(
+                                    item
+                                )
+                            );
+                        }
+
+                        return String(
+                            item
                         );
                     }
+                )
+                .filter(
+                    Boolean
+                );
 
-                    return String(
-                        item
-                    );
-                }
-            )
-            .filter(
-                Boolean
-            )
-            .join(" ");
+        if (
+            messages.length
+        ) {
+
+            return messages.join(
+                " "
+            );
+        }
     }
 
-    /*
-     * Bentuk nested:
-     * { data: { error: "..." } }
-     */
+
+    /* -----------------------------------------------------
+       Nested data
+    ----------------------------------------------------- */
+
     if (
         data.data &&
         typeof data.data ===
@@ -256,20 +381,39 @@ function extractErrorMessage(
 
         if (
             typeof data.data.error ===
-                "string"
+                "string" &&
+            data.data.error.trim()
         ) {
 
-            return data.data.error;
+            return data.data.error.trim();
         }
 
         if (
             typeof data.data.message ===
-                "string"
+                "string" &&
+            data.data.message.trim()
         ) {
 
-            return data.data.message;
+            return data.data.message.trim();
+        }
+
+
+        if (
+            data.data.error &&
+            typeof data.data.error ===
+                "object"
+        ) {
+
+            if (
+                typeof data.data.error.message ===
+                    "string"
+            ) {
+
+                return data.data.error.message;
+            }
         }
     }
+
 
     return fallback;
 }
@@ -284,16 +428,283 @@ function extractErrorCode(
 ) {
 
     if (!data) {
+
         return null;
     }
 
-    return (
-        data.code ||
-        data.error_code ||
-        data.errorCode ||
-        data.data?.code ||
-        null
-    );
+
+    if (
+        typeof data.code ===
+            "string"
+    ) {
+
+        return data.code;
+    }
+
+
+    if (
+        typeof data.error_code ===
+            "string"
+    ) {
+
+        return data.error_code;
+    }
+
+
+    if (
+        typeof data.errorCode ===
+            "string"
+    ) {
+
+        return data.errorCode;
+    }
+
+
+    if (
+        data.error &&
+        typeof data.error ===
+            "object"
+    ) {
+
+        if (
+            typeof data.error.code ===
+                "string"
+        ) {
+
+            return data.error.code;
+        }
+    }
+
+
+    if (
+        data.data &&
+        typeof data.data ===
+            "object"
+    ) {
+
+        if (
+            typeof data.data.code ===
+                "string"
+        ) {
+
+            return data.data.code;
+        }
+
+        if (
+            typeof data.data.error_code ===
+                "string"
+        ) {
+
+            return data.data.error_code;
+        }
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   EXTRACT TASK ID
+ ========================================================= */
+
+function extractTaskId(
+    data
+) {
+
+    if (!data) {
+
+        return null;
+    }
+
+
+    const candidates = [
+
+        data.taskId,
+
+        data.task_id,
+
+        data.jobId,
+
+        data.job_id,
+
+        data.data?.taskId,
+
+        data.data?.task_id,
+
+        data.data?.jobId,
+
+        data.data?.job_id
+
+    ];
+
+
+    for (
+        const candidate
+        of candidates
+    ) {
+
+        if (
+            candidate !==
+                undefined &&
+            candidate !==
+                null &&
+            String(
+                candidate
+            ).trim()
+        ) {
+
+            return String(
+                candidate
+            ).trim();
+        }
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   SAFE DIAGNOSTIC
+   ---------------------------------------------------------
+   Backend seharusnya sudah melakukan sanitasi.
+   Fungsi ini tetap mencegah credential masuk ke UI.
+ ========================================================= */
+
+function sanitizeDiagnostic(
+    value,
+    depth = 0
+) {
+
+    if (
+        depth >
+        6
+    ) {
+
+        return "[truncated]";
+    }
+
+
+    if (
+        value ===
+            null ||
+        value ===
+            undefined
+    ) {
+
+        return value;
+    }
+
+
+    if (
+        typeof value ===
+            "string"
+    ) {
+
+        const lower =
+            value.toLowerCase();
+
+        /*
+         * Jangan pernah meneruskan credential
+         * yang secara tidak sengaja dikirim backend.
+         */
+        if (
+            lower.includes(
+                "bearer "
+            ) &&
+            value.length >
+                80
+        ) {
+
+            return "[redacted]";
+        }
+
+        return value;
+    }
+
+
+    if (
+        typeof value !==
+            "object"
+    ) {
+
+        return value;
+    }
+
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return value
+            .slice(
+                0,
+                50
+            )
+            .map(
+                item =>
+                    sanitizeDiagnostic(
+                        item,
+                        depth + 1
+                    )
+            );
+    }
+
+
+    const result = {};
+
+    const sensitiveKeys = new Set([
+        "api_key",
+        "apikey",
+        "apiKey",
+        "token",
+        "access_token",
+        "accessToken",
+        "authorization",
+        "secret",
+        "password",
+        "ciphertext",
+        "api_key_ciphertext",
+        "api_key_iv",
+        "api_key_tag"
+    ]);
+
+
+    for (
+        const [
+            key,
+            item
+        ]
+        of Object.entries(
+            value
+        )
+    ) {
+
+        if (
+            sensitiveKeys.has(
+                key
+            )
+        ) {
+
+            result[key] =
+                "[redacted]";
+
+            continue;
+        }
+
+
+        result[key] =
+            sanitizeDiagnostic(
+                item,
+                depth + 1
+            );
+    }
+
+
+    return result;
 }
 
 
@@ -308,12 +719,18 @@ export function buildGeneratePayload(
     const model =
         getCurrentModel();
 
+
     if (!model) {
 
         throw new GenerateRequestError(
-            "Model belum siap digunakan."
+            "Model belum siap digunakan.",
+            {
+                code:
+                    "MODEL_NOT_AVAILABLE"
+            }
         );
     }
+
 
     const modelId =
         String(
@@ -321,28 +738,29 @@ export function buildGeneratePayload(
             ""
         ).trim();
 
+
     if (!modelId) {
 
         throw new GenerateRequestError(
-            "Model ID tidak tersedia."
+            "Model ID tidak tersedia.",
+            {
+                code:
+                    "MODEL_ID_NOT_AVAILABLE"
+            }
         );
     }
 
+
     /*
-     * PENTING:
-     *
-     * Jangan mengubah struktur payload.
-     *
-     * Backend sebelumnya menerima:
+     * Struktur backend tetap:
      *
      * {
      *     model_id,
      *     parameters
      * }
-     *
-     * Struktur ini dipertahankan.
      */
     return {
+
         model_id:
             modelId,
 
@@ -352,6 +770,7 @@ export function buildGeneratePayload(
                 "object"
                 ? parameters
                 : {}
+
     };
 }
 
@@ -367,6 +786,7 @@ export function validateGenerateRequest(
     const model =
         getCurrentModel();
 
+
     if (!model) {
 
         return [
@@ -374,9 +794,62 @@ export function validateGenerateRequest(
         ];
     }
 
-    return validateClientParameters(
-        parameters
-    );
+
+    /*
+     * Validation tetap dimiliki
+     * generate-validation.js.
+     *
+     * generate-request.js tidak membaca
+     * parameterDefinition dari generate-form.js.
+     */
+    const result =
+        validateClientParameters(
+            parameters
+        );
+
+
+    if (
+        Array.isArray(
+            result
+        )
+    ) {
+
+        return result;
+    }
+
+
+    /*
+     * Jaga kompatibilitas jika validator
+     * mengembalikan object.
+     */
+    if (
+        result &&
+        typeof result ===
+            "object"
+    ) {
+
+        if (
+            Array.isArray(
+                result.errors
+            )
+        ) {
+
+            return result.errors;
+        }
+
+        if (
+            typeof result.message ===
+                "string"
+        ) {
+
+            return [
+                result.message
+            ];
+        }
+    }
+
+
+    return [];
 }
 
 
@@ -388,31 +861,59 @@ export async function generateVideo(
     parameters = {}
 ) {
 
-    /*
-     * Pastikan model ada.
-     */
+    /* -----------------------------------------------------
+       1. Pastikan model tersedia
+    ----------------------------------------------------- */
+
     const model =
         getCurrentModel();
+
 
     if (!model) {
 
         throw new GenerateRequestError(
-            "Model belum siap digunakan."
+            "Model belum siap digunakan.",
+            {
+                code:
+                    "MODEL_NOT_AVAILABLE"
+            }
         );
     }
 
-    /*
-     * Validasi frontend.
-     *
-     * Backend tetap menjadi validator
-     * dan sumber keputusan terakhir.
-     */
+
+    const modelId =
+        String(
+            model.model_id ||
+            ""
+        ).trim();
+
+
+    if (!modelId) {
+
+        throw new GenerateRequestError(
+            "Model ID tidak tersedia.",
+            {
+                code:
+                    "MODEL_ID_NOT_AVAILABLE"
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       2. Validasi parameter
+    ----------------------------------------------------- */
+
     const validationErrors =
         validateGenerateRequest(
             parameters
         );
 
+
     if (
+        Array.isArray(
+            validationErrors
+        ) &&
         validationErrors.length
     ) {
 
@@ -422,16 +923,25 @@ export async function generateVideo(
             ),
             {
                 code:
-                    "CLIENT_VALIDATION"
+                    "CLIENT_VALIDATION",
+
+                details:
+                    {
+                        errors:
+                            validationErrors
+                    }
             }
         );
     }
 
-    /*
-     * Ambil access token Supabase.
-     */
+
+    /* -----------------------------------------------------
+       3. Ambil Supabase access token
+    ----------------------------------------------------- */
+
     const accessToken =
         await getAccessToken();
+
 
     if (!accessToken) {
 
@@ -440,21 +950,30 @@ export async function generateVideo(
             {
                 status:
                     401,
+
                 code:
                     "AUTH_REQUIRED"
             }
         );
     }
 
-    /*
-     * Build payload.
-     */
+
+    /* -----------------------------------------------------
+       4. Build payload
+    ----------------------------------------------------- */
+
     const payload =
         buildGeneratePayload(
             parameters
         );
 
+
     let response;
+
+
+    /* -----------------------------------------------------
+       5. POST ke backend GEN-Z.AI
+    ----------------------------------------------------- */
 
     try {
 
@@ -466,11 +985,13 @@ export async function generateVideo(
                         "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json",
 
                         "Authorization":
                             `Bearer ${accessToken}`
+
                     },
 
                     body:
@@ -485,27 +1006,86 @@ export async function generateVideo(
     ) {
 
         throw new GenerateRequestError(
+            error?.message ||
             "Tidak dapat terhubung ke server generate.",
             {
                 code:
                     "NETWORK_ERROR",
+
                 details:
-                    error
+                    {
+                        name:
+                            error?.name ||
+                            null,
+
+                        message:
+                            error?.message ||
+                            String(
+                                error
+                            )
+                    }
             }
         );
     }
 
-    /*
-     * Parse response.
-     */
-    const data =
-        await parseResponseJson(
-            response
+
+    /* -----------------------------------------------------
+       6. Parse response
+    ----------------------------------------------------- */
+
+    let data;
+
+    try {
+
+        data =
+            await parseResponseJson(
+                response
+            );
+
+    } catch (
+        error
+    ) {
+
+        if (
+            error instanceof
+            GenerateRequestError
+        ) {
+
+            throw error;
+        }
+
+        throw new GenerateRequestError(
+            "Response server tidak dapat dibaca.",
+            {
+                status:
+                    response.status,
+
+                code:
+                    "RESPONSE_PARSE_FAILED",
+
+                details:
+                    {
+                        message:
+                            error?.message ||
+                            String(
+                                error
+                            )
+                    }
+            }
+        );
+    }
+
+
+    const safeData =
+        sanitizeDiagnostic(
+            data
         );
 
-    /*
-     * HTTP error.
-     */
+
+    /* -----------------------------------------------------
+       7. HTTP ERROR
+    ----------------------------------------------------- */
+
     if (
         !response.ok
     ) {
@@ -516,6 +1096,7 @@ export async function generateVideo(
                 `Request gagal dengan status ${response.status}.`
             );
 
+
         throw new GenerateRequestError(
             message,
             {
@@ -525,23 +1106,50 @@ export async function generateVideo(
                 code:
                     extractErrorCode(
                         data
-                    ),
+                    ) ||
+                    `HTTP_${response.status}`,
 
                 details:
-                    data,
+                    safeData,
 
-                response
+                response:
+                    safeData,
+
+                provider:
+                    sanitizeDiagnostic(
+                        data?.provider ??
+                        data?.provider_name ??
+                        data?.data?.provider ??
+                        null
+                    ),
+
+                providerResponse:
+                    sanitizeDiagnostic(
+                        data?.providerResponse ??
+                        data?.provider_response ??
+                        data?.kie ??
+                        data?.data?.providerResponse ??
+                        data?.data?.provider_response ??
+                        null
+                    ),
+
+                taskId:
+                    extractTaskId(
+                        data
+                    )
             }
         );
     }
 
-    /*
-     * Backend dapat mengembalikan
-     * success=false walaupun HTTP 200.
-     */
+
+    /* -----------------------------------------------------
+       8. Backend success=false
+    ----------------------------------------------------- */
+
     if (
         data &&
-        data.success === false
+        data.success ===
+            false
     ) {
 
         const message =
@@ -550,6 +1158,7 @@ export async function generateVideo(
                 "Generate gagal diproses."
             );
 
+
         throw new GenerateRequestError(
             message,
             {
@@ -559,32 +1168,56 @@ export async function generateVideo(
                 code:
                     extractErrorCode(
                         data
-                    ),
+                    ) ||
+                    "GENERATE_FAILED",
 
                 details:
-                    data,
+                    safeData,
 
-                response
+                response:
+                    safeData,
+
+                provider:
+                    sanitizeDiagnostic(
+                        data?.provider ??
+                        data?.provider_name ??
+                        data?.data?.provider ??
+                        null
+                    ),
+
+                providerResponse:
+                    sanitizeDiagnostic(
+                        data?.providerResponse ??
+                        data?.provider_response ??
+                        data?.kie ??
+                        data?.data?.providerResponse ??
+                        data?.data?.provider_response ??
+                        null
+                    ),
+
+                taskId:
+                    extractTaskId(
+                        data
+                    )
             }
         );
     }
 
-    /*
-     * Perilaku lama:
-     * response harus dianggap berhasil
-     * jika data.success tersedia dan true.
-     *
-     * Tetapi jangan merusak endpoint yang
-     * mungkin mengembalikan response sukses
-     * tanpa field success.
-     */
+
+    /* -----------------------------------------------------
+       9. Jika success tersedia,
+          harus true
+    ----------------------------------------------------- */
+
     if (
+        data &&
         Object.prototype
             .hasOwnProperty.call(
-                data || {},
+                data,
                 "success"
             ) &&
-        data.success !== true
+        data.success !==
+            true
     ) {
 
         throw new GenerateRequestError(
@@ -599,15 +1232,45 @@ export async function generateVideo(
                 code:
                     extractErrorCode(
                         data
-                    ),
+                    ) ||
+                    "GENERATE_FAILED",
 
                 details:
-                    data,
+                    safeData,
 
-                response
+                response:
+                    safeData,
+
+                provider:
+                    sanitizeDiagnostic(
+                        data?.provider ??
+                        data?.provider_name ??
+                        data?.data?.provider ??
+                        null
+                    ),
+
+                providerResponse:
+                    sanitizeDiagnostic(
+                        data?.providerResponse ??
+                        data?.provider_response ??
+                        data?.kie ??
+                        data?.data?.providerResponse ??
+                        data?.data?.provider_response ??
+                        null
+                    ),
+
+                taskId:
+                    extractTaskId(
+                        data
+                    )
             }
         );
     }
+
+
+    /* -----------------------------------------------------
+       10. Pastikan response berhasil
+    ----------------------------------------------------- */
 
     return data;
 }
@@ -658,5 +1321,9 @@ export const generateRequest =
 
     });
 
+
+/* =========================================================
+   DEFAULT EXPORT
+ ========================================================= */
 
 export default generateRequest;
