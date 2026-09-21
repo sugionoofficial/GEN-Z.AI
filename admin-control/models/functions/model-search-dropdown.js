@@ -24,6 +24,9 @@
    - #modelCodeSearch
    - #modelSearch
    - #modelIdSearch
+   - #modelId
+   - #model_id
+   - [name="model_id"]
 
    RESULT BOX:
    - #modelSearchResults
@@ -43,8 +46,11 @@
     const INPUT_IDS = [
         "modelCodeSearch",
         "modelSearch",
-        "modelIdSearch"
+        "modelIdSearch",
+        "modelId",
+        "model_id"
     ];
+
 
     const RESULT_IDS = [
         "modelSearchResults",
@@ -52,7 +58,10 @@
         "modelDropdown"
     ];
 
+
     const POSITION_GAP = 6;
+
+    const VIEWPORT_GAP = 8;
 
     const Z_INDEX = "99999";
 
@@ -61,11 +70,28 @@
        STATE
     ===================================================== */
 
-    let positionEventsBound = false;
+    let positionEventsBound =
+        false;
 
-    let lastInputElement = null;
 
-    let lastBoxElement = null;
+    let mutationObserver =
+        null;
+
+
+    let lastInputElement =
+        null;
+
+
+    let lastBoxElement =
+        null;
+
+
+    let repositionFrame =
+        null;
+
+
+    let initialized =
+        false;
 
 
     /* =====================================================
@@ -83,13 +109,31 @@
                     id
                 );
 
-            if (element) {
+
+            if (
+                element
+            ) {
 
                 return element;
             }
         }
 
-        return null;
+
+        /*
+         * Fallback untuk markup yang tidak
+         * menggunakan ID standar.
+         */
+        return (
+            document.querySelector(
+                "[name='model_id']"
+            ) ||
+
+            document.querySelector(
+                "[name='modelId']"
+            ) ||
+
+            null
+        );
     }
 
 
@@ -108,25 +152,34 @@
                     id
                 );
 
-            if (element) {
+
+            if (
+                element
+            ) {
 
                 return element;
             }
         }
 
-        return null;
+
+        /*
+         * Fallback attribute.
+         */
+        return document.querySelector(
+            "[data-model-search-results]"
+        );
     }
 
 
     /* =====================================================
-       CHECK DOM ELEMENT
+       ELEMENT CHECK
     ===================================================== */
 
     function isElement(
         element
     ) {
 
-        return (
+        return Boolean(
             element &&
             typeof element.getBoundingClientRect ===
                 "function"
@@ -135,7 +188,7 @@
 
 
     /* =====================================================
-       GET CURRENT TARGETS
+       GET TARGETS
     ===================================================== */
 
     function getTargets() {
@@ -143,8 +196,10 @@
         const input =
             getInput();
 
+
         const box =
             getBox();
+
 
         if (
             input
@@ -154,6 +209,7 @@
                 input;
         }
 
+
         if (
             box
         ) {
@@ -161,6 +217,7 @@
             lastBoxElement =
                 box;
         }
+
 
         return {
             input,
@@ -170,7 +227,288 @@
 
 
     /* =====================================================
-       POSITION
+       CHECK INPUT VISIBILITY
+    ===================================================== */
+
+    function isInputVisible(
+        input
+    ) {
+
+        if (
+            !isElement(
+                input
+            )
+        ) {
+
+            return false;
+        }
+
+
+        const rect =
+            input.getBoundingClientRect();
+
+
+        if (
+            rect.width <= 0 ||
+            rect.height <= 0
+        ) {
+
+            return false;
+        }
+
+
+        const style =
+            window.getComputedStyle(
+                input
+            );
+
+
+        if (
+            style.display ===
+                "none" ||
+            style.visibility ===
+                "hidden"
+        ) {
+
+            return false;
+        }
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       CALCULATE POSITION
+    ===================================================== */
+
+    function calculatePosition(
+        input,
+        box
+    ) {
+
+        if (
+            !isElement(
+                input
+            ) ||
+            !isElement(
+                box
+            )
+        ) {
+
+            return null;
+        }
+
+
+        const rect =
+            input.getBoundingClientRect();
+
+
+        if (
+            rect.width <= 0 ||
+            rect.height <= 0
+        ) {
+
+            return null;
+        }
+
+
+        const viewportWidth =
+            window.innerWidth ||
+            document.documentElement.clientWidth ||
+            0;
+
+
+        const viewportHeight =
+            window.innerHeight ||
+            document.documentElement.clientHeight ||
+            0;
+
+
+        if (
+            viewportWidth <= 0 ||
+            viewportHeight <= 0
+        ) {
+
+            return null;
+        }
+
+
+        /*
+         * Lebar dropdown mengikuti input.
+         */
+        const width =
+            Math.max(
+                1,
+                Math.round(
+                    rect.width
+                )
+            );
+
+
+        /*
+         * Posisi default di bawah input.
+         */
+        let left =
+            Math.round(
+                rect.left
+            );
+
+
+        let top =
+            Math.round(
+                rect.bottom +
+                POSITION_GAP
+            );
+
+
+        /*
+         * Jangan keluar dari sisi kanan viewport.
+         */
+        if (
+            left + width >
+            viewportWidth -
+            VIEWPORT_GAP
+        ) {
+
+            left =
+                viewportWidth -
+                width -
+                VIEWPORT_GAP;
+        }
+
+
+        if (
+            left <
+            VIEWPORT_GAP
+        ) {
+
+            left =
+                VIEWPORT_GAP;
+        }
+
+
+        /*
+         * Hitung ruang di bawah dan di atas input.
+         */
+        const spaceBelow =
+            Math.max(
+                0,
+                viewportHeight -
+                rect.bottom -
+                POSITION_GAP -
+                VIEWPORT_GAP
+            );
+
+
+        const spaceAbove =
+            Math.max(
+                0,
+                rect.top -
+                POSITION_GAP -
+                VIEWPORT_GAP
+            );
+
+
+        /*
+         * Ukuran natural dropdown.
+         *
+         * offsetHeight dapat 0 ketika display:none,
+         * sehingga gunakan scrollHeight sebagai fallback.
+         */
+        const naturalHeight =
+            Math.max(
+                box.scrollHeight || 0,
+                box.offsetHeight || 0,
+                180
+            );
+
+
+        let maxHeight =
+            Math.min(
+                320,
+                Math.max(
+                    120,
+                    spaceBelow
+                )
+            );
+
+
+        /*
+         * Jika ruang bawah terlalu kecil,
+         * pindahkan dropdown ke atas input.
+         */
+        if (
+            spaceBelow < 120 &&
+            spaceAbove > spaceBelow
+        ) {
+
+            const estimatedHeight =
+                Math.min(
+                    320,
+                    Math.max(
+                        120,
+                        spaceAbove
+                    )
+                );
+
+
+            top =
+                Math.round(
+                    rect.top -
+                    POSITION_GAP -
+                    Math.min(
+                        naturalHeight,
+                        estimatedHeight
+                    )
+                );
+
+
+            maxHeight =
+                estimatedHeight;
+
+
+        } else {
+
+            maxHeight =
+                Math.min(
+                    320,
+                    Math.max(
+                        120,
+                        spaceBelow
+                    )
+                );
+        }
+
+
+        /*
+         * Jangan sampai top negatif.
+         */
+        if (
+            top <
+            VIEWPORT_GAP
+        ) {
+
+            top =
+                VIEWPORT_GAP;
+        }
+
+
+        return {
+
+            left,
+
+            top,
+
+            width,
+
+            maxHeight
+        };
+    }
+
+
+    /* =====================================================
+       APPLY POSITION
     ===================================================== */
 
     function position() {
@@ -178,12 +516,39 @@
         const {
             input,
             box
-        } = getTargets();
+        } =
+            getTargets();
 
 
         if (
-            !isElement(input) ||
-            !isElement(box)
+            !isInputVisible(
+                input
+            )
+        ) {
+
+            return false;
+        }
+
+
+        if (
+            !isElement(
+                box
+            )
+        ) {
+
+            return false;
+        }
+
+
+        const calculated =
+            calculatePosition(
+                input,
+                box
+            );
+
+
+        if (
+            !calculated
         ) {
 
             return false;
@@ -191,74 +556,59 @@
 
 
         /*
-         * Jika input tidak terlihat,
-         * jangan memaksa posisi dropdown.
-         */
-        const inputRect =
-            input.getBoundingClientRect();
-
-
-        if (
-            inputRect.width <= 0 ||
-            inputRect.height <= 0
-        ) {
-
-            return false;
-        }
-
-
-        /*
-         * Gunakan fixed positioning.
-         *
-         * Dengan demikian dropdown mengikuti
-         * viewport dan tidak terpotong oleh
-         * overflow parent/modal.
+         * Fixed positioning membuat dropdown
+         * tidak terpotong overflow parent/modal.
          */
         box.style.position =
             "fixed";
 
+
         box.style.left =
-            Math.round(
-                inputRect.left
-            ) + "px";
+            calculated.left +
+            "px";
+
 
         box.style.top =
-            Math.round(
-                inputRect.bottom +
-                POSITION_GAP
-            ) + "px";
+            calculated.top +
+            "px";
+
 
         box.style.width =
-            Math.round(
-                inputRect.width
-            ) + "px";
+            calculated.width +
+            "px";
+
 
         box.style.minWidth =
-            Math.round(
-                inputRect.width
-            ) + "px";
+            calculated.width +
+            "px";
+
 
         box.style.maxWidth =
-            Math.round(
-                inputRect.width
-            ) + "px";
+            calculated.width +
+            "px";
+
 
         box.style.maxHeight =
-            "min(320px, calc(100vh - " +
-            Math.round(
-                inputRect.bottom +
-                POSITION_GAP +
-                12
-            ) +
-            "px))";
+            calculated.maxHeight +
+            "px";
+
+
+        box.style.overflowY =
+            "auto";
+
+
+        box.style.boxSizing =
+            "border-box";
+
 
         box.style.zIndex =
             Z_INDEX;
 
-        /*
-         * Pastikan transform parent tidak
-         * mengacaukan stacking context sebisa mungkin.
-         */
+
+        box.style.pointerEvents =
+            "auto";
+
+
         box.style.visibility =
             "visible";
 
@@ -268,29 +618,49 @@
 
 
     /* =====================================================
-       POSITION USING RAF
-       ===================================================== */
-
-    let repositionFrame =
-        null;
-
+       REQUEST POSITION
+    ===================================================== */
 
     function requestPosition() {
 
         if (
-            repositionFrame !== null
+            repositionFrame !==
+            null
         ) {
 
             return;
         }
 
 
+        const raf =
+            window.requestAnimationFrame;
+
+
+        if (
+            typeof raf !==
+            "function"
+        ) {
+
+            if (
+                isVisible()
+            ) {
+
+                position();
+            }
+
+
+            return;
+        }
+
+
         repositionFrame =
-            window.requestAnimationFrame(
+            raf.call(
+                window,
                 function () {
 
                     repositionFrame =
                         null;
+
 
                     if (
                         isVisible()
@@ -304,6 +674,90 @@
 
 
     /* =====================================================
+       CANCEL POSITION
+    ===================================================== */
+
+    function cancelPositionFrame() {
+
+        if (
+            repositionFrame ===
+            null
+        ) {
+
+            return;
+        }
+
+
+        if (
+            typeof window.cancelAnimationFrame ===
+            "function"
+        ) {
+
+            window.cancelAnimationFrame(
+                repositionFrame
+            );
+        }
+
+
+        repositionFrame =
+            null;
+    }
+
+
+    /* =====================================================
+       UPDATE ARIA
+    ===================================================== */
+
+    function updateAria(
+        expanded
+    ) {
+
+        const input =
+            getInput();
+
+
+        if (
+            !input
+        ) {
+
+            return;
+        }
+
+
+        input.setAttribute(
+            "aria-expanded",
+            expanded
+                ? "true"
+                : "false"
+        );
+
+
+        const box =
+            getBox();
+
+
+        if (
+            box
+        ) {
+
+            if (
+                !box.id
+            ) {
+
+                box.id =
+                    "modelSearchResults";
+            }
+
+
+            input.setAttribute(
+                "aria-controls",
+                box.id
+            );
+        }
+    }
+
+
+    /* =====================================================
        SHOW
     ===================================================== */
 
@@ -312,7 +766,8 @@
         const {
             input,
             box
-        } = getTargets();
+        } =
+            getTargets();
 
 
         if (
@@ -324,9 +779,7 @@
 
 
         /*
-         * Input tidak wajib ditemukan untuk
-         * menampilkan dropdown, tetapi posisi
-         * tidak dapat dihitung tanpa input.
+         * Input wajib tersedia untuk positioning.
          */
         if (
             !input
@@ -336,26 +789,38 @@
         }
 
 
+        if (
+            !isInputVisible(
+                input
+            )
+        ) {
+
+            return false;
+        }
+
+
         /*
-         * Pastikan dropdown dapat menerima
-         * pointer event.
+         * Siapkan visual state.
          */
+        box.style.position =
+            "fixed";
+
+
         box.style.pointerEvents =
             "auto";
 
+
         box.style.visibility =
-            "visible";
-
-
-        /*
-         * Posisi dihitung sebelum display block
-         * supaya tidak terjadi lompatan visual.
-         */
-        position();
+            "hidden";
 
 
         box.style.display =
             "block";
+
+
+        box.style.zIndex =
+            Z_INDEX;
+
 
         box.classList.add(
             "show"
@@ -363,9 +828,34 @@
 
 
         /*
-         * Hitung ulang setelah display aktif.
-         * getBoundingClientRect() lebih akurat
-         * setelah element benar-benar terlihat.
+         * Position setelah display:block.
+         */
+        const positioned =
+            position();
+
+
+        if (
+            !positioned
+        ) {
+
+            hide();
+
+            return false;
+        }
+
+
+        box.style.visibility =
+            "visible";
+
+
+        updateAria(
+            true
+        );
+
+
+        /*
+         * Recalculate satu frame kemudian.
+         * Berguna jika modal baru selesai layout.
          */
         requestPosition();
 
@@ -380,26 +870,37 @@
 
     function hide() {
 
+        cancelPositionFrame();
+
+
         const box =
             getBox();
 
 
         if (
-            !box
+            box
         ) {
 
-            return true;
+            box.style.display =
+                "none";
+
+
+            box.style.visibility =
+                "hidden";
+
+
+            box.style.pointerEvents =
+                "none";
+
+
+            box.classList.remove(
+                "show"
+            );
         }
 
 
-        box.style.display =
-            "none";
-
-        box.style.visibility =
-            "hidden";
-
-        box.classList.remove(
-            "show"
+        updateAria(
+            false
         );
 
 
@@ -434,8 +935,10 @@
         return (
             computed.display !==
                 "none" &&
+
             computed.visibility !==
                 "hidden" &&
+
             box.classList.contains(
                 "show"
             )
@@ -458,6 +961,7 @@
             return show();
         }
 
+
         return hide();
     }
 
@@ -477,19 +981,11 @@
 
 
         /*
-         * Resize viewport.
+         * Resize.
          */
         window.addEventListener(
             "resize",
-            function () {
-
-                if (
-                    isVisible()
-                ) {
-
-                    requestPosition();
-                }
-            },
+            handleViewportChange,
             {
                 passive:
                     true
@@ -498,23 +994,11 @@
 
 
         /*
-         * Scroll capture.
-         *
-         * Dropdown menggunakan fixed positioning,
-         * tetapi posisi input tetap dapat berubah
-         * ketika modal/page di-scroll.
+         * Scroll.
          */
         window.addEventListener(
             "scroll",
-            function () {
-
-                if (
-                    isVisible()
-                ) {
-
-                    requestPosition();
-                }
-            },
+            handleViewportChange,
             {
                 passive:
                     true,
@@ -525,8 +1009,7 @@
 
 
         /*
-         * Visual viewport berguna pada browser
-         * mobile ketika keyboard muncul.
+         * Mobile visual viewport.
          */
         if (
             window.visualViewport
@@ -534,15 +1017,7 @@
 
             window.visualViewport.addEventListener(
                 "resize",
-                function () {
-
-                    if (
-                        isVisible()
-                    ) {
-
-                        requestPosition();
-                    }
-                },
+                handleViewportChange,
                 {
                     passive:
                         true
@@ -552,15 +1027,7 @@
 
             window.visualViewport.addEventListener(
                 "scroll",
-                function () {
-
-                    if (
-                        isVisible()
-                    ) {
-
-                        requestPosition();
-                    }
-                },
+                handleViewportChange,
                 {
                     passive:
                         true
@@ -570,58 +1037,25 @@
 
 
         /*
-         * MutationObserver diperlukan karena modal
-         * dapat membuat ulang input/result box.
-         *
-         * Observer hanya memeriksa keberadaan element,
-         * bukan melakukan render/search.
+         * Modal / DOM replacement observer.
          */
         if (
             window.MutationObserver &&
             document.body
         ) {
 
-            const observer =
+            mutationObserver =
                 new MutationObserver(
-                    function () {
-
-                        const input =
-                            getInput();
-
-                        const box =
-                            getBox();
-
-
-                        if (
-                            input !==
-                            lastInputElement ||
-                            box !==
-                            lastBoxElement
-                        ) {
-
-                            lastInputElement =
-                                input;
-
-                            lastBoxElement =
-                                box;
-
-
-                            if (
-                                isVisible()
-                            ) {
-
-                                requestPosition();
-                            }
-                        }
-                    }
+                    handleDomMutation
                 );
 
 
-            observer.observe(
+            mutationObserver.observe(
                 document.body,
                 {
                     childList:
                         true,
+
                     subtree:
                         true
                 }
@@ -638,23 +1072,160 @@
 
 
     /* =====================================================
+       VIEWPORT HANDLER
+    ===================================================== */
+
+    function handleViewportChange() {
+
+        if (
+            isVisible()
+        ) {
+
+            requestPosition();
+        }
+    }
+
+
+    /* =====================================================
+       DOM MUTATION HANDLER
+    ===================================================== */
+
+    function handleDomMutation() {
+
+        const input =
+            getInput();
+
+
+        const box =
+            getBox();
+
+
+        const inputChanged =
+            input !==
+            lastInputElement;
+
+
+        const boxChanged =
+            box !==
+            lastBoxElement;
+
+
+        if (
+            input
+        ) {
+
+            lastInputElement =
+                input;
+        }
+
+
+        if (
+            box
+        ) {
+
+            lastBoxElement =
+                box;
+        }
+
+
+        /*
+         * Modal sering mengganti element form.
+         * Kalau target berubah, langsung refresh posisi.
+         */
+        if (
+            inputChanged ||
+            boxChanged
+        ) {
+
+            if (
+                isVisible()
+            ) {
+
+                requestPosition();
+            }
+        }
+    }
+
+
+    /* =====================================================
        UNBIND POSITION EVENTS
-       
-       Position listener sengaja dibuat singleton.
-       Tidak perlu dilepas setiap modal ditutup karena
-       module hidup selama halaman aktif.
     ===================================================== */
 
     function unbindPositionEvents() {
 
-        /*
-         * Listener viewport tidak disimpan sebagai
-         * reference sehingga tidak dilepas.
-         *
-         * Ini sengaja:
-         * module search bersifat singleton dan
-         * listener hanya dibuat satu kali.
-         */
+        if (
+            !positionEventsBound
+        ) {
+
+            return true;
+        }
+
+
+        window.removeEventListener(
+            "resize",
+            handleViewportChange,
+            {
+                passive:
+                    true
+            }
+        );
+
+
+        window.removeEventListener(
+            "scroll",
+            handleViewportChange,
+            {
+                passive:
+                    true,
+                capture:
+                    true
+            }
+        );
+
+
+        if (
+            window.visualViewport
+        ) {
+
+            window.visualViewport.removeEventListener(
+                "resize",
+                handleViewportChange,
+                {
+                    passive:
+                        true
+                }
+            );
+
+
+            window.visualViewport.removeEventListener(
+                "scroll",
+                handleViewportChange,
+                {
+                    passive:
+                        true
+                }
+            );
+        }
+
+
+        if (
+            mutationObserver
+        ) {
+
+            mutationObserver.disconnect();
+
+            mutationObserver =
+                null;
+        }
+
+
+        cancelPositionFrame();
+
+
+        positionEventsBound =
+            false;
+
+
         return true;
     }
 
@@ -686,6 +1257,7 @@
         const input =
             getInput();
 
+
         const box =
             getBox();
 
@@ -704,7 +1276,10 @@
                 null,
 
             positionBound:
-                positionEventsBound
+                positionEventsBound,
+
+            initialized:
+                initialized
         };
     }
 
@@ -715,9 +1290,35 @@
 
     function initialize() {
 
+        if (
+            initialized
+        ) {
+
+            /*
+             * Pastikan listener tetap tersedia
+             * jika module pernah dihancurkan.
+             */
+            if (
+                !positionEventsBound
+            ) {
+
+                bindPositionEvents();
+            }
+
+
+            getTargets();
+
+            return true;
+        }
+
+
         bindPositionEvents();
 
         getTargets();
+
+        initialized =
+            true;
+
 
         return true;
     }
@@ -731,18 +1332,21 @@
 
         hide();
 
+        unbindPositionEvents();
+
+
         lastInputElement =
             null;
+
 
         lastBoxElement =
             null;
 
-        /*
-         * positionEventsBound tetap true.
-         *
-         * Module ini dirancang singleton.
-         * Destroy hanya membersihkan visual state.
-         */
+
+        initialized =
+            false;
+
+
         return true;
     }
 
@@ -779,11 +1383,10 @@
         });
 
 
-    /*
-     * Bind segera jika DOM sudah tersedia.
-     * Loader tetap dapat memanggil initialize()
-     * kembali tanpa membuat duplicate listener.
-     */
+    /* =====================================================
+       AUTO INITIALIZE
+    ===================================================== */
+
     if (
         document.body
     ) {
