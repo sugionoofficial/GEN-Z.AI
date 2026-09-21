@@ -18,7 +18,7 @@
        credit_480p
        credit_720p
        credit_1080p
-   - Menjaga credit_final legacy
+   - Menjaga discount_percent
 
    Tidak bertanggung jawab:
    - Query Supabase langsung
@@ -28,6 +28,7 @@
    - Delete model
    - Data kie_*
    - Mengarang data model
+   - Menghitung / menyimpan credit_final
    ========================================================= */
 
 import {
@@ -49,15 +50,6 @@ import {
    ========================================================= */
 
 let editingModel = null;
-
-/*
- * originalModel:
- * snapshot immutable secara logika dari model ketika
- * Edit pertama kali dibuka.
- *
- * model:
- * keadaan model yang sedang aktif di form/state.
- */
 
 let editState = {
     active: false,
@@ -93,9 +85,7 @@ function normalizeNumber(
         value === undefined ||
         value === ""
     ) {
-
         return fallback;
-
     }
 
     const number =
@@ -135,11 +125,9 @@ function readNumberField(
         return fallback;
     }
 
-
     /*
-     * PENTING:
-     * hasOwnProperty digunakan supaya nilai 0 tetap
-     * dianggap sebagai nilai yang benar-benar tersimpan.
+     * hasOwnProperty digunakan supaya nilai 0
+     * tetap dianggap sebagai nilai valid.
      */
 
     if (
@@ -243,7 +231,6 @@ function normalizeArray(value) {
         const text =
             value.trim();
 
-
         if (!text) {
             return [];
         }
@@ -265,7 +252,6 @@ function normalizeArray(value) {
                     -1
                 );
 
-
             if (
                 !inner.trim()
             ) {
@@ -273,7 +259,6 @@ function normalizeArray(value) {
                 return [];
 
             }
-
 
             return [
                 ...new Set(
@@ -303,7 +288,6 @@ function normalizeArray(value) {
 
             const parsed =
                 JSON.parse(text);
-
 
             if (
                 Array.isArray(parsed)
@@ -433,22 +417,8 @@ function cloneModel(model) {
 
 
     /* -----------------------------------------------------
-       LEGACY CREDIT
+       DISCOUNT
        ----------------------------------------------------- */
-
-    if (
-        model.credit_cost !== undefined &&
-        model.credit_cost !== null
-    ) {
-
-        cloned.credit_cost =
-            normalizeNumber(
-                model.credit_cost,
-                0
-            );
-
-    }
-
 
     if (
         model.discount_percent !== undefined &&
@@ -458,20 +428,6 @@ function cloneModel(model) {
         cloned.discount_percent =
             normalizeNumber(
                 model.discount_percent,
-                0
-            );
-
-    }
-
-
-    if (
-        model.credit_final !== undefined &&
-        model.credit_final !== null
-    ) {
-
-        cloned.credit_final =
-            normalizeNumber(
-                model.credit_final,
                 0
             );
 
@@ -578,7 +534,6 @@ function findProviderById(
         normalizeId(
             providerId
         );
-
 
     if (!id) {
         return null;
@@ -1460,6 +1415,7 @@ export function collectEditData(
             [
                 "[name='credit_480p']",
                 "#credit_480p",
+                "#credit480p",
                 "[data-field='credit_480p']"
             ],
             readNumberField(
@@ -1480,6 +1436,7 @@ export function collectEditData(
             [
                 "[name='credit_720p']",
                 "#credit_720p",
+                "#credit720p",
                 "[data-field='credit_720p']"
             ],
             readNumberField(
@@ -1500,6 +1457,7 @@ export function collectEditData(
             [
                 "[name='credit_1080p']",
                 "#credit_1080p",
+                "#credit1080p",
                 "[data-field='credit_1080p']"
             ],
             readNumberField(
@@ -1512,42 +1470,24 @@ export function collectEditData(
 
 
     /* -----------------------------------------------------
-       CREDIT FINAL LEGACY
-       -----------------------------------------------------
-       Tidak dihitung ulang dari credit resolution.
-
-       Jika field tidak ada di layout, pertahankan
-       nilai lama.
+       DISCOUNT
        ----------------------------------------------------- */
 
-    if (
-        data.credit_final === undefined ||
-        data.credit_final === null ||
-        String(data.credit_final).trim() === ""
-    ) {
-
-        if (
-            original.credit_final !== undefined &&
-            original.credit_final !== null
-        ) {
-
-            data.credit_final =
-                normalizeNumber(
-                    original.credit_final,
-                    0
-                );
-
-        }
-
-    } else {
-
-        data.credit_final =
-            normalizeNumber(
-                data.credit_final,
+    data.discount_percent =
+        readNumber(
+            [
+                "[name='discount_percent']",
+                "#discount_percent",
+                "#discountPercent",
+                "[data-field='discount_percent']"
+            ],
+            readNumberField(
+                original,
+                "discount_percent",
+                "discountPercent",
                 0
-            );
-
-    }
+            )
+        );
 
 
     /* -----------------------------------------------------
@@ -1673,7 +1613,7 @@ export function prepareEditSubmission(
     /* -----------------------------------------------------
        CREDIT PER RESOLUTION
        -----------------------------------------------------
-       Nilai berasal dari input Admin.
+       Nilai berasal dari konfigurasi model.
 
        TIDAK:
        - dihitung dari credit_final
@@ -1703,43 +1643,11 @@ export function prepareEditSubmission(
         );
 
 
-    /* -----------------------------------------------------
-       CREDIT FINAL LEGACY
-       ----------------------------------------------------- */
-
-    if (
-        raw.credit_final !== undefined &&
-        raw.credit_final !== null &&
-        String(raw.credit_final).trim() !== ""
-    ) {
-
-        normalized.credit_final =
-            normalizeNumber(
-                raw.credit_final,
-                0
-            );
-
-    } else {
-
-        const original =
-            getEditingModel();
-
-
-        if (
-            original &&
-            original.credit_final !== undefined &&
-            original.credit_final !== null
-        ) {
-
-            normalized.credit_final =
-                normalizeNumber(
-                    original.credit_final,
-                    0
-                );
-
-        }
-
-    }
+    normalized.discount_percent =
+        normalizeNumber(
+            raw.discount_percent,
+            0
+        );
 
 
     /* -----------------------------------------------------
@@ -1767,9 +1675,6 @@ export function prepareEditSubmission(
        PROVIDER ID
        -----------------------------------------------------
        Provider identity berasal dari model awal.
-
-       Edit module tidak boleh mengubahnya menjadi
-       provider code / provider name.
        ----------------------------------------------------- */
 
     if (
@@ -1987,38 +1892,20 @@ export function prepareEditSubmission(
 
 
     /* -----------------------------------------------------
-       VALIDASI CREDIT FINAL
+       VALIDASI DISCOUNT
        ----------------------------------------------------- */
 
     if (
-        normalized.credit_final !== undefined &&
-        normalized.credit_final !== null
+        !Number.isFinite(
+            normalized.discount_percent
+        ) ||
+        normalized.discount_percent < 0 ||
+        normalized.discount_percent > 100
     ) {
 
-        if (
-            !Number.isFinite(
-                Number(
-                    normalized.credit_final
-                )
-            ) ||
-            Number(
-                normalized.credit_final
-            ) < 0
-        ) {
-
-            validationErrors.push(
-                "Credit Final tidak valid."
-            );
-
-        } else {
-
-            normalized.credit_final =
-                normalizeNumber(
-                    normalized.credit_final,
-                    0
-                );
-
-        }
+        validationErrors.push(
+            "Discount harus berada di antara 0 dan 100."
+        );
 
     }
 
@@ -2196,11 +2083,7 @@ const EDIT_COMPARE_FIELDS = [
 
     "description",
 
-    "credit_cost",
-
     "discount_percent",
-
-    "credit_final",
 
     /*
      * CREDIT PER RESOLUTION
@@ -2494,8 +2377,6 @@ export function commitEditModel(
      *
      * Snapshot original juga digeser ke
      * hasil yang sudah berhasil disimpan.
-     * Dengan demikian hasChanges() setelah commit
-     * tidak membaca perubahan lama sebagai perubahan baru.
      */
 
     editState.model =
@@ -2621,10 +2502,6 @@ export async function submitEditModel(
 
     /*
      * Snapshot ORIGINAL sebelum submit.
-     *
-     * Jangan menggunakan getEditingModel()
-     * sebagai pembanding perubahan jika state
-     * sudah di-update oleh event.
      */
 
     const editingSnapshot =
@@ -2697,12 +2574,6 @@ export async function submitEditModel(
             result.model_id
         )
     ) {
-
-        /*
-         * Kompatibilitas:
-         * beberapa handler mungkin mengembalikan
-         * object model langsung.
-         */
 
         commitEditModel(
             result
