@@ -14,6 +14,10 @@
    - Resolution dari models.supported_resolutions
    - Duration dari models.min_duration / max_duration
    - Credit calculation
+   - Credit per resolution:
+       credit_480p
+       credit_720p
+       credit_1080p
    - Normalisasi form data
 
    DATABASE RELATION:
@@ -39,6 +43,12 @@
    - Tidak mengarang daftar duration.
    - Tidak menggunakan tabel kie_*.
    - Tidak query Supabase secara langsung.
+   - credit_final tetap dipertahankan sebagai
+     compatibility/fallback.
+   - Credit aktual per resolution disimpan pada:
+       credit_480p
+       credit_720p
+       credit_1080p
    ========================================================= */
 
 import {
@@ -80,6 +90,15 @@ const FIELD_NAMES = {
 
     creditFinal:
         "credit_final",
+
+    credit480p:
+        "credit_480p",
+
+    credit720p:
+        "credit_720p",
+
+    credit1080p:
+        "credit_1080p",
 
     minDuration:
         "min_duration",
@@ -343,6 +362,15 @@ function normalizeFormModel(
             credit_final:
                 0,
 
+            credit_480p:
+                0,
+
+            credit_720p:
+                0,
+
+            credit_1080p:
+                0,
+
             min_duration:
                 "",
 
@@ -363,9 +391,71 @@ function normalizeFormModel(
     }
 
 
+    /*
+     * normalizeModel() tetap dipakai untuk
+     * normalisasi struktur model utama.
+     *
+     * Credit resolution dibaca juga langsung
+     * dari source model supaya tidak hilang
+     * apabila normalizer lama belum mengenal
+     * tiga field baru.
+     */
+
     const normalized =
         normalizeModel(
             model
+        );
+
+
+    const source =
+        model || {};
+
+
+    const creditFinal =
+        toNumber(
+            normalized.credit_final ??
+                source.credit_final,
+            calculateCreditFinal(
+                normalized.credit_cost,
+                normalized.discount_percent
+            )
+        );
+
+
+    /*
+     * Untuk model lama:
+     *
+     * credit_480p
+     * credit_720p
+     * credit_1080p
+     *
+     * fallback ke credit_final.
+     *
+     * Tetapi apabila kolom memang sudah memiliki
+     * nilai, nilai tersebut dipertahankan.
+     */
+
+    const credit480p =
+        toNumber(
+            source.credit_480p ??
+                normalized.credit_480p,
+            creditFinal
+        );
+
+
+    const credit720p =
+        toNumber(
+            source.credit_720p ??
+                normalized.credit_720p,
+            creditFinal
+        );
+
+
+    const credit1080p =
+        toNumber(
+            source.credit_1080p ??
+                normalized.credit_1080p,
+            creditFinal
         );
 
 
@@ -373,44 +463,54 @@ function normalizeFormModel(
 
         id:
             normalized.id ||
+            source.id ||
             "",
 
         provider_id:
             normalized.provider_id ||
+            source.provider_id ||
             "",
 
         model_id:
             normalized.model_id ||
+            source.model_id ||
             "",
 
         model_name:
             normalized.model_name ||
+            source.model_name ||
             "",
 
         description:
             normalized.description ||
+            source.description ||
             "",
 
         credit_cost:
             toNumber(
-                normalized.credit_cost,
+                normalized.credit_cost ??
+                    source.credit_cost,
                 0
             ),
 
         discount_percent:
             toNumber(
-                normalized.discount_percent,
+                normalized.discount_percent ??
+                    source.discount_percent,
                 0
             ),
 
         credit_final:
-            toNumber(
-                normalized.credit_final,
-                calculateCreditFinal(
-                    normalized.credit_cost,
-                    normalized.discount_percent
-                )
-            ),
+            creditFinal,
+
+        credit_480p:
+            credit480p,
+
+        credit_720p:
+            credit720p,
+
+        credit_1080p:
+            credit1080p,
 
         min_duration:
             normalized.min_duration !==
@@ -424,7 +524,20 @@ function normalizeFormModel(
 
                 :
 
-                "",
+                (
+                    source.min_duration !==
+                        null &&
+                    source.min_duration !==
+                        undefined
+
+                        ?
+
+                        source.min_duration
+
+                        :
+
+                        ""
+                ),
 
         max_duration:
             normalized.max_duration !==
@@ -438,25 +551,41 @@ function normalizeFormModel(
 
                 :
 
-                "",
+                (
+                    source.max_duration !==
+                        null &&
+                    source.max_duration !==
+                        undefined
+
+                        ?
+
+                        source.max_duration
+
+                        :
+
+                        ""
+                ),
 
         supported_ratios:
             unique(
                 normalizeArrayValue(
-                    normalized.supported_ratios
+                    normalized.supported_ratios ??
+                        source.supported_ratios
                 )
             ),
 
         supported_resolutions:
             unique(
                 normalizeArrayValue(
-                    normalized.supported_resolutions
+                    normalized.supported_resolutions ??
+                        source.supported_resolutions
                 )
             ),
 
         status:
             normalizeStatus(
-                normalized.status
+                normalized.status ||
+                    source.status
             )
 
     };
@@ -1447,6 +1576,46 @@ function injectFormStyles() {
             font-size: 15px;
         }
 
+        .model-credit-resolution-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(
+                    3,
+                    minmax(0, 1fr)
+                );
+            gap: 16px;
+        }
+
+        .model-credit-resolution-card {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            min-width: 0;
+        }
+
+        .model-credit-resolution-card label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .model-credit-resolution-card input {
+            width: 100%;
+            min-height: 42px;
+            box-sizing: border-box;
+            border: 1px solid
+                rgba(128,128,128,.28);
+            border-radius: 8px;
+            padding: 9px 11px;
+            background: inherit;
+            color: inherit;
+            outline: none;
+        }
+
+        .model-credit-resolution-card input:focus {
+            border-color:
+                rgba(99,102,241,.7);
+        }
+
         .model-form-mode-edit {
             opacity: .92;
         }
@@ -1458,9 +1627,25 @@ function injectFormStyles() {
             margin-top: 2px;
         }
 
+        @media (max-width: 900px) {
+
+            .model-credit-resolution-grid {
+                grid-template-columns:
+                    repeat(
+                        2,
+                        minmax(0, 1fr)
+                    );
+            }
+
+        }
+
         @media (max-width: 700px) {
 
             .model-form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .model-credit-resolution-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -1622,6 +1807,13 @@ export function renderModelForm(
                     : "Ketik Model ID pertama"
 
             );
+
+
+    const creditFinal =
+        calculateCreditFinal(
+            data.credit_cost,
+            data.discount_percent
+        );
 
 
     return `
@@ -1788,6 +1980,7 @@ export function renderModelForm(
                                         ? "Model ID yang tersedia berasal dari tabel models Supabase."
 
                                         : "Belum ada Model ID pada tabel models. Untuk record pertama, Model ID dapat dimasukkan manual."
+
                                 )
 
                         }
@@ -1913,7 +2106,7 @@ export function renderModelForm(
 
 
             <!-- =========================================
-                 CREDIT
+                 CREDIT NORMAL / DISCOUNT
             ========================================== -->
 
             <div
@@ -2013,10 +2206,7 @@ export function renderModelForm(
                     data-credit-final-preview
                 >
                     ${escapeHtml(
-                        calculateCreditFinal(
-                            data.credit_cost,
-                            data.discount_percent
-                        )
+                        creditFinal
                     )}
                 </strong>
 
@@ -2029,12 +2219,181 @@ export function renderModelForm(
                     data-model-field="credit_final"
 
                     value="${escapeHtml(
-                        calculateCreditFinal(
-                            data.credit_cost,
-                            data.discount_percent
-                        )
+                        creditFinal
                     )}"
                 >
+
+            </div>
+
+
+            <!-- =========================================
+                 CREDIT PER RESOLUTION
+            ========================================== -->
+
+            <div
+                class="model-form-grid full"
+            >
+
+                <div
+                    class="model-form-field"
+                >
+
+                    <label>
+                        Credit per Resolution
+                    </label>
+
+
+                    <div
+                        class="model-form-help"
+                    >
+
+                        Tentukan credit yang dipotong
+                        berdasarkan resolusi yang dipilih
+                        pada halaman Generate.
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div
+                class="model-credit-resolution-grid"
+            >
+
+
+                <!-- CREDIT 480P -->
+
+                <div
+                    class="model-credit-resolution-card"
+                >
+
+                    <label
+                        for="model-credit-480p"
+                    >
+                        Credit 480p
+                    </label>
+
+
+                    <input
+                        id="model-credit-480p"
+
+                        name="${FIELD_NAMES.credit480p}"
+
+                        data-model-field="credit_480p"
+
+                        type="number"
+
+                        min="0"
+
+                        step="0.0001"
+
+                        value="${escapeHtml(
+                            data.credit_480p
+                        )}"
+
+                        required
+                    >
+
+
+                    <div
+                        class="model-form-help"
+                    >
+                        Credit yang digunakan
+                        untuk resolusi 480p.
+                    </div>
+
+                </div>
+
+
+                <!-- CREDIT 720P -->
+
+                <div
+                    class="model-credit-resolution-card"
+                >
+
+                    <label
+                        for="model-credit-720p"
+                    >
+                        Credit 720p
+                    </label>
+
+
+                    <input
+                        id="model-credit-720p"
+
+                        name="${FIELD_NAMES.credit720p}"
+
+                        data-model-field="credit_720p"
+
+                        type="number"
+
+                        min="0"
+
+                        step="0.0001"
+
+                        value="${escapeHtml(
+                            data.credit_720p
+                        )}"
+
+                        required
+                    >
+
+
+                    <div
+                        class="model-form-help"
+                    >
+                        Credit yang digunakan
+                        untuk resolusi 720p.
+                    </div>
+
+                </div>
+
+
+                <!-- CREDIT 1080P -->
+
+                <div
+                    class="model-credit-resolution-card"
+                >
+
+                    <label
+                        for="model-credit-1080p"
+                    >
+                        Credit 1080p
+                    </label>
+
+
+                    <input
+                        id="model-credit-1080p"
+
+                        name="${FIELD_NAMES.credit1080p}"
+
+                        data-model-field="credit_1080p"
+
+                        type="number"
+
+                        min="0"
+
+                        step="0.0001"
+
+                        value="${escapeHtml(
+                            data.credit_1080p
+                        )}"
+
+                        required
+                    >
+
+
+                    <div
+                        class="model-form-help"
+                    >
+                        Credit yang digunakan
+                        untuk resolusi 1080p.
+                    </div>
+
+                </div>
+
 
             </div>
 
@@ -2359,6 +2718,28 @@ export function collectModelFormData(
         );
 
 
+    /*
+     * Resolution-specific credit.
+     */
+
+    const credit480p =
+        getNumber(
+            FIELD_NAMES.credit480p
+        );
+
+
+    const credit720p =
+        getNumber(
+            FIELD_NAMES.credit720p
+        );
+
+
+    const credit1080p =
+        getNumber(
+            FIELD_NAMES.credit1080p
+        );
+
+
     return {
 
         id:
@@ -2400,6 +2781,15 @@ export function collectModelFormData(
                 creditCost,
                 discountPercent
             ),
+
+        credit_480p:
+            credit480p,
+
+        credit_720p:
+            credit720p,
+
+        credit_1080p:
+            credit1080p,
 
         min_duration:
             getNumber(
@@ -2532,6 +2922,70 @@ export function validateModelFormData(
 
         errors.push(
             "Discount Percent harus berada antara 0 sampai 100."
+        );
+
+    }
+
+
+    /* =====================================================
+       CREDIT PER RESOLUTION
+       ===================================================== */
+
+    const credit480p =
+        Number(
+            data.credit_480p
+        );
+
+
+    if (
+        !Number.isFinite(
+            credit480p
+        ) ||
+        credit480p < 0
+    ) {
+
+        errors.push(
+            "Credit 480p harus berupa angka 0 atau lebih."
+        );
+
+    }
+
+
+    const credit720p =
+        Number(
+            data.credit_720p
+        );
+
+
+    if (
+        !Number.isFinite(
+            credit720p
+        ) ||
+        credit720p < 0
+    ) {
+
+        errors.push(
+            "Credit 720p harus berupa angka 0 atau lebih."
+        );
+
+    }
+
+
+    const credit1080p =
+        Number(
+            data.credit_1080p
+        );
+
+
+    if (
+        !Number.isFinite(
+            credit1080p
+        ) ||
+        credit1080p < 0
+    ) {
+
+        errors.push(
+            "Credit 1080p harus berupa angka 0 atau lebih."
         );
 
     }
@@ -3052,9 +3506,9 @@ export function applyModelDataToForm(
 
 
     /*
-     * Selalu hitung ulang.
+     * credit_final selalu dihitung ulang.
      *
-     * credit_final bukan sumber input manual.
+     * credit_final bukan input manual.
      */
 
     const finalCredit =
@@ -3067,6 +3521,28 @@ export function applyModelDataToForm(
     setValue(
         FIELD_NAMES.creditFinal,
         finalCredit
+    );
+
+
+    /*
+     * Credit berdasarkan resolution.
+     */
+
+    setValue(
+        FIELD_NAMES.credit480p,
+        normalized.credit_480p
+    );
+
+
+    setValue(
+        FIELD_NAMES.credit720p,
+        normalized.credit_720p
+    );
+
+
+    setValue(
+        FIELD_NAMES.credit1080p,
+        normalized.credit_1080p
     );
 
 
@@ -3464,6 +3940,27 @@ export function handleProviderChange(
     setDependentField(
         root,
         FIELD_NAMES.creditFinal,
+        0
+    );
+
+
+    setDependentField(
+        root,
+        FIELD_NAMES.credit480p,
+        0
+    );
+
+
+    setDependentField(
+        root,
+        FIELD_NAMES.credit720p,
+        0
+    );
+
+
+    setDependentField(
+        root,
+        FIELD_NAMES.credit1080p,
         0
     );
 
@@ -4091,6 +4588,66 @@ export function normalizeModelSubmission(
         data.discount_percent =
             Number(
                 data.discount_percent
+            );
+
+    }
+
+
+    /*
+     * Credit resolution.
+     *
+     * Jangan membuat nilai baru secara
+     * otomatis di sini.
+     *
+     * Nilai berasal dari form / record model.
+     */
+
+    if (
+        data.credit_480p !==
+            null &&
+        data.credit_480p !==
+            undefined &&
+        data.credit_480p !==
+            ""
+    ) {
+
+        data.credit_480p =
+            Number(
+                data.credit_480p
+            );
+
+    }
+
+
+    if (
+        data.credit_720p !==
+            null &&
+        data.credit_720p !==
+            undefined &&
+        data.credit_720p !==
+            ""
+    ) {
+
+        data.credit_720p =
+            Number(
+                data.credit_720p
+            );
+
+    }
+
+
+    if (
+        data.credit_1080p !==
+            null &&
+        data.credit_1080p !==
+            undefined &&
+        data.credit_1080p !==
+            ""
+    ) {
+
+        data.credit_1080p =
+            Number(
+                data.credit_1080p
             );
 
     }
