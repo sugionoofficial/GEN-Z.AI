@@ -13,7 +13,7 @@
    - Render duration
    - Render ratio
    - Render resolution
-   - Render pricing berbasis CREDIT
+   - Render pricing berbasis CREDIT RESOLUTION
    - Menyediakan lookup model
    - Menyediakan data-action="edit"
 
@@ -24,6 +24,20 @@
    - Berasal dari config.js
    - Tidak dapat diedit dari UI
    - Tetap menjadi referensi Generate
+
+   PRICING SOURCE OF TRUTH:
+   - credit_480p
+   - credit_720p
+   - credit_1080p
+   - discount_percent
+
+   LEGACY PRICING:
+   - credit_cost      -> TIDAK DIGUNAKAN
+   - credit_final     -> TIDAK DIGUNAKAN
+
+   CREDIT FINAL:
+   - Dihitung di aplikasi
+   - Tidak perlu disimpan di Supabase
 
    Tidak bertanggung jawab:
    - Search
@@ -535,74 +549,107 @@
         ===================================================== */
 
         /*
-         * PENTING:
+         * ACTIVE PRICING SOURCE:
          *
-         * credit_cost adalah CREDIT.
+         *   credit_480p
+         *   credit_720p
+         *   credit_1080p
+         *   discount_percent
          *
-         * Jangan menganggap field ini sebagai:
-         * - USD
-         * - price_usd
-         * - Rupiah
+         * credit_cost TIDAK DIGUNAKAN.
+         * credit_final TIDAK DIGUNAKAN.
          *
-         * Karena schema models saat ini tidak
-         * memiliki field USD yang terverifikasi.
+         * Credit final dihitung dari:
+         *
+         *   credit -
+         *   (credit * discount / 100)
+         *
+         * Hasil perhitungan tidak disimpan
+         * ke Supabase.
          */
-
-        const creditCost =
-            normalizeNumber(
-                model.credit_cost ??
-                model.credit ??
-                model.creditCost ??
-                0,
-                0
-            );
 
 
         const discountPercent =
-            normalizeNumber(
-                model.discount_percent ??
-                model.discountPercent ??
-                0,
-                0
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    normalizeNumber(
+                        model.discount_percent ??
+                        model.discountPercent ??
+                        0,
+                        0
+                    )
+                )
             );
 
 
-        let creditFinal;
+        const credit480p =
+            normalizeNumber(
+                model.credit_480p ??
+                model.credit480p,
+                null
+            );
 
 
-        if (
-            model.credit_final !== undefined &&
-            model.credit_final !== null &&
-            model.credit_final !== ""
+        const credit720p =
+            normalizeNumber(
+                model.credit_720p ??
+                model.credit720p,
+                null
+            );
+
+
+        const credit1080p =
+            normalizeNumber(
+                model.credit_1080p ??
+                model.credit1080p,
+                null
+            );
+
+
+        function calculateResolutionCreditFinal(
+            credit
         ) {
 
-            creditFinal =
-                normalizeNumber(
-                    model.credit_final,
-                    creditCost
-                );
+            if (
+                credit === null ||
+                credit === undefined
+            ) {
 
-        } else {
+                return null;
 
-            creditFinal =
-                creditCost -
+            }
+
+
+            return Math.max(
+                0,
+                credit -
                 (
-                    creditCost *
+                    credit *
                     discountPercent /
                     100
-                );
+                )
+            );
 
         }
 
 
-        /*
-         * Jangan biarkan nilai negatif.
-         */
+        const creditFinal480p =
+            calculateResolutionCreditFinal(
+                credit480p
+            );
 
-        creditFinal =
-            Math.max(
-                0,
-                creditFinal
+
+        const creditFinal720p =
+            calculateResolutionCreditFinal(
+                credit720p
+            );
+
+
+        const creditFinal1080p =
+            calculateResolutionCreditFinal(
+                credit1080p
             );
 
 
@@ -661,14 +708,37 @@
 
             type,
 
-            credit_cost:
-                creditCost,
+            /*
+             * Active resolution pricing.
+             */
+
+            credit_480p:
+                credit480p,
+
+            credit_720p:
+                credit720p,
+
+            credit_1080p:
+                credit1080p,
+
+            /*
+             * Calculated values.
+             *
+             * These are runtime values only.
+             * They are NOT database columns.
+             */
+
+            credit_final_480p:
+                creditFinal480p,
+
+            credit_final_720p:
+                creditFinal720p,
+
+            credit_final_1080p:
+                creditFinal1080p,
 
             discount_percent:
                 discountPercent,
-
-            credit_final:
-                creditFinal,
 
             min_duration:
                 minDuration,
@@ -800,7 +870,7 @@
 
         if (!Number.isFinite(number)) {
 
-            return "0 Credit";
+            return "-";
 
         }
 
@@ -1068,30 +1138,10 @@
 
     function renderPrice(model) {
 
-        const original =
-            Number(
-                model?.credit_cost
-            );
-
-
-        const finalPrice =
-            Number(
-                model?.credit_final
-            );
-
-
         const discount =
             Number(
                 model?.discount_percent
             );
-
-
-        const hasOriginal =
-            Number.isFinite(original);
-
-
-        const hasFinal =
-            Number.isFinite(finalPrice);
 
 
         const hasDiscount =
@@ -1099,66 +1149,148 @@
             discount > 0;
 
 
+        const resolutions = [
+
+            {
+                label:
+                    "480p",
+
+                credit:
+                    model?.credit_480p,
+
+                finalCredit:
+                    model?.credit_final_480p
+
+            },
+
+            {
+                label:
+                    "720p",
+
+                credit:
+                    model?.credit_720p,
+
+                finalCredit:
+                    model?.credit_final_720p
+
+            },
+
+            {
+                label:
+                    "1080p",
+
+                credit:
+                    model?.credit_1080p,
+
+                finalCredit:
+                    model?.credit_final_1080p
+
+            }
+
+        ];
+
+
+        function renderResolution(item) {
+
+            const credit =
+                Number(
+                    item.credit
+                );
+
+
+            const finalCredit =
+                Number(
+                    item.finalCredit
+                );
+
+
+            const hasCredit =
+                Number.isFinite(
+                    credit
+                );
+
+
+            const hasFinal =
+                Number.isFinite(
+                    finalCredit
+                );
+
+
+            return (
+
+                '<div class="model-pricing" style="flex:1;min-width:180px;">' +
+
+                    '<div class="pricing-header">' +
+                        escapeHtml(
+                            item.label
+                        ) +
+                    "</div>" +
+
+
+                    '<div class="price-row">' +
+
+                        "<span>Credit</span>" +
+
+                        "<strong>" +
+                            escapeHtml(
+                                hasCredit
+                                    ? formatCredit(credit)
+                                    : "-"
+                            ) +
+                        "</strong>" +
+
+                    "</div>" +
+
+
+                    '<div class="price-row">' +
+
+                        "<span>Diskon</span>" +
+
+                        '<strong class="discount-value">' +
+
+                            escapeHtml(
+                                hasDiscount
+                                    ? formatDiscount(discount)
+                                    : "Tidak ada"
+                            ) +
+
+                        "</strong>" +
+
+                    "</div>" +
+
+
+                    '<div class="price-row price-final">' +
+
+                        "<span>Credit final</span>" +
+
+                        "<strong>" +
+
+                            escapeHtml(
+                                hasFinal
+                                    ? formatCredit(finalCredit)
+                                    : "-"
+                            ) +
+
+                        "</strong>" +
+
+                    "</div>" +
+
+                "</div>"
+
+            );
+
+        }
+
+
         return (
 
-            '<div class="model-pricing">' +
+            '<div style="display:flex;gap:12px;flex-wrap:wrap;width:100%;">' +
 
-                '<div class="pricing-header">' +
-                    "Pricing" +
-                "</div>" +
-
-
-                '<div class="price-row">' +
-
-                    "<span>Credit</span>" +
-
-                    "<strong>" +
-                        escapeHtml(
-                            formatCredit(
-                                hasOriginal
-                                    ? original
-                                    : 0
-                            )
-                        ) +
-                    "</strong>" +
-
-                "</div>" +
-
-
-                '<div class="price-row">' +
-
-                    "<span>Diskon</span>" +
-
-                    '<strong class="discount-value">' +
-
-                        escapeHtml(
-                            hasDiscount
-                                ? formatDiscount(discount)
-                                : "Tidak ada"
-                        ) +
-
-                    "</strong>" +
-
-                "</div>" +
-
-
-                '<div class="price-row price-final">' +
-
-                    "<span>Credit final</span>" +
-
-                    "<strong>" +
-
-                        escapeHtml(
-                            formatCredit(
-                                hasFinal
-                                    ? finalPrice
-                                    : 0
-                            )
-                        ) +
-
-                    "</strong>" +
-
-                "</div>" +
+                resolutions
+                    .map(
+                        renderResolution
+                    )
+                    .join("") +
 
             "</div>"
 
