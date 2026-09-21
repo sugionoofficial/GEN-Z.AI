@@ -11,6 +11,7 @@
    - Konfirmasi delete
    - Menyerahkan operasi DELETE kepada caller/API layer
    - Menjaga agar delete tidak recursive
+   - Menjaga state delete tetap konsisten
 
    Tidak bertanggung jawab:
    - Render tabel
@@ -18,6 +19,7 @@
    - Create model
    - Edit model
    - Render modal
+   - Perhitungan pricing
    ========================================================= */
 
 (function () {
@@ -43,37 +45,51 @@
 
     function normalizeId(value) {
 
-        return String(
+        if (
             value === null ||
             value === undefined
-                ? ""
-                : value
-        ).trim();
+        ) {
+            return "";
+        }
+
+        return String(value).trim();
 
     }
 
 
     function normalizeText(value) {
 
-        return String(
+        if (
             value === null ||
             value === undefined
-                ? ""
-                : value
-        ).trim();
+        ) {
+            return "";
+        }
+
+        return String(value).trim();
 
     }
 
 
     function getModelId(model) {
 
-        if (!model) {
+        if (
+            !model ||
+            typeof model !== "object"
+        ) {
             return "";
         }
 
+        /*
+         * Database primary key tetap menjadi
+         * identifier utama untuk DELETE.
+         *
+         * model_id hanya fallback untuk
+         * membaca identifier model ketika
+         * diperlukan oleh resolver.
+         */
         return normalizeId(
-            model.id ||
-            model.model_id
+            model.id
         );
 
     }
@@ -81,7 +97,10 @@
 
     function getModelName(model) {
 
-        if (!model) {
+        if (
+            !model ||
+            typeof model !== "object"
+        ) {
             return "";
         }
 
@@ -103,37 +122,73 @@
         models = []
     ) {
 
+        const list =
+            Array.isArray(models)
+                ? models
+                : [];
+
+
+        /*
+         * Jika object model diberikan.
+         */
         if (
             model &&
             typeof model === "object"
         ) {
 
-            if (model.id) {
+            /*
+             * Model dengan database ID sudah cukup.
+             */
+            if (
+                normalizeId(model.id)
+            ) {
 
                 return model;
 
             }
 
-            if (model.model_id) {
+
+            /*
+             * Jika hanya mempunyai model_id,
+             * coba cari record lengkap dari list.
+             */
+            const requestedModelId =
+                normalizeText(
+                    model.model_id
+                );
+
+
+            if (
+                requestedModelId
+            ) {
 
                 const found =
-                    (models || []).find(
+                    list.find(
                         item =>
                             normalizeText(
+                                item &&
                                 item.model_id
                             ) ===
-                            normalizeText(
-                                model.model_id
-                            )
+                            requestedModelId
                     );
+
 
                 return found || model;
 
             }
 
+
+            return model;
+
         }
 
 
+        /*
+         * Jika hanya ID/string diberikan,
+         * cari berdasarkan:
+         * 1. database id
+         * 2. model_id
+         */
         const requestedId =
             normalizeId(
                 model
@@ -146,16 +201,30 @@
 
 
         return (
-            models || []
-        ).find(
-            item =>
-                normalizeId(
-                    item.id
-                ) === requestedId ||
-                normalizeText(
-                    item.model_id
-                ) === requestedId
-        ) || null;
+            list.find(
+                item => {
+
+                    if (
+                        !item ||
+                        typeof item !== "object"
+                    ) {
+                        return false;
+                    }
+
+                    return (
+                        normalizeId(
+                            item.id
+                        ) === requestedId
+                    ) ||
+                    (
+                        normalizeText(
+                            item.model_id
+                        ) === requestedId
+                    );
+
+                }
+            ) || null
+        );
 
     }
 
@@ -172,7 +241,10 @@
         const errors = [];
 
 
-        if (!model) {
+        if (
+            !model ||
+            typeof model !== "object"
+        ) {
 
             errors.push(
                 "Model yang akan dihapus tidak ditemukan."
@@ -184,12 +256,19 @@
 
 
         const modelId =
-            normalizeId(
-                model.id
+            getModelId(
+                model
             );
 
 
-        if (!modelId) {
+        /*
+         * DELETE database harus menggunakan
+         * models.id.
+         */
+        if (
+            options.requireDatabaseId !== false &&
+            !modelId
+        ) {
 
             errors.push(
                 "ID database model tidak ditemukan."
@@ -198,25 +277,33 @@
         }
 
 
-        /*
-         * Delete harus menggunakan models.id.
-         *
-         * model_id adalah identifier API,
-         * bukan primary key database.
-         */
-        if (
-            options.requireDatabaseId !== false &&
-            !modelId
-        ) {
+        return errors;
 
-            errors.push(
-                "Model tidak memiliki database ID yang valid."
+    }
+
+
+    /* =====================================================
+       CREATE VALIDATION ERROR
+       ===================================================== */
+
+    function createValidationError(
+        errors
+    ) {
+
+        const error =
+            new Error(
+                "MODEL_DELETE_VALIDATION_FAILED"
             );
 
-        }
+        error.code =
+            "MODEL_DELETE_VALIDATION_FAILED";
 
+        error.errors =
+            Array.isArray(errors)
+                ? errors
+                : [];
 
-        return errors;
+        return error;
 
     }
 
@@ -230,14 +317,15 @@
         options = {}
     ) {
 
-        if (state.deleting) {
+        /*
+         * Jangan membuka operasi delete baru
+         * ketika delete sebelumnya masih berjalan.
+         */
+        if (
+            state.deleting
+        ) {
 
-            return {
-                active: true,
-                deleting: true,
-                model: state.model,
-                modelId: state.modelId
-            };
+            return getState();
 
         }
 
@@ -245,7 +333,7 @@
         const resolved =
             resolveModel(
                 model,
-                options.models || []
+                options.models
             );
 
 
@@ -256,20 +344,13 @@
             );
 
 
-        if (errors.length) {
+        if (
+            errors.length
+        ) {
 
-            const error =
-                new Error(
-                    "MODEL_DELETE_VALIDATION_FAILED"
-                );
-
-            error.code =
-                "MODEL_DELETE_VALIDATION_FAILED";
-
-            error.errors =
-                errors;
-
-            throw error;
+            throw createValidationError(
+                errors
+            );
 
         }
 
@@ -284,8 +365,8 @@
             resolved;
 
         state.modelId =
-            normalizeId(
-                resolved.id
+            getModelId(
+                resolved
             );
 
 
@@ -354,7 +435,10 @@
             state.model;
 
 
-        if (!target) {
+        if (
+            !target ||
+            typeof target !== "object"
+        ) {
 
             return false;
 
@@ -362,8 +446,8 @@
 
 
         /*
-         * Caller dapat mematikan confirm native
-         * jika UI sudah mempunyai modal sendiri.
+         * Caller dapat menonaktifkan native confirm
+         * jika UI sudah menyediakan modal sendiri.
          */
         if (
             options.requireConfirmation ===
@@ -394,9 +478,13 @@
             );
 
 
+        /*
+         * Environment tanpa window.confirm
+         * tidak boleh membuat delete macet.
+         */
         if (
-            typeof window.confirm !==
-                "function"
+            typeof window === "undefined" ||
+            typeof window.confirm !== "function"
         ) {
 
             return true;
@@ -412,13 +500,69 @@
 
 
     /* =====================================================
+       RESOLVE DELETE HANDLER
+       ===================================================== */
+
+    function resolveDeleteHandler(
+        options = {}
+    ) {
+
+        if (
+            typeof options.remove ===
+                "function"
+        ) {
+
+            return options.remove;
+
+        }
+
+
+        if (
+            typeof options.delete ===
+                "function"
+        ) {
+
+            return options.delete;
+
+        }
+
+
+        if (
+            typeof options.onDelete ===
+                "function"
+        ) {
+
+            return options.onDelete;
+
+        }
+
+
+        if (
+            typeof options.submit ===
+                "function"
+        ) {
+
+            return options.submit;
+
+        }
+
+
+        return null;
+
+    }
+
+
+    /* =====================================================
        DELETE
        -----------------------------------------------------
        Database operation diserahkan ke callback.
 
-       Tidak ada fallback ke coordinator.
-       Tidak ada dispatch event yang memanggil
-       dirinya sendiri.
+       Tidak:
+       - memanggil coordinator
+       - memanggil dirinya sendiri
+       - melakukan query Supabase
+       - melakukan pricing
+       - dispatch recursive event
        ===================================================== */
 
     async function remove(
@@ -449,19 +593,18 @@
 
 
         /*
-         * Jika hanya ID yang diberikan,
-         * coba resolve dari options.models.
+         * Jika hanya ID diberikan,
+         * resolve menggunakan cache/list model.
          */
         if (
             !target ||
-            typeof target !==
-                "object"
+            typeof target !== "object"
         ) {
 
             target =
                 resolveModel(
                     target,
-                    options.models || []
+                    options.models
                 );
 
         }
@@ -474,72 +617,61 @@
             );
 
 
-        if (errors.length) {
+        if (
+            errors.length
+        ) {
 
-            const error =
-                new Error(
-                    "MODEL_DELETE_VALIDATION_FAILED"
-                );
-
-            error.code =
-                "MODEL_DELETE_VALIDATION_FAILED";
-
-            error.errors =
-                errors;
-
-            throw error;
+            throw createValidationError(
+                errors
+            );
 
         }
 
 
         /*
-         * Konfirmasi hanya dilakukan jika
-         * caller belum melakukan konfirmasi.
+         * Konfirmasi hanya dijalankan jika
+         * caller belum menyatakan confirmed=true.
          */
         if (
-            options.confirmed !==
-                true &&
-            !confirmDelete(
-                target,
-                options
-            )
+            options.confirmed !== true
         ) {
 
-            return {
-
-                success:
-                    false,
-
-                cancelled:
-                    true,
-
-                model:
+            const confirmed =
+                confirmDelete(
                     target,
+                    options
+                );
 
-                modelId:
-                    normalizeId(
-                        target.id
-                    )
 
-            };
+            if (!confirmed) {
+
+                return {
+
+                    success:
+                        false,
+
+                    cancelled:
+                        true,
+
+                    model:
+                        target,
+
+                    modelId:
+                        getModelId(
+                            target
+                        )
+
+                };
+
+            }
 
         }
 
 
         const handler =
-            typeof options.remove ===
-                "function"
-                ? options.remove
-                : typeof options.delete ===
-                    "function"
-                    ? options.delete
-                    : typeof options.onDelete ===
-                        "function"
-                        ? options.onDelete
-                        : typeof options.submit ===
-                            "function"
-                            ? options.submit
-                            : null;
+            resolveDeleteHandler(
+                options
+            );
 
 
         if (!handler) {
@@ -556,13 +688,24 @@
                 target;
 
             error.modelId =
-                normalizeId(
-                    target.id
+                getModelId(
+                    target
                 );
 
             throw error;
 
         }
+
+
+        /*
+         * Ambil database ID satu kali.
+         * Ini mencegah identifier berubah
+         * selama callback berjalan.
+         */
+        const databaseId =
+            getModelId(
+                target
+            );
 
 
         state.active =
@@ -575,20 +718,21 @@
             target;
 
         state.modelId =
-            normalizeId(
-                target.id
-            );
+            databaseId;
 
 
         try {
 
             /*
-             * Hanya database ID yang dikirim sebagai
-             * identifier utama.
+             * Hanya database ID dikirim sebagai
+             * argument utama kepada API/caller.
+             *
+             * Metadata lengkap tetap tersedia
+             * pada argument kedua untuk compatibility.
              */
             const result =
                 await handler(
-                    state.modelId,
+                    databaseId,
                     {
                         mode:
                             "delete",
@@ -597,7 +741,7 @@
                             target,
 
                         modelId:
-                            state.modelId
+                            databaseId
                     }
                 );
 
@@ -616,12 +760,20 @@
                     target,
 
                 modelId:
-                    state.modelId
+                    databaseId
 
             };
 
         } finally {
 
+            /*
+             * Jangan menghapus model/state di sini.
+             * Coordinator atau caller masih dapat
+             * membaca hasil operasi setelah handler
+             * selesai.
+             *
+             * Hanya flag operasi yang dilepas.
+             */
             state.deleting =
                 false;
 
@@ -676,21 +828,20 @@
 
 
         /*
-         * Jika model tidak ada di cache,
-         * tetap boleh diteruskan bila caller
-         * memang hanya membutuhkan database ID.
+         * Bila model tidak ditemukan di cache,
+         * tetap izinkan operasi menggunakan database ID.
+         *
+         * Ini penting agar delete tidak bergantung
+         * pada tabel/cache yang kebetulan belum refresh.
          */
         if (!target) {
 
             return remove(
                 {
-                    id
+                    id: id
                 },
                 {
-                    ...options,
-                    confirmed:
-                        options.confirmed ===
-                            true
+                    ...options
                 }
             );
 
@@ -717,7 +868,7 @@
         const target =
             resolveModel(
                 model,
-                options.models || []
+                options.models
             );
 
 
@@ -728,20 +879,13 @@
             );
 
 
-        if (errors.length) {
+        if (
+            errors.length
+        ) {
 
-            const error =
-                new Error(
-                    "MODEL_DELETE_VALIDATION_FAILED"
-                );
-
-            error.code =
-                "MODEL_DELETE_VALIDATION_FAILED";
-
-            error.errors =
-                errors;
-
-            throw error;
+            throw createValidationError(
+                errors
+            );
 
         }
 
@@ -749,8 +893,8 @@
         return {
 
             id:
-                normalizeId(
-                    target.id
+                getModelId(
+                    target
                 ),
 
             model_id:
