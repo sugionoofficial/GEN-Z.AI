@@ -30,15 +30,19 @@
            credit_base -
            (credit_base * discount_percent / 100)
 
-   DILARANG menggunakan:
+   SUMBER KREDIT FINAL:
+       credit per resolusi + discount_percent
 
+   DILARANG menggunakan sebagai sumber:
        credit_cost
        credit_final global
+       credit_final_480p
+       credit_final_720p
+       credit_final_1080p
        credit legacy
        hardcoded 50
 
    ACCOUNT CREDIT:
-
        profile.credits
 
    MODEL CREDIT dan ACCOUNT CREDIT adalah dua data
@@ -59,11 +63,21 @@ import {
 
 
 /*
- * generate-model.js menjadi sumber normalisasi model.
+ * generate-model.js tetap di-import untuk kompatibilitas
+ * dengan arsitektur module yang sudah ada.
  *
- * Helper digunakan jika tersedia.
- * Fallback lokal tetap tersedia agar UI tidak bergantung
- * pada satu jalur normalisasi saja.
+ * IMPORTANT:
+ * MODEL CREDIT DI FILE INI TIDAK LAGI MENGGUNAKAN
+ * hasil final dari helper tersebut sebagai sumber utama.
+ *
+ * Tujuannya agar nilai final selalu dihitung ulang dari:
+ *
+ *     credit_480p  + discount_percent
+ *     credit_720p  + discount_percent
+ *     credit_1080p + discount_percent
+ *
+ * sehingga nilai stale dari credit_final_* tidak bisa
+ * mengambil alih hasil models-edit.html.
  */
 import {
     getModelCreditForSelectedResolution
@@ -751,11 +765,15 @@ function getModelSourceObjects(
 
 
 /* =========================================================
-   READ MODEL RESOLUTION CREDIT
+   READ MODEL RESOLUTION BASE CREDIT
    ---------------------------------------------------------
-   HANYA membaca credit per resolusi.
+   SUMBER:
+       credit_480p
+       credit_720p
+       credit_1080p
 
    Tidak membaca:
+       credit_final_*
        credit_cost
        credit_final global
 ========================================================= */
@@ -886,130 +904,13 @@ function getModelResolutionBaseCredit(
 
 
 /* =========================================================
-   READ EXPLICIT FINAL CREDIT PER RESOLUTION
-========================================================= */
-
-function getExplicitResolutionFinalCredit(
-    model,
-    resolution
-) {
-
-    const normalizedResolution =
-        normalizeResolution(
-            resolution
-        );
-
-
-    if (
-        !normalizedResolution
-    ) {
-
-        return null;
-
-    }
-
-
-    const objects =
-        getModelSourceObjects(
-            model
-        );
-
-
-    let propertyNames = [];
-
-
-    switch (
-        normalizedResolution
-    ) {
-
-        case "480p":
-
-            propertyNames = [
-
-                "credit_final_480p",
-
-                "creditFinal480p",
-
-                "credit480pFinal"
-
-            ];
-
-            break;
-
-
-        case "720p":
-
-            propertyNames = [
-
-                "credit_final_720p",
-
-                "creditFinal720p",
-
-                "credit720pFinal"
-
-            ];
-
-            break;
-
-
-        case "1080p":
-
-            propertyNames = [
-
-                "credit_final_1080p",
-
-                "creditFinal1080p",
-
-                "credit1080pFinal"
-
-            ];
-
-            break;
-
-
-        default:
-
-            return null;
-
-    }
-
-
-    for (
-        const object
-        of objects
-    ) {
-
-        for (
-            const property
-            of propertyNames
-        ) {
-
-            const numeric =
-                normalizeCreditValue(
-                    object[property]
-                );
-
-
-            if (
-                numeric !== null
-            ) {
-
-                return numeric;
-
-            }
-
-        }
-
-    }
-
-
-    return null;
-
-}
-
-
-/* =========================================================
    GET MODEL DISCOUNT
+   ---------------------------------------------------------
+   SUMBER:
+       discount_percent
+
+   Fallback:
+       discountPercent
 ========================================================= */
 
 function getModelDiscountPercent(
@@ -1061,16 +962,88 @@ function getModelDiscountPercent(
     }
 
 
+    /*
+     * Tidak adanya discount berarti 0%.
+     *
+     * Ini tetap bukan angka kredit buatan.
+     */
+
     return 0;
 
 }
 
 
 /* =========================================================
-   LOCAL CREDIT RESOLVER
+   CALCULATE FINAL CREDIT
    ---------------------------------------------------------
-   Digunakan sebagai fallback apabila helper model
-   tidak mengembalikan credit yang valid.
+   SOURCE OF TRUTH:
+
+       baseCredit
+       +
+       discountPercent
+
+   FINAL:
+
+       base - (base * discount / 100)
+
+   Tidak membaca credit_final_*.
+========================================================= */
+
+function calculateFinalCredit(
+    baseCredit,
+    discountPercent
+) {
+
+    const base =
+        normalizeCreditValue(
+            baseCredit
+        );
+
+
+    if (
+        base === null
+    ) {
+
+        return null;
+
+    }
+
+
+    const discount =
+        normalizeDiscountPercent(
+            discountPercent
+        );
+
+
+    const finalCredit =
+        base -
+        (
+            base *
+            discount /
+            100
+        );
+
+
+    return Math.max(
+        0,
+        finalCredit
+    );
+
+}
+
+
+/* =========================================================
+   RESOLVE MODEL CREDIT LOCALLY
+   ---------------------------------------------------------
+   INI SEKARANG MENJADI SUMBER UTAMA UI.
+
+   Contoh:
+
+       base = 9
+       discount = 10
+
+       final = 9 - (9 * 10 / 100)
+             = 8.1
 ========================================================= */
 
 function resolveModelCreditLocally(
@@ -1094,18 +1067,37 @@ function resolveModelCreditLocally(
     }
 
 
-    const explicitFinal =
-        getExplicitResolutionFinalCredit(
-            model,
-            normalizedResolution
-        );
-
-
-    const base =
+    const baseCredit =
         getModelResolutionBaseCredit(
             model,
             normalizedResolution
         );
+
+
+    if (
+        baseCredit === null
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][Generate UI] Base credit resolusi tidak ditemukan.",
+            {
+
+                modelId:
+                    model?.model_id,
+
+                modelName:
+                    model?.model_name,
+
+                resolution:
+                    normalizedResolution
+
+            }
+        );
+
+
+        return null;
+
+    }
 
 
     const discountPercent =
@@ -1114,40 +1106,15 @@ function resolveModelCreditLocally(
         );
 
 
-    /*
-     * Jika final per-resolution sudah tersedia,
-     * gunakan langsung.
-     */
+    const finalCredit =
+        calculateFinalCredit(
+            baseCredit,
+            discountPercent
+        );
+
 
     if (
-        explicitFinal !== null
-    ) {
-
-        return {
-
-            resolution:
-                normalizedResolution,
-
-            credit_base:
-                base,
-
-            discount_percent:
-                discountPercent,
-
-            credit_final:
-                explicitFinal
-
-        };
-
-    }
-
-
-    /*
-     * Tanpa base credit jangan membuat angka sendiri.
-     */
-
-    if (
-        base === null
+        finalCredit === null
     ) {
 
         return null;
@@ -1155,13 +1122,30 @@ function resolveModelCreditLocally(
     }
 
 
-    const finalCredit =
-        base -
-        (
-            base *
-            discountPercent /
-            100
-        );
+    console.debug(
+        "[GEN-Z.AI][Generate UI] CREDIT SOURCE OF TRUTH:",
+        {
+
+            modelId:
+                model?.model_id,
+
+            modelName:
+                model?.model_name,
+
+            resolution:
+                normalizedResolution,
+
+            baseCredit,
+
+            discountPercent,
+
+            finalCredit,
+
+            formula:
+                `${baseCredit} - (${baseCredit} * ${discountPercent} / 100)`
+
+        }
+    );
 
 
     return {
@@ -1170,16 +1154,13 @@ function resolveModelCreditLocally(
             normalizedResolution,
 
         credit_base:
-            base,
+            baseCredit,
 
         discount_percent:
             discountPercent,
 
         credit_final:
-            Math.max(
-                0,
-                finalCredit
-            )
+            finalCredit
 
     };
 
@@ -1189,12 +1170,17 @@ function resolveModelCreditLocally(
 /* =========================================================
    RESOLVE MODEL CREDIT
    ---------------------------------------------------------
-   Prioritas:
+   SOURCE OF TRUTH UI:
 
-       1. generate-model.js
-       2. fallback lokal
+       1. Base credit per resolution
+       2. discount_percent
+       3. calculateFinalCredit()
 
-   Tidak pernah menggunakan global credit legacy.
+   generate-model.js TIDAK boleh mengambil alih
+   hasil final dari credit_final_*.
+
+   Import helper tetap dipertahankan untuk kompatibilitas
+   arsitektur, tetapi tidak digunakan sebagai sumber final.
 ========================================================= */
 
 export function resolveModelCredit(
@@ -1230,8 +1216,40 @@ export function resolveModelCredit(
 
     /*
      * -----------------------------------------------------
-     * PRIORITAS 1
-     * Helper generate-model.js.
+     * SUMBER UTAMA
+     *
+     * Selalu hitung langsung dari base + discount.
+     * -----------------------------------------------------
+     */
+
+    const localResult =
+        resolveModelCreditLocally(
+            model,
+            normalizedResolution
+        );
+
+
+    if (
+        localResult
+    ) {
+
+        return localResult;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * KOMPATIBILITAS SAJA
+     *
+     * Jika model yang datang dari state belum memiliki
+     * field base credit, kita boleh mencoba helper lama
+     * untuk mendapatkan data yang sudah dinormalisasi.
+     *
+     * Tetapi hasil ini hanya digunakan jika helper tersebut
+     * benar-benar memberikan base credit dan discount.
+     *
+     * credit_final_* TIDAK dipercaya.
      * -----------------------------------------------------
      */
 
@@ -1255,22 +1273,14 @@ export function resolveModelCredit(
                     "object"
             ) {
 
-                const finalCredit =
-                    normalizeCreditValue(
-                        result.credit_final ??
-                        result.creditFinal ??
-                        result.finalCredit
-                    );
-
-
-                const baseCredit =
+                const helperBase =
                     normalizeCreditValue(
                         result.credit_base ??
                         result.creditBase
                     );
 
 
-                const discount =
+                const helperDiscount =
                     normalizeDiscountPercent(
                         result.discount_percent ??
                         result.discountPercent ??
@@ -1280,25 +1290,68 @@ export function resolveModelCredit(
                     );
 
 
+                /*
+                 * Jangan mengambil result.credit_final
+                 * dari helper sebagai nilai final.
+                 *
+                 * Hitung ulang.
+                 */
+
                 if (
-                    finalCredit !== null
+                    helperBase !== null
                 ) {
 
-                    return {
+                    const recalculated =
+                        calculateFinalCredit(
+                            helperBase,
+                            helperDiscount
+                        );
 
-                        resolution:
-                            normalizedResolution,
 
-                        credit_base:
-                            baseCredit,
+                    if (
+                        recalculated !== null
+                    ) {
 
-                        discount_percent:
-                            discount,
+                        console.debug(
+                            "[GEN-Z.AI][Generate UI] CREDIT RECALCULATED FROM HELPER BASE:",
+                            {
 
-                        credit_final:
-                            finalCredit
+                                modelId:
+                                    model?.model_id,
 
-                    };
+                                resolution:
+                                    normalizedResolution,
+
+                                baseCredit:
+                                    helperBase,
+
+                                discountPercent:
+                                    helperDiscount,
+
+                                finalCredit:
+                                    recalculated
+
+                            }
+                        );
+
+
+                        return {
+
+                            resolution:
+                                normalizedResolution,
+
+                            credit_base:
+                                helperBase,
+
+                            discount_percent:
+                                helperDiscount,
+
+                            credit_final:
+                                recalculated
+
+                        };
+
+                    }
 
                 }
 
@@ -1311,24 +1364,14 @@ export function resolveModelCredit(
     ) {
 
         console.warn(
-            "[GEN-Z.AI][Generate UI] Helper model credit gagal, menggunakan fallback lokal.",
+            "[GEN-Z.AI][Generate UI] Helper model credit gagal.",
             error
         );
 
     }
 
 
-    /*
-     * -----------------------------------------------------
-     * PRIORITAS 2
-     * Fallback lokal.
-     * -----------------------------------------------------
-     */
-
-    return resolveModelCreditLocally(
-        model,
-        normalizedResolution
-    );
+    return null;
 
 }
 
@@ -1441,9 +1484,6 @@ function clearLegacyButtonCredit(
    Jangan pernah menulis textContent pada
    .generate-button-credit karena elemen tersebut adalah
    CONTAINER yang berisi icon + #generateCreditValue.
-
-   Menulis textContent pada container akan menghapus seluruh
-   child element.
 ========================================================= */
 
 function getButtonCreditValueElement(
@@ -1459,10 +1499,6 @@ function getButtonCreditValueElement(
     }
 
 
-    /*
-     * Prioritas utama sesuai HTML Generate saat ini.
-     */
-
     const direct =
         generateButton.querySelector(
             "#generateCreditValue"
@@ -1477,12 +1513,6 @@ function getButtonCreditValueElement(
 
     }
 
-
-    /*
-     * Compatibility:
-     * Cari elemen display yang memang merupakan CHILD,
-     * bukan container .generate-button-credit.
-     */
 
     const candidates =
         generateButton.querySelectorAll(
@@ -1537,25 +1567,6 @@ function getButtonCreditValueElement(
 
 /* =========================================================
    UPDATE GENERATE BUTTON CREDIT
-   ---------------------------------------------------------
-   FIX UTAMA:
-   ---------------------------------------------------------
-   Sebelumnya selector:
-
-       .generate-button-credit
-
-   mengambil container #generateCreditCost.
-
-   Kemudian:
-
-       container.textContent = ...
-
-   menghapus:
-
-       icon
-       #generateCreditValue
-
-   Sekarang hanya CHILD VALUE yang diubah.
 ========================================================= */
 
 function syncGenerateButtonCredit(
@@ -1588,10 +1599,6 @@ function syncGenerateButtonCredit(
         );
 
 
-    /*
-     * Pastikan container tetap terlihat.
-     */
-
     if (
         creditContainer
     ) {
@@ -1602,10 +1609,6 @@ function syncGenerateButtonCredit(
 
     }
 
-
-    /*
-     * Credit tidak tersedia.
-     */
 
     if (
         credit === null ||
@@ -1661,10 +1664,9 @@ function syncGenerateButtonCredit(
 
 
     /*
-     * HANYA update elemen nilai.
+     * HANYA update child value.
      *
-     * Tidak menyentuh #generateCreditCost.textContent.
-     * Icon ◆ dan struktur DOM tetap aman.
+     * Tidak menyentuh container.
      */
 
     if (
@@ -1720,6 +1722,9 @@ export function renderModelCredit(
             modelId:
                 model?.model_id,
 
+            modelName:
+                model?.model_name,
+
             resolution,
 
             credit480p:
@@ -1731,17 +1736,21 @@ export function renderModelCredit(
             credit1080p:
                 model?.credit_1080p,
 
-            creditFinal480p:
-                model?.credit_final_480p,
-
-            creditFinal720p:
-                model?.credit_final_720p,
-
-            creditFinal1080p:
-                model?.credit_final_1080p,
-
             discountPercent:
                 model?.discount_percent,
+
+            ignoredFinalFields: {
+
+                credit_final_480p:
+                    model?.credit_final_480p,
+
+                credit_final_720p:
+                    model?.credit_final_720p,
+
+                credit_final_1080p:
+                    model?.credit_final_1080p
+
+            },
 
             hasCreditCost:
                 Boolean(
@@ -1776,10 +1785,6 @@ export function renderModelCredit(
             "[GEN-Z.AI][Generate UI] #generateCreditValue tidak ditemukan."
         );
 
-        /*
-         * Jangan langsung return sebelum mencoba mencari
-         * ulang melalui tombol Generate.
-         */
 
         if (
             generateButton
@@ -1794,10 +1799,6 @@ export function renderModelCredit(
             if (
                 recoveredValue
             ) {
-
-                /*
-                 * Gunakan elemen yang ditemukan.
-                 */
 
                 if (
                     generateCreditCost
@@ -1840,7 +1841,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * NO RESOLUTION
      * -----------------------------------------------------
-     */
+ */
 
     if (
         !resolution
@@ -1892,7 +1893,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * CREDIT NOT AVAILABLE
      * -----------------------------------------------------
-     */
+ */
 
     if (
         !pricing
@@ -1918,7 +1919,7 @@ export function renderModelCredit(
 
 
         console.warn(
-            "[GEN-Z.AI][Generate UI] Credit resolusi tidak ditemukan.",
+            "[GEN-Z.AI][Generate UI] Final credit tidak dapat dihitung.",
             {
 
                 modelId:
@@ -1929,7 +1930,7 @@ export function renderModelCredit(
 
                 resolution,
 
-                modelCreditFields: {
+                requiredSourceFields: {
 
                     credit_480p:
                         model?.credit_480p,
@@ -1940,14 +1941,8 @@ export function renderModelCredit(
                     credit_1080p:
                         model?.credit_1080p,
 
-                    creditFinal480p:
-                        model?.credit_final_480p,
-
-                    creditFinal720p:
-                        model?.credit_final_720p,
-
-                    creditFinal1080p:
-                        model?.credit_final_1080p
+                    discount_percent:
+                        model?.discount_percent
 
                 }
 
@@ -1960,9 +1955,32 @@ export function renderModelCredit(
     }
 
 
-    const credit =
+    const baseCredit =
         Number(
-            pricing.credit_final
+            pricing.credit_base
+        );
+
+
+    const discountPercent =
+        Number(
+            pricing.discount_percent
+        );
+
+
+    /*
+     * Hitung ulang sekali lagi di titik render.
+     *
+     * Ini sengaja.
+     *
+     * Dengan begitu nilai yang benar-benar tampil di UI
+     * pasti berasal dari base + discount, bukan nilai final
+     * yang mungkin terbawa dari object lama.
+     */
+
+    const credit =
+        calculateFinalCredit(
+            baseCredit,
+            discountPercent
         );
 
 
@@ -1970,9 +1988,10 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * VALIDATE
      * -----------------------------------------------------
-     */
+ */
 
     if (
+        credit === null ||
         !Number.isFinite(
             credit
         ) ||
@@ -2026,7 +2045,36 @@ export function renderModelCredit(
 
 
     generateCreditValue.dataset.resolution =
-        pricing.resolution;
+        resolution;
+
+
+    /*
+     * -----------------------------------------------------
+     * FINAL DEBUG
+     * -----------------------------------------------------
+ */
+
+    console.debug(
+        "[GEN-Z.AI][Generate UI] FINAL CREDIT DISPLAY:",
+        {
+
+            modelId:
+                model?.model_id,
+
+            resolution,
+
+            baseCredit,
+
+            discountPercent,
+
+            finalCredit:
+                credit,
+
+            displayed:
+                `${formatted} Credit`
+
+        }
+    );
 
 
     /*
@@ -2038,7 +2086,7 @@ export function renderModelCredit(
     syncGenerateButtonCredit(
         generateButton,
         credit,
-        pricing.resolution
+        resolution
     );
 
 
@@ -2798,7 +2846,7 @@ export function setLoading(
 
 
         /*
-         * Credit tetap harus dirender setelah label.
+         * Credit tetap dirender setelah label.
          */
 
         renderModelCredit(
