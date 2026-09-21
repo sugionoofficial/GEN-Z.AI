@@ -15,6 +15,7 @@
    - Sinkronisasi Table
    - Statistics
    - Refresh
+   - Delegasi render pricing ke Models Price
 
    Tidak bertanggung jawab:
    - Create model
@@ -30,13 +31,18 @@
    - Provider: Provider module / tabel providers
    - Pricing: Models Price module / Generate runtime
 
-   CATATAN:
-   - Modul ini hanya orchestrator.
-   - Tidak membuat model/provider palsu.
-   - Tidak melakukan query Supabase langsung.
-   - Tidak menghitung credit.
-   - Tidak membaca credit_cost.
-   - Tidak membaca credit_final.
+   PRICING AKTIF:
+   - credit_480p
+   - credit_720p
+   - credit_1080p
+   - discount_percent
+
+   LEGACY PRICING:
+   - credit_cost
+   - credit_final
+
+   Field legacy tidak dibaca dan tidak digunakan.
+
    ========================================================= */
 
 (function () {
@@ -80,6 +86,7 @@
 
         }
 
+
         return document.getElementById(id);
 
     }
@@ -94,11 +101,15 @@
         }
 
 
-        if (typeof target === "string") {
+        if (
+            typeof target === "string"
+        ) {
 
             try {
 
-                return document.querySelector(target);
+                return document.querySelector(
+                    target
+                );
 
             } catch {
 
@@ -139,23 +150,59 @@
     }
 
 
+    /*
+     * Canonical module name:
+     * GENZModelsPageSearch
+     *
+     * Compatibility:
+     * GENZModelPageSearch
+     */
+
     function getPageSearch() {
 
-        return window.GENZModelPageSearch || null;
+        return (
+            window.GENZModelsPageSearch ||
+            window.GENZModelPageSearch ||
+            null
+        );
 
     }
 
+
+    /*
+     * Canonical module name:
+     * GENZModelsTable
+     *
+     * Compatibility:
+     * GENZModelTable
+     */
 
     function getTable() {
 
-        return window.GENZModelTable || null;
+        return (
+            window.GENZModelsTable ||
+            window.GENZModelTable ||
+            null
+        );
 
     }
 
 
+    /*
+     * Canonical module name:
+     * GENZModelsTableEvents
+     *
+     * Compatibility:
+     * GENZModelTableEvents
+     */
+
     function getTableEvents() {
 
-        return window.GENZModelTableEvents || null;
+        return (
+            window.GENZModelsTableEvents ||
+            window.GENZModelTableEvents ||
+            null
+        );
 
     }
 
@@ -171,7 +218,9 @@
        NORMALIZATION HELPERS
     ===================================================== */
 
-    function normalizeId(value) {
+    function normalizeId(
+        value
+    ) {
 
         if (
             value === null ||
@@ -183,18 +232,26 @@
         }
 
 
-        return String(value)
+        return String(
+            value
+        )
             .trim()
             .toLowerCase();
 
     }
 
 
-    function normalizeArray(value) {
+    function normalizeArray(
+        value
+    ) {
 
-        if (Array.isArray(value)) {
+        if (
+            Array.isArray(value)
+        ) {
 
-            return [...value];
+            return [
+                ...value
+            ];
 
         }
 
@@ -210,15 +267,19 @@
         }
 
 
-        if (typeof value === "string") {
+        if (
+            typeof value === "string"
+        ) {
 
             return value
                 .split(",")
-                .map(function (item) {
+                .map(
+                    function (item) {
 
-                    return item.trim();
+                        return item.trim();
 
-                })
+                    }
+                )
                 .filter(Boolean);
 
         }
@@ -239,12 +300,13 @@
         duration = 3500
     ) {
 
-        const text = String(
-            message === null ||
-            message === undefined
-                ? ""
-                : message
-        );
+        const text =
+            String(
+                message === null ||
+                message === undefined
+                    ? ""
+                    : message
+            );
 
 
         const existing =
@@ -255,7 +317,8 @@
 
         if (existing) {
 
-            existing.textContent = text;
+            existing.textContent =
+                text;
 
 
             existing.classList.remove(
@@ -306,7 +369,9 @@
         }
 
 
-        if (!document.body) {
+        if (
+            !document.body
+        ) {
 
             return null;
 
@@ -400,6 +465,7 @@
                 toast.style.opacity =
                     "0";
 
+
                 toast.style.transform =
                     "translateY(8px)";
 
@@ -476,7 +542,9 @@
         if (
             error.message !== null &&
             error.message !== undefined &&
-            String(error.message).trim()
+            String(
+                error.message
+            ).trim()
         ) {
 
             return String(
@@ -486,7 +554,9 @@
         }
 
 
-        if (typeof error === "string") {
+        if (
+            typeof error === "string"
+        ) {
 
             return error;
 
@@ -555,14 +625,18 @@
                 Array.isArray(result)
                     ? result
                     : (
-                        Array.isArray(result?.models)
+                        Array.isArray(
+                            result?.models
+                        )
                             ? result.models
                             : []
                     );
 
 
             state.models =
-                [...models];
+                [
+                    ...models
+                ];
 
 
             syncSearchState();
@@ -678,10 +752,6 @@
                 /*
                  * Provider module adalah pemilik
                  * lifecycle provider.
-                 *
-                 * Jangan memakai activeOnly karena
-                 * models-data/provider module dapat
-                 * menggunakan includeInactive.
                  */
 
                 result =
@@ -717,7 +787,9 @@
 
 
             state.providers =
-                [...providers];
+                [
+                    ...providers
+                ];
 
 
             return [
@@ -790,10 +862,14 @@
                 providerModule.getProviders();
 
 
-            if (Array.isArray(providers)) {
+            if (
+                Array.isArray(providers)
+            ) {
 
                 state.providers =
-                    [...providers];
+                    [
+                        ...providers
+                    ];
 
             }
 
@@ -836,14 +912,6 @@
 
         }
 
-
-        /*
-         * Hanya cari dari state yang sudah
-         * dimuat secara synchronous.
-         *
-         * Jangan memanggil fungsi async
-         * lalu mengembalikan Promise.
-         */
 
         const found =
             state.providers.find(
@@ -945,6 +1013,21 @@
 
             }
 
+            if (
+                typeof search.syncModels ===
+                "function"
+            ) {
+
+                search.syncModels(
+                    [
+                        ...state.models
+                    ]
+                );
+
+                return true;
+
+            }
+
         }
 
         catch (error) {
@@ -1012,6 +1095,22 @@
 
             }
 
+
+            if (
+                typeof pageSearch.syncModels ===
+                "function"
+            ) {
+
+                pageSearch.syncModels(
+                    [
+                        ...state.models
+                    ]
+                );
+
+                return true;
+
+            }
+
         }
 
         catch (error) {
@@ -1070,6 +1169,22 @@
             ) {
 
                 table.setData(
+                    [
+                        ...state.models
+                    ]
+                );
+
+                return true;
+
+            }
+
+
+            if (
+                typeof table.syncModels ===
+                "function"
+            ) {
+
+                table.syncModels(
                     [
                         ...state.models
                     ]
@@ -1149,7 +1264,8 @@
 
 
         const inactive =
-            total - active;
+            total -
+            active;
 
 
         const stats = {
@@ -1204,7 +1320,9 @@
                 if (element) {
 
                     element.textContent =
-                        String(total);
+                        String(
+                            total
+                        );
 
                 }
 
@@ -1218,7 +1336,9 @@
                 if (element) {
 
                     element.textContent =
-                        String(active);
+                        String(
+                            active
+                        );
 
                 }
 
@@ -1232,7 +1352,9 @@
                 if (element) {
 
                     element.textContent =
-                        String(inactive);
+                        String(
+                            inactive
+                        );
 
                 }
 
@@ -1356,6 +1478,7 @@
                 "error"
             );
 
+
             return false;
 
         }
@@ -1391,16 +1514,22 @@
     /* =====================================================
        PRICE DISPLAY
        -----------------------------------------------------
-       Modul ini TIDAK menghitung harga.
+       Models UI TIDAK menghitung pricing.
+       
+       Pricing didelegasikan ke:
+       GENZModelsPrice
 
-       Pricing harus berasal dari Models Price module
-       atau runtime Generate.
+       Active source:
+       - credit_480p
+       - credit_720p
+       - credit_1080p
+       - discount_percent
 
        Legacy:
-         credit_cost
-         credit_final
+       - credit_cost
+       - credit_final
 
-       tidak digunakan sebagai fallback.
+       tidak dibaca.
     ===================================================== */
 
     function renderModelPrice(
@@ -1419,18 +1548,54 @@
             getPrice();
 
 
-        /*
-         * Models UI hanya mendelegasikan
-         * rendering kepada pricing module.
-         */
+        if (!price) {
 
-        if (
-            price &&
-            typeof price.render ===
-            "function"
-        ) {
+            const element =
+                getElement(
+                    target
+                );
 
-            try {
+
+            if (element) {
+
+                element.textContent =
+                    "";
+
+            }
+
+
+            return null;
+
+        }
+
+
+        try {
+
+            /*
+             * API utama Models Price.
+             */
+
+            if (
+                typeof price.renderPrice ===
+                "function"
+            ) {
+
+                return price.renderPrice(
+                    model,
+                    target
+                );
+
+            }
+
+
+            /*
+             * Compatibility API.
+             */
+
+            if (
+                typeof price.render ===
+                "function"
+            ) {
 
                 return price.render(
                     model,
@@ -1439,44 +1604,55 @@
 
             }
 
-            catch (error) {
 
-                console.warn(
-                    "[models-ui] Price render warning:",
-                    error
+            /*
+             * Jika target tidak tersedia,
+             * jangan membuat harga sendiri.
+             */
+
+            const element =
+                getElement(
+                    target
                 );
+
+
+            if (element) {
+
+                element.textContent =
+                    "";
 
             }
 
+
+            return null;
+
         }
 
+        catch (error) {
 
-        /*
-         * Tidak ada fallback credit di sini.
-         *
-         * Jangan membaca:
-         *   model.credit_cost
-         *   model.credit_final
-         *
-         * Jika pricing module tidak tersedia,
-         * UI tidak boleh mengarang nilai harga.
-         */
-
-        const element =
-            getElement(
-                target
+            console.warn(
+                "[models-ui] Price render warning:",
+                error
             );
 
 
-        if (element) {
+            const element =
+                getElement(
+                    target
+                );
 
-            element.textContent =
-                "";
+
+            if (element) {
+
+                element.textContent =
+                    "";
+
+            }
+
+
+            return null;
 
         }
-
-
-        return null;
 
     }
 
@@ -1493,7 +1669,9 @@
         const list =
             Array.isArray(ids)
                 ? ids
-                : [ids];
+                : [
+                    ids
+                ];
 
 
         let found =
@@ -1620,13 +1798,11 @@
 
 
         /*
-         * models-ui TIDAK membuat
-         * tombol Create Model.
+         * Refresh saja.
          *
          * Create/Edit/Delete tetap dimiliki
          * module masing-masing.
          */
-
 
         if (
             bindButton(
@@ -1754,7 +1930,7 @@
                 try {
 
                     /*
-                     * Refresh button harus tersedia
+                     * Refresh button tersedia
                      * walaupun data belum selesai load.
                      */
 
@@ -1762,14 +1938,7 @@
 
 
                     /*
-                     * Provider:
-                     *
-                     * Ambil semua provider yang memang
-                     * tersedia di database.
-                     *
-                     * Jangan membuang provider aktif
-                     * hanya karena UI memakai istilah
-                     * activeOnly.
+                     * Provider.
                      */
 
                     await loadProviders(
@@ -1782,24 +1951,25 @@
 
 
                     /*
-                     * Model:
+                     * Model.
                      *
-                     * models-data.js adalah sumber
-                     * data model.
+                     * models-data.js adalah source
+                     * model Admin Models.
                      */
 
                     await loadModels(
                         {
                             force: false,
 
-                            activeOnly: false
+                            includeInactive: true,
+
+                            activeProviderOnly: false
                         }
                     );
 
 
                     /*
-                     * Sinkronisasi setelah kedua
-                     * sumber data selesai.
+                     * Final synchronization.
                      */
 
                     syncProviderState();
@@ -1816,8 +1986,8 @@
 
 
                     /*
-                     * Table event module tetap
-                     * menjadi pemilik event Edit/Delete.
+                     * Table events tetap menjadi
+                     * pemilik Edit/Delete.
                      */
 
                     bindTableEvents();
@@ -1897,7 +2067,8 @@
                             new CustomEvent(
                                 "genz-models-ui-error",
                                 {
-                                    detail: error
+                                    detail:
+                                        error
                                 }
                             )
                         );
@@ -1944,6 +2115,7 @@
                 "[GEN-Z.AI] UI reset skipped while initialization is running."
             );
 
+
             return false;
 
         }
@@ -1970,11 +2142,11 @@
 
 
         /*
-         * Jangan menghapus dataset
-         * binding secara manual.
+         * Listener DOM yang sudah terpasang
+         * tidak dihapus di sini.
          *
-         * Listener yang sudah terpasang
-         * tetap ditandai oleh element.
+         * Dataset binding tetap menjadi
+         * mekanisme duplicate protection.
          */
 
         buttonsBound =
@@ -2025,6 +2197,39 @@
     }
 
 
+    function getState() {
+
+        return {
+
+            models:
+                [
+                    ...state.models
+                ],
+
+            providers:
+                [
+                    ...state.providers
+                ],
+
+            loadingModels:
+                state.loadingModels,
+
+            loadingProviders:
+                state.loadingProviders,
+
+            initialized:
+                state.initialized,
+
+            initializing:
+                Boolean(
+                    state.initializing
+                )
+
+        };
+
+    }
+
+
     /* =====================================================
        PUBLIC API
     ===================================================== */
@@ -2071,6 +2276,8 @@
             getModels,
 
             getProviders,
+
+            getState,
 
             isLoading,
 
