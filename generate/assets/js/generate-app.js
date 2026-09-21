@@ -3611,6 +3611,8 @@ async function bootstrap() {
         bindModelEvent();
 
         bindResetEvent();
+       
+        bindGenerateSubmitEvent();
 
 
         /*
