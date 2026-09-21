@@ -10,14 +10,24 @@
    - Membaca pricing dari GENZModelsData
    - Cache pricing model
    - Mencari pricing berdasarkan model
-   - Kalkulasi credit
+   - Kalkulasi credit per resolution
    - Format credit
    - Menyediakan compatibility API
 
    SUMBER DATA:
-       models.credit_cost
+       models.credit_480p
+       models.credit_720p
+       models.credit_1080p
        models.discount_percent
-       models.credit_final
+
+   RUNTIME:
+       credit_final_480p
+       credit_final_720p
+       credit_final_1080p
+
+   CATATAN:
+       credit_final_* hanya nilai hasil kalkulasi runtime.
+       Tidak disimpan sebagai kolom Supabase.
 
    RELASI:
        models
@@ -27,6 +37,8 @@
        GENZModelsPrice
 
    TIDAK MENGGUNAKAN:
+       credit_cost
+       credit_final
        kie_pricing
        kie_models
        kie_workflows
@@ -64,7 +76,7 @@
 
     /* =====================================================
        CONFIG
-    ===================================================== */
+       ===================================================== */
 
     /*
      * Dipertahankan untuk compatibility API lama.
@@ -74,6 +86,17 @@
 
     const DEFAULT_USD_IDR_RATE =
         17700;
+
+
+    /*
+     * Urutan resolusi resmi pricing.
+     */
+
+    const RESOLUTION_ORDER = [
+        "480p",
+        "720p",
+        "1080p"
+    ];
 
 
     /* =====================================================
@@ -310,28 +333,65 @@
 
 
     /* =====================================================
-       CREDIT CALCULATION
+       DISCOUNT
        ===================================================== */
 
-    function calculateCreditFinal(
-        creditCost,
+    function normalizeDiscount(
         discountPercent
     ) {
 
-        const cost =
-            toNumber(
-                creditCost
-            );
-
-
-        const discount =
+        const numeric =
             toNumber(
                 discountPercent
             );
 
 
         if (
-            cost === null
+            numeric === null
+        ) {
+
+            return 0;
+
+        }
+
+
+        return Math.min(
+            100,
+            Math.max(
+                0,
+                numeric
+            )
+        );
+
+    }
+
+
+    /* =====================================================
+       CREDIT CALCULATION
+       -----------------------------------------------------
+       credit = harga dasar
+       discount = persentase diskon
+       final = credit - (credit * discount / 100)
+
+       Contoh:
+       50 - 10% = 45
+       75 - 10% = 67.5
+       100 - 10% = 90
+    ===================================================== */
+
+    function calculateCreditFinal(
+        credit,
+        discountPercent
+    ) {
+
+        const baseCredit =
+            toNumber(
+                credit
+            );
+
+
+        if (
+            baseCredit === null
         ) {
 
             return null;
@@ -339,33 +399,25 @@
         }
 
 
-        const safeCost =
+        const safeCredit =
             Math.max(
                 0,
-                cost
+                baseCredit
             );
 
 
-        const safeDiscount =
-            discount === null
-                ? 0
-                : Math.min(
-                    100,
-                    Math.max(
-                        0,
-                        discount
-                    )
-                );
+        const discount =
+            normalizeDiscount(
+                discountPercent
+            );
 
 
         const result =
-            safeCost *
+            safeCredit -
             (
-                1 -
-                (
-                    safeDiscount /
-                    100
-                )
+                safeCredit *
+                discount /
+                100
             );
 
 
@@ -379,24 +431,18 @@
 
 
     function calculateDiscountAmount(
-        creditCost,
+        credit,
         discountPercent
     ) {
 
-        const cost =
+        const baseCredit =
             toNumber(
-                creditCost
-            );
-
-
-        const discount =
-            toNumber(
-                discountPercent
+                credit
             );
 
 
         if (
-            cost === null
+            baseCredit === null
         ) {
 
             return null;
@@ -404,36 +450,296 @@
         }
 
 
-        const safeCost =
+        const safeCredit =
             Math.max(
                 0,
-                cost
+                baseCredit
             );
 
 
-        const safeDiscount =
-            discount === null
-                ? 0
-                : Math.min(
-                    100,
-                    Math.max(
-                        0,
-                        discount
-                    )
-                );
+        const discount =
+            normalizeDiscount(
+                discountPercent
+            );
 
 
         return Number(
             (
-                safeCost *
-                (
-                    safeDiscount /
-                    100
-                )
+                safeCredit *
+                discount /
+                100
             ).toFixed(
                 6
             )
         );
+
+    }
+
+
+    /* =====================================================
+       RESOLUTION CREDIT
+       ===================================================== */
+
+    function getResolutionCredit(
+        model,
+        resolution
+    ) {
+
+        if (
+            !model ||
+            typeof model !==
+                "object"
+        ) {
+
+            return null;
+
+        }
+
+
+        const normalizedResolution =
+            String(
+                resolution ?? ""
+            )
+                .trim()
+                .toLowerCase()
+                .replace(
+                    /\s+/g,
+                    ""
+                );
+
+
+        let field = null;
+
+
+        if (
+            normalizedResolution ===
+            "480p"
+        ) {
+
+            field =
+                "credit_480p";
+
+        } else if (
+            normalizedResolution ===
+            "720p"
+        ) {
+
+            field =
+                "credit_720p";
+
+        } else if (
+            normalizedResolution ===
+            "1080p"
+        ) {
+
+            field =
+                "credit_1080p";
+
+        }
+
+
+        if (
+            !field
+        ) {
+
+            return null;
+
+        }
+
+
+        return toNumber(
+            model[field]
+        );
+
+    }
+
+
+    function getRuntimeResolutionPricing(
+        model,
+        resolution
+    ) {
+
+        const baseCredit =
+            getResolutionCredit(
+                model,
+                resolution
+            );
+
+
+        if (
+            baseCredit === null
+        ) {
+
+            return null;
+
+        }
+
+
+        const discountPercent =
+            normalizeDiscount(
+                model.discount_percent
+            );
+
+
+        const creditFinal =
+            calculateCreditFinal(
+                baseCredit,
+                discountPercent
+            );
+
+
+        return {
+
+            resolution:
+                String(
+                    resolution
+                ),
+
+            credit:
+                baseCredit,
+
+            credit_base:
+                baseCredit,
+
+            discount_percent:
+                discountPercent,
+
+            discount_amount:
+                calculateDiscountAmount(
+                    baseCredit,
+                    discountPercent
+                ),
+
+            credit_final:
+                creditFinal
+
+        };
+
+    }
+
+
+    function getRuntimePricing(
+        model
+    ) {
+
+        if (
+            !model ||
+            typeof model !==
+                "object"
+        ) {
+
+            return [];
+
+        }
+
+
+        return RESOLUTION_ORDER
+            .map(
+                resolution =>
+                    getRuntimeResolutionPricing(
+                        model,
+                        resolution
+                    )
+            )
+            .filter(
+                Boolean
+            );
+
+    }
+
+
+    function getRuntimeCreditValues(
+        model
+    ) {
+
+        if (
+            !model ||
+            typeof model !==
+                "object"
+        ) {
+
+            return {
+
+                credit_480p:
+                    null,
+
+                credit_720p:
+                    null,
+
+                credit_1080p:
+                    null,
+
+                credit_final_480p:
+                    null,
+
+                credit_final_720p:
+                    null,
+
+                credit_final_1080p:
+                    null
+
+            };
+
+        }
+
+
+        const discountPercent =
+            normalizeDiscount(
+                model.discount_percent
+            );
+
+
+        const credit480p =
+            getResolutionCredit(
+                model,
+                "480p"
+            );
+
+
+        const credit720p =
+            getResolutionCredit(
+                model,
+                "720p"
+            );
+
+
+        const credit1080p =
+            getResolutionCredit(
+                model,
+                "1080p"
+            );
+
+
+        return {
+
+            credit_480p:
+                credit480p,
+
+            credit_720p:
+                credit720p,
+
+            credit_1080p:
+                credit1080p,
+
+            credit_final_480p:
+                calculateCreditFinal(
+                    credit480p,
+                    discountPercent
+                ),
+
+            credit_final_720p:
+                calculateCreditFinal(
+                    credit720p,
+                    discountPercent
+                ),
+
+            credit_final_1080p:
+                calculateCreditFinal(
+                    credit1080p,
+                    discountPercent
+                )
+
+        };
 
     }
 
@@ -459,54 +765,49 @@
         }
 
 
-        const creditCost =
-            toNumber(
-                model.credit_cost
-            );
-
-
-        const discountPercentRaw =
-            toNumber(
+        const discountPercent =
+            normalizeDiscount(
                 model.discount_percent
             );
 
 
-        const discountPercent =
-            discountPercentRaw === null
-                ? 0
-                : Math.min(
-                    100,
-                    Math.max(
-                        0,
-                        discountPercentRaw
-                    )
-                );
+        const credit480p =
+            toNumber(
+                model.credit_480p
+            );
 
 
-        const calculatedFinal =
+        const credit720p =
+            toNumber(
+                model.credit_720p
+            );
+
+
+        const credit1080p =
+            toNumber(
+                model.credit_1080p
+            );
+
+
+        const creditFinal480p =
             calculateCreditFinal(
-                creditCost,
+                credit480p,
                 discountPercent
             );
 
 
-        /*
-         * Jika database memiliki credit_final,
-         * gunakan nilai database.
-         *
-         * Jika NULL/kosong, gunakan hasil kalkulasi.
-         */
-
-        const storedFinal =
-            toNumber(
-                model.credit_final
+        const creditFinal720p =
+            calculateCreditFinal(
+                credit720p,
+                discountPercent
             );
 
 
-        const creditFinal =
-            storedFinal !== null
-                ? storedFinal
-                : calculatedFinal;
+        const creditFinal1080p =
+            calculateCreditFinal(
+                credit1080p,
+                discountPercent
+            );
 
 
         return {
@@ -531,21 +832,58 @@
                 model.provider_id ??
                 null,
 
-            credit_cost:
-                creditCost,
+            credit_480p:
+                credit480p,
+
+            credit_720p:
+                credit720p,
+
+            credit_1080p:
+                credit1080p,
 
             discount_percent:
                 discountPercent,
 
-            credit_final:
-                creditFinal,
+            /*
+             * Runtime-only values.
+             *
+             * Tidak berasal dari kolom
+             * credit_final database.
+             */
 
-            calculated_credit_final:
-                calculatedFinal,
+            credit_final_480p:
+                creditFinal480p,
 
-            discount_amount:
+            credit_final_720p:
+                creditFinal720p,
+
+            credit_final_1080p:
+                creditFinal1080p,
+
+            calculated_credit_final_480p:
+                creditFinal480p,
+
+            calculated_credit_final_720p:
+                creditFinal720p,
+
+            calculated_credit_final_1080p:
+                creditFinal1080p,
+
+            discount_amount_480p:
                 calculateDiscountAmount(
-                    creditCost,
+                    credit480p,
+                    discountPercent
+                ),
+
+            discount_amount_720p:
+                calculateDiscountAmount(
+                    credit720p,
+                    discountPercent
+                ),
+
+            discount_amount_1080p:
+                calculateDiscountAmount(
+                    credit1080p,
                     discountPercent
                 ),
 
@@ -1113,6 +1451,66 @@
 
 
     /* =====================================================
+       GET COMPARABLE PRICE
+       -----------------------------------------------------
+       Digunakan untuk statistik.
+
+       Nilai yang dibandingkan adalah:
+       - runtime discounted credit
+       - seluruh resolution yang tersedia
+    ===================================================== */
+
+    function getComparablePrice(
+        item
+    ) {
+
+        if (
+            !item
+        ) {
+
+            return null;
+
+        }
+
+
+        const finals = [
+
+            toNumber(
+                item.credit_final_480p
+            ),
+
+            toNumber(
+                item.credit_final_720p
+            ),
+
+            toNumber(
+                item.credit_final_1080p
+            )
+
+        ].filter(
+            value =>
+                value !== null &&
+                value >= 0
+        );
+
+
+        if (
+            finals.length === 0
+        ) {
+
+            return null;
+
+        }
+
+
+        return Math.min(
+            ...finals
+        );
+
+    }
+
+
+    /* =====================================================
        LOWEST PRICE
        ===================================================== */
 
@@ -1136,19 +1534,21 @@
             null;
 
 
+        let lowestValue =
+            null;
+
+
         pricing.forEach(
             function (item) {
 
                 const value =
-                    toNumber(
-                        item.credit_final ??
-                        item.credit_cost
+                    getComparablePrice(
+                        item
                     );
 
 
                 if (
-                    value === null ||
-                    value < 0
+                    value === null
                 ) {
 
                     return;
@@ -1157,31 +1557,16 @@
 
 
                 if (
-                    lowest === null
-                ) {
-
-                    lowest =
-                        item;
-
-                    return;
-
-                }
-
-
-                const lowestValue =
-                    toNumber(
-                        lowest.credit_final ??
-                        lowest.credit_cost
-                    );
-
-
-                if (
+                    lowest === null ||
                     lowestValue === null ||
                     value < lowestValue
                 ) {
 
                     lowest =
                         item;
+
+                    lowestValue =
+                        value;
 
                 }
 
@@ -1218,19 +1603,21 @@
             null;
 
 
+        let highestValue =
+            null;
+
+
         pricing.forEach(
             function (item) {
 
                 const value =
-                    toNumber(
-                        item.credit_final ??
-                        item.credit_cost
+                    getComparablePrice(
+                        item
                     );
 
 
                 if (
-                    value === null ||
-                    value < 0
+                    value === null
                 ) {
 
                     return;
@@ -1239,31 +1626,16 @@
 
 
                 if (
-                    highest === null
-                ) {
-
-                    highest =
-                        item;
-
-                    return;
-
-                }
-
-
-                const highestValue =
-                    toNumber(
-                        highest.credit_final ??
-                        highest.credit_cost
-                    );
-
-
-                if (
+                    highest === null ||
                     highestValue === null ||
                     value > highestValue
                 ) {
 
                     highest =
                         item;
+
+                    highestValue =
+                        value;
 
                 }
 
@@ -1278,7 +1650,9 @@
 
     /* =====================================================
        AVERAGE PRICE
-       ===================================================== */
+       -----------------------------------------------------
+       Rata-rata dari harga minimum runtime setiap model.
+    ===================================================== */
 
     function getAveragePrice(
         pricing
@@ -1299,14 +1673,7 @@
         const values =
             pricing
                 .map(
-                    function (item) {
-
-                        return toNumber(
-                            item.credit_final ??
-                            item.credit_cost
-                        );
-
-                    }
+                    getComparablePrice
                 )
                 .filter(
                     function (value) {
@@ -1374,16 +1741,24 @@
          * Model sudah membawa pricing.
          *
          * Gunakan langsung.
+         *
+         * Tidak lagi mengecek:
+         * credit_cost
+         * credit_final
          */
 
         if (
             Object.prototype.hasOwnProperty.call(
                 model,
-                "credit_cost"
+                "credit_480p"
             ) ||
             Object.prototype.hasOwnProperty.call(
                 model,
-                "credit_final"
+                "credit_720p"
+            ) ||
+            Object.prototype.hasOwnProperty.call(
+                model,
+                "credit_1080p"
             )
         ) {
 
@@ -1407,17 +1782,35 @@
                     item:
                         normalized,
 
-                    creditCost:
-                        normalized.credit_cost,
+                    credit480p:
+                        normalized.credit_480p,
+
+                    credit720p:
+                        normalized.credit_720p,
+
+                    credit1080p:
+                        normalized.credit_1080p,
+
+                    creditFinal480p:
+                        normalized.credit_final_480p,
+
+                    creditFinal720p:
+                        normalized.credit_final_720p,
+
+                    creditFinal1080p:
+                        normalized.credit_final_1080p,
 
                     discountPercent:
                         normalized.discount_percent,
 
-                    creditFinal:
-                        normalized.credit_final,
+                    discountAmount480p:
+                        normalized.discount_amount_480p,
 
-                    discountAmount:
-                        normalized.discount_amount
+                    discountAmount720p:
+                        normalized.discount_amount_720p,
+
+                    discountAmount1080p:
+                        normalized.discount_amount_1080p
 
                 };
 
@@ -1438,9 +1831,9 @@
 
 
         const item =
-            getLowestPrice(
-                matches
-            );
+            matches.length > 0
+                ? matches[0]
+                : null;
 
 
         if (
@@ -1459,9 +1852,34 @@
 
             item,
 
-            creditCost:
+            credit480p:
                 toNumber(
-                    item.credit_cost
+                    item.credit_480p
+                ),
+
+            credit720p:
+                toNumber(
+                    item.credit_720p
+                ),
+
+            credit1080p:
+                toNumber(
+                    item.credit_1080p
+                ),
+
+            creditFinal480p:
+                toNumber(
+                    item.credit_final_480p
+                ),
+
+            creditFinal720p:
+                toNumber(
+                    item.credit_final_720p
+                ),
+
+            creditFinal1080p:
+                toNumber(
+                    item.credit_final_1080p
                 ),
 
             discountPercent:
@@ -1469,14 +1887,19 @@
                     item.discount_percent
                 ) ?? 0,
 
-            creditFinal:
+            discountAmount480p:
                 toNumber(
-                    item.credit_final
+                    item.discount_amount_480p
                 ),
 
-            discountAmount:
+            discountAmount720p:
                 toNumber(
-                    item.discount_amount
+                    item.discount_amount_720p
+                ),
+
+            discountAmount1080p:
+                toNumber(
+                    item.discount_amount_1080p
                 )
 
         };
@@ -1485,7 +1908,7 @@
 
 
     /* =====================================================
-       CREDIT SUMMARY
+       GET CREDIT SUMMARY
        ===================================================== */
 
     function getCreditSummary(
@@ -1498,16 +1921,34 @@
 
             return {
 
-                creditCost:
+                credit480p:
+                    null,
+
+                credit720p:
+                    null,
+
+                credit1080p:
                     null,
 
                 discountPercent:
                     0,
 
-                discountAmount:
+                discountAmount480p:
                     null,
 
-                creditFinal:
+                discountAmount720p:
+                    null,
+
+                discountAmount1080p:
+                    null,
+
+                creditFinal480p:
+                    null,
+
+                creditFinal720p:
+                    null,
+
+                creditFinal1080p:
                     null
 
             };
@@ -1527,16 +1968,34 @@
 
             return {
 
-                creditCost:
+                credit480p:
+                    null,
+
+                credit720p:
+                    null,
+
+                credit1080p:
                     null,
 
                 discountPercent:
                     0,
 
-                discountAmount:
+                discountAmount480p:
                     null,
 
-                creditFinal:
+                discountAmount720p:
+                    null,
+
+                discountAmount1080p:
+                    null,
+
+                creditFinal480p:
+                    null,
+
+                creditFinal720p:
+                    null,
+
+                creditFinal1080p:
                     null
 
             };
@@ -1546,20 +2005,35 @@
 
         return {
 
-            creditCost:
-                normalized.credit_cost,
+            credit480p:
+                normalized.credit_480p,
+
+            credit720p:
+                normalized.credit_720p,
+
+            credit1080p:
+                normalized.credit_1080p,
 
             discountPercent:
                 normalized.discount_percent,
 
-            discountAmount:
-                normalized.discount_amount,
+            discountAmount480p:
+                normalized.discount_amount_480p,
 
-            creditFinal:
-                normalized.credit_final,
+            discountAmount720p:
+                normalized.discount_amount_720p,
 
-            calculatedCreditFinal:
-                normalized.calculated_credit_final
+            discountAmount1080p:
+                normalized.discount_amount_1080p,
+
+            creditFinal480p:
+                normalized.credit_final_480p,
+
+            creditFinal720p:
+                normalized.credit_final_720p,
+
+            creditFinal1080p:
+                normalized.credit_final_1080p
 
         };
 
@@ -2055,9 +2529,7 @@
 
 
         const item =
-            getLowestPrice(
-                pricing
-            );
+            pricing[0];
 
 
         if (
@@ -2075,71 +2547,103 @@
         }
 
 
-        const creditCost =
-            toNumber(
-                item.credit_cost
-            );
+        const rows =
+            RESOLUTION_ORDER
+                .map(
+                    function (resolution) {
+
+                        const base =
+                            getResolutionCredit(
+                                item,
+                                resolution
+                            );
 
 
-        const discount =
-            toNumber(
-                item.discount_percent
-            ) ?? 0;
+                        const finalCredit =
+                            calculateCreditFinal(
+                                base,
+                                item.discount_percent
+                            );
 
 
-        const creditFinal =
-            toNumber(
-                item.credit_final
-            );
+                        if (
+                            base === null
+                        ) {
+
+                            return "";
+
+                        }
+
+
+                        return `
+                            <div class="model-credit-row">
+
+                                <span>
+                                    ${escapeHtml(
+                                        resolution
+                                    )}
+                                </span>
+
+                                <span>
+                                    Credit:
+                                    <strong>
+                                        ${escapeHtml(
+                                            formatCredit(
+                                                base
+                                            )
+                                        )}
+                                    </strong>
+                                </span>
+
+                                <span>
+                                    Diskon:
+                                    <strong>
+                                        ${escapeHtml(
+                                            formatCredit(
+                                                item.discount_percent
+                                            )
+                                        )}%
+                                    </strong>
+                                </span>
+
+                                <span>
+                                    Credit Final:
+                                    <strong>
+                                        ${escapeHtml(
+                                            formatCredit(
+                                                finalCredit
+                                            )
+                                        )}
+                                    </strong>
+                                </span>
+
+                            </div>
+                        `;
+
+                    }
+                )
+                .join("");
+
+
+        if (
+            !rows
+        ) {
+
+            return `
+                <div class="model-price">
+                    <div class="model-price-empty">
+                        Credit belum tersedia
+                    </div>
+                </div>
+            `;
+
+        }
 
 
         return `
             <div class="model-price">
 
-                <div class="model-credit-cost">
-
-                    Credit:
-                    <strong>
-                        ${escapeHtml(
-                            formatCredit(
-                                creditCost
-                            )
-                        )}
-                    </strong>
-
-                </div>
-
-                ${
-                    discount > 0
-                        ? `
-                            <div class="model-credit-discount">
-
-                                Diskon:
-                                <strong>
-                                    ${escapeHtml(
-                                        formatCredit(
-                                            discount
-                                        )
-                                    )}%
-                                </strong>
-
-                            </div>
-                        `
-                        : ""
-                }
-
-                <div class="model-credit-final">
-
-                    Credit Final:
-                    <strong>
-                        ${escapeHtml(
-                            formatCredit(
-                                creditFinal
-                            )
-                        )}
-                    </strong>
-
-                </div>
+                ${rows}
 
             </div>
         `;
@@ -2184,22 +2688,64 @@
                 .map(
                     function (item) {
 
-                        const cost =
-                            toNumber(
-                                item.credit_cost
-                            );
+                        const resolutionRows =
+                            RESOLUTION_ORDER
+                                .map(
+                                    function (
+                                        resolution
+                                    ) {
+
+                                        const base =
+                                            getResolutionCredit(
+                                                item,
+                                                resolution
+                                            );
 
 
-                        const discount =
-                            toNumber(
-                                item.discount_percent
-                            ) ?? 0;
+                                        if (
+                                            base === null
+                                        ) {
+
+                                            return "";
+
+                                        }
 
 
-                        const finalCredit =
-                            toNumber(
-                                item.credit_final
-                            );
+                                        const finalCredit =
+                                            calculateCreditFinal(
+                                                base,
+                                                item.discount_percent
+                                            );
+
+
+                                        return `
+                                            <div>
+                                                ${escapeHtml(
+                                                    resolution
+                                                )}:
+                                                Credit
+                                                <strong>
+                                                    ${escapeHtml(
+                                                        formatCredit(
+                                                            base
+                                                        )
+                                                    )}
+                                                </strong>
+                                                →
+                                                Final
+                                                <strong>
+                                                    ${escapeHtml(
+                                                        formatCredit(
+                                                            finalCredit
+                                                        )
+                                                    )}
+                                                </strong>
+                                            </div>
+                                        `;
+
+                                    }
+                                )
+                                .join("");
 
 
                         return `
@@ -2227,37 +2773,17 @@
                                 <div>
 
                                     <div>
-                                        Credit:
-                                        <strong>
-                                            ${escapeHtml(
-                                                formatCredit(
-                                                    cost
-                                                )
-                                            )}
-                                        </strong>
-                                    </div>
-
-                                    <div>
                                         Diskon:
                                         <strong>
                                             ${escapeHtml(
                                                 formatCredit(
-                                                    discount
+                                                    item.discount_percent
                                                 )
                                             )}%
                                         </strong>
                                     </div>
 
-                                    <div>
-                                        Final:
-                                        <strong>
-                                            ${escapeHtml(
-                                                formatCredit(
-                                                    finalCredit
-                                                )
-                                            )}
-                                        </strong>
-                                    </div>
+                                    ${resolutionRows}
 
                                 </div>
 
@@ -2305,6 +2831,22 @@
         }
 
 
+        const lowestValue =
+            summary.lowest
+                ? getComparablePrice(
+                    summary.lowest
+                )
+                : null;
+
+
+        const highestValue =
+            summary.highest
+                ? getComparablePrice(
+                    summary.highest
+                )
+                : null;
+
+
         return `
             <div class="model-price-summary">
 
@@ -2329,8 +2871,7 @@
                     <strong>
                         ${escapeHtml(
                             formatCredit(
-                                summary.lowest?.credit_final ??
-                                summary.lowest?.credit_cost
+                                lowestValue
                             )
                         )}
                     </strong>
@@ -2346,8 +2887,7 @@
                     <strong>
                         ${escapeHtml(
                             formatCredit(
-                                summary.highest?.credit_final ??
-                                summary.highest?.credit_cost
+                                highestValue
                             )
                         )}
                     </strong>
@@ -2601,6 +3141,14 @@
             normalizeModelPricing,
 
             normalizeModelList,
+
+            getResolutionCredit,
+
+            getRuntimeResolutionPricing,
+
+            getRuntimePricing,
+
+            getRuntimeCreditValues,
 
             getLowestPrice,
 
