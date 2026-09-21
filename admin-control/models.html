@@ -1393,6 +1393,137 @@
 
 
         /* =====================================================
+           MULTI RESOLUTION PRICING
+           -----------------------------------------------------
+           Digunakan oleh model-table.js untuk menampilkan:
+           480p / 720p / 1080p
+        ====================================================== */
+
+        .model-pricing-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+
+            gap: 8px;
+
+            width: 100%;
+
+            margin-bottom: 14px;
+
+            position: relative;
+
+            z-index: 1;
+        }
+
+
+        .model-pricing-grid .model-pricing {
+
+            min-width: 0;
+
+            margin-bottom: 0;
+
+            padding: 11px;
+
+            border-radius: 12px;
+        }
+
+
+        .model-pricing-grid .pricing-header {
+
+            color:
+                #ff6b85;
+
+            font-size: 9px;
+
+            font-weight: 900;
+
+            letter-spacing:
+                1px;
+
+            text-transform:
+                uppercase;
+
+            margin-bottom: 9px;
+
+            text-align:
+                center;
+        }
+
+
+        .model-pricing-grid .price-row {
+
+            font-size: 9px;
+
+            gap: 6px;
+        }
+
+
+        .model-pricing-grid .price-row strong {
+
+            font-size: 9px;
+
+            white-space:
+                nowrap;
+        }
+
+
+        .model-pricing-grid .price-final {
+
+            margin-top: 7px;
+
+            padding-top: 7px;
+        }
+
+
+        .model-pricing-grid .price-final strong {
+
+            font-size: 12px;
+        }
+
+
+        @media (max-width: 760px) {
+
+            .model-pricing-grid {
+
+                grid-template-columns:
+                    1fr;
+
+                gap: 8px;
+            }
+
+
+            .model-pricing-grid .model-pricing {
+
+                width: 100%;
+            }
+
+
+            .model-pricing-grid .pricing-header {
+
+                text-align:
+                    left;
+            }
+        }
+
+
+        @media (max-width: 420px) {
+
+            .model-pricing-grid .model-pricing {
+
+                padding: 10px;
+            }
+
+
+            .model-pricing-grid .price-row {
+
+                font-size: 9px;
+            }
+        }
+
+
+        /* =====================================================
            PARAMETERS
         ====================================================== */
 
