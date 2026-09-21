@@ -17,6 +17,7 @@
        credit_480p
        credit_720p
        credit_1080p
+   - Menjaga credit_final legacy
 
    Tidak bertanggung jawab:
    - Query Supabase langsung
@@ -30,9 +31,7 @@
 
 import {
     loadModels,
-    loadProviders,
-    getModelById,
-    getModelByModelId
+    loadProviders
 } from "../models-data.js";
 
 import {
@@ -242,11 +241,12 @@ function normalizeArray(value) {
 /* =========================================================
    MODEL CLONE
    ---------------------------------------------------------
-   Jangan bergantung pada normalizeModel() dari models-data.js.
-   Versi models-data.js saat ini tidak mengekspor fungsi tersebut.
+   Jangan bergantung pada normalizeModel() dari
+   models-data.js.
 
    Source of truth:
-   - model object yang diberikan oleh Models module
+   - model object dari Models module
+   - database Models
    - bukan data buatan Edit module
    ========================================================= */
 
@@ -262,62 +262,29 @@ function cloneModel(model) {
     };
 
 
-    /*
-     * Array dibuat copy agar perubahan state Edit
-     * tidak mengubah object Models asli.
-     */
+    /* -----------------------------------------------------
+       SUPPORTED RATIOS
+       ----------------------------------------------------- */
 
-    if (
-        Array.isArray(
+    cloned.supported_ratios =
+        normalizeArray(
             model.supported_ratios
-        )
-    ) {
-
-        cloned.supported_ratios = [
-            ...model.supported_ratios
-        ];
-
-    } else {
-
-        cloned.supported_ratios =
-            normalizeArray(
-                model.supported_ratios
-            );
-
-    }
+        );
 
 
-    if (
-        Array.isArray(
+    /* -----------------------------------------------------
+       SUPPORTED RESOLUTIONS
+       ----------------------------------------------------- */
+
+    cloned.supported_resolutions =
+        normalizeArray(
             model.supported_resolutions
-        )
-    ) {
-
-        cloned.supported_resolutions = [
-            ...model.supported_resolutions
-        ];
-
-    } else {
-
-        cloned.supported_resolutions =
-            normalizeArray(
-                model.supported_resolutions
-            );
-
-    }
+        );
 
 
-    /*
-     * Credit resolution:
-     *
-     * Prioritas:
-     * 1. credit_480p
-     * 2. credit480p
-     * 3. nilai existing
-     *
-     * TIDAK menggunakan credit_final sebagai
-     * formula otomatis.
-     */
+    /* -----------------------------------------------------
+       CREDIT PER RESOLUTION
+       ----------------------------------------------------- */
 
     cloned.credit_480p =
         normalizeNumber(
@@ -343,12 +310,13 @@ function cloneModel(model) {
         );
 
 
-    /*
-     * Credit legacy tetap dipertahankan.
-     */
+    /* -----------------------------------------------------
+       LEGACY CREDIT
+       ----------------------------------------------------- */
 
     if (
-        model.credit_cost !== undefined
+        model.credit_cost !== undefined &&
+        model.credit_cost !== null
     ) {
 
         cloned.credit_cost =
@@ -361,7 +329,8 @@ function cloneModel(model) {
 
 
     if (
-        model.discount_percent !== undefined
+        model.discount_percent !== undefined &&
+        model.discount_percent !== null
     ) {
 
         cloned.discount_percent =
@@ -374,7 +343,8 @@ function cloneModel(model) {
 
 
     if (
-        model.credit_final !== undefined
+        model.credit_final !== undefined &&
+        model.credit_final !== null
     ) {
 
         cloned.credit_final =
@@ -386,12 +356,13 @@ function cloneModel(model) {
     }
 
 
-    /*
-     * Duration.
-     */
+    /* -----------------------------------------------------
+       DURATION
+       ----------------------------------------------------- */
 
     if (
-        model.min_duration !== undefined
+        model.min_duration !== undefined &&
+        model.min_duration !== null
     ) {
 
         cloned.min_duration =
@@ -404,7 +375,8 @@ function cloneModel(model) {
 
 
     if (
-        model.max_duration !== undefined
+        model.max_duration !== undefined &&
+        model.max_duration !== null
     ) {
 
         cloned.max_duration =
@@ -451,12 +423,10 @@ function getRootElement(root) {
 /* =========================================================
    PROVIDER LOOKUP
    ---------------------------------------------------------
-   Jangan memakai getProviderById() dari models-data.js
-   karena fungsi tersebut async.
+   Provider harus berasal dari providers yang sudah
+   dimuat oleh caller / Models module.
 
-   Di sini providers sudah diberikan oleh caller,
-   jadi lookup lokal lebih ringan dan tidak membuat
-   request tambahan.
+   Tidak melakukan query tambahan.
    ========================================================= */
 
 function findProviderById(
@@ -491,6 +461,93 @@ function findProviderById(
         ) ||
         null
     );
+
+}
+
+
+/* =========================================================
+   MODEL LOOKUP
+   ---------------------------------------------------------
+   Jangan memakai getModelById() / getModelByModelId()
+   karena signature helper tersebut dapat berubah dan
+   sebelumnya menyebabkan mismatch.
+
+   Di sini pencarian dilakukan langsung terhadap array
+   Models yang SUDAH dimuat.
+
+   Prioritas:
+   1. database id
+   2. model_id
+   ========================================================= */
+
+function findModelInList(
+    models,
+    value
+) {
+
+    const target =
+        normalizeId(
+            value
+        );
+
+    if (!target) {
+        return null;
+    }
+
+
+    const list =
+        Array.isArray(
+            models
+        )
+            ? models
+            : [];
+
+
+    /*
+     * 1. Database ID
+     */
+
+    const byDatabaseId =
+        list.find(
+            model =>
+                normalizeId(
+                    model?.id
+                ) === target
+        );
+
+
+    if (
+        byDatabaseId
+    ) {
+
+        return byDatabaseId;
+
+    }
+
+
+    /*
+     * 2. Model ID
+     */
+
+    const byModelId =
+        list.find(
+            model =>
+                normalizeId(
+                    model?.model_id
+                ) === target
+        );
+
+
+    if (
+        byModelId
+    ) {
+
+        return byModelId;
+
+    }
+
+
+    return null;
 
 }
 
@@ -574,16 +631,16 @@ export function setEditingModel(model) {
     }
 
 
+    /*
+     * Database ID adalah identitas record
+     * yang sedang diedit.
+     */
+
     const databaseId =
         normalizeId(
             normalized.id
         );
 
-
-    /*
-     * Database ID adalah identitas record yang
-     * sedang diedit.
-     */
 
     editState = {
 
@@ -678,43 +735,52 @@ export async function resolveModelForEdit(
 
 
     /*
-     * Gunakan models yang sudah tersedia
-     * jika caller memilikinya.
+     * Gunakan Models yang sudah diberikan
+     * oleh caller terlebih dahulu.
      */
 
-    const models =
+    let models =
         Array.isArray(
             options.models
         )
             ? options.models
-            : await loadModels({
+            : null;
+
+
+    /*
+     * Jika caller belum memiliki Models,
+     * baru load Models satu kali.
+     */
+
+    if (!models) {
+
+        models =
+            await loadModels({
                 force:
                     Boolean(
                         options.force
                     )
             });
 
+    }
 
-    let model =
-        getModelById(
+
+    if (
+        !Array.isArray(
+            models
+        )
+    ) {
+
+        models = [];
+
+    }
+
+
+    const model =
+        findModelInList(
             models,
             value
         );
-
-
-    /*
-     * Fallback ke model_id.
-     */
-
-    if (!model) {
-
-        model =
-            getModelByModelId(
-                models,
-                value
-            );
-
-    }
 
 
     if (!model) {
@@ -743,8 +809,8 @@ export async function loadEditData(
 ) {
 
     /*
-     * Jika model object diberikan, tidak perlu
-     * reload models.
+     * Jika model object diberikan,
+     * gunakan object tersebut langsung.
      */
 
     const model =
@@ -764,8 +830,9 @@ export async function loadEditData(
 
 
     /*
-     * Provider juga memakai data yang sudah tersedia
-     * bila caller telah memuatnya.
+     * Provider menggunakan data yang sudah tersedia.
+     * Jika belum tersedia, loadProviders dilakukan
+     * satu kali.
      */
 
     const providers =
@@ -782,8 +849,9 @@ export async function loadEditData(
 
 
     /*
-     * Models dikembalikan supaya openEditModel()
-     * tidak melakukan loadModels() kedua kali.
+     * Pertahankan seluruh Models jika tersedia.
+     *
+     * Ini penting untuk komponen search/dropdown Model.
      */
 
     const models =
@@ -791,11 +859,7 @@ export async function loadEditData(
             options.models
         )
             ? options.models
-            : (
-                model
-                    ? [model]
-                    : []
-            );
+            : [model];
 
 
     return {
@@ -943,6 +1007,10 @@ export function renderEditForm(
             : [];
 
 
+    /*
+     * Provider wajib ada di providers.
+     */
+
     const providerErrors =
         validateEditProvider(
             normalized,
@@ -962,14 +1030,18 @@ export function renderEditForm(
 
 
     /*
-     * Sinkronkan state dengan model yang
-     * benar-benar dirender.
+     * Sinkronkan state dengan model
+     * yang benar-benar dirender.
      */
 
     setEditingModel(
         normalized
     );
 
+
+    /*
+     * Render form.
+     */
 
     container.innerHTML =
         renderModelForm(
@@ -982,8 +1054,8 @@ export function renderEditForm(
 
 
     /*
-     * Event hanya dipasang sekali setelah
-     * HTML form selesai dibuat.
+     * Event hanya dipasang setelah HTML
+     * selesai dibuat.
      */
 
     attachModelFormEvents(
@@ -1025,15 +1097,6 @@ export async function openEditModel(
     modelOrId,
     options = {}
 ) {
-
-    /*
-     * loadEditData sekarang mengembalikan:
-     * - model
-     * - providers
-     * - models
-     *
-     * Jadi tidak perlu loadModels() kedua kali.
-     */
 
     const data =
         await loadEditData(
@@ -1134,15 +1197,9 @@ export function collectEditData(
         );
 
 
-    /*
-     * Helper untuk membaca number dari form.
-     *
-     * Jika field TIDAK ADA:
-     * gunakan nilai model asli.
-     *
-     * Jangan otomatis menjadi 0 karena itu
-     * bisa menghancurkan harga credit lama.
-     */
+    /* -----------------------------------------------------
+       SAFE NUMBER READER
+       ----------------------------------------------------- */
 
     function readNumber(
         selectors,
@@ -1169,8 +1226,8 @@ export function collectEditData(
 
 
                 /*
-                 * Input ada tetapi kosong.
-                 * Tetap gunakan fallback existing.
+                 * Field ada tetapi kosong:
+                 * jangan menghancurkan nilai lama.
                  */
 
                 if (
@@ -1199,9 +1256,9 @@ export function collectEditData(
     }
 
 
-    /*
-     * CREDIT 480p
-     */
+    /* -----------------------------------------------------
+       CREDIT 480p
+       ----------------------------------------------------- */
 
     data.credit_480p =
         readNumber(
@@ -1211,15 +1268,16 @@ export function collectEditData(
                 "[data-field='credit_480p']"
             ],
             normalizeNumber(
-                original.credit_480p,
+                original.credit_480p ??
+                original.credit480p,
                 0
             )
         );
 
 
-    /*
-     * CREDIT 720p
-     */
+    /* -----------------------------------------------------
+       CREDIT 720p
+       ----------------------------------------------------- */
 
     data.credit_720p =
         readNumber(
@@ -1229,15 +1287,16 @@ export function collectEditData(
                 "[data-field='credit_720p']"
             ],
             normalizeNumber(
-                original.credit_720p,
+                original.credit_720p ??
+                original.credit720p,
                 0
             )
         );
 
 
-    /*
-     * CREDIT 1080p
-     */
+    /* -----------------------------------------------------
+       CREDIT 1080p
+       ----------------------------------------------------- */
 
     data.credit_1080p =
         readNumber(
@@ -1247,15 +1306,48 @@ export function collectEditData(
                 "[data-field='credit_1080p']"
             ],
             normalizeNumber(
-                original.credit_1080p,
+                original.credit_1080p ??
+                original.credit1080p,
                 0
             )
         );
 
 
-    /*
-     * Database ID tidak boleh berasal dari input.
-     */
+    /* -----------------------------------------------------
+       CREDIT FINAL LEGACY
+       -----------------------------------------------------
+       Tidak dihitung ulang dari credit resolution.
+
+       Jika field tidak ada di layout, pertahankan
+       nilai lama.
+       ----------------------------------------------------- */
+
+    if (
+        data.credit_final === undefined ||
+        data.credit_final === null ||
+        String(data.credit_final).trim() === ""
+    ) {
+
+        if (
+            original.credit_final !== undefined
+        ) {
+
+            data.credit_final =
+                normalizeNumber(
+                    original.credit_final,
+                    0
+                );
+
+        }
+
+    }
+
+
+    /* -----------------------------------------------------
+       DATABASE ID
+       -----------------------------------------------------
+       Tidak boleh berasal dari input form.
+       ----------------------------------------------------- */
 
     data.id =
         normalizeId(
@@ -1272,11 +1364,9 @@ export function collectEditData(
     }
 
 
-    /*
-     * Model ID adalah identitas model.
-     * Jika form tidak mengirimkannya, gunakan
-     * nilai asli.
-     */
+    /* -----------------------------------------------------
+       MODEL ID
+       ----------------------------------------------------- */
 
     if (
         !data.model_id &&
@@ -1289,10 +1379,9 @@ export function collectEditData(
     }
 
 
-    /*
-     * Nama model juga dipertahankan jika
-     * layout tidak mengirimkannya.
-     */
+    /* -----------------------------------------------------
+       MODEL NAME
+       ----------------------------------------------------- */
 
     if (
         !data.model_name &&
@@ -1305,10 +1394,24 @@ export function collectEditData(
     }
 
 
-    /*
-     * Provider ID dipertahankan dari model asli
-     * jika layout tidak mengirimkannya.
-     */
+    /* -----------------------------------------------------
+       MODEL FAMILY
+       ----------------------------------------------------- */
+
+    if (
+        !data.model_family &&
+        original.model_family
+    ) {
+
+        data.model_family =
+            original.model_family;
+
+    }
+
+
+    /* -----------------------------------------------------
+       PROVIDER ID
+       ----------------------------------------------------- */
 
     if (
         !data.provider_id &&
@@ -1350,7 +1453,7 @@ export function prepareEditSubmission(
 
 
     /*
-     * Normalize hanya data form.
+     * Normalize data form.
      */
 
     const normalized =
@@ -1360,12 +1463,17 @@ export function prepareEditSubmission(
         );
 
 
-    /*
-     * Pastikan tiga credit resolution selalu
-     * dibawa ke payload.
-     *
-     * Tidak dihitung dari credit_final.
-     */
+    /* -----------------------------------------------------
+       CREDIT PER RESOLUTION
+       -----------------------------------------------------
+       Nilai berasal dari input Admin.
+
+       TIDAK:
+       - dihitung dari credit_final
+       - dihitung dari KIE price
+       - dihitung dari USD
+       - dihitung dari duration
+       ----------------------------------------------------- */
 
     normalized.credit_480p =
         normalizeNumber(
@@ -1388,9 +1496,47 @@ export function prepareEditSubmission(
         );
 
 
-    /*
-     * ID database harus tetap ID record asli.
-     */
+    /* -----------------------------------------------------
+       CREDIT FINAL LEGACY
+       ----------------------------------------------------- */
+
+    if (
+        raw.credit_final !== undefined &&
+        raw.credit_final !== null &&
+        String(raw.credit_final).trim() !== ""
+    ) {
+
+        normalized.credit_final =
+            normalizeNumber(
+                raw.credit_final,
+                0
+            );
+
+    } else {
+
+        const original =
+            getEditingModel();
+
+
+        if (
+            original &&
+            original.credit_final !== undefined
+        ) {
+
+            normalized.credit_final =
+                normalizeNumber(
+                    original.credit_final,
+                    0
+                );
+
+        }
+
+    }
+
+
+    /* -----------------------------------------------------
+       DATABASE ID
+       ----------------------------------------------------- */
 
     const original =
         getEditingModel();
@@ -1409,10 +1555,14 @@ export function prepareEditSubmission(
     }
 
 
-    /*
-     * Jangan sampai provider berubah menjadi
-     * provider code atau nilai lain.
-     */
+    /* -----------------------------------------------------
+       PROVIDER ID
+       -----------------------------------------------------
+       Provider identity berasal dari model awal.
+
+       Edit module tidak boleh mengubahnya menjadi
+       provider code / provider name.
+       ----------------------------------------------------- */
 
     if (
         original &&
@@ -1425,10 +1575,9 @@ export function prepareEditSubmission(
     }
 
 
-    /*
-     * Model identity tidak boleh hilang
-     * ketika field readonly tidak ikut submit.
-     */
+    /* -----------------------------------------------------
+       MODEL ID
+       ----------------------------------------------------- */
 
     if (
         original &&
@@ -1441,6 +1590,10 @@ export function prepareEditSubmission(
     }
 
 
+    /* -----------------------------------------------------
+       MODEL NAME
+       ----------------------------------------------------- */
+
     if (
         original &&
         original.model_name
@@ -1452,9 +1605,9 @@ export function prepareEditSubmission(
     }
 
 
-    /*
-     * Model family juga dipertahankan.
-     */
+    /* -----------------------------------------------------
+       MODEL FAMILY
+       ----------------------------------------------------- */
 
     if (
         original &&
@@ -1467,16 +1620,15 @@ export function prepareEditSubmission(
     }
 
 
-    /*
-     * Technical metadata tetap dari model asli.
-     *
-     * Edit hanya mengubah field yang memang
-     * diperbolehkan.
-     */
+    /* -----------------------------------------------------
+       TECHNICAL METADATA
+       -----------------------------------------------------
+       Jangan diubah oleh Edit jika source model
+       sudah memilikinya.
+       ----------------------------------------------------- */
 
     if (
-        original &&
-        original.supported_ratios
+        original
     ) {
 
         normalized.supported_ratios =
@@ -1484,13 +1636,6 @@ export function prepareEditSubmission(
                 original.supported_ratios
             );
 
-    }
-
-
-    if (
-        original &&
-        original.supported_resolutions
-    ) {
 
         normalized.supported_resolutions =
             normalizeArray(
@@ -1499,6 +1644,10 @@ export function prepareEditSubmission(
 
     }
 
+
+    /* -----------------------------------------------------
+       DURATION
+       ----------------------------------------------------- */
 
     if (
         original &&
@@ -1522,13 +1671,11 @@ export function prepareEditSubmission(
     }
 
 
-    /*
-     * KIE price / identity tidak dibuat ulang
-     * oleh Edit module.
-     *
-     * Jika field ada pada original model,
-     * pertahankan.
-     */
+    /* -----------------------------------------------------
+       KIE PRICE
+       -----------------------------------------------------
+       Jangan dihitung ulang di Edit module.
+       ----------------------------------------------------- */
 
     if (
         original &&
@@ -1552,9 +1699,9 @@ export function prepareEditSubmission(
     }
 
 
-    /*
-     * Validasi form umum.
-     */
+    /* -----------------------------------------------------
+       VALIDASI FORM UMUM
+       ----------------------------------------------------- */
 
     const errors =
         validateModelFormData(
@@ -1565,9 +1712,9 @@ export function prepareEditSubmission(
         );
 
 
-    /*
-     * Validasi khusus credit resolution.
-     */
+    /* -----------------------------------------------------
+       VALIDASI CREDIT 480p
+       ----------------------------------------------------- */
 
     if (
         !Number.isFinite(
@@ -1583,6 +1730,10 @@ export function prepareEditSubmission(
     }
 
 
+    /* -----------------------------------------------------
+       VALIDASI CREDIT 720p
+       ----------------------------------------------------- */
+
     if (
         !Number.isFinite(
             normalized.credit_720p
@@ -1596,6 +1747,10 @@ export function prepareEditSubmission(
 
     }
 
+
+    /* -----------------------------------------------------
+       VALIDASI CREDIT 1080p
+       ----------------------------------------------------- */
 
     if (
         !Number.isFinite(
@@ -1611,10 +1766,46 @@ export function prepareEditSubmission(
     }
 
 
-    /*
-     * Provider wajib benar-benar ada di
-     * providers yang sudah dimuat.
-     */
+    /* -----------------------------------------------------
+       VALIDASI CREDIT FINAL
+       ----------------------------------------------------- */
+
+    if (
+        normalized.credit_final !== undefined &&
+        normalized.credit_final !== null
+    ) {
+
+        if (
+            !Number.isFinite(
+                Number(
+                    normalized.credit_final
+                )
+            ) ||
+            Number(
+                normalized.credit_final
+            ) < 0
+        ) {
+
+            errors.push(
+                "Credit Final tidak valid."
+            );
+
+        } else {
+
+            normalized.credit_final =
+                normalizeNumber(
+                    normalized.credit_final,
+                    0
+                );
+
+        }
+
+    }
+
+
+    /* -----------------------------------------------------
+       VALIDASI PROVIDER
+       ----------------------------------------------------- */
 
     const provider =
         findProviderById(
@@ -1634,6 +1825,10 @@ export function prepareEditSubmission(
 
     }
 
+
+    /* -----------------------------------------------------
+       THROW VALIDATION ERROR
+       ----------------------------------------------------- */
 
     if (
         errors.length
@@ -1777,6 +1972,8 @@ const EDIT_COMPARE_FIELDS = [
 
     "model_name",
 
+    "model_family",
+
     "description",
 
     "credit_cost",
@@ -1807,6 +2004,10 @@ const EDIT_COMPARE_FIELDS = [
 
 ];
 
+
+/* =========================================================
+   GET CHANGED FIELDS
+   ========================================================= */
 
 export function getChangedFields(
     originalModel,
@@ -1878,6 +2079,10 @@ export function getChangedFields(
 }
 
 
+/* =========================================================
+   HAS CHANGES
+   ========================================================= */
+
 export function hasChanges(
     updatedModel
 ) {
@@ -1948,8 +2153,8 @@ export function updateEditingModel(
 
 
     /*
-     * Provider/model identity juga dipertahankan
-     * dari state awal bila tersedia.
+     * Provider/model identity tetap dari
+     * state awal.
      */
 
     if (
@@ -1982,6 +2187,16 @@ export function updateEditingModel(
 
             normalized.model_name =
                 editState.model.model_name;
+
+        }
+
+
+        if (
+            editState.model.model_family
+        ) {
+
+            normalized.model_family =
+                editState.model.model_family;
 
         }
 
@@ -2034,8 +2249,8 @@ export function commitEditModel(
 
 
     /*
-     * Setelah berhasil disimpan, state Edit
-     * diperbarui.
+     * Setelah API berhasil menyimpan,
+     * state Edit diperbarui.
      */
 
     editState.model =
@@ -2092,6 +2307,10 @@ export function cancelEditModel() {
 
 /* =========================================================
    SUBMIT DELEGATION
+   ---------------------------------------------------------
+   Tidak ada Supabase/API call langsung.
+   Tidak ada fallback recursive.
+   Handler dipanggil tepat satu kali.
    ========================================================= */
 
 export async function submitEditModel(
@@ -2105,12 +2324,6 @@ export async function submitEditModel(
             options
         );
 
-
-    /*
-     * Modul Edit tidak melakukan update Supabase.
-     *
-     * Update tetap didelegasikan ke handler/coordinator.
-     */
 
     const submitHandler =
         typeof options.submit ===
@@ -2165,9 +2378,13 @@ export async function submitEditModel(
 
 
     /*
-     * Submit tepat SATU kali.
+     * Submit SATU kali.
      *
-     * Tidak ada fallback recursive.
+     * Tidak ada:
+     * submitEditModel()
+     * submit()
+     * fallback()
+     * recursive retry
      */
 
     const result =
@@ -2300,7 +2517,7 @@ export function bindEditForm(
 
 
 /* =========================================================
-   RESTORE ORIGINAL FORM
+   RESTORE EDIT FORM
    ========================================================= */
 
 export function restoreOriginalEditForm(
