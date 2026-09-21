@@ -1,31 +1,34 @@
-/* =========================================================
-   GEN-Z.AI
-   MODEL FORM CREATE MODULE
-   ---------------------------------------------------------
-   File:
-   admin-control/models/functions/model-form-create.js
-
-   Tanggung jawab:
-   - Mode Tambah Model
-   - Collect data form
-   - Validasi data
-   - Normalisasi data
-   - Menyerahkan INSERT kepada caller/API layer
-   - Menjaga provider_id sebagai providers.id
-   - Menjaga credit per resolution:
-       credit_480p
-       credit_720p
-       credit_1080p
-   - Mempertahankan credit_final untuk kompatibilitas legacy
-   - Tidak menggunakan tabel kie_*
-
-   Tidak bertanggung jawab:
-   - Render tabel
-   - Query Supabase langsung
-   - Delete model
-   - Edit model
-   - CRUD provider
-   ========================================================= */
+/**
+ * =========================================================
+ * GEN-Z.AI
+ * MODEL FORM CREATE MODULE
+ * ---------------------------------------------------------
+ * File:
+ * admin-control/models/functions/model-form-create.js
+ *
+ * TANGGUNG JAWAB:
+ * - Mode Tambah Model
+ * - Collect data form
+ * - Validasi data
+ * - Normalisasi data
+ * - Menyerahkan INSERT kepada caller/API layer
+ * - Menjaga provider_id sebagai providers.id
+ * - Menjaga credit per resolution:
+ *      credit_480p
+ *      credit_720p
+ *      credit_1080p
+ * - Mempertahankan credit_final untuk kompatibilitas legacy
+ * - Tidak menggunakan tabel kie_*
+ *
+ * TIDAK BERTANGGUNG JAWAB:
+ * - Render tabel
+ * - Query Supabase langsung
+ * - Delete model
+ * - Edit model
+ * - CRUD provider
+ *
+ * =========================================================
+ */
 
 (function () {
 
@@ -34,90 +37,171 @@
 
     /* =====================================================
        CONSTANTS
-       ===================================================== */
+    ===================================================== */
 
     const MODEL_FIELDS = [
+
         "provider_id",
+
         "model_id",
+
         "model_name",
+
         "description",
 
+
+        /*
+         * LEGACY CREDIT
+         */
+
         "credit_cost",
+
         "discount_percent",
+
         "credit_final",
 
+
+        /*
+         * CREDIT PER RESOLUTION
+         */
+
         "credit_480p",
+
         "credit_720p",
+
         "credit_1080p",
 
+
+        /*
+         * DURATION
+         */
+
         "min_duration",
+
         "max_duration",
 
+
+        /*
+         * CAPABILITIES
+         */
+
         "supported_ratios",
+
         "supported_resolutions",
 
+
+        /*
+         * STATUS
+         */
+
         "status"
+
     ];
 
 
     const VALID_STATUS = [
+
         "active",
+
         "inactive",
+
         "maintenance"
+
     ];
 
 
+    /*
+     * Compatibility constants.
+     *
+     * Nilai ini TIDAK digunakan untuk membuat
+     * capability model secara otomatis.
+     *
+     * Capability sebenarnya berasal dari data
+     * model yang sudah dipilih pada Admin Models.
+     */
+
     const VALID_RATIOS = [
+
         "2:3",
+
         "3:2",
+
         "1:1",
+
         "16:9",
+
         "9:16"
+
     ];
 
 
     const VALID_RESOLUTIONS = [
+
         "480p",
+
         "720p",
+
         "1080p"
+
     ];
 
 
     /* =====================================================
        STATE
-       ===================================================== */
+    ===================================================== */
 
     let state = {
-        active: false,
-        root: null,
-        providers: [],
-        models: []
+
+        active:
+            false,
+
+        root:
+            null,
+
+        providers:
+            [],
+
+        models:
+            []
+
     };
 
 
     /* =====================================================
        HELPERS
-       ===================================================== */
+    ===================================================== */
 
-    function normalizeId(value) {
+    function normalizeId(
+        value
+    ) {
 
         return String(
+
             value === null ||
             value === undefined
+
                 ? ""
+
                 : value
+
         ).trim();
 
     }
 
 
-    function normalizeText(value) {
+    function normalizeText(
+        value
+    ) {
 
         return String(
+
             value === null ||
             value === undefined
+
                 ? ""
+
                 : value
+
         ).trim();
 
     }
@@ -129,9 +213,11 @@
     ) {
 
         if (
+
             value === null ||
             value === undefined ||
             value === ""
+
         ) {
 
             return fallback;
@@ -140,13 +226,17 @@
 
 
         const number =
-            Number(value);
+            Number(
+                value
+            );
 
 
         return Number.isFinite(
             number
         )
+
             ? number
+
             : fallback;
 
     }
@@ -157,29 +247,41 @@
     ) {
 
         if (
-            Array.isArray(value)
+            Array.isArray(
+                value
+            )
         ) {
 
             return [
+
                 ...new Set(
+
                     value
+
                         .map(
                             item =>
                                 normalizeText(
                                     item
                                 )
                         )
-                        .filter(Boolean)
+
+                        .filter(
+                            Boolean
+                        )
+
                 )
+
             ];
 
         }
 
 
         if (
+
             value === null ||
             value === undefined ||
             value === ""
+
         ) {
 
             return [];
@@ -188,14 +290,19 @@
 
 
         /*
-         * PostgreSQL array:
+         * PostgreSQL ARRAY
          *
          * {16:9,9:16}
          */
+
         if (
+
             typeof value === "string" &&
+
             value.startsWith("{") &&
+
             value.endsWith("}")
+
         ) {
 
             const inner =
@@ -215,9 +322,13 @@
 
 
             return [
+
                 ...new Set(
+
                     inner
+
                         .split(",")
+
                         .map(
                             item =>
                                 item
@@ -227,16 +338,22 @@
                                     )
                                     .trim()
                         )
-                        .filter(Boolean)
+
+                        .filter(
+                            Boolean
+                        )
+
                 )
+
             ];
 
         }
 
 
         /*
-         * JSON array.
+         * JSON ARRAY
          */
+
         if (
             typeof value === "string"
         ) {
@@ -244,7 +361,9 @@
             try {
 
                 const parsed =
-                    JSON.parse(value);
+                    JSON.parse(
+                        value
+                    );
 
 
                 if (
@@ -260,28 +379,39 @@
                 }
 
             } catch {
+
                 /*
-                 * Not JSON.
+                 * Bukan JSON.
                  */
 
             }
 
 
             /*
-             * Comma separated fallback.
+             * CSV fallback.
              */
+
             return [
+
                 ...new Set(
+
                     value
+
                         .split(",")
+
                         .map(
                             item =>
                                 normalizeText(
                                     item
                                 )
                         )
-                        .filter(Boolean)
+
+                        .filter(
+                            Boolean
+                        )
+
                 )
+
             ];
 
         }
@@ -299,21 +429,155 @@
         const status =
             normalizeText(
                 value
-            ).toLowerCase();
+            )
+                .toLowerCase();
 
 
         return VALID_STATUS.includes(
             status
         )
+
             ? status
+
             : "active";
 
     }
 
 
     /* =====================================================
+       DOM HELPERS
+    ===================================================== */
+
+    function resolveRoot(
+        root
+    ) {
+
+        if (
+            typeof root === "string"
+        ) {
+
+            if (
+                typeof document ===
+                "undefined"
+            ) {
+
+                return null;
+
+            }
+
+
+            return document.querySelector(
+                root
+            );
+
+        }
+
+
+        return root || null;
+
+    }
+
+
+    function getElement(
+        root,
+        selectors
+    ) {
+
+        const container =
+            resolveRoot(
+                root
+            );
+
+
+        if (
+            !container ||
+            typeof container.querySelector !==
+                "function"
+        ) {
+
+            return null;
+
+        }
+
+
+        const list =
+            Array.isArray(
+                selectors
+            )
+
+                ? selectors
+
+                : [selectors];
+
+
+        for (
+            const selector
+            of list
+        ) {
+
+            if (
+                !selector
+            ) {
+
+                continue;
+
+            }
+
+
+            const element =
+                container.querySelector(
+                    selector
+                );
+
+
+            if (
+                element
+            ) {
+
+                return element;
+
+            }
+
+        }
+
+
+        return null;
+
+    }
+
+
+    function getValue(
+        root,
+        selectors
+    ) {
+
+        const element =
+            getElement(
+                root,
+                selectors
+            );
+
+
+        if (
+            !element
+        ) {
+
+            return "";
+
+        }
+
+
+        return String(
+            element.value ??
+                ""
+        ).trim();
+
+    }
+
+
+    /* =====================================================
        PROVIDER HELPERS
-       ===================================================== */
+    ===================================================== */
 
     function findProvider(
         providers,
@@ -335,14 +599,62 @@
         }
 
 
+        const source =
+            Array.isArray(
+                providers
+            )
+
+                ? providers
+
+                : [];
+
+
+        /*
+         * PRIMARY:
+         *
+         * providers.id
+         */
+
+        const byId =
+            source.find(
+                provider =>
+                    normalizeId(
+                        provider?.id
+                    ) ===
+                    id
+            );
+
+
+        if (
+            byId
+        ) {
+
+            return byId;
+
+        }
+
+
+        /*
+         * Compatibility:
+         *
+         * provider_id
+         */
+
         return (
-            providers || []
-        ).find(
-            provider =>
-                normalizeId(
-                    provider.id
-                ) === id
-        ) || null;
+
+            source.find(
+                provider =>
+                    normalizeId(
+                        provider?.provider_id
+                    ) ===
+                    id
+            )
+
+            ||
+
+            null
+
+        );
 
     }
 
@@ -367,9 +679,65 @@
     }
 
 
+    function isProviderActive(
+        provider
+    ) {
+
+        if (
+            !provider
+        ) {
+
+            return false;
+
+        }
+
+
+        const status =
+            normalizeText(
+                provider.status
+            )
+                .toLowerCase();
+
+
+        if (
+            status ===
+                "active" ||
+            status ===
+                "aktif" ||
+            status ===
+                "enabled"
+        ) {
+
+            return true;
+
+        }
+
+
+        /*
+         * Compatibility fields.
+         *
+         * Tidak menjadi dependency utama.
+         */
+
+        return (
+
+            provider.is_active ===
+                true ||
+
+            provider.active ===
+                true ||
+
+            provider.enabled ===
+                true
+
+        );
+
+    }
+
+
     /* =====================================================
-       MODEL ID DUPLICATE CHECK
-       ===================================================== */
+       MODEL LOOKUP
+    ===================================================== */
 
     function findDuplicateModel(
         models,
@@ -398,36 +766,105 @@
         }
 
 
-        return (
-            models || []
-        ).find(
-            model => {
+        const source =
+            Array.isArray(
+                models
+            )
 
-                const id =
-                    normalizeId(
-                        model.id
+                ? models
+
+                : [];
+
+
+        return (
+
+            source.find(
+                model => {
+
+                    const id =
+                        normalizeId(
+                            model?.id
+                        );
+
+
+                    if (
+                        excluded &&
+                        id === excluded
+                    ) {
+
+                        return false;
+
+                    }
+
+
+                    return (
+
+                        normalizeText(
+                            model?.model_id
+                        )
+                            .toLowerCase() ===
+                        normalizedModelId
+
                     );
 
-
-                if (
-                    excluded &&
-                    id === excluded
-                ) {
-
-                    return false;
-
                 }
+            )
+
+            ||
+
+            null
+
+        );
+
+    }
 
 
-                return (
+    function findModelById(
+        models,
+        modelId
+    ) {
+
+        const id =
+            normalizeText(
+                modelId
+            ).toLowerCase();
+
+
+        if (
+            !id
+        ) {
+
+            return null;
+
+        }
+
+
+        const source =
+            Array.isArray(
+                models
+            )
+
+                ? models
+
+                : [];
+
+
+        return (
+
+            source.find(
+                model =>
                     normalizeText(
-                        model.model_id
-                    ).toLowerCase() ===
-                    normalizedModelId
-                );
+                        model?.model_id
+                    )
+                        .toLowerCase() ===
+                    id
+            )
 
-            }
-        ) || null;
+            ||
+
+            null
+
+        );
 
     }
 
@@ -435,27 +872,36 @@
     /* =====================================================
        CREDIT CALCULATION
        -----------------------------------------------------
-       credit_final dihitung dari:
-
-       credit_cost - discount_percent
-
-       Jika discount = 0:
-       final = cost
+       credit_final:
+           credit_cost
+           +
+           discount_percent
 
        Contoh:
-       cost 100
-       discount 10%
-       final 90
 
-       Catatan:
-       credit_480p,
-       credit_720p,
+           credit_cost = 100
+           discount = 10%
+
+           credit_final = 90
+
+       IMPORTANT:
+
+       credit_480p
+       credit_720p
        credit_1080p
-       adalah nilai credit aktual per resolusi.
 
-       Nilai tersebut TIDAK dihitung otomatis dari
-       KIE price dan TIDAK dibuat berdasarkan duration.
-       ===================================================== */
+       adalah nilai credit aktual masing-masing
+       resolution.
+
+       Ketiganya TIDAK dihitung otomatis dari:
+
+       - KIE price
+       - duration
+       - ratio
+       - credit_final
+
+       Nilainya berasal dari input Admin Models.
+    ===================================================== */
 
     function calculateCreditFinal(
         creditCost,
@@ -486,14 +932,20 @@
 
 
         return Number(
+
             (
                 cost -
+
                 (
                     cost *
                     discount /
                     100
                 )
-            ).toFixed(6)
+
+            ).toFixed(
+                6
+            )
+
         );
 
     }
@@ -501,7 +953,7 @@
 
     /* =====================================================
        NORMALIZE MODEL DATA
-       ===================================================== */
+    ===================================================== */
 
     function normalizeModelData(
         input,
@@ -516,18 +968,25 @@
             Array.isArray(
                 options.providers
             )
+
                 ? options.providers
+
                 : state.providers;
 
 
-        /* -------------------------------------------------
-           PROVIDER
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * PROVIDER
+         * -------------------------------------------------
+         */
 
         const providerId =
             normalizeId(
+
                 data.provider_id ||
+
                 data.providerId
+
             );
 
 
@@ -538,118 +997,235 @@
             );
 
 
-        /* -------------------------------------------------
-           CREDIT LEGACY
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * LEGACY CREDIT
+         * -------------------------------------------------
+         */
 
         const creditCost =
             toNumber(
+
                 data.credit_cost ??
+
                 data.creditCost,
+
                 0
+
             );
 
 
         const discountPercent =
             toNumber(
+
                 data.discount_percent ??
+
                 data.discountPercent,
+
                 0
+
             );
 
 
+        /*
+         * credit_final tetap kompatibel.
+         */
+
         const suppliedFinal =
+
             data.credit_final ??
+
             data.creditFinal;
 
 
-        /*
-         * Jika credit_final tidak diberikan,
-         * hitung dari cost + discount.
-         *
-         * Jika diberikan, gunakan nilai tersebut
-         * agar kompatibel dengan UI lama.
-         */
+        const calculatedFinal =
+            calculateCreditFinal(
+                creditCost,
+                discountPercent
+            );
+
 
         const creditFinal =
+
             suppliedFinal ===
                 undefined ||
-            suppliedFinal === null ||
-            suppliedFinal === ""
-                ? calculateCreditFinal(
-                    creditCost,
-                    discountPercent
-                )
-                : toNumber(
+
+            suppliedFinal ===
+                null ||
+
+            suppliedFinal ===
+                ""
+
+                ?
+
+                calculatedFinal
+
+                :
+
+                toNumber(
                     suppliedFinal,
-                    calculateCreditFinal(
-                        creditCost,
-                        discountPercent
-                    )
+                    calculatedFinal
                 );
 
 
-        /* -------------------------------------------------
-           CREDIT PER RESOLUTION
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * CREDIT PER RESOLUTION
+         * -------------------------------------------------
+         *
+         * Jangan menggunakan credit_final
+         * untuk menggantikan nilai yang sengaja
+         * diberikan admin sebagai 0.
+         */
 
         const credit480p =
             toNumber(
+
                 data.credit_480p ??
+
                 data.credit480p,
+
                 0
+
             );
 
 
         const credit720p =
             toNumber(
+
                 data.credit_720p ??
+
                 data.credit720p,
+
                 0
+
             );
 
 
         const credit1080p =
             toNumber(
+
                 data.credit_1080p ??
+
                 data.credit1080p,
+
                 0
+
             );
 
 
-        /* -------------------------------------------------
-           NORMALIZED RESULT
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * DURATION
+         * -------------------------------------------------
+         */
+
+        const minDuration =
+            toNumber(
+
+                data.min_duration ??
+
+                data.minDuration,
+
+                0
+
+            );
+
+
+        const maxDuration =
+            toNumber(
+
+                data.max_duration ??
+
+                data.maxDuration,
+
+                0
+
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * CAPABILITIES
+         * -------------------------------------------------
+         *
+         * Capability yang dikirim adalah hasil
+         * checkbox/data model.
+         *
+         * Tidak membuat capability baru.
+         */
+
+        const supportedRatios =
+            normalizeArray(
+
+                data.supported_ratios ??
+
+                data.supportedRatios
+
+            );
+
+
+        const supportedResolutions =
+            normalizeArray(
+
+                data.supported_resolutions ??
+
+                data.supportedResolutions
+
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * NORMALIZED RESULT
+         * -------------------------------------------------
+         */
 
         return {
 
             provider_id:
+
                 provider
+
                     ? normalizeId(
                         provider.id
                     )
+
                     : providerId,
 
 
             model_id:
+
                 normalizeText(
+
                     data.model_id ||
+
                     data.modelId
+
                 ),
 
 
             model_name:
+
                 normalizeText(
+
                     data.model_name ||
+
                     data.modelName
+
                 ),
 
 
             description:
+
                 normalizeText(
                     data.description
                 ),
 
+
+            /*
+             * Legacy pricing.
+             */
 
             credit_cost:
                 creditCost,
@@ -663,6 +1239,10 @@
                 creditFinal,
 
 
+            /*
+             * Resolution pricing.
+             */
+
             credit_480p:
                 credit480p,
 
@@ -675,35 +1255,33 @@
                 credit1080p,
 
 
+            /*
+             * Duration.
+             */
+
             min_duration:
-                toNumber(
-                    data.min_duration ??
-                    data.minDuration,
-                    0
-                ),
+                minDuration,
 
 
             max_duration:
-                toNumber(
-                    data.max_duration ??
-                    data.maxDuration,
-                    0
-                ),
+                maxDuration,
 
+
+            /*
+             * Capabilities.
+             */
 
             supported_ratios:
-                normalizeArray(
-                    data.supported_ratios ??
-                    data.supportedRatios
-                ),
+                supportedRatios,
 
 
             supported_resolutions:
-                normalizeArray(
-                    data.supported_resolutions ??
-                    data.supportedResolutions
-                ),
+                supportedResolutions,
 
+
+            /*
+             * Status.
+             */
 
             status:
                 normalizeStatus(
@@ -717,7 +1295,7 @@
 
     /* =====================================================
        VALIDATION
-       ===================================================== */
+    ===================================================== */
 
     function validateModelData(
         data,
@@ -731,7 +1309,9 @@
             Array.isArray(
                 options.providers
             )
+
                 ? options.providers
+
                 : state.providers;
 
 
@@ -739,7 +1319,9 @@
             Array.isArray(
                 options.models
             )
+
                 ? options.models
+
                 : state.models;
 
 
@@ -748,7 +1330,9 @@
         ) {
 
             return [
+
                 "Data model tidak ditemukan."
+
             ];
 
         }
@@ -785,30 +1369,15 @@
                     "Provider yang dipilih tidak ditemukan."
                 );
 
-            } else {
+            } else if (
+                !isProviderActive(
+                    provider
+                )
+            ) {
 
-                /*
-                 * Model hanya boleh dibuat untuk
-                 * provider aktif.
-                 */
-
-                const providerStatus =
-                    normalizeText(
-                        provider.status
-                    ).toLowerCase();
-
-
-                if (
-                    providerStatus &&
-                    providerStatus !==
-                        "active"
-                ) {
-
-                    errors.push(
-                        "Provider yang dipilih tidak aktif."
-                    );
-
-                }
+                errors.push(
+                    "Provider yang dipilih tidak aktif."
+                );
 
             }
 
@@ -842,6 +1411,10 @@
 
         }
 
+
+        /*
+         * Jangan membuat duplicate model.
+         */
 
         const duplicate =
             findDuplicateModel(
@@ -915,7 +1488,9 @@
             !Number.isFinite(
                 data.discount_percent
             ) ||
+
             data.discount_percent < 0 ||
+
             data.discount_percent > 100
         ) {
 
@@ -1010,7 +1585,7 @@
         ) {
 
             errors.push(
-                "Durasi minimum tidak boleh negatif."
+                "Minimum Duration tidak valid."
             );
 
         }
@@ -1024,28 +1599,26 @@
         ) {
 
             errors.push(
-                "Durasi maksimum tidak boleh negatif."
+                "Maximum Duration tidak valid."
             );
 
         }
 
 
         if (
-            data.max_duration > 0 &&
-            data.min_duration > 0 &&
             data.min_duration >
-                data.max_duration
+            data.max_duration
         ) {
 
             errors.push(
-                "Durasi minimum tidak boleh lebih besar dari durasi maksimum."
+                "Minimum Duration tidak boleh lebih besar dari Maximum Duration."
             );
 
         }
 
 
         /* -------------------------------------------------
-           RATIO
+           CAPABILITIES
            ------------------------------------------------- */
 
         if (
@@ -1055,38 +1628,11 @@
         ) {
 
             errors.push(
-                "Rasio harus berupa array."
+                "Supported Ratios harus berupa array."
             );
-
-        } else {
-
-            const invalidRatios =
-                data.supported_ratios
-                    .filter(
-                        ratio =>
-                            !VALID_RATIOS.includes(
-                                ratio
-                            )
-                    );
-
-
-            if (
-                invalidRatios.length
-            ) {
-
-                errors.push(
-                    "Terdapat rasio yang tidak didukung: " +
-                    invalidRatios.join(", ")
-                );
-
-            }
 
         }
 
-
-        /* -------------------------------------------------
-           RESOLUTION
-           ------------------------------------------------- */
 
         if (
             !Array.isArray(
@@ -1095,47 +1641,7 @@
         ) {
 
             errors.push(
-                "Resolusi harus berupa array."
-            );
-
-        } else {
-
-            const invalidResolutions =
-                data.supported_resolutions
-                    .filter(
-                        resolution =>
-                            !VALID_RESOLUTIONS.includes(
-                                resolution
-                            )
-                    );
-
-
-            if (
-                invalidResolutions.length
-            ) {
-
-                errors.push(
-                    "Terdapat resolusi yang tidak didukung: " +
-                    invalidResolutions.join(", ")
-                );
-
-            }
-
-        }
-
-
-        /* -------------------------------------------------
-           STATUS
-           ------------------------------------------------- */
-
-        if (
-            !VALID_STATUS.includes(
-                data.status
-            )
-        ) {
-
-            errors.push(
-                "Status model tidak valid."
+                "Supported Resolutions harus berupa array."
             );
 
         }
@@ -1147,20 +1653,17 @@
 
 
     /* =====================================================
-       COLLECT FORM
-       ===================================================== */
+       COLLECT FORM DATA
+    ===================================================== */
 
     function collectFormData(
         root
     ) {
 
         const container =
-            typeof root ===
-                "string"
-                ? document.querySelector(
-                    root
-                )
-                : root;
+            resolveRoot(
+                root
+            );
 
 
         if (
@@ -1174,202 +1677,144 @@
         }
 
 
-        /* -------------------------------------------------
-           ELEMENT HELPER
-           ------------------------------------------------- */
-
-        function get(
-            selectors
-        ) {
-
-            const list =
-                Array.isArray(
-                    selectors
-                )
-                    ? selectors
-                    : [selectors];
-
-
-            for (
-                const selector
-                of list
-            ) {
-
-                const element =
-                    container.querySelector(
-                        selector
-                    );
-
-
-                if (
-                    element
-                ) {
-
-                    return element;
-
-                }
-
-            }
-
-
-            return null;
-
-        }
-
-
-        /* -------------------------------------------------
-           VALUE HELPER
-           ------------------------------------------------- */
-
-        function value(
-            selectors
-        ) {
-
-            const element =
-                get(
-                    selectors
-                );
-
-
-            return element
-                ? element.value
-                : "";
-
-        }
-
-
-        /* -------------------------------------------------
-           CHECKED VALUE HELPER
-           ------------------------------------------------- */
-
-        function checkedValues(
-            selectors
-        ) {
-
-            const elements =
-                container.querySelectorAll(
-                    selectors
-                );
-
-
-            return Array.from(
-                elements
-            )
-                .filter(
-                    element =>
-                        element.checked
-                )
-                .map(
-                    element =>
-                        normalizeText(
-                            element.value ||
-                            element.dataset.value
-                        )
-                )
-                .filter(Boolean);
-
-        }
-
-
-        /* -------------------------------------------------
-           PROVIDER
-           ------------------------------------------------- */
-
-        const providerElement =
-            get([
-                "[name='provider_id']",
-                "#provider_id",
-                "[data-field='provider_id']"
-            ]);
-
-
-        /* -------------------------------------------------
-           RATIO ELEMENTS
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * RATIO ELEMENTS
+         * -------------------------------------------------
+         */
 
         const ratioElements =
             container.querySelectorAll(
+
                 [
+
                     "input[name='supported_ratios']",
+
                     "input[name='supported_ratios[]']",
+
                     "input[data-field='supported_ratios']",
+
                     "[data-ratio-option]"
+
                 ].join(",")
+
             );
 
 
-        /* -------------------------------------------------
-           RESOLUTION ELEMENTS
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * RESOLUTION ELEMENTS
+         * -------------------------------------------------
+         */
 
         const resolutionElements =
             container.querySelectorAll(
+
                 [
+
                     "input[name='supported_resolutions']",
+
                     "input[name='supported_resolutions[]']",
+
                     "input[data-field='supported_resolutions']",
+
                     "[data-resolution-option]"
+
                 ].join(",")
+
             );
 
 
-        /* -------------------------------------------------
-           COLLECT RATIOS
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * COLLECT RATIOS
+         * -------------------------------------------------
+         */
 
         let ratios =
+
             Array.from(
                 ratioElements
             )
+
                 .filter(
                     element =>
                         element.checked
                 )
+
                 .map(
                     element =>
                         normalizeText(
+
                             element.value ||
+
                             element.dataset.value
+
                         )
                 )
-                .filter(Boolean);
+
+                .filter(
+                    Boolean
+                );
 
 
-        /* -------------------------------------------------
-           COLLECT RESOLUTIONS
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * COLLECT RESOLUTIONS
+         * -------------------------------------------------
+         */
 
         let resolutions =
+
             Array.from(
                 resolutionElements
             )
+
                 .filter(
                     element =>
                         element.checked
                 )
+
                 .map(
                     element =>
                         normalizeText(
+
                             element.value ||
+
                             element.dataset.value
+
                         )
                 )
-                .filter(Boolean);
+
+                .filter(
+                    Boolean
+                );
 
 
-        /* -------------------------------------------------
-           SELECT MULTIPLE FALLBACK
-           ------------------------------------------------- */
+        /*
+         * -------------------------------------------------
+         * SELECT MULTIPLE FALLBACK
+         * -------------------------------------------------
+         */
 
         if (
             !ratios.length
         ) {
 
             const ratioSelect =
-                get([
-                    "[name='supported_ratios']",
-                    "#supported_ratios"
-                ]);
+                getElement(
+
+                    container,
+
+                    [
+
+                        "[name='supported_ratios']",
+
+                        "#supported_ratios"
+
+                    ]
+
+                );
 
 
             if (
@@ -1378,16 +1823,23 @@
             ) {
 
                 ratios =
+
                     Array.from(
+
                         ratioSelect.selectedOptions
+
                     )
+
                         .map(
                             option =>
                                 normalizeText(
                                     option.value
                                 )
                         )
-                        .filter(Boolean);
+
+                        .filter(
+                            Boolean
+                        );
 
             }
 
@@ -1399,10 +1851,19 @@
         ) {
 
             const resolutionSelect =
-                get([
-                    "[name='supported_resolutions']",
-                    "#supported_resolutions"
-                ]);
+                getElement(
+
+                    container,
+
+                    [
+
+                        "[name='supported_resolutions']",
+
+                        "#supported_resolutions"
+
+                    ]
+
+                );
 
 
             if (
@@ -1411,187 +1872,397 @@
             ) {
 
                 resolutions =
+
                     Array.from(
+
                         resolutionSelect.selectedOptions
+
                     )
+
                         .map(
                             option =>
                                 normalizeText(
                                     option.value
                                 )
                         )
-                        .filter(Boolean);
+
+                        .filter(
+                            Boolean
+                        );
 
             }
 
         }
 
 
-        /* -------------------------------------------------
-           RETURN RAW FORM DATA
-           ------------------------------------------------- */
+        /*
+         * Remove duplicate capability values.
+         */
+
+        ratios =
+            normalizeArray(
+                ratios
+            );
+
+
+        resolutions =
+            normalizeArray(
+                resolutions
+            );
+
+
+        /*
+         * -------------------------------------------------
+         * RETURN RAW FORM DATA
+         * -------------------------------------------------
+         */
 
         return {
 
             provider_id:
-                providerElement
-                    ? normalizeId(
-                        providerElement.value
-                    )
-                    : normalizeId(
-                        value([
+
+                normalizeId(
+
+                    getValue(
+
+                        container,
+
+                        [
+
                             "[name='provider_id']",
+
                             "#provider_id"
-                        ])
-                    ),
+
+                        ]
+
+                    )
+
+                ),
 
 
             model_id:
+
                 normalizeText(
-                    value([
-                        "[name='model_id']",
-                        "#model_id"
-                    ])
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='model_id']",
+
+                            "#model_id"
+
+                        ]
+
+                    )
+
                 ),
 
 
             model_name:
+
                 normalizeText(
-                    value([
-                        "[name='model_name']",
-                        "#model_name"
-                    ])
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='model_name']",
+
+                            "#model_name"
+
+                        ]
+
+                    )
+
                 ),
 
 
             description:
+
                 normalizeText(
-                    value([
-                        "[name='description']",
-                        "#description"
-                    ])
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='description']",
+
+                            "#description"
+
+                        ]
+
+                    )
+
                 ),
 
 
-            /* -------------------------------------------------
-               LEGACY CREDIT
-               ------------------------------------------------- */
+            /*
+             * Legacy credit.
+             */
 
             credit_cost:
+
                 toNumber(
-                    value([
-                        "[name='credit_cost']",
-                        "#credit_cost"
-                    ]),
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='credit_cost']",
+
+                            "#credit_cost"
+
+                        ]
+
+                    ),
+
                     0
+
                 ),
 
 
             discount_percent:
+
                 toNumber(
-                    value([
-                        "[name='discount_percent']",
-                        "#discount_percent"
-                    ]),
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='discount_percent']",
+
+                            "#discount_percent"
+
+                        ]
+
+                    ),
+
                     0
+
                 ),
 
 
             credit_final:
-                value([
-                    "[name='credit_final']",
-                    "#credit_final"
-                ]) !== ""
-                    ? toNumber(
-                        value([
-                            "[name='credit_final']",
-                            "#credit_final"
-                        ]),
+
+                getValue(
+
+                    container,
+
+                    [
+
+                        "[name='credit_final']",
+
+                        "#credit_final"
+
+                    ]
+
+                ) !== ""
+
+                    ?
+
+                    toNumber(
+
+                        getValue(
+
+                            container,
+
+                            [
+
+                                "[name='credit_final']",
+
+                                "#credit_final"
+
+                            ]
+
+                        ),
+
                         0
+
                     )
-                    : undefined,
+
+                    :
+
+                    undefined,
 
 
-            /* -------------------------------------------------
-               CREDIT PER RESOLUTION
-               ------------------------------------------------- */
+            /*
+             * Credit 480p.
+             */
 
             credit_480p:
+
                 toNumber(
-                    value([
-                        "[name='credit_480p']",
-                        "#credit_480p"
-                    ]),
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='credit_480p']",
+
+                            "#credit_480p"
+
+                        ]
+
+                    ),
+
                     0
+
                 ),
 
+
+            /*
+             * Credit 720p.
+             */
 
             credit_720p:
+
                 toNumber(
-                    value([
-                        "[name='credit_720p']",
-                        "#credit_720p"
-                    ]),
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='credit_720p']",
+
+                            "#credit_720p"
+
+                        ]
+
+                    ),
+
                     0
+
                 ),
 
+
+            /*
+             * Credit 1080p.
+             */
 
             credit_1080p:
+
                 toNumber(
-                    value([
-                        "[name='credit_1080p']",
-                        "#credit_1080p"
-                    ]),
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='credit_1080p']",
+
+                            "#credit_1080p"
+
+                        ]
+
+                    ),
+
                     0
+
                 ),
 
 
-            /* -------------------------------------------------
-               DURATION
-               ------------------------------------------------- */
+            /*
+             * Duration.
+             */
 
             min_duration:
+
                 toNumber(
-                    value([
-                        "[name='min_duration']",
-                        "#min_duration"
-                    ]),
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='min_duration']",
+
+                            "#min_duration"
+
+                        ]
+
+                    ),
+
                     0
+
                 ),
 
 
             max_duration:
+
                 toNumber(
-                    value([
-                        "[name='max_duration']",
-                        "#max_duration"
-                    ]),
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='max_duration']",
+
+                            "#max_duration"
+
+                        ]
+
+                    ),
+
                     0
+
                 ),
 
 
-            /* -------------------------------------------------
-               CAPABILITIES
-               ------------------------------------------------- */
+            /*
+             * Capabilities.
+             */
 
             supported_ratios:
+
                 ratios,
 
 
             supported_resolutions:
+
                 resolutions,
 
 
-            /* -------------------------------------------------
-               STATUS
-               ------------------------------------------------- */
+            /*
+             * Status.
+             */
 
             status:
+
                 normalizeStatus(
-                    value([
-                        "[name='status']",
-                        "#status"
-                    ])
+
+                    getValue(
+
+                        container,
+
+                        [
+
+                            "[name='status']",
+
+                            "#status"
+
+                        ]
+
+                    )
+
                 )
 
         };
@@ -1601,7 +2272,7 @@
 
     /* =====================================================
        PREPARE SUBMISSION
-       ===================================================== */
+    ===================================================== */
 
     function prepareCreateData(
         data,
@@ -1650,14 +2321,8 @@
 
 
         /*
-         * Hanya kirim field yang memang ada
-         * pada tabel models.
-         *
-         * Jangan kirim:
-         * workflow_id
-         * variant_id
-         * provider code sebagai provider_id
-         * kie_*
+         * Hanya field yang memang merupakan
+         * bagian dari tabel models.
          */
 
         const payload = {};
@@ -1690,7 +2355,7 @@
        SUBMIT
        -----------------------------------------------------
        Database operation diserahkan kepada callback.
-       ===================================================== */
+    ===================================================== */
 
     async function submit(
         data,
@@ -1705,16 +2370,35 @@
 
 
         const handler =
+
             typeof options.insert ===
                 "function"
-                ? options.insert
-                : typeof options.onSubmit ===
+
+                ?
+
+                options.insert
+
+                :
+
+                typeof options.onSubmit ===
                     "function"
-                    ? options.onSubmit
-                    : typeof options.submit ===
+
+                    ?
+
+                    options.onSubmit
+
+                    :
+
+                    typeof options.submit ===
                         "function"
-                        ? options.submit
-                        : null;
+
+                        ?
+
+                        options.submit
+
+                        :
+
+                        null;
 
 
         if (
@@ -1741,30 +2425,31 @@
 
 
         /*
-         * Panggil callback database tepat satu kali.
+         * Callback database dipanggil
+         * tepat satu kali.
          *
-         * Tidak ada fallback ke coordinator.
          * Tidak ada recursive submit.
          */
 
-        const result =
-            await handler(
-                payload,
-                {
-                    mode:
-                        "create"
-                }
-            );
+        return await handler(
 
+            payload,
 
-        return result;
+            {
+
+                mode:
+                    "create"
+
+            }
+
+        );
 
     }
 
 
     /* =====================================================
        OPEN CREATE
-       ===================================================== */
+    ===================================================== */
 
     function openCreate(
         root,
@@ -1776,27 +2461,30 @@
 
 
         state.root =
-            typeof root ===
-                "string"
-                ? document.querySelector(
-                    root
-                )
-                : root || null;
+            resolveRoot(
+                root
+            );
 
 
         state.providers =
+
             Array.isArray(
                 options.providers
             )
+
                 ? options.providers
+
                 : [];
 
 
         state.models =
+
             Array.isArray(
                 options.models
             )
+
                 ? options.models
+
                 : [];
 
 
@@ -1805,14 +2493,11 @@
             active:
                 true,
 
-
             root:
                 state.root,
 
-
             providers:
                 state.providers,
-
 
             models:
                 state.models
@@ -1824,15 +2509,24 @@
 
     /* =====================================================
        CLOSE CREATE
-       ===================================================== */
+    ===================================================== */
 
     function closeCreate() {
 
         state = {
-            active: false,
-            root: null,
-            providers: [],
-            models: []
+
+            active:
+                false,
+
+            root:
+                null,
+
+            providers:
+                [],
+
+            models:
+                []
+
         };
 
     }
@@ -1840,18 +2534,21 @@
 
     /* =====================================================
        IS ACTIVE
-       ===================================================== */
+    ===================================================== */
 
     function isActive() {
 
-        return state.active === true;
+        return (
+            state.active ===
+            true
+        );
 
     }
 
 
     /* =====================================================
        SET DATA
-       ===================================================== */
+    ===================================================== */
 
     function setData(
         options = {}
@@ -1886,12 +2583,9 @@
         ) {
 
             state.root =
-                typeof options.root ===
-                    "string"
-                    ? document.querySelector(
-                        options.root
-                    )
-                    : options.root;
+                resolveRoot(
+                    options.root
+                );
 
         }
 
@@ -1903,7 +2597,7 @@
 
     /* =====================================================
        GET STATE
-       ===================================================== */
+    ===================================================== */
 
     function getState() {
 
@@ -1912,14 +2606,11 @@
             active:
                 state.active,
 
-
             root:
                 state.root,
 
-
             providers:
                 state.providers,
-
 
             models:
                 state.models
@@ -1931,7 +2622,7 @@
 
     /* =====================================================
        CREATE FROM FORM
-       ===================================================== */
+    ===================================================== */
 
     async function createFromForm(
         event = null,
@@ -1939,9 +2630,12 @@
     ) {
 
         if (
+
             event &&
+
             typeof event.preventDefault ===
                 "function"
+
         ) {
 
             event.preventDefault();
@@ -1972,24 +2666,45 @@
 
 
         return submit(
+
             data,
+
             {
+
                 ...options,
 
+
                 providers:
+
                     Array.isArray(
                         options.providers
                     )
-                        ? options.providers
-                        : state.providers,
+
+                        ?
+
+                        options.providers
+
+                        :
+
+                        state.providers,
+
 
                 models:
+
                     Array.isArray(
                         options.models
                     )
-                        ? options.models
-                        : state.models
+
+                        ?
+
+                        options.models
+
+                        :
+
+                        state.models
+
             }
+
         );
 
     }
@@ -1997,7 +2712,7 @@
 
     /* =====================================================
        DIRECT CREATE
-       ===================================================== */
+    ===================================================== */
 
     async function create(
         data,
@@ -2005,24 +2720,45 @@
     ) {
 
         return submit(
+
             data,
+
             {
+
                 ...options,
 
+
                 providers:
+
                     Array.isArray(
                         options.providers
                     )
-                        ? options.providers
-                        : state.providers,
+
+                        ?
+
+                        options.providers
+
+                        :
+
+                        state.providers,
+
 
                 models:
+
                     Array.isArray(
                         options.models
                     )
-                        ? options.models
-                        : state.models
+
+                        ?
+
+                        options.models
+
+                        :
+
+                        state.models
+
             }
+
         );
 
     }
@@ -2030,7 +2766,7 @@
 
     /* =====================================================
        FORM VALIDATION
-       ===================================================== */
+    ===================================================== */
 
     function validateForm(
         root,
@@ -2045,17 +2781,29 @@
 
         const normalized =
             normalizeModelData(
+
                 data,
+
                 {
+
                     ...options,
 
                     providers:
+
                         Array.isArray(
                             options.providers
                         )
-                            ? options.providers
-                            : state.providers
+
+                            ?
+
+                            options.providers
+
+                            :
+
+                            state.providers
+
                 }
+
             );
 
 
@@ -2066,25 +2814,47 @@
 
 
             errors:
+
                 validateModelData(
+
                     normalized,
+
                     {
+
                         ...options,
 
+
                         providers:
+
                             Array.isArray(
                                 options.providers
                             )
-                                ? options.providers
-                                : state.providers,
+
+                                ?
+
+                                options.providers
+
+                                :
+
+                                state.providers,
+
 
                         models:
+
                             Array.isArray(
                                 options.models
                             )
-                                ? options.models
-                                : state.models
+
+                                ?
+
+                                options.models
+
+                                :
+
+                                state.models
+
                     }
+
                 )
 
         };
@@ -2094,7 +2864,7 @@
 
     /* =====================================================
        PUBLIC API
-       ===================================================== */
+    ===================================================== */
 
     const ModelFormCreate = {
 
@@ -2106,6 +2876,7 @@
 
         VALID_RESOLUTIONS,
 
+
         normalizeModelData,
 
         validateModelData,
@@ -2114,11 +2885,16 @@
 
         prepareCreateData,
 
+
         calculateCreditFinal,
+
 
         findProvider,
 
         findDuplicateModel,
+
+        findModelById,
+
 
         openCreate,
 
@@ -2129,6 +2905,7 @@
         setData,
 
         getState,
+
 
         validateForm,
 
@@ -2143,7 +2920,7 @@
 
     /* =====================================================
        GLOBAL COMPATIBILITY
-       ===================================================== */
+    ===================================================== */
 
     window.GENZModelFormCreate =
         ModelFormCreate;
