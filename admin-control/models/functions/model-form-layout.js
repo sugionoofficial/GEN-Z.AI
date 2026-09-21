@@ -33,31 +33,28 @@
    CATATAN:
    ---------------------------------------------------------
    - Model ID tidak dapat diubah saat Edit.
-   - Provider tidak dapat diubah saat Edit karena
-     merupakan bagian dari identitas model.
-   - Ratio hanya berasal dari Supabase.
-   - Resolution hanya berasal dari Supabase.
-   - Duration mengikuti schema models:
-       min_duration
-       max_duration
+   - Provider tidak dapat diubah saat Edit.
+   - Ratio berasal dari record models Supabase.
+   - Resolution berasal dari record models Supabase.
+   - Duration berasal dari record models Supabase.
    - Tidak mengarang daftar duration.
    - Tidak menggunakan tabel kie_*.
    - Tidak query Supabase secara langsung.
-   - credit_final tetap dipertahankan sebagai
-     compatibility/fallback.
-   - Credit aktual per resolution disimpan pada:
+   - credit_final dipertahankan untuk compatibility.
+   - Credit resolution bersifat independen:
        credit_480p
        credit_720p
        credit_1080p
    ========================================================= */
 
+
+/* =========================================================
+   DATA MODULE
+   ========================================================= */
+
 import {
     loadModels,
-    loadProviders,
-    normalizeModel,
-    normalizeArrayValue,
-    getProviderById,
-    getProviderByCode
+    loadProviders
 } from "../models-data.js";
 
 
@@ -227,16 +224,21 @@ function unique(
     values
 ) {
 
+    if (
+        !Array.isArray(
+            values
+        )
+    ) {
+
+        return [];
+
+    }
+
+
     return [
         ...new Set(
 
-            (
-                Array.isArray(
-                    values
-                )
-                    ? values
-                    : []
-            )
+            values
                 .map(
                     value =>
                         String(
@@ -249,6 +251,117 @@ function unique(
 
         )
     ];
+
+}
+
+
+/* =========================================================
+   ARRAY NORMALIZATION
+   ---------------------------------------------------------
+   Tidak bergantung pada normalizeModel dari models-data.js.
+   ========================================================= */
+
+function normalizeArrayValue(
+    value
+) {
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return unique(
+            value
+        );
+
+    }
+
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return [];
+
+    }
+
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        const trimmed =
+            value.trim();
+
+
+        if (!trimmed) {
+
+            return [];
+
+        }
+
+
+        /*
+         * Supabase bisa mengembalikan:
+         *
+         * ["16:9","9:16"]
+         *
+         * atau string:
+         *
+         * 16:9,9:16
+         */
+
+        if (
+            trimmed.startsWith("[") &&
+            trimmed.endsWith("]")
+        ) {
+
+            try {
+
+                const parsed =
+                    JSON.parse(
+                        trimmed
+                    );
+
+
+                if (
+                    Array.isArray(
+                        parsed
+                    )
+                ) {
+
+                    return unique(
+                        parsed
+                    );
+
+                }
+
+            } catch (
+                error
+            ) {
+
+                /*
+                 * Jika bukan JSON valid,
+                 * lanjutkan ke comma split.
+                 */
+
+            }
+
+        }
+
+
+        return unique(
+            trimmed.split(",")
+        );
+
+    }
+
+
+    return [];
 
 }
 
@@ -327,178 +440,151 @@ function getElements(
 
 
 /* =========================================================
-   NORMALIZE MODEL
+   LOCAL MODEL NORMALIZER
+   ---------------------------------------------------------
+   Sengaja lokal agar layout tidak bergantung pada export
+   normalizeModel yang tidak tersedia dari models-data.js.
    ========================================================= */
 
 function normalizeFormModel(
     model
 ) {
 
-    if (!model) {
-
-        return {
-
-            id:
-                "",
-
-            provider_id:
-                "",
-
-            model_id:
-                "",
-
-            model_name:
-                "",
-
-            description:
-                "",
-
-            credit_cost:
-                0,
-
-            discount_percent:
-                0,
-
-            credit_final:
-                0,
-
-            credit_480p:
-                0,
-
-            credit_720p:
-                0,
-
-            credit_1080p:
-                0,
-
-            min_duration:
-                "",
-
-            max_duration:
-                "",
-
-            supported_ratios:
-                [],
-
-            supported_resolutions:
-                [],
-
-            status:
-                "active"
-
-        };
-
-    }
-
-
-    /*
-     * normalizeModel() tetap dipakai untuk
-     * normalisasi struktur model utama.
-     *
-     * Credit resolution dibaca juga langsung
-     * dari source model supaya tidak hilang
-     * apabila normalizer lama belum mengenal
-     * tiga field baru.
-     */
-
-    const normalized =
-        normalizeModel(
-            model
-        );
-
-
     const source =
         model || {};
 
 
-    const creditFinal =
+    const creditCost =
         toNumber(
-            normalized.credit_final ??
-                source.credit_final,
-            calculateCreditFinal(
-                normalized.credit_cost,
-                normalized.discount_percent
-            )
+            source.credit_cost ??
+                source.creditCost,
+            0
+        );
+
+
+    const discountPercent =
+        toNumber(
+            source.discount_percent ??
+                source.discountPercent,
+            0
         );
 
 
     /*
-     * Untuk model lama:
+     * credit_final adalah compatibility value.
      *
-     * credit_480p
-     * credit_720p
-     * credit_1080p
+     * Jika tersimpan di database, tetap dibaca.
+     * Namun apabila kosong, dihitung dari normal + diskon.
+     */
+
+    const storedCreditFinal =
+        source.credit_final ??
+        source.creditFinal;
+
+
+    const creditFinal =
+        storedCreditFinal !==
+            null &&
+        storedCreditFinal !==
+            undefined &&
+        storedCreditFinal !== ""
+
+            ? toNumber(
+                storedCreditFinal,
+                calculateCreditFinal(
+                    creditCost,
+                    discountPercent
+                )
+            )
+
+            : calculateCreditFinal(
+                creditCost,
+                discountPercent
+            );
+
+
+    /*
+     * CREDIT PER RESOLUTION
      *
-     * fallback ke credit_final.
-     *
-     * Tetapi apabila kolom memang sudah memiliki
-     * nilai, nilai tersebut dipertahankan.
+     * Penting:
+     * - Nilai 0 valid.
+     * - Hanya fallback ke credit_final jika field
+     *   benar-benar belum tersedia.
+     * - Tidak dihitung dari KIE price.
      */
 
     const credit480p =
-        toNumber(
-            source.credit_480p ??
-                normalized.credit_480p,
-            creditFinal
-        );
+        source.credit_480p !==
+            null &&
+        source.credit_480p !==
+            undefined &&
+        source.credit_480p !== ""
+
+            ? toNumber(
+                source.credit_480p,
+                0
+            )
+
+            : creditFinal;
 
 
     const credit720p =
-        toNumber(
-            source.credit_720p ??
-                normalized.credit_720p,
-            creditFinal
-        );
+        source.credit_720p !==
+            null &&
+        source.credit_720p !==
+            undefined &&
+        source.credit_720p !== ""
+
+            ? toNumber(
+                source.credit_720p,
+                0
+            )
+
+            : creditFinal;
 
 
     const credit1080p =
-        toNumber(
-            source.credit_1080p ??
-                normalized.credit_1080p,
-            creditFinal
-        );
+        source.credit_1080p !==
+            null &&
+        source.credit_1080p !==
+            undefined &&
+        source.credit_1080p !== ""
+
+            ? toNumber(
+                source.credit_1080p,
+                0
+            )
+
+            : creditFinal;
 
 
     return {
 
         id:
-            normalized.id ||
-            source.id ||
+            source.id ??
             "",
 
         provider_id:
-            normalized.provider_id ||
-            source.provider_id ||
+            source.provider_id ??
             "",
 
         model_id:
-            normalized.model_id ||
-            source.model_id ||
+            source.model_id ??
             "",
 
         model_name:
-            normalized.model_name ||
-            source.model_name ||
+            source.model_name ??
             "",
 
         description:
-            normalized.description ||
-            source.description ||
+            source.description ??
             "",
 
         credit_cost:
-            toNumber(
-                normalized.credit_cost ??
-                    source.credit_cost,
-                0
-            ),
+            creditCost,
 
         discount_percent:
-            toNumber(
-                normalized.discount_percent ??
-                    source.discount_percent,
-                0
-            ),
+            discountPercent,
 
         credit_final:
             creditFinal,
@@ -513,79 +599,38 @@ function normalizeFormModel(
             credit1080p,
 
         min_duration:
-            normalized.min_duration !==
+            source.min_duration !==
                 null &&
-            normalized.min_duration !==
+            source.min_duration !==
                 undefined
 
-                ?
+                ? source.min_duration
 
-                normalized.min_duration
-
-                :
-
-                (
-                    source.min_duration !==
-                        null &&
-                    source.min_duration !==
-                        undefined
-
-                        ?
-
-                        source.min_duration
-
-                        :
-
-                        ""
-                ),
+                : "",
 
         max_duration:
-            normalized.max_duration !==
+            source.max_duration !==
                 null &&
-            normalized.max_duration !==
+            source.max_duration !==
                 undefined
 
-                ?
+                ? source.max_duration
 
-                normalized.max_duration
-
-                :
-
-                (
-                    source.max_duration !==
-                        null &&
-                    source.max_duration !==
-                        undefined
-
-                        ?
-
-                        source.max_duration
-
-                        :
-
-                        ""
-                ),
+                : "",
 
         supported_ratios:
-            unique(
-                normalizeArrayValue(
-                    normalized.supported_ratios ??
-                        source.supported_ratios
-                )
+            normalizeArrayValue(
+                source.supported_ratios
             ),
 
         supported_resolutions:
-            unique(
-                normalizeArrayValue(
-                    normalized.supported_resolutions ??
-                        source.supported_resolutions
-                )
+            normalizeArrayValue(
+                source.supported_resolutions
             ),
 
         status:
             normalizeStatus(
-                normalized.status ||
-                    source.status
+                source.status
             )
 
     };
@@ -679,6 +724,13 @@ function isProviderActive(
     }
 
 
+    /*
+     * Jangan bergantung hanya pada is_active.
+     *
+     * Schema project pernah tidak memiliki column
+     * providers.is_active.
+     */
+
     if (
         provider.is_active ===
             true ||
@@ -724,7 +776,11 @@ function sortProviders(
 ) {
 
     return [
-        ...(providers || [])
+        ...(Array.isArray(
+            providers
+        )
+            ? providers
+            : [])
     ].sort(
         (
             a,
@@ -774,6 +830,90 @@ function sortProviders(
             );
 
         }
+    );
+
+}
+
+
+/* =========================================================
+   PROVIDER LOOKUP
+   ---------------------------------------------------------
+   Sinkron dan lokal.
+   Jangan memakai getProviderById/getProviderByCode
+   dari models-data karena helper tersebut async.
+   ========================================================= */
+
+export function resolveProvider(
+    providers,
+    providerValue
+) {
+
+    const value =
+        String(
+            providerValue ?? ""
+        ).trim();
+
+
+    if (!value) {
+
+        return null;
+
+    }
+
+
+    const list =
+        Array.isArray(
+            providers
+        )
+            ? providers
+            : [];
+
+
+    /*
+     * PRIMARY:
+     * providers.id
+     */
+
+    const byDatabaseId =
+        list.find(
+            provider =>
+                String(
+                    provider?.id ??
+                        ""
+                ).trim() ===
+                value
+        );
+
+
+    if (
+        byDatabaseId
+    ) {
+
+        return byDatabaseId;
+
+    }
+
+
+    /*
+     * COMPATIBILITY:
+     * providers.provider_id
+     */
+
+    const byProviderCode =
+        list.find(
+            provider =>
+                String(
+                    provider?.provider_id ??
+                        provider?.code ??
+                        ""
+                ).trim() ===
+                value
+        );
+
+
+    return (
+        byProviderCode ||
+        null
     );
 
 }
@@ -859,12 +999,10 @@ function renderProviderOptions(
 
 
         /*
-         * Provider tidak boleh dipilih jika
-         * inactive pada form Create.
+         * Provider inactive tidak dapat dipilih
+         * untuk Create.
          *
-         * Pada Edit, provider yang sudah tersimpan
-         * tetap ditampilkan agar record lama
-         * dapat dibaca dengan benar.
+         * Provider lama tetap ditampilkan pada Edit.
          */
 
         const disabled =
@@ -954,9 +1092,7 @@ function renderStatusOptions(
                     ${
                         option.value ===
                         status
-
                             ? "selected"
-
                             : ""
                     }
                 >
@@ -996,17 +1132,15 @@ function getModelsForProvider(
     }
 
 
-    return (
-
+    const list =
         Array.isArray(
             models
         )
-
             ? models
+            : [];
 
-            : []
 
-    )
+    return list
         .filter(
             model => {
 
@@ -1023,7 +1157,10 @@ function getModelsForProvider(
             }
         )
         .map(
-            normalizeModel
+            model =>
+                normalizeFormModel(
+                    model
+                )
         );
 
 }
@@ -1141,9 +1278,7 @@ function renderModelIdOptions(
                     ${
                         modelId ===
                         selected
-
                             ? "selected"
-
                             : ""
                     }
                 ></option>
@@ -1702,7 +1837,7 @@ export function renderModelForm(
 
 
     const provider =
-        getProviderById(
+        resolveProvider(
             providers,
             data.provider_id
         );
@@ -1715,8 +1850,7 @@ export function renderModelForm(
 
 
     /*
-     * Saat Edit, data model yang cocok dari
-     * Supabase menjadi sumber utama.
+     * Record models Supabase menjadi sumber utama.
      */
 
     const currentModel =
@@ -1754,17 +1888,6 @@ export function renderModelForm(
         );
 
 
-    /*
-     * Identity fields.
-     *
-     * Model ID + Provider merupakan identitas
-     * model yang terdaftar.
-     *
-     * Saat Edit keduanya dikunci untuk mencegah
-     * record berubah menjadi pasangan provider/model
-     * yang tidak ada di Supabase.
-     */
-
     const modelIdReadonly =
         isEdit
             ? "readonly"
@@ -1779,6 +1902,7 @@ export function renderModelForm(
 
     const identityLock =
         isEdit
+
             ? `
 
                 <div
@@ -1790,6 +1914,7 @@ export function renderModelForm(
                 </div>
 
               `
+
             : "";
 
 
@@ -1801,9 +1926,7 @@ export function renderModelForm(
             : (
 
                 modelIdOptions
-
                     ? "Pilih atau ketik Model ID"
-
                     : "Ketik Model ID pertama"
 
             );
@@ -1834,7 +1957,6 @@ export function renderModelForm(
             }"
         >
 
-
             ${
                 isEdit
 
@@ -1863,9 +1985,6 @@ export function renderModelForm(
             <div
                 class="model-form-grid"
             >
-
-
-                <!-- PROVIDER -->
 
                 <div
                     class="model-form-field"
@@ -1916,8 +2035,6 @@ export function renderModelForm(
 
                 </div>
 
-
-                <!-- MODEL ID -->
 
                 <div
                     class="model-form-field"
@@ -1979,7 +2096,7 @@ export function renderModelForm(
 
                                         ? "Model ID yang tersedia berasal dari tabel models Supabase."
 
-                                        : "Belum ada Model ID pada tabel models. Untuk record pertama, Model ID dapat dimasukkan manual."
+                                        : "Belum ada Model ID pada tabel models untuk provider ini."
 
                                 )
 
@@ -1988,7 +2105,6 @@ export function renderModelForm(
                     </div>
 
                 </div>
-
 
             </div>
 
@@ -2000,9 +2116,6 @@ export function renderModelForm(
             <div
                 class="model-form-grid"
             >
-
-
-                <!-- MODEL NAME -->
 
                 <div
                     class="model-form-field"
@@ -2034,8 +2147,6 @@ export function renderModelForm(
                 </div>
 
 
-                <!-- STATUS -->
-
                 <div
                     class="model-form-field"
                 >
@@ -2064,7 +2175,6 @@ export function renderModelForm(
                     </select>
 
                 </div>
-
 
             </div>
 
@@ -2113,9 +2223,6 @@ export function renderModelForm(
                 class="model-form-grid"
             >
 
-
-                <!-- CREDIT COST -->
-
                 <div
                     class="model-form-field"
                 >
@@ -2150,8 +2257,6 @@ export function renderModelForm(
                 </div>
 
 
-                <!-- DISCOUNT -->
-
                 <div
                     class="model-form-field"
                 >
@@ -2184,7 +2289,6 @@ export function renderModelForm(
                     >
 
                 </div>
-
 
             </div>
 
@@ -2246,11 +2350,11 @@ export function renderModelForm(
                     <div
                         class="model-form-help"
                     >
-
-                        Tentukan credit yang dipotong
+                        Credit aktual yang digunakan
                         berdasarkan resolusi yang dipilih
                         pada halaman Generate.
-
+                        Nilainya berdiri sendiri dan tidak
+                        dihitung dari KIE price.
                     </div>
 
                 </div>
@@ -2261,7 +2365,6 @@ export function renderModelForm(
             <div
                 class="model-credit-resolution-grid"
             >
-
 
                 <!-- CREDIT 480P -->
 
@@ -2300,8 +2403,7 @@ export function renderModelForm(
                     <div
                         class="model-form-help"
                     >
-                        Credit yang digunakan
-                        untuk resolusi 480p.
+                        Credit untuk resolusi 480p.
                     </div>
 
                 </div>
@@ -2344,8 +2446,7 @@ export function renderModelForm(
                     <div
                         class="model-form-help"
                     >
-                        Credit yang digunakan
-                        untuk resolusi 720p.
+                        Credit untuk resolusi 720p.
                     </div>
 
                 </div>
@@ -2388,12 +2489,10 @@ export function renderModelForm(
                     <div
                         class="model-form-help"
                     >
-                        Credit yang digunakan
-                        untuk resolusi 1080p.
+                        Credit untuk resolusi 1080p.
                     </div>
 
                 </div>
-
 
             </div>
 
@@ -2405,9 +2504,6 @@ export function renderModelForm(
             <div
                 class="model-form-grid"
             >
-
-
-                <!-- MIN DURATION -->
 
                 <div
                     class="model-form-field model-form-readonly"
@@ -2444,19 +2540,15 @@ export function renderModelForm(
                     <div
                         class="model-form-help"
                     >
-
                         Mengikuti
                         <strong>
                             min_duration
                         </strong>
                         dari record model di Supabase.
-
                     </div>
 
                 </div>
 
-
-                <!-- MAX DURATION -->
 
                 <div
                     class="model-form-field model-form-readonly"
@@ -2493,17 +2585,14 @@ export function renderModelForm(
                     <div
                         class="model-form-help"
                     >
-
                         Mengikuti
                         <strong>
                             max_duration
                         </strong>
                         dari record model di Supabase.
-
                     </div>
 
                 </div>
-
 
             </div>
 
@@ -2542,14 +2631,11 @@ export function renderModelForm(
                     <div
                         class="model-form-help"
                     >
-
-                        Opsi checkbox hanya berasal
-                        dari
+                        Opsi checkbox berasal dari
                         <strong>
                             supported_ratios
                         </strong>
-                        pada data model di Supabase.
-
+                        pada record model Supabase.
                     </div>
 
                 </div>
@@ -2591,14 +2677,11 @@ export function renderModelForm(
                     <div
                         class="model-form-help"
                     >
-
-                        Opsi checkbox hanya berasal
-                        dari
+                        Opsi checkbox berasal dari
                         <strong>
                             supported_resolutions
                         </strong>
-                        pada data model di Supabase.
-
+                        pada record model Supabase.
                     </div>
 
                 </div>
@@ -2718,28 +2801,6 @@ export function collectModelFormData(
         );
 
 
-    /*
-     * Resolution-specific credit.
-     */
-
-    const credit480p =
-        getNumber(
-            FIELD_NAMES.credit480p
-        );
-
-
-    const credit720p =
-        getNumber(
-            FIELD_NAMES.credit720p
-        );
-
-
-    const credit1080p =
-        getNumber(
-            FIELD_NAMES.credit1080p
-        );
-
-
     return {
 
         id:
@@ -2776,20 +2837,36 @@ export function collectModelFormData(
                 ? 0
                 : discountPercent,
 
+        /*
+         * Compatibility field.
+         */
+
         credit_final:
             calculateCreditFinal(
                 creditCost,
                 discountPercent
             ),
 
+        /*
+         * INDEPENDENT RESOLUTION CREDITS.
+         *
+         * Jangan digabung dengan credit_final.
+         */
+
         credit_480p:
-            credit480p,
+            getNumber(
+                FIELD_NAMES.credit480p
+            ),
 
         credit_720p:
-            credit720p,
+            getNumber(
+                FIELD_NAMES.credit720p
+            ),
 
         credit_1080p:
-            credit1080p,
+            getNumber(
+                FIELD_NAMES.credit1080p
+            ),
 
         min_duration:
             getNumber(
@@ -2846,8 +2923,7 @@ export function validateModelFormData(
 
     if (
         !String(
-            data.provider_id ??
-                ""
+            data.provider_id ?? ""
         ).trim()
     ) {
 
@@ -2860,8 +2936,7 @@ export function validateModelFormData(
 
     if (
         !String(
-            data.model_id ??
-                ""
+            data.model_id ?? ""
         ).trim()
     ) {
 
@@ -2874,8 +2949,7 @@ export function validateModelFormData(
 
     if (
         !String(
-            data.model_name ??
-                ""
+            data.model_name ?? ""
         ).trim()
     ) {
 
@@ -2931,65 +3005,73 @@ export function validateModelFormData(
        CREDIT PER RESOLUTION
        ===================================================== */
 
-    const credit480p =
-        Number(
-            data.credit_480p
-        );
+    const resolutionCredits = [
+
+        {
+            field:
+                "credit_480p",
+
+            label:
+                "Credit 480p",
+
+            value:
+                data.credit_480p
+        },
+
+        {
+            field:
+                "credit_720p",
+
+            label:
+                "Credit 720p",
+
+            value:
+                data.credit_720p
+        },
+
+        {
+            field:
+                "credit_1080p",
+
+            label:
+                "Credit 1080p",
+
+            value:
+                data.credit_1080p
+        }
+
+    ];
 
 
-    if (
-        !Number.isFinite(
-            credit480p
-        ) ||
-        credit480p < 0
+    for (
+        const item of resolutionCredits
     ) {
 
-        errors.push(
-            "Credit 480p harus berupa angka 0 atau lebih."
-        );
+        const value =
+            Number(
+                item.value
+            );
+
+
+        if (
+            !Number.isFinite(
+                value
+            ) ||
+            value < 0
+        ) {
+
+            errors.push(
+                `${item.label} harus berupa angka 0 atau lebih.`
+            );
+
+        }
 
     }
 
 
-    const credit720p =
-        Number(
-            data.credit_720p
-        );
-
-
-    if (
-        !Number.isFinite(
-            credit720p
-        ) ||
-        credit720p < 0
-    ) {
-
-        errors.push(
-            "Credit 720p harus berupa angka 0 atau lebih."
-        );
-
-    }
-
-
-    const credit1080p =
-        Number(
-            data.credit_1080p
-        );
-
-
-    if (
-        !Number.isFinite(
-            credit1080p
-        ) ||
-        credit1080p < 0
-    ) {
-
-        errors.push(
-            "Credit 1080p harus berupa angka 0 atau lebih."
-        );
-
-    }
-
+    /* =====================================================
+       DURATION
+       ===================================================== */
 
     const minDuration =
         data.min_duration;
@@ -3079,6 +3161,10 @@ export function validateModelFormData(
     }
 
 
+    /* =====================================================
+       ARRAYS
+       ===================================================== */
+
     if (
         !Array.isArray(
             data.supported_ratios
@@ -3104,6 +3190,10 @@ export function validateModelFormData(
 
     }
 
+
+    /* =====================================================
+       PROVIDER
+       ===================================================== */
 
     const providers =
         Array.isArray(
@@ -3138,12 +3228,10 @@ export function validateModelFormData(
         ) {
 
             /*
-             * Provider inactive tidak boleh
-             * dipakai untuk Create.
+             * Untuk Create, provider harus aktif.
              *
-             * Saat Edit, record lama tetap dapat
-             * dibaca, tetapi perubahan tetap
-             * mengikuti aturan backend.
+             * Edit record lama tetap boleh dibaca,
+             * tetapi backend tetap menjadi pengaman akhir.
              */
 
             if (
@@ -3362,8 +3450,7 @@ export function updateProviderStatus(
 
     const providerId =
         String(
-            providerSelect.value ??
-                ""
+            providerSelect.value ?? ""
         ).trim();
 
 
@@ -3506,9 +3593,7 @@ export function applyModelDataToForm(
 
 
     /*
-     * credit_final selalu dihitung ulang.
-     *
-     * credit_final bukan input manual.
+     * Compatibility field.
      */
 
     const finalCredit =
@@ -3525,7 +3610,9 @@ export function applyModelDataToForm(
 
 
     /*
-     * Credit berdasarkan resolution.
+     * Resolution credit tidak dihitung ulang.
+     *
+     * Nilai masing-masing berasal dari record model.
      */
 
     setValue(
@@ -3579,8 +3666,7 @@ export function applyModelDataToForm(
             element.checked =
                 ratios.includes(
                     String(
-                        element.value ??
-                            ""
+                        element.value ?? ""
                     ).trim()
                 );
 
@@ -3603,8 +3689,7 @@ export function applyModelDataToForm(
             element.checked =
                 resolutions.includes(
                     String(
-                        element.value ??
-                            ""
+                        element.value ?? ""
                     ).trim()
                 );
 
@@ -3669,8 +3754,7 @@ export function updateModelIdOptions(
 
     const providerId =
         String(
-            providerSelect.value ??
-                ""
+            providerSelect.value ?? ""
         ).trim();
 
 
@@ -3741,15 +3825,13 @@ export function updateSelectedModelFields(
 
     const providerId =
         String(
-            providerSelect.value ??
-                ""
+            providerSelect.value ?? ""
         ).trim();
 
 
     const modelId =
         String(
-            modelIdInput.value ??
-                ""
+            modelIdInput.value ?? ""
         ).trim();
 
 
@@ -3833,9 +3915,7 @@ export function handleProviderChange(
 
 
     /*
-     * Pada Edit provider dikunci.
-     *
-     * Event tidak boleh mengubah identity model.
+     * Provider Edit dikunci.
      */
 
     if (
@@ -3854,8 +3934,7 @@ export function handleProviderChange(
 
     const providerId =
         String(
-            providerSelect.value ??
-                ""
+            providerSelect.value ?? ""
         ).trim();
 
 
@@ -3870,11 +3949,6 @@ export function handleProviderChange(
         providers
     );
 
-
-    /*
-     * Cari apakah Model ID saat ini memang
-     * milik provider yang baru dipilih.
-     */
 
     const currentModel =
         getModelByModelId(
@@ -3899,10 +3973,8 @@ export function handleProviderChange(
 
 
     /*
-     * Provider baru tidak memiliki Model ID
-     * yang sedang dipilih.
-     *
-     * Bersihkan field turunan.
+     * Provider berubah dan Model ID lama
+     * tidak cocok.
      */
 
     modelIdInput.value =
@@ -3943,6 +4015,13 @@ export function handleProviderChange(
         0
     );
 
+
+    /*
+     * Credit resolution dikosongkan secara aman
+     * pada perubahan provider.
+     *
+     * Tidak mengambil nilai dari credit_final.
+     */
 
     setDependentField(
         root,
@@ -4055,8 +4134,7 @@ function replaceCheckboxValues(
             element.checked =
                 selected.includes(
                     String(
-                        element.value ??
-                            ""
+                        element.value ?? ""
                     ).trim()
                 );
 
@@ -4212,6 +4290,13 @@ export function attachModelFormEvents(
             "input",
             () => {
 
+                /*
+                 * Tidak langsung mengubah field jika
+                 * user baru mengetik sebagian Model ID.
+                 *
+                 * Hanya apply apabila ada exact match.
+                 */
+
                 updateSelectedModelFields(
                     root,
                     models
@@ -4225,6 +4310,10 @@ export function attachModelFormEvents(
 
     /*
      * Credit calculation.
+     *
+     * Hanya Credit Final yang dihitung.
+     *
+     * Credit 480p/720p/1080p tidak ikut berubah.
      */
 
     if (creditCost) {
@@ -4339,15 +4428,14 @@ export async function loadModelFormData(
                 models
             )
 
-                ?
-
-                models.map(
-                    normalizeModel
+                ? models.map(
+                    model =>
+                        normalizeFormModel(
+                            model
+                        )
                 )
 
-                :
-
-                [],
+                : [],
 
 
         providers:
@@ -4356,13 +4444,9 @@ export async function loadModelFormData(
                 providers
             )
 
-                ?
+                ? providers
 
-                providers
-
-                :
-
-                []
+                : []
 
     };
 
@@ -4412,67 +4496,6 @@ export async function prepareModelForm(
 
 
 /* =========================================================
-   PROVIDER LOOKUP
-   ========================================================= */
-
-export function resolveProvider(
-    providers,
-    providerValue
-) {
-
-    const value =
-        String(
-            providerValue ?? ""
-        ).trim();
-
-
-    if (!value) {
-
-        return null;
-
-    }
-
-
-    /*
-     * PRIMARY:
-     * providers.id
-     */
-
-    const byId =
-        getProviderById(
-            providers,
-            value
-        );
-
-
-    if (
-        byId
-    ) {
-
-        return byId;
-
-    }
-
-
-    /*
-     * COMPATIBILITY:
-     * providers.provider_id
-     */
-
-    return (
-        getProviderByCode(
-            providers,
-            value
-        ) ||
-
-        null
-
-    );
-
-}
-
-
-/* =========================================================
    NORMALIZE SUBMISSION
    ========================================================= */
 
@@ -4494,13 +4517,8 @@ export function normalizeModelSubmission(
 
 
     /*
-     * models.provider_id HARUS:
-     *
-     * providers.id
-     *
-     * Bukan:
-     *
-     * providers.provider_id
+     * models.provider_id harus menggunakan
+     * providers.id.
      */
 
     if (
@@ -4518,22 +4536,19 @@ export function normalizeModelSubmission(
 
     data.model_id =
         String(
-            data.model_id ??
-                ""
+            data.model_id ?? ""
         ).trim();
 
 
     data.model_name =
         String(
-            data.model_name ??
-                ""
+            data.model_name ?? ""
         ).trim();
 
 
     data.description =
         String(
-            data.description ??
-                ""
+            data.description ?? ""
         ).trim();
 
 
@@ -4558,6 +4573,10 @@ export function normalizeModelSubmission(
             )
         );
 
+
+    /*
+     * Numeric fields.
+     */
 
     if (
         data.credit_cost !==
@@ -4594,12 +4613,9 @@ export function normalizeModelSubmission(
 
 
     /*
-     * Credit resolution.
+     * Resolution credits.
      *
-     * Jangan membuat nilai baru secara
-     * otomatis di sini.
-     *
-     * Nilai berasal dari form / record model.
+     * Tidak ada kalkulasi silang.
      */
 
     if (
@@ -4688,7 +4704,15 @@ export function normalizeModelSubmission(
 
 
     /*
-     * credit_final selalu dihitung ulang.
+     * credit_final adalah compatibility field.
+     *
+     * Tetap dihitung dari:
+     *
+     * Credit Normal
+     * +
+     * Discount
+     *
+     * dan TIDAK mempengaruhi tiga credit resolution.
      */
 
     data.credit_final =
