@@ -53,21 +53,20 @@
     function normalizeNumber(value) {
 
         if (
-            value ===
-            null ||
-            value ===
-            undefined ||
-            value ===
-            ""
+            value === null ||
+            value === undefined ||
+            value === ""
         ) {
 
             return null;
         }
 
+
         const number =
             Number(
                 value
             );
+
 
         return Number.isFinite(
             number
@@ -147,12 +146,9 @@
 
 
                 if (
-                    value !==
-                        null &&
-                    value !==
-                        undefined &&
-                    value !==
-                        ""
+                    value !== null &&
+                    value !== undefined &&
+                    value !== ""
                 ) {
 
                     return value;
@@ -185,8 +181,7 @@
             );
 
 
-        return number !==
-            null
+        return number !== null
             ? number
             : fallback;
     }
@@ -440,6 +435,7 @@
                 error
             );
 
+
             return [];
         }
     }
@@ -555,12 +551,18 @@
             window.GENZModelsSearch;
 
 
+        if (
+            !search
+        ) {
+
+            return null;
+        }
+
+
         /*
-         * Jalur utama:
-         * gunakan catalog yang sudah dimuat.
+         * Jalur utama.
          */
         if (
-            search &&
             typeof search.findModelById ===
                 "function"
         ) {
@@ -591,12 +593,9 @@
 
 
         /*
-         * Jalur fallback:
-         * ambil model dari data lokal search jika
-         * API getter tersedia.
+         * Fallback ke catalog lokal.
          */
         if (
-            search &&
             typeof search.getModels ===
                 "function"
         ) {
@@ -611,7 +610,7 @@
                     Array.isArray(
                         models
                     )
-                {
+                ) {
 
                     const normalizedId =
                         normalizeString(
@@ -684,7 +683,9 @@
 
             document.querySelector(
                 "[name='providerId']"
-            )
+            ) ||
+
+            null
         );
     }
 
@@ -722,7 +723,8 @@
         const candidates = [
             provider.id,
             provider.provider_id,
-            provider.providerId
+            provider.providerId,
+            provider.provider_uuid
         ]
             .map(
                 cleanString
@@ -739,8 +741,7 @@
 
             const option =
                 Array.from(
-                    select.options ||
-                    []
+                    select.options || []
                 ).find(
                     function (
                         item
@@ -760,7 +761,9 @@
                 option
             ) {
 
-                return candidate;
+                return cleanString(
+                    option.value
+                );
             }
         }
 
@@ -780,8 +783,7 @@
 
             const option =
                 Array.from(
-                    select.options ||
-                    []
+                    select.options || []
                 ).find(
                     function (
                         item
@@ -830,6 +832,10 @@
             !provider
         ) {
 
+            /*
+             * Provider tidak ditemukan tidak boleh
+             * membuat Provider palsu.
+             */
             return false;
         }
 
@@ -841,6 +847,38 @@
         if (
             !select
         ) {
+
+            /*
+             * Bisa saja Provider memakai custom
+             * dropdown yang dikelola module Provider.
+             */
+            const providerModule =
+                getProviderModule();
+
+
+            if (
+                providerModule &&
+                typeof providerModule.selectProvider ===
+                    "function"
+            ) {
+
+                try {
+
+                    return (
+                        providerModule.selectProvider(
+                            provider
+                        ) !== false
+                    );
+
+                } catch (error) {
+
+                    console.warn(
+                        "[GEN-Z.AI] Provider module selection gagal:",
+                        error
+                    );
+                }
+            }
+
 
             return false;
         }
@@ -860,25 +898,11 @@
         }
 
 
-        if (
-            cleanString(
-                select.value
-            ) ===
-            providerValue
-        ) {
-
-            return true;
-        }
-
-
         /*
-         * Jangan dispatch change di sini.
+         * Jangan dispatch change.
          *
-         * Perubahan Provider adalah bagian dari
-         * proses selection internal.
-         *
-         * Dispatch change dapat memicu search
-         * ulang sebelum Model selection selesai.
+         * Perubahan Provider dilakukan sebagai
+         * bagian dari selection Model.
          */
         try {
 
@@ -891,6 +915,7 @@
                 "[GEN-Z.AI] Gagal mengubah Provider:",
                 error
             );
+
 
             return false;
         }
@@ -906,7 +931,7 @@
 
 
     /* =====================================================
-       GET ELEMENT BY IDS / NAMES
+       GET FIELD
     ===================================================== */
 
     function getField(
@@ -985,11 +1010,14 @@
             [
                 "modelCodeSearch",
                 "modelSearch",
-                "modelIdSearch"
+                "modelIdSearch",
+                "modelId",
+                "model_id"
             ],
             [
                 "model_search",
-                "model_id_search"
+                "model_id_search",
+                "modelId"
             ]
         );
     }
@@ -1083,7 +1111,13 @@
 
             document.getElementById(
                 "modelSelectedInfo"
-            )
+            ) ||
+
+            document.querySelector(
+                "[data-model-selected-info]"
+            ) ||
+
+            null
         );
     }
 
@@ -1106,10 +1140,8 @@
 
 
         const normalized =
-            value ===
-                null ||
-            value ===
-                undefined
+            value === null ||
+            value === undefined
                 ? ""
                 : String(
                     value
@@ -1129,13 +1161,6 @@
             normalized;
 
 
-        /*
-         * Jangan dispatch input/change.
-         *
-         * Selection module hanya mengisi state.
-         * Form layout / events menangani sinkronisasi
-         * berikutnya.
-         */
         return true;
     }
 
@@ -1162,14 +1187,22 @@
         }
 
 
+        const hidden =
+            getHiddenInput();
+
+
+        const search =
+            getSearchInput();
+
+
         setValue(
-            getHiddenInput(),
+            hidden,
             id
         );
 
 
         setValue(
-            getSearchInput(),
+            search,
             id
         );
 
@@ -1201,6 +1234,7 @@
 
 
         const fields = [
+
             getField(
                 ["modelId"],
                 ["modelId"]
@@ -1210,6 +1244,7 @@
                 ["model_id"],
                 ["model_id"]
             )
+
         ];
 
 
@@ -1236,7 +1271,7 @@
 
 
     /* =====================================================
-       UPDATE MODEL IDENTITY FIELDS
+       UPDATE IDENTITY FIELDS
     ===================================================== */
 
     function updateIdentityFields(
@@ -1248,15 +1283,18 @@
                 model
             );
 
+
         const modelFamily =
             getModelFamily(
                 model
             );
 
+
         const modelType =
             getModelType(
                 model
             );
+
 
         const description =
             getDescription(
@@ -1283,12 +1321,8 @@
 
 
         /*
-         * Description hanya diisi jika
-         * field tersedia dan model memiliki
-         * description.
-         *
-         * Tidak menimpa description kosong
-         * dengan data palsu.
+         * Description hanya ditulis jika
+         * source model memang memiliki nilai.
          */
         if (
             description
@@ -1330,15 +1364,18 @@
                 model
             );
 
+
         const name =
             getModelName(
                 model
             );
 
+
         const family =
             getModelFamily(
                 model
             );
+
 
         const provider =
             cleanString(
@@ -1407,7 +1444,7 @@
 
     /* =====================================================
        UPDATE FORM THROUGH LAYOUT
-       ===================================================== */
+    ===================================================== */
 
     function updateFormThroughLayout(
         model
@@ -1425,13 +1462,11 @@
         }
 
 
-        /*
-         * Gunakan form aktual dari DOM.
-         */
         const form =
             document.getElementById(
                 "modelForm"
             ) ||
+
             document.getElementById(
                 "modelsForm"
             );
@@ -1445,15 +1480,6 @@
         }
 
 
-        /*
-         * Layout adalah pemilik sinkronisasi
-         * capability, ratio, duration, resolution,
-         * KIE price, dan credit preview.
-         *
-         * Tidak semua versi layout mempunyai
-         * method yang sama, sehingga kita hanya
-         * memanggil method yang benar-benar ada.
-         */
         if (
             typeof layout.updateSelectedModelFields ===
                 "function"
@@ -1461,12 +1487,14 @@
 
             try {
 
-                layout.updateSelectedModelFields(
-                    form,
-                    [model]
-                );
+                const result =
+                    layout.updateSelectedModelFields(
+                        form,
+                        [model]
+                    );
 
-                return true;
+
+                return result !== false;
 
             } catch (error) {
 
@@ -1474,6 +1502,9 @@
                     "[GEN-Z.AI] Layout gagal memperbarui field Model:",
                     error
                 );
+
+
+                return false;
             }
         }
 
@@ -1548,6 +1579,7 @@
                 )
             );
 
+
             return true;
 
         } catch (error) {
@@ -1556,6 +1588,7 @@
                 "[GEN-Z.AI] Event genz-model-selected gagal:",
                 error
             );
+
 
             return false;
         }
@@ -1580,26 +1613,31 @@
         }
 
 
-        const modelId =
+        const requestedId =
             getModelId(
                 model
             );
 
 
         if (
-            !modelId
+            !requestedId
         ) {
 
             console.warn(
                 "[GEN-Z.AI] Selection ditolak. Model ID kosong."
             );
 
+
             return false;
         }
 
 
         /*
-         * Pastikan model berasal dari catalog.
+         * SOURCE OF TRUTH:
+         * selalu ambil ulang object dari catalog.
+         *
+         * Object yang datang dari UI tidak dipercaya
+         * sebagai sumber identitas Model.
          */
         const catalogModel =
             findCatalogModel(
@@ -1613,20 +1651,17 @@
 
             console.warn(
                 "[GEN-Z.AI] Selection ditolak. Model tidak terdapat di catalog:",
-                modelId
+                requestedId
             );
+
 
             return false;
         }
 
 
-        const selectedModel =
-            catalogModel;
-
-
         const selectedId =
             getModelId(
-                selectedModel
+                catalogModel
             );
 
 
@@ -1638,12 +1673,33 @@
         }
 
 
+        /*
+         * Pastikan ID benar-benar sama.
+         */
+        if (
+            normalizeString(
+                selectedId
+            ) !==
+            normalizeString(
+                requestedId
+            )
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Selection ditolak. Model ID catalog berbeda."
+            );
+
+
+            return false;
+        }
+
+
         /* =================================================
            1. PROVIDER
            ================================================= */
 
         syncProvider(
-            selectedModel
+            catalogModel
         );
 
 
@@ -1666,16 +1722,16 @@
            ================================================= */
 
         updateIdentityFields(
-            selectedModel
+            catalogModel
         );
 
 
         /* =================================================
-           4. LAYOUT / CAPABILITY / PRICE
+           4. FORM LAYOUT
            ================================================= */
 
         updateFormThroughLayout(
-            selectedModel
+            catalogModel
         );
 
 
@@ -1684,7 +1740,7 @@
            ================================================= */
 
         updateInfoBox(
-            selectedModel
+            catalogModel
         );
 
 
@@ -1696,11 +1752,11 @@
 
 
         /* =================================================
-           7. NOTIFY OTHER MODULES
+           7. NOTIFY
            ================================================= */
 
         dispatchSelectionEvent(
-            selectedModel
+            catalogModel
         );
 
 
@@ -1735,23 +1791,30 @@
                 ["model_id"],
                 ["model_id"]
             )
+
         ];
 
 
-        fields.forEach(
+        /*
+         * Deduplicate elements.
+         */
+        const uniqueFields =
+            Array.from(
+                new Set(
+                    fields.filter(Boolean)
+                )
+            );
+
+
+        uniqueFields.forEach(
             function (
                 field
             ) {
 
-                if (
-                    field
-                ) {
-
-                    setValue(
-                        field,
-                        ""
-                    );
-                }
+                setValue(
+                    field,
+                    ""
+                );
             }
         );
 
