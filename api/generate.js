@@ -96,8 +96,6 @@ const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
 
 /* =========================================================
    MODEL REGISTRY
-   ---------------------------------------------------------
-   Registry adalah daftar model yang tersedia di repository.
    ========================================================= */
 
 const MODEL_REGISTRY = Object.freeze([
@@ -175,6 +173,143 @@ function failure(
             ...extra
         }
     );
+
+}
+
+
+/* =========================================================
+   SANITIZE PROVIDER RESPONSE
+   ---------------------------------------------------------
+   Response KIE.AI boleh dikirim sebagai diagnostic,
+   tetapi credential rahasia WAJIB dihapus.
+   ========================================================= */
+
+function sanitizeProviderResponse(
+    value,
+    depth = 0
+) {
+
+    if (
+        depth > 8
+    ) {
+
+        return "[MAX_DEPTH]";
+
+    }
+
+
+    const secretKeys =
+        new Set([
+
+            "apiKey",
+            "api_key",
+            "apikey",
+
+            "authorization",
+            "Authorization",
+
+            "access_token",
+            "accessToken",
+
+            "token",
+
+            "secret",
+
+            "password",
+
+            "credential",
+            "credentials",
+
+            "api_key_ciphertext",
+            "api_key_iv",
+            "api_key_tag",
+
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "PROVIDER_CREDENTIAL_ENCRYPTION_KEY"
+
+        ]);
+
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+
+        return value.map(
+            item =>
+                sanitizeProviderResponse(
+                    item,
+                    depth + 1
+                )
+        );
+
+    }
+
+
+    if (
+        value &&
+        typeof value ===
+            "object"
+    ) {
+
+        const output = {};
+
+
+        for (
+            const [key, item]
+            of Object.entries(
+                value
+            )
+        ) {
+
+            if (
+                secretKeys.has(
+                    key
+                )
+            ) {
+
+                output[key] =
+                    "[REDACTED]";
+
+                continue;
+
+            }
+
+
+            output[key] =
+                sanitizeProviderResponse(
+                    item,
+                    depth + 1
+                );
+
+        }
+
+
+        return output;
+
+    }
+
+
+    if (
+        typeof value ===
+            "string"
+    ) {
+
+        return value
+            .replace(
+                /Bearer\s+[^\s"']+/gi,
+                "Bearer [REDACTED]"
+            )
+            .replace(
+                /sk-[A-Za-z0-9._-]+/g,
+                "[REDACTED]"
+            );
+
+    }
+
+
+    return value;
 
 }
 
@@ -424,10 +559,6 @@ async function readBody(
     req
 ) {
 
-    /*
-     * Vercel biasanya sudah mem-parsing req.body.
-     */
-
     if (
         req.body &&
         typeof req.body ===
@@ -513,15 +644,6 @@ function getParameters(
     body
 ) {
 
-    /*
-     * Format utama:
-     *
-     * {
-     *   model_id: "...",
-     *   parameters: {...}
-     * }
-     */
-
     if (
         body &&
         body.parameters &&
@@ -538,12 +660,6 @@ function getParameters(
 
     }
 
-
-    /*
-     * Compatibility fallback.
-     *
-     * Parameter tetap dibatasi.
-     */
 
     const parameters = {};
 
@@ -643,9 +759,6 @@ function getModelAdapter(
 
 /* =========================================================
    LOAD OPTIONAL DATABASE MODEL
-   ---------------------------------------------------------
-   Supabase models BUKAN source of truth model.
-   Row ini hanya konfigurasi administratif.
    ========================================================= */
 
 async function loadDatabaseModel(
@@ -718,12 +831,6 @@ async function loadDatabaseModel(
         return rows[0];
 
     } catch (error) {
-
-        /*
-         * Admin config gagal dibaca tidak boleh
-         * mengubah model repository menjadi
-         * "Model not found".
-         */
 
         console.warn(
             "[generate] Failed loading optional admin model config:",
@@ -806,9 +913,6 @@ async function loadProviderByDatabaseId(
 
 /* =========================================================
    PROVIDER LOOKUP BY PROVIDER CODE
-   ---------------------------------------------------------
-   Digunakan ketika model belum mempunyai row
-   administratif di tabel models.
    ========================================================= */
 
 async function loadProviderByCode(
@@ -834,12 +938,6 @@ async function loadProviderByCode(
 
     }
 
-
-    /*
-     * Primary lookup:
-     *
-     * providers.provider_id
-     */
 
     const params =
         new URLSearchParams();
@@ -884,12 +982,6 @@ async function loadProviderByCode(
 
     }
 
-
-    /*
-     * Compatibility fallback:
-     *
-     * provider_name
-     */
 
     const nameParams =
         new URLSearchParams();
@@ -942,28 +1034,12 @@ async function loadProviderByCode(
 
 /* =========================================================
    RESOLVE PROVIDER
-   ---------------------------------------------------------
-   Prioritas:
- *
- *   1. models.provider_id
- *   2. model config providerId
- *
- * Model folder tetap menjadi fallback agar
- * model repository bisa berjalan walaupun row
- * models belum dibuat.
- * ========================================================= */
+   ========================================================= */
 
 async function resolveProvider(
     adapter,
     databaseModel
 ) {
-
-    /*
-     * =====================================================
-     * PRIORITAS 1
-     * Supabase models.provider_id
-     * =====================================================
-     */
 
     const databaseProviderId =
         databaseModel?.provider_id ||
@@ -992,13 +1068,6 @@ async function resolveProvider(
 
     }
 
-
-    /*
-     * =====================================================
-     * PRIORITAS 2
-     * Model folder config.js
-     * =====================================================
-     */
 
     const registryProviderId =
         String(
@@ -1078,10 +1147,6 @@ function getEncryptionKey() {
     }
 
 
-    /*
-     * 64 hex chars = 32 bytes.
-     */
-
     if (
         /^[0-9a-fA-F]{64}$/.test(
             PROVIDER_CREDENTIAL_ENCRYPTION_KEY
@@ -1095,10 +1160,6 @@ function getEncryptionKey() {
 
     }
 
-
-    /*
-     * Base64 32 bytes.
-     */
 
     try {
 
@@ -1126,10 +1187,6 @@ function getEncryptionKey() {
 
     }
 
-
-    /*
-     * Deterministic SHA-256 fallback.
-     */
 
     return crypto
         .createHash(
@@ -1288,182 +1345,12 @@ function decryptAesGcm(
 
 
 /* =========================================================
-   DECRYPT CREDENTIAL
-   ========================================================= */
-
-function decryptCredential(
-    value
-) {
-
-    if (
-        value === null ||
-        value === undefined
-    ) {
-
-        return null;
-
-    }
-
-
-    const text =
-        String(
-            value
-        ).trim();
-
-
-    if (!text) {
-
-        return null;
-
-    }
-
-
-    /*
-     * JSON encrypted format:
-     *
-     * {
-     *   iv,
-     *   authTag,
-     *   ciphertext
-     * }
-     */
-
-    if (
-        text.startsWith("{") &&
-        text.endsWith("}")
-    ) {
-
-        try {
-
-            const parsed =
-                JSON.parse(
-                    text
-                );
-
-
-            const iv =
-                decodeBuffer(
-                    parsed.iv
-                );
-
-
-            const authTag =
-                decodeBuffer(
-                    parsed.authTag ||
-                    parsed.auth_tag ||
-                    parsed.tag
-                );
-
-
-            const ciphertext =
-                decodeBuffer(
-                    parsed.ciphertext ||
-                    parsed.data ||
-                    parsed.encrypted
-                );
-
-
-            if (
-                iv &&
-                authTag &&
-                ciphertext
-            ) {
-
-                return decryptAesGcm(
-                    iv,
-                    authTag,
-                    ciphertext
-                );
-
-            }
-
-        } catch {
-
-            /*
-             * fallback
-             */
-
-        }
-
-    }
-
-
-    /*
-     * Colon separated:
-     *
-     * iv:authTag:ciphertext
-     */
-
-    const parts =
-        text.split(":");
-
-
-    if (
-        parts.length ===
-        3
-    ) {
-
-        const iv =
-            decodeBuffer(
-                parts[0]
-            );
-
-
-        const authTag =
-            decodeBuffer(
-                parts[1]
-            );
-
-
-        const ciphertext =
-            decodeBuffer(
-                parts[2]
-            );
-
-
-        if (
-            iv &&
-            authTag &&
-            ciphertext
-        ) {
-
-            try {
-
-                return decryptAesGcm(
-                    iv,
-                    authTag,
-                    ciphertext
-                );
-
-            } catch {
-
-                /*
-                 * Bukan encrypted format.
-                 */
-
-            }
-
-        }
-
-    }
-
-
-    /*
-     * Plaintext fallback.
-     */
-
-    return text;
-
-}
-
-
-/* =========================================================
    LOAD PROVIDER API KEY
    ---------------------------------------------------------
    SOURCE OF TRUTH:
        public.provider_credentials
 
-   SCHEMA:
+   EXACT SCHEMA:
        provider_id
        api_key_ciphertext
        api_key_iv
@@ -1497,20 +1384,9 @@ async function loadProviderApiKey(
     }
 
 
-    /* =====================================================
-       QUERY CREDENTIAL
-       ===================================================== */
-
     const params =
         new URLSearchParams();
 
-
-    /*
-     * Jangan menggunakan select=*.
-     *
-     * Hanya ambil field credential yang memang
-     * diperlukan server.
-     */
 
     params.set(
         "select",
@@ -1519,9 +1395,7 @@ async function loadProviderApiKey(
             "provider_id",
             "api_key_ciphertext",
             "api_key_iv",
-            "api_key_tag",
-            "created_at",
-            "updated_at"
+            "api_key_tag"
         ].join(",")
     );
 
@@ -1559,16 +1433,13 @@ async function loadProviderApiKey(
             error
         );
 
+
         throw new Error(
             `Failed to read provider credential for ${normalizedProviderCode}`
         );
 
     }
 
-
-    /* =====================================================
-       VALIDATE ROW
-       ===================================================== */
 
     if (
         !Array.isArray(
@@ -1601,10 +1472,6 @@ async function loadProviderApiKey(
     }
 
 
-    /* =====================================================
-       READ ENCRYPTED FIELDS
-       ===================================================== */
-
     const ciphertext =
         String(
             credential.api_key_ciphertext ||
@@ -1625,10 +1492,6 @@ async function loadProviderApiKey(
             ""
         ).trim();
 
-
-    /* =====================================================
-       VALIDATE ENCRYPTED DATA
-       ===================================================== */
 
     if (
         !ciphertext
@@ -1663,10 +1526,6 @@ async function loadProviderApiKey(
     }
 
 
-    /* =====================================================
-       DECODE
-       ===================================================== */
-
     let ivBuffer;
     let authTagBuffer;
     let ciphertextBuffer;
@@ -1697,6 +1556,7 @@ async function loadProviderApiKey(
             "[generate] Failed decoding provider credential:",
             error
         );
+
 
         throw new Error(
             `Invalid encrypted provider credential format for ${normalizedProviderCode}`
@@ -1738,10 +1598,6 @@ async function loadProviderApiKey(
     }
 
 
-    /* =====================================================
-       DECRYPT
-       ===================================================== */
-
     let apiKey;
 
 
@@ -1761,16 +1617,13 @@ async function loadProviderApiKey(
             error
         );
 
+
         throw new Error(
             `Unable to decrypt provider API credential for ${normalizedProviderCode}`
         );
 
     }
 
-
-    /* =====================================================
-       VALIDATE PLAINTEXT
-       ===================================================== */
 
     const normalizedApiKey =
         String(
@@ -1788,10 +1641,6 @@ async function loadProviderApiKey(
 
     }
 
-
-    /*
-     * Jangan pernah console.log API key.
-     */
 
     console.debug(
         "[generate] Provider API credential resolved successfully:",
@@ -1871,7 +1720,6 @@ function normalizeArray(
 
         /*
          * PostgreSQL array:
-         *
          * {"2:3","9:16"}
          */
 
@@ -1982,9 +1830,6 @@ function normalizeArray(
 
 /* =========================================================
    DATABASE PARAMETER RESTRICTION
-   ---------------------------------------------------------
-   Supabase hanya boleh memberikan restriction tambahan.
-   Technical source tetap parameters.js.
    ========================================================= */
 
 function validateDatabaseRestrictions(
@@ -1994,11 +1839,6 @@ function validateDatabaseRestrictions(
 
     const errors = [];
 
-
-    /*
-     * Jika tidak ada row admin,
-     * tidak ada restriction database.
-     */
 
     if (!model) {
 
@@ -2284,7 +2124,7 @@ function validateAdapterInput(
    SANITIZE PARAMETERS
    ---------------------------------------------------------
    task_id SENGAJA tidak termasuk.
-   task_id adalah hasil createTask, bukan input user.
+   task_id adalah hasil createTask.
    ========================================================= */
 
 function sanitizeParameters(
@@ -2481,12 +2321,6 @@ export default async function handler(
      * =====================================================
      * MODEL REGISTRY
      * =====================================================
-     *
-     * INI TITIK PENTING.
-     *
-     * Model dicari dari repository,
-     * bukan dari Supabase models.
-     *
      */
 
     const adapter =
@@ -2579,11 +2413,6 @@ export default async function handler(
      * =====================================================
      * OPTIONAL ADMIN CONFIG
      * =====================================================
-     *
-     * Tidak wajib.
-     *
-     * Model repo tetap valid tanpa row database.
-     *
      */
 
     let databaseModel =
@@ -2599,11 +2428,6 @@ export default async function handler(
 
     } catch (error) {
 
-        /*
-         * Jangan gagal hanya karena konfigurasi
-         * administratif tidak tersedia.
-         */
-
         console.warn(
             "[generate] Optional admin model config unavailable:",
             error
@@ -2616,15 +2440,6 @@ export default async function handler(
      * =====================================================
      * MODEL STATUS
      * =====================================================
-     *
-     * Tanpa row:
-     *
-     *   active
-     *
-     * Dengan row:
-     *
-     *   status database dihormati.
-     *
      */
 
     if (
@@ -2783,15 +2598,6 @@ export default async function handler(
      * =====================================================
      * PROVIDER
      * =====================================================
-     *
-     * Prioritas:
-     *
-     *   models.provider_id
-     *
-     * atau:
-     *
-     *   config.providerId
-     *
      */
 
     let providerResult;
@@ -2816,7 +2622,20 @@ export default async function handler(
         return failure(
             res,
             500,
-            "Failed to load provider configuration"
+            "Failed to load provider configuration",
+            {
+
+                code:
+                    "PROVIDER_LOOKUP_FAILED",
+
+                details:
+                    sanitizeProviderResponse(
+                        error?.data ||
+                        error?.message ||
+                        null
+                    )
+
+            }
         );
 
     }
@@ -2884,7 +2703,13 @@ export default async function handler(
         return failure(
             res,
             500,
-            "Provider ID is missing"
+            "Provider ID is missing",
+            {
+
+                code:
+                    "PROVIDER_ID_MISSING"
+
+            }
         );
 
     }
@@ -2921,7 +2746,17 @@ export default async function handler(
             {
 
                 provider_id:
-                    providerCode
+                    providerCode,
+
+                code:
+                    "PROVIDER_CREDENTIAL_UNAVAILABLE",
+
+                details: {
+
+                    message:
+                        error.message
+
+                }
 
             }
         );
@@ -2934,10 +2769,9 @@ export default async function handler(
      * CREATE TASK
      * =====================================================
      *
-     * Server only.
+     * API key hanya berada di server.
      *
-     * API key tidak pernah dikirim
-     * ke browser.
+     * Tidak pernah dikirim ke browser.
      *
      */
 
@@ -2960,9 +2794,25 @@ export default async function handler(
         );
 
 
+        /*
+         * Provider adapter dapat mengirim:
+         *
+         * error.status
+         * error.code
+         * error.data
+         * error.response
+         * error.body
+         *
+         * Semua akan dibuat aman sebelum dikirim
+         * ke frontend.
+         */
+
         const providerStatus =
             Number(
-                error.status
+                error?.status ||
+                error?.statusCode ||
+                error?.response?.status ||
+                error?.response?.statusCode
             );
 
 
@@ -2981,21 +2831,54 @@ export default async function handler(
         }
 
 
+        const providerResponse =
+            error?.data ||
+            error?.response?.data ||
+            error?.response?.body ||
+            error?.body ||
+            error?.response ||
+            null;
+
+
         return failure(
             res,
             statusCode,
-            error.message ||
+            error?.message ||
                 "Failed to create generation task",
             {
 
                 code:
-                    error.code ||
-                    "GENERATION_CREATE_FAILED"
+                    error?.code ||
+                    "KIE_CREATE_TASK_FAILED",
+
+                provider:
+                    providerCode,
+
+                provider_status:
+                    providerStatus ||
+                    null,
+
+                provider_response:
+                    sanitizeProviderResponse(
+                        providerResponse
+                    )
 
             }
         );
 
     }
+
+
+    /*
+     * =====================================================
+     * NORMALIZE TASK RESPONSE
+     * =====================================================
+     */
+
+    const safeTask =
+        sanitizeProviderResponse(
+            task
+        );
 
 
     /*
@@ -3014,13 +2897,22 @@ export default async function handler(
 
         task?.data?.task_id ||
 
+        task?.data?.task?.taskId ||
+
+        task?.data?.task?.task_id ||
+
+        task?.jobId ||
+
+        task?.job_id ||
+
         null;
 
 
     if (!taskId) {
 
         console.error(
-            "[generate] Provider response has no taskId"
+            "[generate] Provider response has no taskId:",
+            safeTask
         );
 
 
@@ -3031,7 +2923,13 @@ export default async function handler(
             {
 
                 code:
-                    "TASK_ID_MISSING"
+                    "TASK_ID_MISSING",
+
+                provider:
+                    providerCode,
+
+                provider_response:
+                    safeTask
 
             }
         );
@@ -3044,7 +2942,11 @@ export default async function handler(
      * RESPONSE
      * =====================================================
      *
-     * Jangan kirim credential.
+     * Response frontend tidak mengandung credential.
+     *
+     * Provider response tetap diberikan sebagai
+     * diagnostic agar error KIE.AI dapat dilihat.
+     *
      */
 
     return success(
@@ -3056,10 +2958,7 @@ export default async function handler(
 
 
             /*
-             * Model identity.
-             *
-             * Source:
-             * repository config.js
+             * Model.
              */
 
             model:
@@ -3097,6 +2996,16 @@ export default async function handler(
 
             jobId:
                 taskId,
+
+
+            /*
+             * Provider response diagnostic.
+             *
+             * Credential sudah disanitasi.
+             */
+
+            provider_response:
+                safeTask,
 
 
             /*
