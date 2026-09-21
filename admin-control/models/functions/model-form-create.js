@@ -13,7 +13,7 @@
    - Duplicate Model ID check
    - Provider validation
    - Credit 480p / 720p / 1080p
-   - Credit Final compatibility
+   - Discount Percent
    - Duration / Ratio / Resolution
    - Submit callback satu kali
 
@@ -24,6 +24,7 @@
    - Delete Model
    - Provider lifecycle
    - Model registry
+   - Menghitung / menyimpan Credit Final
    ========================================================= */
 
 (function () {
@@ -35,9 +36,7 @@
         "model_name",
         "description",
 
-        "credit_cost",
         "discount_percent",
-        "credit_final",
 
         "credit_480p",
         "credit_720p",
@@ -221,7 +220,10 @@
        ========================================================= */
 
     function getRoot(root) {
-        if (root instanceof Element) {
+        if (
+            typeof Element !== "undefined" &&
+            root instanceof Element
+        ) {
             return root;
         }
 
@@ -246,7 +248,8 @@
 
         for (const selector of selectors) {
             try {
-                const element = container.querySelector(selector);
+                const element =
+                    container.querySelector(selector);
 
                 if (element) {
                     return element;
@@ -259,8 +262,16 @@
         return null;
     }
 
-    function getFieldValue(root, selectors, fallback = "") {
-        const element = queryFirst(root, selectors);
+    function getFieldValue(
+        root,
+        selectors,
+        fallback = ""
+    ) {
+        const element =
+            queryFirst(
+                root,
+                selectors
+            );
 
         if (!element) {
             return fallback;
@@ -284,22 +295,16 @@
             : fallback;
     }
 
-    function getNumericField(
+    function setFieldValue(
         root,
         selectors,
-        fallback = 0
+        value
     ) {
-        const value = getFieldValue(
-            root,
-            selectors,
-            ""
-        );
-
-        return toNumber(value, fallback);
-    }
-
-    function setFieldValue(root, selectors, value) {
-        const element = queryFirst(root, selectors);
+        const element =
+            queryFirst(
+                root,
+                selectors
+            );
 
         if (!element) {
             return false;
@@ -308,7 +313,9 @@
         if (
             element.type === "checkbox"
         ) {
-            element.checked = Boolean(value);
+            element.checked =
+                Boolean(value);
+
             return true;
         }
 
@@ -325,12 +332,17 @@
        PROVIDER HELPERS
        ========================================================= */
 
-    function findProvider(providers, providerId) {
-        const list = Array.isArray(providers)
-            ? providers
-            : [];
+    function findProvider(
+        providers,
+        providerId
+    ) {
+        const list =
+            Array.isArray(providers)
+                ? providers
+                : [];
 
-        const target = normalizeId(providerId);
+        const target =
+            normalizeId(providerId);
 
         if (!target) {
             return null;
@@ -340,9 +352,13 @@
          * Primary relation:
          * models.provider_id -> providers.id
          */
-        const byId = list.find(provider => {
-            return normalizeId(provider?.id) === target;
-        });
+        const byId =
+            list.find(provider => {
+                return (
+                    normalizeId(provider?.id) ===
+                    target
+                );
+            });
 
         if (byId) {
             return byId;
@@ -352,31 +368,40 @@
          * Compatibility:
          * provider_id / code / provider_code
          */
-        const byProviderId = list.find(provider => {
-            return normalizeId(
-                provider?.provider_id
-            ) === target;
-        });
+        const byProviderId =
+            list.find(provider => {
+                return (
+                    normalizeId(
+                        provider?.provider_id
+                    ) === target
+                );
+            });
 
         if (byProviderId) {
             return byProviderId;
         }
 
-        const byCode = list.find(provider => {
-            return normalizeId(
-                provider?.code
-            ) === target;
-        });
+        const byCode =
+            list.find(provider => {
+                return (
+                    normalizeId(
+                        provider?.code
+                    ) === target
+                );
+            });
 
         if (byCode) {
             return byCode;
         }
 
-        const byProviderCode = list.find(provider => {
-            return normalizeId(
-                provider?.provider_code
-            ) === target;
-        });
+        const byProviderCode =
+            list.find(provider => {
+                return (
+                    normalizeId(
+                        provider?.provider_code
+                    ) === target
+                );
+            });
 
         return byProviderCode || null;
     }
@@ -399,9 +424,10 @@
             return false;
         }
 
-        const status = normalizeText(
-            provider.status
-        ).toLowerCase();
+        const status =
+            normalizeText(
+                provider.status
+            ).toLowerCase();
 
         /*
          * Status adalah sumber utama.
@@ -417,19 +443,25 @@
         if (
             provider.is_active !== undefined
         ) {
-            return Boolean(provider.is_active);
+            return Boolean(
+                provider.is_active
+            );
         }
 
         if (
             provider.active !== undefined
         ) {
-            return Boolean(provider.active);
+            return Boolean(
+                provider.active
+            );
         }
 
         if (
             provider.enabled !== undefined
         ) {
-            return Boolean(provider.enabled);
+            return Boolean(
+                provider.enabled
+            );
         }
 
         /*
@@ -448,12 +480,14 @@
         modelId,
         excludeId = null
     ) {
-        const list = Array.isArray(models)
-            ? models
-            : [];
+        const list =
+            Array.isArray(models)
+                ? models
+                : [];
 
         const targetModelId =
-            normalizeId(modelId).toLowerCase();
+            normalizeId(modelId)
+                .toLowerCase();
 
         const targetExcludeId =
             normalizeId(excludeId);
@@ -482,7 +516,8 @@
 
                 return (
                     currentModelId &&
-                    currentModelId === targetModelId
+                    currentModelId ===
+                    targetModelId
                 );
             }) || null
         );
@@ -492,11 +527,13 @@
         models,
         id
     ) {
-        const list = Array.isArray(models)
-            ? models
-            : [];
+        const list =
+            Array.isArray(models)
+                ? models
+                : [];
 
-        const target = normalizeId(id);
+        const target =
+            normalizeId(id);
 
         if (!target) {
             return null;
@@ -505,7 +542,9 @@
         return (
             list.find(model => {
                 return (
-                    normalizeId(model?.id) === target ||
+                    normalizeId(
+                        model?.id
+                    ) === target ||
                     normalizeId(
                         model?.model_id ??
                         model?.modelId
@@ -519,41 +558,25 @@
        CREDIT
        ========================================================= */
 
-    function calculateCreditFinal(
-        creditCost,
-        discountPercent
-    ) {
-        const cost = toNumber(
-            creditCost,
-            0
-        );
-
-        const discount = Math.min(
-            100,
-            Math.max(
-                0,
-                toNumber(
-                    discountPercent,
-                    0
-                )
-            )
-        );
-
-        const finalCredit =
-            cost -
-            (
-                cost *
-                discount /
-                100
-            );
-
-        return Math.max(
-            0,
-            Number(
-                finalCredit.toFixed(6)
-            )
-        );
-    }
+    /*
+     * Credit Final TIDAK lagi menjadi bagian dari Create.
+     *
+     * Pricing model:
+     *
+     * credit_480p
+     * credit_720p
+     * credit_1080p
+     * discount_percent
+     *
+     * Credit Final dihitung runtime oleh pricing / Generate:
+     *
+     * final =
+     * credit -
+     * (credit * discount_percent / 100)
+     *
+     * Fungsi Create hanya membaca dan menyimpan
+     * credit dasar per resolusi + discount.
+     */
 
     function readResolutionCredit(
         data,
@@ -561,8 +584,13 @@
         camelCaseKey
     ) {
         if (
-            hasOwn(data, snakeCaseKey) &&
-            hasValue(data[snakeCaseKey])
+            hasOwn(
+                data,
+                snakeCaseKey
+            ) &&
+            hasValue(
+                data[snakeCaseKey]
+            )
         ) {
             return toNumber(
                 data[snakeCaseKey],
@@ -571,8 +599,13 @@
         }
 
         if (
-            hasOwn(data, camelCaseKey) &&
-            hasValue(data[camelCaseKey])
+            hasOwn(
+                data,
+                camelCaseKey
+            ) &&
+            hasValue(
+                data[camelCaseKey]
+            )
         ) {
             return toNumber(
                 data[camelCaseKey],
@@ -592,7 +625,8 @@
         providers = state.providers
     ) {
         const source =
-            data && typeof data === "object"
+            data &&
+            typeof data === "object"
                 ? data
                 : {};
 
@@ -610,7 +644,9 @@
 
         const providerId =
             provider
-                ? normalizeId(provider.id)
+                ? normalizeId(
+                    provider.id
+                )
                 : providerInput;
 
         const modelId =
@@ -630,13 +666,6 @@
                 source.description
             );
 
-        const creditCost =
-            toNumber(
-                source.credit_cost ??
-                source.creditCost,
-                0
-            );
-
         const discountPercent =
             toNumber(
                 source.discount_percent ??
@@ -645,42 +674,15 @@
             );
 
         /*
-         * credit_final tetap dipertahankan untuk
-         * backward compatibility.
-         *
-         * Jika field final memang dikirim oleh form,
-         * gunakan nilainya.
-         *
-         * Jika tidak ada, hitung dari Normal + Discount.
-         */
-        const hasCreditFinal =
-            (
-                hasOwn(source, "credit_final") &&
-                hasValue(source.credit_final)
-            ) ||
-            (
-                hasOwn(source, "creditFinal") &&
-                hasValue(source.creditFinal)
-            );
-
-        const creditFinal =
-            hasCreditFinal
-                ? toNumber(
-                    source.credit_final ??
-                    source.creditFinal,
-                    0
-                )
-                : calculateCreditFinal(
-                    creditCost,
-                    discountPercent
-                );
-
-        /*
          * Resolution credit adalah nilai independen.
          *
          * Jangan hitung dari KIE price.
-         * Jangan hitung dari credit_final.
-         * Jangan hitung dari duration/resolution.
+         * Jangan hitung dari discount.
+         * Jangan hitung dari duration.
+         * Jangan hitung dari resolution.
+         *
+         * Discount hanya digunakan oleh runtime pricing
+         * ketika Generate melakukan perhitungan Credit Final.
          */
         const credit480p =
             readResolutionCredit(
@@ -741,16 +743,23 @@
             model_name: modelName,
             description: description,
 
-            credit_cost: creditCost,
-            discount_percent: discountPercent,
-            credit_final: creditFinal,
+            discount_percent:
+                discountPercent,
 
-            credit_480p: credit480p,
-            credit_720p: credit720p,
-            credit_1080p: credit1080p,
+            credit_480p:
+                credit480p,
 
-            min_duration: minDuration,
-            max_duration: maxDuration,
+            credit_720p:
+                credit720p,
+
+            credit_1080p:
+                credit1080p,
+
+            min_duration:
+                minDuration,
+
+            max_duration:
+                maxDuration,
 
             supported_ratios:
                 supportedRatios,
@@ -758,7 +767,8 @@
             supported_resolutions:
                 supportedResolutions,
 
-            status: status
+            status:
+                status
         };
     }
 
@@ -777,12 +787,16 @@
                 : {};
 
         const providers =
-            Array.isArray(options.providers)
+            Array.isArray(
+                options.providers
+            )
                 ? options.providers
                 : state.providers;
 
         const models =
-            Array.isArray(options.models)
+            Array.isArray(
+                options.models
+            )
                 ? options.models
                 : state.models;
 
@@ -823,7 +837,9 @@
                     "Provider tidak ditemukan."
                 );
             } else if (
-                !isProviderActive(provider)
+                !isProviderActive(
+                    provider
+                )
             ) {
                 errors.push(
                     "Provider yang dipilih tidak aktif."
@@ -870,21 +886,9 @@
            Credits
            ----------------------------------------------------- */
 
-        const creditCost =
-            toNumber(
-                model.credit_cost,
-                0
-            );
-
         const discountPercent =
             toNumber(
                 model.discount_percent,
-                0
-            );
-
-        const creditFinal =
-            toNumber(
-                model.credit_final,
                 0
             );
 
@@ -907,16 +911,9 @@
             );
 
         if (
-            !Number.isFinite(creditCost) ||
-            creditCost < 0
-        ) {
-            errors.push(
-                "Credit Normal tidak valid."
-            );
-        }
-
-        if (
-            !Number.isFinite(discountPercent) ||
+            !Number.isFinite(
+                discountPercent
+            ) ||
             discountPercent < 0 ||
             discountPercent > 100
         ) {
@@ -926,16 +923,9 @@
         }
 
         if (
-            !Number.isFinite(creditFinal) ||
-            creditFinal < 0
-        ) {
-            errors.push(
-                "Credit Final tidak valid."
-            );
-        }
-
-        if (
-            !Number.isFinite(credit480p) ||
+            !Number.isFinite(
+                credit480p
+            ) ||
             credit480p < 0
         ) {
             errors.push(
@@ -944,7 +934,9 @@
         }
 
         if (
-            !Number.isFinite(credit720p) ||
+            !Number.isFinite(
+                credit720p
+            ) ||
             credit720p < 0
         ) {
             errors.push(
@@ -953,7 +945,9 @@
         }
 
         if (
-            !Number.isFinite(credit1080p) ||
+            !Number.isFinite(
+                credit1080p
+            ) ||
             credit1080p < 0
         ) {
             errors.push(
@@ -978,7 +972,9 @@
             );
 
         if (
-            !Number.isFinite(minDuration) ||
+            !Number.isFinite(
+                minDuration
+            ) ||
             minDuration < 0
         ) {
             errors.push(
@@ -987,7 +983,9 @@
         }
 
         if (
-            !Number.isFinite(maxDuration) ||
+            !Number.isFinite(
+                maxDuration
+            ) ||
             maxDuration < 0
         ) {
             errors.push(
@@ -996,7 +994,8 @@
         }
 
         if (
-            maxDuration < minDuration
+            maxDuration <
+            minDuration
         ) {
             errors.push(
                 "Maximum duration tidak boleh lebih kecil dari minimum duration."
@@ -1033,7 +1032,9 @@
 
         if (
             !VALID_STATUS.has(
-                normalizeStatus(model.status)
+                normalizeStatus(
+                    model.status
+                )
             )
         ) {
             errors.push(
@@ -1042,7 +1043,9 @@
         }
 
         return {
-            valid: errors.length === 0,
+            valid:
+                errors.length === 0,
+
             errors
         };
     }
@@ -1054,7 +1057,8 @@
     function collectFormData(
         root = state.root
     ) {
-        const form = getRoot(root);
+        const form =
+            getRoot(root);
 
         /*
          * Provider
@@ -1132,21 +1136,16 @@
             );
 
         /*
-         * Credit Normal
-         */
-        const creditCost =
-            getFieldValue(
-                form,
-                [
-                    "#creditCost",
-                    "#credit_cost",
-                    "[name='credit_cost']",
-                    "[name='creditCost']"
-                ]
-            );
-
-        /*
          * Discount
+         *
+         * credit_final TIDAK dibaca dari form.
+         *
+         * Credit Final bukan data database.
+         * Nilainya dihitung runtime berdasarkan:
+         *
+         * credit_xxx
+         * +
+         * discount_percent
          */
         const discountPercent =
             getFieldValue(
@@ -1156,20 +1155,6 @@
                     "#discount_percent",
                     "[name='discount_percent']",
                     "[name='discountPercent']"
-                ]
-            );
-
-        /*
-         * Credit Final
-         */
-        const creditFinal =
-            getFieldValue(
-                form,
-                [
-                    "#creditFinal",
-                    "#credit_final",
-                    "[name='credit_final']",
-                    "[name='creditFinal']"
                 ]
             );
 
@@ -1274,7 +1259,9 @@
                 );
 
             if (value) {
-                supportedRatios.push(value);
+                supportedRatios.push(
+                    value
+                );
             }
         });
 
@@ -1296,7 +1283,10 @@
 
             if (ratioField) {
                 if (
-                    ratioField instanceof HTMLSelectElement &&
+                    typeof HTMLSelectElement !==
+                        "undefined" &&
+                    ratioField instanceof
+                        HTMLSelectElement &&
                     ratioField.multiple
                 ) {
                     supportedRatios =
@@ -1320,7 +1310,9 @@
 
         supportedRatios =
             Array.from(
-                new Set(supportedRatios)
+                new Set(
+                    supportedRatios
+                )
             );
 
         /* -----------------------------------------------------
@@ -1348,11 +1340,15 @@
                 );
 
             if (value) {
-                supportedResolutions.push(value);
+                supportedResolutions.push(
+                    value
+                );
             }
         });
 
-        if (!supportedResolutions.length) {
+        if (
+            !supportedResolutions.length
+        ) {
             const resolutionField =
                 queryFirst(
                     form,
@@ -1366,7 +1362,10 @@
 
             if (resolutionField) {
                 if (
-                    resolutionField instanceof HTMLSelectElement &&
+                    typeof HTMLSelectElement !==
+                        "undefined" &&
+                    resolutionField instanceof
+                        HTMLSelectElement &&
                     resolutionField.multiple
                 ) {
                     supportedResolutions =
@@ -1395,33 +1394,65 @@
                 )
             );
 
+        /*
+         * Payload CREATE sengaja hanya berisi:
+         *
+         * provider_id
+         * model_id
+         * model_name
+         * description
+         * discount_percent
+         * credit_480p
+         * credit_720p
+         * credit_1080p
+         * min_duration
+         * max_duration
+         * supported_ratios
+         * supported_resolutions
+         * status
+         *
+         * Tidak ada:
+         * credit_cost
+         * credit_final
+         */
         return {
-            provider_id: normalizeId(
-                providerId
-            ),
+            provider_id:
+                normalizeId(
+                    providerId
+                ),
 
-            model_id: normalizeText(
-                modelId
-            ),
+            model_id:
+                normalizeText(
+                    modelId
+                ),
 
-            model_name: normalizeText(
-                modelName
-            ),
+            model_name:
+                normalizeText(
+                    modelName
+                ),
 
-            description: normalizeText(
-                description
-            ),
+            description:
+                normalizeText(
+                    description
+                ),
 
-            credit_cost: creditCost,
-            discount_percent: discountPercent,
-            credit_final: creditFinal,
+            discount_percent:
+                discountPercent,
 
-            credit_480p: credit480p,
-            credit_720p: credit720p,
-            credit_1080p: credit1080p,
+            credit_480p:
+                credit480p,
 
-            min_duration: minDuration,
-            max_duration: maxDuration,
+            credit_720p:
+                credit720p,
+
+            credit_1080p:
+                credit1080p,
+
+            min_duration:
+                minDuration,
+
+            max_duration:
+                maxDuration,
 
             supported_ratios:
                 supportedRatios,
@@ -1429,9 +1460,10 @@
             supported_resolutions:
                 supportedResolutions,
 
-            status: normalizeStatus(
-                status
-            )
+            status:
+                normalizeStatus(
+                    status
+                )
         };
     }
 
@@ -1444,12 +1476,16 @@
         options = {}
     ) {
         const providers =
-            Array.isArray(options.providers)
+            Array.isArray(
+                options.providers
+            )
                 ? options.providers
                 : state.providers;
 
         const models =
-            Array.isArray(options.models)
+            Array.isArray(
+                options.models
+            )
                 ? options.models
                 : state.models;
 
@@ -1472,8 +1508,12 @@
 
         return {
             data: normalized,
-            valid: validation.valid,
-            errors: validation.errors
+
+            valid:
+                validation.valid,
+
+            errors:
+                validation.errors
         };
     }
 
@@ -1514,17 +1554,23 @@
         let callback = null;
 
         if (
-            typeof options.insert === "function"
+            typeof options.insert ===
+            "function"
         ) {
-            callback = options.insert;
+            callback =
+                options.insert;
         } else if (
-            typeof options.onSubmit === "function"
+            typeof options.onSubmit ===
+            "function"
         ) {
-            callback = options.onSubmit;
+            callback =
+                options.onSubmit;
         } else if (
-            typeof options.submit === "function"
+            typeof options.submit ===
+            "function"
         ) {
-            callback = options.submit;
+            callback =
+                options.submit;
         }
 
         if (!callback) {
@@ -1551,18 +1597,24 @@
             options.root !== undefined
         ) {
             state.root =
-                getRoot(options.root);
+                getRoot(
+                    options.root
+                );
         }
 
         if (
-            Array.isArray(options.providers)
+            Array.isArray(
+                options.providers
+            )
         ) {
             state.providers =
                 options.providers;
         }
 
         if (
-            Array.isArray(options.models)
+            Array.isArray(
+                options.models
+            )
         ) {
             state.models =
                 options.models;
@@ -1585,14 +1637,18 @@
         data = {}
     ) {
         if (
-            Array.isArray(data.providers)
+            Array.isArray(
+                data.providers
+            )
         ) {
             state.providers =
                 data.providers;
         }
 
         if (
-            Array.isArray(data.models)
+            Array.isArray(
+                data.models
+            )
         ) {
             state.models =
                 data.models;
@@ -1602,7 +1658,9 @@
             data.root !== undefined
         ) {
             state.root =
-                getRoot(data.root);
+                getRoot(
+                    data.root
+                );
         }
 
         return getState();
@@ -1610,10 +1668,17 @@
 
     function getState() {
         return {
-            active: state.active,
-            root: state.root,
-            providers: state.providers,
-            models: state.models
+            active:
+                state.active,
+
+            root:
+                state.root,
+
+            providers:
+                state.providers,
+
+            models:
+                state.models
         };
     }
 
@@ -1627,7 +1692,8 @@
     ) {
         if (
             event &&
-            typeof event.preventDefault === "function"
+            typeof event.preventDefault ===
+            "function"
         ) {
             event.preventDefault();
         }
@@ -1638,13 +1704,17 @@
             getRoot();
 
         const data =
-            collectFormData(root);
+            collectFormData(
+                root
+            );
 
         return await submit(
             data,
             {
                 ...options,
+
                 root,
+
                 providers:
                     Array.isArray(
                         options.providers
@@ -1701,7 +1771,9 @@
         options = {}
     ) {
         const data =
-            collectFormData(root);
+            collectFormData(
+                root
+            );
 
         const prepared =
             prepareCreateData(
@@ -1727,7 +1799,8 @@
 
         return {
             ...prepared,
-            formData: data
+            formData:
+                data
         };
     }
 
@@ -1756,8 +1829,6 @@
 
         validateModelData,
         validateForm,
-
-        calculateCreditFinal,
 
         findProvider,
         findDuplicateModel,
