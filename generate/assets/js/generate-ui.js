@@ -58,6 +58,21 @@ import {
 } from "./generate-state.js";
 
 
+/*
+ * generate-model.js menjadi sumber normalisasi model.
+ *
+ * Import dilakukan secara named export sehingga UI dapat
+ * menggunakan normalisasi credit yang sama dengan model
+ * loader tanpa membuat sumber harga kedua.
+ *
+ * Jika fungsi tersebut belum tersedia pada deployment lama,
+ * fallback lokal tetap digunakan di bawah.
+ */
+import {
+    getModelCreditForSelectedResolution
+} from "./generate-model.js";
+
+
 /* =========================================================
    ELEMENTS
 ========================================================= */
@@ -347,9 +362,6 @@ function readResolutionFromElement(
     }
 
 
-    /*
-     * Native select/input.
-     */
     const directValue =
         normalizeResolution(
             element.value
@@ -365,10 +377,6 @@ function readResolutionFromElement(
     }
 
 
-    /*
-     * Custom component yang menyimpan value
-     * di data-value.
-     */
     const dataValue =
         normalizeResolution(
             element.dataset?.value
@@ -384,10 +392,6 @@ function readResolutionFromElement(
     }
 
 
-    /*
-     * Custom component yang menyimpan selected
-     * value di attribute.
-     */
     const attributeValue =
         normalizeResolution(
             element.getAttribute(
@@ -405,9 +409,6 @@ function readResolutionFromElement(
     }
 
 
-    /*
-     * Radio / checkbox.
-     */
     if (
         element.checked
     ) {
@@ -438,8 +439,6 @@ function readResolutionFromElement(
 
 /* =========================================================
    GET SELECTED RESOLUTION
-   ---------------------------------------------------------
-   Tidak mengasumsikan struktur HTML tertentu.
 ========================================================= */
 
 export function getSelectedResolution() {
@@ -461,7 +460,7 @@ export function getSelectedResolution() {
     /*
      * -----------------------------------------------------
      * PRIORITAS 1
-     * Native/custom control langsung.
+     * Direct resolution controls.
      * -----------------------------------------------------
      */
 
@@ -515,8 +514,7 @@ export function getSelectedResolution() {
     /*
      * -----------------------------------------------------
      * PRIORITAS 2
-     * Semua control yang namanya berkaitan
-     * dengan resolution.
+     * Semua control terkait resolution.
      * -----------------------------------------------------
      */
 
@@ -562,7 +560,7 @@ export function getSelectedResolution() {
     /*
      * -----------------------------------------------------
      * PRIORITAS 3
-     * Radio / option yang sedang selected.
+     * Selected controls.
      * -----------------------------------------------------
      */
 
@@ -704,15 +702,11 @@ function normalizeDiscountPercent(
 
 
 /* =========================================================
-   READ MODEL RESOLUTION CREDIT
-   ---------------------------------------------------------
-   TIDAK membaca credit_cost.
-   TIDAK membaca credit_final global.
+   GET MODEL SOURCE OBJECTS
 ========================================================= */
 
-function getModelResolutionBaseCredit(
-    model,
-    resolution
+function getModelSourceObjects(
+    model
 ) {
 
     if (
@@ -721,68 +715,98 @@ function getModelResolutionBaseCredit(
             "object"
     ) {
 
+        return [];
+
+    }
+
+
+    const objects = [
+
+        model,
+
+        model.pricing,
+
+        model.credit,
+
+        model.config,
+
+        model.config?.pricing,
+
+        model.model,
+
+        model.model?.pricing,
+
+        model.repository,
+
+        model.repository?.pricing
+
+    ];
+
+
+    return objects.filter(
+        object =>
+            object &&
+            typeof object ===
+                "object"
+    );
+
+}
+
+
+/* =========================================================
+   READ MODEL RESOLUTION CREDIT
+   ---------------------------------------------------------
+   HANYA membaca credit per resolusi.
+
+   Tidak membaca:
+       credit_cost
+       credit_final global
+========================================================= */
+
+function getModelResolutionBaseCredit(
+    model,
+    resolution
+) {
+
+    const normalizedResolution =
+        normalizeResolution(
+            resolution
+        );
+
+
+    if (
+        !normalizedResolution
+    ) {
+
         return null;
 
     }
 
 
-    const pricing =
-        model.pricing &&
-        typeof model.pricing === "object"
-
-            ? model.pricing
-
-            : null;
+    const objects =
+        getModelSourceObjects(
+            model
+        );
 
 
-    const config =
-        model.config &&
-        typeof model.config === "object"
-
-            ? model.config
-
-            : null;
-
-
-    const configPricing =
-        config?.pricing &&
-        typeof config.pricing === "object"
-
-            ? config.pricing
-
-            : null;
-
-
-    let candidates = [];
+    let propertyNames = [];
 
 
     switch (
-        resolution
+        normalizedResolution
     ) {
 
         case "480p":
 
-            candidates = [
+            propertyNames = [
 
-                model.credit_480p,
+                "credit_480p",
 
-                model.credit480p,
+                "credit480p",
 
-                model.credit?.credit_480p,
+                "credit_base_480p",
 
-                model.credit?.credit480p,
-
-                pricing?.credit_480p,
-
-                pricing?.credit480p,
-
-                config?.credit_480p,
-
-                config?.credit480p,
-
-                configPricing?.credit_480p,
-
-                configPricing?.credit480p
+                "creditBase480p"
 
             ];
 
@@ -791,27 +815,15 @@ function getModelResolutionBaseCredit(
 
         case "720p":
 
-            candidates = [
+            propertyNames = [
 
-                model.credit_720p,
+                "credit_720p",
 
-                model.credit720p,
+                "credit720p",
 
-                model.credit?.credit_720p,
+                "credit_base_720p",
 
-                model.credit?.credit720p,
-
-                pricing?.credit_720p,
-
-                pricing?.credit720p,
-
-                config?.credit_720p,
-
-                config?.credit720p,
-
-                configPricing?.credit_720p,
-
-                configPricing?.credit720p
+                "creditBase720p"
 
             ];
 
@@ -820,27 +832,15 @@ function getModelResolutionBaseCredit(
 
         case "1080p":
 
-            candidates = [
+            propertyNames = [
 
-                model.credit_1080p,
+                "credit_1080p",
 
-                model.credit1080p,
+                "credit1080p",
 
-                model.credit?.credit_1080p,
+                "credit_base_1080p",
 
-                model.credit?.credit1080p,
-
-                pricing?.credit_1080p,
-
-                pricing?.credit1080p,
-
-                config?.credit_1080p,
-
-                config?.credit1080p,
-
-                configPricing?.credit_1080p,
-
-                configPricing?.credit1080p
+                "creditBase1080p"
 
             ];
 
@@ -855,21 +855,28 @@ function getModelResolutionBaseCredit(
 
 
     for (
-        const candidate
-        of candidates
+        const object
+        of objects
     ) {
 
-        const numeric =
-            normalizeCreditValue(
-                candidate
-            );
-
-
-        if (
-            numeric !== null
+        for (
+            const property
+            of propertyNames
         ) {
 
-            return numeric;
+            const numeric =
+                normalizeCreditValue(
+                    object[property]
+                );
+
+
+            if (
+                numeric !== null
+            ) {
+
+                return numeric;
+
+            }
 
         }
 
@@ -882,13 +889,7 @@ function getModelResolutionBaseCredit(
 
 
 /* =========================================================
-   READ EXPLICIT FINAL CREDIT
-   ---------------------------------------------------------
-   Hanya menerima FINAL CREDIT PER RESOLUSI.
-
-   Tidak menerima:
-       credit_final
-       credit_cost
+   READ EXPLICIT FINAL CREDIT PER RESOLUTION
 ========================================================= */
 
 function getExplicitResolutionFinalCredit(
@@ -896,10 +897,14 @@ function getExplicitResolutionFinalCredit(
     resolution
 ) {
 
+    const normalizedResolution =
+        normalizeResolution(
+            resolution
+        );
+
+
     if (
-        !model ||
-        typeof model !==
-            "object"
+        !normalizedResolution
     ) {
 
         return null;
@@ -907,63 +912,28 @@ function getExplicitResolutionFinalCredit(
     }
 
 
-    const pricing =
-        model.pricing &&
-        typeof model.pricing === "object"
-
-            ? model.pricing
-
-            : null;
+    const objects =
+        getModelSourceObjects(
+            model
+        );
 
 
-    const config =
-        model.config &&
-        typeof model.config === "object"
-
-            ? model.config
-
-            : null;
-
-
-    const configPricing =
-        config?.pricing &&
-        typeof config.pricing === "object"
-
-            ? config.pricing
-
-            : null;
-
-
-    let candidates = [];
+    let propertyNames = [];
 
 
     switch (
-        resolution
+        normalizedResolution
     ) {
 
         case "480p":
 
-            candidates = [
+            propertyNames = [
 
-                model.credit_final_480p,
+                "credit_final_480p",
 
-                model.creditFinal480p,
+                "creditFinal480p",
 
-                model.credit480pFinal,
-
-                pricing?.credit_final_480p,
-
-                pricing?.creditFinal480p,
-
-                pricing?.credit480pFinal,
-
-                config?.credit_final_480p,
-
-                config?.creditFinal480p,
-
-                configPricing?.credit_final_480p,
-
-                configPricing?.creditFinal480p
+                "credit480pFinal"
 
             ];
 
@@ -972,27 +942,13 @@ function getExplicitResolutionFinalCredit(
 
         case "720p":
 
-            candidates = [
+            propertyNames = [
 
-                model.credit_final_720p,
+                "credit_final_720p",
 
-                model.creditFinal720p,
+                "creditFinal720p",
 
-                model.credit720pFinal,
-
-                pricing?.credit_final_720p,
-
-                pricing?.creditFinal720p,
-
-                pricing?.credit720pFinal,
-
-                config?.credit_final_720p,
-
-                config?.creditFinal720p,
-
-                configPricing?.credit_final_720p,
-
-                configPricing?.creditFinal720p
+                "credit720pFinal"
 
             ];
 
@@ -1001,27 +957,13 @@ function getExplicitResolutionFinalCredit(
 
         case "1080p":
 
-            candidates = [
+            propertyNames = [
 
-                model.credit_final_1080p,
+                "credit_final_1080p",
 
-                model.creditFinal1080p,
+                "creditFinal1080p",
 
-                model.credit1080pFinal,
-
-                pricing?.credit_final_1080p,
-
-                pricing?.creditFinal1080p,
-
-                pricing?.credit1080pFinal,
-
-                config?.credit_final_1080p,
-
-                config?.creditFinal1080p,
-
-                configPricing?.credit_final_1080p,
-
-                configPricing?.creditFinal1080p
+                "credit1080pFinal"
 
             ];
 
@@ -1036,21 +978,28 @@ function getExplicitResolutionFinalCredit(
 
 
     for (
-        const candidate
-        of candidates
+        const object
+        of objects
     ) {
 
-        const numeric =
-            normalizeCreditValue(
-                candidate
-            );
-
-
-        if (
-            numeric !== null
+        for (
+            const property
+            of propertyNames
         ) {
 
-            return numeric;
+            const numeric =
+                normalizeCreditValue(
+                    object[property]
+                );
+
+
+            if (
+                numeric !== null
+            ) {
+
+                return numeric;
+
+            }
 
         }
 
@@ -1070,71 +1019,185 @@ function getModelDiscountPercent(
     model
 ) {
 
-    if (
-        !model ||
-        typeof model !==
-            "object"
+    const objects =
+        getModelSourceObjects(
+            model
+        );
+
+
+    for (
+        const object
+        of objects
     ) {
 
-        return 0;
+        const candidates = [
+
+            object.discount_percent,
+
+            object.discountPercent
+
+        ];
+
+
+        for (
+            const candidate
+            of candidates
+        ) {
+
+            if (
+                candidate === null ||
+                candidate === undefined ||
+                candidate === ""
+            ) {
+
+                continue;
+
+            }
+
+
+            return normalizeDiscountPercent(
+                candidate
+            );
+
+        }
 
     }
 
 
-    const pricing =
-        model.pricing &&
-        typeof model.pricing === "object"
+    return 0;
 
-            ? model.pricing
-
-            : null;
+}
 
 
-    const config =
-        model.config &&
-        typeof model.config === "object"
+/* =========================================================
+   LOCAL CREDIT RESOLVER
+   ---------------------------------------------------------
+   Dipakai sebagai fallback jika generate-model.js
+   belum mengekspos helper pada deployment lama.
+========================================================= */
 
-            ? model.config
+function resolveModelCreditLocally(
+    model,
+    resolution
+) {
 
-            : null;
-
-
-    const configPricing =
-        config?.pricing &&
-        typeof config.pricing === "object"
-
-            ? config.pricing
-
-            : null;
+    const normalizedResolution =
+        normalizeResolution(
+            resolution
+        );
 
 
-    return normalizeDiscountPercent(
+    if (
+        !model ||
+        !normalizedResolution
+    ) {
 
-        model.discount_percent ??
+        return null;
 
-        model.discountPercent ??
+    }
 
-        pricing?.discount_percent ??
 
-        pricing?.discountPercent ??
+    const explicitFinal =
+        getExplicitResolutionFinalCredit(
+            model,
+            normalizedResolution
+        );
 
-        config?.discount_percent ??
 
-        config?.discountPercent ??
+    const base =
+        getModelResolutionBaseCredit(
+            model,
+            normalizedResolution
+        );
 
-        configPricing?.discount_percent ??
 
-        configPricing?.discountPercent ??
+    const discountPercent =
+        getModelDiscountPercent(
+            model
+        );
 
-        0
 
-    );
+    /*
+     * Jika final per-resolution memang sudah diberikan
+     * oleh model configuration, gunakan langsung.
+     */
+
+    if (
+        explicitFinal !== null
+    ) {
+
+        return {
+
+            resolution:
+                normalizedResolution,
+
+            credit_base:
+                base,
+
+            discount_percent:
+                discountPercent,
+
+            credit_final:
+                explicitFinal
+
+        };
+
+    }
+
+
+    /*
+     * Tanpa base credit jangan membuat angka sendiri.
+     */
+
+    if (
+        base === null
+    ) {
+
+        return null;
+
+    }
+
+
+    const finalCredit =
+        base -
+        (
+            base *
+            discountPercent /
+            100
+        );
+
+
+    return {
+
+        resolution:
+            normalizedResolution,
+
+        credit_base:
+            base,
+
+        discount_percent:
+            discountPercent,
+
+        credit_final:
+            Math.max(
+                0,
+                finalCredit
+            )
+
+    };
 
 }
 
 
 /* =========================================================
    RESOLVE MODEL CREDIT
+   ---------------------------------------------------------
+   Prioritas:
+
+       1. generate-model.js
+       2. fallback lokal
+
+   Tidak pernah menggunakan global credit legacy.
 ========================================================= */
 
 export function resolveModelCredit(
@@ -1170,125 +1233,105 @@ export function resolveModelCredit(
 
     /*
      * -----------------------------------------------------
-     * CREDIT BASE
+     * PRIORITAS 1
+     * Gunakan helper dari generate-model.js.
      * -----------------------------------------------------
      */
 
-    const creditBase =
-        getModelResolutionBaseCredit(
-            model,
-            normalizedResolution
-        );
+    try {
+
+        if (
+            typeof getModelCreditForSelectedResolution ===
+            "function"
+        ) {
+
+            const result =
+                getModelCreditForSelectedResolution(
+                    model,
+                    normalizedResolution
+                );
 
 
-    /*
-     * -----------------------------------------------------
-     * EXPLICIT FINAL PER RESOLUTION
-     * -----------------------------------------------------
-     */
+            if (
+                result &&
+                typeof result ===
+                    "object"
+            ) {
 
-    const explicitFinal =
-        getExplicitResolutionFinalCredit(
-            model,
-            normalizedResolution
-        );
+                const finalCredit =
+                    normalizeCreditValue(
+                        result.credit_final ??
+                        result.creditFinal ??
+                        result.finalCredit
+                    );
 
 
-    /*
-     * Jika final per-resolution tersedia,
-     * gunakan nilai tersebut.
-     */
+                const baseCredit =
+                    normalizeCreditValue(
+                        result.credit_base ??
+                        result.creditBase
+                    );
 
-    if (
-        explicitFinal !== null
+
+                const discount =
+                    normalizeDiscountPercent(
+                        result.discount_percent ??
+                        result.discountPercent ??
+                        getModelDiscountPercent(
+                            model
+                        )
+                    );
+
+
+                if (
+                    finalCredit !== null
+                ) {
+
+                    return {
+
+                        resolution:
+                            normalizedResolution,
+
+                        credit_base:
+                            baseCredit,
+
+                        discount_percent:
+                            discount,
+
+                        credit_final:
+                            finalCredit
+
+                    };
+
+                }
+
+            }
+
+        }
+
+    } catch (
+        error
     ) {
 
-        return {
-
-            resolution:
-                normalizedResolution,
-
-            credit_base:
-                creditBase,
-
-            discount_percent:
-                getModelDiscountPercent(
-                    model
-                ),
-
-            credit_final:
-                explicitFinal
-
-        };
+        console.warn(
+            "[GEN-Z.AI][Generate UI] Helper model credit gagal, menggunakan fallback lokal.",
+            error
+        );
 
     }
 
 
     /*
-     * Tidak ada base credit.
-     *
-     * JANGAN mengambil:
-     *
-     * model.credit_cost
-     * model.credit_final
-     *
-     * dan JANGAN membuat default 50.
-     */
-
-    if (
-        creditBase === null
-    ) {
-
-        return null;
-
-    }
-
-
-    /*
      * -----------------------------------------------------
-     * DISCOUNT
+     * PRIORITAS 2
+     * Fallback lokal dari model object.
      * -----------------------------------------------------
      */
 
-    const discountPercent =
-        getModelDiscountPercent(
-            model
-        );
-
-
-    /*
-     * -----------------------------------------------------
-     * CREDIT FINAL
-     * -----------------------------------------------------
-     */
-
-    const creditFinal =
-        creditBase -
-        (
-            creditBase *
-            discountPercent /
-            100
-        );
-
-
-    return {
-
-        resolution:
-            normalizedResolution,
-
-        credit_base:
-            creditBase,
-
-        discount_percent:
-            discountPercent,
-
-        credit_final:
-            Math.max(
-                0,
-                creditFinal
-            )
-
-    };
+    return resolveModelCreditLocally(
+        model,
+        normalizedResolution
+    );
 
 }
 
@@ -1369,12 +1412,6 @@ function forceVisible(
 
 /* =========================================================
    CLEAR LEGACY CREDIT DATA
-   ---------------------------------------------------------
-   Membersihkan nilai lama pada tombol sehingga angka
-   hardcoded seperti "50" tidak menjadi sumber tampilan.
-
-   TIDAK mengubah API generate.
-   TIDAK mengubah account credit.
 ========================================================= */
 
 function clearLegacyButtonCredit(
@@ -1399,14 +1436,6 @@ function clearLegacyButtonCredit(
 
 /* =========================================================
    UPDATE GENERATE BUTTON CREDIT
-   ---------------------------------------------------------
-   Target utama:
-       #generateCreditValue
-
-   Jika button mempunyai elemen credit terpisah,
-   elemen tersebut juga disinkronkan.
-
-   Angka 50 tidak pernah dijadikan fallback.
 ========================================================= */
 
 function syncGenerateButtonCredit(
@@ -1439,12 +1468,6 @@ function syncGenerateButtonCredit(
             generateButton
         );
 
-
-        /*
-         * Jangan menghapus struktur tombol.
-         * Hanya bersihkan elemen credit jika memang
-         * merupakan elemen khusus credit.
-         */
 
         const creditElements =
             generateButton.querySelectorAll(
@@ -1529,6 +1552,7 @@ export function renderModelCredit(
     console.debug(
         "[GEN-Z.AI][Generate UI] renderModelCredit()",
         {
+
             modelId:
                 model?.model_id,
 
@@ -1550,6 +1574,7 @@ export function renderModelCredit(
                 Boolean(
                     generateCreditValue
                 )
+
         }
     );
 
@@ -1594,7 +1619,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * NO RESOLUTION
      * -----------------------------------------------------
-     */
+ */
 
     if (
         !resolution
@@ -1633,7 +1658,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * RESOLVE PRICING
      * -----------------------------------------------------
-     */
+ */
 
     const pricing =
         resolveModelCredit(
@@ -1646,7 +1671,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * CREDIT NOT AVAILABLE
      * -----------------------------------------------------
-     */
+ */
 
     if (
         !pricing
@@ -1671,6 +1696,43 @@ export function renderModelCredit(
         );
 
 
+        console.warn(
+            "[GEN-Z.AI][Generate UI] Credit resolusi tidak ditemukan.",
+            {
+                modelId:
+                    model?.model_id,
+
+                modelName:
+                    model?.model_name,
+
+                resolution,
+
+                modelCreditFields: {
+
+                    credit_480p:
+                        model?.credit_480p,
+
+                    credit_720p:
+                        model?.credit_720p,
+
+                    credit_1080p:
+                        model?.credit_1080p,
+
+                    creditFinal480p:
+                        model?.credit_final_480p,
+
+                    creditFinal720p:
+                        model?.credit_final_720p,
+
+                    creditFinal1080p:
+                        model?.credit_final_1080p
+
+                }
+
+            }
+        );
+
+
         return null;
 
     }
@@ -1686,7 +1748,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * VALIDATE
      * -----------------------------------------------------
-     */
+ */
 
     if (
         !Number.isFinite(
@@ -1723,7 +1785,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * RENDER MODEL CREDIT
      * -----------------------------------------------------
-     */
+ */
 
     const formatted =
         formatNumber(
@@ -1749,7 +1811,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * SYNC BUTTON
      * -----------------------------------------------------
-     */
+ */
 
     syncGenerateButtonCredit(
         generateButton,
@@ -1797,12 +1859,6 @@ function bindResolutionCreditSync() {
         "true";
 
 
-    /*
-     * -----------------------------------------------------
-     * CHANGE
-     * -----------------------------------------------------
-     */
-
     generateForm.addEventListener(
         "change",
         event => {
@@ -1831,12 +1887,6 @@ function bindResolutionCreditSync() {
     );
 
 
-    /*
-     * -----------------------------------------------------
-     * INPUT
-     * -----------------------------------------------------
-     */
-
     generateForm.addEventListener(
         "input",
         event => {
@@ -1864,15 +1914,6 @@ function bindResolutionCreditSync() {
         }
     );
 
-
-    /*
-     * -----------------------------------------------------
-     * CLICK
-     * -----------------------------------------------------
-     *
-     * Custom resolution selector kadang tidak
-     * mengeluarkan change/input.
-     */
 
     generateForm.addEventListener(
         "click",
@@ -1905,11 +1946,6 @@ function bindResolutionCreditSync() {
 
             }
 
-
-            /*
-             * Tunggu custom UI menyelesaikan perubahan
-             * selected state terlebih dahulu.
-             */
 
             if (
                 typeof requestAnimationFrame ===
@@ -2539,9 +2575,6 @@ export function setLoading(
         }
 
 
-        /*
-         * Credit tetap mengikuti resolusi.
-         */
         renderModelCredit(
             getCurrentModel()
         );
