@@ -37,7 +37,7 @@
 
    CREDIT FINAL:
    - Dihitung di aplikasi
-   - Tidak perlu disimpan di Supabase
+   - Tidak disimpan di Supabase
 
    Tidak bertanggung jawab:
    - Search
@@ -564,10 +564,9 @@
          *   credit -
          *   (credit * discount / 100)
          *
-         * Hasil perhitungan tidak disimpan
-         * ke Supabase.
+         * Hasil perhitungan hanya berada
+         * di memory aplikasi.
          */
-
 
         const discountPercent =
             Math.min(
@@ -583,6 +582,14 @@
                 )
             );
 
+
+        /*
+         * Jangan gunakan fallback ke credit_cost.
+         *
+         * null tetap null agar data pricing
+         * yang belum tersedia tidak dianggap
+         * memiliki harga 0.
+         */
 
         const credit480p =
             normalizeNumber(
@@ -614,7 +621,10 @@
 
             if (
                 credit === null ||
-                credit === undefined
+                credit === undefined ||
+                !Number.isFinite(
+                    Number(credit)
+                )
             ) {
 
                 return null;
@@ -622,14 +632,18 @@
             }
 
 
-            return Math.max(
-                0,
-                credit -
+            const finalCredit =
+                Number(credit) -
                 (
-                    credit *
+                    Number(credit) *
                     discountPercent /
                     100
-                )
+                );
+
+
+            return Math.max(
+                0,
+                finalCredit
             );
 
         }
@@ -722,10 +736,9 @@
                 credit1080p,
 
             /*
-             * Calculated values.
+             * Runtime-only calculated values.
              *
-             * These are runtime values only.
-             * They are NOT database columns.
+             * These are NOT database columns.
              */
 
             credit_final_480p:
@@ -860,7 +873,12 @@
 
     /* =========================================================
        FORMAT CREDIT
-    ========================================================= */
+       ---------------------------------------------------------
+       PENTING:
+       Credit dapat berupa desimal.
+       Contoh:
+       67.5 -> 67,5 Credit
+       ========================================================= */
 
     function formatCredit(value) {
 
@@ -876,7 +894,10 @@
 
 
         return (
-            formatNumber(number) +
+            formatDecimal(
+                number,
+                2
+            ) +
             " Credit"
         );
 
