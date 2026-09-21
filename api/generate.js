@@ -1459,13 +1459,36 @@ function decryptCredential(
 
 /* =========================================================
    LOAD PROVIDER API KEY
+   ---------------------------------------------------------
+   SOURCE OF TRUTH:
+       public.provider_credentials
+
+   SCHEMA:
+       provider_id
+       api_key_ciphertext
+       api_key_iv
+       api_key_tag
+
+   SECURITY:
+   - API key hanya dibaca server-side
+   - API key didekripsi server-side
+   - API key tidak pernah dikirim ke frontend
+   - Tidak menggunakan kolom api_key lama
    ========================================================= */
 
 async function loadProviderApiKey(
     providerCode
 ) {
 
-    if (!providerCode) {
+    const normalizedProviderCode =
+        String(
+            providerCode || ""
+        ).trim();
+
+
+    if (
+        !normalizedProviderCode
+    ) {
 
         throw new Error(
             "Provider ID is missing"
@@ -1474,37 +1497,78 @@ async function loadProviderApiKey(
     }
 
 
+    /* =====================================================
+       QUERY CREDENTIAL
+       ===================================================== */
+
     const params =
         new URLSearchParams();
 
 
+    /*
+     * Jangan menggunakan select=*.
+     *
+     * Hanya ambil field credential yang memang
+     * diperlukan server.
+     */
+
     params.set(
         "select",
-        "*"
+        [
+            "id",
+            "provider_id",
+            "api_key_ciphertext",
+            "api_key_iv",
+            "api_key_tag",
+            "created_at",
+            "updated_at"
+        ].join(",")
     );
 
 
     params.set(
         "provider_id",
-        `eq.${providerCode}`
+        `eq.${normalizedProviderCode}`
     );
 
 
     params.set(
         "limit",
-        "20"
+        "1"
     );
 
 
-    const credentials =
-        await supabaseRequest(
-            `/rest/v1/provider_credentials?${params.toString()}`,
-            {
-                method:
-                    "GET"
-            }
+    let credentials;
+
+
+    try {
+
+        credentials =
+            await supabaseRequest(
+                `/rest/v1/provider_credentials?${params.toString()}`,
+                {
+                    method:
+                        "GET"
+                }
+            );
+
+    } catch (error) {
+
+        console.error(
+            "[generate] Failed reading provider_credentials:",
+            error
         );
 
+        throw new Error(
+            `Failed to read provider credential for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    /* =====================================================
+       VALIDATE ROW
+       ===================================================== */
 
     if (
         !Array.isArray(
@@ -1514,91 +1578,237 @@ async function loadProviderApiKey(
     ) {
 
         throw new Error(
-            `No provider credential found for ${providerCode}`
+            `No provider credential found for ${normalizedProviderCode}`
         );
 
     }
 
 
-    /*
-     * Prioritas credential aktif.
-     */
-
     const credential =
-        credentials.find(
-            item => {
-
-                const status =
-                    String(
-                        item.status ||
-                        ""
-                    )
-                        .trim()
-                        .toLowerCase();
-
-
-                return (
-
-                    status ===
-                        "active" ||
-
-                    item.is_active ===
-                        true ||
-
-                    item.active ===
-                        true
-
-                );
-
-            }
-        ) ||
         credentials[0];
 
 
-    /*
-     * Cari field credential.
-     */
-
-    const encryptedApiKey =
-
-        credential.api_key ||
-
-        credential.encrypted_api_key ||
-
-        credential.credential ||
-
-        credential.secret ||
-
-        credential.value;
-
-
     if (
-        !encryptedApiKey
+        !credential ||
+        typeof credential !==
+            "object"
     ) {
 
         throw new Error(
-            `Provider credential exists but API key is empty for ${providerCode}`
+            `Invalid provider credential for ${normalizedProviderCode}`
         );
 
     }
 
 
-    const apiKey =
-        decryptCredential(
-            encryptedApiKey
-        );
+    /* =====================================================
+       READ ENCRYPTED FIELDS
+       ===================================================== */
+
+    const ciphertext =
+        String(
+            credential.api_key_ciphertext ||
+            ""
+        ).trim();
 
 
-    if (!apiKey) {
+    const iv =
+        String(
+            credential.api_key_iv ||
+            ""
+        ).trim();
+
+
+    const authTag =
+        String(
+            credential.api_key_tag ||
+            ""
+        ).trim();
+
+
+    /* =====================================================
+       VALIDATE ENCRYPTED DATA
+       ===================================================== */
+
+    if (
+        !ciphertext
+    ) {
 
         throw new Error(
-            `Unable to resolve provider API key for ${providerCode}`
+            `Provider credential ciphertext is empty for ${normalizedProviderCode}`
         );
 
     }
 
 
-    return apiKey.trim();
+    if (
+        !iv
+    ) {
+
+        throw new Error(
+            `Provider credential IV is empty for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    if (
+        !authTag
+    ) {
+
+        throw new Error(
+            `Provider credential authentication tag is empty for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    /* =====================================================
+       DECODE
+       ===================================================== */
+
+    let ivBuffer;
+    let authTagBuffer;
+    let ciphertextBuffer;
+
+
+    try {
+
+        ivBuffer =
+            decodeBuffer(
+                iv
+            );
+
+
+        authTagBuffer =
+            decodeBuffer(
+                authTag
+            );
+
+
+        ciphertextBuffer =
+            decodeBuffer(
+                ciphertext
+            );
+
+    } catch (error) {
+
+        console.error(
+            "[generate] Failed decoding provider credential:",
+            error
+        );
+
+        throw new Error(
+            `Invalid encrypted provider credential format for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    if (
+        !ivBuffer
+    ) {
+
+        throw new Error(
+            `Provider credential IV could not be decoded for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    if (
+        !authTagBuffer
+    ) {
+
+        throw new Error(
+            `Provider credential authentication tag could not be decoded for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    if (
+        !ciphertextBuffer
+    ) {
+
+        throw new Error(
+            `Provider credential ciphertext could not be decoded for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    /* =====================================================
+       DECRYPT
+       ===================================================== */
+
+    let apiKey;
+
+
+    try {
+
+        apiKey =
+            decryptAesGcm(
+                ivBuffer,
+                authTagBuffer,
+                ciphertextBuffer
+            );
+
+    } catch (error) {
+
+        console.error(
+            "[generate] Provider credential decryption failed:",
+            error
+        );
+
+        throw new Error(
+            `Unable to decrypt provider API credential for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    /* =====================================================
+       VALIDATE PLAINTEXT
+       ===================================================== */
+
+    const normalizedApiKey =
+        String(
+            apiKey || ""
+        ).trim();
+
+
+    if (
+        !normalizedApiKey
+    ) {
+
+        throw new Error(
+            `Decrypted provider API key is empty for ${normalizedProviderCode}`
+        );
+
+    }
+
+
+    /*
+     * Jangan pernah console.log API key.
+     */
+
+    console.debug(
+        "[generate] Provider API credential resolved successfully:",
+        {
+            provider_id:
+                normalizedProviderCode,
+
+            credential_id:
+                credential.id,
+
+            has_api_key:
+                true
+        }
+    );
+
+
+    return normalizedApiKey;
 
 }
 
