@@ -32,19 +32,24 @@
        ===================================================== */
 
     const MODEL_FIELDS = [
-        "provider_id",
-        "model_id",
-        "model_name",
-        "description",
-        "credit_cost",
-        "discount_percent",
-        "credit_final",
-        "min_duration",
-        "max_duration",
-        "supported_ratios",
-        "supported_resolutions",
-        "status"
-    ];
+    "provider_id",
+    "model_id",
+    "model_name",
+    "description",
+    "credit_cost",
+    "discount_percent",
+    "credit_final",
+
+    "credit_480p",
+    "credit_720p",
+    "credit_1080p",
+
+    "min_duration",
+    "max_duration",
+    "supported_ratios",
+    "supported_resolutions",
+    "status"
+];
 
     const VALID_STATUS = [
         "active",
