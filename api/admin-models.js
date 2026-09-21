@@ -506,19 +506,19 @@ const verifyAdmin = async (
 // MODEL FIELDS
 // ========================================
 //
-// IMPORTANT:
-// credit_cost dan credit_final sengaja
-// tidak lagi diambil dari database.
+// PRICING DATABASE:
+// - credit_480p
+// - credit_720p
+// - credit_1080p
+// - discount_percent
 //
-// Harga model sekarang menggunakan:
+// LEGACY:
+// - credit_cost  -> TIDAK digunakan
+// - credit_final -> TIDAK digunakan
 //
-// credit_480p
-// credit_720p
-// credit_1080p
-// discount_percent
-//
-// Credit final dihitung runtime.
-//
+// Credit final dihitung runtime oleh
+// Generate/API generate.
+// ========================================
 
 const MODEL_FIELDS = [
 
@@ -774,6 +774,19 @@ const cleanArray = (
 
 // ========================================
 // CLEAN MODEL
+// ========================================
+//
+// Hanya field yang memang diizinkan yang
+// diteruskan ke database.
+//
+// credit_cost dan credit_final sengaja
+// tidak pernah dimasukkan ke model.
+//
+// Jika frontend lama masih mengirim:
+// - credit_cost
+// - credit_final
+//
+// keduanya otomatis diabaikan.
 // ========================================
 
 const cleanModel = (
@@ -1104,6 +1117,23 @@ const cleanModel = (
             .toLowerCase();
 
     }
+
+
+    // ====================================
+    // EXPLICIT LEGACY PROTECTION
+    // ====================================
+    //
+    // Jangan pernah meneruskan field lama
+    // meskipun suatu saat cleanModel()
+    // dikembangkan kembali.
+    //
+    // Saat ini keduanya memang tidak pernah
+    // dimasukkan ke model, tetapi delete ini
+    // menjadi lapisan pengaman tambahan.
+    // ====================================
+
+    delete model.credit_cost;
+    delete model.credit_final;
 
 
     return model;
@@ -2605,6 +2635,22 @@ const createModel = async (
 
 
     // ====================================
+    // LEGACY PRICING PROTECTION
+    // ====================================
+    //
+    // Jangan pernah menyimpan:
+    // - credit_cost
+    // - credit_final
+    //
+    // Pricing database hanya menggunakan
+    // credit_480p / 720p / 1080p + discount.
+    // ====================================
+
+    delete model.credit_cost;
+    delete model.credit_final;
+
+
+    // ====================================
     // INSERT
     // ====================================
 
@@ -2731,6 +2777,19 @@ const updateModel = async (
         );
 
     }
+
+
+    // ====================================
+    // LEGACY PRICING PROTECTION
+    // ====================================
+    //
+    // Field lama tidak pernah diteruskan
+    // ke Supabase walaupun request frontend
+    // masih membawanya.
+    // ====================================
+
+    delete model.credit_cost;
+    delete model.credit_final;
 
 
     // ====================================
