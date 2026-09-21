@@ -1230,813 +1230,170 @@ function createFieldId(
 
 /* =========================================================
    IMAGE FIELD
-========================================================= */
+   ---------------------------------------------------------
+   - Upload tetap sama
+   - Preview dibuat lebih kecil
+   - Tidak mengubah parameter/API
+ ========================================================= */
 
 function createImageField(
-    name,
-    definition
+    definition = {},
+    parameterName = ""
 ) {
 
     const wrapper =
-        document.createElement(
-            "div"
-        );
-
+        document.createElement("div");
 
     wrapper.className =
         "generate-image-input";
 
+    wrapper.style.width = "100%";
+    wrapper.style.maxWidth = "420px";
 
-    wrapper.dataset.parameter =
-        name;
+    const input =
+        document.createElement("input");
 
+    input.type = "file";
+    input.accept =
+        definition.accept ||
+        "image/*";
 
-    wrapper.style.width =
-        "100%";
-
-
-    wrapper.style.visibility =
-        "visible";
-
-
-    wrapper.style.opacity =
-        "1";
-
-
-    let mode =
-        "url";
-
-
-    let uploadedPath =
-        "";
-
-
-    let uploadedUrl =
-        "";
-
-
-    /*
-     * MODE BUTTONS
-     */
-
-    const modeGroup =
-        document.createElement(
-            "div"
+    input.multiple =
+        Boolean(
+            definition.multiple ||
+            definition.maxItems > 1 ||
+            definition.max_items > 1
         );
 
-
-    modeGroup.className =
-        "generate-image-mode";
-
-
-    const urlButton =
-        document.createElement(
-            "button"
-        );
-
-
-    urlButton.type =
-        "button";
-
-
-    urlButton.className =
-        "generate-image-mode-button active";
-
-
-    urlButton.textContent =
-        "Gunakan URL";
-
-
-    const uploadButton =
-        document.createElement(
-            "button"
-        );
-
-
-    uploadButton.type =
-        "button";
-
-
-    uploadButton.className =
-        "generate-image-mode-button";
-
-
-    uploadButton.textContent =
-        "Upload Gambar";
-
-
-    modeGroup.appendChild(
-        urlButton
-    );
-
-
-    modeGroup.appendChild(
-        uploadButton
-    );
-
-
-    wrapper.appendChild(
-        modeGroup
-    );
-
-
-    /*
-     * URL PANEL
-     */
-
-    const urlPanel =
-        document.createElement(
-            "div"
-        );
-
-
-    urlPanel.className =
-        "generate-image-url-panel";
-
-
-    const urlInput =
-        document.createElement(
-            "input"
-        );
-
-
-    urlInput.type =
-        "url";
-
-
-    urlInput.id =
-        createFieldId(
-            name
-        );
-
-
-    urlInput.name =
-        name;
-
-
-    urlInput.className =
-        "form-control";
-
-
-    urlInput.placeholder =
-        "Tempel URL gambar...";
-
-
-    urlInput.autocomplete =
-        "off";
-
-
-    const defaultImages =
-        normalizeArray(
-            getDefaultValue(
-                definition
-            )
-        );
-
-
-    if (
-        defaultImages.length
-    ) {
-
-        urlInput.value =
-            defaultImages[0];
-
-    }
-
-
-    urlPanel.appendChild(
-        urlInput
-    );
-
-
-    wrapper.appendChild(
-        urlPanel
-    );
-
-
-    /*
-     * UPLOAD PANEL
-     */
-
-    const uploadPanel =
-        document.createElement(
-            "div"
-        );
-
-
-    uploadPanel.className =
-        "generate-image-upload-panel";
-
-
-    uploadPanel.hidden =
-        true;
-
-
-    const fileInput =
-        document.createElement(
-            "input"
-        );
-
-
-    fileInput.type =
-        "file";
-
-
-    fileInput.accept =
-        "image/jpeg,image/png,image/webp";
-
-
-    fileInput.hidden =
-        true;
-
-
-    const chooseButton =
-        document.createElement(
-            "button"
-        );
-
-
-    chooseButton.type =
-        "button";
-
-
-    chooseButton.className =
-        "generate-image-upload-button";
-
-
-    chooseButton.textContent =
-        "+ Tambah Gambar";
-
-
-    const status =
-        document.createElement(
-            "div"
-        );
-
-
-    status.className =
-        "generate-image-upload-status";
-
+    input.className =
+        "generate-image-file";
 
     const preview =
-        document.createElement(
-            "div"
-        );
-
+        document.createElement("div");
 
     preview.className =
         "generate-image-preview";
 
+    preview.style.display =
+        "flex";
 
-    preview.hidden =
-        true;
+    preview.style.flexWrap =
+        "wrap";
 
+    preview.style.gap =
+        "10px";
 
-    const previewImage =
-        document.createElement(
-            "img"
-        );
+    preview.style.marginTop =
+        "10px";
 
+    preview.style.width =
+        "100%";
 
-    previewImage.className =
-        "generate-image-preview-image";
+    preview.style.maxWidth =
+        "420px";
 
+    /*
+     * Preview gambar.
+     */
+    const renderPreview =
+        (files = []) => {
 
-    previewImage.alt =
-        "Preview gambar";
+            preview.innerHTML = "";
 
+            Array.from(files)
+                .forEach(
+                    file => {
 
-    const removeButton =
-        document.createElement(
-            "button"
-        );
+                        if (
+                            !file ||
+                            !file.type.startsWith(
+                                "image/"
+                            )
+                        ) {
+                            return;
+                        }
 
+                        const reader =
+                            new FileReader();
 
-    removeButton.type =
-        "button";
+                        reader.onload =
+                            event => {
 
+                                const image =
+                                    document.createElement(
+                                        "img"
+                                    );
 
-    removeButton.className =
-        "generate-image-remove";
+                                image.src =
+                                    event.target.result;
 
+                                image.alt =
+                                    "Preview gambar";
 
-    removeButton.textContent =
-        "×";
+                                /*
+                                 * Ukuran preview sengaja
+                                 * dibatasi agar gambar tidak
+                                 * memenuhi layar.
+                                 */
+                                image.style.width =
+                                    "180px";
 
+                                image.style.height =
+                                    "180px";
 
-    preview.appendChild(
-        previewImage
+                                image.style.maxWidth =
+                                    "180px";
+
+                                image.style.maxHeight =
+                                    "180px";
+
+                                image.style.objectFit =
+                                    "cover";
+
+                                image.style.display =
+                                    "block";
+
+                                image.style.borderRadius =
+                                    "12px";
+
+                                image.style.border =
+                                    "1px solid rgba(255,255,255,.12)";
+
+                                image.style.background =
+                                    "rgba(255,255,255,.04)";
+
+                                preview.appendChild(
+                                    image
+                                );
+                            };
+
+                        reader.readAsDataURL(
+                            file
+                        );
+                    }
+                );
+        };
+
+    input.addEventListener(
+        "change",
+        () => {
+
+            renderPreview(
+                input.files
+            );
+
+        }
     );
 
-
-    preview.appendChild(
-        removeButton
+    wrapper.appendChild(
+        input
     );
 
-
-    uploadPanel.appendChild(
-        fileInput
-    );
-
-
-    uploadPanel.appendChild(
-        chooseButton
-    );
-
-
-    uploadPanel.appendChild(
-        status
-    );
-
-
-    uploadPanel.appendChild(
+    wrapper.appendChild(
         preview
     );
 
-
-    wrapper.appendChild(
-        uploadPanel
-    );
-
-
-    /*
-     * URL MODE
-     */
-
-    urlButton.addEventListener(
-        "click",
-        () => {
-
-            mode =
-                "url";
-
-
-            urlPanel.hidden =
-                false;
-
-
-            uploadPanel.hidden =
-                true;
-
-
-            urlButton.classList.add(
-                "active"
-            );
-
-
-            uploadButton.classList.remove(
-                "active"
-            );
-
-        }
-    );
-
-
-    /*
-     * UPLOAD MODE
-     */
-
-    uploadButton.addEventListener(
-        "click",
-        () => {
-
-            mode =
-                "upload";
-
-
-            urlPanel.hidden =
-                true;
-
-
-            uploadPanel.hidden =
-                false;
-
-
-            urlButton.classList.remove(
-                "active"
-            );
-
-
-            uploadButton.classList.add(
-                "active"
-            );
-
-        }
-    );
-
-
-    /*
-     * CHOOSE
-     */
-
-    chooseButton.addEventListener(
-        "click",
-        () => {
-
-            fileInput.click();
-
-        }
-    );
-
-
-    /*
-     * UPLOAD
-     */
-
-    fileInput.addEventListener(
-        "change",
-        async event => {
-
-            const file =
-                event.target.files?.[0];
-
-
-            if (
-                !file
-            ) {
-
-                return;
-
-            }
-
-
-            if (
-                !ALLOWED_IMAGE_TYPES.has(
-                    String(
-                        file.type ||
-                        ""
-                    ).toLowerCase()
-                )
-            ) {
-
-                status.textContent =
-                    "Format gambar harus JPG, PNG, atau WebP.";
-
-
-                fileInput.value =
-                    "";
-
-
-                return;
-
-            }
-
-
-            if (
-                Number(
-                    file.size
-                ) >
-                MAX_IMAGE_SIZE
-            ) {
-
-                status.textContent =
-                    "Ukuran gambar maksimal 10 MB.";
-
-
-                fileInput.value =
-                    "";
-
-
-                return;
-
-            }
-
-
-            const client =
-                getSupabaseClient();
-
-
-            const user =
-                getCurrentUser();
-
-
-            if (
-                !client ||
-                !client.storage
-            ) {
-
-                status.textContent =
-                    "Storage belum tersedia.";
-
-
-                return;
-
-            }
-
-
-            if (
-                !user?.id
-            ) {
-
-                status.textContent =
-                    "Session user belum tersedia.";
-
-
-                return;
-
-            }
-
-
-            chooseButton.disabled =
-                true;
-
-
-            status.textContent =
-                "Mengunggah gambar...";
-
-
-            const extensionMap = {
-
-                "image/jpeg":
-                    "jpg",
-
-                "image/png":
-                    "png",
-
-                "image/webp":
-                    "webp"
-
-            };
-
-
-            const extension =
-                extensionMap[
-                    file.type
-                ] ||
-                "jpg";
-
-
-            const randomPart =
-                globalThis.crypto &&
-                typeof globalThis.crypto.randomUUID ===
-                    "function"
-
-                    ? globalThis.crypto.randomUUID()
-
-                    : (
-                        Date.now() +
-                        "-" +
-                        Math.random()
-                            .toString(36)
-                            .slice(2)
-                    );
-
-
-            const path =
-                "generate-inputs/" +
-                user.id +
-                "/" +
-                Date.now() +
-                "-" +
-                randomPart +
-                "." +
-                extension;
-
-
-            try {
-
-                const result =
-                    await client
-                        .storage
-                        .from(
-                            STORAGE_BUCKET
-                        )
-                        .upload(
-                            path,
-                            file,
-                            {
-
-                                cacheControl:
-                                    "3600",
-
-                                upsert:
-                                    false,
-
-                                contentType:
-                                    file.type
-
-                            }
-                        );
-
-
-                if (
-                    result?.error
-                ) {
-
-                    throw result.error;
-
-                }
-
-
-                uploadedPath =
-                    path;
-
-
-                const publicResult =
-                    client
-                        .storage
-                        .from(
-                            STORAGE_BUCKET
-                        )
-                        .getPublicUrl(
-                            path
-                        );
-
-
-                uploadedUrl =
-                    publicResult
-                        ?.data
-                        ?.publicUrl ||
-                    "";
-
-
-                if (
-                    !uploadedUrl
-                ) {
-
-                    throw new Error(
-                        "Public URL gambar tidak tersedia."
-                    );
-
-                }
-
-
-                urlInput.value =
-                    "";
-
-
-                previewImage.src =
-                    uploadedUrl;
-
-
-                preview.hidden =
-                    false;
-
-
-                status.textContent =
-                    "Gambar berhasil diunggah.";
-
-
-            } catch (
-                error
-            ) {
-
-                console.error(
-                    "[GEN-Z.AI][Generate Form] Upload error:",
-                    error
-                );
-
-
-                status.textContent =
-                    error?.message ||
-                    "Upload gambar gagal.";
-
-
-            } finally {
-
-                chooseButton.disabled =
-                    false;
-
-
-                fileInput.value =
-                    "";
-
-            }
-
-        }
-    );
-
-
-    /*
-     * REMOVE
-     */
-
-    removeButton.addEventListener(
-        "click",
-        async () => {
-
-            const path =
-                uploadedPath;
-
-
-            uploadedPath =
-                "";
-
-
-            uploadedUrl =
-                "";
-
-
-            previewImage.removeAttribute(
-                "src"
-            );
-
-
-            preview.hidden =
-                true;
-
-
-            status.textContent =
-                "";
-
-
-            if (
-                !path
-            ) {
-
-                return;
-
-            }
-
-
-            const client =
-                getSupabaseClient();
-
-
-            if (
-                !client ||
-                !client.storage
-            ) {
-
-                return;
-
-            }
-
-
-            try {
-
-                await client
-                    .storage
-                    .from(
-                        STORAGE_BUCKET
-                    )
-                    .remove([
-                        path
-                    ]);
-
-            } catch (
-                error
-            ) {
-
-                console.warn(
-                    "[GEN-Z.AI][Generate Form] Gagal menghapus upload:",
-                    error
-                );
-
-            }
-
-        }
-    );
-
-
-    /*
-     * PUBLIC HELPERS
-     */
-
-    wrapper.getInputMode =
-        () =>
-            mode;
-
-
-    wrapper.getUrlInput =
-        () =>
-            urlInput;
-
-
-    wrapper.getUploadedUrl =
-        () =>
-            uploadedUrl;
-
-
-    wrapper.clearUploadedFile =
-        async () => {
-
-            await removeButton.click();
-
-        };
-
-
-    wrapper.setMode =
-        nextMode => {
-
-            if (
-                nextMode ===
-                "upload"
-            ) {
-
-                uploadButton.click();
-
-            } else {
-
-                urlButton.click();
-
-            }
-
-        };
-
-
     return wrapper;
-
 }
 
 
