@@ -9,20 +9,12 @@
 
     <title>Edit Model - GEN-Z.AI</title>
 
-    <!-- =====================================================
-         GLOBAL GEN-Z.AI PREMIUM THEME
-    ====================================================== -->
     <link
         rel="stylesheet"
         href="../assets/css/genz-premium.css"
     >
 
     <style>
-        /* =====================================================
-           MODEL EDIT PAGE
-           Premium Admin Panel compatible
-        ====================================================== */
-
         * {
             box-sizing: border-box;
         }
@@ -104,17 +96,9 @@
                 rgba(255,255,255,.95);
         }
 
-        /* =====================================================
-           APP
-        ====================================================== */
-
         .app {
             min-height: 100vh;
         }
-
-        /* =====================================================
-           NAV TOGGLE
-        ====================================================== */
 
         .nav-toggle {
             position: fixed;
@@ -159,10 +143,6 @@
                 0 10px 30px rgba(0,0,0,.35);
         }
 
-        /* =====================================================
-           SIDEBAR
-        ====================================================== */
-
         .sidebar {
             position: fixed;
             inset: 0 auto 0 0;
@@ -197,12 +177,8 @@
         .brand {
             display: flex;
             align-items: center;
-
             gap: 11px;
-
-            padding:
-                4px 10px 25px;
-
+            padding: 4px 10px 25px;
             color: #fff;
         }
 
@@ -235,14 +211,14 @@
         .brand-text {
             font-size: 18px;
             font-weight: 950;
-
             letter-spacing: .5px;
         }
 
         .brand-sub {
             margin-top: 2px;
 
-            color: rgba(255,255,255,.38);
+            color:
+                rgba(255,255,255,.38);
 
             font-size: 9px;
             font-weight: 800;
@@ -268,7 +244,6 @@
         .nav {
             display: flex;
             flex-direction: column;
-
             gap: 5px;
         }
 
@@ -296,7 +271,6 @@
 
         .nav a:hover {
             color: #fff;
-
             background:
                 rgba(255,255,255,.055);
         }
@@ -318,9 +292,7 @@
 
         .nav-icon {
             width: 22px;
-
             text-align: center;
-
             font-size: 16px;
         }
 
@@ -331,7 +303,6 @@
 
         .sidebar-bottom {
             position: absolute;
-
             left: 16px;
             right: 16px;
             bottom: 20px;
@@ -339,7 +310,6 @@
 
         .logout {
             width: 100%;
-
             min-height: 42px;
 
             border:
@@ -391,13 +361,8 @@
                 blur(5px);
         }
 
-        /* =====================================================
-           MAIN
-        ====================================================== */
-
         .main {
             width: 100%;
-
             min-height: 100vh;
 
             margin-left: 245px;
@@ -420,10 +385,6 @@
             margin:
                 0 auto;
         }
-
-        /* =====================================================
-           HEADER
-        ====================================================== */
 
         .page-header {
             display: flex;
@@ -553,10 +514,6 @@
                 0 0 25px rgba(255,23,68,.40);
         }
 
-        /* =====================================================
-           ALERT
-        ====================================================== */
-
         .alert {
             display: none;
 
@@ -613,10 +570,6 @@
                 #8de6b4;
         }
 
-        /* =====================================================
-           COMMON CARDS
-        ====================================================== */
-
         .model-hero,
         .form-card {
             position: relative;
@@ -671,10 +624,6 @@
                 0 35px 100px rgba(0,0,0,.34),
                 0 0 42px rgba(255,23,68,.07);
         }
-
-        /* =====================================================
-           MODEL HERO
-        ====================================================== */
 
         .model-hero {
             padding:
@@ -749,10 +698,6 @@
 
             letter-spacing: 1px;
         }
-
-        /* =====================================================
-           FORM CARD
-        ====================================================== */
 
         .form-card {
             padding:
@@ -935,10 +880,6 @@
                 monospace;
         }
 
-        /* =====================================================
-           STATUS
-        ====================================================== */
-
         .status-box {
             min-height: 52px;
 
@@ -1049,10 +990,6 @@
             transform:
                 translateX(24px);
         }
-
-        /* =====================================================
-           PRICING
-        ====================================================== */
 
         .price-input-wrap {
             position: relative;
@@ -1168,10 +1105,6 @@
                 rgba(255,255,255,.72);
         }
 
-        /* =====================================================
-           PARAMETERS
-        ====================================================== */
-
         .parameter-grid {
             display: grid;
 
@@ -1238,10 +1171,6 @@
             overflow-wrap:
                 anywhere;
         }
-
-        /* =====================================================
-           ACTIONS
-        ====================================================== */
 
         .actions {
             display: flex;
@@ -1327,10 +1256,6 @@
             box-shadow: none;
         }
 
-        /* =====================================================
-           LOADING
-        ====================================================== */
-
         .loading {
             display: flex;
 
@@ -1373,10 +1298,6 @@
         .hidden {
             display: none !important;
         }
-
-        /* =====================================================
-           RESPONSIVE
-        ====================================================== */
 
         @media (max-width: 900px) {
 
@@ -1426,14 +1347,11 @@
 
             .main {
                 margin-left: 0;
-
-                padding:
-                    15px;
+                padding: 15px;
             }
 
             .page-header {
                 flex-direction: column;
-
                 padding-left: 52px;
             }
 
@@ -1494,10 +1412,6 @@
     class="app"
     id="appShell"
 >
-
-    <!-- =====================================================
-         SIDEBAR
-    ====================================================== -->
 
     <aside
         class="sidebar"
@@ -1593,10 +1507,6 @@
     ></div>
 
 
-    <!-- =====================================================
-         MAIN
-    ====================================================== -->
-
     <main class="main">
 
         <div class="content">
@@ -1652,16 +1562,10 @@
             </div>
 
 
-            <!-- =================================================
-                 EDIT CONTENT
-            ================================================== -->
-
             <div
                 id="editContent"
                 class="hidden"
             >
-
-                <!-- MODEL HERO -->
 
                 <section class="model-hero">
 
@@ -1693,10 +1597,6 @@
 
                 </section>
 
-
-                <!-- =================================================
-                     BASIC CONFIG
-                ================================================== -->
 
                 <section class="form-card">
 
@@ -1845,10 +1745,6 @@
 
                 </section>
 
-
-                <!-- =================================================
-                     PRICING
-                ================================================== -->
 
                 <section class="form-card">
 
@@ -2029,10 +1925,6 @@
                 </section>
 
 
-                <!-- =================================================
-                     MODEL CREDIT
-                ================================================== -->
-
                 <section class="form-card">
 
                     <h2 class="section-title">
@@ -2042,9 +1934,9 @@
                     <p class="section-description">
                         Credit ditetapkan Owner berdasarkan resolusi.
                         Nilai ini dibaca dan disimpan langsung pada
-                        konfigurasi model. Pricing di atas hanya
-                        digunakan sebagai referensi penetapan credit.
+                        konfigurasi model.
                     </p>
+
 
                     <div class="form-grid">
 
@@ -2118,10 +2010,6 @@
                 </section>
 
 
-                <!-- =================================================
-                     PARAMETERS
-                ================================================== -->
-
                 <section class="form-card">
 
                     <h2 class="section-title">
@@ -2189,10 +2077,6 @@
                 </section>
 
 
-                <!-- =================================================
-                     ACTIONS
-                ================================================== -->
-
                 <section class="form-card">
 
                     <div class="actions">
@@ -2227,20 +2111,12 @@
 </div>
 
 
-<!-- =========================================================
-     SUPABASE
-========================================================= -->
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="../assets/js/config.js"></script>
 
 <script src="./supabase.js"></script>
 
-
-<!-- =========================================================
-     MODEL EDIT
-========================================================= -->
 
 <script type="module">
 
@@ -2252,13 +2128,29 @@
 
 
     /* =====================================================
-       SHARED SUPABASE CLIENT
+       SUPABASE
     ===================================================== */
 
     const supabase =
         window.GENZ_SUPABASE ||
         window.supabaseClient ||
         null;
+
+
+    /*
+     * SOURCE OF TRUTH MODEL TABLE
+     *
+     * models-data.js menggunakan kie_models
+     * sebagai tabel Admin Models.
+     *
+     * Sebelumnya halaman ini membaca dari kie_models
+     * tetapi menyimpan ke "models". Itu menyebabkan
+     * credit yang diedit tidak masuk ke record model
+     * yang sebenarnya.
+     */
+
+    const MODEL_TABLE =
+        "kie_models";
 
 
     /* =====================================================
@@ -2494,10 +2386,24 @@
     }
 
 
+    /*
+     * Penting:
+     * null/undefined/"" dianggap kosong.
+     * Angka 0 tetap valid.
+     */
+
     function numberValue(
         value,
         fallback = 0
     ) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return fallback;
+        }
 
         const number =
             Number(value);
@@ -2505,6 +2411,100 @@
         return Number.isFinite(number)
             ? number
             : fallback;
+    }
+
+
+    function normalizeCredit(
+        value
+    ) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return null;
+        }
+
+        const number =
+            Number(value);
+
+        if (
+            !Number.isFinite(number) ||
+            number < 0
+        ) {
+            return null;
+        }
+
+        return number;
+    }
+
+
+    function getCreditValue(
+        model,
+        field
+    ) {
+
+        if (!model) {
+            return null;
+        }
+
+        const pricing =
+            model?.pricing ||
+            model?.price ||
+            {};
+
+        const candidates = [
+
+            model?.[field],
+
+            pricing?.[field],
+
+            field === "credit_480p"
+                ? model?.credit480p
+                : null,
+
+            field === "credit_720p"
+                ? model?.credit720p
+                : null,
+
+            field === "credit_1080p"
+                ? model?.credit1080p
+                : null,
+
+            field === "credit_480p"
+                ? pricing?.credit480p
+                : null,
+
+            field === "credit_720p"
+                ? pricing?.credit720p
+                : null,
+
+            field === "credit_1080p"
+                ? pricing?.credit1080p
+                : null
+
+        ];
+
+
+        for (
+            const candidate of candidates
+        ) {
+
+            const normalized =
+                normalizeCredit(
+                    candidate
+                );
+
+            if (
+                normalized !== null
+            ) {
+                return normalized;
+            }
+        }
+
+
+        return null;
     }
 
 
@@ -2726,8 +2726,6 @@
         }
 
 
-        /* Ratio */
-
         let ratios =
             normalizeArray(
                 model?.supported_ratios
@@ -2767,8 +2765,6 @@
                 ? ratios.join(" • ")
                 : "Mengikuti parameters.js";
 
-
-        /* Resolution */
 
         let resolutions =
             normalizeArray(
@@ -2988,11 +2984,6 @@
         renderParameters(model);
 
 
-        /*
-         * credit_cost tidak pernah
-         * diperlakukan sebagai USD.
-         */
-
         const registryPrice =
             model?.price_usd ??
             model?.priceUSD ??
@@ -3007,10 +2998,6 @@
                 : "";
 
 
-        /*
-         * Kurs tidak di-hardcode.
-         */
-
         exchangeRate.value =
             "";
 
@@ -3022,24 +3009,61 @@
 
 
         /*
-         * Credit resolution adalah konfigurasi nyata model.
-         * Nilai 0 tetap valid dan tidak digantikan oleh credit_final.
+         * CREDIT RESOLUTION
+         *
+         * Tidak menggunakan ||.
+         * Nilai 0 adalah nilai valid.
          */
 
+        const savedCredit480p =
+            getCreditValue(
+                model,
+                "credit_480p"
+            );
+
+        const savedCredit720p =
+            getCreditValue(
+                model,
+                "credit_720p"
+            );
+
+        const savedCredit1080p =
+            getCreditValue(
+                model,
+                "credit_1080p"
+            );
+
+
         credit480p.value =
-            model?.credit_480p ??
-            model?.credit480p ??
-            "";
+            savedCredit480p !== null
+                ? savedCredit480p
+                : "";
+
 
         credit720p.value =
-            model?.credit_720p ??
-            model?.credit720p ??
-            "";
+            savedCredit720p !== null
+                ? savedCredit720p
+                : "";
+
 
         credit1080p.value =
-            model?.credit_1080p ??
-            model?.credit1080p ??
-            "";
+            savedCredit1080p !== null
+                ? savedCredit1080p
+                : "";
+
+
+        console.log(
+            "[GEN-Z.AI][MODEL EDIT] Loaded resolution credits:",
+            {
+                modelId: currentModelId,
+                credit_480p:
+                    savedCredit480p,
+                credit_720p:
+                    savedCredit720p,
+                credit_1080p:
+                    savedCredit1080p
+            }
+        );
 
 
         updatePricePreview();
@@ -3075,11 +3099,6 @@
 
 
         try {
-
-            /*
-             * ADMIN MODELS / SUPABASE adalah source of truth.
-             * Registry tidak digunakan untuk membuat model baru.
-             */
 
             await loadProviders({
                 includeInactive: true
@@ -3209,10 +3228,6 @@
         }
 
 
-        /*
-         * MODEL ID IMMUTABLE.
-         */
-
         const discountPercent =
             Math.min(
                 100,
@@ -3225,32 +3240,87 @@
             );
 
 
+        /*
+         * CREDIT RESOLUTION
+         *
+         * Jangan memakai ||.
+         *
+         * 0 tetap disimpan sebagai 0.
+         */
+
         const credit480pValue =
-            Math.max(
-                0,
-                numberValue(
-                    credit480p.value
-                )
+            normalizeCredit(
+                credit480p.value
             );
 
 
         const credit720pValue =
-            Math.max(
-                0,
-                numberValue(
-                    credit720p.value
-                )
+            normalizeCredit(
+                credit720p.value
             );
 
 
         const credit1080pValue =
-            Math.max(
-                0,
-                numberValue(
-                    credit1080p.value
-                )
+            normalizeCredit(
+                credit1080p.value
             );
 
+
+        /*
+         * Input credit wajib berupa angka valid.
+         */
+
+        if (
+            credit480pValue === null
+        ) {
+
+            showAlert(
+                "Credit 480p harus berupa angka 0 atau lebih.",
+                "error"
+            );
+
+            credit480p.focus();
+
+            return;
+        }
+
+
+        if (
+            credit720pValue === null
+        ) {
+
+            showAlert(
+                "Credit 720p harus berupa angka 0 atau lebih.",
+                "error"
+            );
+
+            credit720p.focus();
+
+            return;
+        }
+
+
+        if (
+            credit1080pValue === null
+        ) {
+
+            showAlert(
+                "Credit 1080p harus berupa angka 0 atau lebih.",
+                "error"
+            );
+
+            credit1080p.focus();
+
+            return;
+        }
+
+
+        /*
+         * PAYLOAD
+         *
+         * Tiga credit resolusi ditulis
+         * langsung ke kolom database.
+         */
 
         const payload = {
 
@@ -3282,6 +3352,20 @@
         };
 
 
+        console.log(
+            "[GEN-Z.AI][MODEL EDIT] Saving payload:",
+            {
+                table:
+                    MODEL_TABLE,
+
+                modelId:
+                    modelIdValue,
+
+                payload
+            }
+        );
+
+
         saving = true;
 
         saveButton.disabled =
@@ -3295,13 +3379,12 @@
 
             let query =
                 supabase
-                    .from("models")
+                    .from(MODEL_TABLE)
                     .update(payload);
 
 
             /*
-             * Gunakan UUID database
-             * jika tersedia.
+             * Prioritaskan UUID record.
              */
 
             if (
@@ -3317,28 +3400,84 @@
             } else {
 
                 /*
-                 * Jangan membuat INSERT
-                 * dengan schema yang belum
-                 * diverifikasi.
+                 * Fallback ke model_id.
+                 *
+                 * Tidak melakukan INSERT.
                  */
 
-                showAlert(
-                    "Konfigurasi model belum memiliki record Supabase. Model tetap berasal dari Admin Models, tetapi record konfigurasi belum dapat disimpan otomatis.",
-                    "error"
-                );
-
-                return;
+                query =
+                    query.eq(
+                        "model_id",
+                        modelIdValue
+                    );
             }
 
 
             const {
+                data,
                 error
             } =
-                await query;
+                await query.select();
 
 
             if (error) {
                 throw error;
+            }
+
+
+            /*
+             * UPDATE berhasil tetapi 0 row
+             * adalah kondisi berbeda.
+             */
+
+            if (
+                !Array.isArray(data) ||
+                data.length === 0
+            ) {
+
+                throw new Error(
+                    "Tidak ada record model yang diperbarui. Periksa model_id, UUID record, atau policy RLS Supabase."
+                );
+            }
+
+
+            /*
+             * Verifikasi nilai hasil UPDATE
+             * dari response Supabase.
+             */
+
+            const savedRecord =
+                data[0];
+
+
+            const verified480p =
+                normalizeCredit(
+                    savedRecord?.credit_480p
+                );
+
+            const verified720p =
+                normalizeCredit(
+                    savedRecord?.credit_720p
+                );
+
+            const verified1080p =
+                normalizeCredit(
+                    savedRecord?.credit_1080p
+                );
+
+
+            if (
+                verified480p !==
+                credit480pValue ||
+                verified720p !==
+                credit720pValue ||
+                verified1080p !==
+                credit1080pValue
+            ) {
+
+                throw new Error(
+                    "Supabase menerima perubahan model tetapi nilai credit resolusi yang dikembalikan tidak sesuai dengan data yang disimpan."
+                );
             }
 
 
@@ -3358,25 +3497,58 @@
                     payload.status,
 
                 credit_480p:
-                    credit480pValue,
+                    verified480p,
 
                 credit_720p:
-                    credit720pValue,
+                    verified720p,
 
                 credit_1080p:
-                    credit1080pValue
+                    verified1080p
             };
 
 
             currentDatabaseModel = {
                 ...currentDatabaseModel,
 
-                ...payload
+                ...savedRecord
             };
+
+
+            /*
+             * Tampilkan kembali nilai
+             * yang benar-benar dikonfirmasi DB.
+             */
+
+            credit480p.value =
+                verified480p;
+
+            credit720p.value =
+                verified720p;
+
+            credit1080p.value =
+                verified1080p;
 
 
             heroModelName.textContent =
                 name;
+
+
+            console.log(
+                "[GEN-Z.AI][MODEL EDIT] Save verified:",
+                {
+                    modelId:
+                        modelIdValue,
+
+                    credit_480p:
+                        verified480p,
+
+                    credit_720p:
+                        verified720p,
+
+                    credit_1080p:
+                        verified1080p
+                }
+            );
 
 
             showAlert(
