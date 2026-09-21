@@ -17,6 +17,7 @@
  * - Resolve provider
  * - Mengambil credential provider secara server-side
  * - Memanggil adapter.queryTask()
+ * - Sinkronisasi generation_history
  * - Mengembalikan status task dan result
  *
  * Tidak bertanggung jawab:
@@ -25,7 +26,8 @@
  * - Render UI
  * - Polling di browser
  * - Menentukan parameter generation
- * - Menulis generation_history
+ * - Membuat row generation_history baru
+ * - Mengurangi / mengembalikan credit
  *
  * =========================================================
  *
@@ -46,6 +48,8 @@
  *   KIE API
  *      ↓
  *   status / result
+ *      ↓
+ *   UPDATE generation_history
  *
  * =========================================================
  */
@@ -1647,6 +1651,362 @@ function normalizeTaskResponse(
 
 
 /* =========================================================
+   EXTRACT HISTORY ERROR MESSAGE
+   ---------------------------------------------------------
+   Digunakan hanya untuk status failed.
+   Tidak menyimpan API key atau credential.
+========================================================= */
+
+function getHistoryErrorMessage(
+    result
+) {
+
+    const raw =
+        result?.raw;
+
+    const resultJson =
+        result?.resultJson;
+
+    const candidates = [
+
+        raw?.error_message,
+
+        raw?.errorMessage,
+
+        raw?.message,
+
+        raw?.error,
+
+        raw?.data?.error_message,
+
+        raw?.data?.errorMessage,
+
+        raw?.data?.message,
+
+        raw?.data?.error,
+
+        resultJson?.error_message,
+
+        resultJson?.errorMessage,
+
+        resultJson?.message,
+
+        resultJson?.error
+
+    ];
+
+    for (
+        const candidate of candidates
+    ) {
+
+        if (
+            typeof candidate ===
+            "string"
+        ) {
+
+            const message =
+                candidate.trim();
+
+            if (message) {
+
+                return message;
+            }
+        }
+
+        if (
+            candidate &&
+            typeof candidate ===
+                "object"
+        ) {
+
+            try {
+
+                const serialized =
+                    JSON.stringify(
+                        candidate
+                    );
+
+                if (
+                    serialized &&
+                    serialized !==
+                        "{}"
+                ) {
+
+                    return serialized;
+                }
+
+            } catch {
+                /*
+                 * Ignore unserializable
+                 * provider error object.
+                 */
+            }
+        }
+    }
+
+    return (
+        result?.state &&
+        result.state !==
+            "unknown"
+    )
+        ? `Generation task failed with state: ${result.state}`
+        : "Generation task failed";
+}
+
+
+/* =========================================================
+   UPDATE GENERATION HISTORY
+   ---------------------------------------------------------
+   History dibuat oleh:
+       /api/generate.js
+ *
+   Endpoint ini TIDAK membuat row baru.
+ *
+   MATCH:
+       user_id
+       task_id
+ *
+   STATUS:
+       processing -> completed
+       processing -> failed
+ *
+   SECURITY:
+       Update dibatasi dengan user_id milik session aktif.
+ *
+   RESULT:
+       result_url menyimpan URL hasil pertama.
+ *
+   ========================================================= */
+
+async function updateGenerationHistory({
+    userId,
+    taskId,
+    result
+}) {
+
+    const normalizedUserId =
+        String(
+            userId || ""
+        ).trim();
+
+    const normalizedTaskId =
+        String(
+            taskId || ""
+        ).trim();
+
+    if (
+        !normalizedUserId ||
+        !normalizedTaskId
+    ) {
+
+        throw new Error(
+            "History update requires user_id and task_id"
+        );
+    }
+
+    /*
+     * Jangan melakukan UPDATE apabila task masih berjalan.
+     *
+     * Ini juga mengurangi query Supabase pada setiap
+     * siklus polling.
+     */
+
+    if (
+        result?.processing
+    ) {
+
+        return {
+            updated: false,
+            status: "processing",
+            reason: "task_still_processing"
+        };
+    }
+
+    const params =
+        new URLSearchParams();
+
+    params.set(
+        "user_id",
+        `eq.${normalizedUserId}`
+    );
+
+    params.set(
+        "task_id",
+        `eq.${normalizedTaskId}`
+    );
+
+    /*
+     * =====================================================
+     * COMPLETED
+     * =====================================================
+     */
+
+    if (
+        result?.success
+    ) {
+
+        const resultUrl =
+            Array.isArray(
+                result.resultUrls
+            ) &&
+            result.resultUrls.length
+                ? String(
+                    result.resultUrls[0]
+                ).trim()
+                : null;
+
+        const payload = {
+
+            status:
+                "completed",
+
+            result_url:
+                resultUrl,
+
+            error_message:
+                null,
+
+            completed_at:
+                new Date().toISOString()
+
+        };
+
+        const rows =
+            await supabaseRequest(
+                `/rest/v1/generation_history?${params.toString()}`,
+                {
+                    method:
+                        "PATCH",
+
+                    headers: {
+
+                        Prefer:
+                            "return=representation"
+                    },
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+                }
+            );
+
+        return {
+
+            updated:
+                Array.isArray(
+                    rows
+                )
+                    ? rows.length >
+                        0
+                    : true,
+
+            status:
+                "completed",
+
+            result_url:
+                resultUrl
+
+        };
+    }
+
+
+    /*
+     * =====================================================
+     * FAILED
+     * =====================================================
+     */
+
+    if (
+        result?.failed
+    ) {
+
+        const errorMessage =
+            getHistoryErrorMessage(
+                result
+            );
+
+        const payload = {
+
+            status:
+                "failed",
+
+            result_url:
+                null,
+
+            error_message:
+                errorMessage,
+
+            completed_at:
+                new Date().toISOString()
+
+        };
+
+        const rows =
+            await supabaseRequest(
+                `/rest/v1/generation_history?${params.toString()}`,
+                {
+                    method:
+                        "PATCH",
+
+                    headers: {
+
+                        Prefer:
+                            "return=representation"
+                    },
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+                }
+            );
+
+        return {
+
+            updated:
+                Array.isArray(
+                    rows
+                )
+                    ? rows.length >
+                        0
+                    : true,
+
+            status:
+                "failed",
+
+            error_message:
+                errorMessage
+
+        };
+    }
+
+
+    /*
+     * =====================================================
+     * UNKNOWN STATE
+     * =====================================================
+     *
+     * Tidak mengubah History.
+     */
+
+    return {
+
+        updated:
+            false,
+
+        status:
+            result?.state ||
+            "unknown",
+
+        reason:
+            "no_terminal_state"
+
+    };
+}
+
+
+/* =========================================================
    HANDLER
 ========================================================= */
 
@@ -2100,6 +2460,131 @@ export default async function handler(
 
     /*
      * =====================================================
+     * GENERATION HISTORY
+     * =====================================================
+     *
+     * History dibuat oleh:
+     *
+     *     /api/generate
+     *
+     * Endpoint ini hanya UPDATE row yang sudah ada.
+     *
+     * MATCH:
+     *
+     *     user_id + task_id
+     *
+     * sehingga user lain tidak dapat mengubah History
+     * milik user ini walaupun mengetahui task_id.
+     *
+     * History failure tidak boleh membuat endpoint status
+     * gagal karena provider status/result sudah berhasil
+     * diperoleh.
+     */
+
+    let historyUpdated =
+        false;
+
+    let historyStatus =
+        result.processing
+            ? "processing"
+            : result.success
+                ? "completed"
+                : result.failed
+                    ? "failed"
+                    : "unknown";
+
+    try {
+
+        const historyResult =
+            await updateGenerationHistory({
+                userId:
+                    user.id,
+
+                taskId:
+                    result.taskId ||
+                    taskId,
+
+                result
+            });
+
+        historyUpdated =
+            Boolean(
+                historyResult?.updated
+            );
+
+        historyStatus =
+            historyResult?.status ||
+            historyStatus;
+
+        /*
+         * Jika tidak ditemukan row History,
+         * jangan membuat row baru.
+         *
+         * Ini mencegah duplicate History.
+         */
+
+        if (
+            result.success ||
+            result.failed
+        ) {
+
+            if (
+                historyResult?.updated
+            ) {
+
+                console.info(
+                    "[generate-status] Generation history updated:",
+                    {
+                        user_id:
+                            user.id,
+
+                        task_id:
+                            result.taskId ||
+                            taskId,
+
+                        status:
+                            historyStatus
+                    }
+                );
+
+            } else {
+
+                console.warn(
+                    "[generate-status] Generation history row not found:",
+                    {
+                        user_id:
+                            user.id,
+
+                        task_id:
+                            result.taskId ||
+                            taskId,
+
+                        status:
+                            historyStatus
+                    }
+                );
+            }
+        }
+
+    } catch (historyError) {
+
+        /*
+         * History error TIDAK boleh merusak hasil generation.
+         *
+         * Provider task sudah berhasil diketahui.
+         * Browser tetap harus menerima status/result.
+         */
+
+        console.error(
+            "[generate-status] WARNING: generation_history update failed:",
+            historyError
+        );
+
+    }
+
+
+    /*
+     * =====================================================
      * SECURITY
      * =====================================================
      *
@@ -2159,7 +2644,13 @@ export default async function handler(
                 result.resultUrls,
 
             result:
-                result.resultJson
+                result.resultJson,
+
+            history_updated:
+                historyUpdated,
+
+            history_status:
+                historyStatus
         }
     );
 }
