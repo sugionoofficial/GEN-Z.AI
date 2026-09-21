@@ -36,7 +36,10 @@
  *   Provider API
  *      ↓
  *   taskId
+ *      ↓
+ *   generation_history
  *
+ * =========================================================
  *
  * MODEL SOURCE OF TRUTH
  *
@@ -92,6 +95,17 @@
  *   deduct_generate_credits()
  *   refund_generate_credits()
  *
+ *
+ * GENERATION HISTORY
+ *
+ *   Setelah provider berhasil membuat task:
+ *
+ *   generation_history.status = processing
+ *
+ *   Satu Generate = satu History record.
+ *
+ *   History tidak melakukan deduction credit.
+ *   History tidak melakukan refund credit.
  *
  * =========================================================
  */
@@ -693,12 +707,6 @@ function getParameters(
     body
 ) {
 
-    /*
-     * =====================================================
-     * PARAMETER YANG DIIZINKAN
-     * =====================================================
-     */
-
     const allowedKeys = [
 
         "image_urls",
@@ -721,25 +729,6 @@ function getParameters(
     const parameters = {};
 
 
-    /*
-     * =====================================================
-     * SOURCE PARAMETERS
-     * =====================================================
-     *
-     * Mendukung:
-     *
-     *   {
-     *      parameters: {...}
-     *   }
-     *
-     * maupun:
-     *
-     *   {
-     *      prompt: "...",
-     *      resolution: "720p"
-     *   }
-     */
-
     const source =
         body &&
         body.parameters &&
@@ -751,20 +740,6 @@ function getParameters(
             ? body.parameters
             : body || {};
 
-
-    /*
-     * =====================================================
-     * STRICT WHITELIST
-     * =====================================================
-     *
-     * Jangan menyalin seluruh body.parameters.
-     *
-     * Ini memastikan field seperti:
-     *
-     *   nsfw_checker
-     *
-     * tidak pernah diterima dari browser.
-     */
 
     for (
         const key of allowedKeys
@@ -994,11 +969,6 @@ function normalizeDiscountPercent(
     }
 
 
-    /*
-     * Diskon tidak boleh kurang dari 0%
-     * atau lebih dari 100%.
-     */
-
     if (
         discount < 0 ||
         discount > 100
@@ -1040,11 +1010,6 @@ function calculateDiscountedCredit(
         );
 
 
-    /*
-     * Lindungi dari floating point negatif
-     * yang sangat kecil.
-     */
-
     return Math.max(
         0,
         finalCredit
@@ -1055,37 +1020,7 @@ function calculateDiscountedCredit(
 
 /* =========================================================
    RESOLVE GENERATION CREDIT
-   ---------------------------------------------------------
-   SERVER-SIDE SOURCE OF TRUTH:
- *
- *   480p
- *      → credit_480p
- *
- *   720p
- *      → credit_720p
- *
- *   1080p
- *      → credit_1080p
- *
- *   DISCOUNT:
- *
- *   discount_percent
- *      → Supabase models
- *
- *   final credit:
- *
- *   credit -
- *   (credit * discount_percent / 100)
- *
- *   PENTING:
- *   - 0 valid
- *   - tidak menggunakan ||
- *   - tidak menggunakan credit_cost
- *   - tidak menggunakan credit_final
- *   - tidak menggunakan KIE price
- *   - tidak menggunakan duration
- *   - tidak menerima credit dari browser
- * ========================================================= */
+   ========================================================= */
 
 function resolveGenerationCredit(
     databaseModel,
@@ -1160,14 +1095,6 @@ function resolveGenerationCredit(
 
     }
 
-
-    /*
-     * Jangan gunakan:
-     *
-     *     rawCredit || fallback
-     *
-     * karena 0 adalah nilai credit yang sah.
-     */
 
     if (
         rawCredit ===
@@ -1254,33 +1181,14 @@ function resolveGenerationCredit(
 
         resolution,
 
-        /*
-         * Harga dasar dari Supabase.
-         */
-
         credit_base:
             credit,
-
-        /*
-         * Diskon dari Supabase.
-         */
 
         discount_percent:
             discountPercent,
 
-        /*
-         * Harga yang benar-benar
-         * digunakan untuk deduction.
-         */
-
         credit:
             creditFinal,
-
-        /*
-         * Runtime alias agar jelas
-         * bahwa nilai ini adalah hasil
-         * perhitungan server.
-         */
 
         credit_final:
             creditFinal
@@ -1292,8 +1200,6 @@ function resolveGenerationCredit(
 
 /* =========================================================
    DEDUCT GENERATION CREDITS
-   ---------------------------------------------------------
-   Atomic deduction melalui Supabase RPC.
    ========================================================= */
 
 async function deductGenerateCredits(
@@ -1484,6 +1390,438 @@ async function refundGenerateCredits(
 
 
     return null;
+
+}
+
+
+/* =========================================================
+   GENERATION HISTORY
+   ---------------------------------------------------------
+   Membuat SATU record History setelah provider berhasil
+   membuat task dan taskId sudah tersedia.
+ *
+ *   status = processing
+ *
+ *   History tidak melakukan:
+ *
+ *   - deduction
+ *   - refund
+ *   - provider request
+ *
+ *   Jika INSERT History gagal:
+ *
+ *   - generation tetap berhasil
+ *   - credit tidak di-refund
+ *   - error hanya dicatat ke server log
+ *
+ *   Ini mencegah provider task berhasil tetapi transaksi
+ *   credit menjadi tidak konsisten hanya karena History gagal.
+ * ========================================================= */
+
+function normalizeHistoryText(
+    value
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        const text =
+            value.trim();
+
+
+        return text
+            ? text
+            : null;
+
+    }
+
+
+    try {
+
+        return JSON.stringify(
+            value
+        );
+
+    } catch {
+
+        return null;
+
+    }
+
+}
+
+
+function normalizeHistoryInteger(
+    value
+) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return null;
+
+    }
+
+
+    const number =
+        Number(
+            value
+        );
+
+
+    if (
+        !Number.isFinite(
+            number
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    return Math.trunc(
+        number
+    );
+
+}
+
+
+async function createGenerationHistory({
+
+    user,
+    body,
+    modelConfig,
+    databaseModel,
+    provider,
+    providerCode,
+    parameters,
+    generationCredit,
+    taskId
+
+}) {
+
+    if (
+        !user?.id ||
+        !taskId
+    ) {
+
+        console.warn(
+            "[generate] Generation history skipped: user_id or task_id is missing"
+        );
+
+
+        return null;
+
+    }
+
+
+    const normalizedTaskId =
+        String(
+            taskId
+        ).trim();
+
+
+    if (
+        !normalizedTaskId
+    ) {
+
+        console.warn(
+            "[generate] Generation history skipped: task_id is empty"
+        );
+
+
+        return null;
+
+    }
+
+
+    /*
+     * image_urls dapat berupa:
+     *
+     *   string
+     *   array
+     *
+     * Kolom History bertipe text,
+     * sehingga array disimpan sebagai JSON.
+     */
+
+    const imageReference =
+        normalizeHistoryText(
+            parameters?.image_urls ??
+            body?.image_urls ??
+            null
+        );
+
+
+    /*
+     * Video reference belum digunakan oleh
+     * Generate API saat ini, tetapi kita tetap
+     * mempertahankan kolomnya apabila frontend
+     * mengirimkan nilai tersebut.
+     */
+
+    const videoReference =
+        normalizeHistoryText(
+            body?.video_reference_url ??
+            body?.video_url ??
+            body?.video_reference ??
+            null
+        );
+
+
+    const duration =
+        normalizeHistoryInteger(
+            parameters?.duration ??
+            body?.duration ??
+            null
+        );
+
+
+    const resolution =
+        normalizeHistoryText(
+            generationCredit?.resolution ??
+            parameters?.resolution ??
+            body?.resolution ??
+            null
+        );
+
+
+    /*
+     * credit_cost adalah nilai yang benar-benar
+     * digunakan untuk deduction.
+     *
+     * Contoh:
+     *
+     *   base 14
+     *   discount 10%
+     *
+     *   credit_cost = 12.6
+     *
+     * Jangan dibulatkan.
+     */
+
+    const creditCost =
+        Number(
+            generationCredit?.credit
+        );
+
+
+    if (
+        !Number.isFinite(
+            creditCost
+        ) ||
+        creditCost < 0
+    ) {
+
+        console.error(
+            "[generate] Generation history skipped: invalid credit cost",
+            {
+
+                task_id:
+                    normalizedTaskId,
+
+                credit:
+                    generationCredit?.credit
+
+            }
+        );
+
+
+        return null;
+
+    }
+
+
+    const payload = {
+
+        user_id:
+            user.id,
+
+        user_email:
+            user.email ||
+            null,
+
+        provider_id:
+            providerCode ||
+            provider?.provider_id ||
+            null,
+
+        provider_name:
+            provider?.provider_name ||
+            provider?.name ||
+            providerCode ||
+            null,
+
+        model_id:
+            modelConfig?.id ||
+            databaseModel?.model_id ||
+            null,
+
+        model_name:
+            modelConfig?.name ||
+            databaseModel?.name ||
+            databaseModel?.model_name ||
+            modelConfig?.id ||
+            databaseModel?.model_id ||
+            null,
+
+        prompt:
+            normalizeHistoryText(
+                parameters?.prompt ??
+                body?.prompt ??
+                null
+            ),
+
+        image_reference_url:
+            imageReference,
+
+        video_reference_url:
+            videoReference,
+
+        ratio:
+            normalizeHistoryText(
+                parameters?.aspect_ratio ??
+                body?.aspect_ratio ??
+                null
+            ),
+
+        duration,
+
+        resolution,
+
+        status:
+            "processing",
+
+        task_id:
+            normalizedTaskId,
+
+        result_url:
+            null,
+
+        error_message:
+            null,
+
+        credit_cost:
+            creditCost
+
+    };
+
+
+    try {
+
+        await supabaseRequest(
+            "/rest/v1/generation_history",
+            {
+
+                method:
+                    "POST",
+
+                headers: {
+
+                    Prefer:
+                        "return=minimal"
+
+                },
+
+                body:
+                    JSON.stringify([
+                        payload
+                    ])
+
+            }
+        );
+
+
+        console.info(
+            "[generate] Generation history created:",
+            {
+
+                user_id:
+                    user.id,
+
+                task_id:
+                    normalizedTaskId,
+
+                model_id:
+                    payload.model_id,
+
+                provider_id:
+                    payload.provider_id,
+
+                resolution:
+                    payload.resolution,
+
+                credit_cost:
+                    payload.credit_cost
+
+            }
+        );
+
+
+        return payload;
+
+    } catch (error) {
+
+        /*
+         * PENTING:
+         *
+         * Provider task sudah berhasil dibuat.
+         *
+         * Credit juga sudah berhasil dipotong.
+         *
+         * Karena itu kegagalan History TIDAK boleh
+         * memicu refund otomatis.
+         *
+         * Refund hanya dilakukan ketika provider
+         * gagal membuat task atau taskId tidak tersedia,
+         * sesuai alur credit yang sudah ada.
+         */
+
+        console.error(
+            "[generate] Failed to create generation history:",
+            {
+
+                message:
+                    error?.message ||
+                    "Unknown history error",
+
+                status:
+                    error?.status ||
+                    null,
+
+                data:
+                    error?.data ||
+                    null,
+
+                user_id:
+                    user.id,
+
+                task_id:
+                    normalizedTaskId
+
+            }
+        );
+
+
+        return null;
+
+    }
 
 }
 
@@ -2765,21 +3103,7 @@ function validateAdapterInput(
 
 /* =========================================================
    SANITIZE PARAMETERS
-   ---------------------------------------------------------
-   NSFW CHECKER
- *
- *   Selalu dipaksa aktif.
- *
- *   Browser tidak mempunyai kemampuan untuk
- *   mengirim nilai false sebagai override.
- *
- *   Nilai final:
- *
- *       nsfw_checker = true
- *
- *   Field tetap diteruskan ke adapter karena
- *   provider dapat membutuhkan parameter ini.
- * ========================================================= */
+   ========================================================= */
 
 function sanitizeParameters(
     parameters
@@ -2830,18 +3154,6 @@ function sanitizeParameters(
      * =====================================================
      * NSFW CHECKER - SERVER ENFORCED
      * =====================================================
-     *
-     * Jangan membaca:
-     *
-     *   parameters.nsfw_checker
-     *
-     * Jangan menggunakan:
-     *
-     *   Boolean(parameters.nsfw_checker)
-     *
-     * Jangan menggunakan nilai dari browser.
-     *
-     * Nilai selalu true.
      */
 
     result.nsfw_checker =
@@ -3177,14 +3489,6 @@ export default async function handler(
      * =====================================================
      * NSFW CHECKER
      * =====================================================
-     *
-     * Pastikan sekali lagi sebelum validasi adapter
-     * bahwa nilai yang akan diteruskan ke model adalah
-     * true.
-     *
-     * Ini sengaja redundant untuk menjaga invariant
-     * server-side apabila ada perubahan pada sanitizer
-     * di masa depan.
      */
 
     parameters.nsfw_checker =
@@ -3671,26 +3975,12 @@ export default async function handler(
      * =====================================================
      * CREATE TASK
      * =====================================================
-     *
-     * NSFW CHECKER sudah dipaksa true sebelum adapter
-     * dipanggil.
-     *
-     * API key hanya berada di server.
      */
 
     let task;
 
 
     try {
-
-        /*
-         * Defense in depth.
-         *
-         * Walaupun parameters sudah melalui
-         * sanitizeParameters(), jangan pernah
-         * membiarkan nilai NSFW berubah sebelum
-         * masuk ke provider.
-         */
 
         parameters.nsfw_checker =
             true;
@@ -3896,7 +4186,8 @@ export default async function handler(
     /*
      * =====================================================
      * TASK ID MISSING
-     * ===================================================== */
+     * =====================================================
+     */
 
     if (!taskId) {
 
@@ -4009,6 +4300,51 @@ export default async function handler(
         );
 
     }
+
+
+    /*
+     * =====================================================
+     * GENERATION HISTORY
+     * =====================================================
+     *
+     * Provider sudah berhasil membuat task.
+     *
+     * Credit sudah berhasil dipotong.
+     *
+     * taskId sudah tersedia.
+     *
+     * Sekarang buat SATU record History:
+     *
+     *   status = processing
+     *
+     * Kegagalan INSERT History tidak menggagalkan
+     * generation karena provider task sudah valid.
+     *
+     * Tidak ada refund di sini.
+     * =====================================================
+     */
+
+    await createGenerationHistory({
+
+        user,
+
+        body,
+
+        modelConfig,
+
+        databaseModel,
+
+        provider,
+
+        providerCode,
+
+        parameters,
+
+        generationCredit,
+
+        taskId
+
+    });
 
 
     /*
