@@ -21,9 +21,24 @@
        providers
 
    Pricing:
-       models.credit_cost
+       models.credit_480p
+       models.credit_720p
+       models.credit_1080p
        models.discount_percent
-       models.credit_final
+
+   CREDIT FINAL:
+   ---------------------------------------------------------
+   Tidak disimpan sebagai kolom database.
+
+   Credit final dihitung runtime:
+
+       final =
+           credit -
+           (
+               credit *
+               discount_percent /
+               100
+           )
 
    RELATION:
        models.provider_id
@@ -235,7 +250,7 @@
 
     /* =====================================================
        REQUIRED MODULE CHECK
-    ===================================================== */
+       ===================================================== */
 
     function modulesReady() {
 
@@ -258,7 +273,7 @@
 
     /* =====================================================
        MISSING MODULES
-    ===================================================== */
+       ===================================================== */
 
     function getMissingModules() {
 
@@ -289,7 +304,7 @@
 
     /* =====================================================
        WAIT FOR MODULES
-    ===================================================== */
+       ===================================================== */
 
     function waitForModules(
         timeout = 15000
@@ -605,13 +620,6 @@
         }
 
 
-        /*
-         * Hanya validasi API yang memang diperlukan.
-         *
-         * Jangan memanggil attachModelFormEvents()
-         * tanpa root karena form belum tentu dibuat.
-         */
-
         const requiredFunctions = [
 
             "renderModelForm",
@@ -659,6 +667,16 @@
 
     /* =====================================================
        PRICE DATA
+       -----------------------------------------------------
+       Pricing berasal dari Models Data.
+
+       Field aktif:
+           credit_480p
+           credit_720p
+           credit_1080p
+           discount_percent
+
+       credit_final TIDAK dibaca dari database.
        ===================================================== */
 
     async function initializePrice() {
@@ -702,8 +720,8 @@
             ) {
 
                 /*
-                 * Pricing bukan dependency utama
-                 * untuk membaca Models.
+                 * Pricing bukan alasan halaman Models
+                 * harus gagal total.
                  */
 
                 console.warn(
@@ -1552,6 +1570,43 @@
         }
 
 
+        /*
+         * Pricing cache.
+         *
+         * Hanya sinkronisasi dari Models Data.
+         * Tidak membuat pricing manual.
+         */
+
+        const price =
+            window.GENZModelsPrice;
+
+
+        if (
+            price &&
+            typeof price.syncFromModels ===
+            "function"
+        ) {
+
+            try {
+
+                price.syncFromModels(
+                    models
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Final pricing sync gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+
         return {
 
             models,
@@ -2055,6 +2110,42 @@
 
                 console.warn(
                     "[GEN-Z.AI] Price calculation reset gagal:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        /*
+         * PRICE CACHE
+         *
+         * Tidak wajib, tetapi jika tersedia
+         * kita bersihkan agar lifecycle berikutnya
+         * membaca state terbaru dari Models Data.
+         */
+
+        const price =
+            window.GENZModelsPrice;
+
+
+        if (
+            price &&
+            typeof price.clearCache ===
+            "function"
+        ) {
+
+            try {
+
+                price.clearCache();
+
+            } catch (
+                error
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Pricing cache reset gagal:",
                     error
                 );
 
