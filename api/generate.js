@@ -65,6 +65,14 @@
  *   credit_480p
  *   credit_720p
  *   credit_1080p
+ *   discount_percent
+ *
+ *
+ * CREDIT CALCULATION
+ *
+ *   credit_final =
+ *       credit -
+ *       (credit * discount_percent / 100)
  *
  *
  * CREDIT TRANSACTION
@@ -79,6 +87,7 @@
  */
 
 import crypto from "crypto";
+
 
 import grokImagineImageToVideo
     from "../models/grok-imagine-image-to-video/index.js";
@@ -884,6 +893,115 @@ function normalizeGenerationResolution(
 
 
 /* =========================================================
+   NORMALIZE DISCOUNT
+   ========================================================= */
+
+function normalizeDiscountPercent(
+    value
+) {
+
+    if (
+        value ===
+            null ||
+        value ===
+            undefined ||
+        value ===
+            ""
+    ) {
+
+        return 0;
+
+    }
+
+
+    const discount =
+        Number(
+            value
+        );
+
+
+    if (
+        !Number.isFinite(
+            discount
+        )
+    ) {
+
+        throw Object.assign(
+            new Error(
+                "discount_percent is invalid"
+            ),
+            {
+                code:
+                    "MODEL_DISCOUNT_INVALID"
+            }
+        );
+
+    }
+
+
+    /*
+     * Diskon tidak boleh kurang dari 0%
+     * atau lebih dari 100%.
+     */
+
+    if (
+        discount < 0 ||
+        discount > 100
+    ) {
+
+        throw Object.assign(
+            new Error(
+                "discount_percent must be between 0 and 100"
+            ),
+            {
+                code:
+                    "MODEL_DISCOUNT_INVALID"
+            }
+        );
+
+    }
+
+
+    return discount;
+
+}
+
+
+/* =========================================================
+   CALCULATE DISCOUNTED CREDIT
+   ========================================================= */
+
+function calculateDiscountedCredit(
+    credit,
+    discountPercent
+) {
+
+    const finalCredit =
+        credit -
+        (
+            credit *
+            discountPercent /
+            100
+        );
+
+
+    /*
+     * Lindungi dari floating point negatif
+     * yang sangat kecil.
+     *
+     * Contoh:
+     * 0 - 0.0000000001
+     */
+
+    return Math.max(
+        0,
+        finalCredit
+    );
+
+}
+
+
+/* =========================================================
    RESOLVE GENERATION CREDIT
    ---------------------------------------------------------
    SERVER-SIDE SOURCE OF TRUTH:
@@ -897,13 +1015,24 @@ function normalizeGenerationResolution(
    1080p
       → credit_1080p
  *
+   DISCOUNT:
+ *
+   discount_percent
+      → Supabase models
+ *
+   final credit:
+ *
+   credit -
+   (credit * discount_percent / 100)
+ *
    PENTING:
    - 0 valid
    - tidak menggunakan ||
+   - tidak menggunakan credit_cost
    - tidak menggunakan credit_final
    - tidak menggunakan KIE price
-   - tidak menggunakan discount
    - tidak menggunakan duration
+   - tidak menerima credit dari browser
    ========================================================= */
 
 function resolveGenerationCredit(
@@ -1040,11 +1169,69 @@ function resolveGenerationCredit(
     }
 
 
+    let discountPercent;
+
+
+    try {
+
+        discountPercent =
+            normalizeDiscountPercent(
+                databaseModel.discount_percent
+            );
+
+    } catch (error) {
+
+        throw Object.assign(
+            error,
+            {
+                resolution
+            }
+        );
+
+    }
+
+
+    const creditFinal =
+        calculateDiscountedCredit(
+            credit,
+            discountPercent
+        );
+
+
     return {
 
         resolution,
 
-        credit
+        /*
+         * Harga dasar dari Supabase.
+         */
+
+        credit_base:
+            credit,
+
+        /*
+         * Diskon dari Supabase.
+         */
+
+        discount_percent:
+            discountPercent,
+
+        /*
+         * Harga yang benar-benar
+         * digunakan untuk deduction.
+         */
+
+        credit:
+            creditFinal,
+
+        /*
+         * Runtime alias agar jelas
+         * bahwa nilai ini adalah hasil
+         * perhitungan server.
+         */
+
+        credit_final:
+            creditFinal
 
     };
 
@@ -1707,6 +1894,7 @@ function decodeBuffer(
 
         /*
          * fallback
+
          */
 
     }
@@ -3042,7 +3230,31 @@ export default async function handler(
      * RESOLVE GENERATION CREDIT
      * =====================================================
      *
-     * Credit ditentukan setelah parameter tervalidasi.
+     * Credit dasar diambil dari:
+     *
+     *   credit_480p
+     *   credit_720p
+     *   credit_1080p
+     *
+     * Kemudian discount_percent dihitung
+     * di SERVER.
+     *
+     * Contoh:
+     *
+     *   480p:
+     *     credit = 50
+     *     discount = 10
+     *     deduction = 45
+     *
+     *   720p:
+     *     credit = 75
+     *     discount = 10
+     *     deduction = 67.5
+     *
+     *   1080p:
+     *     credit = 100
+     *     discount = 10
+     *     deduction = 90
      *
      * Tidak ada fallback 50.
      */
@@ -3077,6 +3289,17 @@ export default async function handler(
 
             statusCode =
                 422;
+
+        }
+
+
+        if (
+            error?.code ===
+            "MODEL_DISCOUNT_INVALID"
+        ) {
+
+            statusCode =
+                409;
 
         }
 
@@ -3282,13 +3505,21 @@ export default async function handler(
      *
      * Credit dipotong SECARA ATOMIC sebelum KIE dipanggil.
      *
+     * Nilai generationCredit.credit adalah:
+     *
+     *   credit setelah discount.
+     *
      * Contoh:
      *
-     *   480p  -> credit_480p
-     *   720p  -> credit_720p
-     *   1080p -> credit_1080p
+     *   credit_480p = 50
+     *   discount    = 10%
+     *   credit      = 45
      *
-     * Tidak menerima nilai credit dari browser.
+     *   RPC menerima:
+     *
+     *   p_amount = 45
+     *
+     * Browser tidak pernah menentukan jumlah credit.
      */
 
     let creditDeducted =
@@ -3325,7 +3556,13 @@ export default async function handler(
                 resolution:
                     generationCredit.resolution,
 
-                credit:
+                credit_base:
+                    generationCredit.credit_base,
+
+                discount_percent:
+                    generationCredit.discount_percent,
+
+                credit_used:
                     generationCredit.credit,
 
                 remaining_credits:
@@ -3399,6 +3636,12 @@ export default async function handler(
                 resolution:
                     generationCredit.resolution,
 
+                credit_base:
+                    generationCredit.credit_base,
+
+                discount_percent:
+                    generationCredit.discount_percent,
+
                 credit:
                     generationCredit.credit
 
@@ -3448,6 +3691,9 @@ export default async function handler(
          * KIE gagal membuat task.
          *
          * Credit harus dikembalikan.
+         *
+         * Refund menggunakan jumlah yang sama
+         * dengan jumlah yang benar-benar dipotong.
          */
 
         if (
@@ -3483,6 +3729,12 @@ export default async function handler(
 
                         resolution:
                             generationCredit.resolution,
+
+                        credit_base:
+                            generationCredit.credit_base,
+
+                        discount_percent:
+                            generationCredit.discount_percent,
 
                         credit:
                             generationCredit.credit,
@@ -3581,6 +3833,12 @@ export default async function handler(
                 resolution:
                     generationCredit.resolution,
 
+                credit_base:
+                    generationCredit.credit_base,
+
+                discount_percent:
+                    generationCredit.discount_percent,
+
                 credit_used:
                     generationCredit.credit,
 
@@ -3640,7 +3898,8 @@ export default async function handler(
      * Credit sudah dipotong tetapi provider tidak
      * memberikan task ID.
      *
-     * Kembalikan credit.
+     * Kembalikan credit dengan jumlah yang sama
+     * dengan credit yang dipotong.
      */
 
     if (!taskId) {
@@ -3693,6 +3952,12 @@ export default async function handler(
                         resolution:
                             generationCredit.resolution,
 
+                        credit_base:
+                            generationCredit.credit_base,
+
+                        discount_percent:
+                            generationCredit.discount_percent,
+
                         credit:
                             generationCredit.credit,
 
@@ -3731,6 +3996,12 @@ export default async function handler(
 
                 resolution:
                     generationCredit.resolution,
+
+                credit_base:
+                    generationCredit.credit_base,
+
+                discount_percent:
+                    generationCredit.discount_percent,
 
                 credit_used:
                     generationCredit.credit,
@@ -3794,10 +4065,25 @@ export default async function handler(
 
             /*
              * Credit.
+             *
+             * credit_base:
+             * harga sebelum diskon.
+             *
+             * discount_percent:
+             * diskon dari Supabase.
+             *
+             * credit_used:
+             * jumlah aktual yang dipotong.
              */
 
             resolution:
                 generationCredit.resolution,
+
+            credit_base:
+                generationCredit.credit_base,
+
+            discount_percent:
+                generationCredit.discount_percent,
 
             credit_used:
                 generationCredit.credit,
