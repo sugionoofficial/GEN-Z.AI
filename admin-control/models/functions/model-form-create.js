@@ -12,6 +12,11 @@
    - Normalisasi data
    - Menyerahkan INSERT kepada caller/API layer
    - Menjaga provider_id sebagai providers.id
+   - Menjaga credit per resolution:
+       credit_480p
+       credit_720p
+       credit_1080p
+   - Mempertahankan credit_final untuk kompatibilitas legacy
    - Tidak menggunakan tabel kie_*
 
    Tidak bertanggung jawab:
@@ -32,30 +37,35 @@
        ===================================================== */
 
     const MODEL_FIELDS = [
-    "provider_id",
-    "model_id",
-    "model_name",
-    "description",
-    "credit_cost",
-    "discount_percent",
-    "credit_final",
+        "provider_id",
+        "model_id",
+        "model_name",
+        "description",
 
-    "credit_480p",
-    "credit_720p",
-    "credit_1080p",
+        "credit_cost",
+        "discount_percent",
+        "credit_final",
 
-    "min_duration",
-    "max_duration",
-    "supported_ratios",
-    "supported_resolutions",
-    "status"
-];
+        "credit_480p",
+        "credit_720p",
+        "credit_1080p",
+
+        "min_duration",
+        "max_duration",
+
+        "supported_ratios",
+        "supported_resolutions",
+
+        "status"
+    ];
+
 
     const VALID_STATUS = [
         "active",
         "inactive",
         "maintenance"
     ];
+
 
     const VALID_RATIOS = [
         "2:3",
@@ -64,6 +74,7 @@
         "16:9",
         "9:16"
     ];
+
 
     const VALID_RESOLUTIONS = [
         "480p",
@@ -122,11 +133,15 @@
             value === undefined ||
             value === ""
         ) {
+
             return fallback;
+
         }
+
 
         const number =
             Number(value);
+
 
         return Number.isFinite(
             number
@@ -148,10 +163,11 @@
             return [
                 ...new Set(
                     value
-                        .map(item =>
-                            normalizeText(
-                                item
-                            )
+                        .map(
+                            item =>
+                                normalizeText(
+                                    item
+                                )
                         )
                         .filter(Boolean)
                 )
@@ -188,18 +204,28 @@
                     -1
                 );
 
-            if (!inner.trim()) {
+
+            if (
+                !inner.trim()
+            ) {
+
                 return [];
+
             }
+
 
             return [
                 ...new Set(
                     inner
                         .split(",")
-                        .map(item =>
-                            item
-                                .replace(/^"(.*)"$/, "$1")
-                                .trim()
+                        .map(
+                            item =>
+                                item
+                                    .replace(
+                                        /^"(.*)"$/,
+                                        "$1"
+                                    )
+                                    .trim()
                         )
                         .filter(Boolean)
                 )
@@ -220,8 +246,11 @@
                 const parsed =
                     JSON.parse(value);
 
+
                 if (
-                    Array.isArray(parsed)
+                    Array.isArray(
+                        parsed
+                    )
                 ) {
 
                     return normalizeArray(
@@ -231,7 +260,10 @@
                 }
 
             } catch {
-                /* Not JSON. */
+                /*
+                 * Not JSON.
+                 */
+
             }
 
 
@@ -242,10 +274,11 @@
                 ...new Set(
                     value
                         .split(",")
-                        .map(item =>
-                            normalizeText(
-                                item
-                            )
+                        .map(
+                            item =>
+                                normalizeText(
+                                    item
+                                )
                         )
                         .filter(Boolean)
                 )
@@ -267,6 +300,7 @@
             normalizeText(
                 value
             ).toLowerCase();
+
 
         return VALID_STATUS.includes(
             status
@@ -291,8 +325,13 @@
                 providerId
             );
 
-        if (!id) {
+
+        if (
+            !id
+        ) {
+
             return null;
+
         }
 
 
@@ -312,9 +351,14 @@
         provider
     ) {
 
-        if (!provider) {
+        if (
+            !provider
+        ) {
+
             return "";
+
         }
+
 
         return normalizeText(
             provider.provider_id
@@ -338,13 +382,19 @@
                 modelId
             ).toLowerCase();
 
+
         const excluded =
             normalizeId(
                 excludeId
             );
 
-        if (!normalizedModelId) {
+
+        if (
+            !normalizedModelId
+        ) {
+
             return null;
+
         }
 
 
@@ -358,12 +408,16 @@
                         model.id
                     );
 
+
                 if (
                     excluded &&
                     id === excluded
                 ) {
+
                     return false;
+
                 }
+
 
                 return (
                     normalizeText(
@@ -382,9 +436,9 @@
        CREDIT CALCULATION
        -----------------------------------------------------
        credit_final dihitung dari:
-       
+
        credit_cost - discount_percent
-       
+
        Jika discount = 0:
        final = cost
 
@@ -392,6 +446,15 @@
        cost 100
        discount 10%
        final 90
+
+       Catatan:
+       credit_480p,
+       credit_720p,
+       credit_1080p
+       adalah nilai credit aktual per resolusi.
+
+       Nilai tersebut TIDAK dihitung otomatis dari
+       KIE price dan TIDAK dibuat berdasarkan duration.
        ===================================================== */
 
     function calculateCreditFinal(
@@ -408,6 +471,7 @@
                 )
             );
 
+
         const discount =
             Math.min(
                 100,
@@ -419,6 +483,7 @@
                     )
                 )
             );
+
 
         return Number(
             (
@@ -446,6 +511,7 @@
         const data =
             input || {};
 
+
         const providers =
             Array.isArray(
                 options.providers
@@ -453,6 +519,10 @@
                 ? options.providers
                 : state.providers;
 
+
+        /* -------------------------------------------------
+           PROVIDER
+           ------------------------------------------------- */
 
         const providerId =
             normalizeId(
@@ -467,6 +537,10 @@
                 providerId
             );
 
+
+        /* -------------------------------------------------
+           CREDIT LEGACY
+           ------------------------------------------------- */
 
         const creditCost =
             toNumber(
@@ -493,9 +567,10 @@
          * Jika credit_final tidak diberikan,
          * hitung dari cost + discount.
          *
-         * Jika diberikan, tetap gunakan nilai
-         * dari form agar kompatibel dengan UI lama.
+         * Jika diberikan, gunakan nilai tersebut
+         * agar kompatibel dengan UI lama.
          */
+
         const creditFinal =
             suppliedFinal ===
                 undefined ||
@@ -514,6 +589,38 @@
                 );
 
 
+        /* -------------------------------------------------
+           CREDIT PER RESOLUTION
+           ------------------------------------------------- */
+
+        const credit480p =
+            toNumber(
+                data.credit_480p ??
+                data.credit480p,
+                0
+            );
+
+
+        const credit720p =
+            toNumber(
+                data.credit_720p ??
+                data.credit720p,
+                0
+            );
+
+
+        const credit1080p =
+            toNumber(
+                data.credit_1080p ??
+                data.credit1080p,
+                0
+            );
+
+
+        /* -------------------------------------------------
+           NORMALIZED RESULT
+           ------------------------------------------------- */
+
         return {
 
             provider_id:
@@ -523,11 +630,13 @@
                     )
                     : providerId,
 
+
             model_id:
                 normalizeText(
                     data.model_id ||
                     data.modelId
                 ),
+
 
             model_name:
                 normalizeText(
@@ -535,19 +644,36 @@
                     data.modelName
                 ),
 
+
             description:
                 normalizeText(
                     data.description
                 ),
 
+
             credit_cost:
                 creditCost,
+
 
             discount_percent:
                 discountPercent,
 
+
             credit_final:
                 creditFinal,
+
+
+            credit_480p:
+                credit480p,
+
+
+            credit_720p:
+                credit720p,
+
+
+            credit_1080p:
+                credit1080p,
+
 
             min_duration:
                 toNumber(
@@ -556,6 +682,7 @@
                     0
                 ),
 
+
             max_duration:
                 toNumber(
                     data.max_duration ??
@@ -563,17 +690,20 @@
                     0
                 ),
 
+
             supported_ratios:
                 normalizeArray(
                     data.supported_ratios ??
                     data.supportedRatios
                 ),
 
+
             supported_resolutions:
                 normalizeArray(
                     data.supported_resolutions ??
                     data.supportedResolutions
                 ),
+
 
             status:
                 normalizeStatus(
@@ -596,12 +726,14 @@
 
         const errors = [];
 
+
         const providers =
             Array.isArray(
                 options.providers
             )
                 ? options.providers
                 : state.providers;
+
 
         const models =
             Array.isArray(
@@ -611,7 +743,9 @@
                 : state.models;
 
 
-        if (!data) {
+        if (
+            !data
+        ) {
 
             return [
                 "Data model tidak ditemukan."
@@ -620,7 +754,9 @@
         }
 
 
-        /* Provider */
+        /* -------------------------------------------------
+           PROVIDER
+           ------------------------------------------------- */
 
         if (
             !normalizeId(
@@ -640,7 +776,10 @@
                     data.provider_id
                 );
 
-            if (!provider) {
+
+            if (
+                !provider
+            ) {
 
                 errors.push(
                     "Provider yang dipilih tidak ditemukan."
@@ -652,10 +791,12 @@
                  * Model hanya boleh dibuat untuk
                  * provider aktif.
                  */
+
                 const providerStatus =
                     normalizeText(
                         provider.status
                     ).toLowerCase();
+
 
                 if (
                     providerStatus &&
@@ -674,7 +815,9 @@
         }
 
 
-        /* Model ID */
+        /* -------------------------------------------------
+           MODEL ID
+           ------------------------------------------------- */
 
         if (
             !data.model_id
@@ -706,7 +849,10 @@
                 data.model_id
             );
 
-        if (duplicate) {
+
+        if (
+            duplicate
+        ) {
 
             errors.push(
                 "Model ID sudah terdaftar."
@@ -715,7 +861,9 @@
         }
 
 
-        /* Model name */
+        /* -------------------------------------------------
+           MODEL NAME
+           ------------------------------------------------- */
 
         if (
             !data.model_name
@@ -741,11 +889,15 @@
         }
 
 
-        /* Credit */
+        /* -------------------------------------------------
+           CREDIT COST
+           ------------------------------------------------- */
 
         if (
-            data.credit_cost <
-            0
+            !Number.isFinite(
+                data.credit_cost
+            ) ||
+            data.credit_cost < 0
         ) {
 
             errors.push(
@@ -755,11 +907,16 @@
         }
 
 
+        /* -------------------------------------------------
+           DISCOUNT
+           ------------------------------------------------- */
+
         if (
-            data.discount_percent <
-                0 ||
-            data.discount_percent >
-                100
+            !Number.isFinite(
+                data.discount_percent
+            ) ||
+            data.discount_percent < 0 ||
+            data.discount_percent > 100
         ) {
 
             errors.push(
@@ -769,11 +926,87 @@
         }
 
 
-        /* Duration */
+        /* -------------------------------------------------
+           CREDIT FINAL
+           ------------------------------------------------- */
 
         if (
-            data.min_duration <
-            0
+            !Number.isFinite(
+                data.credit_final
+            ) ||
+            data.credit_final < 0
+        ) {
+
+            errors.push(
+                "Credit final tidak valid."
+            );
+
+        }
+
+
+        /* -------------------------------------------------
+           CREDIT 480P
+           ------------------------------------------------- */
+
+        if (
+            !Number.isFinite(
+                data.credit_480p
+            ) ||
+            data.credit_480p < 0
+        ) {
+
+            errors.push(
+                "Credit 480p tidak valid."
+            );
+
+        }
+
+
+        /* -------------------------------------------------
+           CREDIT 720P
+           ------------------------------------------------- */
+
+        if (
+            !Number.isFinite(
+                data.credit_720p
+            ) ||
+            data.credit_720p < 0
+        ) {
+
+            errors.push(
+                "Credit 720p tidak valid."
+            );
+
+        }
+
+
+        /* -------------------------------------------------
+           CREDIT 1080P
+           ------------------------------------------------- */
+
+        if (
+            !Number.isFinite(
+                data.credit_1080p
+            ) ||
+            data.credit_1080p < 0
+        ) {
+
+            errors.push(
+                "Credit 1080p tidak valid."
+            );
+
+        }
+
+
+        /* -------------------------------------------------
+           DURATION
+           ------------------------------------------------- */
+
+        if (
+            !Number.isFinite(
+                data.min_duration
+            ) ||
+            data.min_duration < 0
         ) {
 
             errors.push(
@@ -784,8 +1017,10 @@
 
 
         if (
-            data.max_duration <
-            0
+            !Number.isFinite(
+                data.max_duration
+            ) ||
+            data.max_duration < 0
         ) {
 
             errors.push(
@@ -809,7 +1044,9 @@
         }
 
 
-        /* Ratio */
+        /* -------------------------------------------------
+           RATIO
+           ------------------------------------------------- */
 
         if (
             !Array.isArray(
@@ -832,6 +1069,7 @@
                             )
                     );
 
+
             if (
                 invalidRatios.length
             ) {
@@ -846,7 +1084,9 @@
         }
 
 
-        /* Resolution */
+        /* -------------------------------------------------
+           RESOLUTION
+           ------------------------------------------------- */
 
         if (
             !Array.isArray(
@@ -869,6 +1109,7 @@
                             )
                     );
 
+
             if (
                 invalidResolutions.length
             ) {
@@ -883,7 +1124,9 @@
         }
 
 
-        /* Status */
+        /* -------------------------------------------------
+           STATUS
+           ------------------------------------------------- */
 
         if (
             !VALID_STATUS.includes(
@@ -920,7 +1163,9 @@
                 : root;
 
 
-        if (!container) {
+        if (
+            !container
+        ) {
 
             throw new Error(
                 "MODEL_FORM_ROOT_MISSING"
@@ -928,6 +1173,10 @@
 
         }
 
+
+        /* -------------------------------------------------
+           ELEMENT HELPER
+           ------------------------------------------------- */
 
         function get(
             selectors
@@ -951,16 +1200,26 @@
                         selector
                     );
 
-                if (element) {
+
+                if (
+                    element
+                ) {
+
                     return element;
+
                 }
 
             }
+
 
             return null;
 
         }
 
+
+        /* -------------------------------------------------
+           VALUE HELPER
+           ------------------------------------------------- */
 
         function value(
             selectors
@@ -971,12 +1230,17 @@
                     selectors
                 );
 
+
             return element
                 ? element.value
                 : "";
 
         }
 
+
+        /* -------------------------------------------------
+           CHECKED VALUE HELPER
+           ------------------------------------------------- */
 
         function checkedValues(
             selectors
@@ -986,6 +1250,7 @@
                 container.querySelectorAll(
                     selectors
                 );
+
 
             return Array.from(
                 elements
@@ -1006,6 +1271,10 @@
         }
 
 
+        /* -------------------------------------------------
+           PROVIDER
+           ------------------------------------------------- */
+
         const providerElement =
             get([
                 "[name='provider_id']",
@@ -1013,6 +1282,10 @@
                 "[data-field='provider_id']"
             ]);
 
+
+        /* -------------------------------------------------
+           RATIO ELEMENTS
+           ------------------------------------------------- */
 
         const ratioElements =
             container.querySelectorAll(
@@ -1025,6 +1298,10 @@
             );
 
 
+        /* -------------------------------------------------
+           RESOLUTION ELEMENTS
+           ------------------------------------------------- */
+
         const resolutionElements =
             container.querySelectorAll(
                 [
@@ -1035,6 +1312,10 @@
                 ].join(",")
             );
 
+
+        /* -------------------------------------------------
+           COLLECT RATIOS
+           ------------------------------------------------- */
 
         let ratios =
             Array.from(
@@ -1054,6 +1335,10 @@
                 .filter(Boolean);
 
 
+        /* -------------------------------------------------
+           COLLECT RESOLUTIONS
+           ------------------------------------------------- */
+
         let resolutions =
             Array.from(
                 resolutionElements
@@ -1072,16 +1357,20 @@
                 .filter(Boolean);
 
 
-        /*
-         * Jika form menggunakan select multiple.
-         */
-        if (!ratios.length) {
+        /* -------------------------------------------------
+           SELECT MULTIPLE FALLBACK
+           ------------------------------------------------- */
+
+        if (
+            !ratios.length
+        ) {
 
             const ratioSelect =
                 get([
                     "[name='supported_ratios']",
                     "#supported_ratios"
                 ]);
+
 
             if (
                 ratioSelect &&
@@ -1105,13 +1394,16 @@
         }
 
 
-        if (!resolutions.length) {
+        if (
+            !resolutions.length
+        ) {
 
             const resolutionSelect =
                 get([
                     "[name='supported_resolutions']",
                     "#supported_resolutions"
                 ]);
+
 
             if (
                 resolutionSelect &&
@@ -1135,6 +1427,10 @@
         }
 
 
+        /* -------------------------------------------------
+           RETURN RAW FORM DATA
+           ------------------------------------------------- */
+
         return {
 
             provider_id:
@@ -1149,6 +1445,7 @@
                         ])
                     ),
 
+
             model_id:
                 normalizeText(
                     value([
@@ -1156,6 +1453,7 @@
                         "#model_id"
                     ])
                 ),
+
 
             model_name:
                 normalizeText(
@@ -1165,6 +1463,7 @@
                     ])
                 ),
 
+
             description:
                 normalizeText(
                     value([
@@ -1172,6 +1471,11 @@
                         "#description"
                     ])
                 ),
+
+
+            /* -------------------------------------------------
+               LEGACY CREDIT
+               ------------------------------------------------- */
 
             credit_cost:
                 toNumber(
@@ -1182,6 +1486,7 @@
                     0
                 ),
 
+
             discount_percent:
                 toNumber(
                     value([
@@ -1190,6 +1495,7 @@
                     ]),
                     0
                 ),
+
 
             credit_final:
                 value([
@@ -1205,6 +1511,45 @@
                     )
                     : undefined,
 
+
+            /* -------------------------------------------------
+               CREDIT PER RESOLUTION
+               ------------------------------------------------- */
+
+            credit_480p:
+                toNumber(
+                    value([
+                        "[name='credit_480p']",
+                        "#credit_480p"
+                    ]),
+                    0
+                ),
+
+
+            credit_720p:
+                toNumber(
+                    value([
+                        "[name='credit_720p']",
+                        "#credit_720p"
+                    ]),
+                    0
+                ),
+
+
+            credit_1080p:
+                toNumber(
+                    value([
+                        "[name='credit_1080p']",
+                        "#credit_1080p"
+                    ]),
+                    0
+                ),
+
+
+            /* -------------------------------------------------
+               DURATION
+               ------------------------------------------------- */
+
             min_duration:
                 toNumber(
                     value([
@@ -1213,6 +1558,7 @@
                     ]),
                     0
                 ),
+
 
             max_duration:
                 toNumber(
@@ -1223,11 +1569,22 @@
                     0
                 ),
 
+
+            /* -------------------------------------------------
+               CAPABILITIES
+               ------------------------------------------------- */
+
             supported_ratios:
                 ratios,
 
+
             supported_resolutions:
                 resolutions,
+
+
+            /* -------------------------------------------------
+               STATUS
+               ------------------------------------------------- */
 
             status:
                 normalizeStatus(
@@ -1265,21 +1622,27 @@
             );
 
 
-        if (errors.length) {
+        if (
+            errors.length
+        ) {
 
             const error =
                 new Error(
                     "MODEL_CREATE_VALIDATION_FAILED"
                 );
 
+
             error.code =
                 "MODEL_CREATE_VALIDATION_FAILED";
+
 
             error.errors =
                 errors;
 
+
             error.data =
                 normalized;
+
 
             throw error;
 
@@ -1296,7 +1659,9 @@
          * provider code sebagai provider_id
          * kie_*
          */
+
         const payload = {};
+
 
         for (
             const field
@@ -1352,18 +1717,23 @@
                         : null;
 
 
-        if (!handler) {
+        if (
+            !handler
+        ) {
 
             const error =
                 new Error(
                     "MODEL_CREATE_SUBMIT_HANDLER_MISSING"
                 );
 
+
             error.code =
                 "MODEL_CREATE_SUBMIT_HANDLER_MISSING";
 
+
             error.data =
                 payload;
+
 
             throw error;
 
@@ -1376,6 +1746,7 @@
          * Tidak ada fallback ke coordinator.
          * Tidak ada recursive submit.
          */
+
         const result =
             await handler(
                 payload,
@@ -1403,6 +1774,7 @@
         state.active =
             true;
 
+
         state.root =
             typeof root ===
                 "string"
@@ -1411,12 +1783,14 @@
                 )
                 : root || null;
 
+
         state.providers =
             Array.isArray(
                 options.providers
             )
                 ? options.providers
                 : [];
+
 
         state.models =
             Array.isArray(
@@ -1431,11 +1805,14 @@
             active:
                 true,
 
+
             root:
                 state.root,
 
+
             providers:
                 state.providers,
+
 
             models:
                 state.models
@@ -1535,11 +1912,14 @@
             active:
                 state.active,
 
+
             root:
                 state.root,
 
+
             providers:
                 state.providers,
+
 
             models:
                 state.models
@@ -1574,7 +1954,9 @@
             state.root;
 
 
-        if (!root) {
+        if (
+            !root
+        ) {
 
             throw new Error(
                 "MODEL_FORM_ROOT_MISSING"
@@ -1681,6 +2063,7 @@
 
             data:
                 normalized,
+
 
             errors:
                 validateModelData(
