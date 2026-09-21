@@ -9,12 +9,20 @@
 
     <title>Edit Model - GEN-Z.AI</title>
 
+    <!-- =====================================================
+         GLOBAL GEN-Z.AI PREMIUM THEME
+    ====================================================== -->
     <link
         rel="stylesheet"
         href="../assets/css/genz-premium.css"
     >
 
     <style>
+        /* =====================================================
+           MODEL EDIT PAGE
+           Premium Admin Panel compatible
+        ====================================================== */
+
         * {
             box-sizing: border-box;
         }
@@ -52,7 +60,6 @@
                 );
 
             background-attachment: fixed;
-
             font-family:
                 Inter,
                 ui-sans-serif,
@@ -96,9 +103,17 @@
                 rgba(255,255,255,.95);
         }
 
+        /* =====================================================
+           APP
+        ====================================================== */
+
         .app {
             min-height: 100vh;
         }
+
+        /* =====================================================
+           NAV TOGGLE
+        ====================================================== */
 
         .nav-toggle {
             position: fixed;
@@ -143,6 +158,10 @@
                 0 10px 30px rgba(0,0,0,.35);
         }
 
+        /* =====================================================
+           SIDEBAR
+        ====================================================== */
+
         .sidebar {
             position: fixed;
             inset: 0 auto 0 0;
@@ -177,8 +196,12 @@
         .brand {
             display: flex;
             align-items: center;
+
             gap: 11px;
-            padding: 4px 10px 25px;
+
+            padding:
+                4px 10px 25px;
+
             color: #fff;
         }
 
@@ -211,14 +234,14 @@
         .brand-text {
             font-size: 18px;
             font-weight: 950;
+
             letter-spacing: .5px;
         }
 
         .brand-sub {
             margin-top: 2px;
 
-            color:
-                rgba(255,255,255,.38);
+            color: rgba(255,255,255,.38);
 
             font-size: 9px;
             font-weight: 800;
@@ -244,6 +267,7 @@
         .nav {
             display: flex;
             flex-direction: column;
+
             gap: 5px;
         }
 
@@ -271,6 +295,7 @@
 
         .nav a:hover {
             color: #fff;
+
             background:
                 rgba(255,255,255,.055);
         }
@@ -292,7 +317,9 @@
 
         .nav-icon {
             width: 22px;
+
             text-align: center;
+
             font-size: 16px;
         }
 
@@ -303,6 +330,7 @@
 
         .sidebar-bottom {
             position: absolute;
+
             left: 16px;
             right: 16px;
             bottom: 20px;
@@ -310,6 +338,7 @@
 
         .logout {
             width: 100%;
+
             min-height: 42px;
 
             border:
@@ -361,8 +390,13 @@
                 blur(5px);
         }
 
+        /* =====================================================
+           MAIN
+        ====================================================== */
+
         .main {
             width: 100%;
+
             min-height: 100vh;
 
             margin-left: 245px;
@@ -385,6 +419,10 @@
             margin:
                 0 auto;
         }
+
+        /* =====================================================
+           HEADER
+        ====================================================== */
 
         .page-header {
             display: flex;
@@ -514,6 +552,10 @@
                 0 0 25px rgba(255,23,68,.40);
         }
 
+        /* =====================================================
+           ALERT
+        ====================================================== */
+
         .alert {
             display: none;
 
@@ -570,6 +612,10 @@
                 #8de6b4;
         }
 
+        /* =====================================================
+           COMMON CARDS
+        ====================================================== */
+
         .model-hero,
         .form-card {
             position: relative;
@@ -624,6 +670,10 @@
                 0 35px 100px rgba(0,0,0,.34),
                 0 0 42px rgba(255,23,68,.07);
         }
+
+        /* =====================================================
+           MODEL HERO
+        ====================================================== */
 
         .model-hero {
             padding:
@@ -698,6 +748,10 @@
 
             letter-spacing: 1px;
         }
+
+        /* =====================================================
+           FORM CARD
+        ====================================================== */
 
         .form-card {
             padding:
@@ -880,6 +934,10 @@
                 monospace;
         }
 
+        /* =====================================================
+           STATUS
+        ====================================================== */
+
         .status-box {
             min-height: 52px;
 
@@ -990,6 +1048,10 @@
             transform:
                 translateX(24px);
         }
+
+        /* =====================================================
+           PRICING
+        ====================================================== */
 
         .price-input-wrap {
             position: relative;
@@ -1105,6 +1167,10 @@
                 rgba(255,255,255,.72);
         }
 
+        /* =====================================================
+           PARAMETERS
+        ====================================================== */
+
         .parameter-grid {
             display: grid;
 
@@ -1171,6 +1237,10 @@
             overflow-wrap:
                 anywhere;
         }
+
+        /* =====================================================
+           ACTIONS
+        ====================================================== */
 
         .actions {
             display: flex;
@@ -1256,6 +1326,10 @@
             box-shadow: none;
         }
 
+        /* =====================================================
+           LOADING
+        ====================================================== */
+
         .loading {
             display: flex;
 
@@ -1298,6 +1372,10 @@
         .hidden {
             display: none !important;
         }
+
+        /* =====================================================
+           RESPONSIVE
+        ====================================================== */
 
         @media (max-width: 900px) {
 
@@ -1347,11 +1425,14 @@
 
             .main {
                 margin-left: 0;
-                padding: 15px;
+
+                padding:
+                    15px;
             }
 
             .page-header {
                 flex-direction: column;
+
                 padding-left: 52px;
             }
 
@@ -1412,6 +1493,10 @@
     class="app"
     id="appShell"
 >
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
 
     <aside
         class="sidebar"
@@ -1507,6 +1592,10 @@
     ></div>
 
 
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
     <main class="main">
 
         <div class="content">
@@ -1562,10 +1651,16 @@
             </div>
 
 
+            <!-- =================================================
+                 EDIT CONTENT
+            ================================================== -->
+
             <div
                 id="editContent"
                 class="hidden"
             >
+
+                <!-- MODEL HERO -->
 
                 <section class="model-hero">
 
@@ -1597,6 +1692,10 @@
 
                 </section>
 
+
+                <!-- =================================================
+                     BASIC CONFIG
+                ================================================== -->
 
                 <section class="form-card">
 
@@ -1650,7 +1749,7 @@
 
                             <div class="field-help">
                                 Read-only. Berasal dari
-                                Admin Models / Supabase.
+                                registry model.
                             </div>
 
                         </div>
@@ -1746,6 +1845,10 @@
                 </section>
 
 
+                <!-- =================================================
+                     PRICING
+                ================================================== -->
+
                 <section class="form-card">
 
                     <h2 class="section-title">
@@ -1823,32 +1926,45 @@
                             </div>
 
                             <div class="field-help">
-                                Masukkan kurs referensi
-                                untuk melihat estimasi IDR.
+                                Hanya untuk kalkulasi
+                                tampilan halaman ini.
                             </div>
 
                         </div>
 
 
-                        <div class="field full">
+                        <div class="field">
 
                             <label for="discount">
-                                Discount (%)
+                                Diskon
                             </label>
 
-                            <input
-                                type="number"
-                                id="discount"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                inputmode="decimal"
-                                placeholder="0"
-                            >
+                            <div class="price-input-wrap">
+
+                                <input
+                                    type="number"
+                                    id="discount"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                    placeholder="0"
+                                >
+
+                                <span
+                                    class="price-prefix"
+                                    style="
+                                        left:auto;
+                                        right:13px;
+                                    "
+                                >
+                                    %
+                                </span>
+
+                            </div>
 
                             <div class="field-help">
-                                Discount administratif
-                                yang disimpan pada model.
+                                Nilai 0 berarti tanpa diskon.
                             </div>
 
                         </div>
@@ -1861,7 +1977,7 @@
                         <div class="price-box">
 
                             <div class="price-label">
-                                USD
+                                Harga USD
                             </div>
 
                             <div
@@ -1877,7 +1993,7 @@
                         <div class="price-box">
 
                             <div class="price-label">
-                                IDR
+                                Harga IDR
                             </div>
 
                             <div
@@ -1893,7 +2009,7 @@
                         <div class="price-box final">
 
                             <div class="price-label">
-                                Setelah Discount
+                                Setelah Diskon
                             </div>
 
                             <div
@@ -1910,20 +2026,20 @@
 
                     <div class="credit-info">
 
-                        <strong>
-                            Catatan:
-                        </strong>
-
-                        Pricing di atas hanya digunakan sebagai
-                        referensi Owner dalam menetapkan credit.
-                        Nilai credit tidak dihitung otomatis
-                        dari USD, IDR, discount, duration, ratio,
-                        maupun parameter lainnya.
+                        <strong>Catatan:</strong>
+                        `credit_cost` pada database adalah
+                        biaya credit sistem, bukan otomatis
+                        harga USD. Halaman ini tidak mengubah
+                        `credit_cost` menjadi USD.
 
                     </div>
 
                 </section>
 
+
+                <!-- =================================================
+                     MODEL CREDIT
+                ================================================== -->
 
                 <section class="form-card">
 
@@ -1934,9 +2050,9 @@
                     <p class="section-description">
                         Credit ditetapkan Owner berdasarkan resolusi.
                         Nilai ini dibaca dan disimpan langsung pada
-                        konfigurasi model.
+                        konfigurasi model. Pricing di atas hanya
+                        digunakan sebagai referensi penetapan credit.
                     </p>
-
 
                     <div class="form-grid">
 
@@ -1961,7 +2077,6 @@
 
                         </div>
 
-
                         <div class="field">
 
                             <label for="credit720p">
@@ -1982,7 +2097,6 @@
                             </div>
 
                         </div>
-
 
                         <div class="field">
 
@@ -2010,6 +2124,10 @@
                 </section>
 
 
+                <!-- =================================================
+                     PARAMETERS
+                ================================================== -->
+
                 <section class="form-card">
 
                     <h2 class="section-title">
@@ -2017,9 +2135,10 @@
                     </h2>
 
                     <p class="section-description">
-                        Parameter teknis dibaca dari konfigurasi
-                        model dan registry. Bagian ini bersifat
-                        read-only pada halaman Edit Model.
+                        Parameter teknis dibaca langsung dari
+                        registry model dan parameters.js.
+                        Parameter teknis tidak diedit dari
+                        halaman ini.
                     </p>
 
 
@@ -2077,6 +2196,10 @@
                 </section>
 
 
+                <!-- =================================================
+                     ACTIONS
+                ================================================== -->
+
                 <section class="form-card">
 
                     <div class="actions">
@@ -2088,7 +2211,6 @@
                         >
                             Batal
                         </button>
-
 
                         <button
                             type="button"
@@ -2111,12 +2233,20 @@
 </div>
 
 
+<!-- =========================================================
+     SUPABASE
+========================================================= -->
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="../assets/js/config.js"></script>
 
 <script src="./supabase.js"></script>
 
+
+<!-- =========================================================
+     MODEL EDIT
+========================================================= -->
 
 <script type="module">
 
@@ -2126,1586 +2256,508 @@
         loadProviders
     } from "./models/models-data.js";
 
-
-    /* =====================================================
-       SUPABASE
-    ===================================================== */
-
     const supabase =
         window.GENZ_SUPABASE ||
         window.supabaseClient ||
         null;
 
-
-    /*
-     * SOURCE OF TRUTH MODEL TABLE
-     *
-     * models-data.js menggunakan kie_models
-     * sebagai tabel Admin Models.
-     *
-     * Sebelumnya halaman ini membaca dari kie_models
-     * tetapi menyimpan ke "models". Itu menyebabkan
-     * credit yang diedit tidak masuk ke record model
-     * yang sebenarnya.
-     */
-
-    const MODEL_TABLE =
-        "kie_models";
-
-
-    /* =====================================================
-       ELEMENTS
-    ===================================================== */
-
-    const appShell =
-        document.getElementById("appShell");
-
-    const navToggle =
-        document.getElementById("navToggle");
-
-    const sidebarOverlay =
-        document.getElementById("sidebarOverlay");
-
-    const adminSidebar =
-        document.getElementById("adminSidebar");
-
-    const backButton =
-        document.getElementById("backButton");
-
-    const cancelButton =
-        document.getElementById("cancelButton");
-
-    const saveButton =
-        document.getElementById("saveButton");
-
-    const logoutButton =
-        document.getElementById("logoutButton");
-
-    const alertBox =
-        document.getElementById("alertBox");
-
-    const loadingBox =
-        document.getElementById("loadingBox");
-
-    const editContent =
-        document.getElementById("editContent");
-
-    const heroModelName =
-        document.getElementById("heroModelName");
-
-    const heroModelId =
-        document.getElementById("heroModelId");
-
-    const modelName =
-        document.getElementById("modelName");
-
-    const modelId =
-        document.getElementById("modelId");
-
-    const providerName =
-        document.getElementById("providerName");
-
-    const modelType =
-        document.getElementById("modelType");
-
-    const description =
-        document.getElementById("description");
-
-    const statusToggle =
-        document.getElementById("statusToggle");
-
-    const statusText =
-        document.getElementById("statusText");
-
-    const priceUsd =
-        document.getElementById("priceUsd");
-
-    const exchangeRate =
-        document.getElementById("exchangeRate");
-
-    const discount =
-        document.getElementById("discount");
-
-    const previewUsd =
-        document.getElementById("previewUsd");
-
-    const previewIdr =
-        document.getElementById("previewIdr");
-
-    const previewFinal =
-        document.getElementById("previewFinal");
-
-    const credit480p =
-        document.getElementById("credit480p");
-
-    const credit720p =
-        document.getElementById("credit720p");
-
-    const credit1080p =
-        document.getElementById("credit1080p");
-
-    const durationValue =
-        document.getElementById("durationValue");
-
-    const ratioValue =
-        document.getElementById("ratioValue");
-
-    const resolutionValue =
-        document.getElementById("resolutionValue");
-
-
-    /* =====================================================
-       STATE
-    ===================================================== */
+    const appShell = document.getElementById("appShell");
+    const navToggle = document.getElementById("navToggle");
+    const sidebarOverlay = document.getElementById("sidebarOverlay");
+    const adminSidebar = document.getElementById("adminSidebar");
+    const backButton = document.getElementById("backButton");
+    const cancelButton = document.getElementById("cancelButton");
+    const saveButton = document.getElementById("saveButton");
+    const logoutButton = document.getElementById("logoutButton");
+    const alertBox = document.getElementById("alertBox");
+    const loadingBox = document.getElementById("loadingBox");
+    const editContent = document.getElementById("editContent");
+    const heroModelName = document.getElementById("heroModelName");
+    const heroModelId = document.getElementById("heroModelId");
+    const modelName = document.getElementById("modelName");
+    const modelId = document.getElementById("modelId");
+    const providerName = document.getElementById("providerName");
+    const modelType = document.getElementById("modelType");
+    const description = document.getElementById("description");
+    const statusToggle = document.getElementById("statusToggle");
+    const statusText = document.getElementById("statusText");
+    const priceUsd = document.getElementById("priceUsd");
+    const exchangeRate = document.getElementById("exchangeRate");
+    const discount = document.getElementById("discount");
+    const previewUsd = document.getElementById("previewUsd");
+    const previewIdr = document.getElementById("previewIdr");
+    const previewFinal = document.getElementById("previewFinal");
+    const credit480p = document.getElementById("credit480p");
+    const credit720p = document.getElementById("credit720p");
+    const credit1080p = document.getElementById("credit1080p");
+    const durationValue = document.getElementById("durationValue");
+    const ratioValue = document.getElementById("ratioValue");
+    const resolutionValue = document.getElementById("resolutionValue");
 
     let currentModel = null;
-
     let currentModelId = "";
-
     let currentDatabaseModel = null;
-
     let saving = false;
 
-
-    /* =====================================================
-       NAVIGATION
-    ===================================================== */
-
     function setNavigation(open) {
-
-        appShell.classList.toggle(
-            "sidebar-collapsed",
-            !open
-        );
-
-        navToggle.setAttribute(
-            "aria-expanded",
-            String(open)
-        );
-
-        navToggle.setAttribute(
-            "aria-label",
-            open
-                ? "Tutup navigasi"
-                : "Buka navigasi"
-        );
+        appShell.classList.toggle("sidebar-collapsed", !open);
+        navToggle.setAttribute("aria-expanded", String(open));
+        navToggle.setAttribute("aria-label", open ? "Tutup navigasi" : "Buka navigasi");
     }
 
-
     function toggleNavigation() {
-
-        const isOpen =
-            !appShell.classList.contains(
-                "sidebar-collapsed"
-            );
-
+        const isOpen = !appShell.classList.contains("sidebar-collapsed");
         setNavigation(!isOpen);
     }
 
+    navToggle.addEventListener("click", toggleNavigation);
+    sidebarOverlay.addEventListener("click", () => setNavigation(false));
 
-    navToggle.addEventListener(
-        "click",
-        toggleNavigation
-    );
-
-
-    sidebarOverlay.addEventListener(
-        "click",
-        () => setNavigation(false)
-    );
-
-
-    adminSidebar
-        .querySelectorAll("a")
-        .forEach(link => {
-
-            link.addEventListener(
-                "click",
-                () => {
-
-                    if (
-                        window.innerWidth <= 720
-                    ) {
-                        setNavigation(false);
-                    }
-
-                }
-            );
-
+    adminSidebar.querySelectorAll("a").forEach(link => {
+        link.addEventListener("click", () => {
+            if (window.innerWidth <= 720) setNavigation(false);
         });
+    });
 
-
-    /* =====================================================
-       HELPERS
-    ===================================================== */
-
-    function showAlert(
-        message,
-        type = "error"
-    ) {
-
-        alertBox.textContent =
-            message;
-
-        alertBox.className =
-            "alert show " + type;
+    function showAlert(message, type = "error") {
+        alertBox.textContent = message;
+        alertBox.className = "alert show " + type;
     }
-
 
     function hideAlert() {
-
         alertBox.textContent = "";
-
-        alertBox.className =
-            "alert";
+        alertBox.className = "alert";
     }
-
 
     function setLoading(value) {
-
         if (value) {
-
-            loadingBox.classList.remove(
-                "hidden"
-            );
-
-            editContent.classList.add(
-                "hidden"
-            );
-
+            loadingBox.classList.remove("hidden");
+            editContent.classList.add("hidden");
         } else {
-
-            loadingBox.classList.add(
-                "hidden"
-            );
-
-            editContent.classList.remove(
-                "hidden"
-            );
+            loadingBox.classList.add("hidden");
+            editContent.classList.remove("hidden");
         }
     }
 
-
-    /*
-     * Penting:
-     * null/undefined/"" dianggap kosong.
-     * Angka 0 tetap valid.
-     */
-
-    function numberValue(
-        value,
-        fallback = 0
-    ) {
-
-        if (
-            value === null ||
-            value === undefined ||
-            value === ""
-        ) {
-            return fallback;
-        }
-
-        const number =
-            Number(value);
-
-        return Number.isFinite(number)
-            ? number
-            : fallback;
+    function numberValue(value, fallback = 0) {
+        if (value === null || value === undefined || value === "") return fallback;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : fallback;
     }
 
-
-    function normalizeCredit(
-        value
-    ) {
-
-        if (
-            value === null ||
-            value === undefined ||
-            value === ""
-        ) {
-            return null;
-        }
-
-        const number =
-            Number(value);
-
-        if (
-            !Number.isFinite(number) ||
-            number < 0
-        ) {
-            return null;
-        }
-
-        return number;
+    function nullableNumber(value) {
+        if (value === null || value === undefined || value === "") return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
     }
-
-
-    function getCreditValue(
-        model,
-        field
-    ) {
-
-        if (!model) {
-            return null;
-        }
-
-        const pricing =
-            model?.pricing ||
-            model?.price ||
-            {};
-
-        const candidates = [
-
-            model?.[field],
-
-            pricing?.[field],
-
-            field === "credit_480p"
-                ? model?.credit480p
-                : null,
-
-            field === "credit_720p"
-                ? model?.credit720p
-                : null,
-
-            field === "credit_1080p"
-                ? model?.credit1080p
-                : null,
-
-            field === "credit_480p"
-                ? pricing?.credit480p
-                : null,
-
-            field === "credit_720p"
-                ? pricing?.credit720p
-                : null,
-
-            field === "credit_1080p"
-                ? pricing?.credit1080p
-                : null
-
-        ];
-
-
-        for (
-            const candidate of candidates
-        ) {
-
-            const normalized =
-                normalizeCredit(
-                    candidate
-                );
-
-            if (
-                normalized !== null
-            ) {
-                return normalized;
-            }
-        }
-
-
-        return null;
-    }
-
 
     function normalizeArray(value) {
-
-        if (Array.isArray(value)) {
-            return value;
-        }
-
-        if (
-            typeof value === "string"
-        ) {
-
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string") {
             try {
-
-                const parsed =
-                    JSON.parse(value);
-
-                if (
-                    Array.isArray(parsed)
-                ) {
-                    return parsed;
-                }
-
-            } catch (_) {
-                /* bukan JSON */
-            }
-
-            return value
-                .split(",")
-                .map(
-                    item =>
-                        item.trim()
-                )
-                .filter(Boolean);
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (_) {}
+            return value.split(",").map(item => item.trim()).filter(Boolean);
         }
-
         return [];
     }
-
 
     function getQueryModelId() {
-
-        const params =
-            new URLSearchParams(
-                window.location.search
-            );
-
-        return (
-            params.get("model_id") ||
-            params.get("id") ||
-            ""
-        ).trim();
+        const params = new URLSearchParams(window.location.search);
+        return (params.get("model_id") || params.get("id") || "").trim();
     }
-
 
     function goBack() {
-
-        if (
-            document.referrer &&
-            document.referrer.includes(
-                window.location.host
-            )
-        ) {
-
+        if (document.referrer && document.referrer.includes(window.location.host)) {
             window.history.back();
-
             return;
         }
-
-        window.location.href =
-            "./models.html";
+        window.location.href = "./models.html";
     }
 
-
-    /* =====================================================
-       PARAMETER EXTRACTION
-    ===================================================== */
-
-    function getParameterDefinition(
-        model,
-        parameterName
-    ) {
-
-        const parameters =
-            model?.parameters;
-
-        if (!Array.isArray(parameters)) {
-            return null;
-        }
-
-        return (
-            parameters.find(
-                parameter =>
-                    parameter &&
-                    parameter.name ===
-                    parameterName
-            ) ||
-            null
-        );
+    function getParameterDefinition(model, parameterName) {
+        const parameters = model?.parameters;
+        if (!Array.isArray(parameters)) return null;
+        return parameters.find(parameter => parameter && parameter.name === parameterName) || null;
     }
 
-
-    function getParameterValues(
-        model,
-        parameterName
-    ) {
-
-        const definition =
-            getParameterDefinition(
-                model,
-                parameterName
-            );
-
-        if (!definition) {
-            return [];
-        }
-
-        if (
-            Array.isArray(
-                definition.enum
-            )
-        ) {
-            return definition.enum;
-        }
-
-        if (
-            Array.isArray(
-                definition.options
-            )
-        ) {
-            return definition.options;
-        }
-
+    function getParameterValues(model, parameterName) {
+        const definition = getParameterDefinition(model, parameterName);
+        if (!definition) return [];
+        if (Array.isArray(definition.enum)) return definition.enum;
+        if (Array.isArray(definition.options)) return definition.options;
         return [];
     }
 
-
-    function getParameterDefault(
-        model,
-        parameterName
-    ) {
-
-        const definition =
-            getParameterDefinition(
-                model,
-                parameterName
-            );
-
-        if (!definition) {
-            return null;
-        }
-
-        return (
-            definition.default ??
-            null
-        );
+    function getParameterDefault(model, parameterName) {
+        const definition = getParameterDefinition(model, parameterName);
+        return definition ? (definition.default ?? null) : null;
     }
-
-
-    /* =====================================================
-       PARAMETERS
-    ===================================================== */
 
     function renderParameters(model) {
+        const durationParameter = getParameterDefinition(model, "duration");
+        const minDuration = model?.min_duration ?? durationParameter?.min ?? null;
+        const maxDuration = model?.max_duration ?? durationParameter?.max ?? null;
 
-        const durationParameter =
-            getParameterDefinition(
-                model,
-                "duration"
-            );
-
-
-        let minDuration =
-            model?.min_duration ??
-            durationParameter?.min ??
-            null;
-
-        let maxDuration =
-            model?.max_duration ??
-            durationParameter?.max ??
-            null;
-
-
-        if (
-            minDuration !== null &&
-            maxDuration !== null
-        ) {
-
-            durationValue.textContent =
-                `${minDuration} - ${maxDuration} detik`;
-
-        } else if (
-            minDuration !== null
-        ) {
-
-            durationValue.textContent =
-                `${minDuration} detik`;
-
-        } else if (
-            maxDuration !== null
-        ) {
-
-            durationValue.textContent =
-                `${maxDuration} detik`;
-
+        if (minDuration !== null && maxDuration !== null) {
+            durationValue.textContent = `${minDuration} - ${maxDuration} detik`;
+        } else if (minDuration !== null) {
+            durationValue.textContent = `${minDuration} detik`;
+        } else if (maxDuration !== null) {
+            durationValue.textContent = `${maxDuration} detik`;
         } else {
-
-            const defaultDuration =
-                getParameterDefault(
-                    model,
-                    "duration"
-                );
-
-            durationValue.textContent =
-                defaultDuration !== null
-                    ? `${defaultDuration} detik`
-                    : "Mengikuti parameters.js";
-        }
-
-
-        let ratios =
-            normalizeArray(
-                model?.supported_ratios
-            );
-
-
-        if (!ratios.length) {
-
-            ratios =
-                getParameterValues(
-                    model,
-                    "aspect_ratio"
-                );
-        }
-
-
-        if (!ratios.length) {
-
-            const defaultRatio =
-                getParameterDefault(
-                    model,
-                    "aspect_ratio"
-                );
-
-            if (
-                defaultRatio !== null
-            ) {
-                ratios = [
-                    defaultRatio
-                ];
-            }
-        }
-
-
-        ratioValue.textContent =
-            ratios.length
-                ? ratios.join(" • ")
+            const defaultDuration = getParameterDefault(model, "duration");
+            durationValue.textContent = defaultDuration !== null
+                ? `${defaultDuration} detik`
                 : "Mengikuti parameters.js";
-
-
-        let resolutions =
-            normalizeArray(
-                model?.supported_resolutions
-            );
-
-
-        if (!resolutions.length) {
-
-            resolutions =
-                getParameterValues(
-                    model,
-                    "resolution"
-                );
         }
 
-
-        if (!resolutions.length) {
-
-            const defaultResolution =
-                getParameterDefault(
-                    model,
-                    "resolution"
-                );
-
-            if (
-                defaultResolution !== null
-            ) {
-                resolutions = [
-                    defaultResolution
-                ];
-            }
+        let ratios = normalizeArray(model?.supported_ratios);
+        if (!ratios.length) ratios = getParameterValues(model, "aspect_ratio");
+        if (!ratios.length) {
+            const defaultRatio = getParameterDefault(model, "aspect_ratio");
+            if (defaultRatio !== null) ratios = [defaultRatio];
         }
+        ratioValue.textContent = ratios.length ? ratios.join(" • ") : "Mengikuti parameters.js";
 
-
-        resolutionValue.textContent =
-            resolutions.length
-                ? resolutions.join(" • ")
-                : "Mengikuti parameters.js";
+        let resolutions = normalizeArray(model?.supported_resolutions);
+        if (!resolutions.length) resolutions = getParameterValues(model, "resolution");
+        if (!resolutions.length) {
+            const defaultResolution = getParameterDefault(model, "resolution");
+            if (defaultResolution !== null) resolutions = [defaultResolution];
+        }
+        resolutionValue.textContent = resolutions.length ? resolutions.join(" • ") : "Mengikuti parameters.js";
     }
-
-
-    /* =====================================================
-       STATUS
-    ===================================================== */
 
     function updateStatusText() {
-
-        statusText.textContent =
-            statusToggle.checked
-                ? "Aktif"
-                : "Nonaktif";
+        statusText.textContent = statusToggle.checked ? "Aktif" : "Nonaktif";
     }
-
-
-    /* =====================================================
-       PRICING
-    ===================================================== */
 
     function updatePricePreview() {
+        const usd = Math.max(0, numberValue(priceUsd.value));
+        const rate = Math.max(0, numberValue(exchangeRate.value));
+        const discountPercent = Math.min(100, Math.max(0, numberValue(discount.value)));
+        const idr = usd * rate;
+        const finalIdr = idr * (1 - discountPercent / 100);
 
-        const usd =
-            Math.max(
-                0,
-                numberValue(
-                    priceUsd.value
-                )
-            );
+        previewUsd.textContent = "$" + usd.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6
+        });
+        previewIdr.textContent = "Rp" + Math.round(idr).toLocaleString("id-ID");
+        previewFinal.textContent = "Rp" + Math.round(finalIdr).toLocaleString("id-ID");
 
-        const rate =
-            Math.max(
-                0,
-                numberValue(
-                    exchangeRate.value
-                )
-            );
-
-        const discountPercent =
-            Math.min(
-                100,
-                Math.max(
-                    0,
-                    numberValue(
-                        discount.value
-                    )
-                )
-            );
-
-
-        const idr =
-            usd * rate;
-
-
-        const finalIdr =
-            idr *
-            (
-                1 -
-                discountPercent / 100
-            );
-
-
-        previewUsd.textContent =
-            "$" +
-            usd.toLocaleString(
-                "en-US",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 6
-                }
-            );
-
-
-        previewIdr.textContent =
-            "Rp" +
-            Math.round(idr)
-                .toLocaleString(
-                    "id-ID"
-                );
-
-
-        previewFinal.textContent =
-            "Rp" +
-            Math.round(finalIdr)
-                .toLocaleString(
-                    "id-ID"
-                );
-
-
-        return {
-            usd,
-            rate,
-            idr,
-            discountPercent,
-            finalIdr
-        };
+        return { usd, rate, idr, discountPercent, finalIdr };
     }
 
-
-    /* =====================================================
-       RENDER MODEL
-    ===================================================== */
-
     function renderModel(model) {
+        currentModel = model;
+        currentModelId = String(model?.model_id || model?.id || "").trim();
 
-        currentModel =
-            model;
+        const name = model?.model_name || model?.name || currentModelId || "Model";
+        const provider = model?.provider_name || model?.providerName || model?.provider_id || model?.providerId || "-";
+        const type = model?.type || model?.model_type || "-";
 
-        currentModelId =
-            String(
-                model?.model_id ||
-                model?.id ||
-                ""
-            );
+        heroModelName.textContent = name;
+        heroModelId.textContent = currentModelId;
+        modelName.value = name;
+        modelId.textContent = currentModelId;
+        providerName.textContent = provider;
+        modelType.textContent = type;
+        description.value = model?.description ?? "";
 
-
-        const name =
-            model?.model_name ||
-            model?.name ||
-            currentModelId ||
-            "Model";
-
-
-        const provider =
-            model?.provider_name ||
-            model?.providerName ||
-            model?.provider_id ||
-            model?.providerId ||
-            "-";
-
-
-        const type =
-            model?.type ||
-            model?.model_type ||
-            "-";
-
-
-        heroModelName.textContent =
-            name;
-
-
-        heroModelId.textContent =
-            currentModelId;
-
-
-        modelName.value =
-            name;
-
-
-        modelId.textContent =
-            currentModelId;
-
-
-        providerName.textContent =
-            provider;
-
-
-        modelType.textContent =
-            type;
-
-
-        description.value =
-            model?.description ||
-            "";
-
-
-        statusToggle.checked =
-            String(
-                model?.status ||
-                ""
-            ).toLowerCase() ===
-            "active";
-
-
+        statusToggle.checked = String(model?.status || "").toLowerCase() === "active";
         updateStatusText();
-
-
         renderParameters(model);
 
+        const registryPrice = model?.price_usd ?? model?.priceUSD ?? null;
+        priceUsd.value = registryPrice !== null ? numberValue(registryPrice) : "";
+        exchangeRate.value = "";
+        discount.value = numberValue(model?.discount_percent ?? 0);
 
-        const registryPrice =
-            model?.price_usd ??
-            model?.priceUSD ??
-            null;
-
-
-        priceUsd.value =
-            registryPrice !== null
-                ? numberValue(
-                    registryPrice
-                )
-                : "";
-
-
-        exchangeRate.value =
-            "";
-
-
-        discount.value =
-            numberValue(
-                model?.discount_percent ?? 0
-            );
-
-
-        /*
-         * CREDIT RESOLUTION
-         *
-         * Tidak menggunakan ||.
-         * Nilai 0 adalah nilai valid.
-         */
-
-        const savedCredit480p =
-            getCreditValue(
-                model,
-                "credit_480p"
-            );
-
-        const savedCredit720p =
-            getCreditValue(
-                model,
-                "credit_720p"
-            );
-
-        const savedCredit1080p =
-            getCreditValue(
-                model,
-                "credit_1080p"
-            );
-
-
-        credit480p.value =
-            savedCredit480p !== null
-                ? savedCredit480p
-                : "";
-
-
-        credit720p.value =
-            savedCredit720p !== null
-                ? savedCredit720p
-                : "";
-
-
-        credit1080p.value =
-            savedCredit1080p !== null
-                ? savedCredit1080p
-                : "";
-
-
-        console.log(
-            "[GEN-Z.AI][MODEL EDIT] Loaded resolution credits:",
-            {
-                modelId: currentModelId,
-                credit_480p:
-                    savedCredit480p,
-                credit_720p:
-                    savedCredit720p,
-                credit_1080p:
-                    savedCredit1080p
-            }
-        );
-
+        credit480p.value = model?.credit_480p ?? model?.credit480p ?? "";
+        credit720p.value = model?.credit_720p ?? model?.credit720p ?? "";
+        credit1080p.value = model?.credit_1080p ?? model?.credit1080p ?? "";
 
         updatePricePreview();
     }
 
-
-    /* =====================================================
-       LOAD MODEL
-    ===================================================== */
-
-    async function loadModel() {
-
-        hideAlert();
-
-        setLoading(true);
-
-
-        const requestedId =
-            getQueryModelId();
-
-
-        if (!requestedId) {
-
-            setLoading(false);
-
-            showAlert(
-                "Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...",
-                "error"
-            );
-
-            return;
-        }
-
-
-        try {
-
-            await loadProviders({
-                includeInactive: true
-            });
-
-
-            await loadModels({
-                force: true,
-                includeInactive: true
-            });
-
-
-            const model =
-                await getModelByModelId(
-                    requestedId
-                );
-
-
-            if (!model) {
-
-                setLoading(false);
-
-                showAlert(
-                    `Model "${requestedId}" tidak ditemukan pada Admin Models / Supabase.`,
-                    "error"
-                );
-
-                return;
-            }
-
-
-            currentDatabaseModel =
-                model;
-
-
-            renderModel(
-                model
-            );
-
-
-            setLoading(false);
-
-        } catch (error) {
-
-            console.error(
-                "GEN-Z.AI model-edit load error:",
-                error
-            );
-
-            setLoading(false);
-
-            showAlert(
-                error?.message ||
-                "Gagal memuat konfigurasi model.",
-                "error"
-            );
-        }
+    async function getAccessToken() {
+        if (!supabase?.auth) return null;
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        return data?.session?.access_token || null;
     }
 
-
-    /* =====================================================
-       SAVE MODEL
-    ===================================================== */
-
-    async function saveModel() {
-
-        if (saving) {
-            return;
+    async function requestAdminModels(method = "GET", body = null) {
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+            throw new Error("Sesi login tidak ditemukan. Silakan login kembali.");
         }
 
-
-        hideAlert();
-
-
-        if (!currentModel) {
-
-            showAlert(
-                "Data model belum tersedia.",
-                "error"
-            );
-
-            return;
-        }
-
-
-        if (!supabase) {
-
-            showAlert(
-                "Supabase belum terhubung. Periksa konfigurasi project.",
-                "error"
-            );
-
-            return;
-        }
-
-
-        const name =
-            modelName.value.trim();
-
-
-        if (!name) {
-
-            showAlert(
-                "Nama model wajib diisi.",
-                "error"
-            );
-
-            modelName.focus();
-
-            return;
-        }
-
-
-        const modelIdValue =
-            currentModel.model_id ||
-            currentModelId;
-
-
-        if (!modelIdValue) {
-
-            showAlert(
-                "Model ID tidak valid.",
-                "error"
-            );
-
-            return;
-        }
-
-
-        const discountPercent =
-            Math.min(
-                100,
-                Math.max(
-                    0,
-                    numberValue(
-                        discount.value
-                    )
-                )
-            );
-
-
-        /*
-         * CREDIT RESOLUTION
-         *
-         * Jangan memakai ||.
-         *
-         * 0 tetap disimpan sebagai 0.
-         */
-
-        const credit480pValue =
-            normalizeCredit(
-                credit480p.value
-            );
-
-
-        const credit720pValue =
-            normalizeCredit(
-                credit720p.value
-            );
-
-
-        const credit1080pValue =
-            normalizeCredit(
-                credit1080p.value
-            );
-
-
-        /*
-         * Input credit wajib berupa angka valid.
-         */
-
-        if (
-            credit480pValue === null
-        ) {
-
-            showAlert(
-                "Credit 480p harus berupa angka 0 atau lebih.",
-                "error"
-            );
-
-            credit480p.focus();
-
-            return;
-        }
-
-
-        if (
-            credit720pValue === null
-        ) {
-
-            showAlert(
-                "Credit 720p harus berupa angka 0 atau lebih.",
-                "error"
-            );
-
-            credit720p.focus();
-
-            return;
-        }
-
-
-        if (
-            credit1080pValue === null
-        ) {
-
-            showAlert(
-                "Credit 1080p harus berupa angka 0 atau lebih.",
-                "error"
-            );
-
-            credit1080p.focus();
-
-            return;
-        }
-
-
-        /*
-         * PAYLOAD
-         *
-         * Tiga credit resolusi ditulis
-         * langsung ke kolom database.
-         */
-
-        const payload = {
-
-            model_name:
-                name,
-
-            description:
-                description.value.trim(),
-
-            discount_percent:
-                discountPercent,
-
-            status:
-                statusToggle.checked
-                    ? "active"
-                    : "inactive",
-
-            credit_480p:
-                credit480pValue,
-
-            credit_720p:
-                credit720pValue,
-
-            credit_1080p:
-                credit1080pValue,
-
-            updated_at:
-                new Date().toISOString()
+        const options = {
+            method,
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${accessToken}`
+            },
+            credentials: "same-origin"
         };
 
+        if (body !== null) {
+            options.headers["Content-Type"] = "application/json";
+            options.body = JSON.stringify(body);
+        }
 
-        console.log(
-            "[GEN-Z.AI][MODEL EDIT] Saving payload:",
-            {
-                table:
-                    MODEL_TABLE,
+        const response = await fetch("../api/admin-models", options);
+        const data = await response.json().catch(() => ({}));
 
-                modelId:
-                    modelIdValue,
+        if (!response.ok) {
+            throw new Error(
+                data?.error ||
+                data?.message ||
+                `Admin Models API gagal (${response.status}).`
+            );
+        }
 
-                payload
+        if (data?.success === false) {
+            throw new Error(data.error || data.message || "Admin Models API gagal.");
+        }
+
+        return data;
+    }
+
+    function extractAdminModels(data) {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.models)) return data.models;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.data?.models)) return data.data.models;
+        if (data?.model && typeof data.model === "object") return [data.model];
+        if (data?.data?.model && typeof data.data.model === "object") return [data.data.model];
+        return [];
+    }
+
+    function findAdminModel(models, requestedId) {
+        const normalized = String(requestedId || "").trim();
+        return models.find(item =>
+            String(item?.model_id || "").trim() === normalized ||
+            String(item?.id || "").trim() === normalized
+        ) || null;
+    }
+
+    function extractSavedModel(data) {
+        if (data?.model && typeof data.model === "object") return data.model;
+        if (data?.data?.model && typeof data.data.model === "object") return data.data.model;
+        if (data?.data && typeof data.data === "object" && !Array.isArray(data.data) && (data.data.id || data.data.model_id)) return data.data;
+        if (Array.isArray(data?.models) && data.models[0]) return data.models[0];
+        if (Array.isArray(data) && data[0]) return data[0];
+        if (data && typeof data === "object" && !Array.isArray(data) && (data.id || data.model_id)) return data;
+        return null;
+    }
+
+    function mergeModelData(registryModel, adminModel, requestedId) {
+        const registry = registryModel || {};
+        const admin = adminModel || {};
+
+        return {
+            ...registry,
+            ...admin,
+            id: admin.id ?? registry.id ?? null,
+            model_id: admin.model_id || registry.model_id || requestedId,
+            model_name: admin.model_name || registry.model_name || registry.name || requestedId,
+            provider_id: admin.provider_id ?? registry.provider_id ?? registry.providerId ?? null,
+            provider_name: admin.provider_name || registry.provider_name || registry.providerName || registry.provider_id || "-",
+            type: registry.type || registry.model_type || admin.type || admin.model_type || "-",
+            model_type: registry.model_type || registry.type || admin.model_type || admin.type || "-",
+            description: admin.description ?? "",
+            status: admin.status ?? "inactive",
+            discount_percent: admin.discount_percent ?? 0,
+            credit_480p: admin.credit_480p ?? null,
+            credit_720p: admin.credit_720p ?? null,
+            credit_1080p: admin.credit_1080p ?? null
+        };
+    }
+
+    async function loadRegistryModel(requestedId) {
+        try {
+            await loadProviders({ includeInactive: true });
+            await loadModels({ force: true, includeInactive: true });
+            return await getModelByModelId(requestedId);
+        } catch (error) {
+            console.warn("GEN-Z.AI model-edit registry load warning:", error);
+            return null;
+        }
+    }
+
+    async function loadModel() {
+        hideAlert();
+        setLoading(true);
+
+        const requestedId = getQueryModelId();
+        if (!requestedId) {
+            setLoading(false);
+            showAlert("Model ID tidak ditemukan pada URL. Gunakan format ?model_id=...", "error");
+            return;
+        }
+
+        try {
+            const [adminResult, registryResult] = await Promise.all([
+                requestAdminModels("GET"),
+                loadRegistryModel(requestedId)
+            ]);
+
+            const adminModels = extractAdminModels(adminResult);
+            const adminModel = findAdminModel(adminModels, requestedId);
+
+            if (!adminModel) {
+                throw new Error(`Model "${requestedId}" tidak ditemukan pada Admin Models / tabel models.`);
             }
-        );
 
+            currentDatabaseModel = adminModel;
+            const mergedModel = mergeModelData(registryResult, adminModel, requestedId);
+            renderModel(mergedModel);
+            setLoading(false);
+        } catch (error) {
+            console.error("GEN-Z.AI model-edit load error:", error);
+            currentDatabaseModel = null;
+            currentModel = null;
+            setLoading(false);
+            showAlert(error?.message || "Gagal memuat konfigurasi model.", "error");
+        }
+    }
+
+    async function saveModel() {
+        if (saving) return;
+        hideAlert();
+
+        if (!currentModel || !currentDatabaseModel?.id) {
+            showAlert("Record Admin Model tidak tersedia. Model tidak dapat disimpan.", "error");
+            return;
+        }
+
+        if (!supabase) {
+            showAlert("Supabase belum terhubung. Periksa konfigurasi project.", "error");
+            return;
+        }
+
+        const name = modelName.value.trim();
+        if (!name) {
+            showAlert("Nama model wajib diisi.", "error");
+            modelName.focus();
+            return;
+        }
+
+        const modelIdValue = String(currentDatabaseModel.model_id || currentModel.model_id || currentModelId || "").trim();
+        if (!modelIdValue) {
+            showAlert("Model ID tidak valid.", "error");
+            return;
+        }
+
+        const discountPercent = Math.min(100, Math.max(0, numberValue(discount.value)));
+        const credit480pValue = Math.max(0, numberValue(credit480p.value));
+        const credit720pValue = Math.max(0, numberValue(credit720p.value));
+        const credit1080pValue = Math.max(0, numberValue(credit1080p.value));
+
+        const payload = {
+            id: currentDatabaseModel.id,
+            model_id: modelIdValue,
+            model_name: name,
+            description: description.value.trim(),
+            discount_percent: discountPercent,
+            status: statusToggle.checked ? "active" : "inactive",
+            credit_480p: credit480pValue,
+            credit_720p: credit720pValue,
+            credit_1080p: credit1080pValue
+        };
 
         saving = true;
-
-        saveButton.disabled =
-            true;
-
-        saveButton.textContent =
-            "Menyimpan...";
-
+        saveButton.disabled = true;
+        saveButton.textContent = "Menyimpan...";
 
         try {
+            const result = await requestAdminModels("PATCH", payload);
+            const saved = extractSavedModel(result);
 
-            let query =
-                supabase
-                    .from(MODEL_TABLE)
-                    .update(payload);
+            let verified = saved;
+            if (!verified) {
+                const verifyResult = await requestAdminModels("GET");
+                verified = findAdminModel(extractAdminModels(verifyResult), modelIdValue);
+            }
 
+            if (!verified) {
+                throw new Error("Perubahan dikirim tetapi record model tidak dapat diverifikasi setelah penyimpanan.");
+            }
 
-            /*
-             * Prioritaskan UUID record.
-             */
+            const savedCredits = [
+                nullableNumber(verified.credit_480p),
+                nullableNumber(verified.credit_720p),
+                nullableNumber(verified.credit_1080p)
+            ];
 
             if (
-                currentDatabaseModel?.id
+                savedCredits[0] !== credit480pValue ||
+                savedCredits[1] !== credit720pValue ||
+                savedCredits[2] !== credit1080pValue
             ) {
-
-                query =
-                    query.eq(
-                        "id",
-                        currentDatabaseModel.id
-                    );
-
-            } else {
-
-                /*
-                 * Fallback ke model_id.
-                 *
-                 * Tidak melakukan INSERT.
-                 */
-
-                query =
-                    query.eq(
-                        "model_id",
-                        modelIdValue
-                    );
+                throw new Error("Credit model tidak sesuai dengan nilai yang dikirim ke Admin Models.");
             }
 
-
-            const {
-                data,
-                error
-            } =
-                await query.select();
-
-
-            if (error) {
-                throw error;
-            }
-
-
-            /*
-             * UPDATE berhasil tetapi 0 row
-             * adalah kondisi berbeda.
-             */
-
-            if (
-                !Array.isArray(data) ||
-                data.length === 0
-            ) {
-
-                throw new Error(
-                    "Tidak ada record model yang diperbarui. Periksa model_id, UUID record, atau policy RLS Supabase."
-                );
-            }
-
-
-            /*
-             * Verifikasi nilai hasil UPDATE
-             * dari response Supabase.
-             */
-
-            const savedRecord =
-                data[0];
-
-
-            const verified480p =
-                normalizeCredit(
-                    savedRecord?.credit_480p
-                );
-
-            const verified720p =
-                normalizeCredit(
-                    savedRecord?.credit_720p
-                );
-
-            const verified1080p =
-                normalizeCredit(
-                    savedRecord?.credit_1080p
-                );
-
-
-            if (
-                verified480p !==
-                credit480pValue ||
-                verified720p !==
-                credit720pValue ||
-                verified1080p !==
-                credit1080pValue
-            ) {
-
-                throw new Error(
-                    "Supabase menerima perubahan model tetapi nilai credit resolusi yang dikembalikan tidak sesuai dengan data yang disimpan."
-                );
-            }
-
-
+            currentDatabaseModel = { ...currentDatabaseModel, ...verified };
             currentModel = {
                 ...currentModel,
-
-                model_name:
-                    name,
-
-                description:
-                    payload.description,
-
-                discount_percent:
-                    discountPercent,
-
-                status:
-                    payload.status,
-
-                credit_480p:
-                    verified480p,
-
-                credit_720p:
-                    verified720p,
-
-                credit_1080p:
-                    verified1080p
+                model_name: name,
+                description: payload.description,
+                discount_percent: discountPercent,
+                status: payload.status,
+                credit_480p: credit480pValue,
+                credit_720p: credit720pValue,
+                credit_1080p: credit1080pValue
             };
 
+            heroModelName.textContent = name;
+            showAlert("Perubahan model berhasil disimpan.", "success");
 
-            currentDatabaseModel = {
-                ...currentDatabaseModel,
-
-                ...savedRecord
-            };
-
-
-            /*
-             * Tampilkan kembali nilai
-             * yang benar-benar dikonfirmasi DB.
-             */
-
-            credit480p.value =
-                verified480p;
-
-            credit720p.value =
-                verified720p;
-
-            credit1080p.value =
-                verified1080p;
-
-
-            heroModelName.textContent =
-                name;
-
-
-            console.log(
-                "[GEN-Z.AI][MODEL EDIT] Save verified:",
-                {
-                    modelId:
-                        modelIdValue,
-
-                    credit_480p:
-                        verified480p,
-
-                    credit_720p:
-                        verified720p,
-
-                    credit_1080p:
-                        verified1080p
-                }
-            );
-
-
-            showAlert(
-                "Perubahan model berhasil disimpan.",
-                "success"
-            );
-
-
-            setTimeout(
-                () => {
-
-                    window.location.href =
-                        "./models.html";
-
-                },
-                900
-            );
-
+            setTimeout(() => {
+                window.location.href = "./models.html";
+            }, 900);
         } catch (error) {
-
-            console.error(
-                "GEN-Z.AI model-edit save error:",
-                error
-            );
-
-            showAlert(
-                error?.message ||
-                "Gagal menyimpan perubahan model.",
-                "error"
-            );
-
+            console.error("GEN-Z.AI model-edit save error:", error);
+            showAlert(error?.message || "Gagal menyimpan perubahan model.", "error");
         } finally {
-
             saving = false;
-
-            saveButton.disabled =
-                false;
-
-            saveButton.textContent =
-                "Simpan Perubahan";
+            saveButton.disabled = false;
+            saveButton.textContent = "Simpan Perubahan";
         }
     }
-
-
-    /* =====================================================
-       LOGOUT
-    ===================================================== */
 
     async function logout() {
-
         try {
-
-            if (supabase) {
-
-                await supabase.auth.signOut();
-            }
-
+            if (supabase) await supabase.auth.signOut();
         } catch (error) {
-
-            console.error(
-                "Logout error:",
-                error
-            );
+            console.error("Logout error:", error);
         }
-
-
-        window.location.href =
-            "../login.html";
+        window.location.href = "../login.html";
     }
 
-
-    /* =====================================================
-       EVENTS
-    ===================================================== */
-
-    backButton.addEventListener(
-        "click",
-        goBack
-    );
-
-
-    cancelButton.addEventListener(
-        "click",
-        goBack
-    );
-
-
-    saveButton.addEventListener(
-        "click",
-        saveModel
-    );
-
-
-    logoutButton.addEventListener(
-        "click",
-        logout
-    );
-
-
-    statusToggle.addEventListener(
-        "change",
-        updateStatusText
-    );
-
-
-    priceUsd.addEventListener(
-        "input",
-        updatePricePreview
-    );
-
-
-    exchangeRate.addEventListener(
-        "input",
-        updatePricePreview
-    );
-
-
-    discount.addEventListener(
-        "input",
-        updatePricePreview
-    );
-
-
-    /* =====================================================
-       INITIAL STATE
-    ===================================================== */
+    backButton.addEventListener("click", goBack);
+    cancelButton.addEventListener("click", goBack);
+    saveButton.addEventListener("click", saveModel);
+    logoutButton.addEventListener("click", logout);
+    statusToggle.addEventListener("change", updateStatusText);
+    priceUsd.addEventListener("input", updatePricePreview);
+    exchangeRate.addEventListener("input", updatePricePreview);
+    discount.addEventListener("input", updatePricePreview);
 
     if (window.innerWidth <= 720) {
-
         setNavigation(false);
-
     } else {
-
         setNavigation(true);
     }
 
-
-    window.addEventListener(
-        "resize",
-        () => {
-
-            if (
-                window.innerWidth > 720
-            ) {
-
-                sidebarOverlay.style.display =
-                    "none";
-
-            }
-
-        }
-    );
-
-
-    /* =====================================================
-       INITIALIZE
-    ===================================================== */
+    window.addEventListener("resize", () => {
+        if (window.innerWidth > 720) sidebarOverlay.style.display = "none";
+    });
 
     loadModel();
 
