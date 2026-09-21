@@ -19,6 +19,10 @@
  *        +-- description
  *        +-- status
  *        +-- credit configuration
+ *        +-- credit_480p
+ *        +-- credit_720p
+ *        +-- credit_1080p
+ *        +-- credit_final
  *        +-- duration
  *        +-- ratios
  *        +-- resolutions
@@ -53,8 +57,8 @@
  * model_id:
  *   berasal dari konfigurasi Admin Models.
  *
- *   Registry hanya digunakan untuk mencari adapter
- *   berdasarkan model_id yang sudah dipilih admin.
+ * Registry hanya digunakan untuk mencari adapter
+ * berdasarkan model_id yang sudah dipilih admin.
  *
  * Model tersedia:
  *   ditentukan oleh row pada tabel models.
@@ -67,6 +71,22 @@
  *
  * API KEY:
  *   TIDAK PERNAH dibaca oleh module ini.
+ *
+ * =========================================================
+ *
+ * CREDIT RESOLUTION
+ *
+ * credit_480p
+ * credit_720p
+ * credit_1080p
+ *
+ * Ketiga field tersebut merupakan credit aktual
+ * berdasarkan resolution yang dipilih user.
+ *
+ * credit_final tetap dipertahankan untuk:
+ *   - backward compatibility
+ *   - legacy model
+ *   - fallback sistem lama
  *
  * =========================================================
  */
@@ -89,29 +109,6 @@ const PROVIDER_TABLE = "providers";
 
 /* =========================================================
    MODEL REGISTRY
-   ---------------------------------------------------------
-   Registry BUKAN source of truth model.
-
-   Registry hanya menyediakan metadata teknis / adapter
-   yang dapat digunakan untuk model yang sudah terdaftar
-   pada Admin Models.
-
-   Untuk menambahkan adapter model baru:
-
-   1. Buat folder:
-      models/nama-model/
-
-   2. Buat:
-      config.js
-      parameters.js
-      index.js
-
-   3. Import config + parameters di sini.
-
-   4. Tambahkan ke MODEL_REGISTRY.
-
-   Model tetap harus dibuat/diaktifkan melalui
-   Admin Models.
 ========================================================= */
 
 const MODEL_REGISTRY = [
@@ -355,6 +352,73 @@ function normalizeNumber(
 
 
 /* =========================================================
+   RESOLUTION CREDIT NORMALIZER
+   ---------------------------------------------------------
+   Membaca credit resolution tanpa menghilangkan nilai
+   yang berasal langsung dari Supabase.
+
+   Prioritas:
+   1. snake_case dari Supabase
+   2. camelCase compatibility
+   3. normalized value
+   4. fallback
+
+   PENTING:
+   Nilai 0 dianggap VALID.
+   Hanya null / undefined / string kosong yang
+   dianggap tidak tersedia.
+========================================================= */
+
+function readResolutionCredit(
+    persistedModel,
+    normalizedModel,
+    snakeCaseKey,
+    camelCaseKey,
+    fallback = 0
+) {
+
+    const candidates = [
+
+        persistedModel?.[snakeCaseKey],
+
+        persistedModel?.[camelCaseKey],
+
+        normalizedModel?.[snakeCaseKey],
+
+        normalizedModel?.[camelCaseKey]
+
+    ];
+
+
+    for (
+        const value of candidates
+    ) {
+
+        if (
+            value !== null &&
+            value !== undefined &&
+            value !== ""
+        ) {
+
+            return normalizeNumber(
+                value,
+                fallback
+            );
+
+        }
+
+    }
+
+
+    return normalizeNumber(
+        fallback,
+        0
+    );
+
+}
+
+
+/* =========================================================
    CACHE CONTROL
 ========================================================= */
 
@@ -397,8 +461,6 @@ function clearCache() {
 
 /* =========================================================
    LOAD PROVIDERS
-   ---------------------------------------------------------
-   Provider memang berasal dari Supabase.
 ========================================================= */
 
 async function loadProviders(
@@ -755,13 +817,6 @@ function getDurationRange(
 
 /* =========================================================
    REGISTRY MODEL NORMALIZER
-   ---------------------------------------------------------
-   Digunakan untuk membaca model dari registry saja.
- *
- *   PENTING:
- *   Fungsi ini TIDAK menentukan model yang tersedia.
- *
- *   Model registry hanya merupakan metadata teknis.
 ========================================================= */
 
 function normalizeRegistryModel(
@@ -921,6 +976,48 @@ function normalizeRegistryModel(
             : calculatedCreditFinal;
 
 
+    /*
+     * RESOLUTION CREDIT
+     *
+     * Jika field tersedia di persisted model,
+     * gunakan nilai tersebut.
+     *
+     * Jika belum tersedia karena model lama,
+     * fallback ke credit_final.
+     *
+     * Nilai 0 yang tersimpan tetap dipertahankan.
+     */
+
+    const credit480p =
+        readResolutionCredit(
+            persisted,
+            null,
+            "credit_480p",
+            "credit480p",
+            creditFinal
+        );
+
+
+    const credit720p =
+        readResolutionCredit(
+            persisted,
+            null,
+            "credit_720p",
+            "credit720p",
+            creditFinal
+        );
+
+
+    const credit1080p =
+        readResolutionCredit(
+            persisted,
+            null,
+            "credit_1080p",
+            "credit1080p",
+            creditFinal
+        );
+
+
     const providerData =
         provider
 
@@ -967,29 +1064,37 @@ function normalizeRegistryModel(
             persisted?.id ??
             null,
 
+
         model_id:
             modelId,
+
 
         model_name:
             modelName,
 
+
         description:
             description,
+
 
         provider_id:
             provider?.id ??
             persisted?.provider_id ??
             null,
 
+
         provider_code:
             providerCode,
+
 
         provider:
             providerData,
 
+
         type:
             config.type ||
             "",
+
 
         api:
             config.api
@@ -998,41 +1103,89 @@ function normalizeRegistryModel(
                 }
                 : {},
 
+
         parameters:
             parameters,
+
 
         supported_ratios:
             supportedRatios,
 
+
         supported_resolutions:
             supportedResolutions,
+
 
         min_duration:
             durationRange.min,
 
+
         max_duration:
             durationRange.max,
+
 
         credit_cost:
             creditCost,
 
+
         discount_percent:
             safeDiscount,
+
+
+        /*
+         * Legacy credit.
+         */
 
         credit_final:
             creditFinal,
 
+
+        /*
+         * Resolution-specific credit.
+         */
+
+        credit_480p:
+            credit480p,
+
+        credit_720p:
+            credit720p,
+
+        credit_1080p:
+            credit1080p,
+
+
+        /*
+         * CamelCase compatibility.
+         *
+         * Tidak menggantikan snake_case.
+         * Hanya memudahkan module frontend lain.
+         */
+
+        credit480p:
+            credit480p,
+
+        credit720p:
+            credit720p,
+
+        credit1080p:
+            credit1080p,
+
+
         status:
             status,
+
 
         source:
             "model-folder",
 
+
         source_folder:
             registryEntry.folder || "",
 
+
         registry:
             true,
+
 
         adapter_available:
             true
@@ -1044,14 +1197,6 @@ function normalizeRegistryModel(
 
 /* =========================================================
    LOAD PERSISTED ADMIN MODELS
-   ---------------------------------------------------------
-   INI ADALAH SOURCE OF TRUTH MODEL.
-   ---------------------------------------------------------
-   Data di sini adalah hasil konfigurasi dari halaman
-   Admin Models yang tersimpan di database.
- *
- *   Registry TIDAK menentukan apakah row ini boleh
- *   ditampilkan.
 ========================================================= */
 
 async function loadPersistedModels() {
@@ -1117,8 +1262,6 @@ async function loadPersistedModels() {
 
 /* =========================================================
    FIND REGISTRY ENTRY
-   ---------------------------------------------------------
-   Registry hanya dicari berdasarkan model_id.
 ========================================================= */
 
 function getRegistryEntryByModelId(
@@ -1153,13 +1296,6 @@ function getRegistryEntryByModelId(
 
 /* =========================================================
    PERSISTED ADMIN MODEL NORMALIZER
-   ---------------------------------------------------------
-   SOURCE OF TRUTH:
- *
- *   persistedModel = hasil Admin Models
- *
- * Registry hanya digunakan sebagai adapter/technical
- * metadata jika tersedia.
 ========================================================= */
 
 function normalizePersistedModel(
@@ -1214,9 +1350,6 @@ function normalizePersistedModel(
 
     /*
      * Registry OPTIONAL.
-     *
-     * Tidak adanya registry entry tidak menghapus
-     * model dari daftar Admin Models.
      */
 
     const registryEntry =
@@ -1238,9 +1371,6 @@ function normalizePersistedModel(
     /*
      * Technical parameters dari Admin Models
      * diprioritaskan.
-     *
-     * Registry hanya fallback jika kolom Admin Models
-     * memang kosong/tidak tersedia.
      */
 
     const persistedRatios =
@@ -1326,9 +1456,9 @@ function normalizePersistedModel(
             : registryResolutions;
 
 
-    /*
-     * CREDIT
-     */
+    /* =====================================================
+       CREDIT
+    ===================================================== */
 
     const creditCost =
         normalizeNumber(
@@ -1374,7 +1504,57 @@ function normalizePersistedModel(
 
 
     /*
-     * PROVIDER CODE
+     * =====================================================
+     * RESOLUTION-SPECIFIC CREDIT
+     * =====================================================
+     *
+     * Sumber utama:
+     *
+     *   models.credit_480p
+     *   models.credit_720p
+     *   models.credit_1080p
+     *
+     * Untuk model lama yang belum memiliki nilai,
+     * credit_final digunakan sebagai fallback.
+     *
+     * PENTING:
+     *
+     * Jika Supabase menyimpan 0, maka 0 dipertahankan.
+     * Jangan diganti otomatis dengan credit_final.
+     */
+
+    const credit480p =
+        readResolutionCredit(
+            persistedModel,
+            null,
+            "credit_480p",
+            "credit480p",
+            creditFinal
+        );
+
+
+    const credit720p =
+        readResolutionCredit(
+            persistedModel,
+            null,
+            "credit_720p",
+            "credit720p",
+            creditFinal
+        );
+
+
+    const credit1080p =
+        readResolutionCredit(
+            persistedModel,
+            null,
+            "credit_1080p",
+            "credit1080p",
+            creditFinal
+        );
+
+
+    /*
+     * Provider code
      *
      * Prioritas:
      *
@@ -1450,8 +1630,6 @@ function normalizePersistedModel(
 
     /*
      * STATUS
-     *
-     * Status Admin Models adalah sumber utama.
      */
 
     const status =
@@ -1465,8 +1643,6 @@ function normalizePersistedModel(
 
     /*
      * MODEL TYPE
-     *
-     * Tidak mengubah model_id.
      */
 
     const modelType =
@@ -1495,9 +1671,6 @@ function normalizePersistedModel(
 
         /*
          * MODEL ID
-         *
-         * SOURCE:
-         * Admin Models
          */
 
         model_id:
@@ -1506,9 +1679,6 @@ function normalizePersistedModel(
 
         /*
          * MODEL NAME
-         *
-         * SOURCE:
-         * Admin Models
          */
 
         model_name:
@@ -1563,9 +1733,6 @@ function normalizePersistedModel(
 
         /*
          * API / ADAPTER CONFIG
-         *
-         * Hanya diisi jika model_id mempunyai
-         * registry entry.
          */
 
         api:
@@ -1605,7 +1772,9 @@ function normalizePersistedModel(
 
 
         /*
-         * CREDIT
+         * =================================================
+         * CREDIT CONFIGURATION
+         * =================================================
          */
 
         credit_cost:
@@ -1616,8 +1785,43 @@ function normalizePersistedModel(
             safeDiscount,
 
 
+        /*
+         * Legacy credit.
+         */
+
         credit_final:
             creditFinal,
+
+
+        /*
+         * Resolution-specific credits.
+         *
+         * Ini yang akan digunakan oleh Generate
+         * berdasarkan resolution yang dipilih.
+         */
+
+        credit_480p:
+            credit480p,
+
+        credit_720p:
+            credit720p,
+
+        credit_1080p:
+            credit1080p,
+
+
+        /*
+         * CamelCase compatibility.
+         */
+
+        credit480p:
+            credit480p,
+
+        credit720p:
+            credit720p,
+
+        credit1080p:
+            credit1080p,
 
 
         /*
@@ -1630,8 +1834,6 @@ function normalizePersistedModel(
 
         /*
          * SOURCE
-         *
-         * Model berasal dari Admin Models.
          */
 
         source:
@@ -1673,13 +1875,6 @@ function normalizePersistedModel(
 
 /* =========================================================
    LOAD REGISTRY MODELS
-   ---------------------------------------------------------
-   Compatibility API.
- *
- * Fungsi ini tetap mengembalikan model yang terdaftar
- * di registry.
- *
- * Namun fungsi ini BUKAN source of truth Admin Models.
 ========================================================= */
 
 function loadRegistryModels() {
@@ -1747,27 +1942,6 @@ function getRegistryModel(
 
 /* =========================================================
    LOAD MODELS
-   ---------------------------------------------------------
-   SOURCE OF TRUTH:
- *
- *   Admin Models / persisted models table.
- *
- * Registry TIDAK lagi menentukan daftar model.
- *
- * Alur:
- *
- *   Admin Models
- *       |
- *       v
- *   models table
- *       |
- *       v
- *   normalizePersistedModel()
- *       |
- *       +---- registry adapter jika tersedia
- *       |
- *       v
- *   modelCache
 ========================================================= */
 
 async function loadModels(
@@ -1993,11 +2167,6 @@ async function getModelById(
 
 /* =========================================================
    MODEL LOOKUP BY MODEL ID
-   ---------------------------------------------------------
-   SOURCE UTAMA:
-   Admin Models.
- *
- * Registry hanya menjadi metadata adapter.
 ========================================================= */
 
 async function getModelByModelId(
@@ -2048,10 +2217,6 @@ async function getModelByModelId(
 
     /*
      * JANGAN membuat model palsu dari registry.
-     *
-     * Jika tidak ada pada Admin Models,
-     * berarti model memang belum dikonfigurasi
-     * melalui halaman Models.
      */
 
     return model || null;
@@ -2286,6 +2451,89 @@ function formatCredit(
 
 
 /* =========================================================
+   FORMAT RESOLUTION CREDIT
+   ---------------------------------------------------------
+   Compatibility helper.
+========================================================= */
+
+function getResolutionCredit(
+    model,
+    resolution
+) {
+
+    if (!model) {
+
+        return 0;
+
+    }
+
+
+    const normalizedResolution =
+        String(
+            resolution || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        normalizedResolution === "480p"
+    ) {
+
+        return normalizeNumber(
+            model.credit_480p ??
+            model.credit480p ??
+            model.credit_final,
+            0
+        );
+
+    }
+
+
+    if (
+        normalizedResolution === "720p"
+    ) {
+
+        return normalizeNumber(
+            model.credit_720p ??
+            model.credit720p ??
+            model.credit_final,
+            0
+        );
+
+    }
+
+
+    if (
+        normalizedResolution === "1080p"
+    ) {
+
+        return normalizeNumber(
+            model.credit_1080p ??
+            model.credit1080p ??
+            model.credit_final,
+            0
+        );
+
+    }
+
+
+    /*
+     * Resolution lain:
+     *
+     * Jangan mengarang harga baru.
+     * Gunakan legacy credit_final sebagai fallback.
+     */
+
+    return normalizeNumber(
+        model.credit_final,
+        0
+    );
+
+}
+
+
+/* =========================================================
    FORMAT DISCOUNT
 ========================================================= */
 
@@ -2329,17 +2577,6 @@ function isActiveModel(
 
 /* =========================================================
    USABLE MODEL
-   ---------------------------------------------------------
-   Model harus:
- *
- *   1. aktif
- *   2. provider aktif
- *
- * Adapter tidak dijadikan syarat di sini karena
- * module data hanya menentukan model configuration.
- *
- * Execution layer yang bertanggung jawab memastikan
- * adapter tersedia sebelum menjalankan task.
 ========================================================= */
 
 function isUsableModel(
@@ -2398,12 +2635,6 @@ function getModelRegistry() {
 
 /* =========================================================
    MODEL CONFIG
-   ---------------------------------------------------------
-   Compatibility API.
- *
- * Mengambil config adapter berdasarkan model_id.
- *
- * Tidak membuat model baru.
 ========================================================= */
 
 function getModelConfig(
@@ -2445,12 +2676,6 @@ function getModelConfig(
 
 /* =========================================================
    MODEL PARAMETERS
-   ---------------------------------------------------------
-   Compatibility API.
- *
- * Registry parameters hanya merupakan metadata teknis.
- *
- * Model availability tetap berasal dari Admin Models.
 ========================================================= */
 
 function getModelParameters(
@@ -2512,6 +2737,8 @@ const ModelData = {
 
     normalizeNumber,
 
+    readResolutionCredit,
+
 
     normalizeRegistryModel,
 
@@ -2559,6 +2786,8 @@ const ModelData = {
 
     formatCredit,
 
+    getResolutionCredit,
+
     formatDiscount,
 
 
@@ -2599,6 +2828,8 @@ export {
     normalizeArrayValue,
 
     normalizeNumber,
+
+    readResolutionCredit,
 
     normalizeRegistryModel,
 
@@ -2645,6 +2876,8 @@ export {
     formatDuration,
 
     formatCredit,
+
+    getResolutionCredit,
 
     formatDiscount,
 
