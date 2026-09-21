@@ -1848,7 +1848,27 @@ function validateDatabaseRestrictions(
 
 
     /*
-     * Duration.
+     * =====================================================
+     * DURATION
+     * =====================================================
+     *
+     * Database duration values are optional restrictions.
+     *
+     * Value:
+     *
+     *   > 0  = valid restriction
+     *   0    = not configured
+     *   < 0  = not configured
+     *
+     * IMPORTANT:
+     *
+     * max_duration = 0 MUST NOT mean:
+     *
+     *     duration must be at most 0 seconds
+     *
+     * KIE/model registry remains the source of truth
+     * for the actual model capability.
+     *
      */
 
     if (
@@ -1878,22 +1898,47 @@ function validateDatabaseRestrictions(
 
         } else {
 
-            const min =
+            const rawMin =
                 Number(
                     model.min_duration
                 );
 
 
-            const max =
+            const rawMax =
                 Number(
                     model.max_duration
                 );
 
 
-            if (
+            /*
+             * Only positive values are treated
+             * as actual database restrictions.
+             */
+
+            const min =
                 Number.isFinite(
-                    min
+                    rawMin
                 ) &&
+                rawMin > 0
+                    ? rawMin
+                    : null;
+
+
+            const max =
+                Number.isFinite(
+                    rawMax
+                ) &&
+                rawMax > 0
+                    ? rawMax
+                    : null;
+
+
+            /*
+             * Minimum duration.
+             */
+
+            if (
+                min !== null &&
                 duration < min
             ) {
 
@@ -1904,10 +1949,12 @@ function validateDatabaseRestrictions(
             }
 
 
+            /*
+             * Maximum duration.
+             */
+
             if (
-                Number.isFinite(
-                    max
-                ) &&
+                max !== null &&
                 duration > max
             ) {
 
@@ -1922,9 +1969,9 @@ function validateDatabaseRestrictions(
     }
 
 
-    /*
-     * Ratio.
-     */
+    /* =====================================================
+       RATIO
+       ===================================================== */
 
     if (
         parameters.aspect_ratio !==
@@ -1959,9 +2006,9 @@ function validateDatabaseRestrictions(
     }
 
 
-    /*
-     * Resolution.
-     */
+    /* =====================================================
+       RESOLUTION
+       ===================================================== */
 
     if (
         parameters.resolution !==
