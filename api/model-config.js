@@ -29,9 +29,10 @@
  *
  *   models
  *      ├── description
- *      ├── credit_cost
+ *      ├── credit_480p
+ *      ├── credit_720p
+ *      ├── credit_1080p
  *      ├── discount_percent
- *      ├── credit_final
  *      ├── status
  *      ├── provider_id
  *      └── optional admin overrides
@@ -46,6 +47,17 @@
  *   PRICING
  *      ↓
  *   Supabase models
+ *
+ *   CREDIT
+ *      ↓
+ *   credit_480p
+ *   credit_720p
+ *   credit_1080p
+ *      ↓
+ *   discount_percent
+ *      ↓
+ *   runtime calculation berdasarkan
+ *   resolution yang dipilih
  *
  *   DURATION
  *      ↓
@@ -910,6 +922,15 @@ async function loadDatabaseModel(
             new URLSearchParams();
 
 
+        /*
+         * SELECT *
+         *
+         * Sengaja mempertahankan seluruh kolom
+         * supaya credit_480p / credit_720p /
+         * credit_1080p dan kolom konfigurasi
+         * lainnya tidak terpotong dari response.
+         */
+
         params.set(
             "select",
             "*"
@@ -987,6 +1008,11 @@ async function loadDatabaseModels() {
         const params =
             new URLSearchParams();
 
+
+        /*
+         * Semua kolom tetap dibaca.
+         * Termasuk credit per resolution.
+         */
 
         params.set(
             "select",
@@ -1582,13 +1608,35 @@ function buildModelConfig(
     /* =====================================================
        CREDIT
        -----------------------------------------------------
-       CREDIT SEPENUHNYA TERPISAH DARI DURATION.
+       SOURCE OF TRUTH:
+         credit_480p
+         credit_720p
+         credit_1080p
+         discount_percent
+       
+       PENTING:
+         - Tidak menggunakan credit_cost.
+         - Tidak menggunakan credit_final.
+         - Tidak dipengaruhi duration.
+         - Final credit dihitung runtime setelah
+           resolution dipilih.
        ===================================================== */
 
-    const creditCost =
+    const credit480p =
         normalizeNumber(
-            databaseModel?.credit_cost,
-            0
+            databaseModel?.credit_480p
+        );
+
+
+    const credit720p =
+        normalizeNumber(
+            databaseModel?.credit_720p
+        );
+
+
+    const credit1080p =
+        normalizeNumber(
+            databaseModel?.credit_1080p
         );
 
 
@@ -1597,40 +1645,6 @@ function buildModelConfig(
             databaseModel?.discount_percent,
             0
         );
-
-
-    let creditFinal =
-        normalizeNumber(
-            databaseModel?.credit_final
-        );
-
-
-    /*
-     * credit_final hanya dihitung dari:
-     *
-     *   credit_cost
-     *   discount_percent
-     *
-     * duration TIDAK masuk ke kalkulasi ini.
-     */
-
-    if (
-        creditFinal === null
-    ) {
-
-        creditFinal =
-            discountPercent > 0
-
-                ? creditCost -
-                    (
-                        creditCost *
-                        discountPercent /
-                        100
-                    )
-
-                : creditCost;
-
-    }
 
 
     /* =====================================================
@@ -1725,38 +1739,81 @@ function buildModelConfig(
 
         /* =================================================
            PRICING
+           -------------------------------------------------
+           Per-resolution credit diteruskan apa adanya
+           dari database.
+
+           Final credit BELUM dihitung di sini karena
+           endpoint ini belum mengetahui resolution yang
+           dipilih user.
            ================================================= */
 
         pricing: {
 
-            /*
-             * Hanya credit configuration.
-             *
-             * duration tidak digunakan.
-             */
+            credit_480p:
+                credit480p,
 
-            credit_cost:
-                creditCost,
+            credit_720p:
+                credit720p,
+
+            credit_1080p:
+                credit1080p,
 
             discount_percent:
-                discountPercent,
-
-            credit_final:
-                creditFinal
+                discountPercent
 
         },
 
 
-        credit_cost:
-            creditCost,
+        /* =================================================
+           CREDIT
+           -------------------------------------------------
+           Disediakan dalam object tersendiri agar modul
+           Generate dapat membaca source credit tanpa
+           bergantung pada credit_cost global.
+           ================================================= */
+
+        credit: {
+
+            credit_480p:
+                credit480p,
+
+            credit_720p:
+                credit720p,
+
+            credit_1080p:
+                credit1080p,
+
+            discount_percent:
+                discountPercent,
+
+            discountPercent:
+                discountPercent
+
+        },
+
+
+        /* =================================================
+           FLAT CREDIT FIELDS
+           -------------------------------------------------
+           Dipertahankan untuk kompatibilitas modul yang
+           membaca model secara langsung.
+           ================================================= */
+
+        credit_480p:
+            credit480p,
+
+
+        credit_720p:
+            credit720p,
+
+
+        credit_1080p:
+            credit1080p,
 
 
         discount_percent:
             discountPercent,
-
-
-        credit_final:
-            creditFinal,
 
 
         /* =================================================
