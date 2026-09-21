@@ -65,8 +65,8 @@ import {
 /*
  * Tetap dipertahankan untuk kompatibilitas arsitektur.
  *
- * File ini TIDAK menggunakan credit_final_* dari helper
- * sebagai sumber utama.
+ * File ini TIDAK menggunakan credit_final_* sebagai
+ * source of truth.
  */
 import {
     getModelCreditForSelectedResolution
@@ -398,12 +398,7 @@ function readResolutionFromElement(
 
 
     /*
-     * -----------------------------------------------------
      * RADIO / CHECKBOX
-     *
-     * Jangan pernah membaca value dari radio yang belum
-     * dipilih.
-     * -----------------------------------------------------
      */
 
     if (
@@ -423,10 +418,8 @@ function readResolutionFromElement(
 
 
     /*
-     * -----------------------------------------------------
      * SELECT
-     * -----------------------------------------------------
- */
+     */
 
     if (
         tagName === "select"
@@ -471,10 +464,8 @@ function readResolutionFromElement(
 
 
     /*
-     * -----------------------------------------------------
      * DIRECT VALUE
-     * -----------------------------------------------------
- */
+     */
 
     const directValue =
         normalizeResolution(
@@ -492,10 +483,8 @@ function readResolutionFromElement(
 
 
     /*
-     * -----------------------------------------------------
      * DATA VALUE
-     * -----------------------------------------------------
- */
+     */
 
     const dataValue =
         normalizeResolution(
@@ -513,10 +502,8 @@ function readResolutionFromElement(
 
 
     /*
-     * -----------------------------------------------------
      * DATA RESOLUTION
-     * -----------------------------------------------------
- */
+     */
 
     const attributeValue =
         normalizeResolution(
@@ -551,10 +538,8 @@ function readResolutionFromElement(
 
 
     /*
-     * -----------------------------------------------------
      * TEXT
-     * -----------------------------------------------------
- */
+     */
 
     const textValue =
         normalizeResolution(
@@ -597,11 +582,9 @@ export function getSelectedResolution() {
 
 
     /*
-     * -----------------------------------------------------
      * PRIORITAS 1
-     * SELECT resolution
-     * -----------------------------------------------------
- */
+     * SELECT
+     */
 
     const selectCandidates =
         generateForm.querySelectorAll(
@@ -632,11 +615,9 @@ export function getSelectedResolution() {
 
 
     /*
-     * -----------------------------------------------------
      * PRIORITAS 2
      * CHECKED RADIO / CHECKBOX
-     * -----------------------------------------------------
- */
+     */
 
     const checkedCandidates =
         generateForm.querySelectorAll(
@@ -678,11 +659,9 @@ export function getSelectedResolution() {
 
 
     /*
-     * -----------------------------------------------------
      * PRIORITAS 3
      * DIRECT SINGLE VALUE CONTROL
-     * -----------------------------------------------------
- */
+     */
 
     const directCandidates = [
 
@@ -718,11 +697,6 @@ export function getSelectedResolution() {
 
         }
 
-
-        /*
-         * Jangan mengambil radio pertama yang belum
-         * dipilih.
-         */
 
         const type =
             String(
@@ -766,11 +740,9 @@ export function getSelectedResolution() {
 
 
     /*
-     * -----------------------------------------------------
      * PRIORITAS 4
      * SEMUA CONTROL RESOLUTION
-     * -----------------------------------------------------
- */
+     */
 
     const allControls =
         generateForm.querySelectorAll(
@@ -1309,9 +1281,8 @@ export function resolveModelCredit(
 
 
     /*
-     * -----------------------------------------------------
-     * SUMBER UTAMA
-     * -----------------------------------------------------
+     * SUMBER UTAMA:
+     * database model -> resolution credit
      */
 
     const localResult =
@@ -1331,12 +1302,10 @@ export function resolveModelCredit(
 
 
     /*
-     * -----------------------------------------------------
      * KOMPATIBILITAS LAMA
      *
-     * Tidak mempercayai credit_final dari helper.
-     * Hanya mengambil base credit + discount jika tersedia.
-     * -----------------------------------------------------
+     * Helper lama hanya boleh menyumbang base credit.
+     * Final selalu dihitung ulang.
      */
 
     try {
@@ -1419,8 +1388,7 @@ export function resolveModelCredit(
 
         /*
          * Helper lama gagal.
-         *
-         * Tidak boleh menggagalkan halaman Generate.
+         * Jangan menggagalkan halaman Generate.
          */
 
     }
@@ -1527,6 +1495,308 @@ function forceVisible(
 
 
 /* =========================================================
+   HIDE DUPLICATE CREDIT ELEMENT
+========================================================= */
+
+function hideDuplicateCreditElement(
+    element
+) {
+
+    if (
+        !element
+    ) {
+
+        return;
+
+    }
+
+
+    element.hidden =
+        true;
+
+
+    element.setAttribute(
+        "hidden",
+        "true"
+    );
+
+
+    element.style.display =
+        "none";
+
+
+    element.style.visibility =
+        "hidden";
+
+
+    element.style.opacity =
+        "0";
+
+
+    element.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+}
+
+
+/* =========================================================
+   REMOVE DUPLICATE CREDIT VALUE NODES
+========================================================= */
+
+function deduplicateCreditDisplay(
+    generateButton,
+    creditContainer,
+    canonicalValue
+) {
+
+    if (
+        !generateButton ||
+        !canonicalValue
+    ) {
+
+        return;
+
+    }
+
+
+    /*
+     * Jangan pernah menyembunyikan canonical element.
+     */
+
+    const candidates =
+        generateButton.querySelectorAll(
+            "#generateCreditValue, [data-generate-credit], [data-credit-display], .generate-button-credit-value, .credit-value"
+        );
+
+
+    candidates.forEach(
+        candidate => {
+
+            if (
+                !candidate ||
+                candidate === canonicalValue
+            ) {
+
+                return;
+
+            }
+
+
+            /*
+             * Jika candidate merupakan ancestor canonical,
+             * jangan sembunyikan ancestor karena bisa menjadi
+             * container utama.
+             */
+
+            if (
+                candidate.contains(
+                    canonicalValue
+                )
+            ) {
+
+                return;
+
+            }
+
+
+            /*
+             * Jika canonical berada di dalam candidate,
+             * candidate adalah container, bukan duplicate value.
+             */
+
+            if (
+                candidate.contains(
+                    canonicalValue
+                )
+            ) {
+
+                return;
+
+            }
+
+
+            hideDuplicateCreditElement(
+                candidate
+            );
+
+        }
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * Jika generateCreditCost dan generateCreditValue
+     * ternyata merupakan dua elemen terpisah, gunakan
+     * generateCreditValue sebagai nilai tunggal.
+     *
+     * Container hanya disembunyikan bila memang benar-benar
+     * bukan parent dari canonical value.
+     * -----------------------------------------------------
+     */
+
+    const {
+        generateCreditCost
+    } = elements();
+
+
+    if (
+        generateCreditCost &&
+        generateCreditCost !== canonicalValue &&
+        !generateCreditCost.contains(
+            canonicalValue
+        ) &&
+        !canonicalValue.contains(
+            generateCreditCost
+        )
+    ) {
+
+        /*
+         * Hanya sembunyikan bila element tersebut memang
+         * merupakan elemen credit value, bukan wrapper lain.
+         */
+
+        const id =
+            String(
+                generateCreditCost.id || ""
+            ).toLowerCase();
+
+
+        const className =
+            String(
+                generateCreditCost.className || ""
+            ).toLowerCase();
+
+
+        const isValueElement =
+            id === "generatecreditcost" ||
+            id === "generatecreditvalue" ||
+            className.includes(
+                "credit-value"
+            ) ||
+            className.includes(
+                "button-credit"
+            );
+
+
+        if (
+            isValueElement
+        ) {
+
+            hideDuplicateCreditElement(
+                generateCreditCost
+            );
+
+        }
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * Bersihkan text node langsung pada container yang
+     * mengandung nilai numerik lama.
+     *
+     * Jangan menyentuh text node pada child element.
+     * -----------------------------------------------------
+     */
+
+    if (
+        creditContainer &&
+        creditContainer !== canonicalValue
+    ) {
+
+        const directTextNodes = [];
+
+        for (
+            const child
+            of Array.from(
+                creditContainer.childNodes
+            )
+        ) {
+
+            if (
+                child.nodeType ===
+                Node.TEXT_NODE
+            ) {
+
+                directTextNodes.push(
+                    child
+                );
+
+            }
+
+        }
+
+
+        directTextNodes.forEach(
+            textNode => {
+
+                const text =
+                    String(
+                        textNode.nodeValue || ""
+                    ).trim();
+
+
+                if (
+                    !text
+                ) {
+
+                    return;
+
+                }
+
+
+                /*
+                 * Hapus text node yang hanya merupakan
+                 * angka / "Credit" / angka + Credit.
+                 *
+                 * Ini mencegah:
+                 *
+                 *     9 9
+                 *
+                 * atau:
+                 *
+                 *     9 Credit 9 Credit
+                 */
+
+                const normalized =
+                    text
+                        .replace(
+                            /[\s]+/g,
+                            " "
+                        )
+                        .trim();
+
+
+                const looksLikeCreditText =
+                    /^(?:[\d.,]+\s*)?(?:credit)?$/i.test(
+                        normalized
+                    ) ||
+                    /^[\d.,]+\s*credit$/i.test(
+                        normalized
+                    );
+
+
+                if (
+                    looksLikeCreditText
+                ) {
+
+                    textNode.nodeValue =
+                        "";
+
+                }
+
+            }
+        );
+
+    }
+
+}
+
+
+/* =========================================================
    CLEAR BUTTON CREDIT
 ========================================================= */
 
@@ -1559,8 +1829,15 @@ function getCreditContainer(
     generateCreditCost
 ) {
 
+    /*
+     * State element dipakai hanya jika memang merupakan
+     * container atau element yang sah.
+     */
+
     if (
-        generateCreditCost
+        generateCreditCost &&
+        generateCreditCost.nodeType ===
+            1
     ) {
 
         return generateCreditCost;
@@ -1605,21 +1882,6 @@ function getButtonCreditValueElement(
     generateCreditValue = null
 ) {
 
-    /*
-     * Gunakan element dari state jika memang valid.
-     */
-
-    if (
-        generateCreditValue &&
-        generateCreditValue.nodeType ===
-            1
-    ) {
-
-        return generateCreditValue;
-
-    }
-
-
     if (
         !generateButton
     ) {
@@ -1632,21 +1894,33 @@ function getButtonCreditValueElement(
     /*
      * -----------------------------------------------------
      * PRIORITAS 1
-     * Exact ID.
+     * Element dari state, tetapi jangan gunakan container
+     * sebagai value jika masih ada child value yang valid.
      * -----------------------------------------------------
      */
 
-    const direct =
-        generateButton.querySelector(
-            "#generateCreditValue"
+    const stateValueIsValid =
+        generateCreditValue &&
+        generateCreditValue.nodeType ===
+            1;
+
+
+    const stateValueIsContainer =
+        stateValueIsValid &&
+        (
+            generateCreditValue.id ===
+                "generateCreditCost" ||
+            generateCreditValue.dataset?.creditContainer ===
+                "true"
         );
 
 
     if (
-        direct
+        stateValueIsValid &&
+        !stateValueIsContainer
     ) {
 
-        return direct;
+        return generateCreditValue;
 
     }
 
@@ -1654,9 +1928,31 @@ function getButtonCreditValueElement(
     /*
      * -----------------------------------------------------
      * PRIORITAS 2
-     * Known credit value selectors.
+     * Exact ID generateCreditValue
      * -----------------------------------------------------
- */
+     */
+
+    const directValue =
+        generateButton.querySelector(
+            "#generateCreditValue"
+        );
+
+
+    if (
+        directValue
+    ) {
+
+        return directValue;
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PRIORITAS 3
+     * Known credit value selectors
+     * -----------------------------------------------------
+     */
 
     const candidates =
         generateButton.querySelectorAll(
@@ -1706,10 +2002,10 @@ function getButtonCreditValueElement(
 
     /*
      * -----------------------------------------------------
-     * PRIORITAS 3
-     * Cari child element yang bukan icon.
+     * PRIORITAS 4
+     * Child value di dalam container
      * -----------------------------------------------------
- */
+     */
 
     const container =
         generateButton.querySelector(
@@ -1717,6 +2013,9 @@ function getButtonCreditValueElement(
         ) ||
         generateButton.querySelector(
             ".generate-button-credit"
+        ) ||
+        generateButton.querySelector(
+            "[data-credit-container]"
         );
 
 
@@ -1726,7 +2025,19 @@ function getButtonCreditValueElement(
 
         const child =
             container.querySelector(
-                "span:not(.icon):not(.btn-icon), small, b, strong"
+                "#generateCreditValue"
+            ) ||
+            container.querySelector(
+                "[data-generate-credit]"
+            ) ||
+            container.querySelector(
+                "[data-credit-display]"
+            ) ||
+            container.querySelector(
+                ".generate-button-credit-value"
+            ) ||
+            container.querySelector(
+                ".credit-value"
             );
 
 
@@ -1738,17 +2049,33 @@ function getButtonCreditValueElement(
 
         }
 
+
+        /*
+         * Cari child element umum yang kemungkinan
+         * merupakan tempat value.
+         */
+
+        const genericChild =
+            container.querySelector(
+                "span:not(.icon):not(.btn-icon), small, b, strong"
+            );
+
+
+        if (
+            genericChild
+        ) {
+
+            return genericChild;
+
+        }
+
     }
 
 
     /*
      * -----------------------------------------------------
-     * PRIORITAS 4
-     * Buat element credit value bila container ada.
-     *
-     * Ini penting supaya UI tetap bisa menampilkan credit
-     * walaupun generate-state.js belum mendaftarkan
-     * #generateCreditValue.
+     * PRIORITAS 5
+     * Buat value element HANYA jika memang belum ada.
      * -----------------------------------------------------
  */
 
@@ -1852,6 +2179,17 @@ function syncGenerateButtonCredit(
     }
 
 
+    /*
+     * Pastikan hanya satu element value yang aktif.
+     */
+
+    deduplicateCreditDisplay(
+        generateButton,
+        creditContainer,
+        creditValueElement
+    );
+
+
     if (
         credit === null ||
         credit === undefined ||
@@ -1912,6 +2250,10 @@ function syncGenerateButtonCredit(
         );
 
 
+    /*
+     * Hanya canonical value yang diberi text.
+     */
+
     creditValueElement.textContent =
         `${formatted} Credit`;
 
@@ -1927,6 +2269,18 @@ function syncGenerateButtonCredit(
 
 
     forceVisible(
+        creditValueElement
+    );
+
+
+    /*
+     * Jalankan lagi setelah text ditulis supaya text lama
+     * pada container tidak muncul sebagai duplicate.
+     */
+
+    deduplicateCreditDisplay(
+        generateButton,
+        creditContainer,
         creditValueElement
     );
 
@@ -1951,8 +2305,6 @@ export function renderModelCredit(
     /*
      * -----------------------------------------------------
      * RESOLVE REAL DOM ELEMENT
-     *
-     * Jangan bergantung 100% kepada cache state.
      * -----------------------------------------------------
      */
 
@@ -1970,15 +2322,14 @@ export function renderModelCredit(
         );
 
 
-    /*
-     * Jika state tidak punya generateCreditValue tetapi
-     * tombol punya child credit value, gunakan element itu.
-     */
-
     const creditValueElement =
         realCreditValue ||
-        generateCreditValue ||
-        null;
+        (
+            generateCreditValue &&
+            generateCreditValue.nodeType === 1
+                ? generateCreditValue
+                : null
+        );
 
 
     const resolution =
@@ -1989,7 +2340,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * VALIDASI ELEMENT
      * -----------------------------------------------------
- */
+     */
 
     if (
         !creditValueElement
@@ -1998,6 +2349,17 @@ export function renderModelCredit(
         return null;
 
     }
+
+
+    /*
+     * Pastikan duplicate value tidak ikut terlihat.
+     */
+
+    deduplicateCreditDisplay(
+        generateButton,
+        creditContainer,
+        creditValueElement
+    );
 
 
     if (
@@ -2119,9 +2481,6 @@ export function renderModelCredit(
     /*
      * -----------------------------------------------------
      * HITUNG ULANG FINAL
-     *
-     * TIDAK mengambil pricing.credit_final sebagai
-     * source of truth.
      * -----------------------------------------------------
  */
 
@@ -2185,7 +2544,7 @@ export function renderModelCredit(
 
     /*
      * -----------------------------------------------------
-     * RENDER
+     * RENDER SATU NILAI SAJA
      * -----------------------------------------------------
  */
 
