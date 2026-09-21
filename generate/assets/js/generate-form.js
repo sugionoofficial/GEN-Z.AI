@@ -1232,8 +1232,10 @@ function createFieldId(
    IMAGE FIELD
    ---------------------------------------------------------
    Mode:
-   - URL    → hanya input URL
-   - Upload → hanya input file + preview kecil
+   - URL    → input URL tampil
+   - Upload → input file + preview kecil
+   - Struktur .generate-image-input tetap dipertahankan
+     agar collector/validation lama tetap bekerja
  ========================================================= */
 
 function createImageField(
@@ -1250,74 +1252,78 @@ function createImageField(
     wrapper.style.width =
         "100%";
 
-    /*
-     * =====================================================
-     * MODE SELECTOR
-     * =====================================================
-     */
 
-    const modeWrapper =
+    /* =====================================================
+       MODE SELECTOR
+     ===================================================== */
+
+    const modeSelector =
         document.createElement("div");
 
-    modeWrapper.style.display =
+    modeSelector.className =
+        "generate-image-mode-selector";
+
+    modeSelector.style.display =
         "flex";
 
-    modeWrapper.style.gap =
+    modeSelector.style.gap =
         "8px";
 
-    modeWrapper.style.marginBottom =
+    modeSelector.style.marginBottom =
         "10px";
 
-    const urlModeButton =
+
+    const urlButton =
         document.createElement("button");
 
-    urlModeButton.type =
+    urlButton.type =
         "button";
 
-    urlModeButton.textContent =
+    urlButton.textContent =
         "Gunakan URL";
 
-    urlModeButton.className =
-        "generate-image-mode active";
+    urlButton.className =
+        "generate-image-mode-button active";
 
-    urlModeButton.style.cursor =
+    urlButton.style.cursor =
         "pointer";
 
-    const uploadModeButton =
+
+    const uploadButton =
         document.createElement("button");
 
-    uploadModeButton.type =
+    uploadButton.type =
         "button";
 
-    uploadModeButton.textContent =
+    uploadButton.textContent =
         "Upload Gambar";
 
-    uploadModeButton.className =
-        "generate-image-mode";
+    uploadButton.className =
+        "generate-image-mode-button";
 
-    uploadModeButton.style.cursor =
+    uploadButton.style.cursor =
         "pointer";
 
-    modeWrapper.appendChild(
-        urlModeButton
+
+    modeSelector.appendChild(
+        urlButton
     );
 
-    modeWrapper.appendChild(
-        uploadModeButton
+    modeSelector.appendChild(
+        uploadButton
     );
 
 
-    /*
-     * =====================================================
-     * URL MODE
-     * =====================================================
-     */
+    /* =====================================================
+       URL INPUT
+     ===================================================== */
 
-    const urlWrapper =
+    const urlContainer =
         document.createElement("div");
 
-    urlWrapper.className =
-        "generate-image-url-wrapper";
+    urlContainer.className =
+        "generate-image-url-container";
+
 
     const urlInput =
         document.createElement("input");
@@ -1329,7 +1335,7 @@ function createImageField(
         "generate-image-url";
 
     urlInput.placeholder =
-        "https://example.com/gambar.jpg";
+        "Masukkan URL gambar";
 
     urlInput.autocomplete =
         "off";
@@ -1337,25 +1343,35 @@ function createImageField(
     urlInput.style.width =
         "100%";
 
-    urlWrapper.appendChild(
+
+    urlContainer.appendChild(
         urlInput
     );
 
 
-    /*
-     * =====================================================
-     * UPLOAD MODE
-     * =====================================================
-     */
+    /* =====================================================
+       UPLOAD INPUT
+     ===================================================== */
 
-    const uploadWrapper =
+    const uploadContainer =
         document.createElement("div");
 
-    uploadWrapper.className =
-        "generate-image-upload-wrapper";
+    uploadContainer.className =
+        "generate-image-upload-container";
 
-    uploadWrapper.style.display =
+    uploadContainer.style.display =
         "none";
+
+
+    /*
+     * PENTING:
+     *
+     * Tetap gunakan class
+     * generate-image-file.
+     *
+     * Collector generate-form.js
+     * dapat mengenali input ini.
+     */
 
     const fileInput =
         document.createElement("input");
@@ -1379,16 +1395,15 @@ function createImageField(
     fileInput.className =
         "generate-image-file";
 
-    uploadWrapper.appendChild(
+
+    uploadContainer.appendChild(
         fileInput
     );
 
 
-    /*
-     * =====================================================
-     * IMAGE PREVIEW
-     * =====================================================
-     */
+    /* =====================================================
+       PREVIEW
+     ===================================================== */
 
     const preview =
         document.createElement("div");
@@ -1408,189 +1423,209 @@ function createImageField(
     preview.style.marginTop =
         "10px";
 
-    preview.style.width =
-        "100%";
-
     preview.style.maxWidth =
         "360px";
 
 
-    /*
-     * =====================================================
-     * RENDER PREVIEW
-     * =====================================================
-     */
+    /* =====================================================
+       RENDER PREVIEW
+     ===================================================== */
 
-    const renderPreview =
-        (files = []) => {
+    function renderPreview(
+        files
+    ) {
 
-            preview.innerHTML = "";
+        preview.innerHTML =
+            "";
 
-            const imageFiles =
-                Array.from(files)
-                    .filter(
-                        file =>
-                            file &&
-                            file.type &&
-                            file.type.startsWith(
-                                "image/"
-                            )
-                    );
+        const selectedFiles =
+            Array.from(
+                files || []
+            ).filter(
+                file =>
+                    file &&
+                    file.type &&
+                    file.type.startsWith(
+                        "image/"
+                    )
+            );
 
-            if (
-                !imageFiles.length
-            ) {
 
-                preview.style.display =
-                    "none";
-
-                return;
-            }
+        if (
+            !selectedFiles.length
+        ) {
 
             preview.style.display =
-                "flex";
+                "none";
 
-            imageFiles.forEach(
-                file => {
+            return;
+        }
 
-                    const reader =
-                        new FileReader();
 
-                    reader.onload =
-                        event => {
+        preview.style.display =
+            "flex";
 
-                            const image =
-                                document.createElement(
-                                    "img"
-                                );
 
-                            image.src =
-                                event.target.result;
+        selectedFiles.forEach(
+            file => {
 
-                            image.alt =
-                                "Preview gambar";
+                const reader =
+                    new FileReader();
 
-                            /*
-                             * Ukuran preview sengaja
-                             * kecil agar tidak memenuhi
-                             * halaman Generate.
-                             */
-                            image.style.width =
-                                "160px";
 
-                            image.style.height =
-                                "160px";
+                reader.onload =
+                    event => {
 
-                            image.style.maxWidth =
-                                "160px";
-
-                            image.style.maxHeight =
-                                "160px";
-
-                            image.style.objectFit =
-                                "cover";
-
-                            image.style.display =
-                                "block";
-
-                            image.style.borderRadius =
-                                "10px";
-
-                            image.style.border =
-                                "1px solid rgba(255,255,255,.12)";
-
-                            image.style.background =
-                                "rgba(255,255,255,.04)";
-
-                            preview.appendChild(
-                                image
+                        const image =
+                            document.createElement(
+                                "img"
                             );
-                        };
 
-                    reader.readAsDataURL(
-                        file
-                    );
-                }
-            );
-        };
+                        image.src =
+                            event.target.result;
+
+                        image.alt =
+                            "Preview gambar";
 
 
-    /*
-     * =====================================================
-     * SWITCH MODE
-     * =====================================================
-     */
+                        /*
+                         * PREVIEW KECIL
+                         *
+                         * Tidak mengubah ukuran
+                         * file asli yang dikirim.
+                         */
 
-    const setMode =
-        mode => {
+                        image.style.width =
+                            "160px";
 
-            const isURL =
-                mode === "url";
+                        image.style.height =
+                            "160px";
 
-            if (isURL) {
+                        image.style.maxWidth =
+                            "160px";
 
-                urlWrapper.style.display =
-                    "block";
+                        image.style.maxHeight =
+                            "160px";
 
-                uploadWrapper.style.display =
-                    "none";
+                        image.style.objectFit =
+                            "cover";
 
-                preview.style.display =
-                    "none";
+                        image.style.display =
+                            "block";
 
-                /*
-                 * Jangan menghapus file/url
-                 * secara otomatis agar state
-                 * tidak rusak.
-                 */
+                        image.style.borderRadius =
+                            "10px";
 
-                urlModeButton.classList.add(
-                    "active"
+                        image.style.border =
+                            "1px solid rgba(255,255,255,.12)";
+
+
+                        preview.appendChild(
+                            image
+                        );
+                    };
+
+
+                reader.readAsDataURL(
+                    file
                 );
+            }
+        );
+    }
 
-                uploadModeButton.classList.remove(
-                    "active"
+
+    /* =====================================================
+       MODE SWITCH
+     ===================================================== */
+
+    function setMode(
+        mode
+    ) {
+
+        const uploadMode =
+            mode === "upload";
+
+
+        if (
+            uploadMode
+        ) {
+
+            urlContainer.style.display =
+                "none";
+
+            uploadContainer.style.display =
+                "block";
+
+
+            urlButton.classList.remove(
+                "active"
+            );
+
+            uploadButton.classList.add(
+                "active"
+            );
+
+
+            if (
+                fileInput.files &&
+                fileInput.files.length
+            ) {
+
+                renderPreview(
+                    fileInput.files
                 );
 
             } else {
 
-                urlWrapper.style.display =
+                preview.style.display =
                     "none";
-
-                uploadWrapper.style.display =
-                    "block";
-
-                if (
-                    fileInput.files &&
-                    fileInput.files.length
-                ) {
-
-                    renderPreview(
-                        fileInput.files
-                    );
-
-                }
-
-                urlModeButton.classList.remove(
-                    "active"
-                );
-
-                uploadModeButton.classList.add(
-                    "active"
-                );
             }
-        };
+
+        } else {
+
+            urlContainer.style.display =
+                "block";
+
+            uploadContainer.style.display =
+                "none";
+
+            preview.style.display =
+                "none";
 
 
-    /*
-     * =====================================================
-     * BUTTON EVENTS
-     * =====================================================
-     */
+            uploadButton.classList.remove(
+                "active"
+            );
 
-    urlModeButton.addEventListener(
+            urlButton.classList.add(
+                "active"
+            );
+        }
+
+
+        /*
+         * Simpan mode pada element.
+         * Collector bisa membaca ini jika
+         * diperlukan.
+         */
+
+        wrapper.dataset.imageMode =
+            uploadMode
+                ? "upload"
+                : "url";
+    }
+
+
+    /* =====================================================
+       EVENTS
+     ===================================================== */
+
+    urlButton.addEventListener(
         "click",
-        () => {
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
 
             setMode(
                 "url"
@@ -1598,9 +1633,13 @@ function createImageField(
         }
     );
 
-    uploadModeButton.addEventListener(
+
+    uploadButton.addEventListener(
         "click",
-        () => {
+        event => {
+
+            event.preventDefault();
+            event.stopPropagation();
 
             setMode(
                 "upload"
@@ -1608,12 +1647,6 @@ function createImageField(
         }
     );
 
-
-    /*
-     * =====================================================
-     * FILE CHANGE
-     * =====================================================
-     */
 
     fileInput.addEventListener(
         "change",
@@ -1627,58 +1660,36 @@ function createImageField(
 
 
     /*
-     * =====================================================
-     * DEFAULT MODE
-     * =====================================================
+     * URL input jangan dianggap sebagai
+     * tombol submit.
      */
 
-    setMode(
-        "url"
-    );
-
-
-    /*
-     * =====================================================
-     * ASSEMBLE
-     * =====================================================
-     */
-
-    wrapper.appendChild(
-        modeWrapper
-    );
-
-    wrapper.appendChild(
-        urlWrapper
-    );
-
-    wrapper.appendChild(
-        uploadWrapper
-    );
-
-    wrapper.appendChild(
-        preview
-    );
-
-
-    /*
-     * Simpan reference agar
-     * collector parameter lama
-     * tetap dapat membacanya.
-     */
-
-    wrapper._imageMode =
-        () => {
+    urlInput.addEventListener(
+        "keydown",
+        event => {
 
             if (
-                uploadWrapper.style.display !==
-                "none"
+                event.key ===
+                "Enter"
             ) {
 
-                return "upload";
+                event.preventDefault();
             }
+        }
+    );
 
-            return "url";
-        };
+
+    /* =====================================================
+       PUBLIC REFERENCES
+       -----------------------------------------------------
+       Dipasang pada wrapper supaya collector lama
+       tetap bisa menemukan input yang benar.
+     ===================================================== */
+
+    wrapper._imageMode =
+        () =>
+            wrapper.dataset.imageMode ||
+            "url";
 
     wrapper._urlInput =
         urlInput;
@@ -1688,6 +1699,38 @@ function createImageField(
 
     wrapper._preview =
         preview;
+
+
+    /* =====================================================
+       ASSEMBLE
+     ===================================================== */
+
+    wrapper.appendChild(
+        modeSelector
+    );
+
+    wrapper.appendChild(
+        urlContainer
+    );
+
+    wrapper.appendChild(
+        uploadContainer
+    );
+
+    wrapper.appendChild(
+        preview
+    );
+
+
+    /* =====================================================
+       DEFAULT
+       -----------------------------------------------------
+       URL aktif saat pertama kali field dibuat.
+     ===================================================== */
+
+    setMode(
+        "url"
+    );
 
 
     return wrapper;
