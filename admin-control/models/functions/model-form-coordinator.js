@@ -23,21 +23,23 @@
    - Event listener tombol
    - Data KIE
    - kie_* tables
+   - Pricing legacy credit_cost / credit_final
 
    PENTING:
    - Tidak memanggil coordinator dari dirinya sendiri.
    - Tidak dispatch event CRUD dari dalam fungsi CRUD.
    - Tidak membuat recursive create/edit/delete.
+   - Tidak menghitung pricing.
    ========================================================= */
 
-(function () {
+(function (window) {
 
     "use strict";
 
 
     /* =====================================================
        MODULE ACCESS
-    ===================================================== */
+       ===================================================== */
 
     function getCreate() {
 
@@ -71,7 +73,7 @@
 
     /* =====================================================
        DATA MODULE
-    ===================================================== */
+       ===================================================== */
 
     function getDataModule() {
 
@@ -85,11 +87,18 @@
 
     /* =====================================================
        TABLE MODULE
-    ===================================================== */
+       -----------------------------------------------------
+       Nama plural adalah nama utama yang digunakan oleh
+       models-init.js.
+
+       Nama singular dipertahankan sebagai compatibility
+       fallback agar module lama tidak rusak.
+       ===================================================== */
 
     function getTableModule() {
 
         return (
+            window.GENZModelsTable ||
             window.GENZModelTable ||
             null
         );
@@ -99,7 +108,7 @@
 
     /* =====================================================
        REQUIRE MODULE
-    ===================================================== */
+       ===================================================== */
 
     function requireModule(
         module,
@@ -123,7 +132,7 @@
 
     /* =====================================================
        REQUIRE FUNCTION
-    ===================================================== */
+       ===================================================== */
 
     function requireFunction(
         module,
@@ -156,7 +165,7 @@
 
     /* =====================================================
        NORMALIZE ID
-    ===================================================== */
+       ===================================================== */
 
     function normalizeId(
         value
@@ -174,7 +183,7 @@
 
     /* =====================================================
        MODEL ID RESOLVER
-    ===================================================== */
+       ===================================================== */
 
     function getModelRecordId(
         model
@@ -182,7 +191,9 @@
 
         if (
             typeof model ===
-            "string"
+            "string" ||
+            typeof model ===
+            "number"
         ) {
 
             return normalizeId(
@@ -201,6 +212,13 @@
 
         }
 
+        /*
+         * Record ID database.
+         *
+         * model_id adalah business/model identifier,
+         * bukan pengganti record id apabila keduanya
+         * tersedia.
+         */
         return normalizeId(
             model.id ||
             model.model_id_record ||
@@ -212,7 +230,7 @@
 
     /* =====================================================
        CREATE
-    ===================================================== */
+       ===================================================== */
 
     async function create(
         data
@@ -251,7 +269,7 @@
 
     /* =====================================================
        CREATE FROM FORM
-    ===================================================== */
+       ===================================================== */
 
     async function createFromForm(
         event = null
@@ -290,7 +308,7 @@
 
     /* =====================================================
        EDIT: OPEN
-    ===================================================== */
+       ===================================================== */
 
     async function openEdit(
         modelOrId,
@@ -360,7 +378,7 @@
 
     /* =====================================================
        EDIT: PREPARE
-    ===================================================== */
+       ===================================================== */
 
     function prepareEdit(
         root,
@@ -420,10 +438,6 @@
 
     /* =====================================================
        EDIT: UPDATE DIRECT
-       -----------------------------------------------------
-       Dipakai apabila module Edit lama masih mempunyai
-       update(), tetapi module baru dapat menerima submit
-       melalui submitEditModel().
        ===================================================== */
 
     async function update(
@@ -446,7 +460,7 @@
          */
         if (
             typeof module.submitEditModel ===
-            "function" &&
+                "function" &&
             options.root
         ) {
 
@@ -504,11 +518,15 @@
 
 
         /*
-         * Tidak boleh fallback ke coordinator
-         * sendiri.
+         * Jangan fallback ke coordinator sendiri.
          *
-         * Ini adalah titik penting pencegah
-         * Maximum call stack size exceeded.
+         * Ini mencegah:
+         *
+         * coordinator.update()
+         * -> coordinator.update()
+         * -> coordinator.update()
+         *
+         * yang berujung Maximum call stack size exceeded.
          */
         throw new Error(
             "Module Edit Model tidak menyediakan fungsi update atau submitEditModel."
@@ -519,7 +537,7 @@
 
     /* =====================================================
        EDIT FROM FORM
-    ===================================================== */
+       ===================================================== */
 
     async function updateFromForm(
         root,
@@ -531,7 +549,6 @@
                 getEdit(),
                 "Edit Model"
             );
-
 
         /*
          * Module baru.
@@ -573,8 +590,7 @@
             if (!submitHandler) {
 
                 /*
-                 * Jika tidak ada handler database,
-                 * jangan membuat recursive fallback.
+                 * Jangan membuat fallback recursive.
                  */
                 throw new Error(
                     "EDIT_SUBMIT_HANDLER_MISSING"
@@ -637,7 +653,7 @@
 
     /* =====================================================
        EDIT: POPULATE
-    ===================================================== */
+       ===================================================== */
 
     async function populateEdit(
         model,
@@ -649,7 +665,6 @@
                 getEdit(),
                 "Edit Model"
             );
-
 
         /*
          * Module baru.
@@ -718,7 +733,7 @@
 
     /* =====================================================
        CLOSE EDIT
-    ===================================================== */
+       ===================================================== */
 
     function closeEdit() {
 
@@ -757,7 +772,7 @@
 
     /* =====================================================
        DELETE
-    ===================================================== */
+       ===================================================== */
 
     async function remove(
         model
@@ -791,7 +806,7 @@
 
     /* =====================================================
        DELETE BY ID
-    ===================================================== */
+       ===================================================== */
 
     async function removeById(
         modelId
@@ -827,7 +842,7 @@
 
     /* =====================================================
        CACHE INVALIDATION
-    ===================================================== */
+       ===================================================== */
 
     async function invalidateModelCache() {
 
@@ -849,7 +864,7 @@
 
             try {
 
-                data.clearCache();
+                await data.clearCache();
 
             } catch (error) {
 
@@ -867,11 +882,6 @@
 
     /* =====================================================
        REFRESH TABLE
-       -----------------------------------------------------
-       Coordinator boleh meminta refresh melalui
-       table owner jika tersedia.
-
-       Tidak memanggil event table lagi.
        ===================================================== */
 
     async function refreshTable(
@@ -922,8 +932,8 @@
             } catch (error) {
 
                 /*
-                 * Jika fungsi pertama memang ada
-                 * tetapi membutuhkan signature berbeda,
+                 * Jika fungsi tersedia tetapi
+                 * membutuhkan signature berbeda,
                  * lanjutkan ke candidate berikutnya.
                  */
                 console.warn(
@@ -945,10 +955,15 @@
     /* =====================================================
        CRUD OPERATION WRAPPERS
        -----------------------------------------------------
-       Wrapper ini tidak otomatis refresh UI.
-       Refresh harus dilakukan oleh UI lifecycle.
-       Hal ini mencegah:
-       
+       Wrapper ini tidak otomatis refresh UI kecuali
+       caller secara eksplisit memberikan:
+
+       {
+           refresh: true
+       }
+
+       Hal ini mencegah siklus:
+
        CRUD
         ↓
        refresh
@@ -958,8 +973,6 @@
        event
         ↓
        CRUD
-       
-       yang merupakan resep klasik untuk recursion.
        ===================================================== */
 
     async function createAndRefresh(
@@ -1060,7 +1073,9 @@
         const key =
             operation +
             ":" +
-            normalizeId(id);
+            normalizeId(
+                id
+            );
 
 
         if (
@@ -1122,7 +1137,7 @@
 
     /* =====================================================
        LOCKED CREATE
-    ===================================================== */
+       ===================================================== */
 
     async function safeCreate(
         data,
@@ -1161,7 +1176,7 @@
 
     /* =====================================================
        LOCKED UPDATE
-    ===================================================== */
+       ===================================================== */
 
     async function safeUpdate(
         data,
@@ -1207,7 +1222,7 @@
 
     /* =====================================================
        LOCKED DELETE
-    ===================================================== */
+       ===================================================== */
 
     async function safeDelete(
         model,
@@ -1253,7 +1268,7 @@
 
     /* =====================================================
        MODULE STATUS
-    ===================================================== */
+       ===================================================== */
 
     function getModules() {
 
@@ -1319,7 +1334,7 @@
 
     /* =====================================================
        DEBUG
-    ===================================================== */
+       ===================================================== */
 
     function getOperationLocks() {
 
@@ -1348,7 +1363,7 @@
 
     /* =====================================================
        PUBLIC API
-    ===================================================== */
+       ===================================================== */
 
     window.GENZModelFormCoordinator =
         Object.freeze({
@@ -1431,4 +1446,4 @@
     );
 
 
-})();
+})(window);
