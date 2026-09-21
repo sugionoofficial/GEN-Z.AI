@@ -19,24 +19,28 @@
    - Model identity    : repository model registry
    - Parameters        : repository model parameters
    - Provider          : provider configuration
-   - Model credit      : credit per resolution
+   - Model credit      : credit per resolution dari models-edit
 
    CREDIT:
    - credit_480p
    - credit_720p
    - credit_1080p
    - discount_percent
-   - credit_final_480p
-   - credit_final_720p
-   - credit_final_1080p
+
+   FINAL CREDIT:
+   - SELALU dihitung dari base credit + discount
+   - Tidak menggunakan credit_final_* sebagai sumber
+   - Tidak menggunakan credit_final global
+   - Tidak menggunakan credit_cost global
+
+   RUMUS:
+   final = base - (base * discount / 100)
 
    PENTING:
    - Tidak mengambil credit akun
    - Tidak mengubah profiles.credits
    - Tidak membuat parameter palsu
    - Tidak membuat model palsu
-   - Tidak menggunakan credit_final global sebagai harga Generate
-   - Tidak menggunakan credit_cost global sebagai harga Generate
    - Parameter harus diteruskan utuh ke currentModel
 ========================================================= */
 
@@ -273,6 +277,8 @@ function normalizeResolution(
 
 /* =========================================================
    DISCOUNT CALCULATION
+   ---------------------------------------------------------
+   INI HARUS SAMA DENGAN models-edit.html
 ========================================================= */
 
 function calculateDiscountedCredit(
@@ -362,9 +368,22 @@ function getCreditSourceObjects(
                 !Array.isArray(source)
             ) {
 
-                sources.push(
-                    source
-                );
+                /*
+                 * Hindari object yang sama
+                 * dimasukkan berkali-kali.
+                 */
+
+                if (
+                    !sources.includes(
+                        source
+                    )
+                ) {
+
+                    sources.push(
+                        source
+                    );
+
+                }
 
             }
 
@@ -372,11 +391,12 @@ function getCreditSourceObjects(
 
 
     /*
-     * Urutan penting.
+     * ROOT MODEL HARUS MENJADI
+     * SUMBER UTAMA.
      *
-     * Root model menjadi sumber utama
-     * setelah pricing agar konfigurasi
-     * hasil /api/model-config tetap terbaca.
+     * Ini penting karena /api/model-config
+     * dapat mengembalikan credit langsung
+     * pada object model.
      */
 
     addSource(
@@ -425,13 +445,17 @@ function getCreditSourceObjects(
 
 
 /* =========================================================
-   GET RESOLUTION CREDIT VALUE
+   GET BASE RESOLUTION CREDIT
+   ---------------------------------------------------------
+   PENTING:
+   Fungsi ini HANYA mencari BASE CREDIT.
+
+   Tidak pernah mengambil credit_final_*.
 ========================================================= */
 
-function getResolutionCreditValue(
+function getResolutionBaseCredit(
     model,
-    resolution,
-    type = "base"
+    resolution
 ) {
 
     const normalizedResolution =
@@ -466,48 +490,25 @@ function getResolutionCreditValue(
         );
 
 
-    const propertyCandidates =
-        type === "final"
+    const propertyCandidates = [
 
-            ? [
+        `credit_${suffix}`,
 
-                `credit_final_${suffix}`,
+        `credit${suffix}`,
 
-                `creditFinal_${suffix}`,
+        `credit_${compactSuffix}`,
 
-                `credit_final_${compactSuffix}`,
+        `credit${compactSuffix}`,
 
-                `creditFinal_${compactSuffix}`,
+        `base_credit_${suffix}`,
 
-                `final_credit_${suffix}`,
+        `baseCredit_${suffix}`,
 
-                `finalCredit_${suffix}`,
+        `base_credit_${compactSuffix}`,
 
-                `final_credit_${compactSuffix}`,
+        `baseCredit_${compactSuffix}`
 
-                `finalCredit_${compactSuffix}`
-
-            ]
-
-            : [
-
-                `credit_${suffix}`,
-
-                `credit${suffix}`,
-
-                `credit_${compactSuffix}`,
-
-                `credit${compactSuffix}`,
-
-                `base_credit_${suffix}`,
-
-                `baseCredit_${suffix}`,
-
-                `base_credit_${compactSuffix}`,
-
-                `baseCredit_${compactSuffix}`
-
-            ];
+    ];
 
 
     /*
@@ -549,10 +550,12 @@ function getResolutionCreditValue(
          *
          * {
          *   "480p": {
-         *      credit: 9,
-         *      credit_final: 8.1
+         *      credit: 9
          *   }
          * }
+         *
+         * credit di sini dianggap BASE,
+         * bukan final.
          * =================================================
          */
 
@@ -583,37 +586,17 @@ function getResolutionCreditValue(
 
                 const value =
 
-                    type === "final"
+                    resolutionConfig.credit ??
 
-                        ? (
+                    resolutionConfig.credit_cost ??
 
-                            resolutionConfig.credit_final ??
+                    resolutionConfig.creditCost ??
 
-                            resolutionConfig.creditFinal ??
+                    resolutionConfig.base_credit ??
 
-                            resolutionConfig.final_credit ??
+                    resolutionConfig.baseCredit ??
 
-                            resolutionConfig.finalCredit ??
-
-                            null
-
-                        )
-
-                        : (
-
-                            resolutionConfig.credit ??
-
-                            resolutionConfig.credit_cost ??
-
-                            resolutionConfig.creditCost ??
-
-                            resolutionConfig.base_credit ??
-
-                            resolutionConfig.baseCredit ??
-
-                            null
-
-                        );
+                    null;
 
 
                 const number =
@@ -678,7 +661,18 @@ function getDiscountPercent(
             number !== null
         ) {
 
-            return number;
+            /*
+             * Sama seperti models-edit:
+             * discount dibatasi 0-100.
+             */
+
+            return Math.max(
+                0,
+                Math.min(
+                    100,
+                    number
+                )
+            );
 
         }
 
@@ -692,6 +686,11 @@ function getDiscountPercent(
 
 /* =========================================================
    GET RESOLUTION CREDIT
+   ---------------------------------------------------------
+   SUMBER FINAL:
+   BASE CREDIT + DISCOUNT
+
+   JANGAN mengambil credit_final_* dari backend.
 ========================================================= */
 
 function getResolutionCredit(
@@ -715,37 +714,16 @@ function getResolutionCredit(
 
 
     /*
-     * 1. Gunakan final credit per resolution
-     *    jika backend memang mengirimkannya.
-     */
-
-    const explicitFinal =
-        getResolutionCreditValue(
-            model,
-            normalizedResolution,
-            "final"
-        );
-
-
-    if (
-        explicitFinal !== null
-    ) {
-
-        return explicitFinal;
-
-    }
-
-
-    /*
-     * 2. Jika final belum dikirim,
-     *    hitung dari base + discount.
+     * 1. Ambil BASE CREDIT.
+     *
+     * Contoh:
+     * credit_480p = 9
      */
 
     const baseCredit =
-        getResolutionCreditValue(
+        getResolutionBaseCredit(
             model,
-            normalizedResolution,
-            "base"
+            normalizedResolution
         );
 
 
@@ -758,16 +736,51 @@ function getResolutionCredit(
     }
 
 
+    /*
+     * 2. Ambil DISCOUNT.
+     *
+     * Contoh:
+     * discount_percent = 10
+     */
+
     const discountPercent =
         getDiscountPercent(
             model
         );
 
 
-    return calculateDiscountedCredit(
-        baseCredit,
-        discountPercent
+    /*
+     * 3. Hitung FINAL CREDIT.
+     *
+     * 9 - (9 * 10 / 100)
+     * = 8.1
+     */
+
+    const finalCredit =
+        calculateDiscountedCredit(
+            baseCredit,
+            discountPercent
+        );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Model] CREDIT CALCULATION:",
+        {
+
+            resolution:
+                normalizedResolution,
+
+            baseCredit,
+
+            discountPercent,
+
+            finalCredit
+
+        }
     );
+
+
+    return finalCredit;
 
 }
 
@@ -827,47 +840,50 @@ function getModelCredit(
 
 
     const credit480p =
-        getResolutionCreditValue(
-            model,
-            "480p",
-            "base"
-        );
-
-
-    const credit720p =
-        getResolutionCreditValue(
-            model,
-            "720p",
-            "base"
-        );
-
-
-    const credit1080p =
-        getResolutionCreditValue(
-            model,
-            "1080p",
-            "base"
-        );
-
-
-    const creditFinal480p =
-        getResolutionCredit(
+        getResolutionBaseCredit(
             model,
             "480p"
         );
 
 
-    const creditFinal720p =
-        getResolutionCredit(
+    const credit720p =
+        getResolutionBaseCredit(
             model,
             "720p"
         );
 
 
-    const creditFinal1080p =
-        getResolutionCredit(
+    const credit1080p =
+        getResolutionBaseCredit(
             model,
             "1080p"
+        );
+
+
+    /*
+     * FINAL CREDIT SELALU
+     * DIHITUNG ULANG DARI BASE
+     * + DISCOUNT.
+     */
+
+    const creditFinal480p =
+        calculateDiscountedCredit(
+            credit480p,
+            discountPercent
+        );
+
+
+    const creditFinal720p =
+        calculateDiscountedCredit(
+            credit720p,
+            discountPercent
+        );
+
+
+    const creditFinal1080p =
+        calculateDiscountedCredit(
+            credit1080p,
+            discountPercent
         );
 
 
@@ -895,6 +911,11 @@ function getModelCredit(
 
         credit1080p,
 
+        /*
+         * Field ini adalah HASIL HITUNG,
+         * bukan sumber database.
+         */
+
         creditFinal480p,
 
         creditFinal720p,
@@ -921,6 +942,12 @@ function getModelCreditForResolution(
         );
 
 
+    const discountPercent =
+        getDiscountPercent(
+            model
+        );
+
+
     if (
         !normalizedResolution
     ) {
@@ -933,10 +960,7 @@ function getModelCreditForResolution(
             baseCredit:
                 null,
 
-            discountPercent:
-                getDiscountPercent(
-                    model
-                ),
+            discountPercent,
 
             creditFinal:
                 null
@@ -946,38 +970,35 @@ function getModelCreditForResolution(
     }
 
 
+    /*
+     * Ambil BASE CREDIT saja.
+     */
+
     const baseCredit =
-        getResolutionCreditValue(
+        getResolutionBaseCredit(
             model,
-            normalizedResolution,
-            "base"
+            normalizedResolution
         );
 
 
-    const explicitFinal =
-        getResolutionCreditValue(
-            model,
-            normalizedResolution,
-            "final"
-        );
-
-
-    const discountPercent =
-        getDiscountPercent(
-            model
-        );
-
+    /*
+     * FINAL selalu dihitung ulang.
+     *
+     * Tidak peduli backend mengirim:
+     *
+     * credit_final_480p
+     * creditFinal480p
+     * resolutions.480p.credit_final
+     *
+     * Field-field tersebut tidak menjadi
+     * sumber harga Generate.
+     */
 
     const creditFinal =
-
-        explicitFinal !== null
-
-            ? explicitFinal
-
-            : calculateDiscountedCredit(
-                baseCredit,
-                discountPercent
-            );
+        calculateDiscountedCredit(
+            baseCredit,
+            discountPercent
+        );
 
 
     return {
@@ -1012,6 +1033,10 @@ function buildNormalizedCredit(
 
     return {
 
+        /*
+         * BASE CREDIT
+         */
+
         credit_480p:
             credit.credit480p,
 
@@ -1020,6 +1045,14 @@ function buildNormalizedCredit(
 
         credit_1080p:
             credit.credit1080p,
+
+
+        /*
+         * FINAL CREDIT
+         *
+         * Derived value.
+         * BUKAN source of truth.
+         */
 
         credit_final_480p:
             credit.creditFinal480p,
@@ -1030,6 +1063,11 @@ function buildNormalizedCredit(
         credit_final_1080p:
             credit.creditFinal1080p,
 
+
+        /*
+         * CamelCase compatibility.
+         */
+
         creditFinal480p:
             credit.creditFinal480p,
 
@@ -1038,6 +1076,11 @@ function buildNormalizedCredit(
 
         creditFinal1080p:
             credit.creditFinal1080p,
+
+
+        /*
+         * DISCOUNT
+         */
 
         discount_percent:
             credit.discountPercent,
@@ -1974,6 +2017,11 @@ function normalizeModel(
         credit.credit1080p;
 
 
+    /*
+     * Field final di bawah ini adalah
+     * DERIVED VALUE dari base + discount.
+     */
+
     normalized.credit_final_480p =
         credit.creditFinal480p;
 
@@ -2218,6 +2266,9 @@ function mergeModelConfiguration(
 
     /* =====================================================
        CREDIT
+       -----------------------------------------------------
+       BASE CREDIT DAN DISCOUNT SAJA YANG
+       DIANGGAP SOURCE OF TRUTH.
     ===================================================== */
 
     const detailCredit =
@@ -2269,38 +2320,10 @@ function mergeModelConfiguration(
         );
 
 
-    merged.credit_final_480p =
-        chooseValue(
-            detailCredit.creditFinal480p,
-            listCredit.creditFinal480p
-        );
-
-
-    merged.credit_final_720p =
-        chooseValue(
-            detailCredit.creditFinal720p,
-            listCredit.creditFinal720p
-        );
-
-
-    merged.credit_final_1080p =
-        chooseValue(
-            detailCredit.creditFinal1080p,
-            listCredit.creditFinal1080p
-        );
-
-
-    merged.creditFinal480p =
-        merged.credit_final_480p;
-
-
-    merged.creditFinal720p =
-        merged.credit_final_720p;
-
-
-    merged.creditFinal1080p =
-        merged.credit_final_1080p;
-
+    /*
+     * DISCOUNT juga dipilih dari
+     * detail terlebih dahulu.
+     */
 
     merged.discount_percent =
         chooseValue(
@@ -2324,6 +2347,58 @@ function mergeModelConfiguration(
 
     merged.discountPercent =
         merged.discount_percent;
+
+
+    /*
+     * JANGAN menggunakan final credit
+     * dari detail/list model.
+     *
+     * Hitung ulang setelah merge.
+     */
+
+    const mergedCredit480p =
+        calculateDiscountedCredit(
+            merged.credit_480p,
+            merged.discount_percent
+        );
+
+
+    const mergedCredit720p =
+        calculateDiscountedCredit(
+            merged.credit_720p,
+            merged.discount_percent
+        );
+
+
+    const mergedCredit1080p =
+        calculateDiscountedCredit(
+            merged.credit_1080p,
+            merged.discount_percent
+        );
+
+
+    merged.credit_final_480p =
+        mergedCredit480p;
+
+
+    merged.credit_final_720p =
+        mergedCredit720p;
+
+
+    merged.credit_final_1080p =
+        mergedCredit1080p;
+
+
+    merged.creditFinal480p =
+        mergedCredit480p;
+
+
+    merged.creditFinal720p =
+        mergedCredit720p;
+
+
+    merged.creditFinal1080p =
+        mergedCredit1080p;
 
 
     /*
@@ -2412,6 +2487,10 @@ function mergeModelConfiguration(
 
         credit_1080p:
             merged.credit_1080p,
+
+        /*
+         * Derived final values.
+         */
 
         credit_final_480p:
             merged.credit_final_480p,
@@ -2973,6 +3052,10 @@ export function renderModelSelector(
                 );
 
 
+            /*
+             * BASE CREDIT DATASET
+             */
+
             option.dataset.credit480p =
 
                 credit.credit480p !== null
@@ -3005,6 +3088,12 @@ export function renderModelSelector(
 
                     : "";
 
+
+            /*
+             * FINAL CREDIT DATASET
+             *
+             * Derived dari base + discount.
+             */
 
             option.dataset.creditFinal480p =
 
@@ -3862,9 +3951,7 @@ export function getModelCreditInfo(
 /* =========================================================
    MODEL CREDIT BY RESOLUTION PUBLIC
    ---------------------------------------------------------
-   PENTING:
-   Fungsi ini dibuat kompatibel dengan
-   DUA bentuk pemanggilan:
+   KOMPATIBEL DENGAN:
 
    1. getModelCreditForSelectedResolution(
           "480p",
@@ -3875,9 +3962,6 @@ export function getModelCreditInfo(
           model,
           "480p"
       )
-
-   Ini mencegah bug UI yang mengirim
-   argument dalam urutan berbeda.
 ========================================================= */
 
 export function getModelCreditForSelectedResolution(
