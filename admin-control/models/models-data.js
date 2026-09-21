@@ -6,7 +6,14 @@
  * File:
  * admin-control/models/models-data.js
  *
- * ARSITEKTUR
+ * TANGGUNG JAWAB
+ * - Membaca Admin Models dari Supabase
+ * - Membaca Providers dari Supabase
+ * - Normalisasi model
+ * - Registry adapter / parameter metadata
+ * - Cache model/provider
+ * - Lookup dan filtering model
+ * - Helper credit resolution
  *
  * MODEL SOURCE OF TRUTH
  *   Admin Models
@@ -18,75 +25,41 @@
  *        +-- provider_id
  *        +-- description
  *        +-- status
- *        +-- credit configuration
+ *        +-- discount_percent
  *        +-- credit_480p
  *        +-- credit_720p
  *        +-- credit_1080p
- *        +-- credit_final
  *        +-- duration
  *        +-- ratios
  *        +-- resolutions
  *
- * MODEL REGISTRY
- *   models/<model-folder>/
+ * CREDIT ARCHITECTURE
+ *
+ *   models.credit_480p
+ *   models.credit_720p
+ *   models.credit_1080p
  *        |
- *        +-- config.js
- *        +-- parameters.js
- *        +-- index.js
- *
- *   Registry TIDAK menentukan model yang tersedia.
- *
- *   Registry hanya menyediakan:
- *        - adapter/API metadata
- *        - parameter fallback
- *        - folder mapping
- *
- * SUPABASE
- *   providers
+ *        +-- credit dasar sesuai resolution
  *        |
- *        +-- provider connection/status
- *
- *   models
+ *        +-- discount_percent
  *        |
- *        +-- HASIL KONFIGURASI ADMIN MODELS
+ *        +-- Generate menghitung credit final saat runtime
  *
- * =========================================================
+ * RUMUS:
  *
- * PENTING
+ *   final =
+ *       credit -
+ *       (credit * discount_percent / 100)
  *
- * model_id:
- *   berasal dari konfigurasi Admin Models.
+ * PENTING:
  *
- * Registry hanya digunakan untuk mencari adapter
- * berdasarkan model_id yang sudah dipilih admin.
+ *   credit_cost
+ *   credit_final
  *
- * Model tersedia:
- *   ditentukan oleh row pada tabel models.
+ * bukan lagi sumber data aktif.
  *
- * Model aktif:
- *   ditentukan oleh models.status = active.
- *
- * Provider:
- *   ditentukan oleh providers.status.
- *
- * API KEY:
- *   TIDAK PERNAH dibaca oleh module ini.
- *
- * =========================================================
- *
- * CREDIT RESOLUTION
- *
- * credit_480p
- * credit_720p
- * credit_1080p
- *
- * Ketiga field tersebut merupakan credit aktual
- * berdasarkan resolution yang dipilih user.
- *
- * credit_final tetap dipertahankan untuk:
- *   - backward compatibility
- *   - legacy model
- *   - fallback sistem lama
+ * Field tersebut tidak dibaca, tidak dinormalisasi,
+ * dan tidak digunakan sebagai fallback pricing.
  *
  * =========================================================
  */
@@ -354,19 +327,24 @@ function normalizeNumber(
 /* =========================================================
    RESOLUTION CREDIT NORMALIZER
    ---------------------------------------------------------
-   Membaca credit resolution tanpa menghilangkan nilai
-   yang berasal langsung dari Supabase.
-
-   Prioritas:
-   1. snake_case dari Supabase
-   2. camelCase compatibility
-   3. normalized value
-   4. fallback
-
-   PENTING:
-   Nilai 0 dianggap VALID.
-   Hanya null / undefined / string kosong yang
-   dianggap tidak tersedia.
+   Sumber utama:
+ *
+ *   models.credit_480p
+ *   models.credit_720p
+ *   models.credit_1080p
+ *
+ * Prioritas:
+ *   1. snake_case dari Supabase
+ *   2. camelCase compatibility
+ *   3. normalized value
+ *   4. fallback
+ *
+ * PENTING:
+ *   Nilai 0 dianggap VALID.
+ *
+ * Tidak menggunakan:
+ *   credit_cost
+ *   credit_final
 ========================================================= */
 
 function readResolutionCredit(
@@ -919,23 +897,58 @@ function normalizeRegistryModel(
             .toLowerCase();
 
 
-    const creditCost =
-        persisted &&
-        persisted.credit_cost !== null &&
-        persisted.credit_cost !== undefined
+    /*
+     * =====================================================
+     * RESOLUTION CREDIT
+     * =====================================================
+     *
+     * Registry tidak menentukan harga.
+     *
+     * Jika persisted model tersedia,
+     * gunakan credit resolution dari persisted model.
+     *
+     * Jika tidak tersedia, nilainya 0.
+     *
+     * Tidak menggunakan:
+     *   credit_cost
+     *   credit_final
+     */
 
-            ? normalizeNumber(
-                persisted.credit_cost,
-                0
-            )
+    const credit480p =
+        readResolutionCredit(
+            persisted,
+            null,
+            "credit_480p",
+            "credit480p",
+            0
+        );
 
-            : 0;
+
+    const credit720p =
+        readResolutionCredit(
+            persisted,
+            null,
+            "credit_720p",
+            "credit720p",
+            0
+        );
+
+
+    const credit1080p =
+        readResolutionCredit(
+            persisted,
+            null,
+            "credit_1080p",
+            "credit1080p",
+            0
+        );
 
 
     const discountPercent =
         persisted &&
         persisted.discount_percent !== null &&
-        persisted.discount_percent !== undefined
+        persisted.discount_percent !== undefined &&
+        persisted.discount_percent !== ""
 
             ? normalizeNumber(
                 persisted.discount_percent,
@@ -952,69 +965,6 @@ function normalizeRegistryModel(
                 0,
                 discountPercent
             )
-        );
-
-
-    const calculatedCreditFinal =
-        creditCost *
-        (
-            1 -
-            safeDiscount / 100
-        );
-
-
-    const creditFinal =
-        persisted &&
-        persisted.credit_final !== null &&
-        persisted.credit_final !== undefined
-
-            ? normalizeNumber(
-                persisted.credit_final,
-                calculatedCreditFinal
-            )
-
-            : calculatedCreditFinal;
-
-
-    /*
-     * RESOLUTION CREDIT
-     *
-     * Jika field tersedia di persisted model,
-     * gunakan nilai tersebut.
-     *
-     * Jika belum tersedia karena model lama,
-     * fallback ke credit_final.
-     *
-     * Nilai 0 yang tersimpan tetap dipertahankan.
-     */
-
-    const credit480p =
-        readResolutionCredit(
-            persisted,
-            null,
-            "credit_480p",
-            "credit480p",
-            creditFinal
-        );
-
-
-    const credit720p =
-        readResolutionCredit(
-            persisted,
-            null,
-            "credit_720p",
-            "credit720p",
-            creditFinal
-        );
-
-
-    const credit1080p =
-        readResolutionCredit(
-            persisted,
-            null,
-            "credit_1080p",
-            "credit1080p",
-            creditFinal
         );
 
 
@@ -1124,25 +1074,15 @@ function normalizeRegistryModel(
             durationRange.max,
 
 
-        credit_cost:
-            creditCost,
-
+        /*
+         * =================================================
+         * CREDIT CONFIGURATION
+         * =================================================
+         */
 
         discount_percent:
             safeDiscount,
 
-
-        /*
-         * Legacy credit.
-         */
-
-        credit_final:
-            creditFinal,
-
-
-        /*
-         * Resolution-specific credit.
-         */
 
         credit_480p:
             credit480p,
@@ -1156,9 +1096,6 @@ function normalizeRegistryModel(
 
         /*
          * CamelCase compatibility.
-         *
-         * Tidak menggantikan snake_case.
-         * Hanya memudahkan module frontend lain.
          */
 
         credit480p:
@@ -1457,15 +1394,8 @@ function normalizePersistedModel(
 
 
     /* =====================================================
-       CREDIT
+       CREDIT CONFIGURATION
     ===================================================== */
-
-    const creditCost =
-        normalizeNumber(
-            persistedModel.credit_cost,
-            0
-        );
-
 
     const discountPercent =
         normalizeNumber(
@@ -1484,25 +1414,6 @@ function normalizePersistedModel(
         );
 
 
-    const calculatedCreditFinal =
-        creditCost *
-        (
-            1 -
-            safeDiscount / 100
-        );
-
-
-    const creditFinal =
-        persistedModel.credit_final !== null &&
-        persistedModel.credit_final !== undefined &&
-        persistedModel.credit_final !== ""
-            ? normalizeNumber(
-                persistedModel.credit_final,
-                calculatedCreditFinal
-            )
-            : calculatedCreditFinal;
-
-
     /*
      * =====================================================
      * RESOLUTION-SPECIFIC CREDIT
@@ -1514,13 +1425,14 @@ function normalizePersistedModel(
      *   models.credit_720p
      *   models.credit_1080p
      *
-     * Untuk model lama yang belum memiliki nilai,
-     * credit_final digunakan sebagai fallback.
+     * Tidak menggunakan:
      *
-     * PENTING:
+     *   credit_cost
+     *   credit_final
      *
-     * Jika Supabase menyimpan 0, maka 0 dipertahankan.
-     * Jangan diganti otomatis dengan credit_final.
+     * Jika field tidak tersedia, hasilnya 0.
+     *
+     * Nilai 0 yang tersimpan tetap dipertahankan.
      */
 
     const credit480p =
@@ -1529,7 +1441,7 @@ function normalizePersistedModel(
             null,
             "credit_480p",
             "credit480p",
-            creditFinal
+            0
         );
 
 
@@ -1539,7 +1451,7 @@ function normalizePersistedModel(
             null,
             "credit_720p",
             "credit720p",
-            creditFinal
+            0
         );
 
 
@@ -1549,7 +1461,7 @@ function normalizePersistedModel(
             null,
             "credit_1080p",
             "credit1080p",
-            creditFinal
+            0
         );
 
 
@@ -1777,27 +1689,18 @@ function normalizePersistedModel(
          * =================================================
          */
 
-        credit_cost:
-            creditCost,
-
-
         discount_percent:
             safeDiscount,
 
 
         /*
-         * Legacy credit.
-         */
-
-        credit_final:
-            creditFinal,
-
-
-        /*
          * Resolution-specific credits.
          *
-         * Ini yang akan digunakan oleh Generate
-         * berdasarkan resolution yang dipilih.
+         * Ini adalah credit dasar yang digunakan
+         * berdasarkan resolution.
+         *
+         * Generate menghitung discount dan credit final
+         * saat runtime.
          */
 
         credit_480p:
@@ -2453,7 +2356,19 @@ function formatCredit(
 /* =========================================================
    FORMAT RESOLUTION CREDIT
    ---------------------------------------------------------
-   Compatibility helper.
+   Sumber:
+ *   credit_480p
+ *   credit_720p
+ *   credit_1080p
+ *
+ * Tidak menggunakan:
+ *   credit_cost
+ *   credit_final
+ *
+ * Tidak menghitung discount di sini.
+ *
+ * Discount diterapkan oleh Generate saat runtime
+ * sebelum RPC deduction.
 ========================================================= */
 
 function getResolutionCredit(
@@ -2482,8 +2397,7 @@ function getResolutionCredit(
 
         return normalizeNumber(
             model.credit_480p ??
-            model.credit480p ??
-            model.credit_final,
+            model.credit480p,
             0
         );
 
@@ -2496,8 +2410,7 @@ function getResolutionCredit(
 
         return normalizeNumber(
             model.credit_720p ??
-            model.credit720p ??
-            model.credit_final,
+            model.credit720p,
             0
         );
 
@@ -2510,8 +2423,7 @@ function getResolutionCredit(
 
         return normalizeNumber(
             model.credit_1080p ??
-            model.credit1080p ??
-            model.credit_final,
+            model.credit1080p,
             0
         );
 
@@ -2519,16 +2431,12 @@ function getResolutionCredit(
 
 
     /*
-     * Resolution lain:
+     * Resolution tidak dikenal.
      *
-     * Jangan mengarang harga baru.
-     * Gunakan legacy credit_final sebagai fallback.
+     * Jangan mengarang harga.
      */
 
-    return normalizeNumber(
-        model.credit_final,
-        0
-    );
+    return 0;
 
 }
 
