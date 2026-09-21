@@ -20,6 +20,9 @@
 // - Credit cost
 // - Discount percent
 // - Credit final
+// - Credit 480p
+// - Credit 720p
+// - Credit 1080p
 // - Duration
 // - Ratio
 // - Resolution
@@ -508,6 +511,26 @@ const MODEL_FIELDS = [
 
     "credit_final",
 
+    /*
+     * Credit per resolution.
+     *
+     * Nilai ini disimpan langsung dari
+     * konfigurasi Admin Models.
+     *
+     * Tidak dihitung dari:
+     * - KIE price
+     * - USD / IDR
+     * - duration
+     * - ratio
+     * - credit_final
+     */
+
+    "credit_480p",
+
+    "credit_720p",
+
+    "credit_1080p",
+
     "min_duration",
 
     "max_duration",
@@ -751,6 +774,10 @@ const cleanModel = (
     const model = {};
 
 
+    // ====================================
+    // PROVIDER
+    // ====================================
+
     if (
         input.provider_id !== undefined
     ) {
@@ -762,6 +789,10 @@ const cleanModel = (
 
     }
 
+
+    // ====================================
+    // MODEL ID
+    // ====================================
 
     if (
         input.model_id !== undefined
@@ -775,6 +806,10 @@ const cleanModel = (
     }
 
 
+    // ====================================
+    // MODEL NAME
+    // ====================================
+
     if (
         input.model_name !== undefined
     ) {
@@ -786,6 +821,10 @@ const cleanModel = (
 
     }
 
+
+    // ====================================
+    // DESCRIPTION
+    // ====================================
 
     if (
         input.description !== undefined
@@ -802,6 +841,10 @@ const cleanModel = (
 
     }
 
+
+    // ====================================
+    // CREDIT COST
+    // ====================================
 
     if (
         input.credit_cost !== undefined &&
@@ -832,6 +875,10 @@ const cleanModel = (
 
     }
 
+
+    // ====================================
+    // DISCOUNT PERCENT
+    // ====================================
 
     if (
         input.discount_percent !== undefined &&
@@ -864,6 +911,117 @@ const cleanModel = (
     }
 
 
+    // ====================================
+    // CREDIT 480P
+    // ====================================
+    //
+    // Nilai berdiri sendiri.
+    // Tidak dihitung dari credit_final.
+    // Tidak dihitung dari harga KIE.
+    //
+
+    if (
+        input.credit_480p !== undefined &&
+        input.credit_480p !== ""
+    ) {
+
+        const value =
+            parseNumber(
+                input.credit_480p,
+                "credit_480p",
+                false
+            );
+
+
+        if (
+            value < 0
+        ) {
+
+            throw new Error(
+                "credit_480p tidak boleh negatif."
+            );
+
+        }
+
+
+        model.credit_480p =
+            value;
+
+    }
+
+
+    // ====================================
+    // CREDIT 720P
+    // ====================================
+
+    if (
+        input.credit_720p !== undefined &&
+        input.credit_720p !== ""
+    ) {
+
+        const value =
+            parseNumber(
+                input.credit_720p,
+                "credit_720p",
+                false
+            );
+
+
+        if (
+            value < 0
+        ) {
+
+            throw new Error(
+                "credit_720p tidak boleh negatif."
+            );
+
+        }
+
+
+        model.credit_720p =
+            value;
+
+    }
+
+
+    // ====================================
+    // CREDIT 1080P
+    // ====================================
+
+    if (
+        input.credit_1080p !== undefined &&
+        input.credit_1080p !== ""
+    ) {
+
+        const value =
+            parseNumber(
+                input.credit_1080p,
+                "credit_1080p",
+                false
+            );
+
+
+        if (
+            value < 0
+        ) {
+
+            throw new Error(
+                "credit_1080p tidak boleh negatif."
+            );
+
+        }
+
+
+        model.credit_1080p =
+            value;
+
+    }
+
+
+    // ====================================
+    // MIN DURATION
+    // ====================================
+
     if (
         input.min_duration !== undefined &&
         input.min_duration !== ""
@@ -893,6 +1051,10 @@ const cleanModel = (
 
     }
 
+
+    // ====================================
+    // MAX DURATION
+    // ====================================
 
     if (
         input.max_duration !== undefined &&
@@ -924,6 +1086,10 @@ const cleanModel = (
     }
 
 
+    // ====================================
+    // SUPPORTED RATIOS
+    // ====================================
+
     if (
         input.supported_ratios !== undefined
     ) {
@@ -936,6 +1102,10 @@ const cleanModel = (
     }
 
 
+    // ====================================
+    // SUPPORTED RESOLUTIONS
+    // ====================================
+
     if (
         input.supported_resolutions !== undefined
     ) {
@@ -947,6 +1117,10 @@ const cleanModel = (
 
     }
 
+
+    // ====================================
+    // STATUS
+    // ====================================
 
     if (
         input.status !== undefined
@@ -976,6 +1150,10 @@ const validateModel = (
     requireAll = false
 ) => {
 
+    // ====================================
+    // REQUIRED PROVIDER
+    // ====================================
+
     if (
         requireAll &&
         !model.provider_id
@@ -987,6 +1165,10 @@ const validateModel = (
 
     }
 
+
+    // ====================================
+    // REQUIRED MODEL ID
+    // ====================================
 
     if (
         requireAll &&
@@ -1000,6 +1182,10 @@ const validateModel = (
     }
 
 
+    // ====================================
+    // REQUIRED MODEL NAME
+    // ====================================
+
     if (
         requireAll &&
         !model.model_name
@@ -1011,6 +1197,10 @@ const validateModel = (
 
     }
 
+
+    // ====================================
+    // STATUS
+    // ====================================
 
     if (
         model.status !== undefined
@@ -1042,6 +1232,10 @@ const validateModel = (
     }
 
 
+    // ====================================
+    // CREDIT COST
+    // ====================================
+
     if (
         model.credit_cost !== undefined &&
         model.credit_cost < 0
@@ -1053,6 +1247,10 @@ const validateModel = (
 
     }
 
+
+    // ====================================
+    // DISCOUNT
+    // ====================================
 
     if (
         model.discount_percent !== undefined &&
@@ -1068,6 +1266,58 @@ const validateModel = (
 
     }
 
+
+    // ====================================
+    // CREDIT 480P
+    // ====================================
+
+    if (
+        model.credit_480p !== undefined &&
+        model.credit_480p < 0
+    ) {
+
+        return (
+            "Credit 480p tidak boleh negatif."
+        );
+
+    }
+
+
+    // ====================================
+    // CREDIT 720P
+    // ====================================
+
+    if (
+        model.credit_720p !== undefined &&
+        model.credit_720p < 0
+    ) {
+
+        return (
+            "Credit 720p tidak boleh negatif."
+        );
+
+    }
+
+
+    // ====================================
+    // CREDIT 1080P
+    // ====================================
+
+    if (
+        model.credit_1080p !== undefined &&
+        model.credit_1080p < 0
+    ) {
+
+        return (
+            "Credit 1080p tidak boleh negatif."
+        );
+
+    }
+
+
+    // ====================================
+    // DURATION
+    // ====================================
 
     if (
         model.min_duration !== undefined &&
@@ -2406,6 +2656,34 @@ const createModel = async (
     }
 
 
+    /*
+     * ====================================
+     * RESOLUTION CREDIT
+     * ====================================
+     *
+     * Tidak menggunakan credit_final
+     * sebagai sumber kalkulasi.
+     *
+     * Jika frontend tidak mengirim nilai,
+     * database DEFAULT akan menangani nilai.
+     *
+     * Jika frontend mengirim 0,
+     * nilai 0 tetap disimpan.
+     */
+
+
+    // ====================================
+    // LEGACY CREDIT FINAL
+    // ====================================
+    //
+    // credit_final tetap ada di database
+    // untuk backward compatibility.
+    //
+    // Nilainya tidak ditulis oleh endpoint
+    // ini karena credit resolution sekarang
+    // menjadi sumber harga per resolusi.
+    //
+
     delete model.credit_final;
 
 
@@ -2564,6 +2842,10 @@ const updateModel = async (
     }
 
 
+    // ====================================
+    // EMPTY MODEL UPDATE
+    // ====================================
+
     if (
         Object.keys(
             model
@@ -2662,8 +2944,24 @@ const updateModel = async (
     }
 
 
+    // ====================================
+    // LEGACY CREDIT FINAL
+    // ====================================
+    //
+    // credit_final tetap tersedia untuk
+    // backward compatibility.
+    //
+    // Jangan menimpanya secara otomatis
+    // ketika Admin mengubah credit per
+    // resolution.
+    //
+
     delete model.credit_final;
 
+
+    // ====================================
+    // UPDATED AT
+    // ====================================
 
     model.updated_at =
         new Date()
