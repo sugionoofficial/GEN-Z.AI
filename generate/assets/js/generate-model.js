@@ -19,7 +19,7 @@
    - Model identity    : repository model registry
    - Parameters        : repository model parameters
    - Provider          : provider configuration
-   - Model credit      : credit per resolution dari models-edit
+   - Model credit      : models-edit
 
    CREDIT:
    - credit_480p
@@ -28,8 +28,8 @@
    - discount_percent
 
    FINAL CREDIT:
-   - SELALU dihitung dari base credit + discount
-   - Tidak menggunakan credit_final_* sebagai sumber
+   - Selalu dihitung runtime
+   - Tidak menggunakan credit_final_* sebagai source
    - Tidak menggunakan credit_final global
    - Tidak menggunakan credit_cost global
 
@@ -41,7 +41,6 @@
    - Tidak mengubah profiles.credits
    - Tidak membuat parameter palsu
    - Tidak membuat model palsu
-   - Parameter harus diteruskan utuh ke currentModel
 ========================================================= */
 
 "use strict";
@@ -133,8 +132,7 @@ function safeBoolean(
 ) {
 
     if (
-        typeof value ===
-        "boolean"
+        typeof value === "boolean"
     ) {
 
         return value;
@@ -143,8 +141,7 @@ function safeBoolean(
 
 
     if (
-        typeof value ===
-        "string"
+        typeof value === "string"
     ) {
 
         const normalized =
@@ -154,8 +151,7 @@ function safeBoolean(
 
 
         if (
-            normalized ===
-            "true"
+            normalized === "true"
         ) {
 
             return true;
@@ -164,8 +160,7 @@ function safeBoolean(
 
 
         if (
-            normalized ===
-            "false"
+            normalized === "false"
         ) {
 
             return false;
@@ -330,6 +325,19 @@ function calculateDiscountedCredit(
 
 /* =========================================================
    GET CREDIT SOURCE OBJECTS
+   ---------------------------------------------------------
+   URUTAN SUMBER:
+
+   1. model.credit
+   2. model.credit.pricing
+   3. model
+   4. model.pricing
+   5. model.config
+   6. model.config.pricing
+   7. model.repository
+   8. model.repository.pricing
+   9. model.model
+   10. model.model.pricing
 ========================================================= */
 
 function getCreditSourceObjects(
@@ -338,8 +346,7 @@ function getCreditSourceObjects(
 
     if (
         !model ||
-        typeof model !==
-        "object"
+        typeof model !== "object"
     ) {
 
         return [];
@@ -355,8 +362,7 @@ function getCreditSourceObjects(
 
             if (
                 source &&
-                typeof source ===
-                "object" &&
+                typeof source === "object" &&
                 !Array.isArray(source)
             ) {
 
@@ -378,21 +384,7 @@ function getCreditSourceObjects(
 
 
     /*
-     * ROOT MODEL
-     */
-
-    addSource(
-        model
-    );
-
-
-    /*
-     * CREDIT OBJECT
-     *
-     * Beberapa response backend dapat
-     * menyimpan pricing/credit dalam:
-     *
-     * model.credit
+     * Credit object harus diprioritaskan.
      */
 
     addSource(
@@ -406,8 +398,13 @@ function getCreditSourceObjects(
 
 
     /*
-     * PRICING
+     * Root model.
      */
+
+    addSource(
+        model
+    );
+
 
     addSource(
         model.pricing
@@ -415,7 +412,7 @@ function getCreditSourceObjects(
 
 
     /*
-     * CONFIG
+     * Config.
      */
 
     addSource(
@@ -424,22 +421,12 @@ function getCreditSourceObjects(
 
 
     addSource(
-        model.config?.credit
-    );
-
-
-    addSource(
         model.config?.pricing
     );
 
 
-    addSource(
-        model.config?.credit?.pricing
-    );
-
-
     /*
-     * REPOSITORY
+     * Repository.
      */
 
     addSource(
@@ -448,22 +435,12 @@ function getCreditSourceObjects(
 
 
     addSource(
-        model.repository?.credit
-    );
-
-
-    addSource(
         model.repository?.pricing
     );
 
 
-    addSource(
-        model.repository?.credit?.pricing
-    );
-
-
     /*
-     * NESTED MODEL
+     * Nested model.
      */
 
     addSource(
@@ -472,17 +449,7 @@ function getCreditSourceObjects(
 
 
     addSource(
-        model.model?.credit
-    );
-
-
-    addSource(
         model.model?.pricing
-    );
-
-
-    addSource(
-        model.model?.credit?.pricing
     );
 
 
@@ -492,7 +459,15 @@ function getCreditSourceObjects(
 
 
 /* =========================================================
-   GET BASE RESOLUTION CREDIT
+   GET RESOLUTION BASE CREDIT
+   ---------------------------------------------------------
+   HANYA BASE CREDIT.
+
+   Tidak pernah memakai:
+   - credit_final_*
+   - creditFinal*
+   - credit_final global
+   - credit_cost global
 ========================================================= */
 
 function getResolutionBaseCredit(
@@ -549,11 +524,9 @@ function getResolutionBaseCredit(
     ];
 
 
-    /*
-     * =====================================================
-     * DIRECT PROPERTIES
-     * =====================================================
-     */
+    /* =====================================================
+       DIRECT PROPERTIES
+    ===================================================== */
 
     for (
         const source
@@ -582,11 +555,9 @@ function getResolutionBaseCredit(
         }
 
 
-        /*
-         * =================================================
-         * resolutions
-         * =================================================
-         */
+        /* =================================================
+           RESOLUTION OBJECT
+        ================================================= */
 
         const resolutions =
             source.resolutions;
@@ -594,14 +565,15 @@ function getResolutionBaseCredit(
 
         if (
             resolutions &&
-            typeof resolutions ===
-            "object"
+            typeof resolutions === "object"
         ) {
 
             const resolutionConfig =
+
                 resolutions[
                     normalizedResolution
                 ] ||
+
                 resolutions[
                     compactSuffix
                 ];
@@ -609,8 +581,7 @@ function getResolutionBaseCredit(
 
             if (
                 resolutionConfig &&
-                typeof resolutionConfig ===
-                "object"
+                typeof resolutionConfig === "object"
             ) {
 
                 const value =
@@ -646,6 +617,43 @@ function getResolutionBaseCredit(
 
         }
 
+
+        /* =================================================
+           NESTED PRICING
+           ================================================= */
+
+        const pricing =
+            source.pricing;
+
+
+        if (
+            pricing &&
+            typeof pricing === "object"
+        ) {
+
+            for (
+                const property
+                of propertyCandidates
+            ) {
+
+                const value =
+                    safeNumber(
+                        pricing[property]
+                    );
+
+
+                if (
+                    value !== null
+                ) {
+
+                    return value;
+
+                }
+
+            }
+
+        }
+
     }
 
 
@@ -657,13 +665,18 @@ function getResolutionBaseCredit(
 /* =========================================================
    GET DISCOUNT PERCENT
    ---------------------------------------------------------
+   RETURN:
+   - number jika benar-benar tersedia
+   - null jika tidak tersedia
+
    PENTING:
-   - null = discount tidak ditemukan
-   - 0    = discount memang ada dan bernilai 0
+   Jangan mengubah "tidak ada discount"
+   menjadi 0 sebelum proses merge.
 ========================================================= */
 
 function getDiscountPercent(
-    model
+    model,
+    fallback = null
 ) {
 
     const sources =
@@ -677,137 +690,36 @@ function getDiscountPercent(
         of sources
     ) {
 
-        /*
-         * Jangan menggunakan || karena
-         * nilai 0 adalah nilai valid.
-         */
+        const value =
 
-        if (
-            Object.prototype.hasOwnProperty.call(
-                source,
-                "discount_percent"
-            )
-        ) {
-
-            const number =
-                safeNumber(
-                    source.discount_percent
-                );
+            source.discount_percent ??
+            source.discountPercent;
 
 
-            if (
-                number !== null
-            ) {
-
-                return Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        number
-                    )
-                );
-
-            }
-
-        }
+        const number =
+            safeNumber(
+                value
+            );
 
 
         if (
-            Object.prototype.hasOwnProperty.call(
-                source,
-                "discountPercent"
-            )
+            number !== null
         ) {
 
-            const number =
-                safeNumber(
-                    source.discountPercent
-                );
-
-
-            if (
-                number !== null
-            ) {
-
-                return Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        number
-                    )
-                );
-
-            }
+            return Math.max(
+                0,
+                Math.min(
+                    100,
+                    number
+                )
+            );
 
         }
 
     }
 
 
-    /*
-     * PENTING:
-     *
-     * Jangan return 0 di sini.
-     *
-     * null berarti:
-     * "data discount tidak tersedia
-     * pada object ini."
-     *
-     * Ini memungkinkan merge memilih
-     * discount dari model list.
-     */
-
-    return null;
-
-}
-
-
-/* =========================================================
-   GET EFFECTIVE DISCOUNT
-========================================================= */
-
-function getEffectiveDiscountPercent(
-    model,
-    fallback = 0
-) {
-
-    const discount =
-        getDiscountPercent(
-            model
-        );
-
-
-    if (
-        discount !== null
-    ) {
-
-        return discount;
-
-    }
-
-
-    const fallbackNumber =
-        safeNumber(
-            fallback
-        );
-
-
-    if (
-        fallbackNumber === null
-    ) {
-
-        return 0;
-
-    }
-
-
-    return Math.max(
-        0,
-        Math.min(
-            100,
-            fallbackNumber
-        )
-    );
+    return fallback;
 
 }
 
@@ -818,8 +730,7 @@ function getEffectiveDiscountPercent(
 
 function getResolutionCredit(
     model,
-    resolution,
-    fallbackDiscount = 0
+    resolution
 ) {
 
     const normalizedResolution =
@@ -854,42 +765,16 @@ function getResolutionCredit(
 
 
     const discountPercent =
-        getEffectiveDiscountPercent(
+        getDiscountPercent(
             model,
-            fallbackDiscount
+            0
         );
 
 
-    const finalCredit =
-        calculateDiscountedCredit(
-            baseCredit,
-            discountPercent
-        );
-
-
-    console.debug(
-        "[GEN-Z.AI][Generate Model] CREDIT CALCULATION:",
-        {
-
-            modelId:
-                getModelId(
-                    model
-                ),
-
-            resolution:
-                normalizedResolution,
-
-            baseCredit,
-
-            discountPercent,
-
-            finalCredit
-
-        }
+    return calculateDiscountedCredit(
+        baseCredit,
+        discountPercent
     );
-
-
-    return finalCredit;
 
 }
 
@@ -904,8 +789,7 @@ function getModelCredit(
 
     if (
         !model ||
-        typeof model !==
-        "object"
+        typeof model !== "object"
     ) {
 
         return {
@@ -942,16 +826,24 @@ function getModelCredit(
     }
 
 
+    /*
+     * Jangan memaksa discount menjadi 0
+     * pada tahap pengambilan data.
+     *
+     * null berarti discount memang belum tersedia.
+     */
+
     const discountPercent =
         getDiscountPercent(
-            model
+            model,
+            null
         );
 
 
     const effectiveDiscount =
-        discountPercent !== null
-            ? discountPercent
-            : 0;
+        discountPercent === null
+            ? 0
+            : discountPercent;
 
 
     const credit480p =
@@ -998,12 +890,6 @@ function getModelCredit(
 
     return {
 
-        /*
-         * Legacy compatibility.
-         *
-         * Global credit tidak digunakan.
-         */
-
         creditCost:
             null,
 
@@ -1017,10 +903,6 @@ function getModelCredit(
         credit720p,
 
         credit1080p,
-
-        /*
-         * Derived values.
-         */
 
         creditFinal480p,
 
@@ -1050,14 +932,9 @@ function getModelCreditForResolution(
 
     const discountPercent =
         getDiscountPercent(
-            model
+            model,
+            null
         );
-
-
-    const effectiveDiscount =
-        discountPercent !== null
-            ? discountPercent
-            : 0;
 
 
     if (
@@ -1087,6 +964,12 @@ function getModelCreditForResolution(
             model,
             normalizedResolution
         );
+
+
+    const effectiveDiscount =
+        discountPercent === null
+            ? 0
+            : discountPercent;
 
 
     const creditFinal =
@@ -1126,17 +1009,7 @@ function buildNormalizedCredit(
         );
 
 
-    const effectiveDiscount =
-        credit.discountPercent !== null
-            ? credit.discountPercent
-            : 0;
-
-
     return {
-
-        /*
-         * BASE CREDIT
-         */
 
         credit_480p:
             credit.credit480p,
@@ -1149,7 +1022,7 @@ function buildNormalizedCredit(
 
 
         /*
-         * DERIVED FINAL CREDIT
+         * Derived runtime values.
          */
 
         credit_final_480p:
@@ -1162,10 +1035,6 @@ function buildNormalizedCredit(
             credit.creditFinal1080p,
 
 
-        /*
-         * CamelCase compatibility.
-         */
-
         creditFinal480p:
             credit.creditFinal480p,
 
@@ -1176,15 +1045,11 @@ function buildNormalizedCredit(
             credit.creditFinal1080p,
 
 
-        /*
-         * DISCOUNT
-         */
-
         discount_percent:
-            effectiveDiscount,
+            credit.discountPercent,
 
         discountPercent:
-            effectiveDiscount
+            credit.discountPercent
 
     };
 
@@ -1292,9 +1157,7 @@ function getModelId(
     model
 ) {
 
-    if (
-        !model
-    ) {
+    if (!model) {
 
         return "";
 
@@ -1326,9 +1189,7 @@ function getModelName(
     model
 ) {
 
-    if (
-        !model
-    ) {
+    if (!model) {
 
         return "Model";
 
@@ -1370,8 +1231,7 @@ function getProviderObject(
 
     if (
         model?.provider &&
-        typeof model.provider ===
-        "object"
+        typeof model.provider === "object"
     ) {
 
         return model.provider;
@@ -1519,8 +1379,7 @@ function hasAdapter(
 
     if (
         model?.adapter &&
-        typeof model.adapter ===
-        "object"
+        typeof model.adapter === "object"
     ) {
 
         return true;
@@ -1541,9 +1400,7 @@ function normalizeParameterCollection(
     value
 ) {
 
-    if (
-        !value
-    ) {
+    if (!value) {
 
         return {};
 
@@ -1562,8 +1419,7 @@ function normalizeParameterCollection(
 
                 if (
                     !parameter ||
-                    typeof parameter !==
-                    "object"
+                    typeof parameter !== "object"
                 ) {
 
                     return;
@@ -1583,9 +1439,7 @@ function normalizeParameterCollection(
                     );
 
 
-                if (
-                    !name
-                ) {
+                if (!name) {
 
                     return;
 
@@ -1615,8 +1469,7 @@ function normalizeParameterCollection(
 
 
     if (
-        typeof value !==
-        "object"
+        typeof value !== "object"
     ) {
 
         return {};
@@ -1626,8 +1479,7 @@ function normalizeParameterCollection(
 
     if (
         value.parameters &&
-        typeof value.parameters ===
-        "object"
+        typeof value.parameters === "object"
     ) {
 
         return normalizeParameterCollection(
@@ -1639,8 +1491,7 @@ function normalizeParameterCollection(
 
     if (
         value.properties &&
-        typeof value.properties ===
-        "object"
+        typeof value.properties === "object"
     ) {
 
         return normalizeParameterCollection(
@@ -1664,8 +1515,7 @@ function normalizeParameterCollection(
 
                 if (
                     !key ||
-                    definition ===
-                    undefined
+                    definition === undefined
                 ) {
 
                     return;
@@ -1695,8 +1545,7 @@ function extractModelParameters(
 
     if (
         !model ||
-        typeof model !==
-        "object"
+        typeof model !== "object"
     ) {
 
         return {};
@@ -1738,9 +1587,7 @@ function extractModelParameters(
         of candidates
     ) {
 
-        if (
-            !candidate
-        ) {
+        if (!candidate) {
 
             continue;
 
@@ -1804,8 +1651,7 @@ function isVisibleModel(
 
     if (
         !model ||
-        typeof model !==
-        "object"
+        typeof model !== "object"
     ) {
 
         return false;
@@ -1819,9 +1665,7 @@ function isVisibleModel(
         );
 
 
-    if (
-        !modelId
-    ) {
+    if (!modelId) {
 
         return false;
 
@@ -1913,9 +1757,7 @@ function isExecutableModel(
         );
 
 
-    if (
-        !modelId
-    ) {
+    if (!modelId) {
 
         return false;
 
@@ -1951,8 +1793,7 @@ function isExecutableModel(
 
     if (
         providerStatus &&
-        providerStatus !==
-        "active"
+        providerStatus !== "active"
     ) {
 
         return false;
@@ -1975,8 +1816,7 @@ function normalizeModel(
 
     if (
         !model ||
-        typeof model !==
-        "object"
+        typeof model !== "object"
     ) {
 
         return null;
@@ -2105,8 +1945,7 @@ function normalizeModel(
 
     const existingPricing =
         normalized.pricing &&
-        typeof normalized.pricing ===
-        "object"
+        typeof normalized.pricing === "object"
 
             ? normalized.pricing
 
@@ -2141,6 +1980,10 @@ function normalizeModel(
     };
 
 
+    /*
+     * BASE CREDIT
+     */
+
     normalized.credit_480p =
         credit.credit480p;
 
@@ -2150,6 +1993,10 @@ function normalizeModel(
     normalized.credit_1080p =
         credit.credit1080p;
 
+
+    /*
+     * DERIVED FINAL CREDIT
+     */
 
     normalized.credit_final_480p =
         credit.creditFinal480p;
@@ -2172,23 +2019,29 @@ function normalizeModel(
 
 
     /*
-     * Jangan kehilangan informasi bahwa
-     * discount memang tidak tersedia.
+     * DISCOUNT.
      *
-     * Untuk normalized model kita gunakan
-     * 0 sebagai effective value agar
-     * kalkulasi aman.
+     * Jangan memaksa null menjadi 0.
+     * Ini penting saat merge detail + list.
      */
 
-    normalized.discount_percent =
-        credit.discountPercent !== null
-            ? credit.discountPercent
-            : 0;
+    if (
+        credit.discountPercent !== null &&
+        credit.discountPercent !== undefined
+    ) {
+
+        normalized.discount_percent =
+            credit.discountPercent;
+
+        normalized.discountPercent =
+            credit.discountPercent;
+
+    }
 
 
-    normalized.discountPercent =
-        normalized.discount_percent;
-
+    /*
+     * Hapus global legacy.
+     */
 
     delete normalized.credit_final;
     delete normalized.creditFinal;
@@ -2216,56 +2069,48 @@ function normalizeModel(
         );
 
 
-    console.debug(
-        "[GEN-Z.AI][Generate Model] NORMALIZED MODEL:",
-        {
+    /*
+     * =====================================================
+     * PENTING
+     * Pastikan object credit juga tersedia
+     * secara konsisten di currentModel.
+     * =====================================================
+     */
 
-            model_id:
-                normalized.model_id,
+    normalized.credit = {
 
-            model_name:
-                normalized.model_name,
+        ...(
+            normalized.credit &&
+            typeof normalized.credit === "object"
+                ? normalized.credit
+                : {}
+        ),
 
-            provider:
-                normalized.provider_name,
+        credit_480p:
+            credit.credit480p,
 
-            credit: {
+        credit_720p:
+            credit.credit720p,
 
-                base_480p:
-                    normalized.credit_480p,
+        credit_1080p:
+            credit.credit1080p,
 
-                base_720p:
-                    normalized.credit_720p,
+        discount_percent:
+            credit.discountPercent,
 
-                base_1080p:
-                    normalized.credit_1080p,
+        discountPercent:
+            credit.discountPercent,
 
-                final_480p:
-                    normalized.credit_final_480p,
+        credit_final_480p:
+            credit.creditFinal480p,
 
-                final_720p:
-                    normalized.credit_final_720p,
+        credit_final_720p:
+            credit.creditFinal720p,
 
-                final_1080p:
-                    normalized.credit_final_1080p,
+        credit_final_1080p:
+            credit.creditFinal1080p
 
-                discount:
-                    normalized.discount_percent
-
-            },
-
-            parameter_count:
-                Object.keys(
-                    normalized.parameters || {}
-                ).length,
-
-            parameter_keys:
-                Object.keys(
-                    normalized.parameters || {}
-                )
-
-        }
-    );
+    };
 
 
     return normalized;
@@ -2323,6 +2168,10 @@ function mergeModelConfiguration(
     };
 
 
+    /* =====================================================
+       PARAMETERS
+    ===================================================== */
+
     const detailParameters =
         extractModelParameters(
             detailModel
@@ -2370,8 +2219,7 @@ function mergeModelConfiguration(
 
     if (
         merged.config &&
-        typeof merged.config ===
-        "object"
+        typeof merged.config === "object"
     ) {
 
         merged.config = {
@@ -2388,8 +2236,7 @@ function mergeModelConfiguration(
 
     if (
         merged.repository &&
-        typeof merged.repository ===
-        "object"
+        typeof merged.repository === "object"
     ) {
 
         merged.repository = {
@@ -2405,7 +2252,7 @@ function mergeModelConfiguration(
 
 
     /* =====================================================
-       CREDIT BASE
+       CREDIT
     ===================================================== */
 
     const detailCredit =
@@ -2424,17 +2271,36 @@ function mergeModelConfiguration(
         (
             detailValue,
             listValue
-        ) => (
+        ) => {
 
-            detailValue !== null &&
-            detailValue !== undefined
+            if (
+                detailValue !== null &&
+                detailValue !== undefined
+            ) {
 
-                ? detailValue
+                return detailValue;
 
-                : listValue
+            }
 
-        );
 
+            if (
+                listValue !== null &&
+                listValue !== undefined
+            ) {
+
+                return listValue;
+
+            }
+
+
+            return null;
+
+        };
+
+
+    /*
+     * BASE CREDIT
+     */
 
     merged.credit_480p =
         chooseValue(
@@ -2457,27 +2323,32 @@ function mergeModelConfiguration(
         );
 
 
-    /* =====================================================
-       DISCOUNT
-       -----------------------------------------------------
-       DETAIL hanya menang jika benar-benar
-       memiliki discount_percent.
-    ===================================================== */
+    /*
+     * DISCOUNT
+     *
+     * Detail hanya boleh menang jika
+     * detail benar-benar memiliki discount.
+     *
+     * Kalau detail tidak punya discount,
+     * gunakan discount dari list model.
+     */
 
-    const mergedDiscount =
+    merged.discount_percent =
         chooseValue(
             detailCredit.discountPercent,
             listCredit.discountPercent
         );
 
 
-    merged.discount_percent =
-        mergedDiscount !== null &&
-        mergedDiscount !== undefined
+    if (
+        merged.discount_percent === null ||
+        merged.discount_percent === undefined
+    ) {
 
-            ? mergedDiscount
+        merged.discount_percent =
+            0;
 
-            : 0;
+    }
 
 
     merged.discountPercent =
@@ -2490,53 +2361,41 @@ function mergeModelConfiguration(
        SELALU HITUNG ULANG.
     ===================================================== */
 
-    const mergedCredit480p =
+    merged.credit_final_480p =
         calculateDiscountedCredit(
             merged.credit_480p,
             merged.discount_percent
         );
 
 
-    const mergedCredit720p =
+    merged.credit_final_720p =
         calculateDiscountedCredit(
             merged.credit_720p,
             merged.discount_percent
         );
 
 
-    const mergedCredit1080p =
+    merged.credit_final_1080p =
         calculateDiscountedCredit(
             merged.credit_1080p,
             merged.discount_percent
         );
 
 
-    merged.credit_final_480p =
-        mergedCredit480p;
-
-
-    merged.credit_final_720p =
-        mergedCredit720p;
-
-
-    merged.credit_final_1080p =
-        mergedCredit1080p;
-
-
     merged.creditFinal480p =
-        mergedCredit480p;
+        merged.credit_final_480p;
 
 
     merged.creditFinal720p =
-        mergedCredit720p;
+        merged.credit_final_720p;
 
 
     merged.creditFinal1080p =
-        mergedCredit1080p;
+        merged.credit_final_1080p;
 
 
     /*
-     * Legacy global credit dibuang.
+     * Legacy global credit tidak boleh digunakan.
      */
 
     delete merged.credit_final;
@@ -2546,13 +2405,69 @@ function mergeModelConfiguration(
 
 
     /* =====================================================
+       CREDIT OBJECT
+    ===================================================== */
+
+    const listCreditObject =
+
+        listModel.credit &&
+        typeof listModel.credit === "object"
+
+            ? listModel.credit
+
+            : {};
+
+
+    const detailCreditObject =
+
+        detailModel.credit &&
+        typeof detailModel.credit === "object"
+
+            ? detailModel.credit
+
+            : {};
+
+
+    merged.credit = {
+
+        ...listCreditObject,
+
+        ...detailCreditObject,
+
+        credit_480p:
+            merged.credit_480p,
+
+        credit_720p:
+            merged.credit_720p,
+
+        credit_1080p:
+            merged.credit_1080p,
+
+        discount_percent:
+            merged.discount_percent,
+
+        discountPercent:
+            merged.discountPercent,
+
+        credit_final_480p:
+            merged.credit_final_480p,
+
+        credit_final_720p:
+            merged.credit_final_720p,
+
+        credit_final_1080p:
+            merged.credit_final_1080p
+
+    };
+
+
+    /* =====================================================
        PRICING
     ===================================================== */
 
     const listPricing =
         listModel.pricing &&
-        typeof listModel.pricing ===
-        "object"
+        typeof listModel.pricing === "object"
 
             ? listModel.pricing
 
@@ -2561,8 +2476,7 @@ function mergeModelConfiguration(
 
     const detailPricing =
         detailModel.pricing &&
-        typeof detailModel.pricing ===
-        "object"
+        typeof detailModel.pricing === "object"
 
             ? detailModel.pricing
 
@@ -2649,47 +2563,9 @@ function mergeModelConfiguration(
     };
 
 
-    console.debug(
-        "[GEN-Z.AI][Generate Model] MERGED CREDIT SOURCE:",
-        {
-
-            modelId:
-                getModelId(
-                    merged
-                ),
-
-            base: {
-
-                credit_480p:
-                    merged.credit_480p,
-
-                credit_720p:
-                    merged.credit_720p,
-
-                credit_1080p:
-                    merged.credit_1080p
-
-            },
-
-            discount:
-                merged.discount_percent,
-
-            final: {
-
-                credit_480p:
-                    merged.credit_final_480p,
-
-                credit_720p:
-                    merged.credit_final_720p,
-
-                credit_1080p:
-                    merged.credit_final_1080p
-
-            }
-
-        }
-    );
-
+    /*
+     * Normalisasi terakhir.
+     */
 
     return normalizeModel(
         merged
@@ -2710,9 +2586,7 @@ async function requestModelConfig(
         await getAccessToken();
 
 
-    if (
-        !accessToken
-    ) {
+    if (!accessToken) {
 
         throw new Error(
             "Session tidak ditemukan. Silakan login kembali."
@@ -2778,9 +2652,7 @@ async function requestModelConfig(
                 Array.isArray(
                     data?.errors
                 )
-                    ? data.errors.join(
-                        ", "
-                    )
+                    ? data.errors.join(", ")
                     : ""
             ) ||
 
@@ -2882,8 +2754,7 @@ function extractSingleModel(
 
     if (
         data?.model &&
-        typeof data.model ===
-        "object"
+        typeof data.model === "object"
     ) {
 
         return data.model;
@@ -2893,8 +2764,7 @@ function extractSingleModel(
 
     if (
         data?.data?.model &&
-        typeof data.data.model ===
-        "object"
+        typeof data.data.model === "object"
     ) {
 
         return data.data.model;
@@ -2904,11 +2774,8 @@ function extractSingleModel(
 
     if (
         data?.data &&
-        typeof data.data ===
-        "object" &&
-        !Array.isArray(
-            data.data
-        ) &&
+        typeof data.data === "object" &&
+        !Array.isArray(data.data) &&
         (
             data.data.model_id ||
             data.data.id
@@ -2922,8 +2789,7 @@ function extractSingleModel(
 
     if (
         data &&
-        typeof data ===
-        "object" &&
+        typeof data === "object" &&
         !Array.isArray(data) &&
         (
             data.model_id ||
@@ -2974,8 +2840,7 @@ export async function loadAvailableModels() {
 
 
     if (
-        visibleModels.length ===
-        0
+        visibleModels.length === 0
     ) {
 
         throw new Error(
@@ -2987,63 +2852,6 @@ export async function loadAvailableModels() {
 
     setAvailableModels(
         visibleModels
-    );
-
-
-    console.log(
-        "[GEN-Z.AI][Generate Model] AVAILABLE MODELS:",
-        visibleModels.map(
-            model => ({
-
-                id:
-                    getModelId(
-                        model
-                    ),
-
-                name:
-                    getModelName(
-                        model
-                    ),
-
-                provider:
-                    getProviderName(
-                        model
-                    ),
-
-                parameterCount:
-                    Object.keys(
-                        model.parameters || {}
-                    ).length,
-
-                executable:
-                    isExecutableModel(
-                        model
-                    ),
-
-                credit: {
-
-                    "480p":
-                        getModelCreditForResolution(
-                            model,
-                            "480p"
-                        ),
-
-                    "720p":
-                        getModelCreditForResolution(
-                            model,
-                            "720p"
-                        ),
-
-                    "1080p":
-                        getModelCreditForResolution(
-                            model,
-                            "1080p"
-                        )
-
-                }
-
-            })
-        )
     );
 
 
@@ -3065,9 +2873,7 @@ export function renderModelSelector(
         getElements();
 
 
-    if (
-        !elements
-    ) {
+    if (!elements) {
 
         return null;
 
@@ -3082,9 +2888,7 @@ export function renderModelSelector(
         elements.modelSelector;
 
 
-    if (
-        !modelSelect
-    ) {
+    if (!modelSelect) {
 
         throw new Error(
             "Element #modelSelect tidak ditemukan."
@@ -3148,9 +2952,7 @@ export function renderModelSelector(
                 );
 
 
-            if (
-                !modelId
-            ) {
+            if (!modelId) {
 
                 return;
 
@@ -3205,12 +3007,8 @@ export function renderModelSelector(
 
             option.dataset.parametersAvailable =
 
-                hasParameters(
-                    model
-                )
-
+                hasParameters(model)
                     ? "true"
-
                     : "false";
 
 
@@ -3229,10 +3027,6 @@ export function renderModelSelector(
                     model
                 );
 
-
-            /*
-             * BASE CREDIT
-             */
 
             option.dataset.credit480p =
 
@@ -3266,10 +3060,6 @@ export function renderModelSelector(
 
                     : "";
 
-
-            /*
-             * FINAL CREDIT
-             */
 
             option.dataset.creditFinal480p =
 
@@ -3306,15 +3096,17 @@ export function renderModelSelector(
 
             option.dataset.discountPercent =
 
-                String(
-                    credit.discountPercent !== null
-                        ? credit.discountPercent
-                        : 0
-                );
+                credit.discountPercent !== null
+
+                    ? String(
+                        credit.discountPercent
+                    )
+
+                    : "";
 
 
             /*
-             * Legacy kosong.
+             * Legacy sengaja kosong.
              */
 
             option.dataset.creditCost =
@@ -3327,12 +3119,9 @@ export function renderModelSelector(
 
             option.dataset.executable =
 
-                isExecutableModel(
-                    model
-                )
+                isExecutableModel(model)
 
                     ? "true"
-
                     : "false";
 
 
@@ -3362,9 +3151,7 @@ export function renderModelSelector(
         );
 
 
-    if (
-        !preferredExists
-    ) {
+    if (!preferredExists) {
 
         const executableModel =
             normalizedModels.find(
@@ -3375,9 +3162,7 @@ export function renderModelSelector(
             );
 
 
-        if (
-            executableModel
-        ) {
+        if (executableModel) {
 
             selectedModelId =
                 getModelId(
@@ -3403,9 +3188,7 @@ export function renderModelSelector(
     }
 
 
-    if (
-        selectedModelId
-    ) {
+    if (selectedModelId) {
 
         modelSelect.value =
             selectedModelId;
@@ -3423,13 +3206,10 @@ export function renderModelSelector(
 
 
     modelSelect.disabled =
-        normalizedModels.length ===
-        0;
+        normalizedModels.length === 0;
 
 
-    if (
-        modelSelector
-    ) {
+    if (modelSelector) {
 
         modelSelector.classList.add(
             "show"
@@ -3464,9 +3244,7 @@ export function findModel(
         );
 
 
-    if (
-        !normalizedId
-    ) {
+    if (!normalizedId) {
 
         return null;
 
@@ -3500,9 +3278,7 @@ export async function loadModelConfig(
         );
 
 
-    if (
-        !normalizedId
-    ) {
+    if (!normalizedId) {
 
         throw new Error(
             "Model ID tidak ditemukan."
@@ -3553,14 +3329,18 @@ export async function loadModelConfig(
         );
 
 
+    /*
+     * Jika detail tidak ada,
+     * gunakan model list yang sudah
+     * dinormalisasi.
+     */
+
     if (
         !detailModel ||
         !getModelId(detailModel)
     ) {
 
-        if (
-            availableModel
-        ) {
+        if (availableModel) {
 
             const fallback =
                 normalizeModel(
@@ -3568,15 +3348,60 @@ export async function loadModelConfig(
                 );
 
 
-            if (
-                !fallback
-            ) {
+            if (!fallback) {
 
                 throw new Error(
                     `Konfigurasi model "${normalizedId}" tidak ditemukan.`
                 );
 
             }
+
+
+            /*
+             * Pastikan fallback memiliki
+             * credit object dan final credit.
+             */
+
+            const fallbackCredit =
+                getModelCredit(
+                    fallback
+                );
+
+
+            fallback.credit = {
+
+                ...(
+                    fallback.credit &&
+                    typeof fallback.credit === "object"
+                        ? fallback.credit
+                        : {}
+                ),
+
+                credit_480p:
+                    fallbackCredit.credit480p,
+
+                credit_720p:
+                    fallbackCredit.credit720p,
+
+                credit_1080p:
+                    fallbackCredit.credit1080p,
+
+                discount_percent:
+                    fallbackCredit.discountPercent,
+
+                discountPercent:
+                    fallbackCredit.discountPercent,
+
+                credit_final_480p:
+                    fallbackCredit.creditFinal480p,
+
+                credit_final_720p:
+                    fallbackCredit.creditFinal720p,
+
+                credit_final_1080p:
+                    fallbackCredit.creditFinal1080p
+
+            };
 
 
             setCurrentModel(
@@ -3613,8 +3438,7 @@ export async function loadModelConfig(
 
 
     if (
-        serverModelId !==
-        normalizedId
+        serverModelId !== normalizedId
     ) {
 
         throw new Error(
@@ -3623,6 +3447,13 @@ export async function loadModelConfig(
 
     }
 
+
+    /*
+     * Gabungkan detail + list.
+     *
+     * Credit final dihitung ulang
+     * setelah proses merge.
+     */
 
     const model =
         mergeModelConfiguration(
@@ -3634,9 +3465,7 @@ export async function loadModelConfig(
         );
 
 
-    if (
-        !model
-    ) {
+    if (!model) {
 
         throw new Error(
             "Konfigurasi model gagal dibentuk."
@@ -3663,59 +3492,163 @@ export async function loadModelConfig(
         parameters;
 
 
-    const finalCredit =
+    /*
+     * =====================================================
+     * FINAL CREDIT VERIFICATION
+     *
+     * Semua nilai final dibuat ulang
+     * dari base + discount.
+     * =====================================================
+     */
+
+    const modelCredit =
         getModelCredit(
             model
         );
 
 
-    console.log(
-        "[GEN-Z.AI][Generate Model] DETAIL MODEL READY:",
-        {
+    /*
+     * Paksa nilai base + discount + final
+     * masuk ke current model.
+     */
 
-            model_id:
-                getModelId(
-                    model
-                ),
+    model.credit_480p =
+        modelCredit.credit480p;
 
-            model_name:
-                getModelName(
-                    model
-                ),
 
-            provider:
-                getProviderName(
-                    model
-                ),
+    model.credit_720p =
+        modelCredit.credit720p;
 
-            credit: {
 
-                "480p":
-                    getModelCreditForResolution(
-                        model,
-                        "480p"
-                    ),
+    model.credit_1080p =
+        modelCredit.credit1080p;
 
-                "720p":
-                    getModelCreditForResolution(
-                        model,
-                        "720p"
-                    ),
 
-                "1080p":
-                    getModelCreditForSelectedResolution(
-                        model,
-                        "1080p"
-                    )
+    model.discount_percent =
+        modelCredit.discountPercent;
 
-            },
 
-            normalizedCredit:
-                finalCredit
+    model.discountPercent =
+        modelCredit.discountPercent;
 
-        }
-    );
 
+    model.credit_final_480p =
+        modelCredit.creditFinal480p;
+
+
+    model.credit_final_720p =
+        modelCredit.creditFinal720p;
+
+
+    model.credit_final_1080p =
+        modelCredit.creditFinal1080p;
+
+
+    model.creditFinal480p =
+        modelCredit.creditFinal480p;
+
+
+    model.creditFinal720p =
+        modelCredit.creditFinal720p;
+
+
+    model.creditFinal1080p =
+        modelCredit.creditFinal1080p;
+
+
+    /*
+     * Credit object juga disinkronkan.
+     */
+
+    model.credit = {
+
+        ...(
+            model.credit &&
+            typeof model.credit === "object"
+                ? model.credit
+                : {}
+        ),
+
+        credit_480p:
+            modelCredit.credit480p,
+
+        credit_720p:
+            modelCredit.credit720p,
+
+        credit_1080p:
+            modelCredit.credit1080p,
+
+        discount_percent:
+            modelCredit.discountPercent,
+
+        discountPercent:
+            modelCredit.discountPercent,
+
+        credit_final_480p:
+            modelCredit.creditFinal480p,
+
+        credit_final_720p:
+            modelCredit.creditFinal720p,
+
+        credit_final_1080p:
+            modelCredit.creditFinal1080p
+
+    };
+
+
+    /*
+     * Pricing juga disinkronkan.
+     */
+
+    model.pricing = {
+
+        ...(
+            model.pricing &&
+            typeof model.pricing === "object"
+                ? model.pricing
+                : {}
+        ),
+
+        credit_480p:
+            modelCredit.credit480p,
+
+        credit_720p:
+            modelCredit.credit720p,
+
+        credit_1080p:
+            modelCredit.credit1080p,
+
+        discount_percent:
+            modelCredit.discountPercent,
+
+        discountPercent:
+            modelCredit.discountPercent,
+
+        credit_final_480p:
+            modelCredit.creditFinal480p,
+
+        credit_final_720p:
+            modelCredit.creditFinal720p,
+
+        credit_final_1080p:
+            modelCredit.creditFinal1080p
+
+    };
+
+
+    /*
+     * Legacy global credit tetap dibuang.
+     */
+
+    delete model.credit_cost;
+    delete model.creditCost;
+    delete model.credit_final;
+    delete model.creditFinal;
+
+
+    /*
+     * Simpan model sebagai current model.
+     */
 
     setCurrentModel(
         model
@@ -3738,14 +3671,62 @@ export async function loadModelConfig(
 
     if (
         !verified ||
-        getModelId(
-            verified
-        ) !==
+        getModelId(verified) !==
         serverModelId
     ) {
 
         throw new Error(
             "Current model gagal disimpan."
+        );
+
+    }
+
+
+    /*
+     * Pastikan current model
+     * benar-benar memiliki credit final.
+     *
+     * Ini bukan console/debug.
+     * Ini validasi runtime.
+     */
+
+    const verifiedCredit =
+        getModelCredit(
+            verified
+        );
+
+
+    if (
+        verifiedCredit.credit480p !== null &&
+        verifiedCredit.creditFinal480p === null
+    ) {
+
+        throw new Error(
+            "Credit 480p gagal dihitung."
+        );
+
+    }
+
+
+    if (
+        verifiedCredit.credit720p !== null &&
+        verifiedCredit.creditFinal720p === null
+    ) {
+
+        throw new Error(
+            "Credit 720p gagal dihitung."
+        );
+
+    }
+
+
+    if (
+        verifiedCredit.credit1080p !== null &&
+        verifiedCredit.creditFinal1080p === null
+    ) {
+
+        throw new Error(
+            "Credit 1080p gagal dihitung."
         );
 
     }
@@ -3770,9 +3751,7 @@ export async function selectModel(
         );
 
 
-    if (
-        !normalizedId
-    ) {
+    if (!normalizedId) {
 
         setCurrentModel(
             null
@@ -3801,9 +3780,7 @@ export async function selectModel(
         );
 
 
-    if (
-        !selectedModel
-    ) {
+    if (!selectedModel) {
 
         throw new Error(
             "Model yang dipilih tidak tersedia."
@@ -3842,15 +3819,11 @@ export async function resolveInitialModel() {
             model =>
                 getModelId(model) ===
                 storedModelId &&
-                isExecutableModel(
-                    model
-                )
+                isExecutableModel(model)
         );
 
 
-    if (
-        storedModel
-    ) {
+    if (storedModel) {
 
         selectedModelId =
             getModelId(
@@ -3860,9 +3833,7 @@ export async function resolveInitialModel() {
     }
 
 
-    if (
-        !selectedModelId
-    ) {
+    if (!selectedModelId) {
 
         const executableModel =
             models.find(
@@ -3873,9 +3844,7 @@ export async function resolveInitialModel() {
             );
 
 
-        if (
-            executableModel
-        ) {
+        if (executableModel) {
 
             selectedModelId =
                 getModelId(
@@ -3889,17 +3858,12 @@ export async function resolveInitialModel() {
 
     const renderedModelId =
         renderModelSelector(
-
             models,
-
             selectedModelId
-
         );
 
 
-    if (
-        !selectedModelId
-    ) {
+    if (!selectedModelId) {
 
         setCurrentModel(
             null
@@ -3989,24 +3953,18 @@ export async function refreshModels(
         );
 
 
-    if (
-        preferredId
-    ) {
+    if (preferredId) {
 
         const preferredModel =
             models.find(
                 model =>
                     getModelId(model) ===
                     preferredId &&
-                    isExecutableModel(
-                        model
-                    )
+                    isExecutableModel(model)
             );
 
 
-        if (
-            preferredModel
-        ) {
+        if (preferredModel) {
 
             selectedModelId =
                 getModelId(
@@ -4018,9 +3976,7 @@ export async function refreshModels(
     }
 
 
-    if (
-        !selectedModelId
-    ) {
+    if (!selectedModelId) {
 
         const executableModel =
             models.find(
@@ -4031,9 +3987,7 @@ export async function refreshModels(
             );
 
 
-        if (
-            executableModel
-        ) {
+        if (executableModel) {
 
             selectedModelId =
                 getModelId(
@@ -4047,17 +4001,12 @@ export async function refreshModels(
 
     const renderedModelId =
         renderModelSelector(
-
             models,
-
             selectedModelId
-
         );
 
 
-    if (
-        !selectedModelId
-    ) {
+    if (!selectedModelId) {
 
         setCurrentModel(
             null
@@ -4161,8 +4110,7 @@ export function getModelCreditForSelectedResolution(
      */
 
     if (
-        typeof firstArgument ===
-        "string"
+        typeof firstArgument === "string"
     ) {
 
         resolution =
@@ -4171,8 +4119,7 @@ export function getModelCreditForSelectedResolution(
 
         if (
             secondArgument &&
-            typeof secondArgument ===
-            "object"
+            typeof secondArgument === "object"
         ) {
 
             model =
@@ -4189,8 +4136,7 @@ export function getModelCreditForSelectedResolution(
 
     else if (
         firstArgument &&
-        typeof firstArgument ===
-        "object"
+        typeof firstArgument === "object"
     ) {
 
         model =
@@ -4198,8 +4144,7 @@ export function getModelCreditForSelectedResolution(
 
 
         if (
-            typeof secondArgument ===
-            "string"
+            typeof secondArgument === "string"
         ) {
 
             resolution =
@@ -4210,9 +4155,11 @@ export function getModelCreditForSelectedResolution(
     }
 
 
-    if (
-        !model
-    ) {
+    /*
+     * Fallback current model.
+     */
+
+    if (!model) {
 
         model =
             getCurrentModel();
@@ -4220,14 +4167,14 @@ export function getModelCreditForSelectedResolution(
     }
 
 
-    let normalizedResolution =
+    const normalizedResolution =
         normalizeResolution(
             resolution
         );
 
 
     /*
-     * Compatibility fallback.
+     * Fallback resolution dari model.
      */
 
     if (
@@ -4244,7 +4191,7 @@ export function getModelCreditForSelectedResolution(
             model.selectedResolution;
 
 
-        normalizedResolution =
+        resolution =
             normalizeResolution(
                 possibleResolution
             );
@@ -4252,39 +4199,10 @@ export function getModelCreditForSelectedResolution(
     }
 
 
-    const result =
-        getModelCreditForResolution(
-            model,
-            normalizedResolution
-        );
-
-
-    console.debug(
-        "[GEN-Z.AI][Generate Model] CREDIT RESOLUTION:",
-        {
-
-            modelId:
-                getModelId(
-                    model
-                ),
-
-            resolution:
-                result.resolution,
-
-            baseCredit:
-                result.baseCredit,
-
-            discountPercent:
-                result.discountPercent,
-
-            creditFinal:
-                result.creditFinal
-
-        }
+    return getModelCreditForResolution(
+        model,
+        resolution
     );
-
-
-    return result;
 
 }
 
