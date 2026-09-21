@@ -61,12 +61,9 @@ import {
 /*
  * generate-model.js menjadi sumber normalisasi model.
  *
- * Import dilakukan secara named export sehingga UI dapat
- * menggunakan normalisasi credit yang sama dengan model
- * loader tanpa membuat sumber harga kedua.
- *
- * Jika fungsi tersebut belum tersedia pada deployment lama,
- * fallback lokal tetap digunakan di bawah.
+ * Helper digunakan jika tersedia.
+ * Fallback lokal tetap tersedia agar UI tidak bergantung
+ * pada satu jalur normalisasi saja.
  */
 import {
     getModelCreditForSelectedResolution
@@ -1072,8 +1069,8 @@ function getModelDiscountPercent(
 /* =========================================================
    LOCAL CREDIT RESOLVER
    ---------------------------------------------------------
-   Dipakai sebagai fallback jika generate-model.js
-   belum mengekspos helper pada deployment lama.
+   Digunakan sebagai fallback apabila helper model
+   tidak mengembalikan credit yang valid.
 ========================================================= */
 
 function resolveModelCreditLocally(
@@ -1118,8 +1115,8 @@ function resolveModelCreditLocally(
 
 
     /*
-     * Jika final per-resolution memang sudah diberikan
-     * oleh model configuration, gunakan langsung.
+     * Jika final per-resolution sudah tersedia,
+     * gunakan langsung.
      */
 
     if (
@@ -1234,7 +1231,7 @@ export function resolveModelCredit(
     /*
      * -----------------------------------------------------
      * PRIORITAS 1
-     * Gunakan helper dari generate-model.js.
+     * Helper generate-model.js.
      * -----------------------------------------------------
      */
 
@@ -1324,7 +1321,7 @@ export function resolveModelCredit(
     /*
      * -----------------------------------------------------
      * PRIORITAS 2
-     * Fallback lokal dari model object.
+     * Fallback lokal.
      * -----------------------------------------------------
      */
 
@@ -1398,11 +1395,14 @@ function forceVisible(
     element.hidden =
         false;
 
+
     element.style.display =
         "";
 
+
     element.style.visibility =
         "visible";
+
 
     element.style.opacity =
         "1";
@@ -1411,7 +1411,7 @@ function forceVisible(
 
 
 /* =========================================================
-   CLEAR LEGACY CREDIT DATA
+   CLEAR BUTTON CREDIT
 ========================================================= */
 
 function clearLegacyButtonCredit(
@@ -1435,7 +1435,127 @@ function clearLegacyButtonCredit(
 
 
 /* =========================================================
+   GET BUTTON CREDIT VALUE ELEMENT
+   ---------------------------------------------------------
+   PENTING:
+   Jangan pernah menulis textContent pada
+   .generate-button-credit karena elemen tersebut adalah
+   CONTAINER yang berisi icon + #generateCreditValue.
+
+   Menulis textContent pada container akan menghapus seluruh
+   child element.
+========================================================= */
+
+function getButtonCreditValueElement(
+    generateButton
+) {
+
+    if (
+        !generateButton
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Prioritas utama sesuai HTML Generate saat ini.
+     */
+
+    const direct =
+        generateButton.querySelector(
+            "#generateCreditValue"
+        );
+
+
+    if (
+        direct
+    ) {
+
+        return direct;
+
+    }
+
+
+    /*
+     * Compatibility:
+     * Cari elemen display yang memang merupakan CHILD,
+     * bukan container .generate-button-credit.
+     */
+
+    const candidates =
+        generateButton.querySelectorAll(
+            "[data-generate-credit], [data-credit-display], .generate-button-credit-value"
+        );
+
+
+    for (
+        const candidate
+        of candidates
+    ) {
+
+        if (
+            !candidate
+        ) {
+
+            continue;
+
+        }
+
+
+        if (
+            candidate.id ===
+                "generateCreditCost"
+        ) {
+
+            continue;
+
+        }
+
+
+        if (
+            candidate.classList?.contains(
+                "generate-button-credit"
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        return candidate;
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
    UPDATE GENERATE BUTTON CREDIT
+   ---------------------------------------------------------
+   FIX UTAMA:
+   ---------------------------------------------------------
+   Sebelumnya selector:
+
+       .generate-button-credit
+
+   mengambil container #generateCreditCost.
+
+   Kemudian:
+
+       container.textContent = ...
+
+   menghapus:
+
+       icon
+       #generateCreditValue
+
+   Sekarang hanya CHILD VALUE yang diubah.
 ========================================================= */
 
 function syncGenerateButtonCredit(
@@ -1453,6 +1573,40 @@ function syncGenerateButtonCredit(
     }
 
 
+    const creditContainer =
+        generateButton.querySelector(
+            "#generateCreditCost"
+        ) ||
+        generateButton.querySelector(
+            ".generate-button-credit"
+        );
+
+
+    const creditValueElement =
+        getButtonCreditValueElement(
+            generateButton
+        );
+
+
+    /*
+     * Pastikan container tetap terlihat.
+     */
+
+    if (
+        creditContainer
+    ) {
+
+        forceVisible(
+            creditContainer
+        );
+
+    }
+
+
+    /*
+     * Credit tidak tersedia.
+     */
+
     if (
         credit === null ||
         credit === undefined ||
@@ -1469,20 +1623,14 @@ function syncGenerateButtonCredit(
         );
 
 
-        const creditElements =
-            generateButton.querySelectorAll(
-                ".generate-button-credit, [data-generate-credit], [data-credit-display]"
-            );
+        if (
+            creditValueElement
+        ) {
 
+            creditValueElement.textContent =
+                "-- Credit";
 
-        creditElements.forEach(
-            element => {
-
-                element.textContent =
-                    "-- Credit";
-
-            }
-        );
+        }
 
 
         return;
@@ -1512,20 +1660,36 @@ function syncGenerateButtonCredit(
         );
 
 
-    const creditElements =
-        generateButton.querySelectorAll(
-            ".generate-button-credit, [data-generate-credit], [data-credit-display]"
+    /*
+     * HANYA update elemen nilai.
+     *
+     * Tidak menyentuh #generateCreditCost.textContent.
+     * Icon ◆ dan struktur DOM tetap aman.
+     */
+
+    if (
+        creditValueElement
+    ) {
+
+        creditValueElement.textContent =
+            `${formatted} Credit`;
+
+
+        creditValueElement.dataset.credit =
+            String(
+                numericCredit
+            );
+
+
+        creditValueElement.dataset.resolution =
+            resolution;
+
+
+        forceVisible(
+            creditValueElement
         );
 
-
-    creditElements.forEach(
-        element => {
-
-            element.textContent =
-                `${formatted} Credit`;
-
-        }
-    );
+    }
 
 }
 
@@ -1567,12 +1731,31 @@ export function renderModelCredit(
             credit1080p:
                 model?.credit_1080p,
 
+            creditFinal480p:
+                model?.credit_final_480p,
+
+            creditFinal720p:
+                model?.credit_final_720p,
+
+            creditFinal1080p:
+                model?.credit_final_1080p,
+
             discountPercent:
                 model?.discount_percent,
+
+            hasCreditCost:
+                Boolean(
+                    generateCreditCost
+                ),
 
             hasCreditValue:
                 Boolean(
                     generateCreditValue
+                ),
+
+            hasGenerateButton:
+                Boolean(
+                    generateButton
                 )
 
         }
@@ -1592,6 +1775,44 @@ export function renderModelCredit(
         console.error(
             "[GEN-Z.AI][Generate UI] #generateCreditValue tidak ditemukan."
         );
+
+        /*
+         * Jangan langsung return sebelum mencoba mencari
+         * ulang melalui tombol Generate.
+         */
+
+        if (
+            generateButton
+        ) {
+
+            const recoveredValue =
+                getButtonCreditValueElement(
+                    generateButton
+                );
+
+
+            if (
+                recoveredValue
+            ) {
+
+                /*
+                 * Gunakan elemen yang ditemukan.
+                 */
+
+                if (
+                    generateCreditCost
+                ) {
+
+                    forceVisible(
+                        generateCreditCost
+                    );
+
+                }
+
+            }
+
+        }
+
 
         return null;
 
@@ -1619,7 +1840,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * NO RESOLUTION
      * -----------------------------------------------------
- */
+     */
 
     if (
         !resolution
@@ -1658,7 +1879,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * RESOLVE PRICING
      * -----------------------------------------------------
- */
+     */
 
     const pricing =
         resolveModelCredit(
@@ -1671,7 +1892,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * CREDIT NOT AVAILABLE
      * -----------------------------------------------------
- */
+     */
 
     if (
         !pricing
@@ -1699,6 +1920,7 @@ export function renderModelCredit(
         console.warn(
             "[GEN-Z.AI][Generate UI] Credit resolusi tidak ditemukan.",
             {
+
                 modelId:
                     model?.model_id,
 
@@ -1748,7 +1970,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * VALIDATE
      * -----------------------------------------------------
- */
+     */
 
     if (
         !Number.isFinite(
@@ -2574,6 +2796,10 @@ export function setLoading(
 
         }
 
+
+        /*
+         * Credit tetap harus dirender setelah label.
+         */
 
         renderModelCredit(
             getCurrentModel()
