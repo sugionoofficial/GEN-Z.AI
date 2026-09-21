@@ -6,11 +6,11 @@
    admin-control/models/functions/model-search-select.js
 
    Tanggung jawab:
-   - Memilih Model dari hasil katalog
+   - Memilih Model dari hasil catalog
    - Mengisi Model ID
-   - Mengisi input pencarian
-   - Menampilkan informasi Model
+   - Mengisi field Model dari hasil selection
    - Sinkronisasi Provider
+   - Mengirim event Model selected
    - Menjaga selection tetap berasal dari catalog
 
    Tidak bertanggung jawab:
@@ -32,7 +32,7 @@
 
     /* =====================================================
        HELPERS
-       ===================================================== */
+    ===================================================== */
 
     function cleanString(value) {
 
@@ -50,77 +50,76 @@
     }
 
 
-    /* =====================================================
-       GET HIDDEN MODEL INPUT
-       ===================================================== */
+    function normalizeNumber(value) {
 
-    function getHiddenInput() {
+        if (
+            value ===
+            null ||
+            value ===
+            undefined ||
+            value ===
+            ""
+        ) {
 
-        return (
-            document.getElementById(
-                "modelCode"
-            ) ||
-            document.getElementById(
-                "modelId"
+            return null;
+        }
+
+        const number =
+            Number(
+                value
+            );
+
+        return Number.isFinite(
+            number
+        )
+            ? number
+            : null;
+    }
+
+
+    function normalizeArray(value) {
+
+        if (
+            Array.isArray(
+                value
             )
-        );
+        ) {
+
+            return value
+                .map(
+                    cleanString
+                )
+                .filter(Boolean);
+        }
+
+
+        if (
+            typeof value ===
+            "string"
+        ) {
+
+            return value
+                .split(",")
+                .map(
+                    cleanString
+                )
+                .filter(Boolean);
+        }
+
+
+        return [];
     }
 
 
     /* =====================================================
-       GET SEARCH INPUT
-       ===================================================== */
+       FIELD HELPERS
+    ===================================================== */
 
-    function getSearchInput() {
-
-        return (
-            document.getElementById(
-                "modelCodeSearch"
-            ) ||
-            document.getElementById(
-                "modelSearch"
-            ) ||
-            document.getElementById(
-                "modelIdSearch"
-            )
-        );
-    }
-
-
-    /* =====================================================
-       GET INFO BOX
-       ===================================================== */
-
-    function getInfoBox() {
-
-        return (
-            document.getElementById(
-                "selectedModelInfo"
-            ) ||
-            document.getElementById(
-                "modelSelectedInfo"
-            )
-        );
-    }
-
-
-    /* =====================================================
-       GET PROVIDER SELECT
-       ===================================================== */
-
-    function getProviderSelect() {
-
-        return document.getElementById(
-            "providerId"
-        );
-    }
-
-
-    /* =====================================================
-       MODEL ID
-       ===================================================== */
-
-    function getModelId(model) {
+    function readField(
+        model,
+        keys,
+        fallback = ""
+    ) {
 
         if (
             !model ||
@@ -128,19 +127,184 @@
                 "object"
         ) {
 
-            return "";
+            return fallback;
         }
 
+
+        for (
+            const key of keys
+        ) {
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    model,
+                    key
+                )
+            ) {
+
+                const value =
+                    model[key];
+
+
+                if (
+                    value !==
+                        null &&
+                    value !==
+                        undefined &&
+                    value !==
+                        ""
+                ) {
+
+                    return value;
+                }
+            }
+        }
+
+
+        return fallback;
+    }
+
+
+    function readNumberField(
+        model,
+        keys,
+        fallback = null
+    ) {
+
+        const value =
+            readField(
+                model,
+                keys,
+                null
+            );
+
+
+        const number =
+            normalizeNumber(
+                value
+            );
+
+
+        return number !==
+            null
+            ? number
+            : fallback;
+    }
+
+
+    /* =====================================================
+       MODEL ID
+    ===================================================== */
+
+    function getModelId(
+        model
+    ) {
+
         return cleanString(
-            model.model_id ??
-            model.modelId
+            readField(
+                model,
+                [
+                    "model_id",
+                    "modelId",
+                    "code",
+                    "model_code"
+                ],
+                ""
+            )
         );
     }
 
 
     /* =====================================================
-       MODEL PROVIDER VALUES
-       ===================================================== */
+       MODEL NAME
+    ===================================================== */
+
+    function getModelName(
+        model
+    ) {
+
+        return cleanString(
+            readField(
+                model,
+                [
+                    "model_name",
+                    "modelName",
+                    "name"
+                ],
+                ""
+            )
+        );
+    }
+
+
+    /* =====================================================
+       MODEL FAMILY
+    ===================================================== */
+
+    function getModelFamily(
+        model
+    ) {
+
+        return cleanString(
+            readField(
+                model,
+                [
+                    "model_family",
+                    "modelFamily",
+                    "family"
+                ],
+                ""
+            )
+        );
+    }
+
+
+    /* =====================================================
+       MODEL TYPE
+    ===================================================== */
+
+    function getModelType(
+        model
+    ) {
+
+        return cleanString(
+            readField(
+                model,
+                [
+                    "model_type",
+                    "modelType",
+                    "type",
+                    "category"
+                ],
+                ""
+            )
+        );
+    }
+
+
+    /* =====================================================
+       DESCRIPTION
+    ===================================================== */
+
+    function getDescription(
+        model
+    ) {
+
+        return cleanString(
+            readField(
+                model,
+                [
+                    "description"
+                ],
+                ""
+            )
+        );
+    }
+
+
+    /* =====================================================
+       PROVIDER VALUES
+    ===================================================== */
 
     function getModelProviderValues(
         model
@@ -171,7 +335,15 @@
             model.providerUuid,
 
             provider?.id,
-            provider?.provider_id
+            provider?.provider_id,
+            provider?.providerId,
+
+            model.provider_name,
+            model.providerName,
+
+            provider?.provider_name,
+            provider?.providerName,
+            provider?.name
         ]
             .map(
                 normalizeString
@@ -182,7 +354,7 @@
 
     /* =====================================================
        PROVIDER VALUES
-       ===================================================== */
+    ===================================================== */
 
     function getProviderValues(
         provider
@@ -201,8 +373,13 @@
         return [
             provider.id,
             provider.provider_id,
+            provider.providerId,
+            provider.provider_uuid,
+
             provider.provider_name,
-            provider.name
+            provider.providerName,
+            provider.name,
+            provider.code
         ]
             .map(
                 normalizeString
@@ -213,7 +390,7 @@
 
     /* =====================================================
        PROVIDER MODULE
-       ===================================================== */
+    ===================================================== */
 
     function getProviderModule() {
 
@@ -225,41 +402,36 @@
 
 
     /* =====================================================
-       FIND PROVIDER
-       ===================================================== */
+       GET PROVIDERS
+    ===================================================== */
 
-    function findProvider(
-        model
-    ) {
+    function getProviders() {
 
         const providerModule =
             getProviderModule();
 
 
         if (
-            !providerModule
-        ) {
-
-            return null;
-        }
-
-
-        if (
+            !providerModule ||
             typeof providerModule.getProviders !==
                 "function"
         ) {
 
-            return null;
+            return [];
         }
-
-
-        let providers = [];
 
 
         try {
 
-            providers =
+            const providers =
                 providerModule.getProviders();
+
+
+            return Array.isArray(
+                providers
+            )
+                ? providers
+                : [];
 
         } catch (error) {
 
@@ -268,12 +440,26 @@
                 error
             );
 
-            return null;
+            return [];
         }
+    }
+
+
+    /* =====================================================
+       FIND PROVIDER
+    ===================================================== */
+
+    function findProvider(
+        model
+    ) {
+
+        const providers =
+            getProviders();
 
 
         if (
-            !Array.isArray(providers)
+            providers.length ===
+            0
         ) {
 
             return null;
@@ -287,7 +473,8 @@
 
 
         if (
-            modelValues.length === 0
+            modelValues.length ===
+            0
         ) {
 
             return null;
@@ -295,12 +482,11 @@
 
 
         /*
-         * Prioritas:
+         * Prioritas pencocokan:
          *
-         * 1. Database UUID
+         * 1. UUID / id
          * 2. provider_id
-         *
-         * Nama hanya fallback.
+         * 3. provider name/code
          */
         for (
             const provider of providers
@@ -313,7 +499,8 @@
 
 
             if (
-                providerValues.length === 0
+                providerValues.length ===
+                0
             ) {
 
                 continue;
@@ -322,7 +509,9 @@
 
             if (
                 modelValues.some(
-                    function (value) {
+                    function (
+                        value
+                    ) {
 
                         return providerValues.includes(
                             value
@@ -342,7 +531,7 @@
 
     /* =====================================================
        FIND CATALOG MODEL
-       ===================================================== */
+    ===================================================== */
 
     function findCatalogModel(
         model
@@ -366,37 +555,103 @@
             window.GENZModelsSearch;
 
 
+        /*
+         * Jalur utama:
+         * gunakan catalog yang sudah dimuat.
+         */
         if (
-            !search ||
-            typeof search.findModelById !==
+            search &&
+            typeof search.findModelById ===
                 "function"
         ) {
 
-            return null;
+            try {
+
+                const catalogModel =
+                    search.findModelById(
+                        modelId
+                    );
+
+
+                if (
+                    catalogModel
+                ) {
+
+                    return catalogModel;
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Catalog Model lookup gagal:",
+                    error
+                );
+            }
         }
 
 
-        try {
+        /*
+         * Jalur fallback:
+         * ambil model dari data lokal search jika
+         * API getter tersedia.
+         */
+        if (
+            search &&
+            typeof search.getModels ===
+                "function"
+        ) {
 
-            const catalogModel =
-                search.findModelById(
-                    modelId
+            try {
+
+                const models =
+                    search.getModels();
+
+
+                if (
+                    Array.isArray(
+                        models
+                    )
+                {
+
+                    const normalizedId =
+                        normalizeString(
+                            modelId
+                        );
+
+
+                    const found =
+                        models.find(
+                            function (
+                                item
+                            ) {
+
+                                return (
+                                    normalizeString(
+                                        getModelId(
+                                            item
+                                        )
+                                    ) ===
+                                    normalizedId
+                                );
+                            }
+                        );
+
+
+                    if (
+                        found
+                    ) {
+
+                        return found;
+                    }
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Fallback catalog Model lookup gagal:",
+                    error
                 );
-
-
-            if (
-                catalogModel
-            ) {
-
-                return catalogModel;
             }
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI] Catalog Model lookup gagal:",
-                error
-            );
         }
 
 
@@ -405,8 +660,38 @@
 
 
     /* =====================================================
+       GET PROVIDER SELECT
+    ===================================================== */
+
+    function getProviderSelect() {
+
+        return (
+            document.getElementById(
+                "providerId"
+            ) ||
+
+            document.getElementById(
+                "provider_id"
+            ) ||
+
+            document.getElementById(
+                "provider"
+            ) ||
+
+            document.querySelector(
+                "[name='provider_id']"
+            ) ||
+
+            document.querySelector(
+                "[name='providerId']"
+            )
+        );
+    }
+
+
+    /* =====================================================
        RESOLVE PROVIDER SELECT VALUE
-       ===================================================== */
+    ===================================================== */
 
     function resolveProviderSelectValue(
         provider
@@ -435,11 +720,9 @@
 
 
         const candidates = [
-
             provider.id,
-
-            provider.provider_id
-
+            provider.provider_id,
+            provider.providerId
         ]
             .map(
                 cleanString
@@ -448,7 +731,7 @@
 
 
         /*
-         * Exact match terlebih dahulu.
+         * Exact match.
          */
         for (
             const candidate of candidates
@@ -456,9 +739,12 @@
 
             const option =
                 Array.from(
-                    select.options
+                    select.options ||
+                    []
                 ).find(
-                    function (item) {
+                    function (
+                        item
+                    ) {
 
                         return (
                             cleanString(
@@ -480,7 +766,7 @@
 
 
         /*
-         * Case insensitive fallback.
+         * Case insensitive.
          */
         for (
             const candidate of candidates
@@ -494,9 +780,12 @@
 
             const option =
                 Array.from(
-                    select.options
+                    select.options ||
+                    []
                 ).find(
-                    function (item) {
+                    function (
+                        item
+                    ) {
 
                         return (
                             normalizeString(
@@ -525,15 +814,7 @@
 
     /* =====================================================
        SYNC PROVIDER
-       -----------------------------------------------------
-       IMPORTANT:
-       Tidak dispatch "change".
-
-       Selection Model sedang melakukan sinkronisasi
-       internal. Dispatch change akan masuk kembali
-       ke model-search-events dan dapat menghapus
-       Model yang baru dipilih.
-       ===================================================== */
+    ===================================================== */
 
     function syncProvider(
         model
@@ -579,10 +860,6 @@
         }
 
 
-        /*
-         * Jika sudah sama, tidak perlu melakukan
-         * apa pun.
-         */
         if (
             cleanString(
                 select.value
@@ -595,14 +872,13 @@
 
 
         /*
-         * Gunakan Provider module hanya jika
-         * tersedia dan tidak menyebabkan event
-         * recursive.
+         * Jangan dispatch change di sini.
          *
-         * Karena kita tidak mengetahui apakah
-         * setValue() melakukan dispatch change,
-         * direct assignment digunakan sebagai
-         * jalur aman.
+         * Perubahan Provider adalah bagian dari
+         * proses selection internal.
+         *
+         * Dispatch change dapat memicu search
+         * ulang sebelum Model selection selesai.
          */
         try {
 
@@ -612,7 +888,7 @@
         } catch (error) {
 
             console.warn(
-                "[GEN-Z.AI] Gagal mengubah Provider select:",
+                "[GEN-Z.AI] Gagal mengubah Provider:",
                 error
             );
 
@@ -630,8 +906,408 @@
 
 
     /* =====================================================
+       GET ELEMENT BY IDS / NAMES
+    ===================================================== */
+
+    function getField(
+        ids,
+        names = []
+    ) {
+
+        for (
+            const id of ids
+        ) {
+
+            const element =
+                document.getElementById(
+                    id
+                );
+
+
+            if (
+                element
+            ) {
+
+                return element;
+            }
+        }
+
+
+        for (
+            const name of names
+        ) {
+
+            const element =
+                document.querySelector(
+                    "[name='" +
+                    name +
+                    "']"
+                );
+
+
+            if (
+                element
+            ) {
+
+                return element;
+            }
+        }
+
+
+        return null;
+    }
+
+
+    /* =====================================================
+       GET HIDDEN MODEL INPUT
+    ===================================================== */
+
+    function getHiddenInput() {
+
+        return getField(
+            [
+                "modelCode"
+            ],
+            [
+                "model_code"
+            ]
+        );
+    }
+
+
+    /* =====================================================
+       GET SEARCH INPUT
+    ===================================================== */
+
+    function getSearchInput() {
+
+        return getField(
+            [
+                "modelCodeSearch",
+                "modelSearch",
+                "modelIdSearch"
+            ],
+            [
+                "model_search",
+                "model_id_search"
+            ]
+        );
+    }
+
+
+    /* =====================================================
+       GET MODEL NAME INPUT
+    ===================================================== */
+
+    function getModelNameInput() {
+
+        return getField(
+            [
+                "modelName",
+                "model_name"
+            ],
+            [
+                "model_name",
+                "modelName"
+            ]
+        );
+    }
+
+
+    /* =====================================================
+       GET MODEL FAMILY INPUT
+    ===================================================== */
+
+    function getModelFamilyInput() {
+
+        return getField(
+            [
+                "modelFamily",
+                "model_family"
+            ],
+            [
+                "model_family",
+                "modelFamily"
+            ]
+        );
+    }
+
+
+    /* =====================================================
+       GET MODEL TYPE INPUT
+    ===================================================== */
+
+    function getModelTypeInput() {
+
+        return getField(
+            [
+                "modelType",
+                "model_type"
+            ],
+            [
+                "model_type",
+                "modelType"
+            ]
+        );
+    }
+
+
+    /* =====================================================
+       GET DESCRIPTION INPUT
+    ===================================================== */
+
+    function getDescriptionInput() {
+
+        return getField(
+            [
+                "description",
+                "modelDescription"
+            ],
+            [
+                "description"
+            ]
+        );
+    }
+
+
+    /* =====================================================
+       GET INFO BOX
+    ===================================================== */
+
+    function getInfoBox() {
+
+        return (
+            document.getElementById(
+                "selectedModelInfo"
+            ) ||
+
+            document.getElementById(
+                "modelSelectedInfo"
+            )
+        );
+    }
+
+
+    /* =====================================================
+       UPDATE VALUE
+    ===================================================== */
+
+    function setValue(
+        element,
+        value
+    ) {
+
+        if (
+            !element
+        ) {
+
+            return false;
+        }
+
+
+        const normalized =
+            value ===
+                null ||
+            value ===
+                undefined
+                ? ""
+                : String(
+                    value
+                );
+
+
+        if (
+            element.value ===
+            normalized
+        ) {
+
+            return true;
+        }
+
+
+        element.value =
+            normalized;
+
+
+        /*
+         * Jangan dispatch input/change.
+         *
+         * Selection module hanya mengisi state.
+         * Form layout / events menangani sinkronisasi
+         * berikutnya.
+         */
+        return true;
+    }
+
+
+    /* =====================================================
+       UPDATE MODEL ID
+    ===================================================== */
+
+    function updateModelId(
+        modelId
+    ) {
+
+        const id =
+            cleanString(
+                modelId
+            );
+
+
+        if (
+            !id
+        ) {
+
+            return false;
+        }
+
+
+        setValue(
+            getHiddenInput(),
+            id
+        );
+
+
+        setValue(
+            getSearchInput(),
+            id
+        );
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       UPDATE MODEL ID ALIASES
+    ===================================================== */
+
+    function updateModelIdAliases(
+        modelId
+    ) {
+
+        const id =
+            cleanString(
+                modelId
+            );
+
+
+        if (
+            !id
+        ) {
+
+            return false;
+        }
+
+
+        const fields = [
+            getField(
+                ["modelId"],
+                ["modelId"]
+            ),
+
+            getField(
+                ["model_id"],
+                ["model_id"]
+            )
+        ];
+
+
+        fields.forEach(
+            function (
+                field
+            ) {
+
+                if (
+                    field
+                ) {
+
+                    setValue(
+                        field,
+                        id
+                    );
+                }
+            }
+        );
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       UPDATE MODEL IDENTITY FIELDS
+    ===================================================== */
+
+    function updateIdentityFields(
+        model
+    ) {
+
+        const modelName =
+            getModelName(
+                model
+            );
+
+        const modelFamily =
+            getModelFamily(
+                model
+            );
+
+        const modelType =
+            getModelType(
+                model
+            );
+
+        const description =
+            getDescription(
+                model
+            );
+
+
+        setValue(
+            getModelNameInput(),
+            modelName
+        );
+
+
+        setValue(
+            getModelFamilyInput(),
+            modelFamily
+        );
+
+
+        setValue(
+            getModelTypeInput(),
+            modelType
+        );
+
+
+        /*
+         * Description hanya diisi jika
+         * field tersedia dan model memiliki
+         * description.
+         *
+         * Tidak menimpa description kosong
+         * dengan data palsu.
+         */
+        if (
+            description
+        ) {
+
+            setValue(
+                getDescriptionInput(),
+                description
+            );
+        }
+
+
+        return true;
+    }
+
+
+    /* =====================================================
        UPDATE INFO BOX
-       ===================================================== */
+    ===================================================== */
 
     function updateInfoBox(
         model
@@ -654,30 +1330,26 @@
                 model
             );
 
-
         const name =
-            cleanString(
-                model?.model_name ??
-                model?.modelName ??
-                model?.name
+            getModelName(
+                model
             );
-
 
         const family =
-            cleanString(
-                model?.model_family ??
-                model?.modelFamily ??
-                model?.family
+            getModelFamily(
+                model
             );
-
 
         const provider =
             cleanString(
-                model?.provider_name ??
-                model?.providerName ??
-                model?.provider?.provider_name ??
-                model?.provider_id ??
-                model?.provider
+                readField(
+                    model,
+                    [
+                        "provider_name",
+                        "providerName"
+                    ],
+                    ""
+                )
             );
 
 
@@ -734,72 +1406,85 @@
 
 
     /* =====================================================
-       UPDATE INPUTS
+       UPDATE FORM THROUGH LAYOUT
        ===================================================== */
 
-    function updateInputs(
-        modelId
+    function updateFormThroughLayout(
+        model
     ) {
 
-        const id =
-            cleanString(
-                modelId
-            );
+        const layout =
+            window.GENZModelFormLayout;
 
 
         if (
-            !id
+            !layout
         ) {
 
             return false;
         }
 
 
-        const hiddenInput =
-            getHiddenInput();
-
-
-        const searchInput =
-            getSearchInput();
-
-
         /*
-         * Hidden Model ID.
+         * Gunakan form aktual dari DOM.
          */
+        const form =
+            document.getElementById(
+                "modelForm"
+            ) ||
+            document.getElementById(
+                "modelsForm"
+            );
+
+
         if (
-            hiddenInput
+            !form
         ) {
 
-            hiddenInput.value =
-                id;
+            return false;
         }
 
 
         /*
-         * Search display.
-         */
-        if (
-            searchInput
-        ) {
-
-            searchInput.value =
-                id;
-        }
-
-
-        /*
-         * Sengaja TIDAK dispatch input/change.
+         * Layout adalah pemilik sinkronisasi
+         * capability, ratio, duration, resolution,
+         * KIE price, dan credit preview.
          *
-         * Dispatch di sini bisa memanggil search
-         * lagi dan membuat event chain recursive.
+         * Tidak semua versi layout mempunyai
+         * method yang sama, sehingga kita hanya
+         * memanggil method yang benar-benar ada.
          */
-        return true;
+        if (
+            typeof layout.updateSelectedModelFields ===
+                "function"
+        ) {
+
+            try {
+
+                layout.updateSelectedModelFields(
+                    form,
+                    [model]
+                );
+
+                return true;
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Layout gagal memperbarui field Model:",
+                    error
+                );
+            }
+        }
+
+
+        return false;
     }
 
 
     /* =====================================================
-       CLEAR DROPDOWN
-       ===================================================== */
+       HIDE DROPDOWN
+    ===================================================== */
 
     function hideDropdown() {
 
@@ -829,8 +1514,57 @@
 
 
     /* =====================================================
+       DISPATCH SELECTION EVENT
+    ===================================================== */
+
+    function dispatchSelectionEvent(
+        model
+    ) {
+
+        const modelId =
+            getModelId(
+                model
+            );
+
+
+        try {
+
+            document.dispatchEvent(
+                new CustomEvent(
+                    "genz-model-selected",
+                    {
+                        detail: {
+
+                            model:
+                                model,
+
+                            modelId:
+                                modelId,
+
+                            model_id:
+                                modelId
+                        }
+                    }
+                )
+            );
+
+            return true;
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI] Event genz-model-selected gagal:",
+                error
+            );
+
+            return false;
+        }
+    }
+
+
+    /* =====================================================
        SELECT MODEL
-       ===================================================== */
+    ===================================================== */
 
     function selectModel(
         model
@@ -856,15 +1590,16 @@
             !modelId
         ) {
 
+            console.warn(
+                "[GEN-Z.AI] Selection ditolak. Model ID kosong."
+            );
+
             return false;
         }
 
 
         /*
-         * Jangan menerima object arbitrary.
-         *
-         * Model wajib berasal dari catalog
-         * GENZModelsSearch.
+         * Pastikan model berasal dari catalog.
          */
         const catalogModel =
             findCatalogModel(
@@ -903,69 +1638,76 @@
         }
 
 
-        /*
-         * 1. Sinkronkan Provider terlebih dahulu.
-         *
-         * Tidak menghasilkan event change.
-         */
+        /* =================================================
+           1. PROVIDER
+           ================================================= */
+
         syncProvider(
             selectedModel
         );
 
 
-        /*
-         * 2. Isi Model ID.
-         */
-        updateInputs(
+        /* =================================================
+           2. MODEL ID
+           ================================================= */
+
+        updateModelId(
             selectedId
         );
 
 
-        /*
-         * 3. Update informasi Model.
-         */
+        updateModelIdAliases(
+            selectedId
+        );
+
+
+        /* =================================================
+           3. MODEL IDENTITY
+           ================================================= */
+
+        updateIdentityFields(
+            selectedModel
+        );
+
+
+        /* =================================================
+           4. LAYOUT / CAPABILITY / PRICE
+           ================================================= */
+
+        updateFormThroughLayout(
+            selectedModel
+        );
+
+
+        /* =================================================
+           5. INFO BOX
+           ================================================= */
+
         updateInfoBox(
             selectedModel
         );
 
 
-        /*
-         * 4. Tutup dropdown.
-         */
+        /* =================================================
+           6. HIDE DROPDOWN
+           ================================================= */
+
         hideDropdown();
 
 
-        /*
-         * 5. Notify module lain.
-         *
-         * Event ini hanya satu arah.
-         * Tidak mengubah selection kembali.
-         */
-        try {
+        /* =================================================
+           7. NOTIFY OTHER MODULES
+           ================================================= */
 
-            document.dispatchEvent(
-                new CustomEvent(
-                    "genz-model-selected",
-                    {
-                        detail: {
+        dispatchSelectionEvent(
+            selectedModel
+        );
 
-                            model:
-                                selectedModel,
 
-                            modelId:
-                                selectedId
-                        }
-                    }
-                )
-            );
-
-        } catch (error) {
-
-            console.warn(
-                "[GEN-Z.AI] Event genz-model-selected gagal:",
-                error
-            );
-        }
+        console.info(
+            "[GEN-Z.AI] Model selected:",
+            selectedId
+        );
 
 
         return true;
@@ -974,38 +1716,48 @@
 
     /* =====================================================
        CLEAR SELECTED
-       ===================================================== */
+    ===================================================== */
 
     function clearSelected() {
 
-        const hiddenInput =
-            getHiddenInput();
+        const fields = [
+
+            getHiddenInput(),
+
+            getSearchInput(),
+
+            getField(
+                ["modelId"],
+                ["modelId"]
+            ),
+
+            getField(
+                ["model_id"],
+                ["model_id"]
+            )
+        ];
 
 
-        const searchInput =
-            getSearchInput();
+        fields.forEach(
+            function (
+                field
+            ) {
+
+                if (
+                    field
+                ) {
+
+                    setValue(
+                        field,
+                        ""
+                    );
+                }
+            }
+        );
 
 
         const infoBox =
             getInfoBox();
-
-
-        if (
-            hiddenInput
-        ) {
-
-            hiddenInput.value =
-                "";
-        }
-
-
-        if (
-            searchInput
-        ) {
-
-            searchInput.value =
-                "";
-        }
 
 
         if (
@@ -1017,13 +1769,16 @@
         }
 
 
+        hideDropdown();
+
+
         return true;
     }
 
 
     /* =====================================================
        GET SELECTED MODEL
-       ===================================================== */
+    ===================================================== */
 
     function getSelectedModel() {
 
@@ -1031,9 +1786,14 @@
             getHiddenInput();
 
 
+        const searchInput =
+            getSearchInput();
+
+
         const modelId =
             cleanString(
-                hiddenInput?.value
+                hiddenInput?.value ||
+                searchInput?.value
             );
 
 
@@ -1080,7 +1840,7 @@
 
     /* =====================================================
        PUBLIC API
-       ===================================================== */
+    ===================================================== */
 
     window.GENZModelSearchSelect =
         Object.freeze({
@@ -1091,7 +1851,9 @@
 
             getSelectedModel,
 
-            findProvider
+            findProvider,
+
+            findCatalogModel
 
         });
 
