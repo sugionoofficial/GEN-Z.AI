@@ -13,6 +13,8 @@
    - Render model information
    - Render model credit
    - Render dynamic parameter form
+   - Sinkronisasi Generate State
+   - Sinkronisasi tombol Generate
    - Bind model change
    - Bind reset
 
@@ -21,6 +23,7 @@
    - Role tetap dari navigation / early auth bridge
    - Model Usage Credit dari konfigurasi model
    - State HARUS menggunakan SATU instance generate-state.js
+   - Generate button hanya aktif jika model benar-benar siap
 ========================================================= */
 
 "use strict";
@@ -853,6 +856,10 @@ function formatCredit(
 
 /* =========================================================
    RENDER MODEL CREDIT
+   ---------------------------------------------------------
+   PENTING:
+   Credit ini adalah MODEL USAGE CREDIT.
+   BUKAN Account Credit.
 ========================================================= */
 
 function renderModelCredit(
@@ -875,6 +882,10 @@ function renderModelCredit(
         );
 
 
+    /*
+     * Nilai credit di dalam tombol Generate.
+     */
+
     if (
         elements.generateCreditCost
     ) {
@@ -887,6 +898,10 @@ function renderModelCredit(
 
     }
 
+
+    /*
+     * Compatibility / alternate display.
+     */
 
     if (
         elements.generateCreditValue
@@ -906,7 +921,9 @@ function renderModelCredit(
                     model
                 ),
 
-            credit
+            credit,
+
+            formatted
         }
     );
 
@@ -1093,6 +1110,294 @@ function setCurrentModel(
 
 
 /* =========================================================
+   MARK MODEL READY
+   ---------------------------------------------------------
+   Ini bagian penting untuk masalah:
+   Generate button tetap disabled.
+========================================================= */
+
+function markModelReady(
+    model
+) {
+
+    const state =
+        appState.modules.state;
+
+
+    const modelId =
+        getModelId(
+            model
+        );
+
+
+    const validModel =
+        Boolean(
+            model &&
+            modelId
+        );
+
+
+    /*
+     * State utama aplikasi.
+     */
+
+    appState.modelReady =
+        validModel;
+
+
+    /*
+     * Sinkronisasi dengan generate-state.js.
+     *
+     * generate-ui.js menggunakan isModelReady(),
+     * yang bergantung pada state.modelLoaded.
+     */
+
+    if (
+        state &&
+        typeof state.setModelLoaded ===
+        "function"
+    ) {
+
+        state.setModelLoaded(
+            validModel
+        );
+
+    }
+
+
+    debug(
+        "MODEL READY STATE:",
+        {
+            modelId,
+
+            validModel,
+
+            appStateModelReady:
+                appState.modelReady
+        }
+    );
+
+
+    return validModel;
+
+}
+
+
+/* =========================================================
+   ENABLE GENERATE
+   ---------------------------------------------------------
+   Jangan hanya mengubah HTML button.
+   State dan UI harus sama-sama sinkron.
+========================================================= */
+
+function enableGenerateButton(
+    model = null
+) {
+
+    const elements =
+        getDOM();
+
+
+    const currentModel =
+        model ||
+        getCurrentModel();
+
+
+    const modelId =
+        getModelId(
+            currentModel
+        );
+
+
+    const modelReady =
+        Boolean(
+            currentModel &&
+            modelId
+        );
+
+
+    /*
+     * Jangan pernah mengaktifkan tombol
+     * jika model belum benar-benar tersedia.
+     */
+
+    if (
+        !modelReady
+    ) {
+
+        appState.modelReady =
+            false;
+
+
+        if (
+            elements.generateButton
+        ) {
+
+            elements.generateButton.disabled =
+                true;
+
+            elements.generateButton.removeAttribute(
+                "aria-busy"
+            );
+
+        }
+
+
+        return false;
+
+    }
+
+
+    appState.modelReady =
+        true;
+
+
+    /*
+     * UI module adalah pemilik state visual
+     * Generate button.
+     */
+
+    const ui =
+        appState.modules.ui;
+
+
+    if (
+        ui &&
+        typeof ui.enableGeneration ===
+        "function"
+    ) {
+
+        try {
+
+            ui.enableGeneration();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][Generate] UI enableGeneration warning:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Safety fallback.
+     *
+     * Jika UI module tidak berhasil mengubah tombol,
+     * app module tetap memastikan tombol aktif.
+     */
+
+    if (
+        elements.generateButton
+    ) {
+
+        elements.generateButton.disabled =
+            false;
+
+        elements.generateButton.removeAttribute(
+            "aria-busy"
+        );
+
+    }
+
+
+    /*
+     * Credit HARUS dirender setelah enable.
+     * Jangan sampai tombol aktif tetapi credit hilang.
+     */
+
+    renderModelCredit(
+        currentModel
+    );
+
+
+    debug(
+        "GENERATE BUTTON ENABLED:",
+        {
+            modelId,
+
+            modelName:
+                getModelName(
+                    currentModel
+                ),
+
+            credit:
+                getModelCredit(
+                    currentModel
+                )
+        }
+    );
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   DISABLE GENERATE
+========================================================= */
+
+function disableGenerateButton() {
+
+    const elements =
+        getDOM();
+
+
+    appState.modelReady =
+        false;
+
+
+    if (
+        elements.generateButton
+    ) {
+
+        elements.generateButton.disabled =
+            true;
+
+        elements.generateButton.removeAttribute(
+            "aria-busy"
+        );
+
+    }
+
+
+    const ui =
+        appState.modules.ui;
+
+
+    if (
+        ui &&
+        typeof ui.disableGeneration ===
+        "function"
+    ) {
+
+        try {
+
+            ui.disableGeneration();
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI][Generate] UI disableGeneration warning:",
+                error
+            );
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
    RENDER FORM
 ========================================================= */
 
@@ -1149,7 +1454,9 @@ async function renderForm(
     ) {
 
         result =
-            await formModule.renderGenerateForm();
+            await formModule.renderGenerateForm(
+                model
+            );
 
     }
 
@@ -1159,7 +1466,9 @@ async function renderForm(
     ) {
 
         result =
-            await formModule.render();
+            await formModule.render(
+                model
+            );
 
     }
 
@@ -1169,7 +1478,9 @@ async function renderForm(
     ) {
 
         result =
-            await formModule.init();
+            await formModule.init(
+                model
+            );
 
     }
 
@@ -1245,49 +1556,139 @@ async function renderModel(
     }
 
 
+    /*
+     * Model wajib mempunyai model_id.
+     */
+
+    const modelId =
+        getModelId(
+            model
+        );
+
+
+    if (
+        !modelId
+    ) {
+
+        throw new Error(
+            "Model tidak memiliki model_id yang valid."
+        );
+
+    }
+
+
+    /*
+     * 1. Simpan ke SINGLE Generate State.
+     */
+
+    const verifiedModel =
+        setCurrentModel(
+            model
+        );
+
+
+    /*
+     * 2. Model info.
+     */
+
     renderModelInformation(
-        model
+        verifiedModel
     );
 
+
+    /*
+     * 3. Model Usage Credit.
+     *
+     * Tetap ditampilkan di tombol Generate.
+     */
 
     renderModelCredit(
-        model
+        verifiedModel
     );
 
+
+    /*
+     * 4. Dynamic parameter form.
+     */
 
     await renderForm(
-        model
+        verifiedModel
     );
 
 
-    appState.modelReady =
-        true;
+    /*
+     * 5. Tandai model sudah siap.
+     *
+     * Ini penting karena generate-ui.js
+     * membaca state.modelLoaded.
+     */
+
+    const ready =
+        markModelReady(
+            verifiedModel
+        );
+
+
+    if (
+        !ready
+    ) {
+
+        disableGenerateButton();
+
+
+        throw new Error(
+            "Model belum siap digunakan."
+        );
+
+    }
+
+
+    /*
+     * 6. Aktifkan tombol Generate.
+     */
+
+    enableGenerateButton(
+        verifiedModel
+    );
+
+
+    /*
+     * 7. Render ulang credit sebagai final guard.
+     */
+
+    renderModelCredit(
+        verifiedModel
+    );
 
 
     debug(
         "MODEL UI READY:",
         {
             id:
-                getModelId(
-                    model
-                ),
+                modelId,
 
             name:
                 getModelName(
-                    model
+                    verifiedModel
                 ),
 
             provider:
                 getProviderName(
-                    model
+                    verifiedModel
                 ),
 
             credit:
                 getModelCredit(
-                    model
-                )
+                    verifiedModel
+                ),
+
+            modelReady:
+                appState.modelReady
         }
     );
+
+
+    return verifiedModel;
 
 }
 
@@ -1676,8 +2077,18 @@ async function initializeModel() {
 
 
     if (
-        elements.modelSelect &&
-        id
+        !id
+    ) {
+
+        throw new Error(
+            "Model berhasil dimuat tetapi model_id kosong."
+        );
+
+    }
+
+
+    if (
+        elements.modelSelect
     ) {
 
         elements.modelSelect.value =
@@ -1685,6 +2096,16 @@ async function initializeModel() {
 
     }
 
+
+    /*
+     * Render model lengkap.
+     *
+     * Fungsi ini juga:
+     * - set modelLoaded
+     * - render credit
+     * - render form
+     * - enable Generate button
+     */
 
     await renderModel(
         model
@@ -1730,7 +2151,16 @@ async function initializeModel() {
     }
 
 
-    return model;
+    /*
+     * Final safety synchronization.
+     */
+
+    enableGenerateButton(
+        getCurrentModel()
+    );
+
+
+    return getCurrentModel();
 
 }
 
@@ -1759,6 +2189,8 @@ async function handleModelChange(
         !selectedId
     ) {
 
+        disableGenerateButton();
+
         return;
 
     }
@@ -1767,6 +2199,14 @@ async function handleModelChange(
     try {
 
         hideError();
+
+
+        /*
+         * Saat model sedang diganti,
+         * tombol tidak boleh dipakai.
+         */
+
+        disableGenerateButton();
 
 
         showLoading(
@@ -1835,6 +2275,16 @@ async function handleModelChange(
             );
 
 
+        /*
+         * renderModel menangani seluruh sinkronisasi:
+         * - model state
+         * - model info
+         * - credit
+         * - form
+         * - modelLoaded
+         * - generate button
+         */
+
         await renderModel(
             model
         );
@@ -1844,12 +2294,38 @@ async function handleModelChange(
             true;
 
 
+        /*
+         * Final guard.
+         */
+
+        enableGenerateButton(
+            model
+        );
+
+
     } catch (
         error
     ) {
 
         appState.modelReady =
             false;
+
+
+        const state =
+            appState.modules.state;
+
+
+        if (
+            state &&
+            typeof state.setModelLoaded ===
+            "function"
+        ) {
+
+            state.setModelLoaded(
+                false
+            );
+
+        }
 
 
         console.error(
@@ -1862,6 +2338,9 @@ async function handleModelChange(
             error?.message ||
             "Model gagal dimuat."
         );
+
+
+        disableGenerateButton();
 
     } finally {
 
@@ -1988,6 +2467,37 @@ function bindResetEvent() {
 
                 }
 
+
+                /*
+                 * Reset parameter tidak berarti
+                 * model menjadi tidak siap.
+                 *
+                 * Model tetap aktif dan credit tetap
+                 * harus tampil.
+                 */
+
+                const currentModel =
+                    getCurrentModel();
+
+
+                if (
+                    currentModel &&
+                    getModelId(
+                        currentModel
+                    )
+                ) {
+
+                    renderModelCredit(
+                        currentModel
+                    );
+
+
+                    enableGenerateButton(
+                        currentModel
+                    );
+
+                }
+
             } catch (
                 error
             ) {
@@ -2067,6 +2577,14 @@ function validateDOM() {
 function initializeVisualState() {
 
     /*
+     * Tombol Generate sengaja tetap disabled
+     * sampai model berhasil diverifikasi.
+     */
+
+    disableGenerateButton();
+
+
+    /*
      * Jangan tampilkan loading saat halaman baru
      * dibuka.
      *
@@ -2096,6 +2614,14 @@ function initializeVisualState() {
             "";
 
     }
+
+
+    /*
+     * Jangan menghapus credit.
+     *
+     * Credit akan dirender kembali setelah model
+     * berhasil dimuat.
+     */
 
 }
 
@@ -2182,6 +2708,15 @@ async function bootstrap() {
          * 6. MODEL
          *
          * Tidak memanggil showLoading().
+         *
+         * initializeModel() akan:
+         * - load model
+         * - set current model
+         * - set modelLoaded
+         * - render model
+         * - render credit
+         * - render form
+         * - enable Generate button
          */
 
         await initializeModel();
@@ -2215,12 +2750,69 @@ async function bootstrap() {
         }
 
 
+        /*
+         * Final model/button synchronization.
+         */
+
+        const currentModel =
+            getCurrentModel();
+
+
+        if (
+            currentModel &&
+            getModelId(
+                currentModel
+            )
+        ) {
+
+            markModelReady(
+                currentModel
+            );
+
+
+            renderModelCredit(
+                currentModel
+            );
+
+
+            enableGenerateButton(
+                currentModel
+            );
+
+        }
+
+        else {
+
+            disableGenerateButton();
+
+        }
+
+
         appState.initialized =
             true;
 
 
         debug(
-            "Bootstrap completed."
+            "Bootstrap completed:",
+            {
+                model:
+                    getModelId(
+                        currentModel
+                    ),
+
+                modelReady:
+                    appState.modelReady,
+
+                modelCredit:
+                    getModelCredit(
+                        currentModel
+                    ),
+
+                generateButtonDisabled:
+                    Boolean(
+                        elements.generateButton?.disabled
+                    )
+            }
         );
 
 
@@ -2232,6 +2824,30 @@ async function bootstrap() {
             "[GEN-Z.AI][Generate] Bootstrap gagal:",
             error
         );
+
+
+        appState.modelReady =
+            false;
+
+
+        const state =
+            appState.modules.state;
+
+
+        if (
+            state &&
+            typeof state.setModelLoaded ===
+            "function"
+        ) {
+
+            state.setModelLoaded(
+                false
+            );
+
+        }
+
+
+        disableGenerateButton();
 
 
         showError(
