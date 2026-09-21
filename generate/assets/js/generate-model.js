@@ -19,13 +19,24 @@
    - Model identity    : repository model registry
    - Parameters        : repository model parameters
    - Provider          : provider configuration
-   - Model credit      : credit_final
+   - Model credit      : credit per resolution
+
+   CREDIT:
+   - credit_480p
+   - credit_720p
+   - credit_1080p
+   - discount_percent
+   - credit_final_480p
+   - credit_final_720p
+   - credit_final_1080p
 
    PENTING:
    - Tidak mengambil credit akun
    - Tidak mengubah profiles.credits
    - Tidak membuat parameter palsu
    - Tidak membuat model palsu
+   - Tidak menggunakan credit_final global sebagai harga Generate
+   - Tidak menggunakan credit_cost global sebagai harga Generate
    - Parameter harus diteruskan utuh ke currentModel
 ========================================================= */
 
@@ -67,6 +78,17 @@ const MODEL_CONFIG_ENDPOINT =
 
 const SELECTED_MODEL_STORAGE_KEY =
     "genz_generate_selected_model";
+
+
+/* =========================================================
+   CREDIT RESOLUTIONS
+========================================================= */
+
+const CREDIT_RESOLUTIONS = [
+    "480p",
+    "720p",
+    "1080p"
+];
 
 
 /* =========================================================
@@ -186,6 +208,870 @@ function safeNumber(
 
 
 /* =========================================================
+   NORMALIZE RESOLUTION
+========================================================= */
+
+function normalizeResolution(
+    value
+) {
+
+    const normalized =
+        safeString(
+            value
+        ).toLowerCase();
+
+
+    if (
+        normalized === "480" ||
+        normalized === "480p"
+    ) {
+
+        return "480p";
+
+    }
+
+
+    if (
+        normalized === "720" ||
+        normalized === "720p"
+    ) {
+
+        return "720p";
+
+    }
+
+
+    if (
+        normalized === "1080" ||
+        normalized === "1080p"
+    ) {
+
+        return "1080p";
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   DISCOUNT CALCULATION
+========================================================= */
+
+function calculateDiscountedCredit(
+    baseCredit,
+    discountPercent
+) {
+
+    const base =
+        safeNumber(
+            baseCredit
+        );
+
+
+    if (
+        base === null
+    ) {
+
+        return null;
+
+    }
+
+
+    const discount =
+        safeNumber(
+            discountPercent,
+            0
+        );
+
+
+    const normalizedDiscount =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                discount
+            )
+        );
+
+
+    const finalCredit =
+        base -
+        (
+            base *
+            normalizedDiscount /
+            100
+        );
+
+
+    return Number.isFinite(
+        finalCredit
+    )
+        ? finalCredit
+        : null;
+
+}
+
+
+/* =========================================================
+   GET CREDIT SOURCE OBJECTS
+========================================================= */
+
+function getCreditSourceObjects(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+        "object"
+    ) {
+
+        return [];
+
+    }
+
+
+    const sources = [];
+
+
+    const addSource =
+        source => {
+
+            if (
+                source &&
+                typeof source ===
+                "object" &&
+                !Array.isArray(source)
+            ) {
+
+                sources.push(
+                    source
+                );
+
+            }
+
+        };
+
+
+    addSource(
+        model.pricing
+    );
+
+
+    addSource(
+        model
+    );
+
+
+    addSource(
+        model.config?.pricing
+    );
+
+
+    addSource(
+        model.config
+    );
+
+
+    addSource(
+        model.repository?.pricing
+    );
+
+
+    addSource(
+        model.repository
+    );
+
+
+    addSource(
+        model.model?.pricing
+    );
+
+
+    addSource(
+        model.model
+    );
+
+
+    return sources;
+
+}
+
+
+/* =========================================================
+   GET RESOLUTION CREDIT VALUE
+   ---------------------------------------------------------
+   Mendukung beberapa bentuk response backend:
+
+   credit_480p
+   credit_720p
+   credit_1080p
+
+   pricing.credit_480p
+
+   credit_final_480p
+   pricing.credit_final_480p
+
+   creditFinal480p
+   pricing.creditFinal480p
+
+   pricing.resolutions["480p"].credit
+   pricing.resolutions["480p"].credit_final
+========================================================= */
+
+function getResolutionCreditValue(
+    model,
+    resolution,
+    type = "base"
+) {
+
+    const normalizedResolution =
+        normalizeResolution(
+            resolution
+        );
+
+
+    if (
+        !normalizedResolution
+    ) {
+
+        return null;
+
+    }
+
+
+    const sources =
+        getCreditSourceObjects(
+            model
+        );
+
+
+    const suffix =
+        normalizedResolution;
+
+
+    const compactSuffix =
+        normalizedResolution.replace(
+            "p",
+            ""
+        );
+
+
+    const propertyCandidates =
+        type === "final"
+
+            ? [
+
+                `credit_final_${suffix}`,
+
+                `creditFinal_${suffix}`,
+
+                `credit_final_${compactSuffix}`,
+
+                `creditFinal_${compactSuffix}`,
+
+                `final_credit_${suffix}`,
+
+                `finalCredit_${suffix}`,
+
+                `final_credit_${compactSuffix}`,
+
+                `finalCredit_${compactSuffix}`
+
+            ]
+
+            : [
+
+                `credit_${suffix}`,
+
+                `credit${suffix}`,
+
+                `credit_${compactSuffix}`,
+
+                `credit${compactSuffix}`,
+
+                `base_credit_${suffix}`,
+
+                `baseCredit_${suffix}`,
+
+                `base_credit_${compactSuffix}`,
+
+                `baseCredit_${compactSuffix}`
+
+            ];
+
+
+    for (
+        const source
+        of sources
+    ) {
+
+        for (
+            const property
+            of propertyCandidates
+        ) {
+
+            const value =
+                safeNumber(
+                    source[property]
+                );
+
+
+            if (
+                value !== null
+            ) {
+
+                return value;
+
+            }
+
+        }
+
+
+        /*
+         * Bentuk:
+         *
+         * resolutions: {
+         *   "480p": {
+         *      credit: 9
+         *   }
+         * }
+         */
+
+        const resolutions =
+            source.resolutions;
+
+
+        if (
+            resolutions &&
+            typeof resolutions ===
+            "object"
+        ) {
+
+            const resolutionConfig =
+                resolutions[
+                    normalizedResolution
+                ] ||
+                resolutions[
+                    compactSuffix
+                ];
+
+
+            if (
+                resolutionConfig &&
+                typeof resolutionConfig ===
+                "object"
+            ) {
+
+                const value =
+
+                    type === "final"
+
+                        ? (
+                            resolutionConfig.credit_final ??
+                            resolutionConfig.creditFinal ??
+                            resolutionConfig.final_credit ??
+                            resolutionConfig.finalCredit ??
+                            resolutionConfig.credit
+                        )
+
+                        : (
+                            resolutionConfig.credit ??
+                            resolutionConfig.credit_cost ??
+                            resolutionConfig.creditCost ??
+                            resolutionConfig.base_credit ??
+                            resolutionConfig.baseCredit
+                        );
+
+
+                const number =
+                    safeNumber(
+                        value
+                    );
+
+
+                if (
+                    number !== null
+                ) {
+
+                    return number;
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   GET DISCOUNT PERCENT
+========================================================= */
+
+function getDiscountPercent(
+    model
+) {
+
+    const sources =
+        getCreditSourceObjects(
+            model
+        );
+
+
+    for (
+        const source
+        of sources
+    ) {
+
+        const value =
+
+            source.discount_percent ??
+
+            source.discountPercent;
+
+
+        const number =
+            safeNumber(
+                value
+            );
+
+
+        if (
+            number !== null
+        ) {
+
+            return number;
+
+        }
+
+    }
+
+
+    return 0;
+
+}
+
+
+/* =========================================================
+   GET RESOLUTION CREDIT
+   ---------------------------------------------------------
+   FINAL SOURCE:
+
+   1. credit_final_<resolution>
+   2. credit_<resolution> + discount_percent
+
+   Tidak pernah memakai credit_final global.
+========================================================= */
+
+function getResolutionCredit(
+    model,
+    resolution
+) {
+
+    const normalizedResolution =
+        normalizeResolution(
+            resolution
+        );
+
+
+    if (
+        !normalizedResolution
+    ) {
+
+        return null;
+
+    }
+
+
+    /*
+     * Backend dapat mengirim final
+     * per resolution secara langsung.
+     */
+
+    const explicitFinal =
+        getResolutionCreditValue(
+            model,
+            normalizedResolution,
+            "final"
+        );
+
+
+    if (
+        explicitFinal !== null
+    ) {
+
+        return explicitFinal;
+
+    }
+
+
+    /*
+     * Kalau final tidak dikirim,
+     * hitung dari base + discount.
+     */
+
+    const baseCredit =
+        getResolutionCreditValue(
+            model,
+            normalizedResolution,
+            "base"
+        );
+
+
+    if (
+        baseCredit === null
+    ) {
+
+        return null;
+
+    }
+
+
+    const discountPercent =
+        getDiscountPercent(
+            model
+        );
+
+
+    return calculateDiscountedCredit(
+        baseCredit,
+        discountPercent
+    );
+
+}
+
+
+/* =========================================================
+   GET MODEL CREDIT
+   ---------------------------------------------------------
+   API PUBLIC / COMPATIBILITY.
+
+   Penting:
+   creditFinal di sini TIDAK lagi berasal dari
+   credit_final global.
+
+   Nilai creditFinal hanya akan tersedia jika
+   semua resolution memiliki nilai yang sama,
+   atau jika caller secara eksplisit meminta
+   resolution tertentu melalui getModelCreditForResolution().
+========================================================= */
+
+function getModelCredit(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+        "object"
+    ) {
+
+        return {
+
+            creditCost:
+                null,
+
+            discountPercent:
+                0,
+
+            creditFinal:
+                null,
+
+            credit480p:
+                null,
+
+            credit720p:
+                null,
+
+            credit1080p:
+                null,
+
+            creditFinal480p:
+                null,
+
+            creditFinal720p:
+                null,
+
+            creditFinal1080p:
+                null
+
+        };
+
+    }
+
+
+    const discountPercent =
+        getDiscountPercent(
+            model
+        );
+
+
+    const credit480p =
+        getResolutionCreditValue(
+            model,
+            "480p",
+            "base"
+        );
+
+
+    const credit720p =
+        getResolutionCreditValue(
+            model,
+            "720p",
+            "base"
+        );
+
+
+    const credit1080p =
+        getResolutionCreditValue(
+            model,
+            "1080p",
+            "base"
+        );
+
+
+    const creditFinal480p =
+        getResolutionCredit(
+            model,
+            "480p"
+        );
+
+
+    const creditFinal720p =
+        getResolutionCredit(
+            model,
+            "720p"
+        );
+
+
+    const creditFinal1080p =
+        getResolutionCredit(
+            model,
+            "1080p"
+        );
+
+
+    /*
+     * Jangan lagi membaca:
+     *
+     * model.credit_final
+     * pricing.credit_final
+     *
+     * sebagai harga Generate.
+     *
+     * Angka global seperti 50 justru
+     * merupakan sumber bug yang sedang kita
+     * hilangkan.
+     */
+
+    return {
+
+        /*
+         * Legacy compatibility.
+         *
+         * Tetap disediakan agar module lain
+         * tidak error, tetapi nilainya hanya
+         * berasal dari resolution pricing.
+         */
+
+        creditCost:
+            null,
+
+        discountPercent,
+
+        creditFinal:
+            null,
+
+        credit480p,
+
+        credit720p,
+
+        credit1080p,
+
+        creditFinal480p,
+
+        creditFinal720p,
+
+        creditFinal1080p
+
+    };
+
+}
+
+
+/* =========================================================
+   GET MODEL CREDIT FOR RESOLUTION
+========================================================= */
+
+function getModelCreditForResolution(
+    model,
+    resolution
+) {
+
+    const normalizedResolution =
+        normalizeResolution(
+            resolution
+        );
+
+
+    if (
+        !normalizedResolution
+    ) {
+
+        return {
+
+            resolution:
+                "",
+
+            baseCredit:
+                null,
+
+            discountPercent:
+                getDiscountPercent(
+                    model
+                ),
+
+            creditFinal:
+                null
+
+        };
+
+    }
+
+
+    const baseCredit =
+        getResolutionCreditValue(
+            model,
+            normalizedResolution,
+            "base"
+        );
+
+
+    const explicitFinal =
+        getResolutionCreditValue(
+            model,
+            normalizedResolution,
+            "final"
+        );
+
+
+    const discountPercent =
+        getDiscountPercent(
+            model
+        );
+
+
+    const creditFinal =
+
+        explicitFinal !== null
+
+            ? explicitFinal
+
+            : calculateDiscountedCredit(
+                baseCredit,
+                discountPercent
+            );
+
+
+    return {
+
+        resolution:
+            normalizedResolution,
+
+        baseCredit,
+
+        discountPercent,
+
+        creditFinal
+
+    };
+
+}
+
+
+/* =========================================================
+   BUILD NORMALIZED CREDIT
+========================================================= */
+
+function buildNormalizedCredit(
+    model
+) {
+
+    const credit =
+        getModelCredit(
+            model
+        );
+
+
+    return {
+
+        /*
+         * Base credit.
+         */
+
+        credit_480p:
+            credit.credit480p,
+
+        credit_720p:
+            credit.credit720p,
+
+        credit_1080p:
+            credit.credit1080p,
+
+
+        /*
+         * Final credit.
+         */
+
+        credit_final_480p:
+            credit.creditFinal480p,
+
+        credit_final_720p:
+            credit.creditFinal720p,
+
+        credit_final_1080p:
+            credit.creditFinal1080p,
+
+
+        /*
+         * Camel-case compatibility.
+         */
+
+        creditFinal480p:
+            credit.creditFinal480p,
+
+        creditFinal720p:
+            credit.creditFinal720p,
+
+        creditFinal1080p:
+            credit.creditFinal1080p,
+
+
+        /*
+         * Discount.
+         */
+
+        discount_percent:
+            credit.discountPercent,
+
+        discountPercent:
+            credit.discountPercent
+
+    };
+
+}
+
+
+/* =========================================================
    STORAGE
 ========================================================= */
 
@@ -217,7 +1103,9 @@ function saveSelectedModelId(
 ) {
 
     const normalized =
-        safeString(modelId);
+        safeString(
+            modelId
+        );
 
 
     if (!normalized) {
@@ -515,15 +1403,6 @@ function hasAdapter(
 
 /* =========================================================
    NORMALIZE PARAMETER COLLECTION
-   ---------------------------------------------------------
-   Parameter dapat berasal dari:
-   - parameters
-   - parameters.parameters
-   - config.parameters
-   - repository.parameters
-   - model.parameters
-   - parameter_schema
-   - parameterSchema
 ========================================================= */
 
 function normalizeParameterCollection(
@@ -694,8 +1573,6 @@ function normalizeParameterCollection(
 
 /* =========================================================
    EXTRACT MODEL PARAMETERS
-   ---------------------------------------------------------
-   INI FIX UTAMA.
 ========================================================= */
 
 function extractModelParameters(
@@ -958,174 +1835,6 @@ function isExecutableModel(
 
 
 /* =========================================================
-   MODEL CREDIT
-   ---------------------------------------------------------
-   BUKAN CREDIT AKUN.
-========================================================= */
-
-function getModelCredit(
-    model
-) {
-
-    if (
-        !model ||
-        typeof model !==
-        "object"
-    ) {
-
-        return {
-
-            creditCost:
-                null,
-
-            discountPercent:
-                0,
-
-            creditFinal:
-                null
-
-        };
-
-    }
-
-
-    const pricing =
-        model.pricing &&
-        typeof model.pricing ===
-        "object"
-
-            ? model.pricing
-
-            : {};
-
-
-    const creditFinalValues = [
-
-        pricing.credit_final,
-
-        model.credit_final,
-
-        pricing.creditFinal,
-
-        model.creditFinal
-
-    ];
-
-
-    let creditFinal =
-        null;
-
-
-    for (
-        const value
-        of creditFinalValues
-    ) {
-
-        const number =
-            safeNumber(value);
-
-
-        if (
-            number !== null
-        ) {
-
-            creditFinal =
-                number;
-
-            break;
-
-        }
-
-    }
-
-
-    const creditCostValues = [
-
-        pricing.credit_cost,
-
-        model.credit_cost,
-
-        pricing.creditCost,
-
-        model.creditCost
-
-    ];
-
-
-    let creditCost =
-        null;
-
-
-    for (
-        const value
-        of creditCostValues
-    ) {
-
-        const number =
-            safeNumber(value);
-
-
-        if (
-            number !== null
-        ) {
-
-            creditCost =
-                number;
-
-            break;
-
-        }
-
-    }
-
-
-    const discountPercent =
-        safeNumber(
-
-            pricing.discount_percent ??
-
-            model.discount_percent ??
-
-            pricing.discountPercent ??
-
-            model.discountPercent,
-
-            0
-
-        );
-
-
-    /*
-     * Compatibility.
-     *
-     * Kalau backend belum mengirim credit_final,
-     * credit_cost tetap dapat dipakai.
-     */
-    if (
-        creditFinal === null &&
-        creditCost !== null
-    ) {
-
-        creditFinal =
-            creditCost;
-
-    }
-
-
-    return {
-
-        creditCost,
-
-        discountPercent,
-
-        creditFinal
-
-    };
-
-}
-
-
-/* =========================================================
    NORMALIZE MODEL
 ========================================================= */
 
@@ -1220,6 +1929,7 @@ function normalizeModel(
      * Selalu tulis parameters hasil ekstraksi
      * ke root model.
      */
+
     normalized.parameters =
         parameters;
 
@@ -1227,6 +1937,7 @@ function normalizeModel(
     /*
      * Compatibility schema.
      */
+
     normalized.parameter_schema =
         parameters;
 
@@ -1238,6 +1949,7 @@ function normalizeModel(
     /*
      * Provider status.
      */
+
     if (
         !normalized.provider_status
     ) {
@@ -1249,10 +1961,19 @@ function normalizeModel(
 
 
     /*
-     * Credit.
+     * =====================================================
+     * CREDIT PER RESOLUTION
+     * =====================================================
      */
+
     const credit =
         getModelCredit(
+            model
+        );
+
+
+    const normalizedCredit =
+        buildNormalizedCredit(
             model
         );
 
@@ -1267,37 +1988,102 @@ function normalizeModel(
             : {};
 
 
-    normalized.pricing = {
+    /*
+     * Jangan mempertahankan credit_final
+     * global lama seperti 50 sebagai sumber
+     * harga Generate.
+     */
 
-        ...existingPricing,
-
-        credit_cost:
-            credit.creditCost,
-
-        discount_percent:
-            credit.discountPercent,
+    const {
 
         credit_final:
-            credit.creditFinal
+            ignoredGlobalCreditFinal,
+
+        creditFinal:
+            ignoredGlobalCreditFinalCamel,
+
+        credit_cost:
+            ignoredGlobalCreditCost,
+
+        creditCost:
+            ignoredGlobalCreditCostCamel,
+
+        ...pricingWithoutGlobalLegacy
+
+    } = existingPricing;
+
+
+    normalized.pricing = {
+
+        ...pricingWithoutGlobalLegacy,
+
+        ...normalizedCredit
 
     };
 
 
-    normalized.credit_cost =
-        credit.creditCost;
+    /*
+     * Root per-resolution credit.
+     */
+
+    normalized.credit_480p =
+        credit.credit480p;
+
+    normalized.credit_720p =
+        credit.credit720p;
+
+    normalized.credit_1080p =
+        credit.credit1080p;
+
+
+    normalized.credit_final_480p =
+        credit.creditFinal480p;
+
+    normalized.credit_final_720p =
+        credit.creditFinal720p;
+
+    normalized.credit_final_1080p =
+        credit.creditFinal1080p;
+
+
+    /*
+     * Camel-case compatibility.
+     */
+
+    normalized.creditFinal480p =
+        credit.creditFinal480p;
+
+    normalized.creditFinal720p =
+        credit.creditFinal720p;
+
+    normalized.creditFinal1080p =
+        credit.creditFinal1080p;
 
 
     normalized.discount_percent =
         credit.discountPercent;
 
 
-    normalized.credit_final =
-        credit.creditFinal;
+    normalized.discountPercent =
+        credit.discountPercent;
+
+
+    /*
+     * Hapus harga global legacy dari root
+     * agar module Generate berikutnya tidak
+     * tanpa sengaja memakai angka 50.
+     */
+
+    delete normalized.credit_final;
+    delete normalized.creditFinal;
+    delete normalized.credit_cost;
+    delete normalized.creditCost;
 
 
     /*
      * Compatibility identity.
      */
+
     normalized.model_id =
         safeString(
             normalized.model_id
@@ -1334,8 +2120,26 @@ function normalizeModel(
             adapter_available:
                 normalized.adapter_available,
 
-            credit_final:
-                normalized.credit_final,
+            credit_480p:
+                normalized.credit_480p,
+
+            credit_720p:
+                normalized.credit_720p,
+
+            credit_1080p:
+                normalized.credit_1080p,
+
+            credit_final_480p:
+                normalized.credit_final_480p,
+
+            credit_final_720p:
+                normalized.credit_final_720p,
+
+            credit_final_1080p:
+                normalized.credit_final_1080p,
+
+            discount_percent:
+                normalized.discount_percent,
 
             parameter_count:
                 Object.keys(
@@ -1412,6 +2216,7 @@ function mergeModelConfiguration(
     /*
      * PARAMETER DETAIL.
      */
+
     const detailParameters =
         extractModelParameters(
             detailModel
@@ -1441,6 +2246,7 @@ function mergeModelConfiguration(
     /*
      * Parameter schema.
      */
+
     merged.parameter_schema =
         finalParameters;
 
@@ -1452,6 +2258,7 @@ function mergeModelConfiguration(
     /*
      * Nested config compatibility.
      */
+
     if (
         !merged.config &&
         listModel.config
@@ -1484,6 +2291,7 @@ function mergeModelConfiguration(
     /*
      * Repository compatibility.
      */
+
     if (
         merged.repository &&
         typeof merged.repository ===
@@ -1503,8 +2311,20 @@ function mergeModelConfiguration(
 
 
     /*
-     * Credit.
+     * =====================================================
+     * CREDIT
+     * =====================================================
+     *
+     * Jangan lagi melakukan:
+     *
+     * merged.credit_final =
+     *     detailCredit.creditFinal;
+     *
+     * karena creditFinal global dapat berisi 50.
+     *
+     * Harga Generate harus per resolution.
      */
+
     const detailCredit =
         getModelCredit(
             detailModel
@@ -1517,45 +2337,183 @@ function mergeModelConfiguration(
         );
 
 
-    merged.credit_final =
+    const chooseValue =
+        (
+            detailValue,
+            listValue
+        ) => (
 
-        detailCredit.creditFinal !== null
+            detailValue !== null &&
+            detailValue !== undefined
 
-            ? detailCredit.creditFinal
+                ? detailValue
 
-            : listCredit.creditFinal;
+                : listValue
+
+        );
 
 
-    merged.credit_cost =
+    merged.credit_480p =
+        chooseValue(
+            detailCredit.credit480p,
+            listCredit.credit480p
+        );
 
-        detailCredit.creditCost !== null
 
-            ? detailCredit.creditCost
+    merged.credit_720p =
+        chooseValue(
+            detailCredit.credit720p,
+            listCredit.credit720p
+        );
 
-            : listCredit.creditCost;
+
+    merged.credit_1080p =
+        chooseValue(
+            detailCredit.credit1080p,
+            listCredit.credit1080p
+        );
+
+
+    merged.credit_final_480p =
+        chooseValue(
+            detailCredit.creditFinal480p,
+            listCredit.creditFinal480p
+        );
+
+
+    merged.credit_final_720p =
+        chooseValue(
+            detailCredit.creditFinal720p,
+            listCredit.creditFinal720p
+        );
+
+
+    merged.credit_final_1080p =
+        chooseValue(
+            detailCredit.creditFinal1080p,
+            listCredit.creditFinal1080p
+        );
 
 
     merged.discount_percent =
+        chooseValue(
+            detailCredit.discountPercent,
+            listCredit.discountPercent
+        );
 
-        detailCredit.discountPercent ??
-        listCredit.discountPercent ??
-        0;
+
+    if (
+        merged.discount_percent ===
+        null ||
+        merged.discount_percent ===
+        undefined
+    ) {
+
+        merged.discount_percent =
+            0;
+
+    }
+
+
+    /*
+     * Jangan bawa legacy global credit
+     * ke normalized model.
+     */
+
+    delete merged.credit_final;
+    delete merged.creditFinal;
+    delete merged.credit_cost;
+    delete merged.creditCost;
+
+
+    /*
+     * Pricing per resolution.
+     */
+
+    const listPricing =
+        listModel.pricing &&
+        typeof listModel.pricing ===
+        "object"
+
+            ? listModel.pricing
+
+            : {};
+
+
+    const detailPricing =
+        detailModel.pricing &&
+        typeof detailModel.pricing ===
+        "object"
+
+            ? detailModel.pricing
+
+            : {};
+
+
+    const {
+
+        credit_final:
+            ignoredListGlobalCreditFinal,
+
+        creditFinal:
+            ignoredListGlobalCreditFinalCamel,
+
+        credit_cost:
+            ignoredListGlobalCreditCost,
+
+        creditCost:
+            ignoredListGlobalCreditCostCamel,
+
+        ...safeListPricing
+
+    } = listPricing;
+
+
+    const {
+
+        credit_final:
+            ignoredDetailGlobalCreditFinal,
+
+        creditFinal:
+            ignoredDetailGlobalCreditFinalCamel,
+
+        credit_cost:
+            ignoredDetailGlobalCreditCost,
+
+        creditCost:
+            ignoredDetailGlobalCreditCostCamel,
+
+        ...safeDetailPricing
+
+    } = detailPricing;
 
 
     merged.pricing = {
 
-        ...(listModel.pricing || {}),
+        ...safeListPricing,
 
-        ...(detailModel.pricing || {}),
+        ...safeDetailPricing,
 
-        credit_cost:
-            merged.credit_cost,
+        credit_480p:
+            merged.credit_480p,
+
+        credit_720p:
+            merged.credit_720p,
+
+        credit_1080p:
+            merged.credit_1080p,
+
+        credit_final_480p:
+            merged.credit_final_480p,
+
+        credit_final_720p:
+            merged.credit_final_720p,
+
+        credit_final_1080p:
+            merged.credit_final_1080p,
 
         discount_percent:
-            merged.discount_percent,
-
-        credit_final:
-            merged.credit_final
+            merged.discount_percent
 
     };
 
@@ -1895,7 +2853,29 @@ export async function loadAvailableModels() {
                 credit:
                     getModelCredit(
                         model
-                    )
+                    ),
+
+                creditByResolution: {
+
+                    "480p":
+                        getModelCreditForResolution(
+                            model,
+                            "480p"
+                        ),
+
+                    "720p":
+                        getModelCreditForResolution(
+                            model,
+                            "720p"
+                        ),
+
+                    "1080p":
+                        getModelCreditForResolution(
+                            model,
+                            "1080p"
+                        )
+
+                }
 
             })
         )
@@ -2078,32 +3058,104 @@ export function renderModelSelector(
                 );
 
 
+            /*
+             * =================================================
+             * CREDIT PER RESOLUTION
+             * =================================================
+             */
+
             const credit =
                 getModelCredit(
                     model
                 );
 
 
-            option.dataset.creditCost =
+            option.dataset.credit480p =
 
-                credit.creditCost !== null
+                credit.credit480p !== null
 
                     ? String(
-                        credit.creditCost
+                        credit.credit480p
                     )
 
                     : "";
+
+
+            option.dataset.credit720p =
+
+                credit.credit720p !== null
+
+                    ? String(
+                        credit.credit720p
+                    )
+
+                    : "";
+
+
+            option.dataset.credit1080p =
+
+                credit.credit1080p !== null
+
+                    ? String(
+                        credit.credit1080p
+                    )
+
+                    : "";
+
+
+            option.dataset.creditFinal480p =
+
+                credit.creditFinal480p !== null
+
+                    ? String(
+                        credit.creditFinal480p
+                    )
+
+                    : "";
+
+
+            option.dataset.creditFinal720p =
+
+                credit.creditFinal720p !== null
+
+                    ? String(
+                        credit.creditFinal720p
+                    )
+
+                    : "";
+
+
+            option.dataset.creditFinal1080p =
+
+                credit.creditFinal1080p !== null
+
+                    ? String(
+                        credit.creditFinal1080p
+                    )
+
+                    : "";
+
+
+            option.dataset.discountPercent =
+
+                String(
+                    credit.discountPercent
+                );
+
+
+            /*
+             * Legacy dataset tetap dikosongkan.
+             *
+             * Jangan sampai module lama mengambil
+             * angka global 50.
+             */
+
+            option.dataset.creditCost =
+                "";
 
 
             option.dataset.creditFinal =
-
-                credit.creditFinal !== null
-
-                    ? String(
-                        credit.creditFinal
-                    )
-
-                    : "";
+                "";
 
 
             option.dataset.executable =
@@ -2248,7 +3300,25 @@ export function renderModelSelector(
                         executable:
                             isExecutableModel(
                                 model
-                            )
+                            ),
+
+                        credit_480p:
+                            model.credit_480p,
+
+                        credit_720p:
+                            model.credit_720p,
+
+                        credit_1080p:
+                            model.credit_1080p,
+
+                        credit_final_480p:
+                            model.credit_final_480p,
+
+                        credit_final_720p:
+                            model.credit_final_720p,
+
+                        credit_final_1080p:
+                            model.credit_final_1080p
 
                     })
                 )
@@ -2301,12 +3371,6 @@ export function findModel(
 
 /* =========================================================
    LOAD MODEL CONFIG
-   ---------------------------------------------------------
-   FIX UTAMA:
-
-   MODEL DETAIL SELALU DIMINTA DARI API.
-
-   Tidak lagi langsung percaya kepada list model.
 ========================================================= */
 
 export async function loadModelConfig(
@@ -2344,12 +3408,8 @@ export async function loadModelConfig(
      * =====================================================
      * REQUEST DETAIL MODEL
      * =====================================================
-     *
-     * Ini sengaja selalu dilakukan.
-     *
-     * Tujuannya:
-     * memastikan parameter lengkap.
      */
+
     const params =
         new URLSearchParams();
 
@@ -2396,6 +3456,7 @@ export async function loadModelConfig(
          * mengembalikan detail tetapi list
          * memiliki model tersebut.
          */
+
         if (
             availableModel
         ) {
@@ -2499,9 +3560,6 @@ export async function loadModelConfig(
      * =====================================================
      * PAKSA PARAMETERS
      * =====================================================
-     *
-     * Jangan sampai parameter hilang
-     * setelah merge.
      */
 
     const parameters =
@@ -2524,9 +3582,15 @@ export async function loadModelConfig(
 
     /*
      * =====================================================
-     * DEBUG FINAL
+     * FINAL CREDIT VERIFICATION
      * =====================================================
      */
+
+    const finalCredit =
+        getModelCredit(
+            model
+        );
+
 
     console.log(
         "[GEN-Z.AI][Generate Model] DETAIL MODEL READY:",
@@ -2554,10 +3618,30 @@ export async function loadModelConfig(
             parameters:
                 model.parameters,
 
-            credit:
-                getModelCredit(
-                    model
-                )
+            credit: {
+
+                "480p":
+                    getModelCreditForResolution(
+                        model,
+                        "480p"
+                    ),
+
+                "720p":
+                    getModelCreditForResolution(
+                        model,
+                        "720p"
+                    ),
+
+                "1080p":
+                    getModelCreditForResolution(
+                        model,
+                        "1080p"
+                    )
+
+            },
+
+            normalizedCredit:
+                finalCredit
 
         }
     );
@@ -2701,6 +3785,7 @@ export async function selectModel(
      * Selalu lewat loadModelConfig()
      * supaya parameter detail diambil.
      */
+
     return loadModelConfig(
         normalizedId
     );
@@ -3034,6 +4119,48 @@ export function getModel() {
 
 
 /* =========================================================
+   MODEL CREDIT PUBLIC
+========================================================= */
+
+export function getModelCreditInfo(
+    model = null
+) {
+
+    const targetModel =
+        model ||
+        getCurrentModel();
+
+
+    return getModelCredit(
+        targetModel
+    );
+
+}
+
+
+/* =========================================================
+   MODEL CREDIT BY RESOLUTION PUBLIC
+========================================================= */
+
+export function getModelCreditForSelectedResolution(
+    resolution,
+    model = null
+) {
+
+    const targetModel =
+        model ||
+        getCurrentModel();
+
+
+    return getModelCreditForResolution(
+        targetModel,
+        resolution
+    );
+
+}
+
+
+/* =========================================================
    MODEL READY
 ========================================================= */
 
@@ -3080,6 +4207,10 @@ export const generateModel =
         refreshModels,
 
         getModel,
+
+        getModelCreditInfo,
+
+        getModelCreditForSelectedResolution,
 
         isModelReady
 
