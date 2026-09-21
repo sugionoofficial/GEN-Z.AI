@@ -28,12 +28,15 @@
    SOURCE OF TRUTH:
    - Model: models-data.js / tabel models
    - Provider: Provider module / tabel providers
+   - Pricing: Models Price module / Generate runtime
 
-   Catatan:
+   CATATAN:
    - Modul ini hanya orchestrator.
    - Tidak membuat model/provider palsu.
    - Tidak melakukan query Supabase langsung.
-   - Tidak menganggap fungsi async sebagai object synchronous.
+   - Tidak menghitung credit.
+   - Tidak membaca credit_cost.
+   - Tidak membaca credit_final.
    ========================================================= */
 
 (function () {
@@ -815,7 +818,7 @@
 
     /* =====================================================
        PROVIDER LOOKUP
-       ===================================================== */
+    ===================================================== */
 
     function findProviderById(
         providerId
@@ -835,14 +838,11 @@
 
 
         /*
-         * IMPORTANT:
-         *
          * Hanya cari dari state yang sudah
          * dimuat secara synchronous.
          *
-         * Jangan memanggil getProviderById()
-         * async lalu mengembalikan Promise
-         * dari fungsi yang namanya lookup.
+         * Jangan memanggil fungsi async
+         * lalu mengembalikan Promise.
          */
 
         const found =
@@ -1390,6 +1390,17 @@
 
     /* =====================================================
        PRICE DISPLAY
+       -----------------------------------------------------
+       Modul ini TIDAK menghitung harga.
+
+       Pricing harus berasal dari Models Price module
+       atau runtime Generate.
+
+       Legacy:
+         credit_cost
+         credit_final
+
+       tidak digunakan sebagai fallback.
     ===================================================== */
 
     function renderModelPrice(
@@ -1407,6 +1418,11 @@
         const price =
             getPrice();
 
+
+        /*
+         * Models UI hanya mendelegasikan
+         * rendering kepada pricing module.
+         */
 
         if (
             price &&
@@ -1435,35 +1451,32 @@
         }
 
 
+        /*
+         * Tidak ada fallback credit di sini.
+         *
+         * Jangan membaca:
+         *   model.credit_cost
+         *   model.credit_final
+         *
+         * Jika pricing module tidak tersedia,
+         * UI tidak boleh mengarang nilai harga.
+         */
+
         const element =
             getElement(
                 target
             );
 
 
-        if (!element) {
+        if (element) {
 
-            return null;
+            element.textContent =
+                "";
 
         }
 
 
-        /*
-         * Fallback hanya untuk tampilan.
-         * Tidak melakukan calculation.
-         */
-
-        const value =
-            model.credit_final ??
-            model.credit_cost ??
-            0;
-
-
-        element.textContent =
-            String(value);
-
-
-        return value;
+        return null;
 
     }
 
