@@ -200,12 +200,6 @@ function safeNumber(
     }
 
 
-    /*
-     * Jangan menerima object,
-     * array atau string kosong
-     * sebagai angka.
-     */
-
     if (
         typeof value === "object"
     ) {
@@ -277,8 +271,6 @@ function normalizeResolution(
 
 /* =========================================================
    DISCOUNT CALCULATION
-   ---------------------------------------------------------
-   INI HARUS SAMA DENGAN models-edit.html
 ========================================================= */
 
 function calculateDiscountedCredit(
@@ -368,11 +360,6 @@ function getCreditSourceObjects(
                 !Array.isArray(source)
             ) {
 
-                /*
-                 * Hindari object yang sama
-                 * dimasukkan berkali-kali.
-                 */
-
                 if (
                     !sources.includes(
                         source
@@ -391,12 +378,7 @@ function getCreditSourceObjects(
 
 
     /*
-     * ROOT MODEL HARUS MENJADI
-     * SUMBER UTAMA.
-     *
-     * Ini penting karena /api/model-config
-     * dapat mengembalikan credit langsung
-     * pada object model.
+     * ROOT MODEL
      */
 
     addSource(
@@ -404,13 +386,45 @@ function getCreditSourceObjects(
     );
 
 
+    /*
+     * CREDIT OBJECT
+     *
+     * Beberapa response backend dapat
+     * menyimpan pricing/credit dalam:
+     *
+     * model.credit
+     */
+
+    addSource(
+        model.credit
+    );
+
+
+    addSource(
+        model.credit?.pricing
+    );
+
+
+    /*
+     * PRICING
+     */
+
     addSource(
         model.pricing
     );
 
 
+    /*
+     * CONFIG
+     */
+
     addSource(
         model.config
+    );
+
+
+    addSource(
+        model.config?.credit
     );
 
 
@@ -420,7 +434,21 @@ function getCreditSourceObjects(
 
 
     addSource(
+        model.config?.credit?.pricing
+    );
+
+
+    /*
+     * REPOSITORY
+     */
+
+    addSource(
         model.repository
+    );
+
+
+    addSource(
+        model.repository?.credit
     );
 
 
@@ -430,12 +458,31 @@ function getCreditSourceObjects(
 
 
     addSource(
+        model.repository?.credit?.pricing
+    );
+
+
+    /*
+     * NESTED MODEL
+     */
+
+    addSource(
         model.model
     );
 
 
     addSource(
+        model.model?.credit
+    );
+
+
+    addSource(
         model.model?.pricing
+    );
+
+
+    addSource(
+        model.model?.credit?.pricing
     );
 
 
@@ -446,11 +493,6 @@ function getCreditSourceObjects(
 
 /* =========================================================
    GET BASE RESOLUTION CREDIT
-   ---------------------------------------------------------
-   PENTING:
-   Fungsi ini HANYA mencari BASE CREDIT.
-
-   Tidak pernah mengambil credit_final_*.
 ========================================================= */
 
 function getResolutionBaseCredit(
@@ -479,10 +521,6 @@ function getResolutionBaseCredit(
         );
 
 
-    const suffix =
-        normalizedResolution;
-
-
     const compactSuffix =
         normalizedResolution.replace(
             "p",
@@ -492,17 +530,17 @@ function getResolutionBaseCredit(
 
     const propertyCandidates = [
 
-        `credit_${suffix}`,
+        `credit_${normalizedResolution}`,
 
-        `credit${suffix}`,
+        `credit${normalizedResolution}`,
 
         `credit_${compactSuffix}`,
 
         `credit${compactSuffix}`,
 
-        `base_credit_${suffix}`,
+        `base_credit_${normalizedResolution}`,
 
-        `baseCredit_${suffix}`,
+        `baseCredit_${normalizedResolution}`,
 
         `base_credit_${compactSuffix}`,
 
@@ -547,15 +585,6 @@ function getResolutionBaseCredit(
         /*
          * =================================================
          * resolutions
-         *
-         * {
-         *   "480p": {
-         *      credit: 9
-         *   }
-         * }
-         *
-         * credit di sini dianggap BASE,
-         * bukan final.
          * =================================================
          */
 
@@ -627,6 +656,10 @@ function getResolutionBaseCredit(
 
 /* =========================================================
    GET DISCOUNT PERCENT
+   ---------------------------------------------------------
+   PENTING:
+   - null = discount tidak ditemukan
+   - 0    = discount memang ada dan bernilai 0
 ========================================================= */
 
 function getDiscountPercent(
@@ -644,58 +677,149 @@ function getDiscountPercent(
         of sources
     ) {
 
-        const value =
+        /*
+         * Jangan menggunakan || karena
+         * nilai 0 adalah nilai valid.
+         */
 
-            source.discount_percent ??
+        if (
+            Object.prototype.hasOwnProperty.call(
+                source,
+                "discount_percent"
+            )
+        ) {
 
-            source.discountPercent;
+            const number =
+                safeNumber(
+                    source.discount_percent
+                );
 
 
-        const number =
-            safeNumber(
-                value
-            );
+            if (
+                number !== null
+            ) {
+
+                return Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        number
+                    )
+                );
+
+            }
+
+        }
 
 
         if (
-            number !== null
+            Object.prototype.hasOwnProperty.call(
+                source,
+                "discountPercent"
+            )
         ) {
 
-            /*
-             * Sama seperti models-edit:
-             * discount dibatasi 0-100.
-             */
+            const number =
+                safeNumber(
+                    source.discountPercent
+                );
 
-            return Math.max(
-                0,
-                Math.min(
-                    100,
-                    number
-                )
-            );
+
+            if (
+                number !== null
+            ) {
+
+                return Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        number
+                    )
+                );
+
+            }
 
         }
 
     }
 
 
-    return 0;
+    /*
+     * PENTING:
+     *
+     * Jangan return 0 di sini.
+     *
+     * null berarti:
+     * "data discount tidak tersedia
+     * pada object ini."
+     *
+     * Ini memungkinkan merge memilih
+     * discount dari model list.
+     */
+
+    return null;
+
+}
+
+
+/* =========================================================
+   GET EFFECTIVE DISCOUNT
+========================================================= */
+
+function getEffectiveDiscountPercent(
+    model,
+    fallback = 0
+) {
+
+    const discount =
+        getDiscountPercent(
+            model
+        );
+
+
+    if (
+        discount !== null
+    ) {
+
+        return discount;
+
+    }
+
+
+    const fallbackNumber =
+        safeNumber(
+            fallback
+        );
+
+
+    if (
+        fallbackNumber === null
+    ) {
+
+        return 0;
+
+    }
+
+
+    return Math.max(
+        0,
+        Math.min(
+            100,
+            fallbackNumber
+        )
+    );
 
 }
 
 
 /* =========================================================
    GET RESOLUTION CREDIT
-   ---------------------------------------------------------
-   SUMBER FINAL:
-   BASE CREDIT + DISCOUNT
-
-   JANGAN mengambil credit_final_* dari backend.
 ========================================================= */
 
 function getResolutionCredit(
     model,
-    resolution
+    resolution,
+    fallbackDiscount = 0
 ) {
 
     const normalizedResolution =
@@ -713,13 +837,6 @@ function getResolutionCredit(
     }
 
 
-    /*
-     * 1. Ambil BASE CREDIT.
-     *
-     * Contoh:
-     * credit_480p = 9
-     */
-
     const baseCredit =
         getResolutionBaseCredit(
             model,
@@ -736,25 +853,12 @@ function getResolutionCredit(
     }
 
 
-    /*
-     * 2. Ambil DISCOUNT.
-     *
-     * Contoh:
-     * discount_percent = 10
-     */
-
     const discountPercent =
-        getDiscountPercent(
-            model
+        getEffectiveDiscountPercent(
+            model,
+            fallbackDiscount
         );
 
-
-    /*
-     * 3. Hitung FINAL CREDIT.
-     *
-     * 9 - (9 * 10 / 100)
-     * = 8.1
-     */
 
     const finalCredit =
         calculateDiscountedCredit(
@@ -766,6 +870,11 @@ function getResolutionCredit(
     console.debug(
         "[GEN-Z.AI][Generate Model] CREDIT CALCULATION:",
         {
+
+            modelId:
+                getModelId(
+                    model
+                ),
 
             resolution:
                 normalizedResolution,
@@ -805,7 +914,7 @@ function getModelCredit(
                 null,
 
             discountPercent:
-                0,
+                null,
 
             creditFinal:
                 null,
@@ -839,6 +948,12 @@ function getModelCredit(
         );
 
 
+    const effectiveDiscount =
+        discountPercent !== null
+            ? discountPercent
+            : 0;
+
+
     const credit480p =
         getResolutionBaseCredit(
             model,
@@ -860,30 +975,24 @@ function getModelCredit(
         );
 
 
-    /*
-     * FINAL CREDIT SELALU
-     * DIHITUNG ULANG DARI BASE
-     * + DISCOUNT.
-     */
-
     const creditFinal480p =
         calculateDiscountedCredit(
             credit480p,
-            discountPercent
+            effectiveDiscount
         );
 
 
     const creditFinal720p =
         calculateDiscountedCredit(
             credit720p,
-            discountPercent
+            effectiveDiscount
         );
 
 
     const creditFinal1080p =
         calculateDiscountedCredit(
             credit1080p,
-            discountPercent
+            effectiveDiscount
         );
 
 
@@ -892,9 +1001,7 @@ function getModelCredit(
         /*
          * Legacy compatibility.
          *
-         * Sengaja null.
-         * Harga Generate tidak boleh
-         * mengambil credit global.
+         * Global credit tidak digunakan.
          */
 
         creditCost:
@@ -912,8 +1019,7 @@ function getModelCredit(
         credit1080p,
 
         /*
-         * Field ini adalah HASIL HITUNG,
-         * bukan sumber database.
+         * Derived values.
          */
 
         creditFinal480p,
@@ -948,6 +1054,12 @@ function getModelCreditForResolution(
         );
 
 
+    const effectiveDiscount =
+        discountPercent !== null
+            ? discountPercent
+            : 0;
+
+
     if (
         !normalizedResolution
     ) {
@@ -970,10 +1082,6 @@ function getModelCreditForResolution(
     }
 
 
-    /*
-     * Ambil BASE CREDIT saja.
-     */
-
     const baseCredit =
         getResolutionBaseCredit(
             model,
@@ -981,23 +1089,10 @@ function getModelCreditForResolution(
         );
 
 
-    /*
-     * FINAL selalu dihitung ulang.
-     *
-     * Tidak peduli backend mengirim:
-     *
-     * credit_final_480p
-     * creditFinal480p
-     * resolutions.480p.credit_final
-     *
-     * Field-field tersebut tidak menjadi
-     * sumber harga Generate.
-     */
-
     const creditFinal =
         calculateDiscountedCredit(
             baseCredit,
-            discountPercent
+            effectiveDiscount
         );
 
 
@@ -1031,6 +1126,12 @@ function buildNormalizedCredit(
         );
 
 
+    const effectiveDiscount =
+        credit.discountPercent !== null
+            ? credit.discountPercent
+            : 0;
+
+
     return {
 
         /*
@@ -1048,10 +1149,7 @@ function buildNormalizedCredit(
 
 
         /*
-         * FINAL CREDIT
-         *
-         * Derived value.
-         * BUKAN source of truth.
+         * DERIVED FINAL CREDIT
          */
 
         credit_final_480p:
@@ -1083,10 +1181,10 @@ function buildNormalizedCredit(
          */
 
         discount_percent:
-            credit.discountPercent,
+            effectiveDiscount,
 
         discountPercent:
-            credit.discountPercent
+            effectiveDiscount
 
     };
 
@@ -1130,7 +1228,9 @@ function saveSelectedModelId(
         );
 
 
-    if (!normalized) {
+    if (
+        !normalized
+    ) {
 
         return;
 
@@ -1192,7 +1292,9 @@ function getModelId(
     model
 ) {
 
-    if (!model) {
+    if (
+        !model
+    ) {
 
         return "";
 
@@ -1224,7 +1326,9 @@ function getModelName(
     model
 ) {
 
-    if (!model) {
+    if (
+        !model
+    ) {
 
         return "Model";
 
@@ -1289,7 +1393,9 @@ function getProviderId(
 ) {
 
     const provider =
-        getProviderObject(model);
+        getProviderObject(
+            model
+        );
 
 
     return safeString(
@@ -1318,7 +1424,9 @@ function getProviderName(
 ) {
 
     const provider =
-        getProviderObject(model);
+        getProviderObject(
+            model
+        );
 
 
     return safeString(
@@ -1351,7 +1459,9 @@ function getProviderStatus(
 ) {
 
     const provider =
-        getProviderObject(model);
+        getProviderObject(
+            model
+        );
 
 
     return safeString(
@@ -1473,7 +1583,9 @@ function normalizeParameterCollection(
                     );
 
 
-                if (!name) {
+                if (
+                    !name
+                ) {
 
                     return;
 
@@ -1702,10 +1814,14 @@ function isVisibleModel(
 
 
     const modelId =
-        getModelId(model);
+        getModelId(
+            model
+        );
 
 
-    if (!modelId) {
+    if (
+        !modelId
+    ) {
 
         return false;
 
@@ -1713,7 +1829,9 @@ function isVisibleModel(
 
 
     const status =
-        getModelStatus(model);
+        getModelStatus(
+            model
+        );
 
 
     const hiddenStatuses = [
@@ -1738,7 +1856,9 @@ function isVisibleModel(
 
 
     const providerStatus =
-        getProviderStatus(model);
+        getProviderStatus(
+            model
+        );
 
 
     const hiddenProviderStatuses = [
@@ -1777,7 +1897,9 @@ function isExecutableModel(
 ) {
 
     if (
-        !isVisibleModel(model)
+        !isVisibleModel(
+            model
+        )
     ) {
 
         return false;
@@ -1786,10 +1908,14 @@ function isExecutableModel(
 
 
     const modelId =
-        getModelId(model);
+        getModelId(
+            model
+        );
 
 
-    if (!modelId) {
+    if (
+        !modelId
+    ) {
 
         return false;
 
@@ -1818,7 +1944,9 @@ function isExecutableModel(
 
 
     const providerStatus =
-        getProviderStatus(model);
+        getProviderStatus(
+            model
+        );
 
 
     if (
@@ -1862,19 +1990,27 @@ function normalizeModel(
 
 
     const modelId =
-        getModelId(model);
+        getModelId(
+            model
+        );
 
 
     const modelName =
-        getModelName(model);
+        getModelName(
+            model
+        );
 
 
     const providerId =
-        getProviderId(model);
+        getProviderId(
+            model
+        );
 
 
     const providerName =
-        getProviderName(model);
+        getProviderName(
+            model
+        );
 
 
     const parameters =
@@ -1944,13 +2080,15 @@ function normalizeModel(
     ) {
 
         normalized.provider_status =
-            getProviderStatus(model);
+            getProviderStatus(
+                model
+            );
 
     }
 
 
     /* =====================================================
-       CREDIT PER RESOLUTION
+       CREDIT
     ===================================================== */
 
     const credit =
@@ -1974,10 +2112,6 @@ function normalizeModel(
 
             : {};
 
-
-    /*
-     * Buang SEMUA credit global lama.
-     */
 
     const {
 
@@ -2017,11 +2151,6 @@ function normalizeModel(
         credit.credit1080p;
 
 
-    /*
-     * Field final di bawah ini adalah
-     * DERIVED VALUE dari base + discount.
-     */
-
     normalized.credit_final_480p =
         credit.creditFinal480p;
 
@@ -2042,12 +2171,23 @@ function normalizeModel(
         credit.creditFinal1080p;
 
 
+    /*
+     * Jangan kehilangan informasi bahwa
+     * discount memang tidak tersedia.
+     *
+     * Untuk normalized model kita gunakan
+     * 0 sebagai effective value agar
+     * kalkulasi aman.
+     */
+
     normalized.discount_percent =
-        credit.discountPercent;
+        credit.discountPercent !== null
+            ? credit.discountPercent
+            : 0;
 
 
     normalized.discountPercent =
-        credit.discountPercent;
+        normalized.discount_percent;
 
 
     delete normalized.credit_final;
@@ -2265,10 +2405,7 @@ function mergeModelConfiguration(
 
 
     /* =====================================================
-       CREDIT
-       -----------------------------------------------------
-       BASE CREDIT DAN DISCOUNT SAJA YANG
-       DIANGGAP SOURCE OF TRUTH.
+       CREDIT BASE
     ===================================================== */
 
     const detailCredit =
@@ -2320,41 +2457,38 @@ function mergeModelConfiguration(
         );
 
 
-    /*
-     * DISCOUNT juga dipilih dari
-     * detail terlebih dahulu.
-     */
+    /* =====================================================
+       DISCOUNT
+       -----------------------------------------------------
+       DETAIL hanya menang jika benar-benar
+       memiliki discount_percent.
+    ===================================================== */
 
-    merged.discount_percent =
+    const mergedDiscount =
         chooseValue(
             detailCredit.discountPercent,
             listCredit.discountPercent
         );
 
 
-    if (
-        merged.discount_percent ===
-        null ||
-        merged.discount_percent ===
-        undefined
-    ) {
+    merged.discount_percent =
+        mergedDiscount !== null &&
+        mergedDiscount !== undefined
 
-        merged.discount_percent =
-            0;
+            ? mergedDiscount
 
-    }
+            : 0;
 
 
     merged.discountPercent =
         merged.discount_percent;
 
 
-    /*
-     * JANGAN menggunakan final credit
-     * dari detail/list model.
-     *
-     * Hitung ulang setelah merge.
-     */
+    /* =====================================================
+       FINAL CREDIT
+       -----------------------------------------------------
+       SELALU HITUNG ULANG.
+    ===================================================== */
 
     const mergedCredit480p =
         calculateDiscountedCredit(
@@ -2402,7 +2536,7 @@ function mergeModelConfiguration(
 
 
     /*
-     * Jangan bawa legacy global credit.
+     * Legacy global credit dibuang.
      */
 
     delete merged.credit_final;
@@ -2488,10 +2622,6 @@ function mergeModelConfiguration(
         credit_1080p:
             merged.credit_1080p,
 
-        /*
-         * Derived final values.
-         */
-
         credit_final_480p:
             merged.credit_final_480p,
 
@@ -2519,6 +2649,48 @@ function mergeModelConfiguration(
     };
 
 
+    console.debug(
+        "[GEN-Z.AI][Generate Model] MERGED CREDIT SOURCE:",
+        {
+
+            modelId:
+                getModelId(
+                    merged
+                ),
+
+            base: {
+
+                credit_480p:
+                    merged.credit_480p,
+
+                credit_720p:
+                    merged.credit_720p,
+
+                credit_1080p:
+                    merged.credit_1080p
+
+            },
+
+            discount:
+                merged.discount_percent,
+
+            final: {
+
+                credit_480p:
+                    merged.credit_final_480p,
+
+                credit_720p:
+                    merged.credit_final_720p,
+
+                credit_1080p:
+                    merged.credit_final_1080p
+
+            }
+
+        }
+    );
+
+
     return normalizeModel(
         merged
     );
@@ -2538,7 +2710,9 @@ async function requestModelConfig(
         await getAccessToken();
 
 
-    if (!accessToken) {
+    if (
+        !accessToken
+    ) {
 
         throw new Error(
             "Session tidak ditemukan. Silakan login kembali."
@@ -2974,7 +3148,9 @@ export function renderModelSelector(
                 );
 
 
-            if (!modelId) {
+            if (
+                !modelId
+            ) {
 
                 return;
 
@@ -3029,7 +3205,9 @@ export function renderModelSelector(
 
             option.dataset.parametersAvailable =
 
-                hasParameters(model)
+                hasParameters(
+                    model
+                )
 
                     ? "true"
 
@@ -3053,7 +3231,7 @@ export function renderModelSelector(
 
 
             /*
-             * BASE CREDIT DATASET
+             * BASE CREDIT
              */
 
             option.dataset.credit480p =
@@ -3090,9 +3268,7 @@ export function renderModelSelector(
 
 
             /*
-             * FINAL CREDIT DATASET
-             *
-             * Derived dari base + discount.
+             * FINAL CREDIT
              */
 
             option.dataset.creditFinal480p =
@@ -3131,12 +3307,14 @@ export function renderModelSelector(
             option.dataset.discountPercent =
 
                 String(
-                    credit.discountPercent
+                    credit.discountPercent !== null
+                        ? credit.discountPercent
+                        : 0
                 );
 
 
             /*
-             * Legacy dikosongkan.
+             * Legacy kosong.
              */
 
             option.dataset.creditCost =
@@ -3149,7 +3327,9 @@ export function renderModelSelector(
 
             option.dataset.executable =
 
-                isExecutableModel(model)
+                isExecutableModel(
+                    model
+                )
 
                     ? "true"
 
@@ -3284,7 +3464,9 @@ export function findModel(
         );
 
 
-    if (!normalizedId) {
+    if (
+        !normalizedId
+    ) {
 
         return null;
 
@@ -3318,7 +3500,9 @@ export async function loadModelConfig(
         );
 
 
-    if (!normalizedId) {
+    if (
+        !normalizedId
+    ) {
 
         throw new Error(
             "Model ID tidak ditemukan."
@@ -3490,13 +3674,19 @@ export async function loadModelConfig(
         {
 
             model_id:
-                getModelId(model),
+                getModelId(
+                    model
+                ),
 
             model_name:
-                getModelName(model),
+                getModelName(
+                    model
+                ),
 
             provider:
-                getProviderName(model),
+                getProviderName(
+                    model
+                ),
 
             credit: {
 
@@ -3513,7 +3703,7 @@ export async function loadModelConfig(
                     ),
 
                 "1080p":
-                    getModelCreditForResolution(
+                    getModelCreditForSelectedResolution(
                         model,
                         "1080p"
                     )
@@ -3580,7 +3770,9 @@ export async function selectModel(
         );
 
 
-    if (!normalizedId) {
+    if (
+        !normalizedId
+    ) {
 
         setCurrentModel(
             null
@@ -3950,18 +4142,6 @@ export function getModelCreditInfo(
 
 /* =========================================================
    MODEL CREDIT BY RESOLUTION PUBLIC
-   ---------------------------------------------------------
-   KOMPATIBEL DENGAN:
-
-   1. getModelCreditForSelectedResolution(
-          "480p",
-          model
-      )
-
-   2. getModelCreditForSelectedResolution(
-          model,
-          "480p"
-      )
 ========================================================= */
 
 export function getModelCreditForSelectedResolution(
@@ -3977,8 +4157,6 @@ export function getModelCreditForSelectedResolution(
 
 
     /*
-     * Bentuk:
-     *
      * (resolution, model)
      */
 
@@ -4006,8 +4184,6 @@ export function getModelCreditForSelectedResolution(
 
 
     /*
-     * Bentuk:
-     *
      * (model, resolution)
      */
 
@@ -4034,11 +4210,6 @@ export function getModelCreditForSelectedResolution(
     }
 
 
-    /*
-     * Jika model tidak dikirim,
-     * gunakan current model.
-     */
-
     if (
         !model
     ) {
@@ -4049,17 +4220,14 @@ export function getModelCreditForSelectedResolution(
     }
 
 
-    const normalizedResolution =
+    let normalizedResolution =
         normalizeResolution(
             resolution
         );
 
 
     /*
-     * Jika resolution masih kosong,
-     * coba baca dari object model.
-     *
-     * Ini hanya compatibility fallback.
+     * Compatibility fallback.
      */
 
     if (
@@ -4076,7 +4244,7 @@ export function getModelCreditForSelectedResolution(
             model.selectedResolution;
 
 
-        resolution =
+        normalizedResolution =
             normalizeResolution(
                 possibleResolution
             );
@@ -4087,13 +4255,18 @@ export function getModelCreditForSelectedResolution(
     const result =
         getModelCreditForResolution(
             model,
-            resolution
+            normalizedResolution
         );
 
 
     console.debug(
         "[GEN-Z.AI][Generate Model] CREDIT RESOLUTION:",
         {
+
+            modelId:
+                getModelId(
+                    model
+                ),
 
             resolution:
                 result.resolution,
@@ -4105,12 +4278,7 @@ export function getModelCreditForSelectedResolution(
                 result.discountPercent,
 
             creditFinal:
-                result.creditFinal,
-
-            modelId:
-                getModelId(
-                    model
-                )
+                result.creditFinal
 
         }
     );
