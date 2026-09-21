@@ -16,15 +16,25 @@
    - Sinkronisasi Generate State
    - Sinkronisasi tombol Generate
    - Bind model change
+   - Bind resolution change
    - Bind reset
    - Submit Generate ke /api/generate
    - Polling task KIE.AI
    - Menampilkan diagnostic response KIE.AI
 
+   CREDIT SOURCE:
+   - credit_480p
+   - credit_720p
+   - credit_1080p
+   - discount_percent
+
+   FINAL CREDIT:
+   base - (base * discount / 100)
+
    PENTING:
    - Account Credit tetap dari profiles.credits
    - Role tetap dari navigation / early auth bridge
-   - Model Usage Credit dari konfigurasi model
+   - Model Usage Credit dihitung dari konfigurasi model
    - State HARUS menggunakan SATU instance generate-state.js
    - Generate button hanya aktif jika model benar-benar siap
    - generate-request.js WAJIB tersedia untuk Generate
@@ -112,20 +122,6 @@ const appState = {
     }
 
 };
-
-
-/* =========================================================
-   DEBUG
-========================================================= */
-
-function debug(...args) {
-
-    console.debug(
-        "[GEN-Z.AI][Generate]",
-        ...args
-    );
-
-}
 
 
 /* =========================================================
@@ -231,10 +227,6 @@ function getDOM() {
                 "roleBadge"
             ),
 
-        /*
-         * Compatibility result elements.
-         */
-
         resultModel:
             document.getElementById(
                 "resultModel"
@@ -256,245 +248,6 @@ function getDOM() {
 
 
 /* =========================================================
-   LOAD MODULE
-========================================================= */
-
-async function loadModule(
-    name,
-    path,
-    required = true
-) {
-
-    if (
-        appState.modules[name]
-    ) {
-
-        return appState.modules[name];
-
-    }
-
-
-    try {
-
-        debug(
-            "Loading module:",
-            name,
-            path
-        );
-
-
-        /*
-         * Jangan cache bust.
-         *
-         * Semua module harus menggunakan
-         * instance generate-state.js yang sama.
-         */
-
-        const module =
-            await import(
-                path
-            );
-
-
-        if (
-            !module
-        ) {
-
-            throw new Error(
-                `Module ${name} kosong.`
-            );
-
-        }
-
-
-        appState.modules[name] =
-            module;
-
-
-        debug(
-            "Module loaded:",
-            name,
-            Object.keys(
-                module
-            )
-        );
-
-
-        return module;
-
-    } catch (
-        error
-    ) {
-
-        console.error(
-            `[GEN-Z.AI][Generate] Module ${name} gagal dimuat:`,
-            error
-        );
-
-
-        if (
-            !required
-        ) {
-
-            return null;
-
-        }
-
-
-        /*
-         * Jangan sembunyikan error asli.
-         *
-         * Error asli jauh lebih berguna untuk mengetahui
-         * apakah masalahnya:
-         * - file 404
-         * - syntax error
-         * - export error
-         * - dependency error
-         * - module path error
-         */
-
-        const originalMessage =
-            error?.message ||
-            String(
-                error
-            );
-
-
-        throw new Error(
-            `Module ${name} gagal dimuat: ${originalMessage}`
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   LOAD CORE MODULES
-========================================================= */
-
-async function loadCoreModules() {
-
-    /*
-     * Urutan penting.
-     */
-
-    await loadModule(
-        "state",
-        STATE_MODULE,
-        true
-    );
-
-
-    await loadModule(
-        "auth",
-        AUTH_MODULE,
-        true
-    );
-
-
-    await loadModule(
-        "ui",
-        UI_MODULE,
-        true
-    );
-
-
-    await loadModule(
-        "model",
-        MODEL_MODULE,
-        true
-    );
-
-
-    await loadModule(
-        "form",
-        FORM_MODULE,
-        true
-    );
-
-
-    /*
-     * Validation optional.
-     *
-     * generate-request.js tidak optional.
-     */
-
-    await loadModule(
-        "validation",
-        VALIDATION_MODULE,
-        false
-    );
-
-
-    /*
-     * PENTING:
-     * request WAJIB tersedia.
-     */
-
-    await loadModule(
-        "request",
-        REQUEST_MODULE,
-        true
-    );
-
-
-    /*
-     * Polling WAJIB karena Generate memakai
-     * task-based provider flow.
-     */
-
-    await loadModule(
-        "polling",
-        POLLING_MODULE,
-        true
-    );
-
-
-    /*
-     * Validasi API module.
-     */
-
-    const request =
-        appState.modules.request;
-
-
-    if (
-        !request ||
-        typeof request.generateVideo !==
-            "function"
-    ) {
-
-        throw new Error(
-            "generate-request.js berhasil dimuat tetapi generateVideo() tidak tersedia."
-        );
-
-    }
-
-
-    const polling =
-        appState.modules.polling;
-
-
-    if (
-        !polling ||
-        typeof polling.pollGenerateTask !==
-            "function"
-    ) {
-
-        throw new Error(
-            "generate-polling.js berhasil dimuat tetapi pollGenerateTask() tidak tersedia."
-        );
-
-    }
-
-
-    return appState.modules;
-
-}
-
-
-/* =========================================================
    ERROR
 ========================================================= */
 
@@ -505,19 +258,11 @@ function showError(
     const elements =
         getDOM();
 
-
     const text =
         String(
             message ||
             "Terjadi kesalahan."
         );
-
-
-    console.error(
-        "[GEN-Z.AI][Generate]",
-        text
-    );
-
 
     if (
         elements.pageError
@@ -531,7 +276,6 @@ function showError(
 
     }
 
-
     if (
         elements.pageErrorMessage
     ) {
@@ -540,7 +284,6 @@ function showError(
             text;
 
     }
-
 
     if (
         elements.status
@@ -565,7 +308,6 @@ function hideError() {
 
     const elements =
         getDOM();
-
 
     if (
         elements.pageError
@@ -593,7 +335,6 @@ function showLoading(
     const elements =
         getDOM();
 
-
     if (
         elements.loading
     ) {
@@ -616,7 +357,6 @@ function showLoading(
         );
 
     }
-
 
     if (
         elements.status
@@ -642,7 +382,6 @@ function hideLoading() {
     const elements =
         getDOM();
 
-
     if (
         elements.loading
     ) {
@@ -665,6 +404,162 @@ function hideLoading() {
         );
 
     }
+
+}
+
+
+/* =========================================================
+   LOAD MODULE
+========================================================= */
+
+async function loadModule(
+    name,
+    path,
+    required = true
+) {
+
+    if (
+        appState.modules[name]
+    ) {
+
+        return appState.modules[name];
+
+    }
+
+    try {
+
+        const module =
+            await import(
+                path
+            );
+
+        if (
+            !module
+        ) {
+
+            throw new Error(
+                `Module ${name} kosong.`
+            );
+
+        }
+
+        appState.modules[name] =
+            module;
+
+        return module;
+
+    } catch (
+        error
+    ) {
+
+        if (
+            !required
+        ) {
+
+            return null;
+
+        }
+
+        const originalMessage =
+            error?.message ||
+            String(
+                error
+            );
+
+        throw new Error(
+            `Module ${name} gagal dimuat: ${originalMessage}`
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   LOAD CORE MODULES
+========================================================= */
+
+async function loadCoreModules() {
+
+    await loadModule(
+        "state",
+        STATE_MODULE,
+        true
+    );
+
+    await loadModule(
+        "auth",
+        AUTH_MODULE,
+        true
+    );
+
+    await loadModule(
+        "ui",
+        UI_MODULE,
+        true
+    );
+
+    await loadModule(
+        "model",
+        MODEL_MODULE,
+        true
+    );
+
+    await loadModule(
+        "form",
+        FORM_MODULE,
+        true
+    );
+
+    await loadModule(
+        "validation",
+        VALIDATION_MODULE,
+        false
+    );
+
+    await loadModule(
+        "request",
+        REQUEST_MODULE,
+        true
+    );
+
+    await loadModule(
+        "polling",
+        POLLING_MODULE,
+        true
+    );
+
+    const request =
+        appState.modules.request;
+
+    if (
+        !request ||
+        typeof request.generateVideo !==
+            "function"
+    ) {
+
+        throw new Error(
+            "generate-request.js berhasil dimuat tetapi generateVideo() tidak tersedia."
+        );
+
+    }
+
+    const polling =
+        appState.modules.polling;
+
+    if (
+        !polling ||
+        typeof polling.pollGenerateTask !==
+            "function"
+    ) {
+
+        throw new Error(
+            "generate-polling.js berhasil dimuat tetapi pollGenerateTask() tidak tersedia."
+        );
+
+    }
+
+    return appState.modules;
 
 }
 
@@ -750,7 +645,6 @@ function getProviderName(
 
     }
 
-
     if (
         typeof model?.provider ===
         "string"
@@ -761,7 +655,6 @@ function getProviderName(
         ).trim();
 
     }
-
 
     return String(
 
@@ -808,11 +701,567 @@ function getModelType(
 
 
 /* =========================================================
-   MODEL CREDIT
+   RESOLUTION
+========================================================= */
+
+function normalizeResolution(
+    value
+) {
+
+    let resolution =
+        String(
+            value ??
+            ""
+        )
+        .trim()
+        .toLowerCase();
+
+    if (
+        !resolution
+    ) {
+
+        return "";
+
+    }
+
+    resolution =
+        resolution
+            .replace(
+                /\s+/g,
+                ""
+            )
+            .replace(
+                /p$/i,
+                ""
+            );
+
+    if (
+        resolution ===
+            "480"
+        ||
+        resolution ===
+            "480p"
+    ) {
+
+        return "480p";
+
+    }
+
+    if (
+        resolution ===
+            "720"
+        ||
+        resolution ===
+            "720p"
+    ) {
+
+        return "720p";
+
+    }
+
+    if (
+        resolution ===
+            "1080"
+        ||
+        resolution ===
+            "1080p"
+    ) {
+
+        return "1080p";
+
+    }
+
+    return String(
+        value ??
+        ""
+    ).trim();
+
+}
+
+
+/* =========================================================
+   GET SELECTED RESOLUTION
+========================================================= */
+
+function getSelectedResolution() {
+
+    const elements =
+        getDOM();
+
+    const root =
+        elements.generateForm ||
+        elements.dynamicFields ||
+        document;
+
+    /*
+     * Priority:
+     * 1. checked radio
+     * 2. selected option
+     * 3. normal value control
+     */
+
+    const checkedCandidates = [
+
+        '[name="resolution"]:checked',
+
+        '#resolution input[type="radio"]:checked',
+
+        '#resolution input[type="checkbox"]:checked',
+
+        '[data-parameter="resolution"] input[type="radio"]:checked',
+
+        '[data-parameter="resolution"] input[type="checkbox"]:checked',
+
+        '[data-key="resolution"] input[type="radio"]:checked',
+
+        '[data-key="resolution"] input[type="checkbox"]:checked',
+
+        '[data-resolution]:checked'
+
+    ];
+
+    for (
+        const selector
+        of checkedCandidates
+    ) {
+
+        const element =
+            root.querySelector(
+                selector
+            );
+
+        if (
+            element &&
+            element.value
+        ) {
+
+            const normalized =
+                normalizeResolution(
+                    element.value
+                );
+
+            if (
+                normalized
+            ) {
+
+                return normalized;
+
+            }
+
+        }
+
+    }
+
+    const selectCandidates = [
+
+        'select[name="resolution"]',
+
+        '#resolution',
+
+        '[data-parameter="resolution"]',
+
+        '[data-key="resolution"]',
+
+        '[data-resolution]'
+
+    ];
+
+    for (
+        const selector
+        of selectCandidates
+    ) {
+
+        const element =
+            root.querySelector(
+                selector
+            );
+
+        if (
+            !element
+        ) {
+
+            continue;
+
+        }
+
+        const value =
+            element.value ||
+            element.dataset?.resolution ||
+            element.getAttribute(
+                "data-resolution"
+            );
+
+        const normalized =
+            normalizeResolution(
+                value
+            );
+
+        if (
+            normalized
+        ) {
+
+            return normalized;
+
+        }
+
+    }
+
+    /*
+     * Cari seluruh control dengan nama resolution.
+     */
+
+    const controls =
+        root.querySelectorAll(
+            'input[name="resolution"], select[name="resolution"], [data-resolution]'
+        );
+
+    for (
+        const control
+        of controls
+    ) {
+
+        if (
+            (
+                control.type ===
+                "radio" ||
+                control.type ===
+                "checkbox"
+            ) &&
+            !control.checked
+        ) {
+
+            continue;
+
+        }
+
+        const value =
+            control.value ||
+            control.dataset?.resolution ||
+            control.getAttribute(
+                "data-resolution"
+            );
+
+        const normalized =
+            normalizeResolution(
+                value
+            );
+
+        if (
+            normalized
+        ) {
+
+            return normalized;
+
+        }
+
+    }
+
+    return "";
+
+}
+
+
+/* =========================================================
+   MODEL SOURCE OBJECTS
+========================================================= */
+
+function getModelSourceObjects(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !==
+        "object"
+    ) {
+
+        return [];
+
+    }
+
+    const objects = [
+
+        model,
+
+        model.pricing,
+
+        model.credit,
+
+        model.config,
+
+        model.config?.pricing,
+
+        model.model,
+
+        model.model?.pricing,
+
+        model.repository,
+
+        model.repository?.pricing
+
+    ];
+
+    return objects.filter(
+        item =>
+            item &&
+            typeof item ===
+            "object"
+    );
+
+}
+
+
+/* =========================================================
+   GET BASE CREDIT BY RESOLUTION
+========================================================= */
+
+function getModelResolutionBaseCredit(
+    model,
+    resolution
+) {
+
+    const normalized =
+        normalizeResolution(
+            resolution
+        );
+
+    if (
+        !normalized
+    ) {
+
+        return null;
+
+    }
+
+    const suffix =
+        normalized.replace(
+            "p",
+            ""
+        );
+
+    const fieldNames = [
+
+        `credit_${normalized}`,
+
+        `credit${suffix}p`,
+
+        `credit_${suffix}p`,
+
+        `credit_${suffix}`,
+
+        `credit_base_${normalized}`,
+
+        `creditBase${suffix}p`,
+
+        `creditBase_${normalized}`
+
+    ];
+
+    const sources =
+        getModelSourceObjects(
+            model
+        );
+
+    for (
+        const source
+        of sources
+    ) {
+
+        for (
+            const field
+            of fieldNames
+        ) {
+
+            const value =
+                source[field];
+
+            if (
+                value ===
+                    null ||
+                value ===
+                    undefined ||
+                value ===
+                    ""
+            ) {
+
+                continue;
+
+            }
+
+            const number =
+                Number(
+                    value
+                );
+
+            if (
+                Number.isFinite(
+                    number
+                )
+            ) {
+
+                return number;
+
+            }
+
+        }
+
+    }
+
+    return null;
+
+}
+
+
+/* =========================================================
+   GET DISCOUNT
+========================================================= */
+
+function getModelDiscountPercent(
+    model
+) {
+
+    const sources =
+        getModelSourceObjects(
+            model
+        );
+
+    for (
+        const source
+        of sources
+    ) {
+
+        const values = [
+
+            source.discount_percent,
+
+            source.discountPercent,
+
+            source.discount
+
+        ];
+
+        for (
+            const value
+            of values
+        ) {
+
+            if (
+                value ===
+                    null ||
+                value ===
+                    undefined ||
+                value ===
+                    ""
+            ) {
+
+                continue;
+
+            }
+
+            const number =
+                Number(
+                    value
+                );
+
+            if (
+                Number.isFinite(
+                    number
+                )
+            ) {
+
+                return number;
+
+            }
+
+        }
+
+    }
+
+    return 0;
+
+}
+
+
+/* =========================================================
+   CALCULATE FINAL CREDIT
+========================================================= */
+
+function calculateFinalCredit(
+    baseCredit,
+    discountPercent
+) {
+
+    const base =
+        Number(
+            baseCredit
+        );
+
+    if (
+        !Number.isFinite(
+            base
+        )
+    ) {
+
+        return null;
+
+    }
+
+    const discount =
+        Number(
+            discountPercent
+        );
+
+    const safeDiscount =
+        Number.isFinite(
+            discount
+        )
+            ? Math.min(
+                100,
+                Math.max(
+                    0,
+                    discount
+                )
+            )
+            : 0;
+
+    const finalCredit =
+        base -
+        (
+            base *
+            safeDiscount /
+            100
+        );
+
+    if (
+        !Number.isFinite(
+            finalCredit
+        )
+    ) {
+
+        return null;
+
+    }
+
+    /*
+     * Hindari floating point seperti
+     * 12.599999999999998.
+     */
+
+    return Math.round(
+        finalCredit *
+        100
+    ) / 100;
+
+}
+
+
+/* =========================================================
+   GET MODEL CREDIT FOR CURRENT RESOLUTION
 ========================================================= */
 
 function getModelCredit(
-    model
+    model,
+    explicitResolution = ""
 ) {
 
     if (
@@ -825,71 +1274,129 @@ function getModelCredit(
 
     }
 
+    const resolution =
+        normalizeResolution(
+            explicitResolution ||
+            getSelectedResolution()
+        );
 
-    const pricing =
-        model.pricing &&
-        typeof model.pricing ===
-        "object"
+    /*
+     * Bila resolution tersedia, SELALU gunakan
+     * credit per resolution + discount.
+     *
+     * Jangan fallback ke credit_cost global.
+     */
 
-            ? model.pricing
-
-            : {};
-
-
-    const values = [
-
-        pricing.credit_final,
-
-        model.credit_final,
-
-        pricing.creditFinal,
-
-        model.creditFinal,
-
-        pricing.credit_cost,
-
-        model.credit_cost
-
-    ];
-
-
-    for (
-        const value
-        of values
+    if (
+        resolution
     ) {
 
-        if (
-            value ===
-                null ||
-            value ===
-                undefined ||
-            value ===
-                ""
-        ) {
-
-            continue;
-
-        }
-
-
-        const number =
-            Number(
-                value
+        const baseCredit =
+            getModelResolutionBaseCredit(
+                model,
+                resolution
             );
 
-
         if (
-            Number.isFinite(
-                number
-            )
+            baseCredit !==
+                null
         ) {
 
-            return number;
+            const discount =
+                getModelDiscountPercent(
+                    model
+                );
+
+            return calculateFinalCredit(
+                baseCredit,
+                discount
+            );
 
         }
 
     }
 
+    /*
+     * Jangan memakai credit_cost /
+     * credit_final global sebagai source.
+     *
+     * Coba runtime final field hanya bila
+     * resolution-specific final sudah tersedia.
+     */
+
+    const suffix =
+        resolution
+            ? resolution.replace(
+                "p",
+                ""
+            )
+            : "";
+
+    if (
+        suffix
+    ) {
+
+        const finalFields = [
+
+            `credit_final_${resolution}`,
+
+            `creditFinal${suffix}p`,
+
+            `creditFinal_${resolution}`
+
+        ];
+
+        const sources =
+            getModelSourceObjects(
+                model
+            );
+
+        for (
+            const source
+            of sources
+        ) {
+
+            for (
+                const field
+                of finalFields
+            ) {
+
+                const value =
+                    source[field];
+
+                if (
+                    value ===
+                        null ||
+                    value ===
+                        undefined ||
+                    value ===
+                        ""
+                ) {
+
+                    continue;
+
+                }
+
+                const number =
+                    Number(
+                        value
+                    );
+
+                if (
+                    Number.isFinite(
+                        number
+                    )
+                ) {
+
+                    return number;
+
+                }
+
+            }
+
+        }
+
+    }
 
     return null;
 
@@ -915,12 +1422,10 @@ function formatCredit(
 
     }
 
-
     const number =
         Number(
             value
         );
-
 
     if (
         !Number.isFinite(
@@ -932,10 +1437,12 @@ function formatCredit(
 
     }
 
-
     return new Intl.NumberFormat(
         "id-ID",
         {
+            minimumFractionDigits:
+                0,
+
             maximumFractionDigits:
                 2
         }
@@ -947,28 +1454,144 @@ function formatCredit(
 
 
 /* =========================================================
-   RENDER MODEL CREDIT
+   GET CREDIT DISPLAY ELEMENT
 ========================================================= */
 
-function renderModelCredit(
-    model
-) {
+function getCreditDisplayElement() {
 
     const elements =
         getDOM();
 
+    if (
+        elements.generateCreditValue
+    ) {
+
+        return elements.generateCreditValue;
+
+    }
+
+    const candidates = [
+
+        document.getElementById(
+            "generateCreditValue"
+        ),
+
+        document.querySelector(
+            "[data-generate-credit]"
+        ),
+
+        document.querySelector(
+            "[data-credit-display]"
+        ),
+
+        document.querySelector(
+            ".generate-button-credit-value"
+        )
+
+    ];
+
+    for (
+        const element
+        of candidates
+    ) {
+
+        if (
+            element
+        ) {
+
+            return element;
+
+        }
+
+    }
+
+    /*
+     * Bila hanya container yang tersedia,
+     * buat child khusus untuk nilai credit.
+     */
+
+    const container =
+        elements.generateCreditCost ||
+        document.querySelector(
+            ".generate-button-credit"
+        );
+
+    if (
+        container
+    ) {
+
+        let valueElement =
+            container.querySelector(
+                "#generateCreditValue"
+            );
+
+        if (
+            !valueElement
+        ) {
+
+            valueElement =
+                document.createElement(
+                    "span"
+                );
+
+            valueElement.id =
+                "generateCreditValue";
+
+            valueElement.className =
+                "generate-button-credit-value";
+
+            container.appendChild(
+                valueElement
+            );
+
+        }
+
+        return valueElement;
+
+    }
+
+    return null;
+
+}
+
+
+/* =========================================================
+   RENDER MODEL CREDIT
+========================================================= */
+
+function renderModelCredit(
+    model,
+    resolution = ""
+) {
+
+    const currentModel =
+        model ||
+        getCurrentModel();
+
+    const selectedResolution =
+        normalizeResolution(
+            resolution ||
+            getSelectedResolution()
+        );
 
     const credit =
         getModelCredit(
-            model
+            currentModel,
+            selectedResolution
         );
-
 
     const formatted =
         formatCredit(
             credit
         );
 
+    const elements =
+        getDOM();
+
+    /*
+     * #generateCreditCost:
+     * compatibility dengan markup lama.
+     */
 
     if (
         elements.generateCreditCost
@@ -982,30 +1605,247 @@ function renderModelCredit(
 
     }
 
+    /*
+     * #generateCreditValue:
+     * target utama display credit.
+     */
+
+    const creditElement =
+        getCreditDisplayElement();
 
     if (
-        elements.generateCreditValue
+        creditElement
     ) {
 
-        elements.generateCreditValue.textContent =
+        creditElement.textContent =
             formatted;
+
+        creditElement.hidden =
+            false;
+
+        creditElement.style.display =
+            "";
+
+        creditElement.style.visibility =
+            "visible";
+
+        creditElement.style.opacity =
+            "1";
 
     }
 
+    /*
+     * Compatibility dengan container.
+     */
 
-    debug(
-        "MODEL CREDIT:",
-        {
-            model:
-                getModelId(
-                    model
-                ),
+    const creditContainer =
+        document.querySelector(
+            ".generate-button-credit"
+        );
 
-            credit,
+    if (
+        creditContainer
+    ) {
 
-            formatted
+        creditContainer.hidden =
+            false;
+
+        creditContainer.style.display =
+            "";
+
+        creditContainer.style.visibility =
+            "visible";
+
+        creditContainer.style.opacity =
+            "1";
+
+    }
+
+    /*
+     * Jangan mengubah account credit.
+     * Ini khusus MODEL USAGE CREDIT.
+     */
+
+    if (
+        elements.creditBadge &&
+        creditElement
+    ) {
+
+        /*
+         * Hanya sinkronkan bila badge memang
+         * ditujukan untuk model credit.
+         */
+
+        if (
+            elements.creditBadge.dataset.modelCredit ===
+            "true"
+        ) {
+
+            elements.creditBadge.textContent =
+                formatted;
+
+        }
+
+    }
+
+    return credit;
+
+}
+
+
+/* =========================================================
+   SYNC CREDIT AFTER RESOLUTION CHANGE
+========================================================= */
+
+function syncModelCreditForResolution() {
+
+    const model =
+        getCurrentModel();
+
+    if (
+        !model
+    ) {
+
+        return null;
+
+    }
+
+    const resolution =
+        getSelectedResolution();
+
+    return renderModelCredit(
+        model,
+        resolution
+    );
+
+}
+
+
+/* =========================================================
+   BIND RESOLUTION EVENT
+========================================================= */
+
+function bindResolutionEvent() {
+
+    const form =
+        getDOM()
+            .generateForm;
+
+    if (
+        !form
+    ) {
+
+        return;
+
+    }
+
+    if (
+        form.dataset.genzResolutionCreditBound ===
+        "true"
+    ) {
+
+        return;
+
+    }
+
+    /*
+     * Delegation digunakan karena resolution control
+     * dibuat secara dynamic oleh generate-form.js.
+     */
+
+    form.addEventListener(
+        "change",
+        event => {
+
+            const target =
+                event.target;
+
+            if (
+                !target
+            ) {
+
+                return;
+
+            }
+
+            const name =
+                String(
+                    target.name ||
+                    ""
+                )
+                .trim()
+                .toLowerCase();
+
+            const parameter =
+                String(
+                    target.dataset?.parameter ||
+                    ""
+                )
+                .trim()
+                .toLowerCase();
+
+            const key =
+                String(
+                    target.dataset?.key ||
+                    ""
+                )
+                .trim()
+                .toLowerCase();
+
+            const resolutionAttribute =
+                target.hasAttribute(
+                    "data-resolution"
+                );
+
+            const id =
+                String(
+                    target.id ||
+                    ""
+                )
+                .trim()
+                .toLowerCase();
+
+            const isResolution =
+                name ===
+                    "resolution" ||
+
+                parameter ===
+                    "resolution" ||
+
+                key ===
+                    "resolution" ||
+
+                resolutionAttribute ||
+
+                id ===
+                    "resolution";
+
+            if (
+                !isResolution
+            ) {
+
+                return;
+
+            }
+
+            /*
+             * Beri kesempatan browser dan form module
+             * menyelesaikan selected state lebih dahulu.
+             */
+
+            requestAnimationFrame(
+                () => {
+
+                    syncModelCreditForResolution();
+
+                }
+            );
+
         }
     );
+
+    form.dataset.genzResolutionCreditBound =
+        "true";
 
 }
 
@@ -1021,7 +1861,6 @@ function renderModelInformation(
     const elements =
         getDOM();
 
-
     if (
         !model
     ) {
@@ -1029,7 +1868,6 @@ function renderModelInformation(
         return;
 
     }
-
 
     if (
         elements.modelName
@@ -1041,7 +1879,6 @@ function renderModelInformation(
             );
 
     }
-
 
     if (
         elements.modelDescription
@@ -1060,7 +1897,6 @@ function renderModelInformation(
 
     }
 
-
     if (
         elements.providerName
     ) {
@@ -1072,7 +1908,6 @@ function renderModelInformation(
 
     }
 
-
     if (
         elements.modelMeta
     ) {
@@ -1082,12 +1917,10 @@ function renderModelInformation(
                 model
             );
 
-
         const type =
             getModelType(
                 model
             );
-
 
         elements.modelMeta.textContent =
             type
@@ -1108,7 +1941,6 @@ function getCurrentModel() {
     const state =
         appState.modules.state;
 
-
     if (
         state &&
         typeof state.getCurrentModel ===
@@ -1121,7 +1953,6 @@ function getCurrentModel() {
         );
 
     }
-
 
     return null;
 
@@ -1139,7 +1970,6 @@ function setCurrentModel(
     const state =
         appState.modules.state;
 
-
     if (
         !state ||
         typeof state.setCurrentModel !==
@@ -1152,11 +1982,9 @@ function setCurrentModel(
 
     }
 
-
     state.setCurrentModel(
         model
     );
-
 
     const verified =
         typeof state.getCurrentModel ===
@@ -1165,7 +1993,6 @@ function setCurrentModel(
             ? state.getCurrentModel()
 
             : null;
-
 
     if (
         !verified ||
@@ -1183,7 +2010,6 @@ function setCurrentModel(
 
     }
 
-
     return verified;
 
 }
@@ -1200,12 +2026,10 @@ function markModelReady(
     const state =
         appState.modules.state;
 
-
     const modelId =
         getModelId(
             model
         );
-
 
     const validModel =
         Boolean(
@@ -1213,10 +2037,8 @@ function markModelReady(
             modelId
         );
 
-
     appState.modelReady =
         validModel;
-
 
     if (
         state &&
@@ -1229,20 +2051,6 @@ function markModelReady(
         );
 
     }
-
-
-    debug(
-        "MODEL READY STATE:",
-        {
-            modelId,
-
-            validModel,
-
-            appStateModelReady:
-                appState.modelReady
-        }
-    );
-
 
     return validModel;
 
@@ -1260,17 +2068,14 @@ function enableGenerateButton(
     const elements =
         getDOM();
 
-
     const currentModel =
         model ||
         getCurrentModel();
-
 
     const modelId =
         getModelId(
             currentModel
         );
-
 
     const modelReady =
         Boolean(
@@ -1278,14 +2083,12 @@ function enableGenerateButton(
             modelId
         );
 
-
     if (
         !modelReady
     ) {
 
         appState.modelReady =
             false;
-
 
         if (
             elements.generateButton
@@ -1300,19 +2103,15 @@ function enableGenerateButton(
 
         }
 
-
         return false;
 
     }
 
-
     appState.modelReady =
         true;
 
-
     const ui =
         appState.modules.ui;
-
 
     if (
         ui &&
@@ -1328,15 +2127,14 @@ function enableGenerateButton(
             error
         ) {
 
-            console.warn(
-                "[GEN-Z.AI][Generate] UI enableGeneration warning:",
-                error
-            );
+            /*
+             * UI module tidak boleh menghentikan
+             * sinkronisasi credit.
+             */
 
         }
 
     }
-
 
     if (
         elements.generateButton
@@ -1351,29 +2149,7 @@ function enableGenerateButton(
 
     }
 
-
-    renderModelCredit(
-        currentModel
-    );
-
-
-    debug(
-        "GENERATE BUTTON ENABLED:",
-        {
-            modelId,
-
-            modelName:
-                getModelName(
-                    currentModel
-                ),
-
-            credit:
-                getModelCredit(
-                    currentModel
-                )
-        }
-    );
-
+    syncModelCreditForResolution();
 
     return true;
 
@@ -1389,10 +2165,8 @@ function disableGenerateButton() {
     const elements =
         getDOM();
 
-
     appState.modelReady =
         false;
-
 
     if (
         elements.generateButton
@@ -1407,10 +2181,8 @@ function disableGenerateButton() {
 
     }
 
-
     const ui =
         appState.modules.ui;
-
 
     if (
         ui &&
@@ -1426,10 +2198,10 @@ function disableGenerateButton() {
             error
         ) {
 
-            console.warn(
-                "[GEN-Z.AI][Generate] UI disableGeneration warning:",
-                error
-            );
+            /*
+             * Jangan hentikan lifecycle Generate
+             * hanya karena UI helper gagal.
+             */
 
         }
 
@@ -1449,10 +2221,8 @@ async function renderForm(
     const elements =
         getDOM();
 
-
     const formModule =
         appState.modules.form;
-
 
     if (
         !elements.dynamicFields
@@ -1464,7 +2234,6 @@ async function renderForm(
 
     }
 
-
     if (
         !formModule
     ) {
@@ -1475,19 +2244,15 @@ async function renderForm(
 
     }
 
-
     setCurrentModel(
         model
     );
 
-
     elements.dynamicFields.innerHTML =
         "";
 
-
     let result =
         null;
-
 
     if (
         typeof formModule.renderGenerateForm ===
@@ -1533,10 +2298,8 @@ async function renderForm(
 
     }
 
-
     elements.dynamicFields.hidden =
         false;
-
 
     if (
         elements.generateForm
@@ -1546,27 +2309,6 @@ async function renderForm(
             false;
 
     }
-
-
-    const children =
-        elements.dynamicFields.children.length;
-
-
-    debug(
-        "DYNAMIC FORM:",
-        {
-            model:
-                getModelId(
-                    model
-                ),
-
-            rendered:
-                result,
-
-            children
-        }
-    );
-
 
     return true;
 
@@ -1591,12 +2333,10 @@ async function renderModel(
 
     }
 
-
     const modelId =
         getModelId(
             model
         );
-
 
     if (
         !modelId
@@ -1608,33 +2348,31 @@ async function renderModel(
 
     }
 
-
     const verifiedModel =
         setCurrentModel(
             model
         );
 
-
     renderModelInformation(
         verifiedModel
     );
 
-
-    renderModelCredit(
-        verifiedModel
-    );
-
+    /*
+     * Form dirender terlebih dahulu supaya
+     * resolution control sudah ada ketika credit
+     * dihitung.
+     */
 
     await renderForm(
         verifiedModel
     );
 
+    bindResolutionEvent();
 
     const ready =
         markModelReady(
             verifiedModel
         );
-
 
     if (
         !ready
@@ -1642,50 +2380,21 @@ async function renderModel(
 
         disableGenerateButton();
 
-
         throw new Error(
             "Model belum siap digunakan."
         );
 
     }
 
-
     enableGenerateButton(
         verifiedModel
     );
 
+    /*
+     * Final sync setelah dynamic form selesai.
+     */
 
-    renderModelCredit(
-        verifiedModel
-    );
-
-
-    debug(
-        "MODEL UI READY:",
-        {
-            id:
-                modelId,
-
-            name:
-                getModelName(
-                    verifiedModel
-                ),
-
-            provider:
-                getProviderName(
-                    verifiedModel
-                ),
-
-            credit:
-                getModelCredit(
-                    verifiedModel
-                ),
-
-            modelReady:
-                appState.modelReady
-        }
-    );
-
+    syncModelCreditForResolution();
 
     return verifiedModel;
 
@@ -1701,7 +2410,6 @@ async function initializeAuth() {
     const auth =
         appState.modules.auth;
 
-
     if (
         !auth
     ) {
@@ -1712,7 +2420,6 @@ async function initializeAuth() {
 
     }
 
-
     if (
         typeof auth.loadSupabase ===
         "function"
@@ -1722,10 +2429,8 @@ async function initializeAuth() {
 
     }
 
-
     let user =
         null;
-
 
     if (
         typeof auth.loadCurrentUser ===
@@ -1746,7 +2451,6 @@ async function initializeAuth() {
                 window.GENZ_NAVIGATION_USER ||
                 null;
 
-
             if (
                 !user
             ) {
@@ -1759,10 +2463,8 @@ async function initializeAuth() {
 
     }
 
-
     let profile =
         null;
-
 
     if (
         typeof auth.loadProfile ===
@@ -1778,12 +2480,6 @@ async function initializeAuth() {
             error
         ) {
 
-            console.warn(
-                "[GEN-Z.AI][Generate] Profile sync warning:",
-                error
-            );
-
-
             profile =
                 window.GENZ_CURRENT_PROFILE ||
                 window.GENZ_NAVIGATION_PROFILE ||
@@ -1792,7 +2488,6 @@ async function initializeAuth() {
         }
 
     }
-
 
     if (
         !user &&
@@ -1803,11 +2498,9 @@ async function initializeAuth() {
         const result =
             await auth.ensureAuthenticated();
 
-
         user =
             result?.user ||
             null;
-
 
         profile =
             result?.profile ||
@@ -1816,12 +2509,10 @@ async function initializeAuth() {
 
     }
 
-
     appState.authReady =
         Boolean(
             user
         );
-
 
     appState.profileReady =
         Boolean(
@@ -1833,19 +2524,6 @@ async function initializeAuth() {
             window.GENZ_NAVIGATION_PROFILE
 
         );
-
-
-    debug(
-        "AUTH READY:",
-        {
-            user:
-                appState.authReady,
-
-            profile:
-                appState.profileReady
-        }
-    );
-
 
     return {
         user,
@@ -1864,7 +2542,6 @@ async function initializeModel() {
     const modelModule =
         appState.modules.model;
 
-
     if (
         !modelModule
     ) {
@@ -1875,10 +2552,8 @@ async function initializeModel() {
 
     }
 
-
     let result =
         null;
-
 
     if (
         typeof modelModule.resolveInitialModel ===
@@ -1903,10 +2578,8 @@ async function initializeModel() {
 
         }
 
-
         const models =
             await modelModule.loadAvailableModels();
-
 
         if (
             !Array.isArray(
@@ -1922,10 +2595,8 @@ async function initializeModel() {
 
         }
 
-
         let selectedId =
             "";
-
 
         if (
             typeof modelModule.renderModelSelector ===
@@ -1939,7 +2610,6 @@ async function initializeModel() {
                 "";
 
         }
-
 
         if (
             !selectedId
@@ -1955,7 +2625,6 @@ async function initializeModel() {
 
         }
 
-
         if (
             !selectedId
         ) {
@@ -1966,10 +2635,8 @@ async function initializeModel() {
 
         }
 
-
         let selectedModel =
             null;
-
 
         if (
             typeof modelModule.selectModel ===
@@ -1995,7 +2662,6 @@ async function initializeModel() {
 
         }
 
-
         result = {
 
             model:
@@ -2007,11 +2673,9 @@ async function initializeModel() {
 
     }
 
-
     let model =
         result?.model ||
         getCurrentModel();
-
 
     if (
         !model &&
@@ -2023,7 +2687,6 @@ async function initializeModel() {
 
     }
 
-
     if (
         !model
     ) {
@@ -2034,22 +2697,18 @@ async function initializeModel() {
 
     }
 
-
     model =
         setCurrentModel(
             model
         );
 
-
     const elements =
         getDOM();
-
 
     const id =
         getModelId(
             model
         );
-
 
     if (
         !id
@@ -2061,7 +2720,6 @@ async function initializeModel() {
 
     }
 
-
     if (
         elements.modelSelect
     ) {
@@ -2071,11 +2729,9 @@ async function initializeModel() {
 
     }
 
-
     await renderModel(
         model
     );
-
 
     if (
         elements.modelSelector
@@ -2088,7 +2744,6 @@ async function initializeModel() {
             "";
 
     }
-
 
     if (
         elements.modelSelect
@@ -2105,7 +2760,6 @@ async function initializeModel() {
 
     }
 
-
     if (
         elements.resetButton
     ) {
@@ -2115,11 +2769,11 @@ async function initializeModel() {
 
     }
 
+    syncModelCreditForResolution();
 
     enableGenerateButton(
         getCurrentModel()
     );
-
 
     return getCurrentModel();
 
@@ -2138,13 +2792,11 @@ async function handleModelChange(
         event?.target ||
         getDOM().modelSelect;
 
-
     const selectedId =
         String(
             select?.value ||
             ""
         ).trim();
-
 
     if (
         !selectedId
@@ -2156,23 +2808,18 @@ async function handleModelChange(
 
     }
 
-
     try {
 
         hideError();
 
-
         disableGenerateButton();
-
 
         showLoading(
             "Memuat model..."
         );
 
-
         const modelModule =
             appState.modules.model;
-
 
         if (
             !modelModule
@@ -2184,10 +2831,8 @@ async function handleModelChange(
 
         }
 
-
         let model =
             null;
-
 
         if (
             typeof modelModule.selectModel ===
@@ -2213,7 +2858,6 @@ async function handleModelChange(
 
         }
 
-
         if (
             !model
         ) {
@@ -2224,26 +2868,23 @@ async function handleModelChange(
 
         }
 
-
         model =
             setCurrentModel(
                 model
             );
 
-
         await renderModel(
             model
         );
 
-
         appState.modelReady =
             true;
 
+        syncModelCreditForResolution();
 
         enableGenerateButton(
             model
         );
-
 
     } catch (
         error
@@ -2252,10 +2893,8 @@ async function handleModelChange(
         appState.modelReady =
             false;
 
-
         const state =
             appState.modules.state;
-
 
         if (
             state &&
@@ -2269,18 +2908,10 @@ async function handleModelChange(
 
         }
 
-
-        console.error(
-            "[GEN-Z.AI][Generate] Model change gagal:",
-            error
-        );
-
-
         showError(
             error?.message ||
             "Model gagal dimuat."
         );
-
 
         disableGenerateButton();
 
@@ -2311,7 +2942,6 @@ function sanitizeKieResponse(
         return "[MAX_DEPTH]";
 
     }
-
 
     const secretKeys =
         new Set([
@@ -2352,7 +2982,6 @@ function sanitizeKieResponse(
 
         ]);
 
-
     if (
         Array.isArray(
             value
@@ -2370,7 +2999,6 @@ function sanitizeKieResponse(
 
     }
 
-
     if (
         value &&
         typeof value ===
@@ -2387,15 +3015,12 @@ function sanitizeKieResponse(
 
         }
 
-
         seen.add(
             value
         );
 
-
         const result =
             {};
-
 
         for (
             const [
@@ -2420,7 +3045,6 @@ function sanitizeKieResponse(
 
             }
 
-
             result[key] =
                 sanitizeKieResponse(
                     item,
@@ -2430,11 +3054,9 @@ function sanitizeKieResponse(
 
         }
 
-
         return result;
 
     }
-
 
     if (
         typeof value ===
@@ -2455,7 +3077,6 @@ function sanitizeKieResponse(
 
     }
 
-
     return value;
 
 }
@@ -2472,7 +3093,6 @@ function ensureKieDiagnosticPanel() {
             "genzKieDiagnostic"
         );
 
-
     if (
         panel
     ) {
@@ -2481,20 +3101,16 @@ function ensureKieDiagnosticPanel() {
 
     }
 
-
     const elements =
         getDOM();
-
 
     panel =
         document.createElement(
             "section"
         );
 
-
     panel.id =
         "genzKieDiagnostic";
-
 
     panel.style.cssText =
         [
@@ -2506,7 +3122,6 @@ function ensureKieDiagnosticPanel() {
             "color:#eafcff",
             "box-sizing:border-box"
         ].join(";");
-
 
     panel.innerHTML =
         `
@@ -2558,7 +3173,6 @@ function ensureKieDiagnosticPanel() {
         ></div>
         `;
 
-
     const parent =
         elements.generateCard?.parentElement ||
 
@@ -2570,11 +3184,9 @@ function ensureKieDiagnosticPanel() {
 
         document.body;
 
-
     parent.appendChild(
         panel
     );
-
 
     return panel;
 
@@ -2593,24 +3205,20 @@ function renderKieDiagnostic(
     const panel =
         ensureKieDiagnosticPanel();
 
-
     const summary =
         panel.querySelector(
             "#genzKieSummary"
         );
-
 
     const raw =
         panel.querySelector(
             "#genzKieRaw"
         );
 
-
     const safeResponse =
         sanitizeKieResponse(
             response
         );
-
 
     const taskId =
         response?.taskId ||
@@ -2629,7 +3237,6 @@ function renderKieDiagnostic(
 
         "-";
 
-
     const state =
         response?.state ||
 
@@ -2641,7 +3248,6 @@ function renderKieDiagnostic(
 
         "-";
 
-
     const code =
         response?.code ||
 
@@ -2652,7 +3258,6 @@ function renderKieDiagnostic(
         response?.data?.code ||
 
         "-";
-
 
     const message =
         response?.message ||
@@ -2669,10 +3274,8 @@ function renderKieDiagnostic(
 
         "-";
 
-
     summary.textContent =
         `${phase} • Status: ${String(state)} • Code: ${String(code)} • Task: ${String(taskId)} • ${String(message)}`;
-
 
     raw.textContent =
         JSON.stringify(
@@ -2680,7 +3283,6 @@ function renderKieDiagnostic(
             null,
             2
         );
-
 
     panel.hidden =
         false;
@@ -2723,20 +3325,16 @@ function renderGenerationResult(
 
                         : [];
 
-
     const panel =
         ensureKieDiagnosticPanel();
-
 
     const resultBox =
         panel.querySelector(
             "#genzGenerationResult"
         );
 
-
     resultBox.innerHTML =
         "";
-
 
     if (
         !resultUrls.length
@@ -2745,7 +3343,6 @@ function renderGenerationResult(
         return;
 
     }
-
 
     for (
         const rawUrl
@@ -2758,7 +3355,6 @@ function renderGenerationResult(
                 ""
             ).trim();
 
-
         if (
             !url
         ) {
@@ -2767,24 +3363,19 @@ function renderGenerationResult(
 
         }
 
-
         const video =
             document.createElement(
                 "video"
             );
 
-
         video.controls =
             true;
-
 
         video.playsInline =
             true;
 
-
         video.preload =
             "metadata";
-
 
         video.style.cssText =
             [
@@ -2794,25 +3385,20 @@ function renderGenerationResult(
                 "display:block"
             ].join(";");
 
-
         const source =
             document.createElement(
                 "source"
             );
 
-
         source.src =
             url;
-
 
         source.type =
             "video/mp4";
 
-
         video.appendChild(
             source
         );
-
 
         resultBox.appendChild(
             video
@@ -2872,7 +3458,6 @@ function extractErrorDiagnostic(
 
     }
 
-
     if (
         error?.response
     ) {
@@ -2881,7 +3466,6 @@ function extractErrorDiagnostic(
 
     }
 
-
     if (
         error?.data
     ) {
@@ -2889,7 +3473,6 @@ function extractErrorDiagnostic(
         return error.data;
 
     }
-
 
     return {
 
@@ -2925,7 +3508,6 @@ async function handleGenerateSubmit(
 
     event.stopPropagation();
 
-
     if (
         generationInProgress
     ) {
@@ -2934,18 +3516,11 @@ async function handleGenerateSubmit(
 
     }
 
-
     const elements =
         getDOM();
 
-
     const model =
         getCurrentModel();
-
-
-    /*
-     * Model harus berasal dari SINGLE Generate State.
-     */
 
     if (
         !model ||
@@ -2962,28 +3537,14 @@ async function handleGenerateSubmit(
 
     }
 
-
     const request =
         appState.modules.request;
-
 
     const polling =
         appState.modules.polling;
 
-
     const form =
         appState.modules.form;
-
-
-    /*
-     * =====================================================
-     * REQUEST MODULE
-     * =====================================================
-     *
-     * Tidak lagi menggunakan pesan generik semata.
-     * Kalau module hilang, bootstrap seharusnya sudah gagal.
-     * Guard ini tetap dipertahankan sebagai safety.
-     */
 
     if (
         !request
@@ -2996,7 +3557,6 @@ async function handleGenerateSubmit(
         return;
 
     }
-
 
     if (
         typeof request.generateVideo !==
@@ -3011,13 +3571,6 @@ async function handleGenerateSubmit(
 
     }
 
-
-    /*
-     * =====================================================
-     * POLLING MODULE
-     * =====================================================
-     */
-
     if (
         !polling
     ) {
@@ -3029,7 +3582,6 @@ async function handleGenerateSubmit(
         return;
 
     }
-
 
     if (
         typeof polling.pollGenerateTask !==
@@ -3043,13 +3595,6 @@ async function handleGenerateSubmit(
         return;
 
     }
-
-
-    /*
-     * =====================================================
-     * FORM MODULE
-     * =====================================================
-     */
 
     if (
         !form ||
@@ -3065,19 +3610,10 @@ async function handleGenerateSubmit(
 
     }
 
-
     generationInProgress =
         true;
 
-
     hideError();
-
-
-    /*
-     * =====================================================
-     * DISABLE GENERATE
-     * =====================================================
-     */
 
     if (
         elements.generateButton
@@ -3092,11 +3628,6 @@ async function handleGenerateSubmit(
         );
 
     }
-
-
-    /*
-     * Disable field tanpa mengubah state model.
-     */
 
     if (
         elements.generateForm
@@ -3116,13 +3647,6 @@ async function handleGenerateSubmit(
             );
 
     }
-
-
-    /*
-     * =====================================================
-     * DIAGNOSTIC AWAL
-     * =====================================================
-     */
 
     renderKieDiagnostic(
         {
@@ -3148,6 +3672,14 @@ async function handleGenerateSubmit(
                     model
                 ),
 
+            resolution:
+                getSelectedResolution(),
+
+            model_credit:
+                getModelCredit(
+                    model
+                ),
+
             message:
                 "Form siap. Request akan dikirim ke server GEN-Z.AI."
 
@@ -3157,41 +3689,19 @@ async function handleGenerateSubmit(
 
     );
 
-
     showLoading(
         "Menyiapkan request..."
     );
 
-
     try {
-
-        /*
-         * =================================================
-         * FORM PARAMETERS
-         * =================================================
-         */
 
         const parameters =
             await form.getFormParameters(
                 model
             );
 
-
-        debug(
-            "GENERATE PARAMETERS:",
-            parameters
-        );
-
-
-        /*
-         * =================================================
-         * CLIENT VALIDATION
-         * =================================================
-         */
-
         let validationErrors =
             [];
-
 
         if (
             typeof request.validateGenerateRequest ===
@@ -3219,7 +3729,6 @@ async function handleGenerateSubmit(
 
         }
 
-
         if (
             Array.isArray(
                 validationErrors
@@ -3235,45 +3744,24 @@ async function handleGenerateSubmit(
 
         }
 
-
-        /*
-         * =================================================
-         * POST /api/generate
-         * =================================================
-         */
-
         showLoading(
             "Mengirim request ke GEN-Z.AI..."
         );
-
 
         const response =
             await request.generateVideo(
                 parameters
             );
 
-
-        /*
-         * Tampilkan response backend.
-         */
-
         renderKieDiagnostic(
             response,
             "TASK CREATED"
         );
 
-
-        /*
-         * =================================================
-         * TASK ID
-         * =================================================
-         */
-
         const taskId =
             extractTaskId(
                 response
             );
-
 
         if (
             !taskId
@@ -3284,25 +3772,15 @@ async function handleGenerateSubmit(
                     "KIE.AI tidak mengembalikan task ID."
                 );
 
-
             error.code =
                 "TASK_ID_MISSING";
-
 
             error.details =
                 response;
 
-
             throw error;
 
         }
-
-
-        /*
-         * =================================================
-         * RESULT PLACEHOLDER
-         * =================================================
-         */
 
         if (
             elements.resultModel
@@ -3315,7 +3793,6 @@ async function handleGenerateSubmit(
 
         }
 
-
         if (
             elements.resultProvider
         ) {
@@ -3327,7 +3804,6 @@ async function handleGenerateSubmit(
 
         }
 
-
         if (
             elements.resultTaskId
         ) {
@@ -3337,17 +3813,9 @@ async function handleGenerateSubmit(
 
         }
 
-
-        /*
-         * =================================================
-         * POLLING
-         * =================================================
-         */
-
         showLoading(
             `KIE.AI menerima task ${taskId}. Menunggu hasil...`
         );
-
 
         const result =
             await polling.pollGenerateTask(
@@ -3374,12 +3842,10 @@ async function handleGenerateSubmit(
 
                                         : "PROCESSING";
 
-
                             renderKieDiagnostic(
                                 update,
                                 phase
                             );
-
 
                             if (
                                 update?.failed
@@ -3414,27 +3880,14 @@ async function handleGenerateSubmit(
                 }
             );
 
-
-        /*
-         * =================================================
-         * FINAL RESPONSE
-         * =================================================
-         */
-
         renderKieDiagnostic(
             result,
             "COMPLETED"
         );
 
-
         renderGenerationResult(
             result
         );
-
-
-        /*
-         * Result metadata.
-         */
 
         if (
             elements.resultModel
@@ -3447,7 +3900,6 @@ async function handleGenerateSubmit(
 
         }
 
-
         if (
             elements.resultProvider
         ) {
@@ -3459,7 +3911,6 @@ async function handleGenerateSubmit(
 
         }
 
-
         if (
             elements.resultTaskId
         ) {
@@ -3468,7 +3919,6 @@ async function handleGenerateSubmit(
                 taskId;
 
         }
-
 
         if (
             elements.status
@@ -3482,42 +3932,21 @@ async function handleGenerateSubmit(
 
         }
 
-
         hideLoading();
-
 
     } catch (
         error
     ) {
-
-        /*
-         * =================================================
-         * ERROR DIAGNOSTIC
-         * =================================================
-         */
-
-        console.error(
-            "[GEN-Z.AI][Generate] Generate gagal:",
-            error
-        );
-
 
         const diagnostic =
             extractErrorDiagnostic(
                 error
             );
 
-
         renderKieDiagnostic(
             diagnostic,
             "FAILED"
         );
-
-
-        /*
-         * Kalau backend memberikan response diagnostic,
-         * tampilkan informasi provider tanpa credential.
-         */
 
         const errorMessage =
             error?.message ||
@@ -3525,11 +3954,9 @@ async function handleGenerateSubmit(
             diagnostic?.error ||
             "Generate gagal diproses.";
 
-
         showError(
             errorMessage
         );
-
 
         if (
             elements.status
@@ -3546,22 +3973,10 @@ async function handleGenerateSubmit(
 
     } finally {
 
-        /*
-         * =================================================
-         * ALWAYS CLEANUP
-         * =================================================
-         */
-
         generationInProgress =
             false;
 
-
         hideLoading();
-
-
-        /*
-         * Aktifkan kembali form.
-         */
 
         if (
             elements.generateForm
@@ -3582,15 +3997,8 @@ async function handleGenerateSubmit(
 
         }
 
-
-        /*
-         * Generate button hanya aktif jika model
-         * masih valid.
-         */
-
         const currentModel =
             getCurrentModel();
-
 
         if (
             currentModel &&
@@ -3602,6 +4010,8 @@ async function handleGenerateSubmit(
             enableGenerateButton(
                 currentModel
             );
+
+            syncModelCreditForResolution();
 
         }
 
@@ -3626,7 +4036,6 @@ function bindGenerateSubmitEvent() {
         getDOM()
             .generateForm;
 
-
     if (
         !form
     ) {
@@ -3634,7 +4043,6 @@ function bindGenerateSubmitEvent() {
         return;
 
     }
-
 
     if (
         form.dataset.genzGenerateBound ===
@@ -3645,20 +4053,13 @@ function bindGenerateSubmitEvent() {
 
     }
 
-
     form.addEventListener(
         "submit",
         handleGenerateSubmit
     );
 
-
     form.dataset.genzGenerateBound =
         "true";
-
-
-    debug(
-        "Generate submit event bound."
-    );
 
 }
 
@@ -3673,7 +4074,6 @@ function bindModelEvent() {
         getDOM()
             .modelSelect;
 
-
     if (
         !select
     ) {
@@ -3684,7 +4084,6 @@ function bindModelEvent() {
 
     }
 
-
     if (
         select.dataset.genzModelBound ===
         "true"
@@ -3694,12 +4093,10 @@ function bindModelEvent() {
 
     }
 
-
     select.addEventListener(
         "change",
         handleModelChange
     );
-
 
     select.dataset.genzModelBound =
         "true";
@@ -3717,7 +4114,6 @@ function bindResetEvent() {
         getDOM()
             .resetButton;
 
-
     if (
         !button
     ) {
@@ -3725,7 +4121,6 @@ function bindResetEvent() {
         return;
 
     }
-
 
     if (
         button.dataset.genzResetBound ===
@@ -3736,17 +4131,14 @@ function bindResetEvent() {
 
     }
 
-
     button.addEventListener(
         "click",
         async event => {
 
             event.preventDefault();
 
-
             const form =
                 appState.modules.form;
-
 
             if (
                 !form
@@ -3755,7 +4147,6 @@ function bindResetEvent() {
                 return;
 
             }
-
 
             try {
 
@@ -3779,10 +4170,8 @@ function bindResetEvent() {
 
                 }
 
-
                 const currentModel =
                     getCurrentModel();
-
 
                 if (
                     currentModel &&
@@ -3791,10 +4180,7 @@ function bindResetEvent() {
                     )
                 ) {
 
-                    renderModelCredit(
-                        currentModel
-                    );
-
+                    syncModelCreditForResolution();
 
                     enableGenerateButton(
                         currentModel
@@ -3806,16 +4192,15 @@ function bindResetEvent() {
                 error
             ) {
 
-                console.error(
-                    "[GEN-Z.AI][Generate] Reset gagal:",
-                    error
-                );
+                /*
+                 * Reset error tidak boleh
+                 * mematikan halaman Generate.
+                 */
 
             }
 
         }
     );
-
 
     button.dataset.genzResetBound =
         "true";
@@ -3832,7 +4217,6 @@ function validateDOM() {
     const elements =
         getDOM();
 
-
     const required = [
 
         "modelSelector",
@@ -3847,13 +4231,11 @@ function validateDOM() {
 
     ];
 
-
     const missing =
         required.filter(
             key =>
                 !elements[key]
         );
-
 
     if (
         missing.length
@@ -3868,7 +4250,6 @@ function validateDOM() {
 
     }
 
-
     return true;
 
 }
@@ -3882,16 +4263,12 @@ function initializeVisualState() {
 
     disableGenerateButton();
 
-
     hideLoading();
-
 
     hideError();
 
-
     const elements =
         getDOM();
-
 
     if (
         elements.status
@@ -3923,44 +4300,19 @@ async function bootstrap() {
 
     }
 
-
     appState.initializing =
         true;
 
-
     initializeVisualState();
-
 
     try {
 
-        debug(
-            "Bootstrap started."
-        );
-
-
-        /*
-         * 1. DOM
-         */
-
         validateDOM();
-
-
-        /*
-         * 2. MODULE
-         *
-         * generate-request.js sekarang WAJIB.
-         */
 
         await loadCoreModules();
 
-
-        /*
-         * 3. STATE DOM
-         */
-
         const state =
             appState.modules.state;
-
 
         if (
             typeof state.initializeGenerateElements ===
@@ -3971,17 +4323,7 @@ async function bootstrap() {
 
         }
 
-
-        /*
-         * 4. AUTH
-         */
-
         await initializeAuth();
-
-
-        /*
-         * 5. EVENTS
-         */
 
         bindModelEvent();
 
@@ -3989,21 +4331,18 @@ async function bootstrap() {
 
         bindGenerateSubmitEvent();
 
-
         /*
-         * 6. MODEL
+         * Resolution event harus dipasang setelah
+         * form tersedia dan tetap memakai event
+         * delegation karena field bersifat dynamic.
          */
+
+        bindResolutionEvent();
 
         await initializeModel();
 
-
-        /*
-         * 7. COMPLETE
-         */
-
         const elements =
             getDOM();
-
 
         if (
             elements.dynamicFields
@@ -4014,7 +4353,6 @@ async function bootstrap() {
 
         }
 
-
         if (
             elements.generateForm
         ) {
@@ -4024,10 +4362,8 @@ async function bootstrap() {
 
         }
 
-
         const currentModel =
             getCurrentModel();
-
 
         if (
             currentModel &&
@@ -4040,11 +4376,7 @@ async function bootstrap() {
                 currentModel
             );
 
-
-            renderModelCredit(
-                currentModel
-            );
-
+            syncModelCreditForResolution();
 
             enableGenerateButton(
                 currentModel
@@ -4058,62 +4390,18 @@ async function bootstrap() {
 
         }
 
-
         appState.initialized =
             true;
-
-
-        debug(
-            "Bootstrap completed:",
-            {
-                model:
-                    getModelId(
-                        currentModel
-                    ),
-
-                modelReady:
-                    appState.modelReady,
-
-                modelCredit:
-                    getModelCredit(
-                        currentModel
-                    ),
-
-                requestModule:
-                    Boolean(
-                        appState.modules.request
-                    ),
-
-                pollingModule:
-                    Boolean(
-                        appState.modules.polling
-                    ),
-
-                generateButtonDisabled:
-                    Boolean(
-                        elements.generateButton?.disabled
-                    )
-            }
-        );
-
 
     } catch (
         error
     ) {
 
-        console.error(
-            "[GEN-Z.AI][Generate] Bootstrap gagal:",
-            error
-        );
-
-
         appState.modelReady =
             false;
 
-
         const state =
             appState.modules.state;
-
 
         if (
             state &&
@@ -4127,21 +4415,17 @@ async function bootstrap() {
 
         }
 
-
         disableGenerateButton();
-
 
         showError(
             error?.message ||
             "Generate gagal diinisialisasi."
         );
 
-
     } finally {
 
         appState.initializing =
             false;
-
 
         hideLoading();
 
@@ -4151,7 +4435,7 @@ async function bootstrap() {
 
 
 /* =========================================================
-   GLOBAL DEBUG
+   GLOBAL API
 ========================================================= */
 
 window.GENZGenerateApp =
@@ -4181,9 +4465,9 @@ function start() {
         .catch(
             error => {
 
-                console.error(
-                    "[GEN-Z.AI][Generate] Fatal:",
-                    error
+                showError(
+                    error?.message ||
+                    "Generate gagal diinisialisasi."
                 );
 
             }
