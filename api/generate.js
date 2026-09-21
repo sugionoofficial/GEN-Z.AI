@@ -58,6 +58,23 @@
  *   Supabase provider_credentials
  *
  *
+ * CREDIT SOURCE OF TRUTH
+ *
+ *   Supabase models
+ *
+ *   credit_480p
+ *   credit_720p
+ *   credit_1080p
+ *
+ *
+ * CREDIT TRANSACTION
+ *
+ *   Supabase RPC
+ *
+ *   deduct_generate_credits()
+ *   refund_generate_credits()
+ *
+ *
  * =========================================================
  */
 
@@ -846,6 +863,414 @@ async function loadDatabaseModel(
 
 
 /* =========================================================
+   GENERATION RESOLUTION
+   ========================================================= */
+
+function normalizeGenerationResolution(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+        .trim()
+        .toLowerCase()
+        .replace(
+            /\s+/g,
+            ""
+        );
+
+}
+
+
+/* =========================================================
+   RESOLVE GENERATION CREDIT
+   ---------------------------------------------------------
+   SERVER-SIDE SOURCE OF TRUTH:
+ *
+   480p
+      → credit_480p
+ *
+   720p
+      → credit_720p
+ *
+   1080p
+      → credit_1080p
+ *
+   PENTING:
+   - 0 valid
+   - tidak menggunakan ||
+   - tidak menggunakan credit_final
+   - tidak menggunakan KIE price
+   - tidak menggunakan discount
+   - tidak menggunakan duration
+   ========================================================= */
+
+function resolveGenerationCredit(
+    databaseModel,
+    parameters
+) {
+
+    if (!databaseModel) {
+
+        throw Object.assign(
+            new Error(
+                "Model credit configuration was not found in Supabase"
+            ),
+            {
+                code:
+                    "MODEL_CONFIG_NOT_FOUND"
+            }
+        );
+
+    }
+
+
+    const resolution =
+        normalizeGenerationResolution(
+            parameters?.resolution
+        );
+
+
+    let rawCredit;
+
+
+    switch (
+        resolution
+    ) {
+
+        case "480p":
+
+            rawCredit =
+                databaseModel.credit_480p;
+
+            break;
+
+
+        case "720p":
+
+            rawCredit =
+                databaseModel.credit_720p;
+
+            break;
+
+
+        case "1080p":
+
+            rawCredit =
+                databaseModel.credit_1080p;
+
+            break;
+
+
+        default:
+
+            throw Object.assign(
+                new Error(
+                    "Resolution must be 480p, 720p, or 1080p"
+                ),
+                {
+                    code:
+                        "INVALID_RESOLUTION",
+
+                    resolution
+                }
+            );
+
+    }
+
+
+    /*
+     * Jangan gunakan:
+     *
+     *     rawCredit || fallback
+     *
+     * karena 0 adalah nilai credit yang sah.
+     */
+
+    if (
+        rawCredit ===
+            null ||
+        rawCredit ===
+            undefined ||
+        rawCredit ===
+            ""
+    ) {
+
+        throw Object.assign(
+            new Error(
+                `Credit ${resolution} is not configured for this model`
+            ),
+            {
+                code:
+                    "MODEL_CREDIT_NOT_CONFIGURED",
+
+                resolution
+            }
+        );
+
+    }
+
+
+    const credit =
+        Number(
+            rawCredit
+        );
+
+
+    if (
+        !Number.isFinite(
+            credit
+        ) ||
+        credit < 0
+    ) {
+
+        throw Object.assign(
+            new Error(
+                `Credit ${resolution} is invalid`
+            ),
+            {
+                code:
+                    "MODEL_CREDIT_INVALID",
+
+                resolution
+            }
+        );
+
+    }
+
+
+    return {
+
+        resolution,
+
+        credit
+
+    };
+
+}
+
+
+/* =========================================================
+   DEDUCT GENERATION CREDITS
+   ---------------------------------------------------------
+   Atomic deduction melalui Supabase RPC.
+
+   Browser tidak pernah menentukan jumlah credit.
+
+   RPC:
+     public.deduct_generate_credits(
+         p_user_id,
+         p_amount
+     )
+   ========================================================= */
+
+async function deductGenerateCredits(
+    userId,
+    amount
+) {
+
+    const data =
+        await supabaseRequest(
+            "/rest/v1/rpc/deduct_generate_credits",
+            {
+
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+
+                        p_user_id:
+                            userId,
+
+                        p_amount:
+                            amount
+
+                    })
+
+            }
+        );
+
+
+    /*
+     * Supabase RPC numeric dapat dikembalikan
+     * sebagai number atau string tergantung response.
+     */
+
+    const newCredits =
+        Number(
+            data
+        );
+
+
+    if (
+        Number.isFinite(
+            newCredits
+        )
+    ) {
+
+        return newCredits;
+
+    }
+
+
+    /*
+     * Beberapa konfigurasi RPC dapat mengembalikan
+     * object. Tetap dukung tanpa mengubah perilaku utama.
+     */
+
+    if (
+        data &&
+        typeof data ===
+            "object"
+    ) {
+
+        const candidates = [
+
+            data.credits,
+
+            data.new_credits,
+
+            data.remaining_credits,
+
+            data.deducted_credits
+
+        ];
+
+
+        for (
+            const candidate
+            of candidates
+        ) {
+
+            const numeric =
+                Number(
+                    candidate
+                );
+
+
+            if (
+                Number.isFinite(
+                    numeric
+                )
+            ) {
+
+                return numeric;
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   REFUND GENERATION CREDITS
+   ---------------------------------------------------------
+   Digunakan apabila credit sudah terpotong tetapi
+   provider gagal membuat task.
+   ========================================================= */
+
+async function refundGenerateCredits(
+    userId,
+    amount
+) {
+
+    const data =
+        await supabaseRequest(
+            "/rest/v1/rpc/refund_generate_credits",
+            {
+
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+
+                        p_user_id:
+                            userId,
+
+                        p_amount:
+                            amount
+
+                    })
+
+            }
+        );
+
+
+    const newCredits =
+        Number(
+            data
+        );
+
+
+    if (
+        Number.isFinite(
+            newCredits
+        )
+    ) {
+
+        return newCredits;
+
+    }
+
+
+    if (
+        data &&
+        typeof data ===
+            "object"
+    ) {
+
+        const candidates = [
+
+            data.credits,
+
+            data.new_credits,
+
+            data.remaining_credits
+
+        ];
+
+
+        for (
+            const candidate
+            of candidates
+        ) {
+
+            const numeric =
+                Number(
+                    candidate
+                );
+
+
+            if (
+                Number.isFinite(
+                    numeric
+                )
+            ) {
+
+                return numeric;
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
    PROVIDER LOOKUP BY DATABASE ID
    ========================================================= */
 
@@ -1059,9 +1484,12 @@ async function resolveProvider(
         if (provider) {
 
             return {
+
                 provider,
+
                 error:
                     null
+
             };
 
         }
@@ -1089,9 +1517,12 @@ async function resolveProvider(
         if (provider) {
 
             return {
+
                 provider,
+
                 error:
                     null
+
             };
 
         }
@@ -1346,21 +1777,6 @@ function decryptAesGcm(
 
 /* =========================================================
    LOAD PROVIDER API KEY
-   ---------------------------------------------------------
-   SOURCE OF TRUTH:
-       public.provider_credentials
-
-   EXACT SCHEMA:
-       provider_id
-       api_key_ciphertext
-       api_key_iv
-       api_key_tag
-
-   SECURITY:
-   - API key hanya dibaca server-side
-   - API key didekripsi server-side
-   - API key tidak pernah dikirim ke frontend
-   - Tidak menggunakan kolom api_key lama
    ========================================================= */
 
 async function loadProviderApiKey(
@@ -1645,6 +2061,7 @@ async function loadProviderApiKey(
     console.debug(
         "[generate] Provider API credential resolved successfully:",
         {
+
             provider_id:
                 normalizedProviderCode,
 
@@ -1653,6 +2070,7 @@ async function loadProviderApiKey(
 
             has_api_key:
                 true
+
         }
     );
 
@@ -1677,7 +2095,9 @@ function normalizeArray(
     ) {
 
         return [
+
             ...new Set(
+
                 value
                     .map(
                         item =>
@@ -1686,7 +2106,9 @@ function normalizeArray(
                             ).trim()
                     )
                     .filter(Boolean)
+
             )
+
         ];
 
     }
@@ -1745,7 +2167,9 @@ function normalizeArray(
 
 
             return [
+
                 ...new Set(
+
                     content
                         .split(",")
                         .map(
@@ -1758,7 +2182,9 @@ function normalizeArray(
                                     )
                         )
                         .filter(Boolean)
+
                 )
+
             ];
 
         }
@@ -1809,7 +2235,9 @@ function normalizeArray(
          */
 
         return [
+
             ...new Set(
+
                 trimmed
                     .split(",")
                     .map(
@@ -1817,7 +2245,9 @@ function normalizeArray(
                             item.trim()
                     )
                     .filter(Boolean)
+
             )
+
         ];
 
     }
@@ -1851,24 +2281,6 @@ function validateDatabaseRestrictions(
      * =====================================================
      * DURATION
      * =====================================================
-     *
-     * Database duration values are optional restrictions.
-     *
-     * Value:
-     *
-     *   > 0  = valid restriction
-     *   0    = not configured
-     *   < 0  = not configured
-     *
-     * IMPORTANT:
-     *
-     * max_duration = 0 MUST NOT mean:
-     *
-     *     duration must be at most 0 seconds
-     *
-     * KIE/model registry remains the source of truth
-     * for the actual model capability.
-     *
      */
 
     if (
@@ -1910,11 +2322,6 @@ function validateDatabaseRestrictions(
                 );
 
 
-            /*
-             * Only positive values are treated
-             * as actual database restrictions.
-             */
-
             const min =
                 Number.isFinite(
                     rawMin
@@ -1933,10 +2340,6 @@ function validateDatabaseRestrictions(
                     : null;
 
 
-            /*
-             * Minimum duration.
-             */
-
             if (
                 min !== null &&
                 duration < min
@@ -1948,10 +2351,6 @@ function validateDatabaseRestrictions(
 
             }
 
-
-            /*
-             * Maximum duration.
-             */
 
             if (
                 max !== null &&
@@ -2169,9 +2568,6 @@ function validateAdapterInput(
 
 /* =========================================================
    SANITIZE PARAMETERS
-   ---------------------------------------------------------
-   task_id SENGAJA tidak termasuk.
-   task_id adalah hasil createTask.
    ========================================================= */
 
 function sanitizeParameters(
@@ -2643,6 +3039,74 @@ export default async function handler(
 
     /*
      * =====================================================
+     * RESOLVE GENERATION CREDIT
+     * =====================================================
+     *
+     * Credit ditentukan setelah parameter tervalidasi.
+     *
+     * Tidak ada fallback 50.
+     */
+
+    let generationCredit;
+
+
+    try {
+
+        generationCredit =
+            resolveGenerationCredit(
+                databaseModel,
+                parameters
+            );
+
+    } catch (error) {
+
+        console.error(
+            "[generate] Credit resolution failed:",
+            error
+        );
+
+
+        let statusCode =
+            409;
+
+
+        if (
+            error?.code ===
+            "INVALID_RESOLUTION"
+        ) {
+
+            statusCode =
+                422;
+
+        }
+
+
+        return failure(
+            res,
+            statusCode,
+            error.message ||
+                "Model credit configuration is invalid",
+            {
+
+                code:
+                    error.code ||
+                    "MODEL_CREDIT_ERROR",
+
+                model_id:
+                    modelId,
+
+                resolution:
+                    parameters?.resolution ||
+                    null
+
+            }
+        );
+
+    }
+
+
+    /*
+     * =====================================================
      * PROVIDER
      * =====================================================
      */
@@ -2813,12 +3277,147 @@ export default async function handler(
 
     /*
      * =====================================================
+     * DEDUCT CREDIT
+     * =====================================================
+     *
+     * Credit dipotong SECARA ATOMIC sebelum KIE dipanggil.
+     *
+     * Contoh:
+     *
+     *   480p  -> credit_480p
+     *   720p  -> credit_720p
+     *   1080p -> credit_1080p
+     *
+     * Tidak menerima nilai credit dari browser.
+     */
+
+    let creditDeducted =
+        false;
+
+
+    let remainingCredits =
+        null;
+
+
+    try {
+
+        remainingCredits =
+            await deductGenerateCredits(
+                user.id,
+                generationCredit.credit
+            );
+
+
+        creditDeducted =
+            true;
+
+
+        console.info(
+            "[generate] Credit deducted:",
+            {
+
+                user_id:
+                    user.id,
+
+                model_id:
+                    modelId,
+
+                resolution:
+                    generationCredit.resolution,
+
+                credit:
+                    generationCredit.credit,
+
+                remaining_credits:
+                    remainingCredits
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[generate] Credit deduction failed:",
+            error
+        );
+
+
+        const rawMessage =
+            String(
+                error?.message ||
+                ""
+            );
+
+
+        const rawData =
+            String(
+                error?.data?.message ||
+                error?.data?.details ||
+                error?.data?.hint ||
+                error?.data?.error ||
+                ""
+            );
+
+
+        const combinedMessage =
+            `${rawMessage} ${rawData}`
+                .toUpperCase();
+
+
+        const insufficient =
+            combinedMessage.includes(
+                "INSUFFICIENT_CREDITS"
+            );
+
+
+        return failure(
+            res,
+            insufficient
+                ? 402
+                : 500,
+
+            insufficient
+                ? "Insufficient credits"
+                : (
+                    error?.message ||
+                    "Failed to deduct credits"
+                ),
+
+            {
+
+                code:
+                    insufficient
+                        ? "INSUFFICIENT_CREDITS"
+                        : (
+                            error?.code ||
+                            "CREDIT_DEDUCTION_FAILED"
+                        ),
+
+                model_id:
+                    modelId,
+
+                resolution:
+                    generationCredit.resolution,
+
+                credit:
+                    generationCredit.credit
+
+            }
+        );
+
+    }
+
+
+    /*
+     * =====================================================
      * CREATE TASK
      * =====================================================
      *
      * API key hanya berada di server.
      *
      * Tidak pernah dikirim ke browser.
+     *
+     * Credit sudah dipotong sebelum request.
      *
      */
 
@@ -2842,6 +3441,78 @@ export default async function handler(
 
 
         /*
+         * =================================================
+         * REFUND
+         * =================================================
+         *
+         * KIE gagal membuat task.
+         *
+         * Credit harus dikembalikan.
+         */
+
+        if (
+            creditDeducted
+        ) {
+
+            try {
+
+                const refundedCredits =
+                    await refundGenerateCredits(
+                        user.id,
+                        generationCredit.credit
+                    );
+
+
+                remainingCredits =
+                    refundedCredits;
+
+
+                creditDeducted =
+                    false;
+
+
+                console.info(
+                    "[generate] Credit refunded after provider failure:",
+                    {
+
+                        user_id:
+                            user.id,
+
+                        model_id:
+                            modelId,
+
+                        resolution:
+                            generationCredit.resolution,
+
+                        credit:
+                            generationCredit.credit,
+
+                        remaining_credits:
+                            refundedCredits
+
+                    }
+                );
+
+            } catch (refundError) {
+
+                /*
+                 * Jangan menutupi error provider.
+                 *
+                 * Error refund dicatat sebagai CRITICAL
+                 * supaya saldo dapat diperiksa dari server.
+                 */
+
+                console.error(
+                    "[generate] CRITICAL: credit refund failed:",
+                    refundError
+                );
+
+            }
+
+        }
+
+
+        /*
          * Provider adapter dapat mengirim:
          *
          * error.status
@@ -2849,9 +3520,6 @@ export default async function handler(
          * error.data
          * error.response
          * error.body
-         *
-         * Semua akan dibuat aman sebelum dikirim
-         * ke frontend.
          */
 
         const providerStatus =
@@ -2908,7 +3576,16 @@ export default async function handler(
                 provider_response:
                     sanitizeProviderResponse(
                         providerResponse
-                    )
+                    ),
+
+                resolution:
+                    generationCredit.resolution,
+
+                credit_used:
+                    generationCredit.credit,
+
+                credit_refunded:
+                    !creditDeducted
 
             }
         );
@@ -2955,12 +3632,86 @@ export default async function handler(
         null;
 
 
+    /*
+     * =====================================================
+     * TASK ID MISSING
+     * =====================================================
+     *
+     * Credit sudah dipotong tetapi provider tidak
+     * memberikan task ID.
+     *
+     * Kembalikan credit.
+     */
+
     if (!taskId) {
 
         console.error(
             "[generate] Provider response has no taskId:",
             safeTask
         );
+
+
+        let refundSuccessful =
+            false;
+
+
+        if (
+            creditDeducted
+        ) {
+
+            try {
+
+                const refundedCredits =
+                    await refundGenerateCredits(
+                        user.id,
+                        generationCredit.credit
+                    );
+
+
+                remainingCredits =
+                    refundedCredits;
+
+
+                creditDeducted =
+                    false;
+
+
+                refundSuccessful =
+                    true;
+
+
+                console.info(
+                    "[generate] Credit refunded because taskId is missing:",
+                    {
+
+                        user_id:
+                            user.id,
+
+                        model_id:
+                            modelId,
+
+                        resolution:
+                            generationCredit.resolution,
+
+                        credit:
+                            generationCredit.credit,
+
+                        remaining_credits:
+                            refundedCredits
+
+                    }
+                );
+
+            } catch (refundError) {
+
+                console.error(
+                    "[generate] CRITICAL: taskId-missing credit refund failed:",
+                    refundError
+                );
+
+            }
+
+        }
 
 
         return failure(
@@ -2976,7 +3727,16 @@ export default async function handler(
                     providerCode,
 
                 provider_response:
-                    safeTask
+                    safeTask,
+
+                resolution:
+                    generationCredit.resolution,
+
+                credit_used:
+                    generationCredit.credit,
+
+                credit_refunded:
+                    refundSuccessful
 
             }
         );
@@ -3030,6 +3790,20 @@ export default async function handler(
 
             provider_id:
                 providerCode,
+
+
+            /*
+             * Credit.
+             */
+
+            resolution:
+                generationCredit.resolution,
+
+            credit_used:
+                generationCredit.credit,
+
+            remaining_credits:
+                remainingCredits,
 
 
             /*
