@@ -19,6 +19,8 @@
    - Tidak membuat parameter model baru
    - Parameter internal seperti task_id / index tidak
      ditampilkan atau dikirim secara otomatis
+   - Parameter keamanan server seperti nsfw_checker
+     tidak pernah ditampilkan atau dikirim dari client
 ========================================================= */
 
 "use strict";
@@ -47,6 +49,21 @@ const INTERNAL_PARAMETERS =
     ]);
 
 
+/*
+ * Parameter yang tidak boleh menjadi kontrol client.
+ *
+ * nsfw_checker sengaja tidak pernah dirender dan tidak
+ * pernah dikirim dari browser.
+ *
+ * Nilai final nsfw_checker ditentukan server/API.
+ */
+
+const SERVER_CONTROLLED_PARAMETERS =
+    new Set([
+        "nsfw_checker"
+    ]);
+
+
 const STORAGE_BUCKET =
     "dashboard-videos";
 
@@ -71,7 +88,8 @@ const MAX_IMAGE_SIZE =
  * Parameter lain yang diberikan model
  * tetap akan dirender.
  *
- * "index" sengaja tidak dimasukkan.
+ * Parameter internal dan server-controlled
+ * tidak dimasukkan.
  */
 
 const PARAMETER_ORDER = [
@@ -81,8 +99,7 @@ const PARAMETER_ORDER = [
     "mode",
     "aspect_ratio",
     "duration",
-    "resolution",
-    "nsfw_checker"
+    "resolution"
 ];
 
 
@@ -748,10 +765,7 @@ function getParameterLabel(
             "Duration",
 
         resolution:
-            "Resolution",
-
-        nsfw_checker:
-            "NSFW Checker"
+            "Resolution"
 
     };
 
@@ -798,7 +812,7 @@ function getParameterDescription(
 
 
 /* =========================================================
-   INTERNAL
+   INTERNAL / SERVER CONTROLLED
 ========================================================= */
 
 function isInternalParameter(
@@ -810,6 +824,42 @@ function isInternalParameter(
             name ||
             ""
         ).trim()
+    );
+
+}
+
+
+function isServerControlledParameter(
+    name
+) {
+
+    return SERVER_CONTROLLED_PARAMETERS.has(
+        String(
+            name ||
+            ""
+        ).trim()
+            .toLowerCase()
+    );
+
+}
+
+
+/*
+ * Parameter yang tidak boleh dirender
+ * atau dikirim client.
+ */
+
+function isClientForbiddenParameter(
+    name
+) {
+
+    return (
+        isInternalParameter(
+            name
+        ) ||
+        isServerControlledParameter(
+            name
+        )
     );
 
 }
@@ -834,7 +884,7 @@ function isRenderableParameter(
 
 
     if (
-        isInternalParameter(
+        isClientForbiddenParameter(
             name
         )
     ) {
@@ -1253,6 +1303,21 @@ function createImageField(
         "100%";
 
 
+    /*
+     * Parameter name disimpan agar struktur
+     * tetap siap digunakan module lain.
+     */
+
+    if (
+        parameterName
+    ) {
+
+        wrapper.dataset.parameter =
+            parameterName;
+
+    }
+
+
     /* =====================================================
        MODE SELECTOR
      ===================================================== */
@@ -1364,13 +1429,8 @@ function createImageField(
 
 
     /*
-     * PENTING:
-     *
      * Tetap gunakan class
      * generate-image-file.
-     *
-     * Collector generate-form.js
-     * dapat mengenali input ini.
      */
 
     const fileInput =
@@ -1459,6 +1519,7 @@ function createImageField(
                 "none";
 
             return;
+
         }
 
 
@@ -1489,10 +1550,9 @@ function createImageField(
 
 
                         /*
-                         * PREVIEW KECIL
+                         * Preview kecil.
                          *
-                         * Tidak mengubah ukuran
-                         * file asli yang dikirim.
+                         * Tidak mengubah file asli.
                          */
 
                         image.style.width =
@@ -1523,14 +1583,17 @@ function createImageField(
                         preview.appendChild(
                             image
                         );
+
                     };
 
 
                 reader.readAsDataURL(
                     file
                 );
+
             }
         );
+
     }
 
 
@@ -1579,6 +1642,7 @@ function createImageField(
 
                 preview.style.display =
                     "none";
+
             }
 
         } else {
@@ -1600,19 +1664,15 @@ function createImageField(
             urlButton.classList.add(
                 "active"
             );
+
         }
 
-
-        /*
-         * Simpan mode pada element.
-         * Collector bisa membaca ini jika
-         * diperlukan.
-         */
 
         wrapper.dataset.imageMode =
             uploadMode
                 ? "upload"
                 : "url";
+
     }
 
 
@@ -1630,6 +1690,7 @@ function createImageField(
             setMode(
                 "url"
             );
+
         }
     );
 
@@ -1644,6 +1705,7 @@ function createImageField(
             setMode(
                 "upload"
             );
+
         }
     );
 
@@ -1655,6 +1717,7 @@ function createImageField(
             renderPreview(
                 fileInput.files
             );
+
         }
     );
 
@@ -1674,7 +1737,9 @@ function createImageField(
             ) {
 
                 event.preventDefault();
+
             }
+
         }
     );
 
@@ -1682,7 +1747,7 @@ function createImageField(
     /* =====================================================
        PUBLIC REFERENCES
        -----------------------------------------------------
-       Dipasang pada wrapper supaya collector lama
+       Dipasang pada wrapper supaya collector/module lain
        tetap bisa menemukan input yang benar.
      ===================================================== */
 
@@ -1699,6 +1764,100 @@ function createImageField(
 
     wrapper._preview =
         preview;
+
+
+    /*
+     * Method kompatibilitas.
+     *
+     * Collector lama dapat membaca mode URL/upload
+     * tanpa mengubah struktur DOM.
+     */
+
+    wrapper.getInputMode =
+        () =>
+            wrapper.dataset.imageMode ||
+            "url";
+
+
+    wrapper.getUrlInput =
+        () =>
+            urlInput;
+
+
+    wrapper.getFileInput =
+        () =>
+            fileInput;
+
+
+    /*
+     * Upload URL sebenarnya harus berasal dari
+     * proses upload/storage yang menangani file.
+     *
+     * Jangan mengarang URL file di client.
+     *
+     * Untuk kompatibilitas, return nilai yang tersedia
+     * pada wrapper jika module upload lain memasangnya.
+     */
+
+    wrapper.getUploadedUrl =
+        () =>
+            String(
+                wrapper.dataset.uploadedUrl ||
+                ""
+            ).trim();
+
+
+    wrapper.setUploadedUrl =
+        url => {
+
+            const normalized =
+                String(
+                    url ||
+                    ""
+                ).trim();
+
+
+            if (
+                normalized
+            ) {
+
+                wrapper.dataset.uploadedUrl =
+                    normalized;
+
+            } else {
+
+                delete wrapper.dataset.uploadedUrl;
+
+            }
+
+
+            return normalized;
+
+        };
+
+
+    wrapper.clearUploadedFile =
+        async () => {
+
+            fileInput.value =
+                "";
+
+            urlInput.value =
+                "";
+
+            preview.innerHTML =
+                "";
+
+            preview.style.display =
+                "none";
+
+            delete wrapper.dataset.uploadedUrl;
+
+            setMode(
+                "url"
+            );
+
+        };
 
 
     /* =====================================================
@@ -1734,6 +1893,7 @@ function createImageField(
 
 
     return wrapper;
+
 }
 
 
@@ -2699,9 +2859,14 @@ function createFieldInput(
             "image_url"
     ) {
 
+        /*
+         * FIX:
+         * Sebelumnya definition dan name tertukar.
+         */
+
         return createImageField(
-            name,
-            definition
+            definition,
+            name
         );
 
     }
@@ -3277,7 +3442,10 @@ function readFieldValue(
 
                 ? imageInput.getInputMode()
 
-                : "url";
+                : (
+                    imageInput.dataset.imageMode ||
+                    "url"
+                );
 
 
         if (
@@ -3291,7 +3459,10 @@ function readFieldValue(
 
                     ? imageInput.getUploadedUrl()
 
-                    : ""
+                    : String(
+                        imageInput.dataset.uploadedUrl ||
+                        ""
+                    ).trim()
             );
 
         }
@@ -3507,12 +3678,12 @@ export function getFormParameters(
 
             /*
              * Safety:
-             * parameter internal tidak pernah
-             * ikut dikirim.
+             * parameter internal dan server-controlled
+             * tidak pernah ikut dikirim.
              */
 
             if (
-                isInternalParameter(
+                isClientForbiddenParameter(
                     name
                 )
             ) {
@@ -3651,6 +3822,7 @@ export function getFormParameters(
 
     delete parameters.task_id;
     delete parameters.index;
+    delete parameters.nsfw_checker;
 
 
     console.debug(
@@ -3689,7 +3861,7 @@ export function setFieldValue(
 ) {
 
     if (
-        isInternalParameter(
+        isClientForbiddenParameter(
             name
         )
     ) {
@@ -4024,7 +4196,7 @@ export function getParameterDefinition(
 ) {
 
     if (
-        isInternalParameter(
+        isClientForbiddenParameter(
             name
         )
     ) {
