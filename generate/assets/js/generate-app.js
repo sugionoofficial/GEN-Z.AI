@@ -38,6 +38,7 @@
    - State HARUS menggunakan SATU instance generate-state.js
    - Generate button hanya aktif jika model benar-benar siap
    - generate-request.js WAJIB tersedia untuk Generate
+   - MODEL CREDIT hanya boleh dirender SATU KALI
 ========================================================= */
 
 "use strict";
@@ -157,10 +158,22 @@ function getDOM() {
                 "generateButton"
             ),
 
+        /*
+         * generateCreditCost = CONTAINER / LEGACY WRAPPER
+         *
+         * Tidak boleh lagi diisi langsung dengan
+         * angka credit.
+         */
+
         generateCreditCost:
             document.getElementById(
                 "generateCreditCost"
             ),
+
+        /*
+         * generateCreditValue = SATU-SATUNYA
+         * elemen yang menampilkan angka MODEL CREDIT.
+         */
 
         generateCreditValue:
             document.getElementById(
@@ -793,13 +806,6 @@ function getSelectedResolution() {
         elements.dynamicFields ||
         document;
 
-    /*
-     * Priority:
-     * 1. checked radio
-     * 2. selected option
-     * 3. normal value control
-     */
-
     const checkedCandidates = [
 
         '[name="resolution"]:checked',
@@ -905,10 +911,6 @@ function getSelectedResolution() {
         }
 
     }
-
-    /*
-     * Cari seluruh control dengan nama resolution.
-     */
 
     const controls =
         root.querySelectorAll(
@@ -1242,11 +1244,6 @@ function calculateFinalCredit(
 
     }
 
-    /*
-     * Hindari floating point seperti
-     * 12.599999999999998.
-     */
-
     return Math.round(
         finalCredit *
         100
@@ -1280,13 +1277,6 @@ function getModelCredit(
             getSelectedResolution()
         );
 
-    /*
-     * Bila resolution tersedia, SELALU gunakan
-     * credit per resolution + discount.
-     *
-     * Jangan fallback ke credit_cost global.
-     */
-
     if (
         resolution
     ) {
@@ -1317,11 +1307,8 @@ function getModelCredit(
     }
 
     /*
-     * Jangan memakai credit_cost /
-     * credit_final global sebagai source.
-     *
-     * Coba runtime final field hanya bila
-     * resolution-specific final sudah tersedia.
+     * Hanya izinkan runtime final credit
+     * yang memang spesifik terhadap resolution.
      */
 
     const suffix =
@@ -1462,6 +1449,14 @@ function getCreditDisplayElement() {
     const elements =
         getDOM();
 
+    /*
+     * PRIORITAS UTAMA:
+     * #generateCreditValue
+     *
+     * Elemen ini satu-satunya tempat yang boleh
+     * menerima nilai angka MODEL CREDIT.
+     */
+
     if (
         elements.generateCreditValue
     ) {
@@ -1470,11 +1465,20 @@ function getCreditDisplayElement() {
 
     }
 
-    const candidates = [
-
+    const directElement =
         document.getElementById(
             "generateCreditValue"
-        ),
+        );
+
+    if (
+        directElement
+    ) {
+
+        return directElement;
+
+    }
+
+    const candidates = [
 
         document.querySelector(
             "[data-generate-credit]"
@@ -1506,8 +1510,9 @@ function getCreditDisplayElement() {
     }
 
     /*
-     * Bila hanya container yang tersedia,
-     * buat child khusus untuk nilai credit.
+     * Fallback terakhir:
+     * jika markup hanya menyediakan container,
+     * buat SATU child khusus untuk nilai credit.
      */
 
     const container =
@@ -1556,6 +1561,123 @@ function getCreditDisplayElement() {
 
 
 /* =========================================================
+   CLEAN LEGACY MODEL CREDIT VALUE
+========================================================= */
+
+function cleanLegacyModelCreditValue(
+    container,
+    canonicalElement,
+    formatted
+) {
+
+    if (
+        !container ||
+        !canonicalElement
+    ) {
+
+        return;
+
+    }
+
+    /*
+     * Jika generateCreditCost adalah elemen nilai
+     * yang berbeda dari canonicalElement, jangan
+     * pernah menulis angka ke sana.
+     *
+     * Hapus hanya text node langsung yang berisi
+     * nilai credit lama.
+     *
+     * Jangan menyentuh child element lain.
+     */
+
+    if (
+        container !==
+        canonicalElement
+    ) {
+
+        const isActualContainer =
+            container.contains(
+                canonicalElement
+            );
+
+        if (
+            !isActualContainer
+        ) {
+
+            return;
+
+        }
+
+        Array.from(
+            container.childNodes
+        ).forEach(
+            node => {
+
+                if (
+                    node.nodeType !==
+                    Node.TEXT_NODE
+                ) {
+
+                    return;
+
+                }
+
+                const text =
+                    String(
+                        node.nodeValue ||
+                        ""
+                    ).trim();
+
+                if (
+                    !text
+                ) {
+
+                    return;
+
+                }
+
+                /*
+                 * Hapus hanya text yang tampak seperti
+                 * credit/model credit.
+                 *
+                 * Tidak menghapus label lain.
+                 */
+
+                const normalized =
+                    text
+                        .replace(
+                            /credit/gi,
+                            ""
+                        )
+                        .replace(
+                            /[:\s]/g,
+                            ""
+                        );
+
+                if (
+                    normalized ===
+                    String(
+                        formatted
+                    ).replace(
+                        /[\s,]/g,
+                        ""
+                    )
+                ) {
+
+                    node.nodeValue =
+                        "";
+
+                }
+
+            }
+        );
+
+    }
+
+}
+
+
+/* =========================================================
    RENDER MODEL CREDIT
 ========================================================= */
 
@@ -1589,25 +1711,24 @@ function renderModelCredit(
         getDOM();
 
     /*
-     * #generateCreditCost:
-     * compatibility dengan markup lama.
-     */
-
-    if (
-        elements.generateCreditCost
-    ) {
-
-        elements.generateCreditCost.textContent =
-            formatted;
-
-        elements.generateCreditCost.hidden =
-            false;
-
-    }
-
-    /*
-     * #generateCreditValue:
-     * target utama display credit.
+     * =====================================================
+     * IMPORTANT:
+     *
+     * generateCreditCost TIDAK BOLEH lagi menerima
+     * textContent berupa angka.
+     *
+     * Sebelumnya:
+     *
+     * generateCreditCost.textContent = formatted;
+     * generateCreditValue.textContent = formatted;
+     *
+     * Itulah sumber utama tampilan:
+     *
+     * 9 9
+     *
+     * Sekarang hanya generateCreditValue yang
+     * menerima nilai credit.
+     * =====================================================
      */
 
     const creditElement =
@@ -1616,6 +1737,14 @@ function renderModelCredit(
     if (
         creditElement
     ) {
+
+        /*
+         * Pastikan elemen canonical tidak dianggap
+         * sebagai legacy element.
+         */
+
+        creditElement.dataset.modelCreditCanonical =
+            "true";
 
         creditElement.textContent =
             formatted;
@@ -1632,10 +1761,139 @@ function renderModelCredit(
         creditElement.style.opacity =
             "1";
 
+        /*
+         * Jika generateCreditCost merupakan parent,
+         * bersihkan text node langsung yang sebelumnya
+         * berisi angka.
+         */
+
+        cleanLegacyModelCreditValue(
+            elements.generateCreditCost,
+            creditElement,
+            formatted
+        );
+
     }
 
     /*
-     * Compatibility dengan container.
+     * generateCreditCost sekarang hanya dianggap
+     * sebagai container.
+     */
+
+    if (
+        elements.generateCreditCost
+    ) {
+
+        /*
+         * Jika elemen tersebut BUKAN canonical
+         * dan TIDAK mengandung canonical,
+         * jangan memaksanya menampilkan angka.
+         */
+
+        if (
+            elements.generateCreditCost !==
+                creditElement &&
+            !elements.generateCreditCost.contains(
+                creditElement
+            )
+        ) {
+
+            /*
+             * Legacy value element.
+             *
+             * Sembunyikan supaya tidak muncul
+             * sebagai angka kedua.
+             */
+
+            elements.generateCreditCost.hidden =
+                true;
+
+            elements.generateCreditCost.style.display =
+                "none";
+
+            elements.generateCreditCost.style.visibility =
+                "hidden";
+
+            elements.generateCreditCost.style.opacity =
+                "0";
+
+            elements.generateCreditCost.removeAttribute(
+                "data-model-credit-canonical"
+            );
+
+        }
+
+        else {
+
+            /*
+             * Jika generateCreditCost adalah parent
+             * canonical element, parent tetap terlihat.
+             */
+
+            elements.generateCreditCost.hidden =
+                false;
+
+            elements.generateCreditCost.style.display =
+                "";
+
+            elements.generateCreditCost.style.visibility =
+                "visible";
+
+            elements.generateCreditCost.style.opacity =
+                "1";
+
+        }
+
+    }
+
+    /*
+     * Hapus duplicate ID jika markup lama memiliki
+     * lebih dari satu #generateCreditValue.
+     *
+     * Hanya satu yang dipertahankan.
+     */
+
+    const duplicateValues =
+        document.querySelectorAll(
+            "#generateCreditValue"
+        );
+
+    duplicateValues.forEach(
+        element => {
+
+            if (
+                element ===
+                creditElement
+            ) {
+
+                return;
+
+            }
+
+            element.removeAttribute(
+                "data-model-credit-canonical"
+            );
+
+            element.hidden =
+                true;
+
+            element.style.display =
+                "none";
+
+            element.style.visibility =
+                "hidden";
+
+            element.style.opacity =
+                "0";
+
+        }
+    );
+
+    /*
+     * Compatibility dengan container button.
+     *
+     * Container hanya dibuka.
+     * Tidak pernah diberi textContent credit.
      */
 
     const creditContainer =
@@ -1662,31 +1920,12 @@ function renderModelCredit(
     }
 
     /*
-     * Jangan mengubah account credit.
-     * Ini khusus MODEL USAGE CREDIT.
+     * Account Credit (#creditBadge) SENGAJA TIDAK
+     * disentuh di sini.
+     *
+     * Account Credit berasal dari profiles.credits.
+     * Model Usage Credit adalah elemen yang berbeda.
      */
-
-    if (
-        elements.creditBadge &&
-        creditElement
-    ) {
-
-        /*
-         * Hanya sinkronkan bila badge memang
-         * ditujukan untuk model credit.
-         */
-
-        if (
-            elements.creditBadge.dataset.modelCredit ===
-            "true"
-        ) {
-
-            elements.creditBadge.textContent =
-                formatted;
-
-        }
-
-    }
 
     return credit;
 
@@ -1747,11 +1986,6 @@ function bindResolutionEvent() {
         return;
 
     }
-
-    /*
-     * Delegation digunakan karena resolution control
-     * dibuat secara dynamic oleh generate-form.js.
-     */
 
     form.addEventListener(
         "change",
@@ -1827,11 +2061,6 @@ function bindResolutionEvent() {
                 return;
 
             }
-
-            /*
-             * Beri kesempatan browser dan form module
-             * menyelesaikan selected state lebih dahulu.
-             */
 
             requestAnimationFrame(
                 () => {
@@ -2127,11 +2356,6 @@ function enableGenerateButton(
             error
         ) {
 
-            /*
-             * UI module tidak boleh menghentikan
-             * sinkronisasi credit.
-             */
-
         }
 
     }
@@ -2197,11 +2421,6 @@ function disableGenerateButton() {
         } catch (
             error
         ) {
-
-            /*
-             * Jangan hentikan lifecycle Generate
-             * hanya karena UI helper gagal.
-             */
 
         }
 
@@ -2357,12 +2576,6 @@ async function renderModel(
         verifiedModel
     );
 
-    /*
-     * Form dirender terlebih dahulu supaya
-     * resolution control sudah ada ketika credit
-     * dihitung.
-     */
-
     await renderForm(
         verifiedModel
     );
@@ -2389,10 +2602,6 @@ async function renderModel(
     enableGenerateButton(
         verifiedModel
     );
-
-    /*
-     * Final sync setelah dynamic form selesai.
-     */
 
     syncModelCreditForResolution();
 
@@ -4192,11 +4401,6 @@ function bindResetEvent() {
                 error
             ) {
 
-                /*
-                 * Reset error tidak boleh
-                 * mematikan halaman Generate.
-                 */
-
             }
 
         }
@@ -4330,12 +4534,6 @@ async function bootstrap() {
         bindResetEvent();
 
         bindGenerateSubmitEvent();
-
-        /*
-         * Resolution event harus dipasang setelah
-         * form tersedia dan tetap memakai event
-         * delegation karena field bersifat dynamic.
-         */
 
         bindResolutionEvent();
 
