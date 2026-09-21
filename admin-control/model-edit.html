@@ -1090,6 +1090,58 @@
             margin-top: 18px;
         }
 
+        .resolution-price-box {
+            position: relative;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 12px;
+            background: rgba(0,0,0,.24);
+        }
+
+        .resolution-price-box.final {
+            border-color: rgba(255,23,68,.25);
+            background: rgba(255,23,68,.055);
+            box-shadow: 0 0 24px rgba(255,23,68,.06);
+        }
+
+        .resolution-title {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 950;
+            margin-bottom: 12px;
+        }
+
+        .resolution-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,.055);
+        }
+
+        .resolution-row:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .resolution-row-label {
+            color: rgba(255,255,255,.40);
+            font-size: 10px;
+        }
+
+        .resolution-row-value {
+            color: rgba(255,255,255,.88);
+            font-size: 12px;
+            font-weight: 850;
+            text-align: right;
+        }
+
+        .resolution-row-value.final-value {
+            color: #ff5d7a;
+            font-size: 14px;
+        }
+
         .price-box {
             padding:
                 15px;
@@ -1974,51 +2026,52 @@
 
                     <div class="price-preview">
 
-                        <div class="price-box">
-
-                            <div class="price-label">
-                                Harga USD
+                        <div class="resolution-price-box">
+                            <div class="resolution-title">480p</div>
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Credit</span>
+                                <strong class="resolution-row-value" id="pricingCredit480p">0 Credit</strong>
                             </div>
-
-                            <div
-                                class="price-value"
-                                id="previewUsd"
-                            >
-                                $0.00
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Diskon</span>
+                                <strong class="resolution-row-value" id="pricingDiscount480p">Tidak ada</strong>
                             </div>
-
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Credit Final</span>
+                                <strong class="resolution-row-value final-value" id="pricingFinal480p">0 Credit</strong>
+                            </div>
                         </div>
 
-
-                        <div class="price-box">
-
-                            <div class="price-label">
-                                Harga IDR
+                        <div class="resolution-price-box">
+                            <div class="resolution-title">720p</div>
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Credit</span>
+                                <strong class="resolution-row-value" id="pricingCredit720p">0 Credit</strong>
                             </div>
-
-                            <div
-                                class="price-value"
-                                id="previewIdr"
-                            >
-                                Rp0
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Diskon</span>
+                                <strong class="resolution-row-value" id="pricingDiscount720p">Tidak ada</strong>
                             </div>
-
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Credit Final</span>
+                                <strong class="resolution-row-value final-value" id="pricingFinal720p">0 Credit</strong>
+                            </div>
                         </div>
 
-
-                        <div class="price-box final">
-
-                            <div class="price-label">
-                                Setelah Diskon
+                        <div class="resolution-price-box final">
+                            <div class="resolution-title">1080p</div>
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Credit</span>
+                                <strong class="resolution-row-value" id="pricingCredit1080p">0 Credit</strong>
                             </div>
-
-                            <div
-                                class="price-value"
-                                id="previewFinal"
-                            >
-                                Rp0
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Diskon</span>
+                                <strong class="resolution-row-value" id="pricingDiscount1080p">Tidak ada</strong>
                             </div>
-
+                            <div class="resolution-row">
+                                <span class="resolution-row-label">Credit Final</span>
+                                <strong class="resolution-row-value final-value" id="pricingFinal1080p">0 Credit</strong>
+                            </div>
                         </div>
 
                     </div>
@@ -2284,9 +2337,15 @@
     const priceUsd = document.getElementById("priceUsd");
     const exchangeRate = document.getElementById("exchangeRate");
     const discount = document.getElementById("discount");
-    const previewUsd = document.getElementById("previewUsd");
-    const previewIdr = document.getElementById("previewIdr");
-    const previewFinal = document.getElementById("previewFinal");
+    const pricingCredit480p = document.getElementById("pricingCredit480p");
+    const pricingDiscount480p = document.getElementById("pricingDiscount480p");
+    const pricingFinal480p = document.getElementById("pricingFinal480p");
+    const pricingCredit720p = document.getElementById("pricingCredit720p");
+    const pricingDiscount720p = document.getElementById("pricingDiscount720p");
+    const pricingFinal720p = document.getElementById("pricingFinal720p");
+    const pricingCredit1080p = document.getElementById("pricingCredit1080p");
+    const pricingDiscount1080p = document.getElementById("pricingDiscount1080p");
+    const pricingFinal1080p = document.getElementById("pricingFinal1080p");
     const credit480p = document.getElementById("credit480p");
     const credit720p = document.getElementById("credit720p");
     const credit1080p = document.getElementById("credit1080p");
@@ -2434,6 +2493,47 @@
         statusText.textContent = statusToggle.checked ? "Aktif" : "Nonaktif";
     }
 
+    function formatCredit(value) {
+        const number = nullableNumber(value);
+        if (number === null) return "Belum diatur";
+        return `${number.toLocaleString("id-ID", {
+            maximumFractionDigits: 2
+        })} Credit`;
+    }
+
+    function formatDiscount(discountPercent) {
+        const percent = Math.min(100, Math.max(0, numberValue(discountPercent)));
+        if (percent <= 0) return "Tidak ada";
+        return `${percent.toLocaleString("id-ID", {
+            maximumFractionDigits: 2
+        })}%`;
+    }
+
+    function calculateFinalCredit(credit, discountPercent) {
+        const numericCredit = nullableNumber(credit);
+        if (numericCredit === null) return null;
+        const percent = Math.min(100, Math.max(0, numberValue(discountPercent)));
+        return numericCredit * (1 - percent / 100);
+    }
+
+    function updateResolutionPricing() {
+        const discountPercent = Math.min(100, Math.max(0, numberValue(discount.value)));
+        const values = [
+            { credit: credit480p.value, creditEl: pricingCredit480p, discountEl: pricingDiscount480p, finalEl: pricingFinal480p },
+            { credit: credit720p.value, creditEl: pricingCredit720p, discountEl: pricingDiscount720p, finalEl: pricingFinal720p },
+            { credit: credit1080p.value, creditEl: pricingCredit1080p, discountEl: pricingDiscount1080p, finalEl: pricingFinal1080p }
+        ];
+
+        values.forEach(item => {
+            const finalCredit = calculateFinalCredit(item.credit, discountPercent);
+            item.creditEl.textContent = formatCredit(item.credit);
+            item.discountEl.textContent = formatDiscount(discountPercent);
+            item.finalEl.textContent = formatCredit(finalCredit);
+        });
+
+        return { discountPercent };
+    }
+
     function updatePricePreview() {
         const usd = Math.max(0, numberValue(priceUsd.value));
         const rate = Math.max(0, numberValue(exchangeRate.value));
@@ -2441,12 +2541,7 @@
         const idr = usd * rate;
         const finalIdr = idr * (1 - discountPercent / 100);
 
-        previewUsd.textContent = "$" + usd.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 6
-        });
-        previewIdr.textContent = "Rp" + Math.round(idr).toLocaleString("id-ID");
-        previewFinal.textContent = "Rp" + Math.round(finalIdr).toLocaleString("id-ID");
+        updateResolutionPricing();
 
         return { usd, rate, idr, discountPercent, finalIdr };
     }
