@@ -2350,6 +2350,915 @@ async function handleModelChange(
 
 }
 
+/* =========================================================
+   KIE.AI RESPONSE DIAGNOSTIC
+   ---------------------------------------------------------
+   Menampilkan response dari backend/KIE.AI.
+   Tidak pernah menampilkan API key / credential.
+========================================================= */
+
+function sanitizeKieResponse(value, depth = 0) {
+
+    if (depth > 6) {
+        return "[MAX_DEPTH]";
+    }
+
+    const secretKeys = new Set([
+        "apiKey",
+        "api_key",
+        "apikey",
+        "authorization",
+        "Authorization",
+        "access_token",
+        "accessToken",
+        "token",
+        "secret",
+        "password",
+        "credential",
+        "credentials",
+        "api_key_ciphertext",
+        "api_key_iv",
+        "api_key_tag"
+    ]);
+
+    if (Array.isArray(value)) {
+
+        return value.map(
+            item =>
+                sanitizeKieResponse(
+                    item,
+                    depth + 1
+                )
+        );
+
+    }
+
+    if (
+        value &&
+        typeof value === "object"
+    ) {
+
+        const result = {};
+
+        for (
+            const [key, item]
+            of Object.entries(value)
+        ) {
+
+            if (
+                secretKeys.has(key)
+            ) {
+
+                result[key] =
+                    "[REDACTED]";
+
+                continue;
+            }
+
+            result[key] =
+                sanitizeKieResponse(
+                    item,
+                    depth + 1
+                );
+        }
+
+        return result;
+    }
+
+    if (
+        typeof value ===
+        "string"
+    ) {
+
+        return value.replace(
+            /Bearer\s+[^\s"']+/gi,
+            "Bearer [REDACTED]"
+        );
+    }
+
+    return value;
+}
+
+
+/* =========================================================
+   CREATE DIAGNOSTIC PANEL
+========================================================= */
+
+function ensureKieDiagnosticPanel() {
+
+    let panel =
+        document.getElementById(
+            "genzKieDiagnostic"
+        );
+
+    if (panel) {
+        return panel;
+    }
+
+    const elements =
+        getDOM();
+
+    panel =
+        document.createElement(
+            "section"
+        );
+
+    panel.id =
+        "genzKieDiagnostic";
+
+    panel.style.cssText =
+        [
+            "margin-top:20px",
+            "padding:18px",
+            "border:1px solid rgba(0,255,255,.25)",
+            "border-radius:14px",
+            "background:rgba(5,10,20,.96)",
+            "color:#eafcff",
+            "box-sizing:border-box"
+        ].join(";");
+
+    panel.innerHTML =
+        `
+        <div
+            style="
+                font-size:11px;
+                letter-spacing:1.5px;
+                opacity:.7;
+            "
+        >
+            KIE.AI RESPONSE
+        </div>
+
+        <div
+            id="genzKieSummary"
+            style="
+                margin-top:8px;
+                font-size:14px;
+                font-weight:600;
+                line-height:1.5;
+            "
+        >
+            Menunggu response...
+        </div>
+
+        <pre
+            id="genzKieRaw"
+            style="
+                margin:14px 0 0;
+                padding:12px;
+                white-space:pre-wrap;
+                word-break:break-word;
+                max-height:420px;
+                overflow:auto;
+                font-size:12px;
+                line-height:1.5;
+                background:rgba(0,0,0,.30);
+                border-radius:10px;
+            "
+        ></pre>
+
+        <div
+            id="genzGenerationResult"
+            style="
+                margin-top:16px;
+                display:grid;
+                gap:12px;
+            "
+        ></div>
+        `;
+
+    const parent =
+        elements.generateCard?.parentElement ||
+        elements.generateForm?.parentElement ||
+        document.querySelector(
+            ".content"
+        ) ||
+        document.body;
+
+    parent.appendChild(
+        panel
+    );
+
+    return panel;
+}
+
+
+/* =========================================================
+   RENDER KIE RESPONSE
+========================================================= */
+
+function renderKieDiagnostic(
+    response,
+    phase = "RESPONSE"
+) {
+
+    const panel =
+        ensureKieDiagnosticPanel();
+
+    const summary =
+        panel.querySelector(
+            "#genzKieSummary"
+        );
+
+    const raw =
+        panel.querySelector(
+            "#genzKieRaw"
+        );
+
+    const safeResponse =
+        sanitizeKieResponse(
+            response
+        );
+
+    const taskId =
+        response?.taskId ||
+        response?.task_id ||
+        response?.jobId ||
+        response?.data?.taskId ||
+        response?.data?.task_id ||
+        response?.task?.taskId ||
+        response?.task?.task_id ||
+        "-";
+
+    const state =
+        response?.state ||
+        response?.status ||
+        response?.task?.state ||
+        response?.task?.status ||
+        "-";
+
+    const code =
+        response?.code ||
+        response?.error_code ||
+        response?.errorCode ||
+        response?.data?.code ||
+        "-";
+
+    const message =
+        response?.message ||
+        response?.msg ||
+        response?.error ||
+        response?.data?.message ||
+        response?.data?.msg ||
+        response?.data?.error ||
+        "-";
+
+    summary.textContent =
+        `${phase} • Status: ${String(state)} • Code: ${String(code)} • Task: ${String(taskId)} • ${String(message)}`;
+
+    raw.textContent =
+        JSON.stringify(
+            safeResponse,
+            null,
+            2
+        );
+
+    panel.hidden =
+        false;
+}
+
+
+/* =========================================================
+   RENDER GENERATION RESULT
+========================================================= */
+
+function renderGenerationResult(
+    result
+) {
+
+    const resultUrls =
+        Array.isArray(
+            result?.resultUrls
+        )
+            ? result.resultUrls
+            : Array.isArray(
+                result?.result_urls
+            )
+                ? result.result_urls
+                : [];
+
+    const panel =
+        ensureKieDiagnosticPanel();
+
+    const resultBox =
+        panel.querySelector(
+            "#genzGenerationResult"
+        );
+
+    resultBox.innerHTML =
+        "";
+
+    if (
+        !resultUrls.length
+    ) {
+
+        return;
+    }
+
+    for (
+        const rawUrl
+        of resultUrls
+    ) {
+
+        const url =
+            String(
+                rawUrl || ""
+            ).trim();
+
+        if (!url) {
+            continue;
+        }
+
+        /*
+         * Video result.
+         */
+
+        const video =
+            document.createElement(
+                "video"
+            );
+
+        video.controls =
+            true;
+
+        video.playsInline =
+            true;
+
+        video.preload =
+            "metadata";
+
+        video.style.cssText =
+            [
+                "width:100%",
+                "max-width:760px",
+                "border-radius:12px",
+                "display:block"
+            ].join(";");
+
+        const source =
+            document.createElement(
+                "source"
+            );
+
+        source.src =
+            url;
+
+        source.type =
+            "video/mp4";
+
+        video.appendChild(
+            source
+        );
+
+        resultBox.appendChild(
+            video
+        );
+    }
+}
+
+
+/* =========================================================
+   GENERATE SUBMIT
+========================================================= */
+
+let generationInProgress =
+    false;
+
+
+async function handleGenerateSubmit(
+    event
+) {
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+    if (
+        generationInProgress
+    ) {
+
+        return;
+    }
+
+    const elements =
+        getDOM();
+
+    const model =
+        getCurrentModel();
+
+    if (
+        !model ||
+        !getModelId(
+            model
+        )
+    ) {
+
+        showError(
+            "Model belum siap digunakan."
+        );
+
+        return;
+    }
+
+    const request =
+        appState.modules.request;
+
+    const polling =
+        appState.modules.polling;
+
+    const form =
+        appState.modules.form;
+
+    /*
+     * Pastikan module request tersedia.
+     */
+
+    if (
+        !request ||
+        typeof request.generateVideo !==
+            "function"
+    ) {
+
+        showError(
+            "Module generate-request.js tidak tersedia."
+        );
+
+        return;
+    }
+
+    /*
+     * Pastikan polling tersedia.
+     */
+
+    if (
+        !polling ||
+        typeof polling.pollGenerateTask !==
+            "function"
+    ) {
+
+        showError(
+            "Module generate-polling.js tidak tersedia."
+        );
+
+        return;
+    }
+
+    /*
+     * Pastikan form module tersedia.
+     */
+
+    if (
+        !form ||
+        typeof form.getFormParameters !==
+            "function"
+    ) {
+
+        showError(
+            "Module generate-form.js tidak memiliki getFormParameters()."
+        );
+
+        return;
+    }
+
+    generationInProgress =
+        true;
+
+    hideError();
+
+    /*
+     * Disable Generate selama proses.
+     */
+
+    if (
+        elements.generateButton
+    ) {
+
+        elements.generateButton.disabled =
+            true;
+
+        elements.generateButton.setAttribute(
+            "aria-busy",
+            "true"
+        );
+    }
+
+    /*
+     * Disable field form.
+     */
+
+    if (
+        elements.generateForm
+    ) {
+
+        elements.generateForm
+            .querySelectorAll(
+                "input, select, textarea, button"
+            )
+            .forEach(
+                field => {
+
+                    field.disabled =
+                        true;
+
+                }
+            );
+    }
+
+    /*
+     * Response awal.
+     */
+
+    renderKieDiagnostic(
+        {
+            provider:
+                getProviderName(
+                    model
+                ),
+
+            model:
+                getModelId(
+                    model
+                ),
+
+            message:
+                "Request sedang dikirim ke server GEN-Z.AI."
+        },
+        "REQUEST"
+    );
+
+    showLoading(
+        "Mengirim request ke KIE.AI..."
+    );
+
+    try {
+
+        /*
+         * =================================================
+         * FORM PARAMETERS
+         * =================================================
+         */
+
+        const parameters =
+            await form.getFormParameters(
+                model
+            );
+
+        /*
+         * =================================================
+         * CLIENT VALIDATION
+         * =================================================
+         */
+
+        const validationErrors =
+            typeof request.validateGenerateRequest ===
+                "function"
+
+                ? request.validateGenerateRequest(
+                    parameters
+                )
+
+                : [];
+
+        if (
+            Array.isArray(
+                validationErrors
+            ) &&
+            validationErrors.length
+        ) {
+
+            throw new Error(
+                validationErrors.join(
+                    "\n"
+                )
+            );
+        }
+
+        /*
+         * =================================================
+         * POST /api/generate
+         * =================================================
+         */
+
+        const response =
+            await request.generateVideo(
+                parameters
+            );
+
+        /*
+         * Tampilkan response backend/KIE.
+         */
+
+        renderKieDiagnostic(
+            response,
+            "TASK CREATED"
+        );
+
+        /*
+         * =================================================
+         * TASK ID
+         * =================================================
+         */
+
+        const taskId =
+            response?.taskId ||
+            response?.task_id ||
+            response?.jobId ||
+            response?.data?.taskId ||
+            response?.data?.task_id ||
+            response?.task?.taskId ||
+            response?.task?.task_id ||
+            "";
+
+        if (
+            !String(
+                taskId
+            ).trim()
+        ) {
+
+            const error =
+                new Error(
+                    "KIE.AI tidak mengembalikan task ID."
+                );
+
+            error.details =
+                response;
+
+            throw error;
+        }
+
+        /*
+         * =================================================
+         * POLLING
+         * =================================================
+         */
+
+        showLoading(
+            `KIE.AI menerima task ${taskId}. Menunggu hasil...`
+        );
+
+        const result =
+            await polling.pollGenerateTask(
+                taskId,
+                {
+
+                    interval:
+                        3000,
+
+                    timeout:
+                        15 * 60 * 1000,
+
+                    onUpdate:
+                        update => {
+
+                            const phase =
+                                update?.failed
+                                    ? "FAILED"
+                                    : update?.completed
+                                        ? "COMPLETED"
+                                        : "PROCESSING";
+
+                            renderKieDiagnostic(
+                                update,
+                                phase
+                            );
+
+                            if (
+                                update?.failed
+                            ) {
+
+                                showLoading(
+                                    "KIE.AI melaporkan generate gagal."
+                                );
+
+                            } else if (
+                                update?.completed
+                            ) {
+
+                                showLoading(
+                                    "KIE.AI selesai. Menampilkan hasil..."
+                                );
+
+                            } else {
+
+                                showLoading(
+                                    `KIE.AI sedang memproses task ${taskId}...`
+                                );
+                            }
+
+                        }
+
+                }
+            );
+
+        /*
+         * =================================================
+         * RESULT
+         * =================================================
+         */
+
+        renderKieDiagnostic(
+            result,
+            "COMPLETED"
+        );
+
+        renderGenerationResult(
+            result
+        );
+
+        if (
+            elements.resultModel
+        ) {
+
+            elements.resultModel.textContent =
+                getModelName(
+                    model
+                );
+
+        }
+
+        if (
+            elements.resultProvider
+        ) {
+
+            elements.resultProvider.textContent =
+                getProviderName(
+                    model
+                );
+
+        }
+
+        if (
+            elements.resultTaskId
+        ) {
+
+            elements.resultTaskId.textContent =
+                taskId;
+
+        }
+
+        if (
+            elements.status
+        ) {
+
+            elements.status.textContent =
+                "Generate selesai.";
+
+            elements.status.hidden =
+                false;
+
+        }
+
+        hideLoading();
+
+    } catch (
+        error
+    ) {
+
+        /*
+         * =================================================
+         * ERROR DIAGNOSTIC
+         * =================================================
+         */
+
+        const diagnostic =
+            error?.details ||
+            error?.response ||
+            {
+
+                success:
+                    false,
+
+                code:
+                    error?.code ||
+                    "GENERATION_FAILED",
+
+                message:
+                    error?.message ||
+                    "Generate gagal."
+
+            };
+
+        renderKieDiagnostic(
+            diagnostic,
+            "FAILED"
+        );
+
+        showError(
+            error?.message ||
+            "Generate gagal diproses."
+        );
+
+        if (
+            elements.status
+        ) {
+
+            elements.status.textContent =
+                "KIE.AI / Generate error: " +
+                (
+                    error?.message ||
+                    "Generate gagal."
+                );
+
+            elements.status.hidden =
+                false;
+        }
+
+    } finally {
+
+        /*
+         * =================================================
+         * SELALU MATIKAN LOADING
+         * =================================================
+         *
+         * Ini mencegah halaman tertahan hitam/loading
+         * ketika KIE atau backend mengembalikan error.
+         */
+
+        generationInProgress =
+            false;
+
+        hideLoading();
+
+        /*
+         * Aktifkan kembali form.
+         */
+
+        if (
+            elements.generateForm
+        ) {
+
+            elements.generateForm
+                .querySelectorAll(
+                    "input, select, textarea, button"
+                )
+                .forEach(
+                    field => {
+
+                        field.disabled =
+                            false;
+
+                    }
+                );
+        }
+
+        /*
+         * Aktifkan Generate hanya jika model valid.
+         */
+
+        const currentModel =
+            getCurrentModel();
+
+        if (
+            currentModel &&
+            getModelId(
+                currentModel
+            )
+        ) {
+
+            enableGenerateButton(
+                currentModel
+            );
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   BIND GENERATE SUBMIT
+========================================================= */
+
+function bindGenerateSubmitEvent() {
+
+    const form =
+        getDOM().generateForm;
+
+    if (!form) {
+        return;
+    }
+
+    /*
+     * Jangan bind dua kali.
+     */
+
+    if (
+        form.dataset.genzGenerateBound ===
+        "true"
+    ) {
+
+        return;
+    }
+
+    form.addEventListener(
+        "submit",
+        handleGenerateSubmit
+    );
+
+    form.dataset.genzGenerateBound =
+        "true";
+}
 
 /* =========================================================
    BIND MODEL EVENT
