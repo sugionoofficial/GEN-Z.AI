@@ -24,7 +24,7 @@
    - Menentukan model
 
    Alur:
-   
+
    generate-request.js
           ↓
       task_id
@@ -33,11 +33,11 @@
           ↓
    /api/generate-status
           ↓
-      processing
+   processing
           ↓
-      completed
+   completed
           ↓
-      result_urls
+   result_urls
 ========================================================= */
 
 
@@ -221,6 +221,7 @@ async function parseResponseJson(
     } catch {
 
         return {
+
             success:
                 response.ok,
 
@@ -585,11 +586,21 @@ export function normalizePollingResult(
         ]);
 
 
+    /*
+     * Jika backend sudah memberikan result URL,
+     * anggap task selesai meskipun state dari provider
+     * tidak menggunakan nama "success".
+     *
+     * Ini penting untuk KIE karena hasil akhirnya
+     * dapat berupa resultUrls.
+     */
+
     const completed =
         explicitCompleted ||
         completedStates.has(
             state
-        );
+        ) ||
+        resultUrls.length > 0;
 
 
     const failed =
@@ -649,15 +660,29 @@ export function normalizePollingResult(
 
 /* =========================================================
    REQUEST STATUS
+   ---------------------------------------------------------
+   PERBAIKAN:
+   /api/generate-status membutuhkan:
+      task_id
+      model_id
+
+   Sebelumnya module ini hanya mengirim task_id.
 ========================================================= */
 
 export async function requestTaskStatus(
-    taskId
+    taskId,
+    modelId
 ) {
 
     const normalizedTaskId =
         normalizeString(
             taskId
+        );
+
+
+    const normalizedModelId =
+        normalizeString(
+            modelId
         );
 
 
@@ -668,6 +693,18 @@ export async function requestTaskStatus(
             {
                 code:
                     "TASK_ID_REQUIRED"
+            }
+        );
+    }
+
+
+    if (!normalizedModelId) {
+
+        throw new GeneratePollingError(
+            "Model ID wajib diisi untuk mengambil status task.",
+            {
+                code:
+                    "MODEL_ID_REQUIRED"
             }
         );
     }
@@ -717,7 +754,10 @@ export async function requestTaskStatus(
                         JSON.stringify({
 
                             task_id:
-                                normalizedTaskId
+                                normalizedTaskId,
+
+                            model_id:
+                                normalizedModelId
                         })
                 }
             );
@@ -856,11 +896,34 @@ function normalizePollingOptions(
         );
 
 
+    /*
+     * modelId dapat dikirim sebagai:
+     *
+     * options.modelId
+     *
+     * atau:
+     *
+     * options.model_id
+     *
+     * untuk menjaga kompatibilitas dengan
+     * struktur data backend.
+     */
+
+    const modelId =
+        normalizeString(
+            options.modelId ||
+            options.model_id ||
+            ""
+        );
+
+
     return {
 
         interval,
 
         timeout,
+
+        modelId,
 
         signal:
             options.signal ||
@@ -931,6 +994,32 @@ export async function pollTask(
         );
 
 
+    /*
+     * /api/generate-status membutuhkan model_id.
+     *
+     * Jangan melakukan polling tanpa model ID karena
+     * backend memang membutuhkan ID tersebut untuk
+     * menentukan adapter/provider yang digunakan.
+     */
+
+    if (!polling.modelId) {
+
+        throw new GeneratePollingError(
+            "Model ID wajib diisi untuk polling task.",
+            {
+                code:
+                    "MODEL_ID_REQUIRED",
+
+                details:
+                    {
+                        task_id:
+                            normalizedTaskId
+                    }
+            }
+        );
+    }
+
+
     const startedAt =
         Date.now();
 
@@ -967,7 +1056,13 @@ export async function pollTask(
                             task_id:
                                 normalizedTaskId,
 
-                            elapsed
+                            model_id:
+                                polling.modelId,
+
+                            elapsed,
+
+                            last_result:
+                                lastResult
                         }
                 }
             );
@@ -976,7 +1071,11 @@ export async function pollTask(
 
         const result =
             await requestTaskStatus(
-                normalizedTaskId
+
+                normalizedTaskId,
+
+                polling.modelId
+
             );
 
 
@@ -1002,6 +1101,7 @@ export async function pollTask(
                  * Callback UI tidak boleh
                  * menghentikan polling.
                  */
+
                 console.warn(
                     "[GEN-Z.AI] Polling onUpdate callback error:",
                     callbackError
@@ -1009,6 +1109,13 @@ export async function pollTask(
             }
         }
 
+
+        /*
+         * KIE sudah selesai.
+         *
+         * Jika resultUrls tersedia, normalizePollingResult()
+         * juga akan menandai completed=true.
+         */
 
         if (
             result.completed
