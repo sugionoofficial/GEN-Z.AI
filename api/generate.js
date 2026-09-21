@@ -679,36 +679,25 @@ function getModelId(
  *
  *   Nilai dari browser TIDAK dipercaya.
  *
- *   Field nsfw_checker sengaja tidak diambil
- *   dari request pada tahap ini.
+ *   Field nsfw_checker tidak pernah diambil
+ *   dari request.
  *
- *   Nilai true akan dipasang secara server-side
- *   setelah parameter disanitasi.
+ *   Hanya parameter yang masuk whitelist
+ *   yang diteruskan.
+ *
+ *   Nilai nsfw_checker akan dipasang secara
+ *   server-side setelah sanitasi.
  * ========================================================= */
 
 function getParameters(
     body
 ) {
 
-    if (
-        body &&
-        body.parameters &&
-        typeof body.parameters ===
-            "object" &&
-        !Array.isArray(
-            body.parameters
-        )
-    ) {
-
-        return {
-            ...body.parameters
-        };
-
-    }
-
-
-    const parameters = {};
-
+    /*
+     * =====================================================
+     * PARAMETER YANG DIIZINKAN
+     * =====================================================
+     */
 
     const allowedKeys = [
 
@@ -729,19 +718,67 @@ function getParameters(
     ];
 
 
+    const parameters = {};
+
+
+    /*
+     * =====================================================
+     * SOURCE PARAMETERS
+     * =====================================================
+     *
+     * Mendukung:
+     *
+     *   {
+     *      parameters: {...}
+     *   }
+     *
+     * maupun:
+     *
+     *   {
+     *      prompt: "...",
+     *      resolution: "720p"
+     *   }
+     */
+
+    const source =
+        body &&
+        body.parameters &&
+        typeof body.parameters ===
+            "object" &&
+        !Array.isArray(
+            body.parameters
+        )
+            ? body.parameters
+            : body || {};
+
+
+    /*
+     * =====================================================
+     * STRICT WHITELIST
+     * =====================================================
+     *
+     * Jangan menyalin seluruh body.parameters.
+     *
+     * Ini memastikan field seperti:
+     *
+     *   nsfw_checker
+     *
+     * tidak pernah diterima dari browser.
+     */
+
     for (
         const key of allowedKeys
     ) {
 
         if (
             Object.prototype.hasOwnProperty.call(
-                body || {},
+                source,
                 key
             )
         ) {
 
             parameters[key] =
-                body[key];
+                source[key];
 
         }
 
@@ -3646,6 +3683,19 @@ export default async function handler(
 
     try {
 
+        /*
+         * Defense in depth.
+         *
+         * Walaupun parameters sudah melalui
+         * sanitizeParameters(), jangan pernah
+         * membiarkan nilai NSFW berubah sebelum
+         * masuk ke provider.
+         */
+
+        parameters.nsfw_checker =
+            true;
+
+
         task =
             await adapter.createTask(
                 parameters,
@@ -4026,8 +4076,11 @@ export default async function handler(
             /*
              * NSFW CHECKER
              *
-             * Tidak perlu dikirim sebagai pilihan
-             * ke frontend. Server sudah memaksa true.
+             * Tidak dikirim sebagai pilihan
+             * ke frontend.
+             *
+             * Nilai hanya digunakan internal
+             * sebelum adapter dipanggil.
              */
 
 
