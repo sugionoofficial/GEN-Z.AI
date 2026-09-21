@@ -1514,6 +1514,20 @@ function hideDuplicateCreditElement(
     }
 
 
+    /*
+     * Jangan pernah menyembunyikan ACCOUNT CREDIT.
+     */
+
+    if (
+        element.id ===
+        "creditBadge"
+    ) {
+
+        return;
+
+    }
+
+
     element.hidden =
         true;
 
@@ -1546,6 +1560,8 @@ function hideDuplicateCreditElement(
 
 /* =========================================================
    IS CREDIT VALUE ELEMENT
+   ---------------------------------------------------------
+   MODEL CREDIT ONLY
 ========================================================= */
 
 function isCreditValueElement(
@@ -1577,6 +1593,13 @@ function isCreditValueElement(
             : "";
 
 
+    /*
+     * HANYA identitas MODEL CREDIT.
+     *
+     * Jangan menggunakan selector umum secara global
+     * yang berpotensi menangkap ACCOUNT CREDIT.
+     */
+
     return (
 
         id === "generatecreditvalue" ||
@@ -1596,7 +1619,7 @@ function isCreditValueElement(
         ) ||
 
         className.includes(
-            "credit-value"
+            "generate-button-credit"
         )
 
     );
@@ -1605,7 +1628,16 @@ function isCreditValueElement(
 
 
 /* =========================================================
-   CLEAR CREDIT TEXT NODE
+   CLEAR DIRECT MODEL CREDIT TEXT NODES
+   ---------------------------------------------------------
+   Hanya membersihkan text node yang benar-benar berupa
+   angka credit.
+
+   TIDAK menyentuh:
+   - label Generate
+   - label Model Credit
+   - Account Credit
+   - canonical value element
 ========================================================= */
 
 function clearDirectCreditTextNodes(
@@ -1623,24 +1655,9 @@ function clearDirectCreditTextNodes(
     }
 
 
-    /*
-     * Hanya membersihkan text node LANGSUNG.
-     *
-     * Child element tidak disentuh.
-     *
-     * Contoh yang dibersihkan:
-     *
-     * <div>
-     *     9
-     *     <span>9 Credit</span>
-     * </div>
-     *
-     * Menjadi:
-     *
-     * <div>
-     *     <span>9 Credit</span>
-     * </div>
-     */
+    const numericCreditPattern =
+        /^(?:[\d.,]+|\d+(?:[.,]\d+)?)\s*(?:credit)?$/i;
+
 
     Array.from(
         container.childNodes
@@ -1657,14 +1674,14 @@ function clearDirectCreditTextNodes(
             }
 
 
-            const text =
+            const raw =
                 String(
                     node.nodeValue || ""
                 );
 
 
             const normalized =
-                text
+                raw
                     .replace(
                         /\s+/g,
                         " "
@@ -1682,29 +1699,40 @@ function clearDirectCreditTextNodes(
 
 
             /*
-             * Jangan menghapus text label biasa seperti:
-             * "Generate"
-             * "Credit:"
-             * "Model Credit"
-             *
-             * Hanya hapus node yang jelas merupakan
-             * representasi angka credit.
+             * Jangan menghapus text node yang merupakan
+             * bagian dari label biasa.
              */
 
-            const numericCreditPattern =
-                /^(?:[\d.,]+|\d+(?:[.,]\d+)?)\s*(?:credit)?$/i;
-
-
             if (
-                numericCreditPattern.test(
+                !numericCreditPattern.test(
                     normalized
                 )
             ) {
 
-                node.nodeValue =
-                    "";
+                return;
 
             }
+
+
+            /*
+             * Jika text node berada di dalam canonical
+             * element, jangan disentuh.
+             */
+
+            if (
+                keepElement &&
+                keepElement.contains(
+                    node
+                )
+            ) {
+
+                return;
+
+            }
+
+
+            node.nodeValue =
+                "";
 
         }
     );
@@ -1740,33 +1768,36 @@ function findCreditValueElement(
     }
 
 
-    if (
-        !generateButton
-    ) {
-
-        return null;
-
-    }
-
-
     /*
      * -----------------------------------------------------
      * PRIORITAS 2
-     * Exact ID
+     * DOCUMENT-LEVEL CANONICAL ID
+     *
+     * Penting:
+     * element bisa berada di luar generateButton.
      * -----------------------------------------------------
      */
 
-    const direct =
-        generateButton.querySelector(
+    const documentValues =
+        document.querySelectorAll(
             "#generateCreditValue"
         );
 
 
-    if (
-        direct
+    for (
+        const candidate
+        of documentValues
     ) {
 
-        return direct;
+        if (
+            candidate &&
+            candidate.id ===
+            "generateCreditValue"
+        ) {
+
+            return candidate;
+
+        }
 
     }
 
@@ -1774,13 +1805,46 @@ function findCreditValueElement(
     /*
      * -----------------------------------------------------
      * PRIORITAS 3
+     * Exact ID di button
+     * -----------------------------------------------------
+     */
+
+    if (
+        generateButton
+    ) {
+
+        const direct =
+            generateButton.querySelector(
+                "#generateCreditValue"
+            );
+
+
+        if (
+            direct
+        ) {
+
+            return direct;
+
+        }
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * PRIORITAS 4
      * Explicit data/class value
      * -----------------------------------------------------
      */
 
+    const root =
+        generateButton ||
+        document;
+
+
     const candidates =
-        generateButton.querySelectorAll(
-            "[data-generate-credit], [data-credit-display], .generate-button-credit-value, .credit-value"
+        root.querySelectorAll(
+            "[data-generate-credit], [data-credit-display], .generate-button-credit-value"
         );
 
 
@@ -1826,19 +1890,33 @@ function findCreditValueElement(
 
     /*
      * -----------------------------------------------------
-     * PRIORITAS 4
+     * PRIORITAS 5
      * Cari container credit.
      * -----------------------------------------------------
      */
 
     const container =
-        generateButton.querySelector(
+        (
+            generateButton &&
+            (
+                generateButton.querySelector(
+                    "#generateCreditCost"
+                ) ||
+                generateButton.querySelector(
+                    ".generate-button-credit"
+                ) ||
+                generateButton.querySelector(
+                    "[data-credit-container]"
+                )
+            )
+        ) ||
+        document.querySelector(
             "#generateCreditCost"
         ) ||
-        generateButton.querySelector(
+        document.querySelector(
             ".generate-button-credit"
         ) ||
-        generateButton.querySelector(
+        document.querySelector(
             "[data-credit-container]"
         );
 
@@ -1859,9 +1937,6 @@ function findCreditValueElement(
             ) ||
             container.querySelector(
                 ".generate-button-credit-value"
-            ) ||
-            container.querySelector(
-                ".credit-value"
             );
 
 
@@ -1878,11 +1953,8 @@ function findCreditValueElement(
 
     /*
      * -----------------------------------------------------
-     * PRIORITAS 5
-     * Jangan membuat element kedua secara membabi buta.
-     *
-     * Jika container memang ada, baru buat satu canonical
-     * value element.
+     * PRIORITAS 6
+     * Buat SATU canonical element saja.
      * -----------------------------------------------------
      */
 
@@ -2028,6 +2100,37 @@ function getCreditContainer(
     }
 
 
+    /*
+     * Fallback document-level.
+     */
+
+    const documentContainer =
+        document.querySelector(
+            "#generateCreditCost"
+        ) ||
+        document.querySelector(
+            ".generate-button-credit"
+        ) ||
+        document.querySelector(
+            "[data-credit-container]"
+        );
+
+
+    if (
+        documentContainer &&
+        (
+            !canonicalValue ||
+            documentContainer.contains(
+                canonicalValue
+            )
+        )
+    ) {
+
+        return documentContainer;
+
+    }
+
+
     return null;
 
 }
@@ -2035,6 +2138,23 @@ function getCreditContainer(
 
 /* =========================================================
    DEDUPLICATE MODEL CREDIT DOM
+   ---------------------------------------------------------
+   ATURAN KERAS:
+
+   Hanya SATU element boleh menampilkan MODEL CREDIT.
+
+   Canonical:
+       #generateCreditValue
+
+   Container:
+       #generateCreditCost
+
+   Semua duplicate lainnya:
+       hidden
+
+   ACCOUNT CREDIT:
+       #creditBadge
+       TIDAK disentuh.
 ========================================================= */
 
 function deduplicateModelCreditDOM(
@@ -2046,7 +2166,8 @@ function deduplicateModelCreditDOM(
 ) {
 
     if (
-        !canonicalValue
+        !canonicalValue ||
+        canonicalValue.nodeType !== 1
     ) {
 
         return;
@@ -2056,7 +2177,7 @@ function deduplicateModelCreditDOM(
 
     /*
      * -----------------------------------------------------
-     * 1. CANONICAL VALUE SELALU VISIBLE
+     * CANONICAL VALUE SELALU VISIBLE
      * -----------------------------------------------------
      */
 
@@ -2067,30 +2188,20 @@ function deduplicateModelCreditDOM(
 
     /*
      * -----------------------------------------------------
-     * 2. JIKA generateCreditCost DAN generateCreditValue
-     *    ADALAH DUA ELEMENT SIBLING, HANYA SATU BOLEH TAMPIL.
-     *
-     *    Ini inti perbaikan kasus:
-     *
-     *        9 9
+     * KUMPULKAN SEMUA ELEMENT MODEL CREDIT
      * -----------------------------------------------------
      */
 
-    const separateElements = [
-
-        generateCreditCost,
-
-        generateCreditValue
-
-    ];
+    const candidates =
+        new Set();
 
 
-    separateElements.forEach(
+    const addCandidate =
         element => {
 
             if (
                 !element ||
-                element === canonicalValue
+                element.nodeType !== 1
             ) {
 
                 return;
@@ -2099,7 +2210,125 @@ function deduplicateModelCreditDOM(
 
 
             /*
+             * Jangan pernah memasukkan account credit.
+             */
+
+            if (
+                element.id ===
+                "creditBadge"
+            ) {
+
+                return;
+
+            }
+
+
+            candidates.add(
+                element
+            );
+
+        };
+
+
+    /*
+     * -----------------------------------------------------
+     * STATE ELEMENTS
+     * -----------------------------------------------------
+     */
+
+    addCandidate(
+        generateCreditCost
+    );
+
+
+    addCandidate(
+        generateCreditValue
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * DOCUMENT-LEVEL ELEMENTS
+     * -----------------------------------------------------
+     */
+
+    const documentCandidates =
+        document.querySelectorAll(
+            [
+                "#generateCreditValue",
+                "#generateCreditCost",
+                "[data-generate-credit]",
+                "[data-credit-display]",
+                ".generate-button-credit-value",
+                ".generate-button-credit"
+            ].join(", ")
+        );
+
+
+    documentCandidates.forEach(
+        addCandidate
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * BUTTON-LEVEL ELEMENTS
+     * -----------------------------------------------------
+     */
+
+    if (
+        generateButton
+    ) {
+
+        const buttonCandidates =
+            generateButton.querySelectorAll(
+                [
+                    "#generateCreditValue",
+                    "#generateCreditCost",
+                    "[data-generate-credit]",
+                    "[data-credit-display]",
+                    ".generate-button-credit-value",
+                    ".generate-button-credit"
+                ].join(", ")
+            );
+
+
+        buttonCandidates.forEach(
+            addCandidate
+        );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * CANONICAL JANGAN PERNAH DISEMBUNYIKAN
+     * -----------------------------------------------------
+     */
+
+    candidates.delete(
+        canonicalValue
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * SEMBUNYIKAN SEMUA ELEMENT MODEL CREDIT LAIN
+     * -----------------------------------------------------
+     */
+
+    candidates.forEach(
+        element => {
+
+            /*
              * Jangan sembunyikan ancestor canonical.
+             *
+             * Contoh:
+             *
+             * #generateCreditCost
+             *     └── #generateCreditValue
+             *
+             * Container tetap terlihat.
              */
 
             if (
@@ -2114,8 +2343,8 @@ function deduplicateModelCreditDOM(
 
 
             /*
-             * Jangan sembunyikan canonical yang
-             * kebetulan menjadi ancestor element.
+             * Jangan sembunyikan element yang berada
+             * di dalam canonical.
              */
 
             if (
@@ -2129,17 +2358,9 @@ function deduplicateModelCreditDOM(
             }
 
 
-            if (
-                isCreditValueElement(
-                    element
-                )
-            ) {
-
-                hideDuplicateCreditElement(
-                    element
-                );
-
-            }
+            hideDuplicateCreditElement(
+                element
+            );
 
         }
     );
@@ -2147,7 +2368,7 @@ function deduplicateModelCreditDOM(
 
     /*
      * -----------------------------------------------------
-     * 3. DUPLICATE VALUE DI DALAM BUTTON
+     * BERSIHKAN TEXT NODE LANGSUNG DI BUTTON
      * -----------------------------------------------------
      */
 
@@ -2155,52 +2376,9 @@ function deduplicateModelCreditDOM(
         generateButton
     ) {
 
-        const allValueNodes =
-            generateButton.querySelectorAll(
-                "#generateCreditValue, [data-generate-credit], [data-credit-display], .generate-button-credit-value, .credit-value"
-            );
-
-
-        allValueNodes.forEach(
-            element => {
-
-                if (
-                    !element ||
-                    element === canonicalValue
-                ) {
-
-                    return;
-
-                }
-
-
-                if (
-                    element.contains(
-                        canonicalValue
-                    )
-                ) {
-
-                    return;
-
-                }
-
-
-                if (
-                    canonicalValue.contains(
-                        element
-                    )
-                ) {
-
-                    return;
-
-                }
-
-
-                hideDuplicateCreditElement(
-                    element
-                );
-
-            }
+        clearDirectCreditTextNodes(
+            generateButton,
+            canonicalValue
         );
 
     }
@@ -2208,7 +2386,7 @@ function deduplicateModelCreditDOM(
 
     /*
      * -----------------------------------------------------
-     * 4. BERSIHKAN ANGKA TEXT LANGSUNG
+     * BERSIHKAN TEXT NODE LANGSUNG DI CONTAINER
      * -----------------------------------------------------
      */
 
@@ -2226,27 +2404,186 @@ function deduplicateModelCreditDOM(
 
     /*
      * -----------------------------------------------------
-     * 5. JIKA generateCreditCost TERPISAH DARI BUTTON
-     *    DAN MEMANG VALUE ELEMENT, SEMBUNYIKAN.
+     * BERSIHKAN TEXT NODE DI generateCreditCost
      * -----------------------------------------------------
      */
 
     if (
         generateCreditCost &&
-        generateCreditCost !== canonicalValue &&
-        !generateCreditCost.contains(
+        generateCreditCost.nodeType === 1
+    ) {
+
+        clearDirectCreditTextNodes(
+            generateCreditCost,
             canonicalValue
-        ) &&
-        !canonicalValue.contains(
-            generateCreditCost
-        ) &&
-        isCreditValueElement(
-            generateCreditCost
+        );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * CARI SEMUA CONTAINER MODEL CREDIT DI BUTTON
+     * -----------------------------------------------------
+     */
+
+    if (
+        generateButton
+    ) {
+
+        const possibleContainers =
+            generateButton.querySelectorAll(
+                [
+                    "#generateCreditCost",
+                    ".generate-button-credit",
+                    "[data-credit-container]"
+                ].join(", ")
+            );
+
+
+        possibleContainers.forEach(
+            container => {
+
+                /*
+                 * Jika container adalah canonical,
+                 * jangan diperlakukan sebagai duplicate.
+                 */
+
+                if (
+                    container ===
+                    canonicalValue
+                ) {
+
+                    return;
+
+                }
+
+
+                /*
+                 * Jika container mengandung canonical,
+                 * container tetap terlihat tetapi angka
+                 * langsung di dalamnya dibersihkan.
+                 */
+
+                if (
+                    container.contains(
+                        canonicalValue
+                    )
+                ) {
+
+                    clearDirectCreditTextNodes(
+                        container,
+                        canonicalValue
+                    );
+
+                    return;
+
+                }
+
+
+                /*
+                 * Jika container tidak mengandung canonical,
+                 * sembunyikan.
+                 */
+
+                hideDuplicateCreditElement(
+                    container
+                );
+
+            }
+        );
+
+    }
+
+
+    /*
+     * -----------------------------------------------------
+     * DOCUMENT-LEVEL CONTAINER SANITIZATION
+     * -----------------------------------------------------
+     */
+
+    const documentContainers =
+        document.querySelectorAll(
+            "#generateCreditCost, .generate-button-credit, [data-credit-container]"
+        );
+
+
+    documentContainers.forEach(
+        container => {
+
+            if (
+                !container ||
+                container === canonicalValue
+            ) {
+
+                return;
+
+            }
+
+
+            if (
+                container.contains(
+                    canonicalValue
+                )
+            ) {
+
+                clearDirectCreditTextNodes(
+                    container,
+                    canonicalValue
+                );
+
+                return;
+
+            }
+
+
+            /*
+             * Hanya sembunyikan jika container tersebut
+             * memang merupakan MODEL CREDIT.
+             */
+
+            if (
+                isCreditValueElement(
+                    container
+                )
+            ) {
+
+                hideDuplicateCreditElement(
+                    container
+                );
+
+            }
+
+        }
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * CANONICAL FINAL CHECK
+     * -----------------------------------------------------
+     */
+
+    forceVisible(
+        canonicalValue
+    );
+
+
+    /*
+     * Jika canonical berada dalam container valid,
+     * container tetap terlihat.
+     */
+
+    if (
+        creditContainer &&
+        creditContainer.contains(
+            canonicalValue
         )
     ) {
 
-        hideDuplicateCreditElement(
-            generateCreditCost
+        forceVisible(
+            creditContainer,
+            "inline-flex"
         );
 
     }
@@ -2289,19 +2626,17 @@ function syncGenerateButtonCredit(
     generateCreditValue = null
 ) {
 
-    if (
-        !generateButton
-    ) {
-
-        return;
-
-    }
-
-
     const {
         generateCreditCost
     } = elements();
 
+
+    /*
+     * Tidak bergantung pada generateButton.
+     *
+     * Canonical value tetap dapat ditemukan walaupun
+     * element berada di luar button.
+     */
 
     const canonicalValue =
         findCreditValueElement(
@@ -2341,7 +2676,10 @@ function syncGenerateButtonCredit(
 
 
     if (
-        creditContainer
+        creditContainer &&
+        creditContainer.contains(
+            canonicalValue
+        )
     ) {
 
         forceVisible(
@@ -2385,6 +2723,20 @@ function syncGenerateButtonCredit(
         );
 
 
+        /*
+         * Bersihkan lagi karena beberapa template
+         * mempunyai text node angka langsung.
+         */
+
+        deduplicateModelCreditDOM(
+            generateButton,
+            generateCreditCost,
+            generateCreditValue,
+            canonicalValue,
+            creditContainer
+        );
+
+
         return;
 
     }
@@ -2396,14 +2748,20 @@ function syncGenerateButtonCredit(
         );
 
 
-    generateButton.dataset.modelCredit =
-        String(
-            numericCredit
-        );
+    if (
+        generateButton
+    ) {
+
+        generateButton.dataset.modelCredit =
+            String(
+                numericCredit
+            );
 
 
-    generateButton.dataset.creditResolution =
-        resolution;
+        generateButton.dataset.creditResolution =
+            resolution;
+
+    }
 
 
     canonicalValue.textContent =
@@ -2459,8 +2817,7 @@ export function renderModelCredit(
 
     /*
      * -----------------------------------------------------
-     * Jika button belum tersedia tetapi state memiliki
-     * generateCreditValue, tetap render ke element tersebut.
+     * CARI SATU CANONICAL VALUE
      * -----------------------------------------------------
      */
 
@@ -2568,6 +2925,15 @@ export function renderModelCredit(
         }
 
 
+        deduplicateModelCreditDOM(
+            generateButton,
+            generateCreditCost,
+            generateCreditValue,
+            canonicalValue,
+            creditContainer
+        );
+
+
         return null;
 
     }
@@ -2642,7 +3008,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * DISCOUNT
      * -----------------------------------------------------
- */
+     */
 
     const discountPercent =
         normalizeDiscountPercent(
@@ -2654,7 +3020,7 @@ export function renderModelCredit(
      * -----------------------------------------------------
      * HITUNG FINAL
      * -----------------------------------------------------
-     */
+ */
 
     const credit =
         calculateFinalCredit(
@@ -2770,10 +3136,6 @@ export function renderModelCredit(
     /*
      * -----------------------------------------------------
      * FINAL DOM CLEANUP
-     *
-     * Ini sengaja dijalankan paling akhir.
-     * Jadi jika HTML memiliki dua element kredit,
-     * hanya canonicalValue yang tetap terlihat.
      * -----------------------------------------------------
      */
 
@@ -2783,6 +3145,54 @@ export function renderModelCredit(
         generateCreditValue,
         canonicalValue,
         creditContainer
+    );
+
+
+    /*
+     * -----------------------------------------------------
+     * FINAL TEXT NODE SANITIZATION
+     * -----------------------------------------------------
+     */
+
+    if (
+        generateButton
+    ) {
+
+        clearDirectCreditTextNodes(
+            generateButton,
+            canonicalValue
+        );
+
+    }
+
+
+    if (
+        creditContainer
+    ) {
+
+        clearDirectCreditTextNodes(
+            creditContainer,
+            canonicalValue
+        );
+
+    }
+
+
+    if (
+        generateCreditCost &&
+        generateCreditCost.nodeType === 1
+    ) {
+
+        clearDirectCreditTextNodes(
+            generateCreditCost,
+            canonicalValue
+        );
+
+    }
+
+
+    forceVisible(
+        canonicalValue
     );
 
 
