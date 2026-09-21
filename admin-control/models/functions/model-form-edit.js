@@ -8,6 +8,7 @@
    Tanggung jawab:
    - Menentukan mode Edit
    - Menyimpan model yang sedang diedit
+   - Menyimpan snapshot model awal
    - Membuka form Edit
    - Mengisi form dengan data Models
    - Menjaga provider tetap berasal dari providers
@@ -49,10 +50,20 @@ import {
 
 let editingModel = null;
 
+/*
+ * originalModel:
+ * snapshot immutable secara logika dari model ketika
+ * Edit pertama kali dibuka.
+ *
+ * model:
+ * keadaan model yang sedang aktif di form/state.
+ */
+
 let editState = {
     active: false,
     modelId: null,
-    model: null
+    model: null,
+    originalModel: null
 };
 
 
@@ -82,14 +93,109 @@ function normalizeNumber(
         value === undefined ||
         value === ""
     ) {
+
         return fallback;
+
     }
 
-    const number = Number(value);
+    const number =
+        Number(value);
 
     return Number.isFinite(number)
         ? number
         : fallback;
+
+}
+
+
+function hasOwn(
+    object,
+    key
+) {
+
+    return Boolean(
+        object &&
+        Object.prototype.hasOwnProperty.call(
+            object,
+            key
+        )
+    );
+
+}
+
+
+function readNumberField(
+    source,
+    snakeCaseKey,
+    camelCaseKey,
+    fallback = 0
+) {
+
+    if (!source) {
+        return fallback;
+    }
+
+
+    /*
+     * PENTING:
+     * hasOwnProperty digunakan supaya nilai 0 tetap
+     * dianggap sebagai nilai yang benar-benar tersimpan.
+     */
+
+    if (
+        hasOwn(
+            source,
+            snakeCaseKey
+        )
+    ) {
+
+        const value =
+            source[snakeCaseKey];
+
+        if (
+            value !== null &&
+            value !== undefined &&
+            value !== ""
+        ) {
+
+            return normalizeNumber(
+                value,
+                fallback
+            );
+
+        }
+
+    }
+
+
+    if (
+        camelCaseKey &&
+        hasOwn(
+            source,
+            camelCaseKey
+        )
+    ) {
+
+        const value =
+            source[camelCaseKey];
+
+        if (
+            value !== null &&
+            value !== undefined &&
+            value !== ""
+        ) {
+
+            return normalizeNumber(
+                value,
+                fallback
+            );
+
+        }
+
+    }
+
+
+    return fallback;
 
 }
 
@@ -124,7 +230,9 @@ function normalizeArray(value) {
         value === undefined ||
         value === ""
     ) {
+
         return [];
+
     }
 
 
@@ -134,6 +242,7 @@ function normalizeArray(value) {
 
         const text =
             value.trim();
+
 
         if (!text) {
             return [];
@@ -151,11 +260,20 @@ function normalizeArray(value) {
         ) {
 
             const inner =
-                text.slice(1, -1);
+                text.slice(
+                    1,
+                    -1
+                );
 
-            if (!inner.trim()) {
+
+            if (
+                !inner.trim()
+            ) {
+
                 return [];
+
             }
+
 
             return [
                 ...new Set(
@@ -185,6 +303,7 @@ function normalizeArray(value) {
 
             const parsed =
                 JSON.parse(text);
+
 
             if (
                 Array.isArray(parsed)
@@ -241,7 +360,7 @@ function normalizeArray(value) {
 /* =========================================================
    MODEL CLONE
    ---------------------------------------------------------
-   Jangan bergantung pada normalizeModel() dari
+   Tidak bergantung pada normalizeModel() dari
    models-data.js.
 
    Source of truth:
@@ -287,25 +406,28 @@ function cloneModel(model) {
        ----------------------------------------------------- */
 
     cloned.credit_480p =
-        normalizeNumber(
-            model.credit_480p ??
-            model.credit480p,
+        readNumberField(
+            model,
+            "credit_480p",
+            "credit480p",
             0
         );
 
 
     cloned.credit_720p =
-        normalizeNumber(
-            model.credit_720p ??
-            model.credit720p,
+        readNumberField(
+            model,
+            "credit_720p",
+            "credit720p",
             0
         );
 
 
     cloned.credit_1080p =
-        normalizeNumber(
-            model.credit_1080p ??
-            model.credit1080p,
+        readNumberField(
+            model,
+            "credit_1080p",
+            "credit1080p",
             0
         );
 
@@ -388,6 +510,24 @@ function cloneModel(model) {
     }
 
 
+    /*
+     * Model family hanya dipertahankan jika memang
+     * berasal dari source model.
+     */
+
+    if (
+        model.model_family !== undefined &&
+        model.model_family !== null
+    ) {
+
+        cloned.model_family =
+            String(
+                model.model_family
+            ).trim();
+
+    }
+
+
     return cloned;
 
 }
@@ -439,6 +579,7 @@ function findProviderById(
             providerId
         );
 
+
     if (!id) {
         return null;
     }
@@ -468,12 +609,7 @@ function findProviderById(
 /* =========================================================
    MODEL LOOKUP
    ---------------------------------------------------------
-   Jangan memakai getModelById() / getModelByModelId()
-   karena signature helper tersebut dapat berubah dan
-   sebelumnya menyebabkan mismatch.
-
-   Di sini pencarian dilakukan langsung terhadap array
-   Models yang SUDAH dimuat.
+   Pencarian hanya terhadap Models yang sudah dimuat.
 
    Prioritas:
    1. database id
@@ -489,6 +625,7 @@ function findModelInList(
         normalizeId(
             value
         );
+
 
     if (!target) {
         return null;
@@ -574,6 +711,17 @@ export function getEditingModel() {
 }
 
 
+export function getOriginalEditingModel() {
+
+    return editState.originalModel
+        ? cloneModel(
+            editState.originalModel
+        )
+        : null;
+
+}
+
+
 export function getEditingModelId() {
 
     return editState.modelId;
@@ -594,6 +742,11 @@ export function getEditState() {
         model:
             cloneModel(
                 editState.model
+            ),
+
+        originalModel:
+            cloneModel(
+                editState.originalModel
             )
 
     };
@@ -642,6 +795,30 @@ export function setEditingModel(model) {
         );
 
 
+    /*
+     * Jika sudah berada dalam mode Edit untuk
+     * record yang sama, jangan mengganti
+     * originalModel dengan state terbaru.
+     */
+
+    const sameEditingRecord =
+        editState.active === true &&
+        normalizeId(
+            editState.modelId
+        ) === databaseId;
+
+
+    const originalSnapshot =
+        sameEditingRecord &&
+        editState.originalModel
+            ? cloneModel(
+                editState.originalModel
+            )
+            : cloneModel(
+                normalized
+            );
+
+
     editState = {
 
         active:
@@ -651,7 +828,10 @@ export function setEditingModel(model) {
             databaseId || null,
 
         model:
-            normalized
+            normalized,
+
+        originalModel:
+            originalSnapshot
 
     };
 
@@ -686,6 +866,9 @@ export function clearEditingModel() {
             null,
 
         model:
+            null,
+
+        originalModel:
             null
 
     };
@@ -1022,9 +1205,18 @@ export function renderEditForm(
         providerErrors.length
     ) {
 
-        throw new Error(
-            providerErrors.join(" ")
-        );
+        const error =
+            new Error(
+                providerErrors.join(" ")
+            );
+
+        error.code =
+            "EDIT_PROVIDER_INVALID";
+
+        error.errors =
+            providerErrors;
+
+        throw error;
 
     }
 
@@ -1032,6 +1224,9 @@ export function renderEditForm(
     /*
      * Sinkronkan state dengan model
      * yang benar-benar dirender.
+     *
+     * Jangan mengganti original snapshot apabila
+     * record yang sama sedang diedit.
      */
 
     setEditingModel(
@@ -1267,9 +1462,10 @@ export function collectEditData(
                 "#credit_480p",
                 "[data-field='credit_480p']"
             ],
-            normalizeNumber(
-                original.credit_480p ??
-                original.credit480p,
+            readNumberField(
+                original,
+                "credit_480p",
+                "credit480p",
                 0
             )
         );
@@ -1286,9 +1482,10 @@ export function collectEditData(
                 "#credit_720p",
                 "[data-field='credit_720p']"
             ],
-            normalizeNumber(
-                original.credit_720p ??
-                original.credit720p,
+            readNumberField(
+                original,
+                "credit_720p",
+                "credit720p",
                 0
             )
         );
@@ -1305,9 +1502,10 @@ export function collectEditData(
                 "#credit_1080p",
                 "[data-field='credit_1080p']"
             ],
-            normalizeNumber(
-                original.credit_1080p ??
-                original.credit1080p,
+            readNumberField(
+                original,
+                "credit_1080p",
+                "credit1080p",
                 0
             )
         );
@@ -1329,7 +1527,8 @@ export function collectEditData(
     ) {
 
         if (
-            original.credit_final !== undefined
+            original.credit_final !== undefined &&
+            original.credit_final !== null
         ) {
 
             data.credit_final =
@@ -1339,6 +1538,14 @@ export function collectEditData(
                 );
 
         }
+
+    } else {
+
+        data.credit_final =
+            normalizeNumber(
+                data.credit_final,
+                0
+            );
 
     }
 
@@ -1520,7 +1727,8 @@ export function prepareEditSubmission(
 
         if (
             original &&
-            original.credit_final !== undefined
+            original.credit_final !== undefined &&
+            original.credit_final !== null
         ) {
 
             normalized.credit_final =
@@ -1712,6 +1920,18 @@ export function prepareEditSubmission(
         );
 
 
+    /*
+     * Pastikan errors selalu array.
+     */
+
+    const validationErrors =
+        Array.isArray(
+            errors
+        )
+            ? errors
+            : [];
+
+
     /* -----------------------------------------------------
        VALIDASI CREDIT 480p
        ----------------------------------------------------- */
@@ -1723,7 +1943,7 @@ export function prepareEditSubmission(
         normalized.credit_480p < 0
     ) {
 
-        errors.push(
+        validationErrors.push(
             "Credit 480p tidak valid."
         );
 
@@ -1741,7 +1961,7 @@ export function prepareEditSubmission(
         normalized.credit_720p < 0
     ) {
 
-        errors.push(
+        validationErrors.push(
             "Credit 720p tidak valid."
         );
 
@@ -1759,7 +1979,7 @@ export function prepareEditSubmission(
         normalized.credit_1080p < 0
     ) {
 
-        errors.push(
+        validationErrors.push(
             "Credit 1080p tidak valid."
         );
 
@@ -1786,7 +2006,7 @@ export function prepareEditSubmission(
             ) < 0
         ) {
 
-            errors.push(
+            validationErrors.push(
                 "Credit Final tidak valid."
             );
 
@@ -1819,7 +2039,7 @@ export function prepareEditSubmission(
         !provider
     ) {
 
-        errors.push(
+        validationErrors.push(
             "Provider model tidak ditemukan di tabel providers."
         );
 
@@ -1831,7 +2051,7 @@ export function prepareEditSubmission(
        ----------------------------------------------------- */
 
     if (
-        errors.length
+        validationErrors.length
     ) {
 
         const error =
@@ -1845,7 +2065,7 @@ export function prepareEditSubmission(
 
 
         error.errors =
-            errors;
+            validationErrors;
 
 
         error.data =
@@ -2007,6 +2227,10 @@ const EDIT_COMPARE_FIELDS = [
 
 /* =========================================================
    GET CHANGED FIELDS
+   ---------------------------------------------------------
+   Default comparison menggunakan ORIGINAL MODEL,
+   bukan state model terakhir yang mungkin sudah
+   dimodifikasi oleh event sementara.
    ========================================================= */
 
 export function getChangedFields(
@@ -2088,7 +2312,7 @@ export function hasChanges(
 ) {
 
     const original =
-        getEditingModel();
+        getOriginalEditingModel();
 
 
     if (!original) {
@@ -2158,45 +2382,45 @@ export function updateEditingModel(
      */
 
     if (
-        editState.model
+        editState.originalModel
     ) {
 
         if (
-            editState.model.provider_id
+            editState.originalModel.provider_id
         ) {
 
             normalized.provider_id =
-                editState.model.provider_id;
+                editState.originalModel.provider_id;
 
         }
 
 
         if (
-            editState.model.model_id
+            editState.originalModel.model_id
         ) {
 
             normalized.model_id =
-                editState.model.model_id;
+                editState.originalModel.model_id;
 
         }
 
 
         if (
-            editState.model.model_name
+            editState.originalModel.model_name
         ) {
 
             normalized.model_name =
-                editState.model.model_name;
+                editState.originalModel.model_name;
 
         }
 
 
         if (
-            editState.model.model_family
+            editState.originalModel.model_family
         ) {
 
             normalized.model_family =
-                editState.model.model_family;
+                editState.originalModel.model_family;
 
         }
 
@@ -2249,18 +2473,49 @@ export function commitEditModel(
 
 
     /*
+     * Jika API tidak mengembalikan ID,
+     * gunakan ID record yang sedang diedit.
+     */
+
+    if (
+        !normalized.id &&
+        editState.modelId
+    ) {
+
+        normalized.id =
+            editState.modelId;
+
+    }
+
+
+    /*
      * Setelah API berhasil menyimpan,
      * state Edit diperbarui.
+     *
+     * Snapshot original juga digeser ke
+     * hasil yang sudah berhasil disimpan.
+     * Dengan demikian hasChanges() setelah commit
+     * tidak membaca perubahan lama sebagai perubahan baru.
      */
 
     editState.model =
         normalized;
 
 
+    editState.originalModel =
+        cloneModel(
+            normalized
+        );
+
+
     editState.modelId =
         normalizeId(
             normalized.id
         );
+
+
+    editState.active =
+        true;
 
 
     editingModel =
@@ -2289,12 +2544,14 @@ export function closeEditModel() {
 
 /* =========================================================
    CANCEL EDIT
+   ---------------------------------------------------------
+   Mengembalikan snapshot sebelum perubahan.
    ========================================================= */
 
 export function cancelEditModel() {
 
     const original =
-        getEditingModel();
+        getOriginalEditingModel();
 
 
     clearEditingModel();
@@ -2363,10 +2620,15 @@ export async function submitEditModel(
 
 
     /*
-     * Snapshot sebelum submit.
+     * Snapshot ORIGINAL sebelum submit.
+     *
+     * Jangan menggunakan getEditingModel()
+     * sebagai pembanding perubahan jika state
+     * sudah di-update oleh event.
      */
 
     const editingSnapshot =
+        getOriginalEditingModel() ||
         getEditingModel();
 
 
@@ -2425,6 +2687,25 @@ export async function submitEditModel(
 
         commitEditModel(
             result.data
+        );
+
+    } else if (
+        result &&
+        typeof result === "object" &&
+        (
+            result.id ||
+            result.model_id
+        )
+    ) {
+
+        /*
+         * Kompatibilitas:
+         * beberapa handler mungkin mengembalikan
+         * object model langsung.
+         */
+
+        commitEditModel(
+            result
         );
 
     }
@@ -2518,6 +2799,8 @@ export function bindEditForm(
 
 /* =========================================================
    RESTORE EDIT FORM
+   ---------------------------------------------------------
+   Restore selalu menggunakan ORIGINAL SNAPSHOT.
    ========================================================= */
 
 export function restoreOriginalEditForm(
@@ -2535,7 +2818,7 @@ export function restoreOriginalEditForm(
 
 
     const original =
-        getEditingModel();
+        getOriginalEditingModel();
 
 
     if (!original) {
@@ -2543,6 +2826,23 @@ export function restoreOriginalEditForm(
         return null;
 
     }
+
+
+    /*
+     * Reset state model aktif ke snapshot original,
+     * tetapi tetap mempertahankan snapshot tersebut.
+     */
+
+    editState.model =
+        cloneModel(
+            original
+        );
+
+
+    editingModel =
+        cloneModel(
+            original
+        );
 
 
     return renderEditForm(
@@ -2593,6 +2893,7 @@ const ModelFormEdit = {
     isEditing,
 
     getEditingModel,
+    getOriginalEditingModel,
     getEditingModelId,
     getEditState,
 
