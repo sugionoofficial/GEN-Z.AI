@@ -75,6 +75,16 @@
  *       (credit * discount_percent / 100)
  *
  *
+ * NSFW CHECKER
+ *
+ *   Server enforced:
+ *
+ *   nsfw_checker = true
+ *
+ *   Browser tidak dapat menonaktifkan
+ *   NSFW checker melalui request.
+ *
+ *
  * CREDIT TRANSACTION
  *
  *   Supabase RPC
@@ -664,7 +674,17 @@ function getModelId(
 
 /* =========================================================
    GET PARAMETERS
-   ========================================================= */
+   =========================================================
+   NSFW CHECKER:
+ *
+ *   Nilai dari browser TIDAK dipercaya.
+ *
+ *   Field nsfw_checker sengaja tidak diambil
+ *   dari request pada tahap ini.
+ *
+ *   Nilai true akan dipasang secara server-side
+ *   setelah parameter disanitasi.
+ * ========================================================= */
 
 function getParameters(
     body
@@ -704,9 +724,7 @@ function getParameters(
 
         "duration",
 
-        "resolution",
-
-        "nsfw_checker"
+        "resolution"
 
     ];
 
@@ -988,9 +1006,6 @@ function calculateDiscountedCredit(
     /*
      * Lindungi dari floating point negatif
      * yang sangat kecil.
-     *
-     * Contoh:
-     * 0 - 0.0000000001
      */
 
     return Math.max(
@@ -1006,34 +1021,34 @@ function calculateDiscountedCredit(
    ---------------------------------------------------------
    SERVER-SIDE SOURCE OF TRUTH:
  *
-   480p
-      → credit_480p
+ *   480p
+ *      → credit_480p
  *
-   720p
-      → credit_720p
+ *   720p
+ *      → credit_720p
  *
-   1080p
-      → credit_1080p
+ *   1080p
+ *      → credit_1080p
  *
-   DISCOUNT:
+ *   DISCOUNT:
  *
-   discount_percent
-      → Supabase models
+ *   discount_percent
+ *      → Supabase models
  *
-   final credit:
+ *   final credit:
  *
-   credit -
-   (credit * discount_percent / 100)
+ *   credit -
+ *   (credit * discount_percent / 100)
  *
-   PENTING:
-   - 0 valid
-   - tidak menggunakan ||
-   - tidak menggunakan credit_cost
-   - tidak menggunakan credit_final
-   - tidak menggunakan KIE price
-   - tidak menggunakan duration
-   - tidak menerima credit dari browser
-   ========================================================= */
+ *   PENTING:
+ *   - 0 valid
+ *   - tidak menggunakan ||
+ *   - tidak menggunakan credit_cost
+ *   - tidak menggunakan credit_final
+ *   - tidak menggunakan KIE price
+ *   - tidak menggunakan duration
+ *   - tidak menerima credit dari browser
+ * ========================================================= */
 
 function resolveGenerationCredit(
     databaseModel,
@@ -1242,14 +1257,6 @@ function resolveGenerationCredit(
    DEDUCT GENERATION CREDITS
    ---------------------------------------------------------
    Atomic deduction melalui Supabase RPC.
-
-   Browser tidak pernah menentukan jumlah credit.
-
-   RPC:
-     public.deduct_generate_credits(
-         p_user_id,
-         p_amount
-     )
    ========================================================= */
 
 async function deductGenerateCredits(
@@ -1280,11 +1287,6 @@ async function deductGenerateCredits(
         );
 
 
-    /*
-     * Supabase RPC numeric dapat dikembalikan
-     * sebagai number atau string tergantung response.
-     */
-
     const newCredits =
         Number(
             data
@@ -1301,11 +1303,6 @@ async function deductGenerateCredits(
 
     }
 
-
-    /*
-     * Beberapa konfigurasi RPC dapat mengembalikan
-     * object. Tetap dukung tanpa mengubah perilaku utama.
-     */
 
     if (
         data &&
@@ -1359,9 +1356,6 @@ async function deductGenerateCredits(
 
 /* =========================================================
    REFUND GENERATION CREDITS
-   ---------------------------------------------------------
-   Digunakan apabila credit sudah terpotong tetapi
-   provider gagal membuat task.
    ========================================================= */
 
 async function refundGenerateCredits(
@@ -1839,10 +1833,6 @@ function decodeBuffer(
     }
 
 
-    /*
-     * Hex.
-     */
-
     if (
         /^[0-9a-fA-F]+$/.test(
             text
@@ -1869,10 +1859,6 @@ function decodeBuffer(
     }
 
 
-    /*
-     * Base64.
-     */
-
     try {
 
         const buffer =
@@ -1894,7 +1880,6 @@ function decodeBuffer(
 
         /*
          * fallback
-
          */
 
     }
@@ -2328,11 +2313,6 @@ function normalizeArray(
         }
 
 
-        /*
-         * PostgreSQL array:
-         * {"2:3","9:16"}
-         */
-
         if (
             trimmed.startsWith("{") &&
             trimmed.endsWith("}")
@@ -2378,10 +2358,6 @@ function normalizeArray(
         }
 
 
-        /*
-         * JSON array.
-         */
-
         if (
             trimmed.startsWith("[") &&
             trimmed.endsWith("]")
@@ -2417,10 +2393,6 @@ function normalizeArray(
 
         }
 
-
-        /*
-         * CSV.
-         */
 
         return [
 
@@ -2756,7 +2728,21 @@ function validateAdapterInput(
 
 /* =========================================================
    SANITIZE PARAMETERS
-   ========================================================= */
+   ---------------------------------------------------------
+   NSFW CHECKER
+ *
+ *   Selalu dipaksa aktif.
+ *
+ *   Browser tidak mempunyai kemampuan untuk
+ *   mengirim nilai false sebagai override.
+ *
+ *   Nilai final:
+ *
+ *       nsfw_checker = true
+ *
+ *   Field tetap diteruskan ke adapter karena
+ *   provider dapat membutuhkan parameter ini.
+ * ========================================================= */
 
 function sanitizeParameters(
     parameters
@@ -2776,9 +2762,7 @@ function sanitizeParameters(
 
         "duration",
 
-        "resolution",
-
-        "nsfw_checker"
+        "resolution"
 
     ];
 
@@ -2803,6 +2787,28 @@ function sanitizeParameters(
         }
 
     }
+
+
+    /*
+     * =====================================================
+     * NSFW CHECKER - SERVER ENFORCED
+     * =====================================================
+     *
+     * Jangan membaca:
+     *
+     *   parameters.nsfw_checker
+     *
+     * Jangan menggunakan:
+     *
+     *   Boolean(parameters.nsfw_checker)
+     *
+     * Jangan menggunakan nilai dari browser.
+     *
+     * Nilai selalu true.
+     */
+
+    result.nsfw_checker =
+        true;
 
 
     return result;
@@ -3132,6 +3138,24 @@ export default async function handler(
 
     /*
      * =====================================================
+     * NSFW CHECKER
+     * =====================================================
+     *
+     * Pastikan sekali lagi sebelum validasi adapter
+     * bahwa nilai yang akan diteruskan ke model adalah
+     * true.
+     *
+     * Ini sengaja redundant untuk menjaga invariant
+     * server-side apabila ada perubahan pada sanitizer
+     * di masa depan.
+     */
+
+    parameters.nsfw_checker =
+        true;
+
+
+    /*
+     * =====================================================
      * DATABASE RESTRICTIONS
      * =====================================================
      */
@@ -3229,34 +3253,6 @@ export default async function handler(
      * =====================================================
      * RESOLVE GENERATION CREDIT
      * =====================================================
-     *
-     * Credit dasar diambil dari:
-     *
-     *   credit_480p
-     *   credit_720p
-     *   credit_1080p
-     *
-     * Kemudian discount_percent dihitung
-     * di SERVER.
-     *
-     * Contoh:
-     *
-     *   480p:
-     *     credit = 50
-     *     discount = 10
-     *     deduction = 45
-     *
-     *   720p:
-     *     credit = 75
-     *     discount = 10
-     *     deduction = 67.5
-     *
-     *   1080p:
-     *     credit = 100
-     *     discount = 10
-     *     deduction = 90
-     *
-     * Tidak ada fallback 50.
      */
 
     let generationCredit;
@@ -3493,6 +3489,7 @@ export default async function handler(
                 }
 
             }
+
         );
 
     }
@@ -3502,24 +3499,6 @@ export default async function handler(
      * =====================================================
      * DEDUCT CREDIT
      * =====================================================
-     *
-     * Credit dipotong SECARA ATOMIC sebelum KIE dipanggil.
-     *
-     * Nilai generationCredit.credit adalah:
-     *
-     *   credit setelah discount.
-     *
-     * Contoh:
-     *
-     *   credit_480p = 50
-     *   discount    = 10%
-     *   credit      = 45
-     *
-     *   RPC menerima:
-     *
-     *   p_amount = 45
-     *
-     * Browser tidak pernah menentukan jumlah credit.
      */
 
     let creditDeducted =
@@ -3656,12 +3635,10 @@ export default async function handler(
      * CREATE TASK
      * =====================================================
      *
+     * NSFW CHECKER sudah dipaksa true sebelum adapter
+     * dipanggil.
+     *
      * API key hanya berada di server.
-     *
-     * Tidak pernah dikirim ke browser.
-     *
-     * Credit sudah dipotong sebelum request.
-     *
      */
 
     let task;
@@ -3687,13 +3664,6 @@ export default async function handler(
          * =================================================
          * REFUND
          * =================================================
-         *
-         * KIE gagal membuat task.
-         *
-         * Credit harus dikembalikan.
-         *
-         * Refund menggunakan jumlah yang sama
-         * dengan jumlah yang benar-benar dipotong.
          */
 
         if (
@@ -3747,13 +3717,6 @@ export default async function handler(
 
             } catch (refundError) {
 
-                /*
-                 * Jangan menutupi error provider.
-                 *
-                 * Error refund dicatat sebagai CRITICAL
-                 * supaya saldo dapat diperiksa dari server.
-                 */
-
                 console.error(
                     "[generate] CRITICAL: credit refund failed:",
                     refundError
@@ -3763,16 +3726,6 @@ export default async function handler(
 
         }
 
-
-        /*
-         * Provider adapter dapat mengirim:
-         *
-         * error.status
-         * error.code
-         * error.data
-         * error.response
-         * error.body
-         */
 
         const providerStatus =
             Number(
@@ -3893,14 +3846,7 @@ export default async function handler(
     /*
      * =====================================================
      * TASK ID MISSING
-     * =====================================================
-     *
-     * Credit sudah dipotong tetapi provider tidak
-     * memberikan task ID.
-     *
-     * Kembalikan credit dengan jumlah yang sama
-     * dengan credit yang dipotong.
-     */
+     * ===================================================== */
 
     if (!taskId) {
 
@@ -4019,12 +3965,6 @@ export default async function handler(
      * =====================================================
      * RESPONSE
      * =====================================================
-     *
-     * Response frontend tidak mengandung credential.
-     *
-     * Provider response tetap diberikan sebagai
-     * diagnostic agar error KIE.AI dapat dilihat.
-     *
      */
 
     return success(
@@ -4065,15 +4005,6 @@ export default async function handler(
 
             /*
              * Credit.
-             *
-             * credit_base:
-             * harga sebelum diskon.
-             *
-             * discount_percent:
-             * diskon dari Supabase.
-             *
-             * credit_used:
-             * jumlah aktual yang dipotong.
              */
 
             resolution:
@@ -4093,6 +4024,14 @@ export default async function handler(
 
 
             /*
+             * NSFW CHECKER
+             *
+             * Tidak perlu dikirim sebagai pilihan
+             * ke frontend. Server sudah memaksa true.
+             */
+
+
+            /*
              * Task.
              */
 
@@ -4107,8 +4046,6 @@ export default async function handler(
 
             /*
              * Provider response diagnostic.
-             *
-             * Credential sudah disanitasi.
              */
 
             provider_response:
