@@ -12,21 +12,17 @@
  *
  * =========================================================
  *
- * ARSITEKTUR BARU
+ * ARSITEKTUR
  *
  * MODEL SOURCE OF TRUTH
  *
  *   models/
- *      └── grok-imagine-image-to-video/
+ *      └── <model>/
  *             ├── index.js
  *             ├── config.js
  *             ├── parameters.js
  *             ├── create-task.js
  *             └── query-task.js
- *
- *        ↓
- *
- *   MODEL REGISTRY
  *
  *
  * SUPABASE
@@ -41,27 +37,23 @@
  *      └── optional admin overrides
  *
  *
- * SUPABASE TIDAK BOLEH:
+ * PENTING
  *
- *   - menciptakan model baru
- *   - menentukan model_id teknis
- *   - menggantikan folder model
- *   - menjadi satu-satunya daftar model
+ *   MODEL TECHNICAL PARAMETERS
+ *      ↓
+ *   repository model
  *
+ *   PRICING
+ *      ↓
+ *   Supabase models
  *
- * PROVIDER SOURCE OF TRUTH
+ *   DURATION
+ *      ↓
+ *   repository model
+ *      ↓
+ *   optional valid Supabase override
  *
- *   Supabase: providers
- *
- *
- * ADAPTER SOURCE OF TRUTH
- *
- *   models/<model-folder>/index.js
- *
- *
- * API KEY / CREDENTIAL
- *
- *   TIDAK PERNAH dikirim ke frontend.
+ *   CREDIT TIDAK DIPENGARUHI DURATION
  *
  * =========================================================
  */
@@ -77,8 +69,6 @@ import grokImagineImageToVideo
 
 /* =========================================================
    MODEL REGISTRY
-   ---------------------------------------------------------
-   Registry sekarang adalah DAFTAR MODEL REPO.
    ========================================================= */
 
 const MODEL_REGISTRY = Object.freeze([
@@ -583,9 +573,7 @@ function normalizeArray(
 
             } catch {
 
-                /*
-                 * fallback CSV
-                 */
+                /* fallback CSV */
 
             }
 
@@ -653,9 +641,6 @@ function normalizeNumber(
 
 /* =========================================================
    PARAMETER SERIALIZER
-   ---------------------------------------------------------
-   Function seperti validate() tidak boleh dikirim
-   ke browser.
    ========================================================= */
 
 function serializeParameters(
@@ -896,8 +881,6 @@ function getRegistryModels() {
 
 /* =========================================================
    LOAD DATABASE MODEL
-   ---------------------------------------------------------
-   Supabase models SEKARANG OPTIONAL.
    ========================================================= */
 
 async function loadDatabaseModel(
@@ -985,8 +968,6 @@ async function loadDatabaseModel(
 
 /* =========================================================
    LOAD ALL DATABASE MODELS
-   ---------------------------------------------------------
-   OPTIONAL ADMIN CONFIGURATION
    ========================================================= */
 
 async function loadDatabaseModels() {
@@ -1147,9 +1128,6 @@ async function loadProviderByDatabaseId(
 
 /* =========================================================
    LOAD PROVIDER BY PROVIDER CODE
-   ---------------------------------------------------------
-   Fallback penting ketika model belum mempunyai row
-   di tabel models.
    ========================================================= */
 
 async function loadProviderByCode(
@@ -1299,12 +1277,7 @@ async function loadProviderByCode(
 
 /* =========================================================
    RESOLVE PROVIDER
-   ---------------------------------------------------------
-   Prioritas:
- *
- *   1. databaseModel.provider_id
- *   2. adapter.config.providerId
- * ========================================================= */
+   ========================================================= */
 
 async function resolveProvider(
     adapter,
@@ -1360,19 +1333,7 @@ async function resolveProvider(
 
 /* =========================================================
    BUILD MODEL CONFIG
-   ---------------------------------------------------------
-   MODEL ID / TYPE / TECHNICAL PARAMETERS:
- *
- *   REPO MODEL FOLDER
- *
- * ADMIN CONFIG:
- *
- *   SUPABASE models
- *
- * PROVIDER:
- *
- *   SUPABASE providers
- * ========================================================= */
+   ========================================================= */
 
 function buildModelConfig(
     adapter,
@@ -1390,16 +1351,9 @@ function buildModelConfig(
         {};
 
 
-    /*
-     * =====================================================
-     * MODEL ID
-     * =====================================================
-     *
-     * SOURCE OF TRUTH:
-     *
-     *   model folder config.js
-     *
-     */
+    /* =====================================================
+       MODEL ID
+       ===================================================== */
 
     const registryModelId =
         String(
@@ -1420,15 +1374,9 @@ function buildModelConfig(
         databaseModelId;
 
 
-    /*
-     * =====================================================
-     * MODEL NAME
-     * =====================================================
-     *
-     * Folder config menjadi nama default.
-     * Admin database boleh override display name.
-     *
-     */
+    /* =====================================================
+       MODEL NAME
+       ===================================================== */
 
     const registryModelName =
         String(
@@ -1450,11 +1398,9 @@ function buildModelConfig(
         modelId;
 
 
-    /*
-     * =====================================================
-     * PROVIDER
-     * =====================================================
-     */
+    /* =====================================================
+       PROVIDER
+       ===================================================== */
 
     const providerId =
         String(
@@ -1483,14 +1429,9 @@ function buildModelConfig(
             .toLowerCase();
 
 
-    /*
-     * =====================================================
-     * TYPE
-     * =====================================================
-     *
-     * Type berasal dari config model folder.
-     *
-     */
+    /* =====================================================
+       TYPE
+       ===================================================== */
 
     const modelType =
         String(
@@ -1501,11 +1442,9 @@ function buildModelConfig(
         ).trim();
 
 
-    /*
-     * =====================================================
-     * PARAMETER DEFINITIONS
-     * =====================================================
-     */
+    /* =====================================================
+       MODEL PARAMETERS
+       ===================================================== */
 
     const ratioParameter =
         parameters.aspect_ratio ||
@@ -1534,15 +1473,9 @@ function buildModelConfig(
         );
 
 
-    /*
-     * =====================================================
-     * ADMIN OVERRIDES
-     * =====================================================
-     *
-     * Jika tersedia di models table, gunakan.
-     * Jika tidak ada, gunakan parameter repo.
-     *
-     */
+    /* =====================================================
+       ADMIN CAPABILITY OVERRIDES
+       ===================================================== */
 
     const databaseRatios =
         normalizeArray(
@@ -1568,11 +1501,11 @@ function buildModelConfig(
             : folderResolutions;
 
 
-    /*
-     * =====================================================
-     * DURATION
-     * =====================================================
-     */
+    /* =====================================================
+       DURATION
+       -----------------------------------------------------
+       DURATION TIDAK TERHUBUNG DENGAN CREDIT.
+       ===================================================== */
 
     const folderMinDuration =
         normalizeNumber(
@@ -1586,39 +1519,71 @@ function buildModelConfig(
         );
 
 
-    const databaseMinDuration =
+    /*
+     * Nilai duration dari database hanya dianggap
+     * sebagai override jika nilainya valid.
+     *
+     * 0 / negatif = tidak valid sebagai batas
+     * duration video.
+     */
+
+    const databaseMinDurationRaw =
         normalizeNumber(
             databaseModel?.min_duration
         );
 
 
-    const databaseMaxDuration =
+    const databaseMaxDurationRaw =
         normalizeNumber(
             databaseModel?.max_duration
         );
 
 
+    const databaseMinDuration =
+        databaseMinDurationRaw !== null &&
+        databaseMinDurationRaw > 0
+
+            ? databaseMinDurationRaw
+
+            : null;
+
+
+    const databaseMaxDuration =
+        databaseMaxDurationRaw !== null &&
+        databaseMaxDurationRaw > 0
+
+            ? databaseMaxDurationRaw
+
+            : null;
+
+
+    /*
+     * Repository menjadi fallback/source
+     * ketika database tidak mempunyai
+     * override duration yang valid.
+     */
+
     const minDuration =
         databaseMinDuration !== null
+
             ? databaseMinDuration
+
             : folderMinDuration;
 
 
     const maxDuration =
         databaseMaxDuration !== null
+
             ? databaseMaxDuration
+
             : folderMaxDuration;
 
 
-    /*
-     * =====================================================
-     * CREDIT
-     * =====================================================
-     *
-     * credit_cost adalah CREDIT.
-     * BUKAN USD.
-     *
-     */
+    /* =====================================================
+       CREDIT
+       -----------------------------------------------------
+       CREDIT SEPENUHNYA TERPISAH DARI DURATION.
+       ===================================================== */
 
     const creditCost =
         normalizeNumber(
@@ -1640,6 +1605,15 @@ function buildModelConfig(
         );
 
 
+    /*
+     * credit_final hanya dihitung dari:
+     *
+     *   credit_cost
+     *   discount_percent
+     *
+     * duration TIDAK masuk ke kalkulasi ini.
+     */
+
     if (
         creditFinal === null
     ) {
@@ -1659,18 +1633,9 @@ function buildModelConfig(
     }
 
 
-    /*
-     * =====================================================
-     * STATUS
-     * =====================================================
-     *
-     * Jika belum ada konfigurasi admin,
-     * model repo dianggap active.
-     *
-     * Jika ada konfigurasi admin,
-     * status database dihormati.
-     *
-     */
+    /* =====================================================
+       STATUS
+       ===================================================== */
 
     const databaseStatus =
         String(
@@ -1683,60 +1648,41 @@ function buildModelConfig(
 
     const modelStatus =
         databaseModel
+
             ? (
                 databaseStatus ||
                 "inactive"
             )
+
             : "active";
 
 
-    /*
-     * =====================================================
-     * SOURCE
-     * =====================================================
-     */
+    /* =====================================================
+       SOURCE
+       ===================================================== */
 
     const source =
         "repository";
 
 
-    /*
-     * =====================================================
-     * FINAL OBJECT
-     * ===================================================== */
+    /* =====================================================
+       FINAL OBJECT
+       ===================================================== */
 
     return {
-
-        /*
-         * DATABASE ROW ID
-         */
 
         id:
             databaseModel?.id ||
             null,
 
 
-        /*
-         * MODEL ID
-         *
-         * HARUS berasal dari config.js
-         */
-
         model_id:
             modelId,
 
 
-        /*
-         * MODEL NAME
-         */
-
         model_name:
             modelName,
 
-
-        /*
-         * DESCRIPTION
-         */
 
         description:
             String(
@@ -1745,17 +1691,9 @@ function buildModelConfig(
             ).trim(),
 
 
-        /*
-         * TYPE
-         */
-
         type:
             modelType,
 
-
-        /*
-         * PROVIDER
-         */
 
         provider: {
 
@@ -1775,10 +1713,6 @@ function buildModelConfig(
         },
 
 
-        /*
-         * COMPATIBILITY PROVIDER FIELDS
-         */
-
         provider_id:
             provider?.id ||
             databaseModel?.provider_id ||
@@ -1789,13 +1723,17 @@ function buildModelConfig(
             providerId,
 
 
-        /*
-         * PRICING
-         *
-         * CREDIT ONLY.
-         */
+        /* =================================================
+           PRICING
+           ================================================= */
 
         pricing: {
+
+            /*
+             * Hanya credit configuration.
+             *
+             * duration tidak digunakan.
+             */
 
             credit_cost:
                 creditCost,
@@ -1809,23 +1747,21 @@ function buildModelConfig(
         },
 
 
-        /*
-         * COMPATIBILITY PRICING
-         */
-
         credit_cost:
             creditCost,
 
+
         discount_percent:
             discountPercent,
+
 
         credit_final:
             creditFinal,
 
 
-        /*
-         * DURATION
-         */
+        /* =================================================
+           DURATION
+           ================================================= */
 
         duration: {
 
@@ -1838,52 +1774,41 @@ function buildModelConfig(
         },
 
 
-        /*
-         * COMPATIBILITY DURATION
-         */
-
         min_duration:
             minDuration,
+
 
         max_duration:
             maxDuration,
 
 
-        /*
-         * RATIOS
-         */
+        /* =================================================
+           CAPABILITIES
+           ================================================= */
 
         supported_ratios:
             finalRatios,
 
 
-        /*
-         * RESOLUTIONS
-         */
-
         supported_resolutions:
             finalResolutions,
 
 
-        /*
-         * STATUS
-         */
+        /* =================================================
+           STATUS
+           ================================================= */
 
         status:
             modelStatus,
 
 
-        /*
-         * SOURCE
-         */
-
         source:
             source,
 
 
-        /*
-         * REPOSITORY INFORMATION
-         */
+        /* =================================================
+           REPOSITORY
+           ================================================= */
 
         repository: {
 
@@ -1911,9 +1836,9 @@ function buildModelConfig(
         },
 
 
-        /*
-         * PARAMETERS
-         */
+        /* =================================================
+           PARAMETERS
+           ================================================= */
 
         parameters:
             serializeParameters(
@@ -1921,9 +1846,9 @@ function buildModelConfig(
             ),
 
 
-        /*
-         * API
-         */
+        /* =================================================
+           API
+           ================================================= */
 
         api: {
 
@@ -1938,9 +1863,9 @@ function buildModelConfig(
         },
 
 
-        /*
-         * ADAPTER
-         */
+        /* =================================================
+           ADAPTER
+           ================================================= */
 
         adapter_available:
             Boolean(
@@ -1954,20 +1879,7 @@ function buildModelConfig(
 
 /* =========================================================
    RESOLVE ONE MODEL
-   ---------------------------------------------------------
-   Flow:
- *
- *   model_id
- *      ↓
- *   repository registry
- *      ↓
- *   optional Supabase admin config
- *      ↓
- *   provider
- *      ↓
- *   response
- *
- * ========================================================= */
+   ========================================================= */
 
 async function resolveModel(
     modelId
@@ -1985,12 +1897,9 @@ async function resolveModel(
     }
 
 
-    /*
-     * =====================================================
-     * 1.
-     * MODEL HARUS ADA DI REPOSITORY
-     * =====================================================
-     */
+    /* =====================================================
+       MODEL REPOSITORY
+       ===================================================== */
 
     const adapter =
         getRegistryModel(
@@ -2020,12 +1929,9 @@ async function resolveModel(
     }
 
 
-    /*
-     * =====================================================
-     * 2.
-     * OPTIONAL ADMIN CONFIG
-     * =====================================================
-     */
+    /* =====================================================
+       DATABASE MODEL
+       ===================================================== */
 
     const databaseModel =
         await loadDatabaseModel(
@@ -2033,18 +1939,9 @@ async function resolveModel(
         );
 
 
-    /*
-     * =====================================================
-     * 3.
-     * STATUS
-     * =====================================================
-     *
-     * Model repository default = active.
-     *
-     * Tetapi jika admin sudah membuat row,
-     * status admin harus dihormati.
-     *
-     */
+    /* =====================================================
+       STATUS
+       ===================================================== */
 
     if (
         databaseModel
@@ -2087,12 +1984,9 @@ async function resolveModel(
     }
 
 
-    /*
-     * =====================================================
-     * 4.
-     * PROVIDER
-     * =====================================================
-     */
+    /* =====================================================
+       PROVIDER
+       ===================================================== */
 
     const provider =
         await resolveProvider(
@@ -2100,13 +1994,6 @@ async function resolveModel(
             databaseModel
         );
 
-
-    /*
-     * Provider belum ditemukan.
-     *
-     * Model tetap dikenali sebagai model repo,
-     * tetapi tidak bisa digunakan untuk execution.
-     */
 
     if (!provider) {
 
@@ -2127,12 +2014,9 @@ async function resolveModel(
     }
 
 
-    /*
-     * =====================================================
-     * 5.
-     * PROVIDER STATUS
-     * =====================================================
-     */
+    /* =====================================================
+       PROVIDER STATUS
+       ===================================================== */
 
     const providerStatus =
         String(
@@ -2166,12 +2050,9 @@ async function resolveModel(
     }
 
 
-    /*
-     * =====================================================
-     * 6.
-     * ADAPTER MODEL ID VALIDATION
-     * =====================================================
-     */
+    /* =====================================================
+       ADAPTER MODEL ID VALIDATION
+       ===================================================== */
 
     const adapterModelId =
         String(
@@ -2206,12 +2087,9 @@ async function resolveModel(
     }
 
 
-    /*
-     * =====================================================
-     * 7.
-     * BUILD RESPONSE
-     * =====================================================
-     */
+    /* =====================================================
+       BUILD
+       ===================================================== */
 
     return {
 
@@ -2229,22 +2107,9 @@ async function resolveModel(
 
 /* =========================================================
    LOAD ALL MODELS
-   ---------------------------------------------------------
-   SUMBER UTAMA:
- *
- *   MODEL_REGISTRY
- *
- * Supabase models hanya merge konfigurasi admin.
- * ========================================================= */
+   ========================================================= */
 
 async function loadAllModels() {
-
-    /*
-     * =====================================================
-     * 1.
-     * LOAD OPTIONAL DATABASE CONFIG
-     * =====================================================
-     */
 
     const databaseModels =
         await loadDatabaseModels();
@@ -2281,13 +2146,6 @@ async function loadAllModels() {
     }
 
 
-    /*
-     * =====================================================
-     * 2.
-     * BUILD FROM REPOSITORY REGISTRY
-     * =====================================================
-     */
-
     const result = [];
 
 
@@ -2321,11 +2179,9 @@ async function loadAllModels() {
             null;
 
 
-        /*
-         * =================================================
-         * STATUS
-         * =================================================
-         */
+        /* =================================================
+           STATUS
+           ================================================= */
 
         if (
             databaseModel
@@ -2353,11 +2209,9 @@ async function loadAllModels() {
         }
 
 
-        /*
-         * =================================================
-         * PROVIDER
-         * =================================================
-         */
+        /* =================================================
+           PROVIDER
+           ================================================= */
 
         let provider =
             null;
@@ -2381,17 +2235,9 @@ async function loadAllModels() {
         }
 
 
-        /*
-         * =================================================
-         * PROVIDER TIDAK ADA
-         * =================================================
-         *
-         * Model tetap dikembalikan.
-         *
-         * Generate frontend perlu mengetahui
-         * bahwa model tersedia di repository.
-         *
-         */
+        /* =================================================
+           PROVIDER NOT FOUND
+           ================================================= */
 
         if (!provider) {
 
@@ -2408,14 +2254,9 @@ async function loadAllModels() {
         }
 
 
-        /*
-         * =================================================
-         * PROVIDER INACTIVE
-         * =================================================
-         *
-         * Model tidak boleh digunakan.
-         *
-         */
+        /* =================================================
+           PROVIDER STATUS
+           ================================================= */
 
         const providerStatus =
             String(
@@ -2437,11 +2278,9 @@ async function loadAllModels() {
         }
 
 
-        /*
-         * =================================================
-         * BUILD
-         * =================================================
-         */
+        /* =================================================
+           BUILD
+           ================================================= */
 
         result.push(
             buildModelConfig(
@@ -2468,11 +2307,9 @@ export default async function handler(
     res
 ) {
 
-    /*
-     * =====================================================
-     * METHOD
-     * =====================================================
-     */
+    /* =====================================================
+       METHOD
+       ===================================================== */
 
     if (
         req.method !==
@@ -2494,11 +2331,9 @@ export default async function handler(
     }
 
 
-    /*
-     * =====================================================
-     * AUTHENTICATION
-     * =====================================================
-     */
+    /* =====================================================
+       AUTHENTICATION
+       ===================================================== */
 
     try {
 
@@ -2520,11 +2355,9 @@ export default async function handler(
     }
 
 
-    /*
-     * =====================================================
-     * REQUESTED MODEL
-     * =====================================================
-     */
+    /* =====================================================
+       REQUESTED MODEL
+       ===================================================== */
 
     const requestedModelId =
         getQueryModelId(
@@ -2532,11 +2365,9 @@ export default async function handler(
         );
 
 
-    /*
-     * =====================================================
-     * SINGLE MODEL
-     * =====================================================
-     */
+    /* =====================================================
+       SINGLE MODEL
+       ===================================================== */
 
     if (
         requestedModelId
@@ -2624,28 +2455,9 @@ export default async function handler(
     }
 
 
-    /*
-     * =====================================================
-     * ALL ACTIVE MODELS
-     * =====================================================
-     *
-     * SEKARANG:
-     *
-     *   Repository Registry
-     *          ↓
-     *   Optional Supabase config
-     *          ↓
-     *   Provider
-     *          ↓
-     *   Generate
-     *
-     * BUKAN:
-     *
-     *   Supabase models
-     *          ↓
-     *   Generate
-     *
-     */
+    /* =====================================================
+       ALL ACTIVE MODELS
+       ===================================================== */
 
     try {
 
