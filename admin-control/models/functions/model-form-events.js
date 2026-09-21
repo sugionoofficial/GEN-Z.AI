@@ -64,16 +64,18 @@
         return String(value).trim();
     }
 
+    function isElement(value) {
+        return (
+            typeof Element !== "undefined" &&
+            value instanceof Element
+        );
+    }
+
     function getForm(root = currentRoot) {
-        if (
-            root &&
-            root instanceof Element
-        ) {
+        if (isElement(root)) {
             if (
-                root.matches &&
-                root.matches(
-                    "form"
-                )
+                typeof root.matches === "function" &&
+                root.matches("form")
             ) {
                 return root;
             }
@@ -89,12 +91,8 @@
         }
 
         return (
-            document.getElementById(
-                "modelForm"
-            ) ||
-            document.getElementById(
-                "modelsForm"
-            ) ||
+            document.getElementById("modelForm") ||
+            document.getElementById("modelsForm") ||
             document.querySelector(
                 "form[data-model-form]"
             )
@@ -109,18 +107,12 @@
         );
     }
 
-    function queryFirst(
-        root,
-        selectors
-    ) {
-        const container =
-            root instanceof Element
-                ? root
-                : getRootElement();
+    function queryFirst(root, selectors) {
+        const container = isElement(root)
+            ? root
+            : getRootElement();
 
-        for (
-            const selector of selectors
-        ) {
+        for (const selector of selectors) {
             try {
                 const element =
                     container.querySelector(
@@ -136,6 +128,36 @@
         }
 
         return null;
+    }
+
+    function queryAll(root, selectors) {
+        const container = isElement(root)
+            ? root
+            : getRootElement();
+
+        const result = [];
+
+        for (const selector of selectors) {
+            try {
+                container
+                    .querySelectorAll(selector)
+                    .forEach(element => {
+                        if (
+                            !result.includes(
+                                element
+                            )
+                        ) {
+                            result.push(
+                                element
+                            );
+                        }
+                    });
+            } catch (_) {
+                /* ignore invalid selector */
+            }
+        }
+
+        return result;
     }
 
     /* =========================================================
@@ -192,18 +214,14 @@
 
     function setData(data = {}) {
         if (
-            Array.isArray(
-                data.models
-            )
+            Array.isArray(data.models)
         ) {
             currentModels =
                 data.models;
         }
 
         if (
-            Array.isArray(
-                data.providers
-            )
+            Array.isArray(data.providers)
         ) {
             currentProviders =
                 data.providers;
@@ -223,8 +241,10 @@
         return {
             models:
                 currentModels,
+
             providers:
                 currentProviders,
+
             root:
                 currentRoot
         };
@@ -233,32 +253,6 @@
     /* =========================================================
        LISTENER REGISTRY
        ========================================================= */
-
-    function registerListener(
-        element,
-        eventName,
-        handler,
-        options
-    ) {
-        if (!element) {
-            return;
-        }
-
-        element.addEventListener(
-            eventName,
-            handler,
-            options
-        );
-
-        handlers[
-            `${eventName}:${getElementKey(element)}`
-        ] = {
-            element,
-            eventName,
-            handler,
-            options
-        };
-    }
 
     function getElementKey(element) {
         if (!element) {
@@ -271,7 +265,8 @@
 
         if (
             element.dataset &&
-            element.dataset.genzModelEventKey
+            element.dataset
+                .genzModelEventKey
         ) {
             return (
                 element.dataset
@@ -285,13 +280,55 @@
                 .slice(2)}`;
 
         try {
-            element.dataset.genzModelEventKey =
+            element.dataset
+                .genzModelEventKey =
                 key;
         } catch (_) {
             return key;
         }
 
         return key;
+    }
+
+    function registerListener(
+        element,
+        eventName,
+        handler,
+        options = false,
+        key = null
+    ) {
+        if (!element) {
+            return false;
+        }
+
+        const recordKey =
+            key ||
+            `${eventName}:${getElementKey(
+                element
+            )}`;
+
+        if (
+            handlers[recordKey]
+        ) {
+            removeListenerRecord(
+                handlers[recordKey]
+            );
+        }
+
+        element.addEventListener(
+            eventName,
+            handler,
+            options
+        );
+
+        handlers[recordKey] = {
+            element,
+            eventName,
+            handler,
+            options
+        };
+
+        return true;
     }
 
     function removeListenerRecord(
@@ -304,11 +341,15 @@
             return;
         }
 
-        record.element.removeEventListener(
-            record.eventName,
-            record.handler,
-            record.options
-        );
+        try {
+            record.element.removeEventListener(
+                record.eventName,
+                record.handler,
+                record.options
+            );
+        } catch (_) {
+            /* non-fatal */
+        }
     }
 
     function unbind() {
@@ -357,6 +398,9 @@
             modal.classList.contains(
                 "active"
             ) ||
+            modal.classList.contains(
+                "open"
+            ) ||
             modal.getAttribute(
                 "aria-hidden"
             ) === "false" ||
@@ -378,24 +422,18 @@
         const methods = [
             "close",
             "closeDropdown",
-            "hideDropdown",
-            "clearResults"
+            "hideDropdown"
         ];
 
-        for (
-            const method of methods
-        ) {
+        for (const method of methods) {
             if (
-                typeof search[
-                    method
-                ] === "function"
+                typeof search[method] ===
+                "function"
             ) {
                 try {
-                    search[
-                        method
-                    ]();
+                    search[method]();
                 } catch (_) {
-                    /* Search cleanup must not break modal close */
+                    /* search cleanup is non-fatal */
                 }
             }
         }
@@ -410,6 +448,11 @@
         }
 
         try {
+            /*
+             * cancelEditModel harus diprioritaskan
+             * karena module Edit memiliki original
+             * snapshot yang perlu dipulihkan.
+             */
             if (
                 typeof edit
                     .cancelEditModel ===
@@ -427,7 +470,7 @@
                 edit.clearEditingModel();
             }
         } catch (_) {
-            /* state cleanup must remain non-fatal */
+            /* state cleanup remains non-fatal */
         }
     }
 
@@ -448,7 +491,7 @@
                 create.closeCreate();
             }
         } catch (_) {
-            /* state cleanup must remain non-fatal */
+            /* state cleanup remains non-fatal */
         }
     }
 
@@ -460,6 +503,13 @@
             return;
         }
 
+        /*
+         * Hanya panggil method yang memang tersedia.
+         *
+         * Jangan memanggil submit/create/update
+         * dari sini karena dapat menyebabkan lifecycle
+         * recursive.
+         */
         const methods = [
             "cancel",
             "reset",
@@ -467,61 +517,45 @@
             "resetFormState"
         ];
 
-        for (
-            const method of methods
-        ) {
+        for (const method of methods) {
             if (
-                typeof coordinator[
-                    method
-                ] === "function"
+                typeof coordinator[method] ===
+                "function"
             ) {
                 try {
-                    coordinator[
-                        method
-                    ]();
-                    break;
+                    coordinator[method]();
+                    return;
                 } catch (_) {
-                    /* try next compatible method */
+                    /* try compatible fallback */
                 }
             }
         }
     }
 
-    function closeModal(
-        options = {}
-    ) {
+    function closeModal(options = {}) {
         const modal =
             getModal();
 
-        /*
-         * Jangan melakukan cleanup dua kali
-         * jika close dipanggil dari cancel.
-         */
         const cleanup =
             options.cleanup !== false;
 
         if (cleanup) {
             /*
-             * Cancel Edit harus mengembalikan
-             * original snapshot sebelum state dibuang.
+             * Urutan penting:
+             *
+             * 1. Edit mengembalikan snapshot.
+             * 2. Create dibersihkan.
+             * 3. Coordinator dibersihkan.
+             * 4. Search dropdown ditutup.
              */
             resetEditState();
-
-            /*
-             * Create state juga harus ditutup.
-             */
             resetCreateState();
-
-            /*
-             * Coordinator tidak boleh tertinggal
-             * dalam mode edit/create.
-             */
             closeCoordinatorState();
-
             closeSearchDropdowns();
         }
 
         if (!modal) {
+            submitLocked = false;
             return false;
         }
 
@@ -537,8 +571,8 @@
         );
 
         /*
-         * Jangan menghapus display secara permanen
-         * jika CSS menggunakan display default.
+         * Hanya mengubah display jika modal
+         * memang menggunakan inline display.
          */
         if (
             modal.style.display ===
@@ -550,10 +584,6 @@
                 "none";
         }
 
-        /*
-         * Bersihkan class body bila modal
-         * sebelumnya menambahkannya.
-         */
         document.body.classList.remove(
             "modal-open"
         );
@@ -562,14 +592,8 @@
             "overflow"
         );
 
-        /*
-         * Reset submit lock.
-         */
         submitLocked = false;
 
-        /*
-         * Event kompatibilitas.
-         */
         try {
             document.dispatchEvent(
                 new CustomEvent(
@@ -591,9 +615,7 @@
         return true;
     }
 
-    function openModal(
-        options = {}
-    ) {
+    function openModal(options = {}) {
         const modal =
             getModal();
 
@@ -608,7 +630,7 @@
             Array.isArray(
                 options.providers
             ) ||
-            options.root
+            options.root !== undefined
         ) {
             setData(options);
         }
@@ -622,13 +644,9 @@
             "false"
         );
 
-        /*
-         * Hanya set display jika sebelumnya
-         * memang disembunyikan secara inline.
-         */
         if (
             modal.style.display ===
-                "none"
+            "none"
         ) {
             modal.style.display =
                 "flex";
@@ -644,7 +662,7 @@
     }
 
     /* =========================================================
-       MODEL LOOKUP
+       MODEL FIELD
        ========================================================= */
 
     function getModelField(
@@ -677,6 +695,20 @@
         );
     }
 
+    function getModelIdFromObject(
+        model
+    ) {
+        if (!model) {
+            return "";
+        }
+
+        return normalizeId(
+            model.model_id ??
+            model.modelId ??
+            model.id
+        );
+    }
+
     function findCurrentModel(
         modelId
     ) {
@@ -692,14 +724,11 @@
         return (
             currentModels.find(
                 model => {
-                    const id =
-                        normalizeId(
-                            model?.model_id ??
-                            model?.modelId
-                        ).toLowerCase();
-
                     return (
-                        id === target
+                        getModelIdFromObject(
+                            model
+                        ).toLowerCase() ===
+                        target
                     );
                 }
             ) || null
@@ -721,19 +750,14 @@
             "getCurrentModel"
         ];
 
-        for (
-            const method of methods
-        ) {
+        for (const method of methods) {
             if (
-                typeof search[
-                    method
-                ] === "function"
+                typeof search[method] ===
+                "function"
             ) {
                 try {
                     const result =
-                        search[
-                            method
-                        ]();
+                        search[method]();
 
                     if (
                         result &&
@@ -746,6 +770,35 @@
                     /* continue compatibility lookup */
                 }
             }
+        }
+
+        return null;
+    }
+
+    function getSelectedModelFromEvent(
+        event
+    ) {
+        const detail =
+            event?.detail;
+
+        if (!detail) {
+            return null;
+        }
+
+        if (
+            detail.model &&
+            typeof detail.model ===
+                "object"
+        ) {
+            return detail.model;
+        }
+
+        if (
+            detail.result &&
+            typeof detail.result ===
+                "object"
+        ) {
+            return detail.result;
         }
 
         return null;
@@ -766,10 +819,6 @@
             event.preventDefault();
         }
 
-        /*
-         * Hentikan bubbling agar handler form
-         * parent tidak ikut melakukan submit.
-         */
         if (
             event &&
             typeof event.stopPropagation ===
@@ -779,8 +828,11 @@
         }
 
         /*
-         * Proteksi double submit.
+         * Jangan gunakan stopImmediatePropagation
+         * karena module lain dapat memiliki listener
+         * yang memang dibutuhkan untuk lifecycle.
          */
+
         if (submitLocked) {
             return false;
         }
@@ -799,15 +851,19 @@
 
             /*
              * Coordinator adalah jalur utama.
+             *
+             * Penting:
+             * jika sedang edit, jangan pernah
+             * menjalankan createFromForm.
              */
             if (coordinator) {
-                if (
+                const editing =
                     edit &&
-                    typeof edit
-                        .isEditing ===
+                    typeof edit.isEditing ===
                         "function" &&
-                    edit.isEditing()
-                ) {
+                    edit.isEditing();
+
+                if (editing) {
                     if (
                         typeof coordinator
                             .updateFromForm ===
@@ -818,22 +874,22 @@
                                 event
                             );
                     }
-                }
-
-                if (
-                    typeof coordinator
-                        .createFromForm ===
-                    "function"
-                ) {
-                    return await coordinator
-                        .createFromForm(
-                            event
-                        );
+                } else {
+                    if (
+                        typeof coordinator
+                            .createFromForm ===
+                        "function"
+                    ) {
+                        return await coordinator
+                            .createFromForm(
+                                event
+                            );
+                    }
                 }
             }
 
             /*
-             * Fallback edit.
+             * Fallback Edit.
              */
             if (
                 edit &&
@@ -865,7 +921,7 @@
             }
 
             /*
-             * Fallback create.
+             * Fallback Create.
              */
             if (
                 create &&
@@ -884,8 +940,8 @@
             );
         } finally {
             /*
-             * Beri kesempatan submit berikutnya
-             * setelah promise selesai.
+             * Lock hanya aktif selama operasi
+             * async berlangsung.
              */
             submitLocked = false;
         }
@@ -914,16 +970,21 @@
                 .handleProviderChange ===
             "function"
         ) {
-            layout.handleProviderChange(
-                form,
-                currentModels,
-                currentProviders
-            );
+            try {
+                layout.handleProviderChange(
+                    form,
+                    currentModels,
+                    currentProviders
+                );
+            } catch (_) {
+                /* layout synchronization is non-fatal */
+            }
         }
 
         /*
-         * Provider change berarti hasil Search
-         * sebelumnya tidak boleh dipertahankan.
+         * Provider berubah.
+         * Hasil search dari provider sebelumnya
+         * tidak boleh dipakai lagi.
          */
         closeSearchDropdowns();
 
@@ -934,8 +995,10 @@
                     {
                         detail: {
                             providerId:
-                                event?.target?.value ||
-                                "",
+                                normalizeId(
+                                    event?.target
+                                        ?.value
+                                ),
                             form
                         }
                     }
@@ -957,52 +1020,39 @@
             getForm();
 
         if (!form) {
-            return;
+            return null;
         }
+
+        const modelFromEvent =
+            getSelectedModelFromEvent(
+                event
+            );
 
         const modelId =
             normalizeId(
                 event?.target?.value ??
+                event?.detail?.modelId ??
+                getModelIdFromObject(
+                    modelFromEvent
+                ) ??
                 getCurrentModelId(form)
             );
 
         if (!modelId) {
-            return;
-        }
-
-        const layout =
-            getLayout();
-
-        /*
-         * Layout tetap menjadi pemilik
-         * sinkronisasi field Model.
-         */
-        if (
-            layout &&
-            typeof layout
-                .updateSelectedModelFields ===
-            "function"
-        ) {
-            layout.updateSelectedModelFields(
-                form,
-                currentModels
-            );
+            return null;
         }
 
         /*
-         * Coba currentModels dahulu.
+         * Model dari event Search memiliki prioritas
+         * karena hasil tersebut bisa berasal langsung
+         * dari Supabase dan belum berada di currentModels.
          */
         let selected =
-            findCurrentModel(
-                modelId
-            );
+            modelFromEvent;
 
         /*
-         * Jika Search module memiliki selected
-         * result, gunakan result tersebut.
-         *
-         * Ini penting ketika hasil Search Supabase
-         * belum dimasukkan ke currentModels.
+         * Jika event tidak membawa model,
+         * coba selected result milik Search module.
          */
         if (!selected) {
             selected =
@@ -1010,18 +1060,107 @@
         }
 
         /*
-         * Jangan langsung menyatakan "not found"
-         * hanya karena currentModels belum memuat
-         * hasil Search.
+         * Berikutnya baru cari di currentModels.
+         */
+        if (!selected) {
+            selected =
+                findCurrentModel(
+                    modelId
+                );
+        }
+
+        const selectedId =
+            getModelIdFromObject(
+                selected
+            );
+
+        /*
+         * Jangan mengisi field dengan model
+         * yang berbeda dari input aktif.
+         */
+        const selectedMatches =
+            selected &&
+            selectedId &&
+            selectedId.toLowerCase() ===
+                modelId.toLowerCase();
+
+        const layout =
+            getLayout();
+
+        /*
+         * Layout hanya menerima model lokal.
+         *
+         * Jika Search mendapatkan model Supabase
+         * yang belum masuk currentModels, jangan
+         * memaksa layout memakai array yang salah.
          */
         if (
-            selected &&
-            normalizeId(
-                selected.model_id ??
-                selected.modelId
-            ).toLowerCase() ===
-                modelId.toLowerCase()
+            selectedMatches &&
+            layout
         ) {
+            /*
+             * Jika layout menyediakan method khusus
+             * untuk model terpilih, gunakan method itu.
+             */
+            if (
+                typeof layout
+                    .updateSelectedModel ===
+                "function"
+            ) {
+                try {
+                    layout.updateSelectedModel(
+                        form,
+                        selected
+                    );
+                } catch (_) {
+                    /* compatibility */
+                }
+            } else if (
+                typeof layout
+                    .updateSelectedModelFields ===
+                "function" &&
+                currentModels.includes(
+                    selected
+                )
+            ) {
+                try {
+                    layout.updateSelectedModelFields(
+                        form,
+                        currentModels
+                    );
+                } catch (_) {
+                    /* compatibility */
+                }
+            }
+        } else if (
+            !selected &&
+            layout &&
+            typeof layout
+                .updateSelectedModelFields ===
+                "function"
+        ) {
+            /*
+             * Hanya sinkronkan layout jika model memang
+             * tersedia dalam currentModels.
+             */
+            const localModel =
+                findCurrentModel(
+                    modelId
+                );
+
+            if (localModel) {
+                try {
+                    layout.updateSelectedModelFields(
+                        form,
+                        currentModels
+                    );
+                } catch (_) {
+                    /* compatibility */
+                }
+            }
+        }
+
+        if (selectedMatches) {
             try {
                 document.dispatchEvent(
                     new CustomEvent(
@@ -1031,7 +1170,11 @@
                                 model:
                                     selected,
                                 modelId,
-                                form
+                                form,
+                                source:
+                                    modelFromEvent
+                                        ? "search-event"
+                                        : "search-or-local"
                             }
                         }
                     )
@@ -1044,11 +1187,11 @@
         }
 
         /*
-         * Jika tidak ditemukan di local state,
-         * event ini hanya memberi tahu Search /
-         * Coordinator bahwa field berubah.
+         * Jangan mengirim "not found".
          *
-         * Tidak melakukan query Supabase di sini.
+         * Search Supabase dapat berjalan async.
+         * Events module hanya memberitahu bahwa
+         * Model ID berubah.
          */
         try {
             document.dispatchEvent(
@@ -1081,26 +1224,45 @@
                 event?.target?.value
             );
 
+        const form =
+            getForm();
+
         /*
-         * Search module adalah pemilik
+         * Search module tetap pemilik utama
          * pencarian as-you-type.
-         *
-         * Events module tidak melakukan query.
          */
         if (!value) {
+            closeSearchDropdowns();
+
+            try {
+                document.dispatchEvent(
+                    new CustomEvent(
+                        "genz-model-search-input",
+                        {
+                            detail: {
+                                value: "",
+                                form
+                            }
+                        }
+                    )
+                );
+            } catch (_) {
+                /* compatibility */
+            }
+
             return;
         }
 
         /*
-         * Jika exact match sudah ada,
-         * sinkronkan field.
+         * Jika exact match lokal tersedia,
+         * sinkronkan field tanpa query baru.
          */
-        const model =
+        const localModel =
             findCurrentModel(
                 value
             );
 
-        if (model) {
+        if (localModel) {
             handleModelChange(
                 event
             );
@@ -1108,6 +1270,7 @@
 
         /*
          * Informasikan Search module.
+         * Search module yang melakukan query Supabase.
          */
         try {
             document.dispatchEvent(
@@ -1116,8 +1279,19 @@
                     {
                         detail: {
                             value,
-                            form:
-                                getForm()
+                            form,
+                            providerId:
+                                normalizeId(
+                                    queryFirst(
+                                        form,
+                                        [
+                                            "#providerId",
+                                            "#provider_id",
+                                            "[name='provider_id']",
+                                            "[name='providerId']"
+                                        ]
+                                    )?.value
+                                )
                         }
                     }
                 )
@@ -1150,13 +1324,13 @@
             event.stopPropagation();
         }
 
-        /*
-         * Edit cancel harus melalui module Edit
-         * agar original snapshot dipulihkan.
-         */
         const edit =
             getEditModule();
 
+        /*
+         * Jika sedang edit, Edit module wajib
+         * memulihkan original snapshot terlebih dahulu.
+         */
         if (
             edit &&
             typeof edit.isEditing ===
@@ -1182,12 +1356,24 @@
             }
         }
 
+        /*
+         * Create module hanya ditutup.
+         */
         resetCreateState();
 
+        /*
+         * Search dropdown dibersihkan.
+         */
         closeSearchDropdowns();
 
+        /*
+         * Coordinator dibersihkan tanpa submit.
+         */
         closeCoordinatorState();
 
+        /*
+         * closeModal tidak melakukan cleanup kedua kali.
+         */
         closeModal({
             cleanup: false,
             reason: "cancel"
@@ -1242,8 +1428,8 @@
         }
 
         /*
-         * Hanya klik tepat pada modal backdrop,
-         * bukan child content.
+         * Hanya backdrop langsung.
+         * Klik di dalam konten modal tidak menutup modal.
          */
         if (
             event.target !== modal
@@ -1265,8 +1451,11 @@
         event
     ) {
         if (
-            event.key !== "Escape" &&
-            event.key !== "Esc"
+            !event ||
+            (
+                event.key !== "Escape" &&
+                event.key !== "Esc"
+            )
         ) {
             return;
         }
@@ -1282,8 +1471,8 @@
         }
 
         /*
-         * Jika dropdown Search sedang terbuka,
-         * beri kesempatan Search menutupnya dulu.
+         * Escape pertama digunakan Search untuk
+         * menutup dropdown jika sedang terbuka.
          */
         const search =
             getSearchModule();
@@ -1298,8 +1487,10 @@
                     search.isOpen()
                 ) {
                     closeSearchDropdowns();
+
                     event.preventDefault();
                     event.stopPropagation();
+
                     return;
                 }
             } catch (_) {
@@ -1326,17 +1517,12 @@
             return;
         }
 
-        handlers.submit = {
-            element: form,
-            eventName: "submit",
-            handler: handleSubmit,
-            options: false
-        };
-
-        form.addEventListener(
+        registerListener(
+            form,
             "submit",
             handleSubmit,
-            false
+            false,
+            "submit"
         );
     }
 
@@ -1358,24 +1544,22 @@
             return;
         }
 
-        handlers.providerChange = {
-            element: provider,
-            eventName: "change",
-            handler:
-                handleProviderChange,
-            options: false
-        };
-
-        provider.addEventListener(
+        registerListener(
+            provider,
             "change",
             handleProviderChange,
-            false
+            false,
+            "providerChange"
         );
     }
 
     function bindModel(
         form
     ) {
+        /*
+         * Model search input hanya di-bind ke satu
+         * field utama agar tidak terjadi double query.
+         */
         const model =
             queryFirst(
                 form,
@@ -1392,32 +1576,20 @@
             return;
         }
 
-        handlers.modelChange = {
-            element: model,
-            eventName: "change",
-            handler:
-                handleModelChange,
-            options: false
-        };
-
-        handlers.modelInput = {
-            element: model,
-            eventName: "input",
-            handler:
-                handleModelInput,
-            options: false
-        };
-
-        model.addEventListener(
+        registerListener(
+            model,
             "change",
             handleModelChange,
-            false
+            false,
+            "modelChange"
         );
 
-        model.addEventListener(
+        registerListener(
+            model,
             "input",
             handleModelInput,
-            false
+            false,
+            "modelInput"
         );
     }
 
@@ -1430,35 +1602,26 @@
         }
 
         const closeButtons =
-            modal.querySelectorAll(
+            queryAll(
+                modal,
                 [
                     "[data-model-modal-close]",
                     "[data-modal-close]",
                     ".model-modal-close",
                     ".modal-close",
                     ".close-modal",
-                    "#closeModelModal",
-                    "#cancelModel"
-                ].join(",")
+                    "#closeModelModal"
+                ]
             );
 
         closeButtons.forEach(
             (button, index) => {
-                const key =
-                    `close-${index}`;
-
-                handlers[key] = {
-                    element: button,
-                    eventName: "click",
-                    handler:
-                        handleClose,
-                    options: false
-                };
-
-                button.addEventListener(
+                registerListener(
+                    button,
                     "click",
                     handleClose,
-                    false
+                    false,
+                    `close-${index}`
                 );
             }
         );
@@ -1473,43 +1636,29 @@
         }
 
         const cancelButtons =
-            modal.querySelectorAll(
+            queryAll(
+                modal,
                 [
                     "[data-model-cancel]",
                     "[data-cancel-model]",
                     "[data-action='cancel-model']",
                     ".model-cancel",
                     "#cancelModel"
-                ].join(",")
+                ]
             );
 
         cancelButtons.forEach(
             (button, index) => {
-                const key =
-                    `cancel-${index}`;
-
                 /*
-                 * Hindari double handler jika
-                 * tombol juga ditemukan sebagai close.
+                 * Jika #cancelModel juga masuk close selector,
+                 * cancel harus memiliki handler khusus.
                  */
-                if (
-                    handlers[key]
-                ) {
-                    return;
-                }
-
-                handlers[key] = {
-                    element: button,
-                    eventName: "click",
-                    handler:
-                        handleCancel,
-                    options: false
-                };
-
-                button.addEventListener(
+                registerListener(
+                    button,
                     "click",
                     handleCancel,
-                    false
+                    false,
+                    `cancel-${index}`
                 );
             }
         );
@@ -1523,34 +1672,22 @@
             return;
         }
 
-        handlers.backdrop = {
-            element: modal,
-            eventName: "click",
-            handler:
-                handleBackdrop,
-            options: false
-        };
-
-        modal.addEventListener(
+        registerListener(
+            modal,
             "click",
             handleBackdrop,
-            false
+            false,
+            "backdrop"
         );
     }
 
     function bindEscape() {
-        handlers.escape = {
-            element: document,
-            eventName: "keydown",
-            handler:
-                handleEscape,
-            options: false
-        };
-
-        document.addEventListener(
+        registerListener(
+            document,
             "keydown",
             handleEscape,
-            false
+            false,
+            "escape"
         );
     }
 
@@ -1564,15 +1701,22 @@
         /*
          * Bersihkan binding lama terlebih dahulu.
          *
-         * Ini mencegah event submit terpasang
-         * dua kali setelah re-render / update data.
+         * Ini penting setelah render/re-render modal
+         * agar event submit tidak terpasang berkali-kali.
          */
         unbind();
 
-        currentRoot =
-            options.root ||
-            currentRoot ||
-            getForm();
+        if (
+            options.root !== undefined
+        ) {
+            currentRoot =
+                options.root;
+        } else if (
+            !currentRoot
+        ) {
+            currentRoot =
+                getForm();
+        }
 
         if (
             Array.isArray(
@@ -1616,11 +1760,11 @@
         setData(options);
 
         /*
-         * Pastikan state create/edit yang stale
-         * tidak ikut terbawa dari lifecycle sebelumnya.
+         * Reset state hanya jika caller memang meminta.
          *
-         * Hanya dilakukan jika explicit reset diminta
-         * atau belum ada modal aktif.
+         * Jangan otomatis menghapus state Edit setiap
+         * kali module diinisialisasi karena initialize
+         * dapat dipanggil ulang saat lifecycle page.
          */
         if (
             options.resetState === true
@@ -1658,10 +1802,14 @@
                     .updateModelIdOptions ===
                 "function"
             ) {
-                layout.updateModelIdOptions(
-                    form,
-                    currentModels
-                );
+                try {
+                    layout.updateModelIdOptions(
+                        form,
+                        currentModels
+                    );
+                } catch (_) {
+                    /* non-fatal */
+                }
             }
 
             if (
@@ -1669,10 +1817,14 @@
                     .updateProviderStatus ===
                 "function"
             ) {
-                layout.updateProviderStatus(
-                    form,
-                    currentProviders
-                );
+                try {
+                    layout.updateProviderStatus(
+                        form,
+                        currentProviders
+                    );
+                } catch (_) {
+                    /* non-fatal */
+                }
             }
 
             if (
@@ -1680,15 +1832,20 @@
                     .updateCreditFinalPreview ===
                 "function"
             ) {
-                layout.updateCreditFinalPreview(
-                    form
-                );
+                try {
+                    layout.updateCreditFinalPreview(
+                        form
+                    );
+                } catch (_) {
+                    /* non-fatal */
+                }
             }
         }
 
         /*
-         * Search module boleh menerima data baru,
-         * tetapi tetap menjadi pemilik Search.
+         * Search menerima data baru jika API tersedia.
+         *
+         * Events tetap tidak melakukan query.
          */
         const search =
             getSearchModule();
@@ -1721,9 +1878,8 @@
         unbind();
 
         /*
-         * Jangan menghapus data models/providers,
-         * karena data tersebut dimiliki lifecycle
-         * Models page.
+         * Data models/providers bukan milik module Events.
+         * Karena itu data tidak dihapus.
          */
         currentRoot = null;
 
@@ -1754,6 +1910,7 @@
         handleProviderChange,
         handleModelChange,
         handleModelInput,
+
         handleCancel,
         handleClose,
         handleBackdrop,
