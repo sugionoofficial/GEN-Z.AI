@@ -17,6 +17,9 @@
    - Sinkronisasi tombol Generate
    - Bind model change
    - Bind reset
+   - Submit Generate ke /api/generate
+   - Polling task KIE.AI
+   - Menampilkan diagnostic response KIE.AI
 
    PENTING:
    - Account Credit tetap dari profiles.credits
@@ -24,6 +27,7 @@
    - Model Usage Credit dari konfigurasi model
    - State HARUS menggunakan SATU instance generate-state.js
    - Generate button hanya aktif jika model benar-benar siap
+   - generate-request.js WAJIB tersedia untuk Generate
 ========================================================= */
 
 "use strict";
@@ -104,6 +108,7 @@ const appState = {
 
         polling:
             null
+
     }
 
 };
@@ -125,8 +130,6 @@ function debug(...args) {
 
 /* =========================================================
    DOM
-   ---------------------------------------------------------
-   ID HARUS SAMA DENGAN generate/index.html
 ========================================================= */
 
 function getDOM() {
@@ -188,10 +191,6 @@ function getDOM() {
                 "modelMeta"
             ),
 
-        /*
-         * CANONICAL IDs
-         */
-
         loading:
             document.getElementById(
                 "loading"
@@ -217,10 +216,6 @@ function getDOM() {
                 "resetButton"
             ),
 
-        /*
-         * Compatibility
-         */
-
         generateCard:
             document.getElementById(
                 "generateCard"
@@ -234,6 +229,25 @@ function getDOM() {
         roleBadge:
             document.getElementById(
                 "roleBadge"
+            ),
+
+        /*
+         * Compatibility result elements.
+         */
+
+        resultModel:
+            document.getElementById(
+                "resultModel"
+            ),
+
+        resultProvider:
+            document.getElementById(
+                "resultProvider"
+            ),
+
+        resultTaskId:
+            document.getElementById(
+                "resultTaskId"
             )
 
     };
@@ -270,10 +284,10 @@ async function loadModule(
 
 
         /*
-         * JANGAN CACHE BUST.
+         * Jangan cache bust.
          *
-         * Semua module harus menggunakan instance
-         * generate-state.js yang sama.
+         * Semua module harus menggunakan
+         * instance generate-state.js yang sama.
          */
 
         const module =
@@ -327,7 +341,28 @@ async function loadModule(
         }
 
 
-        throw error;
+        /*
+         * Jangan sembunyikan error asli.
+         *
+         * Error asli jauh lebih berguna untuk mengetahui
+         * apakah masalahnya:
+         * - file 404
+         * - syntax error
+         * - export error
+         * - dependency error
+         * - module path error
+         */
+
+        const originalMessage =
+            error?.message ||
+            String(
+                error
+            );
+
+
+        throw new Error(
+            `Module ${name} gagal dimuat: ${originalMessage}`
+        );
 
     }
 
@@ -339,6 +374,10 @@ async function loadModule(
 ========================================================= */
 
 async function loadCoreModules() {
+
+    /*
+     * Urutan penting.
+     */
 
     await loadModule(
         "state",
@@ -376,7 +415,9 @@ async function loadCoreModules() {
 
 
     /*
-     * OPTIONAL MODULE
+     * Validation optional.
+     *
+     * generate-request.js tidak optional.
      */
 
     await loadModule(
@@ -386,18 +427,66 @@ async function loadCoreModules() {
     );
 
 
+    /*
+     * PENTING:
+     * request WAJIB tersedia.
+     */
+
     await loadModule(
         "request",
         REQUEST_MODULE,
-        false
+        true
     );
 
+
+    /*
+     * Polling WAJIB karena Generate memakai
+     * task-based provider flow.
+     */
 
     await loadModule(
         "polling",
         POLLING_MODULE,
-        false
+        true
     );
+
+
+    /*
+     * Validasi API module.
+     */
+
+    const request =
+        appState.modules.request;
+
+
+    if (
+        !request ||
+        typeof request.generateVideo !==
+            "function"
+    ) {
+
+        throw new Error(
+            "generate-request.js berhasil dimuat tetapi generateVideo() tidak tersedia."
+        );
+
+    }
+
+
+    const polling =
+        appState.modules.polling;
+
+
+    if (
+        !polling ||
+        typeof polling.pollGenerateTask !==
+            "function"
+    ) {
+
+        throw new Error(
+            "generate-polling.js berhasil dimuat tetapi pollGenerateTask() tidak tersedia."
+        );
+
+    }
 
 
     return appState.modules;
@@ -535,6 +624,9 @@ function showLoading(
 
         elements.status.textContent =
             message;
+
+        elements.status.hidden =
+            false;
 
     }
 
@@ -856,10 +948,6 @@ function formatCredit(
 
 /* =========================================================
    RENDER MODEL CREDIT
-   ---------------------------------------------------------
-   PENTING:
-   Credit ini adalah MODEL USAGE CREDIT.
-   BUKAN Account Credit.
 ========================================================= */
 
 function renderModelCredit(
@@ -882,10 +970,6 @@ function renderModelCredit(
         );
 
 
-    /*
-     * Nilai credit di dalam tombol Generate.
-     */
-
     if (
         elements.generateCreditCost
     ) {
@@ -898,10 +982,6 @@ function renderModelCredit(
 
     }
 
-
-    /*
-     * Compatibility / alternate display.
-     */
 
     if (
         elements.generateCreditValue
@@ -1111,9 +1191,6 @@ function setCurrentModel(
 
 /* =========================================================
    MARK MODEL READY
-   ---------------------------------------------------------
-   Ini bagian penting untuk masalah:
-   Generate button tetap disabled.
 ========================================================= */
 
 function markModelReady(
@@ -1137,20 +1214,9 @@ function markModelReady(
         );
 
 
-    /*
-     * State utama aplikasi.
-     */
-
     appState.modelReady =
         validModel;
 
-
-    /*
-     * Sinkronisasi dengan generate-state.js.
-     *
-     * generate-ui.js menggunakan isModelReady(),
-     * yang bergantung pada state.modelLoaded.
-     */
 
     if (
         state &&
@@ -1185,9 +1251,6 @@ function markModelReady(
 
 /* =========================================================
    ENABLE GENERATE
-   ---------------------------------------------------------
-   Jangan hanya mengubah HTML button.
-   State dan UI harus sama-sama sinkron.
 ========================================================= */
 
 function enableGenerateButton(
@@ -1215,11 +1278,6 @@ function enableGenerateButton(
             modelId
         );
 
-
-    /*
-     * Jangan pernah mengaktifkan tombol
-     * jika model belum benar-benar tersedia.
-     */
 
     if (
         !modelReady
@@ -1252,11 +1310,6 @@ function enableGenerateButton(
         true;
 
 
-    /*
-     * UI module adalah pemilik state visual
-     * Generate button.
-     */
-
     const ui =
         appState.modules.ui;
 
@@ -1285,13 +1338,6 @@ function enableGenerateButton(
     }
 
 
-    /*
-     * Safety fallback.
-     *
-     * Jika UI module tidak berhasil mengubah tombol,
-     * app module tetap memastikan tombol aktif.
-     */
-
     if (
         elements.generateButton
     ) {
@@ -1305,11 +1351,6 @@ function enableGenerateButton(
 
     }
 
-
-    /*
-     * Credit HARUS dirender setelah enable.
-     * Jangan sampai tombol aktif tetapi credit hilang.
-     */
 
     renderModelCredit(
         currentModel
@@ -1507,11 +1548,6 @@ async function renderForm(
     }
 
 
-    /*
-     * Jangan menganggap form gagal hanya karena
-     * model tidak memiliki parameter.
-     */
-
     const children =
         elements.dynamicFields.children.length;
 
@@ -1556,10 +1592,6 @@ async function renderModel(
     }
 
 
-    /*
-     * Model wajib mempunyai model_id.
-     */
-
     const modelId =
         getModelId(
             model
@@ -1577,51 +1609,26 @@ async function renderModel(
     }
 
 
-    /*
-     * 1. Simpan ke SINGLE Generate State.
-     */
-
     const verifiedModel =
         setCurrentModel(
             model
         );
 
 
-    /*
-     * 2. Model info.
-     */
-
     renderModelInformation(
         verifiedModel
     );
 
-
-    /*
-     * 3. Model Usage Credit.
-     *
-     * Tetap ditampilkan di tombol Generate.
-     */
 
     renderModelCredit(
         verifiedModel
     );
 
 
-    /*
-     * 4. Dynamic parameter form.
-     */
-
     await renderForm(
         verifiedModel
     );
 
-
-    /*
-     * 5. Tandai model sudah siap.
-     *
-     * Ini penting karena generate-ui.js
-     * membaca state.modelLoaded.
-     */
 
     const ready =
         markModelReady(
@@ -1643,18 +1650,10 @@ async function renderModel(
     }
 
 
-    /*
-     * 6. Aktifkan tombol Generate.
-     */
-
     enableGenerateButton(
         verifiedModel
     );
 
-
-    /*
-     * 7. Render ulang credit sebagai final guard.
-     */
 
     renderModelCredit(
         verifiedModel
@@ -1714,10 +1713,6 @@ async function initializeAuth() {
     }
 
 
-    /*
-     * Load Supabase.
-     */
-
     if (
         typeof auth.loadSupabase ===
         "function"
@@ -1727,10 +1722,6 @@ async function initializeAuth() {
 
     }
 
-
-    /*
-     * User.
-     */
 
     let user =
         null;
@@ -1769,10 +1760,6 @@ async function initializeAuth() {
     }
 
 
-    /*
-     * Profile.
-     */
-
     let profile =
         null;
 
@@ -1806,10 +1793,6 @@ async function initializeAuth() {
 
     }
 
-
-    /*
-     * Fallback authentication.
-     */
 
     if (
         !user &&
@@ -1897,10 +1880,6 @@ async function initializeModel() {
         null;
 
 
-    /*
-     * PRIMARY API
-     */
-
     if (
         typeof modelModule.resolveInitialModel ===
         "function"
@@ -1912,10 +1891,6 @@ async function initializeModel() {
     }
 
     else {
-
-        /*
-         * FALLBACK API
-         */
 
         if (
             typeof modelModule.loadAvailableModels !==
@@ -2097,16 +2072,6 @@ async function initializeModel() {
     }
 
 
-    /*
-     * Render model lengkap.
-     *
-     * Fungsi ini juga:
-     * - set modelLoaded
-     * - render credit
-     * - render form
-     * - enable Generate button
-     */
-
     await renderModel(
         model
     );
@@ -2150,10 +2115,6 @@ async function initializeModel() {
 
     }
 
-
-    /*
-     * Final safety synchronization.
-     */
 
     enableGenerateButton(
         getCurrentModel()
@@ -2200,11 +2161,6 @@ async function handleModelChange(
 
         hideError();
 
-
-        /*
-         * Saat model sedang diganti,
-         * tombol tidak boleh dipakai.
-         */
 
         disableGenerateButton();
 
@@ -2275,16 +2231,6 @@ async function handleModelChange(
             );
 
 
-        /*
-         * renderModel menangani seluruh sinkronisasi:
-         * - model state
-         * - model info
-         * - credit
-         * - form
-         * - modelLoaded
-         * - generate button
-         */
-
         await renderModel(
             model
         );
@@ -2293,10 +2239,6 @@ async function handleModelChange(
         appState.modelReady =
             true;
 
-
-        /*
-         * Final guard.
-         */
 
         enableGenerateButton(
             model
@@ -2350,93 +2292,172 @@ async function handleModelChange(
 
 }
 
+
 /* =========================================================
-   KIE.AI RESPONSE DIAGNOSTIC
-   ---------------------------------------------------------
-   Menampilkan response dari backend/KIE.AI.
-   Tidak pernah menampilkan API key / credential.
+   KIE.AI RESPONSE SANITIZER
 ========================================================= */
 
-function sanitizeKieResponse(value, depth = 0) {
+function sanitizeKieResponse(
+    value,
+    depth = 0,
+    seen = new WeakSet()
+) {
 
-    if (depth > 6) {
+    if (
+        depth >
+        7
+    ) {
+
         return "[MAX_DEPTH]";
+
     }
 
-    const secretKeys = new Set([
-        "apiKey",
-        "api_key",
-        "apikey",
-        "authorization",
-        "Authorization",
-        "access_token",
-        "accessToken",
-        "token",
-        "secret",
-        "password",
-        "credential",
-        "credentials",
-        "api_key_ciphertext",
-        "api_key_iv",
-        "api_key_tag"
-    ]);
 
-    if (Array.isArray(value)) {
+    const secretKeys =
+        new Set([
+
+            "apiKey",
+
+            "api_key",
+
+            "apikey",
+
+            "authorization",
+
+            "Authorization",
+
+            "access_token",
+
+            "accessToken",
+
+            "refresh_token",
+
+            "refreshToken",
+
+            "token",
+
+            "secret",
+
+            "password",
+
+            "credential",
+
+            "credentials",
+
+            "api_key_ciphertext",
+
+            "api_key_iv",
+
+            "api_key_tag"
+
+        ]);
+
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
 
         return value.map(
             item =>
                 sanitizeKieResponse(
                     item,
-                    depth + 1
+                    depth + 1,
+                    seen
                 )
         );
 
     }
 
+
     if (
         value &&
-        typeof value === "object"
+        typeof value ===
+        "object"
     ) {
 
-        const result = {};
+        if (
+            seen.has(
+                value
+            )
+        ) {
+
+            return "[CIRCULAR]";
+
+        }
+
+
+        seen.add(
+            value
+        );
+
+
+        const result =
+            {};
+
 
         for (
-            const [key, item]
-            of Object.entries(value)
+            const [
+                key,
+                item
+            ]
+            of Object.entries(
+                value
+            )
         ) {
 
             if (
-                secretKeys.has(key)
+                secretKeys.has(
+                    key
+                )
             ) {
 
                 result[key] =
                     "[REDACTED]";
 
                 continue;
+
             }
+
 
             result[key] =
                 sanitizeKieResponse(
                     item,
-                    depth + 1
+                    depth + 1,
+                    seen
                 );
+
         }
 
+
         return result;
+
     }
+
 
     if (
         typeof value ===
         "string"
     ) {
 
-        return value.replace(
-            /Bearer\s+[^\s"']+/gi,
-            "Bearer [REDACTED]"
-        );
+        return value
+
+            .replace(
+                /Bearer\s+[^\s"']+/gi,
+                "Bearer [REDACTED]"
+            )
+
+            .replace(
+                /sk-[A-Za-z0-9_-]+/g,
+                "[REDACTED]"
+            );
+
     }
 
+
     return value;
+
 }
 
 
@@ -2451,20 +2472,29 @@ function ensureKieDiagnosticPanel() {
             "genzKieDiagnostic"
         );
 
-    if (panel) {
+
+    if (
+        panel
+    ) {
+
         return panel;
+
     }
+
 
     const elements =
         getDOM();
+
 
     panel =
         document.createElement(
             "section"
         );
 
+
     panel.id =
         "genzKieDiagnostic";
+
 
     panel.style.cssText =
         [
@@ -2476,6 +2506,7 @@ function ensureKieDiagnosticPanel() {
             "color:#eafcff",
             "box-sizing:border-box"
         ].join(";");
+
 
     panel.innerHTML =
         `
@@ -2527,19 +2558,26 @@ function ensureKieDiagnosticPanel() {
         ></div>
         `;
 
+
     const parent =
         elements.generateCard?.parentElement ||
+
         elements.generateForm?.parentElement ||
+
         document.querySelector(
             ".content"
         ) ||
+
         document.body;
+
 
     parent.appendChild(
         panel
     );
 
+
     return panel;
+
 }
 
 
@@ -2555,56 +2593,86 @@ function renderKieDiagnostic(
     const panel =
         ensureKieDiagnosticPanel();
 
+
     const summary =
         panel.querySelector(
             "#genzKieSummary"
         );
+
 
     const raw =
         panel.querySelector(
             "#genzKieRaw"
         );
 
+
     const safeResponse =
         sanitizeKieResponse(
             response
         );
 
+
     const taskId =
         response?.taskId ||
+
         response?.task_id ||
+
         response?.jobId ||
+
         response?.data?.taskId ||
+
         response?.data?.task_id ||
+
         response?.task?.taskId ||
+
         response?.task?.task_id ||
+
         "-";
+
 
     const state =
         response?.state ||
+
         response?.status ||
+
         response?.task?.state ||
+
         response?.task?.status ||
+
         "-";
+
 
     const code =
         response?.code ||
+
         response?.error_code ||
+
         response?.errorCode ||
+
         response?.data?.code ||
+
         "-";
+
 
     const message =
         response?.message ||
+
         response?.msg ||
+
         response?.error ||
+
         response?.data?.message ||
+
         response?.data?.msg ||
+
         response?.data?.error ||
+
         "-";
+
 
     summary.textContent =
         `${phase} • Status: ${String(state)} • Code: ${String(code)} • Task: ${String(taskId)} • ${String(message)}`;
+
 
     raw.textContent =
         JSON.stringify(
@@ -2613,8 +2681,10 @@ function renderKieDiagnostic(
             2
         );
 
+
     panel.hidden =
         false;
+
 }
 
 
@@ -2630,30 +2700,52 @@ function renderGenerationResult(
         Array.isArray(
             result?.resultUrls
         )
+
             ? result.resultUrls
+
             : Array.isArray(
                 result?.result_urls
             )
+
                 ? result.result_urls
-                : [];
+
+                : Array.isArray(
+                    result?.data?.resultUrls
+                )
+
+                    ? result.data.resultUrls
+
+                    : Array.isArray(
+                        result?.data?.result_urls
+                    )
+
+                        ? result.data.result_urls
+
+                        : [];
+
 
     const panel =
         ensureKieDiagnosticPanel();
+
 
     const resultBox =
         panel.querySelector(
             "#genzGenerationResult"
         );
 
+
     resultBox.innerHTML =
         "";
+
 
     if (
         !resultUrls.length
     ) {
 
         return;
+
     }
+
 
     for (
         const rawUrl
@@ -2662,30 +2754,37 @@ function renderGenerationResult(
 
         const url =
             String(
-                rawUrl || ""
+                rawUrl ||
+                ""
             ).trim();
 
-        if (!url) {
+
+        if (
+            !url
+        ) {
+
             continue;
+
         }
 
-        /*
-         * Video result.
-         */
 
         const video =
             document.createElement(
                 "video"
             );
 
+
         video.controls =
             true;
+
 
         video.playsInline =
             true;
 
+
         video.preload =
             "metadata";
+
 
         video.style.cssText =
             [
@@ -2695,25 +2794,118 @@ function renderGenerationResult(
                 "display:block"
             ].join(";");
 
+
         const source =
             document.createElement(
                 "source"
             );
 
+
         source.src =
             url;
 
+
         source.type =
             "video/mp4";
+
 
         video.appendChild(
             source
         );
 
+
         resultBox.appendChild(
             video
         );
+
     }
+
+}
+
+
+/* =========================================================
+   EXTRACT TASK ID
+========================================================= */
+
+function extractTaskId(
+    response
+) {
+
+    return String(
+
+        response?.taskId ||
+
+        response?.task_id ||
+
+        response?.jobId ||
+
+        response?.data?.taskId ||
+
+        response?.data?.task_id ||
+
+        response?.data?.jobId ||
+
+        response?.task?.taskId ||
+
+        response?.task?.task_id ||
+
+        ""
+
+    ).trim();
+
+}
+
+
+/* =========================================================
+   EXTRACT ERROR DIAGNOSTIC
+========================================================= */
+
+function extractErrorDiagnostic(
+    error
+) {
+
+    if (
+        error?.details
+    ) {
+
+        return error.details;
+
+    }
+
+
+    if (
+        error?.response
+    ) {
+
+        return error.response;
+
+    }
+
+
+    if (
+        error?.data
+    ) {
+
+        return error.data;
+
+    }
+
+
+    return {
+
+        success:
+            false,
+
+        code:
+            error?.code ||
+            "GENERATION_FAILED",
+
+        message:
+            error?.message ||
+            "Generate gagal."
+
+    };
+
 }
 
 
@@ -2733,18 +2925,27 @@ async function handleGenerateSubmit(
 
     event.stopPropagation();
 
+
     if (
         generationInProgress
     ) {
 
         return;
+
     }
+
 
     const elements =
         getDOM();
 
+
     const model =
         getCurrentModel();
+
+
+    /*
+     * Model harus berasal dari SINGLE Generate State.
+     */
 
     if (
         !model ||
@@ -2758,53 +2959,96 @@ async function handleGenerateSubmit(
         );
 
         return;
+
     }
+
 
     const request =
         appState.modules.request;
 
+
     const polling =
         appState.modules.polling;
+
 
     const form =
         appState.modules.form;
 
+
     /*
-     * Pastikan module request tersedia.
+     * =====================================================
+     * REQUEST MODULE
+     * =====================================================
+     *
+     * Tidak lagi menggunakan pesan generik semata.
+     * Kalau module hilang, bootstrap seharusnya sudah gagal.
+     * Guard ini tetap dipertahankan sebagai safety.
      */
 
     if (
-        !request ||
+        !request
+    ) {
+
+        showError(
+            "generate-request.js tidak berhasil dimuat. Periksa file dan import module."
+        );
+
+        return;
+
+    }
+
+
+    if (
         typeof request.generateVideo !==
             "function"
     ) {
 
         showError(
-            "Module generate-request.js tidak tersedia."
+            "generate-request.js dimuat tetapi generateVideo() tidak tersedia."
         );
 
         return;
+
     }
 
+
     /*
-     * Pastikan polling tersedia.
+     * =====================================================
+     * POLLING MODULE
+     * =====================================================
      */
 
     if (
-        !polling ||
+        !polling
+    ) {
+
+        showError(
+            "generate-polling.js tidak berhasil dimuat."
+        );
+
+        return;
+
+    }
+
+
+    if (
         typeof polling.pollGenerateTask !==
             "function"
     ) {
 
         showError(
-            "Module generate-polling.js tidak tersedia."
+            "generate-polling.js dimuat tetapi pollGenerateTask() tidak tersedia."
         );
 
         return;
+
     }
 
+
     /*
-     * Pastikan form module tersedia.
+     * =====================================================
+     * FORM MODULE
+     * =====================================================
      */
 
     if (
@@ -2814,19 +3058,25 @@ async function handleGenerateSubmit(
     ) {
 
         showError(
-            "Module generate-form.js tidak memiliki getFormParameters()."
+            "generate-form.js tidak memiliki getFormParameters()."
         );
 
         return;
+
     }
+
 
     generationInProgress =
         true;
 
+
     hideError();
 
+
     /*
-     * Disable Generate selama proses.
+     * =====================================================
+     * DISABLE GENERATE
+     * =====================================================
      */
 
     if (
@@ -2840,10 +3090,12 @@ async function handleGenerateSubmit(
             "aria-busy",
             "true"
         );
+
     }
 
+
     /*
-     * Disable field form.
+     * Disable field tanpa mengubah state model.
      */
 
     if (
@@ -2862,33 +3114,54 @@ async function handleGenerateSubmit(
 
                 }
             );
+
     }
 
+
     /*
-     * Response awal.
+     * =====================================================
+     * DIAGNOSTIC AWAL
+     * =====================================================
      */
 
     renderKieDiagnostic(
         {
+
+            success:
+                true,
+
+            stage:
+                "client",
+
             provider:
                 getProviderName(
                     model
                 ),
 
-            model:
+            model_id:
                 getModelId(
                     model
                 ),
 
+            model_name:
+                getModelName(
+                    model
+                ),
+
             message:
-                "Request sedang dikirim ke server GEN-Z.AI."
+                "Form siap. Request akan dikirim ke server GEN-Z.AI."
+
         },
+
         "REQUEST"
+
     );
 
+
     showLoading(
-        "Mengirim request ke KIE.AI..."
+        "Menyiapkan request..."
     );
+
 
     try {
 
@@ -2903,21 +3176,49 @@ async function handleGenerateSubmit(
                 model
             );
 
+
+        debug(
+            "GENERATE PARAMETERS:",
+            parameters
+        );
+
+
         /*
          * =================================================
          * CLIENT VALIDATION
          * =================================================
          */
 
-        const validationErrors =
+        let validationErrors =
+            [];
+
+
+        if (
             typeof request.validateGenerateRequest ===
-                "function"
+            "function"
+        ) {
 
-                ? request.validateGenerateRequest(
+            validationErrors =
+                request.validateGenerateRequest(
                     parameters
-                )
+                );
 
-                : [];
+        }
+
+        else if (
+            typeof appState.modules.validation
+                ?.validateClientParameters ===
+            "function"
+        ) {
+
+            validationErrors =
+                appState.modules.validation
+                    .validateClientParameters(
+                        parameters
+                    );
+
+        }
+
 
         if (
             Array.isArray(
@@ -2931,7 +3232,9 @@ async function handleGenerateSubmit(
                     "\n"
                 )
             );
+
         }
+
 
         /*
          * =================================================
@@ -2939,19 +3242,26 @@ async function handleGenerateSubmit(
          * =================================================
          */
 
+        showLoading(
+            "Mengirim request ke GEN-Z.AI..."
+        );
+
+
         const response =
             await request.generateVideo(
                 parameters
             );
 
+
         /*
-         * Tampilkan response backend/KIE.
+         * Tampilkan response backend.
          */
 
         renderKieDiagnostic(
             response,
             "TASK CREATED"
         );
+
 
         /*
          * =================================================
@@ -2960,19 +3270,13 @@ async function handleGenerateSubmit(
          */
 
         const taskId =
-            response?.taskId ||
-            response?.task_id ||
-            response?.jobId ||
-            response?.data?.taskId ||
-            response?.data?.task_id ||
-            response?.task?.taskId ||
-            response?.task?.task_id ||
-            "";
+            extractTaskId(
+                response
+            );
+
 
         if (
-            !String(
-                taskId
-            ).trim()
+            !taskId
         ) {
 
             const error =
@@ -2980,11 +3284,59 @@ async function handleGenerateSubmit(
                     "KIE.AI tidak mengembalikan task ID."
                 );
 
+
+            error.code =
+                "TASK_ID_MISSING";
+
+
             error.details =
                 response;
 
+
             throw error;
+
         }
+
+
+        /*
+         * =================================================
+         * RESULT PLACEHOLDER
+         * =================================================
+         */
+
+        if (
+            elements.resultModel
+        ) {
+
+            elements.resultModel.textContent =
+                getModelName(
+                    model
+                );
+
+        }
+
+
+        if (
+            elements.resultProvider
+        ) {
+
+            elements.resultProvider.textContent =
+                getProviderName(
+                    model
+                );
+
+        }
+
+
+        if (
+            elements.resultTaskId
+        ) {
+
+            elements.resultTaskId.textContent =
+                taskId;
+
+        }
+
 
         /*
          * =================================================
@@ -2995,6 +3347,7 @@ async function handleGenerateSubmit(
         showLoading(
             `KIE.AI menerima task ${taskId}. Menunggu hasil...`
         );
+
 
         const result =
             await polling.pollGenerateTask(
@@ -3012,15 +3365,21 @@ async function handleGenerateSubmit(
 
                             const phase =
                                 update?.failed
+
                                     ? "FAILED"
+
                                     : update?.completed
+
                                         ? "COMPLETED"
+
                                         : "PROCESSING";
+
 
                             renderKieDiagnostic(
                                 update,
                                 phase
                             );
+
 
                             if (
                                 update?.failed
@@ -3030,7 +3389,9 @@ async function handleGenerateSubmit(
                                     "KIE.AI melaporkan generate gagal."
                                 );
 
-                            } else if (
+                            }
+
+                            else if (
                                 update?.completed
                             ) {
 
@@ -3038,11 +3399,14 @@ async function handleGenerateSubmit(
                                     "KIE.AI selesai. Menampilkan hasil..."
                                 );
 
-                            } else {
+                            }
+
+                            else {
 
                                 showLoading(
                                     `KIE.AI sedang memproses task ${taskId}...`
                                 );
+
                             }
 
                         }
@@ -3050,9 +3414,10 @@ async function handleGenerateSubmit(
                 }
             );
 
+
         /*
          * =================================================
-         * RESULT
+         * FINAL RESPONSE
          * =================================================
          */
 
@@ -3061,9 +3426,15 @@ async function handleGenerateSubmit(
             "COMPLETED"
         );
 
+
         renderGenerationResult(
             result
         );
+
+
+        /*
+         * Result metadata.
+         */
 
         if (
             elements.resultModel
@@ -3076,6 +3447,7 @@ async function handleGenerateSubmit(
 
         }
 
+
         if (
             elements.resultProvider
         ) {
@@ -3087,6 +3459,7 @@ async function handleGenerateSubmit(
 
         }
 
+
         if (
             elements.resultTaskId
         ) {
@@ -3095,6 +3468,7 @@ async function handleGenerateSubmit(
                 taskId;
 
         }
+
 
         if (
             elements.status
@@ -3108,7 +3482,9 @@ async function handleGenerateSubmit(
 
         }
 
+
         hideLoading();
+
 
     } catch (
         error
@@ -3120,64 +3496,68 @@ async function handleGenerateSubmit(
          * =================================================
          */
 
+        console.error(
+            "[GEN-Z.AI][Generate] Generate gagal:",
+            error
+        );
+
+
         const diagnostic =
-            error?.details ||
-            error?.response ||
-            {
+            extractErrorDiagnostic(
+                error
+            );
 
-                success:
-                    false,
-
-                code:
-                    error?.code ||
-                    "GENERATION_FAILED",
-
-                message:
-                    error?.message ||
-                    "Generate gagal."
-
-            };
 
         renderKieDiagnostic(
             diagnostic,
             "FAILED"
         );
 
-        showError(
+
+        /*
+         * Kalau backend memberikan response diagnostic,
+         * tampilkan informasi provider tanpa credential.
+         */
+
+        const errorMessage =
             error?.message ||
-            "Generate gagal diproses."
+            diagnostic?.message ||
+            diagnostic?.error ||
+            "Generate gagal diproses.";
+
+
+        showError(
+            errorMessage
         );
+
 
         if (
             elements.status
         ) {
 
             elements.status.textContent =
-                "KIE.AI / Generate error: " +
-                (
-                    error?.message ||
-                    "Generate gagal."
-                );
+                "Generate error: " +
+                errorMessage;
 
             elements.status.hidden =
                 false;
+
         }
 
     } finally {
 
         /*
          * =================================================
-         * SELALU MATIKAN LOADING
+         * ALWAYS CLEANUP
          * =================================================
-         *
-         * Ini mencegah halaman tertahan hitam/loading
-         * ketika KIE atau backend mengembalikan error.
          */
 
         generationInProgress =
             false;
 
+
         hideLoading();
+
 
         /*
          * Aktifkan kembali form.
@@ -3199,14 +3579,18 @@ async function handleGenerateSubmit(
 
                     }
                 );
+
         }
 
+
         /*
-         * Aktifkan Generate hanya jika model valid.
+         * Generate button hanya aktif jika model
+         * masih valid.
          */
 
         const currentModel =
             getCurrentModel();
+
 
         if (
             currentModel &&
@@ -3218,6 +3602,12 @@ async function handleGenerateSubmit(
             enableGenerateButton(
                 currentModel
             );
+
+        }
+
+        else {
+
+            disableGenerateButton();
 
         }
 
@@ -3233,15 +3623,18 @@ async function handleGenerateSubmit(
 function bindGenerateSubmitEvent() {
 
     const form =
-        getDOM().generateForm;
+        getDOM()
+            .generateForm;
 
-    if (!form) {
+
+    if (
+        !form
+    ) {
+
         return;
+
     }
 
-    /*
-     * Jangan bind dua kali.
-     */
 
     if (
         form.dataset.genzGenerateBound ===
@@ -3249,16 +3642,26 @@ function bindGenerateSubmitEvent() {
     ) {
 
         return;
+
     }
+
 
     form.addEventListener(
         "submit",
         handleGenerateSubmit
     );
 
+
     form.dataset.genzGenerateBound =
         "true";
+
+
+    debug(
+        "Generate submit event bound."
+    );
+
 }
+
 
 /* =========================================================
    BIND MODEL EVENT
@@ -3377,14 +3780,6 @@ function bindResetEvent() {
                 }
 
 
-                /*
-                 * Reset parameter tidak berarti
-                 * model menjadi tidak siap.
-                 *
-                 * Model tetap aktif dan credit tetap
-                 * harus tampil.
-                 */
-
                 const currentModel =
                     getCurrentModel();
 
@@ -3480,27 +3875,13 @@ function validateDOM() {
 
 
 /* =========================================================
-   INITIAL HIDE
+   INITIAL VISUAL STATE
 ========================================================= */
 
 function initializeVisualState() {
 
-    /*
-     * Tombol Generate sengaja tetap disabled
-     * sampai model berhasil diverifikasi.
-     */
-
     disableGenerateButton();
 
-
-    /*
-     * Jangan tampilkan loading saat halaman baru
-     * dibuka.
-     *
-     * Loading hanya digunakan saat:
-     * - pergantian model
-     * - proses Generate
-     */
 
     hideLoading();
 
@@ -3523,14 +3904,6 @@ function initializeVisualState() {
             "";
 
     }
-
-
-    /*
-     * Jangan menghapus credit.
-     *
-     * Credit akan dirender kembali setelah model
-     * berhasil dimuat.
-     */
 
 }
 
@@ -3574,6 +3947,8 @@ async function bootstrap() {
 
         /*
          * 2. MODULE
+         *
+         * generate-request.js sekarang WAJIB.
          */
 
         await loadCoreModules();
@@ -3611,23 +3986,12 @@ async function bootstrap() {
         bindModelEvent();
 
         bindResetEvent();
-       
+
         bindGenerateSubmitEvent();
 
 
         /*
          * 6. MODEL
-         *
-         * Tidak memanggil showLoading().
-         *
-         * initializeModel() akan:
-         * - load model
-         * - set current model
-         * - set modelLoaded
-         * - render model
-         * - render credit
-         * - render form
-         * - enable Generate button
          */
 
         await initializeModel();
@@ -3660,10 +4024,6 @@ async function bootstrap() {
 
         }
 
-
-        /*
-         * Final model/button synchronization.
-         */
 
         const currentModel =
             getCurrentModel();
@@ -3719,6 +4079,16 @@ async function bootstrap() {
                         currentModel
                     ),
 
+                requestModule:
+                    Boolean(
+                        appState.modules.request
+                    ),
+
+                pollingModule:
+                    Boolean(
+                        appState.modules.polling
+                    ),
+
                 generateButtonDisabled:
                     Boolean(
                         elements.generateButton?.disabled
@@ -3765,6 +4135,7 @@ async function bootstrap() {
             error?.message ||
             "Generate gagal diinisialisasi."
         );
+
 
     } finally {
 
