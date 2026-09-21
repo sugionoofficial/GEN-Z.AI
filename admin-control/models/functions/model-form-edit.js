@@ -13,6 +13,10 @@
    - Menjaga provider tetap berasal dari providers
    - Menyiapkan data sebelum submit
    - Delegasi submit ke coordinator / handler
+   - Menjaga credit per resolution:
+       credit_480p
+       credit_720p
+       credit_1080p
 
    Tidak bertanggung jawab:
    - Query Supabase langsung
@@ -59,25 +63,263 @@ let editState = {
    ========================================================= */
 
 function normalizeId(value) {
+
     return String(
         value === null ||
         value === undefined
             ? ""
             : value
     ).trim();
+
+}
+
+
+function normalizeNumber(
+    value,
+    fallback = 0
+) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return fallback;
+
+    }
+
+
+    const number =
+        Number(value);
+
+
+    return Number.isFinite(number)
+        ? number
+        : fallback;
+
+}
+
+
+function normalizeArray(value) {
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return [
+            ...new Set(
+                value
+                    .map(
+                        item =>
+                            String(
+                                item === null ||
+                                item === undefined
+                                    ? ""
+                                    : item
+                            ).trim()
+                    )
+                    .filter(Boolean)
+            )
+        ];
+
+    }
+
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+
+        return [];
+
+    }
+
+
+    if (
+        typeof value === "string"
+    ) {
+
+        const text =
+            value.trim();
+
+
+        if (!text) {
+            return [];
+        }
+
+
+        /*
+         * PostgreSQL array:
+         *
+         * {9:16,16:9}
+         */
+        if (
+            text.startsWith("{") &&
+            text.endsWith("}")
+        ) {
+
+            const inner =
+                text.slice(
+                    1,
+                    -1
+                );
+
+
+            if (!inner.trim()) {
+                return [];
+            }
+
+
+            return [
+                ...new Set(
+                    inner
+                        .split(",")
+                        .map(
+                            item =>
+                                item
+                                    .replace(
+                                        /^"(.*)"$/,
+                                        "$1"
+                                    )
+                                    .trim()
+                        )
+                        .filter(Boolean)
+                )
+            ];
+
+        }
+
+
+        /*
+         * JSON array.
+         */
+        try {
+
+            const parsed =
+                JSON.parse(text);
+
+
+            if (
+                Array.isArray(parsed)
+            ) {
+
+                return normalizeArray(
+                    parsed
+                );
+
+            }
+
+        } catch {
+            /* Bukan JSON. */
+        }
+
+
+        /*
+         * CSV fallback.
+         */
+        if (
+            text.includes(",")
+        ) {
+
+            return [
+                ...new Set(
+                    text
+                        .split(",")
+                        .map(
+                            item =>
+                                item.trim()
+                        )
+                        .filter(Boolean)
+                )
+            ];
+
+        }
+
+
+        return [
+            text
+        ];
+
+    }
+
+
+    return [];
+
 }
 
 
 function cloneModel(model) {
+
     if (!model) {
         return null;
     }
 
+
     const normalized =
         normalizeModel(model);
 
+
+    /*
+     * normalizeModel() pada models-data.js
+     * dapat memiliki field yang belum mengenal
+     * credit per resolution.
+     *
+     * Karena itu field credit resolution
+     * dipertahankan secara eksplisit dari source
+     * model.
+     */
+
+    const credit480p =
+        normalizeNumber(
+            model.credit_480p ??
+            model.credit480p ??
+            normalized.credit_480p ??
+            normalized.credit480p,
+            0
+        );
+
+
+    const credit720p =
+        normalizeNumber(
+            model.credit_720p ??
+            model.credit720p ??
+            normalized.credit_720p ??
+            normalized.credit720p,
+            0
+        );
+
+
+    const credit1080p =
+        normalizeNumber(
+            model.credit_1080p ??
+            model.credit1080p ??
+            normalized.credit_1080p ??
+            normalized.credit1080p,
+            0
+        );
+
+
     return {
+
         ...normalized,
+
+
+        /*
+         * Pastikan field credit per resolution
+         * selalu tersedia di state Edit.
+         */
+
+        credit_480p:
+            credit480p,
+
+        credit_720p:
+            credit720p,
+
+        credit_1080p:
+            credit1080p,
+
 
         supported_ratios:
             Array.isArray(
@@ -86,7 +328,10 @@ function cloneModel(model) {
                 ? [
                     ...normalized.supported_ratios
                 ]
-                : [],
+                : normalizeArray(
+                    model.supported_ratios
+                ),
+
 
         supported_resolutions:
             Array.isArray(
@@ -95,23 +340,35 @@ function cloneModel(model) {
                 ? [
                     ...normalized.supported_resolutions
                 ]
-                : []
+                : normalizeArray(
+                    model.supported_resolutions
+                )
+
     };
+
 }
 
 
 function getRootElement(root) {
+
     if (!root) {
         return null;
     }
 
+
     if (
         typeof root === "string"
     ) {
-        return document.querySelector(root);
+
+        return document.querySelector(
+            root
+        );
+
     }
 
+
     return root;
+
 }
 
 
@@ -120,30 +377,47 @@ function getRootElement(root) {
    ========================================================= */
 
 export function isEditing() {
+
     return editState.active === true;
+
 }
 
 
 export function getEditingModel() {
+
     return editState.model
-        ? cloneModel(editState.model)
+        ? cloneModel(
+            editState.model
+        )
         : null;
+
 }
 
 
 export function getEditingModelId() {
+
     return editState.modelId;
+
 }
 
 
 export function getEditState() {
+
     return {
-        active: editState.active,
-        modelId: editState.modelId,
-        model: cloneModel(
-            editState.model
-        )
+
+        active:
+            editState.active,
+
+        modelId:
+            editState.modelId,
+
+        model:
+            cloneModel(
+                editState.model
+            )
+
     };
+
 }
 
 
@@ -152,34 +426,55 @@ export function getEditState() {
    ========================================================= */
 
 export function setEditingModel(model) {
+
     if (!model) {
+
         clearEditingModel();
+
         return null;
+
     }
+
 
     const normalized =
         cloneModel(model);
 
+
     if (!normalized) {
+
         clearEditingModel();
+
         return null;
+
     }
 
+
     editState = {
-        active: true,
+
+        active:
+            true,
 
         modelId:
             normalizeId(
                 normalized.id
             ),
 
-        model: normalized
+        model:
+            normalized
+
     };
 
-    editingModel =
-        cloneModel(normalized);
 
-    return cloneModel(normalized);
+    editingModel =
+        cloneModel(
+            normalized
+        );
+
+
+    return cloneModel(
+        normalized
+    );
+
 }
 
 
@@ -188,13 +483,23 @@ export function setEditingModel(model) {
    ========================================================= */
 
 export function clearEditingModel() {
+
     editingModel = null;
 
+
     editState = {
-        active: false,
-        modelId: null,
-        model: null
+
+        active:
+            false,
+
+        modelId:
+            null,
+
+        model:
+            null
+
     };
+
 }
 
 
@@ -206,35 +511,51 @@ export async function resolveModelForEdit(
     modelOrId,
     options = {}
 ) {
+
     /*
      * Jika object model langsung diberikan,
      * tidak perlu query ulang.
      */
+
     if (
         modelOrId &&
         typeof modelOrId === "object"
     ) {
+
         return setEditingModel(
             modelOrId
         );
+
     }
 
+
     const value =
-        normalizeId(modelOrId);
+        normalizeId(
+            modelOrId
+        );
+
 
     if (!value) {
+
         throw new Error(
             "MODEL_ID_REQUIRED"
         );
+
     }
 
+
     const models =
-        Array.isArray(options.models)
+        Array.isArray(
+            options.models
+        )
             ? options.models
             : await loadModels({
                 force:
-                    Boolean(options.force)
+                    Boolean(
+                        options.force
+                    )
             });
+
 
     let model =
         getModelById(
@@ -242,29 +563,39 @@ export async function resolveModelForEdit(
             value
         );
 
+
     /*
      * Fallback ke model_id API.
      *
-     * Ini penting karena tombol Edit bisa
-     * mengirim database UUID atau model_id.
+     * Tombol Edit dapat mengirim:
+     * - database UUID
+     * - model_id
      */
+
     if (!model) {
+
         model =
             getModelByModelId(
                 models,
                 value
             );
+
     }
 
+
     if (!model) {
+
         throw new Error(
             "MODEL_NOT_FOUND"
         );
+
     }
+
 
     return setEditingModel(
         model
     );
+
 }
 
 
@@ -276,10 +607,12 @@ export async function loadEditData(
     modelOrId,
     options = {}
 ) {
+
     const [
         model,
         providers
     ] = await Promise.all([
+
         resolveModelForEdit(
             modelOrId,
             options
@@ -291,25 +624,39 @@ export async function loadEditData(
             ? options.providers
             : loadProviders({
                 force:
-                    Boolean(options.force)
+                    Boolean(
+                        options.force
+                    )
             })
+
     ]);
 
+
     if (!model) {
+
         throw new Error(
             "EDIT_MODEL_DATA_MISSING"
         );
+
     }
 
+
     return {
+
         model:
-            cloneModel(model),
+            cloneModel(
+                model
+            ),
 
         providers:
-            Array.isArray(providers)
+            Array.isArray(
+                providers
+            )
                 ? providers
                 : []
+
     };
+
 }
 
 
@@ -321,28 +668,37 @@ export function validateEditProvider(
     model,
     providers
 ) {
+
     const errors = [];
 
+
     if (!model) {
+
         errors.push(
             "Model tidak ditemukan."
         );
 
         return errors;
+
     }
+
 
     const providerId =
         normalizeId(
             model.provider_id
         );
 
+
     if (!providerId) {
+
         errors.push(
             "Provider model belum ditentukan."
         );
 
         return errors;
+
     }
+
 
     const provider =
         getProviderById(
@@ -350,15 +706,20 @@ export function validateEditProvider(
             providerId
         );
 
+
     if (!provider) {
+
         errors.push(
             "Provider model tidak ditemukan di tabel providers."
         );
 
         return errors;
+
     }
 
+
     return errors;
+
 }
 
 
@@ -371,33 +732,52 @@ export function renderEditForm(
     model,
     options = {}
 ) {
+
     const container =
-        getRootElement(root);
+        getRootElement(
+            root
+        );
+
 
     if (!container) {
+
         throw new Error(
             "EDIT_FORM_ROOT_MISSING"
         );
+
     }
 
+
     const normalized =
-        cloneModel(model);
+        cloneModel(
+            model
+        );
+
 
     if (!normalized) {
+
         throw new Error(
             "EDIT_MODEL_MISSING"
         );
+
     }
 
+
     const providers =
-        Array.isArray(options.providers)
+        Array.isArray(
+            options.providers
+        )
             ? options.providers
             : [];
 
+
     const models =
-        Array.isArray(options.models)
+        Array.isArray(
+            options.models
+        )
             ? options.models
             : [];
+
 
     const providerErrors =
         validateEditProvider(
@@ -405,19 +785,27 @@ export function renderEditForm(
             providers
         );
 
-    if (providerErrors.length) {
+
+    if (
+        providerErrors.length
+    ) {
+
         throw new Error(
             providerErrors.join(" ")
         );
+
     }
 
+
     /*
-     * Pastikan state tetap sinkron dengan
+     * Pastikan state sinkron dengan
      * model yang benar-benar dirender.
      */
+
     setEditingModel(
         normalized
     );
+
 
     container.innerHTML =
         renderModelForm(
@@ -428,6 +816,7 @@ export function renderEditForm(
             }
         );
 
+
     attachModelFormEvents(
         container,
         {
@@ -436,22 +825,29 @@ export function renderEditForm(
         }
     );
 
+
     /*
-     * Tandai container sebagai Edit form.
-     * Coordinator dapat menggunakan marker ini
-     * tanpa perlu membaca state module.
+     * Marker Edit form.
      */
-    if (container.dataset) {
+
+    if (
+        container.dataset
+    ) {
+
         container.dataset.modelFormMode =
             "edit";
+
 
         container.dataset.modelId =
             normalizeId(
                 normalized.id
             );
+
     }
 
+
     return container;
+
 }
 
 
@@ -464,33 +860,75 @@ export async function openEditModel(
     modelOrId,
     options = {}
 ) {
+
     const data =
         await loadEditData(
             modelOrId,
             options
         );
 
+
+    let models;
+
+
+    if (
+        Array.isArray(
+            options.models
+        )
+    ) {
+
+        models =
+            options.models;
+
+    } else {
+
+        /*
+         * Gunakan model yang sudah berhasil
+         * diperoleh terlebih dahulu.
+         *
+         * Tidak perlu memaksa request tambahan
+         * apabila model list sudah tersedia.
+         */
+
+        models =
+            await loadModels({
+                force:
+                    Boolean(
+                        options.force
+                    )
+            });
+
+    }
+
+
     renderEditForm(
         root,
         data.model,
         {
+
             providers:
                 data.providers,
 
             models:
-                Array.isArray(options.models)
-                    ? options.models
-                    : await loadModels({
-                        force:
-                            Boolean(options.force)
-                    })
+                Array.isArray(
+                    models
+                )
+                    ? models
+                    : []
+
         }
     );
 
+
     return {
+
         ...data,
-        editing: true
+
+        editing:
+            true
+
     };
+
 }
 
 
@@ -501,51 +939,168 @@ export async function openEditModel(
 export function collectEditData(
     root
 ) {
-    if (!isEditing()) {
+
+    if (
+        !isEditing()
+    ) {
+
         throw new Error(
             "NOT_EDITING"
         );
+
     }
 
+
     const container =
-        getRootElement(root);
+        getRootElement(
+            root
+        );
+
 
     if (!container) {
+
         throw new Error(
             "EDIT_FORM_ROOT_MISSING"
         );
+
     }
+
 
     const data =
         collectModelFormData(
             container
         );
 
+
+    /*
+     * Pastikan credit resolution tetap terbaca
+     * walaupun layout lama belum meneruskannya.
+     */
+
+    function readNumber(
+        selectors,
+        fallback
+    ) {
+
+        for (
+            const selector
+            of selectors
+        ) {
+
+            const element =
+                container.querySelector(
+                    selector
+                );
+
+
+            if (
+                element
+            ) {
+
+                return normalizeNumber(
+                    element.value,
+                    fallback
+                );
+
+            }
+
+        }
+
+
+        return fallback;
+
+    }
+
+
+    const original =
+        getEditingModel();
+
+
+    if (!original) {
+
+        throw new Error(
+            "EDIT_MODEL_STATE_MISSING"
+        );
+
+    }
+
+
+    /*
+     * Credit 480p
+     */
+
+    data.credit_480p =
+        readNumber(
+            [
+                "[name='credit_480p']",
+                "#credit_480p",
+                "[data-field='credit_480p']"
+            ],
+            normalizeNumber(
+                original.credit_480p,
+                0
+            )
+        );
+
+
+    /*
+     * Credit 720p
+     */
+
+    data.credit_720p =
+        readNumber(
+            [
+                "[name='credit_720p']",
+                "#credit_720p",
+                "[data-field='credit_720p']"
+            ],
+            normalizeNumber(
+                original.credit_720p,
+                0
+            )
+        );
+
+
+    /*
+     * Credit 1080p
+     */
+
+    data.credit_1080p =
+        readNumber(
+            [
+                "[name='credit_1080p']",
+                "#credit_1080p",
+                "[data-field='credit_1080p']"
+            ],
+            normalizeNumber(
+                original.credit_1080p,
+                0
+            )
+        );
+
+
     /*
      * ID wajib berasal dari model yang sedang
      * diedit, bukan dari input yang bisa diubah.
      */
-    const original =
-        getEditingModel();
-
-    if (!original) {
-        throw new Error(
-            "EDIT_MODEL_STATE_MISSING"
-        );
-    }
 
     data.id =
         normalizeId(
             original.id
         );
 
+
     if (!data.id) {
+
         throw new Error(
             "EDIT_MODEL_DATABASE_ID_MISSING"
         );
+
     }
 
+
     return data;
+
 }
 
 
@@ -557,15 +1112,20 @@ export function prepareEditSubmission(
     root,
     options = {}
 ) {
+
     const raw =
         collectEditData(
             root
         );
 
+
     const providers =
-        Array.isArray(options.providers)
+        Array.isArray(
+            options.providers
+        )
             ? options.providers
             : [];
+
 
     const normalized =
         normalizeModelSubmission(
@@ -573,23 +1133,100 @@ export function prepareEditSubmission(
             providers
         );
 
+
+    /*
+     * Pastikan credit resolution tidak hilang
+     * apabila normalizeModelSubmission() versi
+     * lama belum mengenali field baru.
+     */
+
+    normalized.credit_480p =
+        normalizeNumber(
+            raw.credit_480p,
+            0
+        );
+
+
+    normalized.credit_720p =
+        normalizeNumber(
+            raw.credit_720p,
+            0
+        );
+
+
+    normalized.credit_1080p =
+        normalizeNumber(
+            raw.credit_1080p,
+            0
+        );
+
+
     /*
      * Jangan izinkan provider berubah menjadi
-     * provider code. models.provider_id harus
-     * tetap FK ke providers.id.
+     * provider code.
+     *
+     * models.provider_id harus tetap FK
+     * ke providers.id.
      */
+
     const original =
         getEditingModel();
+
 
     if (
         original &&
         original.id
     ) {
+
         normalized.id =
             normalizeId(
                 original.id
             );
+
     }
+
+
+    /*
+     * Jika model_id tidak boleh diganti,
+     * pertahankan model_id asli ketika form
+     * tidak mengirim nilai.
+     *
+     * Jika layout memang mengizinkan edit,
+     * nilai form tetap digunakan.
+     */
+
+    if (
+        !normalized.model_id &&
+        original &&
+        original.model_id
+    ) {
+
+        normalized.model_id =
+            original.model_id;
+
+    }
+
+
+    /*
+     * Jika nama model kosong akibat field
+     * tidak tersedia, pertahankan nama asli.
+     */
+
+    if (
+        !normalized.model_name &&
+        original &&
+        original.model_name
+    ) {
+
+        normalized.model_name =
+            original.model_name;
+
+    }
+
+
+    /*
+     * Validasi.
+     */
 
     const errors =
         validateModelFormData(
@@ -599,18 +1236,86 @@ export function prepareEditSubmission(
             }
         );
 
-    if (errors.length) {
+
+    /*
+     * Validasi tambahan khusus credit resolution.
+     *
+     * Ini tetap dilakukan di module Edit agar
+     * credit negatif tidak lolos walaupun layout
+     * belum memiliki validasi field baru.
+     */
+
+    if (
+        !Number.isFinite(
+            normalized.credit_480p
+        ) ||
+        normalized.credit_480p < 0
+    ) {
+
+        errors.push(
+            "Credit 480p tidak valid."
+        );
+
+    }
+
+
+    if (
+        !Number.isFinite(
+            normalized.credit_720p
+        ) ||
+        normalized.credit_720p < 0
+    ) {
+
+        errors.push(
+            "Credit 720p tidak valid."
+        );
+
+    }
+
+
+    if (
+        !Number.isFinite(
+            normalized.credit_1080p
+        ) ||
+        normalized.credit_1080p < 0
+    ) {
+
+        errors.push(
+            "Credit 1080p tidak valid."
+        );
+
+    }
+
+
+    if (
+        errors.length
+    ) {
+
         const error =
             new Error(
                 "MODEL_FORM_VALIDATION_FAILED"
             );
 
-        error.errors = errors;
+
+        error.code =
+            "MODEL_FORM_VALIDATION_FAILED";
+
+
+        error.errors =
+            errors;
+
+
+        error.data =
+            normalized;
+
 
         throw error;
+
     }
 
+
     return normalized;
+
 }
 
 
@@ -621,61 +1326,136 @@ export function prepareEditSubmission(
 function normalizeComparableArray(
     value
 ) {
-    if (!Array.isArray(value)) {
+
+    if (
+        !Array.isArray(value)
+    ) {
+
         return [];
+
     }
+
 
     return [
         ...new Set(
             value
-                .map(item =>
-                    String(
-                        item || ""
-                    ).trim()
+                .map(
+                    item =>
+                        String(
+                            item || ""
+                        ).trim()
                 )
                 .filter(Boolean)
         )
     ].sort();
+
 }
 
 
-function comparableValue(value) {
-    if (Array.isArray(value)) {
+function comparableValue(
+    value
+) {
+
+    if (
+        Array.isArray(value)
+    ) {
+
         return normalizeComparableArray(
             value
         );
+
     }
+
 
     if (
         value === null ||
         value === undefined
     ) {
+
         return null;
+
     }
+
 
     if (
         typeof value === "number"
     ) {
-        return Number(value);
+
+        return Number(
+            value
+        );
+
     }
 
-    return String(value).trim();
+
+    /*
+     * Credit resolution kadang datang sebagai
+     * string dari input number.
+     *
+     * Normalisasi string numerik menjadi number
+     * agar "100" dan 100 tidak dianggap perubahan.
+     */
+
+    if (
+        typeof value === "string" &&
+        value.trim() !== "" &&
+        Number.isFinite(
+            Number(value)
+        )
+    ) {
+
+        return Number(value);
+
+    }
+
+
+    return String(
+        value
+    ).trim();
+
 }
 
 
+/* =========================================================
+   EDIT COMPARE FIELDS
+   ========================================================= */
+
 const EDIT_COMPARE_FIELDS = [
+
     "provider_id",
+
     "model_id",
+
     "model_name",
+
     "description",
+
     "credit_cost",
+
     "discount_percent",
+
     "credit_final",
+
+    /*
+     * CREDIT PER RESOLUTION
+     */
+
+    "credit_480p",
+
+    "credit_720p",
+
+    "credit_1080p",
+
     "min_duration",
+
     "max_duration",
+
     "supported_ratios",
+
     "supported_resolutions",
+
     "status"
+
 ];
 
 
@@ -683,57 +1463,86 @@ export function getChangedFields(
     originalModel,
     updatedModel
 ) {
+
     const original =
         cloneModel(
             originalModel
         );
+
 
     const updated =
         cloneModel(
             updatedModel
         );
 
-    if (!original || !updated) {
+
+    if (
+        !original ||
+        !updated
+    ) {
+
         return [];
+
     }
 
+
     const changed = [];
+
 
     for (
         const field
         of EDIT_COMPARE_FIELDS
     ) {
+
         const oldValue =
             comparableValue(
                 original[field]
             );
+
 
         const newValue =
             comparableValue(
                 updated[field]
             );
 
+
         if (
-            JSON.stringify(oldValue) !==
-            JSON.stringify(newValue)
+            JSON.stringify(
+                oldValue
+            ) !==
+            JSON.stringify(
+                newValue
+            )
         ) {
-            changed.push(field);
+
+            changed.push(
+                field
+            );
+
         }
+
     }
 
+
     return changed;
+
 }
 
 
 export function hasChanges(
     updatedModel
 ) {
+
     const original =
         getEditingModel();
 
+
     if (!original) {
+
         return false;
+
     }
+
 
     return (
         getChangedFields(
@@ -741,6 +1550,7 @@ export function hasChanges(
             updatedModel
         ).length > 0
     );
+
 }
 
 
@@ -751,35 +1561,58 @@ export function hasChanges(
 export function updateEditingModel(
     model
 ) {
-    if (!isEditing()) {
+
+    if (
+        !isEditing()
+    ) {
+
         return null;
+
     }
+
 
     const normalized =
-        cloneModel(model);
+        cloneModel(
+            model
+        );
+
 
     if (!normalized) {
+
         return null;
+
     }
+
 
     /*
      * ID model yang sedang diedit tidak boleh
      * bergeser akibat hasil form.
      */
-    if (editState.modelId) {
+
+    if (
+        editState.modelId
+    ) {
+
         normalized.id =
             editState.modelId;
+
     }
+
 
     editState.model =
         normalized;
 
+
     editingModel =
-        cloneModel(normalized);
+        cloneModel(
+            normalized
+        );
+
 
     return cloneModel(
         normalized
     );
+
 }
 
 
@@ -790,36 +1623,53 @@ export function updateEditingModel(
 export function commitEditModel(
     savedModel
 ) {
+
     if (!savedModel) {
+
         return null;
+
     }
+
 
     const normalized =
-        cloneModel(savedModel);
+        cloneModel(
+            savedModel
+        );
+
 
     if (!normalized) {
+
         return null;
+
     }
+
 
     /*
      * Setelah berhasil disimpan, state Edit
      * diperbarui tetapi mode Edit tetap aktif
      * sampai coordinator menutup form.
      */
+
     editState.model =
         normalized;
+
 
     editState.modelId =
         normalizeId(
             normalized.id
         );
 
+
     editingModel =
-        cloneModel(normalized);
+        cloneModel(
+            normalized
+        );
+
 
     return cloneModel(
         normalized
     );
+
 }
 
 
@@ -828,7 +1678,9 @@ export function commitEditModel(
    ========================================================= */
 
 export function closeEditModel() {
+
     clearEditingModel();
+
 }
 
 
@@ -837,12 +1689,16 @@ export function closeEditModel() {
    ========================================================= */
 
 export function cancelEditModel() {
+
     const original =
         getEditingModel();
 
+
     clearEditingModel();
 
+
     return original;
+
 }
 
 
@@ -854,78 +1710,132 @@ export async function submitEditModel(
     root,
     options = {}
 ) {
+
     const data =
         prepareEditSubmission(
             root,
             options
         );
 
+
     /*
      * Modul ini tidak melakukan Supabase update.
      *
-     * Cari handler dari coordinator:
+     * Handler tetap diserahkan kepada:
      *
      * options.submit
      * options.onSubmit
-     *
-     * Ini mencegah loop:
-     *
-     * edit -> save -> edit -> save -> ...
      */
+
     const submitHandler =
-        typeof options.submit === "function"
+        typeof options.submit ===
+            "function"
+
             ? options.submit
-            : typeof options.onSubmit === "function"
+
+            : typeof options.onSubmit ===
+                "function"
+
                 ? options.onSubmit
+
                 : null;
 
-    if (!submitHandler) {
+
+    if (
+        !submitHandler
+    ) {
+
         const error =
             new Error(
                 "EDIT_SUBMIT_HANDLER_MISSING"
             );
 
-        error.data = data;
+
+        error.code =
+            "EDIT_SUBMIT_HANDLER_MISSING";
+
+
+        error.data =
+            data;
+
 
         throw error;
+
     }
+
+
+    /*
+     * Snapshot state sebelum submit.
+     *
+     * Jangan mengambil state ulang setelah
+     * coordinator mulai mengubah form.
+     */
+
+    const editingSnapshot =
+        getEditingModel();
+
+
+    const changedFields =
+        getChangedFields(
+            editingSnapshot,
+            data
+        );
+
+
+    /*
+     * Submit hanya SATU KALI.
+     *
+     * Tidak ada fallback recursive.
+     */
 
     const result =
         await submitHandler(
             data,
             {
-                mode: "edit",
+
+                mode:
+                    "edit",
+
                 model:
-                    getEditingModel(),
+                    editingSnapshot,
+
                 changedFields:
-                    getChangedFields(
-                        getEditingModel(),
-                        data
-                    )
+                    changedFields
+
             }
         );
 
+
     /*
-     * Jangan otomatis memanggil submit lagi.
-     * Ini penting untuk mencegah stack overflow.
+     * Update local state hanya setelah handler
+     * benar-benar mengembalikan model/data.
+     *
+     * Tidak memanggil submit lagi.
      */
+
     if (
         result &&
         result.model
     ) {
+
         commitEditModel(
             result.model
         );
+
     } else if (
         result &&
         result.data
     ) {
+
         commitEditModel(
             result.data
         );
+
     }
 
+
     return result;
+
 }
 
 
@@ -937,30 +1847,48 @@ export function bindEditForm(
     root,
     options = {}
 ) {
+
     const container =
-        getRootElement(root);
+        getRootElement(
+            root
+        );
+
 
     if (!container) {
+
         throw new Error(
             "EDIT_FORM_ROOT_MISSING"
         );
+
     }
 
-    if (!isEditing()) {
+
+    if (
+        !isEditing()
+    ) {
+
         throw new Error(
             "NOT_EDITING"
         );
+
     }
 
+
     const providers =
-        Array.isArray(options.providers)
+        Array.isArray(
+            options.providers
+        )
             ? options.providers
             : [];
 
+
     const models =
-        Array.isArray(options.models)
+        Array.isArray(
+            options.models
+        )
             ? options.models
             : [];
+
 
     attachModelFormEvents(
         container,
@@ -970,17 +1898,25 @@ export function bindEditForm(
         }
     );
 
-    if (container.dataset) {
+
+    if (
+        container.dataset
+    ) {
+
         container.dataset.modelFormMode =
             "edit";
+
 
         container.dataset.modelId =
             normalizeId(
                 editState.modelId
             );
+
     }
 
+
     return container;
+
 }
 
 
@@ -992,22 +1928,33 @@ export function restoreOriginalEditForm(
     root,
     options = {}
 ) {
-    if (!isEditing()) {
+
+    if (
+        !isEditing()
+    ) {
+
         return null;
+
     }
+
 
     const original =
         getEditingModel();
 
+
     if (!original) {
+
         return null;
+
     }
+
 
     return renderEditForm(
         root,
         original,
         options
     );
+
 }
 
 
@@ -1016,19 +1963,28 @@ export function restoreOriginalEditForm(
    ========================================================= */
 
 export function assertEditing() {
-    if (!isEditing()) {
+
+    if (
+        !isEditing()
+    ) {
+
         const error =
             new Error(
                 "MODEL_EDIT_NOT_ACTIVE"
             );
 
+
         error.code =
             "MODEL_EDIT_NOT_ACTIVE";
 
+
         throw error;
+
     }
 
+
     return true;
+
 }
 
 
@@ -1037,6 +1993,7 @@ export function assertEditing() {
    ========================================================= */
 
 const ModelFormEdit = {
+
     isEditing,
 
     getEditingModel,
@@ -1072,6 +2029,7 @@ const ModelFormEdit = {
     restoreOriginalEditForm,
 
     assertEditing
+
 };
 
 
@@ -1085,8 +2043,10 @@ const ModelFormEdit = {
 if (
     typeof window !== "undefined"
 ) {
+
     window.GENZModelFormEdit =
         ModelFormEdit;
+
 }
 
 
