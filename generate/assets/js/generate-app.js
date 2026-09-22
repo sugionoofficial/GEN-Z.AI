@@ -41,6 +41,8 @@
    - MODEL CREDIT hanya boleh dirender SATU KALI
    - POLLING WAJIB menerima modelId agar /api/generate-status
      dapat melakukan reconciliation generation_history
+   - HASIL POLLING TIDAK BOLEH DIANGGAP COMPLETED
+     jika status task masih processing/pending/running
 ========================================================= */
 
 "use strict";
@@ -160,22 +162,10 @@ function getDOM() {
                 "generateButton"
             ),
 
-        /*
-         * generateCreditCost = CONTAINER / LEGACY WRAPPER
-         *
-         * Tidak boleh lagi diisi langsung dengan
-         * angka credit.
-         */
-
         generateCreditCost:
             document.getElementById(
                 "generateCreditCost"
             ),
-
-        /*
-         * generateCreditValue = SATU-SATUNYA
-         * elemen yang menampilkan angka MODEL CREDIT.
-         */
 
         generateCreditValue:
             document.getElementById(
@@ -3339,6 +3329,10 @@ function renderKieDiagnostic(
 
         response?.status ||
 
+        response?.data?.state ||
+
+        response?.data?.status ||
+
         response?.task?.state ||
 
         response?.task?.status ||
@@ -3371,15 +3365,27 @@ function renderKieDiagnostic(
 
         "-";
 
-    summary.textContent =
-        `${phase} • Status: ${String(state)} • Code: ${String(code)} • Task: ${String(taskId)} • ${String(message)}`;
+    if (
+        summary
+    ) {
 
-    raw.textContent =
-        JSON.stringify(
-            safeResponse,
-            null,
-            2
-        );
+        summary.textContent =
+            `${phase} • Status: ${String(state)} • Code: ${String(code)} • Task: ${String(taskId)} • ${String(message)}`;
+
+    }
+
+    if (
+        raw
+    ) {
+
+        raw.textContent =
+            JSON.stringify(
+                safeResponse,
+                null,
+                2
+            );
+
+    }
 
     panel.hidden =
         false;
@@ -3429,6 +3435,14 @@ function renderGenerationResult(
         panel.querySelector(
             "#genzGenerationResult"
         );
+
+    if (
+        !resultBox
+    ) {
+
+        return;
+
+    }
 
     resultBox.innerHTML =
         "";
@@ -3522,15 +3536,31 @@ function extractTaskId(
 
         response?.jobId ||
 
+        response?.job_id ||
+
         response?.data?.taskId ||
 
         response?.data?.task_id ||
 
         response?.data?.jobId ||
 
+        response?.data?.job_id ||
+
         response?.task?.taskId ||
 
         response?.task?.task_id ||
+
+        response?.task?.jobId ||
+
+        response?.task?.job_id ||
+
+        response?.data?.task?.taskId ||
+
+        response?.data?.task?.task_id ||
+
+        response?.data?.task?.jobId ||
+
+        response?.data?.task?.job_id ||
 
         ""
 
@@ -3590,6 +3620,302 @@ function extractErrorDiagnostic(
 
 
 /* =========================================================
+   POLLING STATE
+   ---------------------------------------------------------
+   Perbaikan:
+   - Jangan hanya percaya result.completed.
+   - Validasi state dari backend juga.
+   - Processing tidak boleh dianggap completed.
+========================================================= */
+
+function getPollingState(
+    value
+) {
+
+    return String(
+
+        value?.state ||
+
+        value?.status ||
+
+        value?.task_state ||
+
+        value?.taskStatus ||
+
+        value?.data?.state ||
+
+        value?.data?.status ||
+
+        value?.data?.task_state ||
+
+        value?.data?.taskStatus ||
+
+        value?.task?.state ||
+
+        value?.task?.status ||
+
+        value?.task?.task_state ||
+
+        value?.task?.taskStatus ||
+
+        value?.data?.task?.state ||
+
+        value?.data?.task?.status ||
+
+        value?.data?.task?.task_state ||
+
+        value?.data?.task?.taskStatus ||
+
+        value?.result?.state ||
+
+        value?.result?.status ||
+
+        value?.data?.result?.state ||
+
+        value?.data?.result?.status ||
+
+        ""
+
+    )
+        .trim()
+        .toLowerCase()
+        .replace(
+            /\s+/g,
+            "_"
+        );
+
+}
+
+
+/* =========================================================
+   POLLING COMPLETED CHECK
+========================================================= */
+
+function isPollingCompleted(
+    value
+) {
+
+    if (
+        value?.failed === true
+    ) {
+
+        return false;
+
+    }
+
+    const state =
+        getPollingState(
+            value
+        );
+
+    const failedStates =
+        new Set([
+
+            "fail",
+
+            "failed",
+
+            "failure",
+
+            "error",
+
+            "cancelled",
+
+            "canceled",
+
+            "rejected",
+
+            "terminated"
+
+        ]);
+
+    if (
+        failedStates.has(
+            state
+        )
+    ) {
+
+        return false;
+
+    }
+
+    const processingStates =
+        new Set([
+
+            "waiting",
+
+            "pending",
+
+            "queued",
+
+            "queue",
+
+            "processing",
+
+            "running",
+
+            "generating",
+
+            "in_progress",
+
+            "in-progress",
+
+            "created",
+
+            "submitted",
+
+            "starting",
+
+            "started"
+
+        ]);
+
+    if (
+        processingStates.has(
+            state
+        )
+    ) {
+
+        return false;
+
+    }
+
+    const completedStates =
+        new Set([
+
+            "success",
+
+            "succeeded",
+
+            "successful",
+
+            "completed",
+
+            "complete",
+
+            "done",
+
+            "finished",
+
+            "successfully_completed"
+
+        ]);
+
+    if (
+        completedStates.has(
+            state
+        )
+    ) {
+
+        return true;
+
+    }
+
+    /*
+     * Backend polling module sudah melakukan normalisasi.
+     * Jika completed=true dan tidak ada indikasi state
+     * processing/failed, kita menerima hasil tersebut.
+     */
+
+    if (
+        value?.completed === true
+    ) {
+
+        return true;
+
+    }
+
+    /*
+     * Result URL merupakan bukti hasil sudah tersedia.
+     */
+
+    const resultUrls =
+        Array.isArray(
+            value?.resultUrls
+        )
+
+            ? value.resultUrls
+
+            : Array.isArray(
+                value?.result_urls
+            )
+
+                ? value.result_urls
+
+                : Array.isArray(
+                    value?.data?.resultUrls
+                )
+
+                    ? value.data.resultUrls
+
+                    : Array.isArray(
+                        value?.data?.result_urls
+                    )
+
+                        ? value.data.result_urls
+
+                        : [];
+
+    if (
+        resultUrls.length
+    ) {
+
+        return true;
+
+    }
+
+    return false;
+
+}
+
+
+/* =========================================================
+   POLLING FAILED CHECK
+========================================================= */
+
+function isPollingFailed(
+    value
+) {
+
+    if (
+        value?.failed === true
+    ) {
+
+        return true;
+
+    }
+
+    const state =
+        getPollingState(
+            value
+        );
+
+    return [
+
+        "fail",
+
+        "failed",
+
+        "failure",
+
+        "error",
+
+        "cancelled",
+
+        "canceled",
+
+        "rejected",
+
+        "terminated"
+
+    ].includes(
+        state
+    );
+
+}
+
+
+/* =========================================================
    GENERATE SUBMIT
 ========================================================= */
 
@@ -3635,21 +3961,10 @@ async function handleGenerateSubmit(
     }
 
     /*
-     * =====================================================
      * MODEL ID UNTUK POLLING
-     * =====================================================
      *
-     * Ambil SEKALI dari current model yang sama dengan
-     * model yang dikirim ke request.
-     *
-     * Ini penting karena generate-polling.js menggunakan
-     * modelId untuk memanggil:
-     *
-     * /api/generate-status
-     *
-     * Tanpa modelId, polling dapat berhenti sebelum
-     * generation_history direkonsiliasi.
-     * =====================================================
+     * Ambil SEKALI dari current model yang sama
+     * dengan model yang digunakan untuk Generate.
      */
 
     const modelId =
@@ -3949,34 +4264,19 @@ async function handleGenerateSubmit(
 
         /*
          * =================================================
-         * POLLING FIX
+         * POLLING
          * =================================================
          *
-         * modelId SEKARANG dikirim secara eksplisit.
+         * modelId WAJIB dikirim ke generate-polling.js.
          *
-         * Signature yang digunakan:
+         * generate-polling.js:
          *
-         * pollGenerateTask(
-         *     taskId,
-         *     {
-         *         modelId,
-         *         interval,
-         *         timeout,
-         *         onUpdate
-         *     }
-         * )
+         * taskId + modelId
+         *          ↓
+         * /api/generate-status
          *
-         * Ini memastikan generate-polling.js dapat
-         * meneruskan modelId ke /api/generate-status.
-         *
-         * /api/generate-status kemudian dapat:
-         *
-         * processing -> lanjut polling
-         * completed  -> update generation_history
-         * failed     -> update generation_history
-         *
-         * Tanpa mengubah taskId, request, atau database
-         * secara langsung dari module ini.
+         * Backend kemudian melakukan reconciliation
+         * generation_history.
          * =================================================
          */
 
@@ -3997,12 +4297,22 @@ async function handleGenerateSubmit(
                     onUpdate:
                         update => {
 
+                            const failed =
+                                isPollingFailed(
+                                    update
+                                );
+
+                            const completed =
+                                isPollingCompleted(
+                                    update
+                                );
+
                             const phase =
-                                update?.failed
+                                failed
 
                                     ? "FAILED"
 
-                                    : update?.completed
+                                    : completed
 
                                         ? "COMPLETED"
 
@@ -4014,7 +4324,7 @@ async function handleGenerateSubmit(
                             );
 
                             if (
-                                update?.failed
+                                failed
                             ) {
 
                                 showLoading(
@@ -4024,7 +4334,7 @@ async function handleGenerateSubmit(
                             }
 
                             else if (
-                                update?.completed
+                                completed
                             ) {
 
                                 showLoading(
@@ -4045,6 +4355,89 @@ async function handleGenerateSubmit(
 
                 }
             );
+
+
+        /* =================================================
+           FINAL POLLING VALIDATION
+           -------------------------------------------------
+           Jangan pernah langsung menganggap response
+           terakhir sebagai completed hanya karena polling
+           function sudah return.
+        ================================================= */
+
+        if (
+            isPollingFailed(
+                result
+            )
+        ) {
+
+            const error =
+                new Error(
+
+                    result?.message ||
+
+                    result?.msg ||
+
+                    result?.error ||
+
+                    "KIE.AI melaporkan task gagal."
+
+                );
+
+            error.code =
+
+                result?.code ||
+
+                result?.error_code ||
+
+                result?.errorCode ||
+
+                "TASK_FAILED";
+
+            error.details =
+                result;
+
+            throw error;
+
+        }
+
+
+        if (
+            !isPollingCompleted(
+                result
+            )
+        ) {
+
+            const state =
+                getPollingState(
+                    result
+                );
+
+            const error =
+                new Error(
+
+                    state
+
+                        ? `Polling selesai tetapi task masih berstatus "${state}".`
+
+                        : "Polling selesai tetapi status task belum terkonfirmasi selesai."
+
+                );
+
+            error.code =
+                "TASK_NOT_COMPLETED";
+
+            error.details =
+                result;
+
+            throw error;
+
+        }
+
+
+        /*
+         * Hanya sampai titik ini result dianggap selesai.
+         */
 
         renderKieDiagnostic(
             result,
