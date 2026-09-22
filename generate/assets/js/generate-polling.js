@@ -23,7 +23,7 @@
    - Credit calculation
    - Menentukan model
 
-   Alur:
+   ALUR:
 
    generate-request.js
           ↓
@@ -38,6 +38,11 @@
    completed
           ↓
    result_urls
+
+   CATATAN:
+   - /api/generate-status membutuhkan task_id + model_id
+   - Module ini tidak membuat row generation_history
+   - Status History harus direkonsiliasi oleh backend
 ========================================================= */
 
 
@@ -145,10 +150,12 @@ function normalizeString(
         return fallback;
     }
 
+
     const result =
         String(
             value
         ).trim();
+
 
     return result ||
         fallback;
@@ -268,6 +275,16 @@ function extractErrorMessage(
 
 
     if (
+        typeof data.msg ===
+            "string" &&
+        data.msg.trim()
+    ) {
+
+        return data.msg.trim();
+    }
+
+
+    if (
         Array.isArray(
             data.errors
         ) &&
@@ -317,27 +334,63 @@ function extractErrorMessage(
     }
 
 
-    if (
-        data.data &&
-        typeof data.data ===
-            "object"
+    const nestedObjects = [
+
+        data.data,
+
+        data.task,
+
+        data.result,
+
+        data.data?.task,
+
+        data.data?.result
+
+    ];
+
+
+    for (
+        const nested
+        of nestedObjects
     ) {
 
         if (
-            typeof data.data.error ===
-                "string"
+            !nested ||
+            typeof nested !==
+                "object"
         ) {
 
-            return data.data.error;
+            continue;
         }
 
 
         if (
-            typeof data.data.message ===
-                "string"
+            typeof nested.error ===
+                "string" &&
+            nested.error.trim()
         ) {
 
-            return data.data.message;
+            return nested.error.trim();
+        }
+
+
+        if (
+            typeof nested.message ===
+                "string" &&
+            nested.message.trim()
+        ) {
+
+            return nested.message.trim();
+        }
+
+
+        if (
+            typeof nested.msg ===
+                "string" &&
+            nested.msg.trim()
+        ) {
+
+            return nested.msg.trim();
         }
     }
 
@@ -361,11 +414,25 @@ function extractErrorCode(
 
 
     return (
+
         data.code ||
+
         data.error_code ||
+
         data.errorCode ||
+
         data.data?.code ||
+
+        data.data?.error_code ||
+
+        data.data?.errorCode ||
+
+        data.task?.code ||
+
+        data.result?.code ||
+
         null
+
     );
 }
 
@@ -379,14 +446,70 @@ function extractTaskId(
 ) {
 
     return normalizeString(
+
         data?.task_id ||
+
         data?.taskId ||
+
         data?.job_id ||
+
         data?.jobId ||
+
+        data?.data?.task_id ||
+
+        data?.data?.taskId ||
+
+        data?.data?.job_id ||
+
+        data?.data?.jobId ||
+
         data?.task?.task_id ||
+
         data?.task?.taskId ||
+
         data?.task?.job_id ||
+
         data?.task?.jobId ||
+
+        data?.data?.task?.task_id ||
+
+        data?.data?.task?.taskId ||
+
+        data?.data?.task?.job_id ||
+
+        data?.data?.task?.jobId ||
+
+        ""
+    );
+}
+
+
+/* =========================================================
+   MODEL ID
+========================================================= */
+
+function extractModelId(
+    data
+) {
+
+    return normalizeString(
+
+        data?.model_id ||
+
+        data?.modelId ||
+
+        data?.data?.model_id ||
+
+        data?.data?.modelId ||
+
+        data?.task?.model_id ||
+
+        data?.task?.modelId ||
+
+        data?.data?.task?.model_id ||
+
+        data?.data?.task?.modelId ||
+
         ""
     );
 }
@@ -402,7 +525,67 @@ function normalizeTaskState(
 
     return normalizeString(
         value
-    ).toLowerCase();
+    )
+        .toLowerCase()
+        .replace(
+            /\s+/g,
+            "_"
+        );
+}
+
+
+/* =========================================================
+   EXTRACT TASK STATE
+========================================================= */
+
+function extractTaskState(
+    data
+) {
+
+    return normalizeTaskState(
+
+        data?.state ||
+
+        data?.status ||
+
+        data?.task_state ||
+
+        data?.taskStatus ||
+
+        data?.data?.state ||
+
+        data?.data?.status ||
+
+        data?.data?.task_state ||
+
+        data?.data?.taskStatus ||
+
+        data?.task?.state ||
+
+        data?.task?.status ||
+
+        data?.task?.task_state ||
+
+        data?.task?.taskStatus ||
+
+        data?.data?.task?.state ||
+
+        data?.data?.task?.status ||
+
+        data?.data?.task?.task_state ||
+
+        data?.data?.task?.taskStatus ||
+
+        data?.result?.state ||
+
+        data?.result?.status ||
+
+        data?.data?.result?.state ||
+
+        data?.data?.result?.status ||
+
+        ""
+    );
 }
 
 
@@ -415,33 +598,117 @@ function normalizeResultUrls(
 ) {
 
     if (
-        !Array.isArray(
+        Array.isArray(
             value
         )
     ) {
 
-        return [];
+        return value
+            .map(
+                item => {
+
+                    if (
+                        typeof item ===
+                            "string"
+                    ) {
+
+                        return item.trim();
+                    }
+
+
+                    if (
+                        item &&
+                        typeof item ===
+                            "object"
+                    ) {
+
+                        return normalizeString(
+
+                            item.url ||
+
+                            item.result_url ||
+
+                            item.resultUrl ||
+
+                            item.video_url ||
+
+                            item.videoUrl ||
+
+                            item.file_url ||
+
+                            item.fileUrl ||
+
+                            ""
+
+                        );
+                    }
+
+
+                    return "";
+                }
+            )
+            .filter(
+                Boolean
+            );
     }
 
 
-    return value
-        .map(
-            item => {
+    if (
+        typeof value ===
+            "string"
+    ) {
 
-                if (
-                    typeof item ===
-                        "string"
-                ) {
+        const normalized =
+            value.trim();
 
-                    return item.trim();
-                }
 
-                return "";
-            }
-        )
-        .filter(
-            Boolean
-        );
+        if (!normalized) {
+
+            return [];
+        }
+
+
+        return [
+            normalized
+        ];
+    }
+
+
+    if (
+        value &&
+        typeof value ===
+            "object"
+    ) {
+
+        const singleUrl =
+            normalizeString(
+
+                value.url ||
+
+                value.result_url ||
+
+                value.resultUrl ||
+
+                value.video_url ||
+
+                value.videoUrl ||
+
+                value.file_url ||
+
+                value.fileUrl ||
+
+                ""
+
+            );
+
+
+        return singleUrl
+            ? [singleUrl]
+            : [];
+    }
+
+
+    return [];
 }
 
 
@@ -459,6 +726,22 @@ function extractResultUrls(
 
         data?.resultUrls,
 
+        data?.urls,
+
+        data?.video_urls,
+
+        data?.videoUrls,
+
+        data?.data?.result_urls,
+
+        data?.data?.resultUrls,
+
+        data?.data?.urls,
+
+        data?.data?.video_urls,
+
+        data?.data?.videoUrls,
+
         data?.result?.result_urls,
 
         data?.result?.resultUrls,
@@ -469,9 +752,25 @@ function extractResultUrls(
 
         data?.result?.videoUrls,
 
+        data?.data?.result?.result_urls,
+
+        data?.data?.result?.resultUrls,
+
+        data?.data?.result?.urls,
+
+        data?.data?.result?.video_urls,
+
+        data?.data?.result?.videoUrls,
+
         data?.task?.result_urls,
 
         data?.task?.resultUrls,
+
+        data?.task?.urls,
+
+        data?.task?.video_urls,
+
+        data?.task?.videoUrls,
 
         data?.task?.result?.result_urls,
 
@@ -479,9 +778,37 @@ function extractResultUrls(
 
         data?.task?.result?.urls,
 
+        data?.task?.result?.video_urls,
+
+        data?.task?.result?.videoUrls,
+
+        data?.data?.task?.result_urls,
+
+        data?.data?.task?.resultUrls,
+
+        data?.data?.task?.urls,
+
+        data?.data?.task?.video_urls,
+
+        data?.data?.task?.videoUrls,
+
+        data?.data?.task?.result?.result_urls,
+
+        data?.data?.task?.result?.resultUrls,
+
+        data?.data?.task?.result?.urls,
+
+        data?.data?.task?.result?.video_urls,
+
+        data?.data?.task?.result?.videoUrls,
+
         data?.resultJson?.resultUrls,
 
-        data?.resultJson?.result_urls
+        data?.resultJson?.result_urls,
+
+        data?.data?.resultJson?.resultUrls,
+
+        data?.data?.resultJson?.result_urls
 
     ];
 
@@ -518,18 +845,31 @@ export function normalizePollingResult(
     data = {}
 ) {
 
+    if (
+        !data ||
+        typeof data !==
+            "object"
+    ) {
+
+        data = {};
+    }
+
+
     const taskId =
         extractTaskId(
             data
         );
 
 
+    const modelId =
+        extractModelId(
+            data
+        );
+
+
     const state =
-        normalizeTaskState(
-            data.state ||
-            data.status ||
-            data.task?.state ||
-            data.task?.status
+        extractTaskState(
+            data
         );
 
 
@@ -540,25 +880,36 @@ export function normalizePollingResult(
 
 
     const explicitCompleted =
-        data.completed === true;
+        data.completed === true ||
+        data.data?.completed === true ||
+        data.task?.completed === true ||
+        data.data?.task?.completed === true;
 
 
     const explicitFailed =
-        data.failed === true;
+        data.failed === true ||
+        data.data?.failed === true ||
+        data.task?.failed === true ||
+        data.data?.task?.failed === true;
 
 
     const explicitProcessing =
-        data.processing === true;
+        data.processing === true ||
+        data.data?.processing === true ||
+        data.task?.processing === true ||
+        data.data?.task?.processing === true;
 
 
     const completedStates =
         new Set([
             "success",
             "succeeded",
+            "successful",
             "completed",
             "complete",
             "done",
-            "finished"
+            "finished",
+            "successfully_completed"
         ]);
 
 
@@ -566,9 +917,12 @@ export function normalizePollingResult(
         new Set([
             "fail",
             "failed",
+            "failure",
             "error",
             "cancelled",
-            "canceled"
+            "canceled",
+            "rejected",
+            "terminated"
         ]);
 
 
@@ -582,31 +936,42 @@ export function normalizePollingResult(
             "running",
             "generating",
             "in_progress",
-            "in-progress"
+            "in-progress",
+            "created",
+            "submitted",
+            "starting",
+            "started"
         ]);
 
 
     /*
-     * Jika backend sudah memberikan result URL,
-     * anggap task selesai meskipun state dari provider
-     * tidak menggunakan nama "success".
+     * Hasil URL adalah indikator kuat bahwa backend
+     * sudah menerima hasil akhir.
      *
-     * Ini penting untuk KIE karena hasil akhirnya
-     * dapat berupa resultUrls.
+     * Jangan hanya bergantung pada nama state KIE,
+     * karena adapter/backend dapat menggunakan
+     * struktur response yang berbeda.
      */
+
+    const hasResult =
+        resultUrls.length > 0;
+
 
     const completed =
         explicitCompleted ||
         completedStates.has(
             state
         ) ||
-        resultUrls.length > 0;
+        hasResult;
 
 
     const failed =
-        explicitFailed ||
-        failedStates.has(
-            state
+        !completed &&
+        (
+            explicitFailed ||
+            failedStates.has(
+                state
+            )
         );
 
 
@@ -617,8 +982,24 @@ export function normalizePollingResult(
             explicitProcessing ||
             waitingStates.has(
                 state
-            )
+            ) ||
+            !state
         );
+
+
+    let normalizedState =
+        state;
+
+
+    if (!normalizedState) {
+
+        normalizedState =
+            completed
+                ? "success"
+                : failed
+                    ? "failed"
+                    : "processing";
+    }
 
 
     return {
@@ -631,17 +1012,14 @@ export function normalizePollingResult(
         taskId:
             taskId,
 
+        model_id:
+            modelId,
+
+        modelId:
+            modelId,
+
         state:
-
-            state ||
-
-            (
-                completed
-                    ? "success"
-                    : failed
-                        ? "failed"
-                        : "processing"
-            ),
+            normalizedState,
 
         processing,
 
@@ -654,6 +1032,7 @@ export function normalizePollingResult(
 
         resultUrls:
             resultUrls
+
     };
 }
 
@@ -661,12 +1040,9 @@ export function normalizePollingResult(
 /* =========================================================
    REQUEST STATUS
    ---------------------------------------------------------
-   PERBAIKAN:
    /api/generate-status membutuhkan:
       task_id
       model_id
-
-   Sebelumnya module ini hanya mengirim task_id.
 ========================================================= */
 
 export async function requestTaskStatus(
@@ -747,7 +1123,11 @@ export async function requestTaskStatus(
                             "application/json",
 
                         "Authorization":
-                            `Bearer ${accessToken}`
+                            `Bearer ${accessToken}`,
+
+                        "Accept":
+                            "application/json"
+
                     },
 
                     body:
@@ -758,6 +1138,7 @@ export async function requestTaskStatus(
 
                             model_id:
                                 normalizedModelId
+
                         })
                 }
             );
@@ -896,24 +1277,19 @@ function normalizePollingOptions(
         );
 
 
-    /*
-     * modelId dapat dikirim sebagai:
-     *
-     * options.modelId
-     *
-     * atau:
-     *
-     * options.model_id
-     *
-     * untuk menjaga kompatibilitas dengan
-     * struktur data backend.
-     */
-
     const modelId =
         normalizeString(
+
             options.modelId ||
+
             options.model_id ||
+
+            options.model?.model_id ||
+
+            options.model?.modelId ||
+
             ""
+
         );
 
 
@@ -934,6 +1310,7 @@ function normalizePollingOptions(
                 "function"
                 ? options.onUpdate
                 : null
+
     };
 }
 
@@ -997,9 +1374,7 @@ export async function pollTask(
     /*
      * /api/generate-status membutuhkan model_id.
      *
-     * Jangan melakukan polling tanpa model ID karena
-     * backend memang membutuhkan ID tersebut untuk
-     * menentukan adapter/provider yang digunakan.
+     * Jangan melakukan polling tanpa model ID.
      */
 
     if (!polling.modelId) {
@@ -1026,6 +1401,10 @@ export async function pollTask(
 
     let lastResult =
         null;
+
+
+    let pollCount =
+        0;
 
 
     while (true) {
@@ -1061,22 +1440,49 @@ export async function pollTask(
 
                             elapsed,
 
+                            poll_count:
+                                pollCount,
+
                             last_result:
                                 lastResult
+
                         }
                 }
             );
         }
 
 
-        const result =
-            await requestTaskStatus(
+        pollCount += 1;
 
-                normalizedTaskId,
 
-                polling.modelId
+        let result;
 
-            );
+
+        try {
+
+            result =
+                await requestTaskStatus(
+
+                    normalizedTaskId,
+
+                    polling.modelId
+
+                );
+
+        } catch (
+            error
+        ) {
+
+            /*
+             * Error request status tetap diteruskan.
+             *
+             * Jangan menganggap error sebagai completed.
+             * Jika backend gagal menjawab, History tidak boleh
+             * dipalsukan menjadi completed.
+             */
+
+            throw error;
+        }
 
 
         lastResult =
@@ -1111,19 +1517,11 @@ export async function pollTask(
 
 
         /*
-         * KIE sudah selesai.
+         * FAILED harus diperiksa sebelum COMPLETED.
          *
-         * Jika resultUrls tersedia, normalizePollingResult()
-         * juga akan menandai completed=true.
+         * Normalizer sudah mencegah state failed
+         * menjadi completed kecuali terdapat result URL.
          */
-
-        if (
-            result.completed
-        ) {
-
-            return result;
-        }
-
 
         if (
             result.failed
@@ -1147,6 +1545,25 @@ export async function pollTask(
             );
         }
 
+
+        /*
+         * COMPLETED hanya dikembalikan jika backend
+         * benar-benar memberikan status selesai atau
+         * result URL.
+         */
+
+        if (
+            result.completed
+        ) {
+
+            return result;
+        }
+
+
+        /*
+         * Selama belum completed / failed,
+         * task tetap dipolling.
+         */
 
         await sleep(
             polling.interval
