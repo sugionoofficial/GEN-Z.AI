@@ -5008,32 +5008,55 @@ setGenerateStatus(
                             );
 
                             if (
-                                failed
-                            ) {
+    failed
+) {
 
-                                showLoading(
-                                    "KIE.AI melaporkan generate gagal."
-                                );
+    const failedMessage =
+        update?.message ||
+        update?.msg ||
+        update?.error ||
+        update?.data?.message ||
+        update?.data?.error ||
+        "Generate gagal diproses.";
 
-                            }
+    showLoading(
+        "KIE.AI melaporkan generate gagal."
+    );
 
-                            else if (
-                                completed
-                            ) {
+    setGenerateStatus(
+        "failed",
+        failedMessage
+    );
 
-                                showLoading(
-                                    "KIE.AI selesai. Menampilkan hasil..."
-                                );
+}
 
-                            }
+else if (
+    completed
+) {
 
-                            else {
+    showLoading(
+        "KIE.AI selesai. Memverifikasi hasil..."
+    );
 
-                                showLoading(
-                                    `KIE.AI sedang memproses task ${taskId}...`
-                                );
+    setGenerateStatus(
+        "processing",
+        "Generate selesai. Sedang memverifikasi hasil..."
+    );
 
-                            }
+}
+
+else {
+
+    showLoading(
+        `KIE.AI sedang memproses task ${taskId}...`
+    );
+
+    setGenerateStatus(
+        "processing",
+        "Video sedang diproses. Mohon tunggu..."
+    );
+
+}
 
                         }
 
