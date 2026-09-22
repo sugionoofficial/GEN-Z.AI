@@ -4723,9 +4723,18 @@ async function handleGenerateSubmit(
     }
 
     generationInProgress =
-        true;
+    true;
 
-    hideError();
+hideError();
+
+/*
+ * Hapus status generate sebelumnya
+ * lalu tampilkan status proses.
+ */
+setGenerateStatus(
+    "processing",
+    "Menyiapkan proses generate..."
+);
 
     if (
         elements.generateButton
