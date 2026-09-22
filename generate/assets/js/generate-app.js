@@ -39,6 +39,8 @@
    - Generate button hanya aktif jika model benar-benar siap
    - generate-request.js WAJIB tersedia untuk Generate
    - MODEL CREDIT hanya boleh dirender SATU KALI
+   - POLLING WAJIB menerima modelId agar /api/generate-status
+     dapat melakukan reconciliation generation_history
 ========================================================= */
 
 "use strict";
@@ -1306,11 +1308,6 @@ function getModelCredit(
 
     }
 
-    /*
-     * Hanya izinkan runtime final credit
-     * yang memang spesifik terhadap resolution.
-     */
-
     const suffix =
         resolution
             ? resolution.replace(
@@ -1449,14 +1446,6 @@ function getCreditDisplayElement() {
     const elements =
         getDOM();
 
-    /*
-     * PRIORITAS UTAMA:
-     * #generateCreditValue
-     *
-     * Elemen ini satu-satunya tempat yang boleh
-     * menerima nilai angka MODEL CREDIT.
-     */
-
     if (
         elements.generateCreditValue
     ) {
@@ -1508,12 +1497,6 @@ function getCreditDisplayElement() {
         }
 
     }
-
-    /*
-     * Fallback terakhir:
-     * jika markup hanya menyediakan container,
-     * buat SATU child khusus untuk nilai credit.
-     */
 
     const container =
         elements.generateCreditCost ||
@@ -1579,17 +1562,6 @@ function cleanLegacyModelCreditValue(
 
     }
 
-    /*
-     * Jika generateCreditCost adalah elemen nilai
-     * yang berbeda dari canonicalElement, jangan
-     * pernah menulis angka ke sana.
-     *
-     * Hapus hanya text node langsung yang berisi
-     * nilai credit lama.
-     *
-     * Jangan menyentuh child element lain.
-     */
-
     if (
         container !==
         canonicalElement
@@ -1635,13 +1607,6 @@ function cleanLegacyModelCreditValue(
                     return;
 
                 }
-
-                /*
-                 * Hapus hanya text yang tampak seperti
-                 * credit/model credit.
-                 *
-                 * Tidak menghapus label lain.
-                 */
 
                 const normalized =
                     text
@@ -1710,38 +1675,12 @@ function renderModelCredit(
     const elements =
         getDOM();
 
-    /*
-     * =====================================================
-     * IMPORTANT:
-     *
-     * generateCreditCost TIDAK BOLEH lagi menerima
-     * textContent berupa angka.
-     *
-     * Sebelumnya:
-     *
-     * generateCreditCost.textContent = formatted;
-     * generateCreditValue.textContent = formatted;
-     *
-     * Itulah sumber utama tampilan:
-     *
-     * 9 9
-     *
-     * Sekarang hanya generateCreditValue yang
-     * menerima nilai credit.
-     * =====================================================
-     */
-
     const creditElement =
         getCreditDisplayElement();
 
     if (
         creditElement
     ) {
-
-        /*
-         * Pastikan elemen canonical tidak dianggap
-         * sebagai legacy element.
-         */
 
         creditElement.dataset.modelCreditCanonical =
             "true";
@@ -1761,12 +1700,6 @@ function renderModelCredit(
         creditElement.style.opacity =
             "1";
 
-        /*
-         * Jika generateCreditCost merupakan parent,
-         * bersihkan text node langsung yang sebelumnya
-         * berisi angka.
-         */
-
         cleanLegacyModelCreditValue(
             elements.generateCreditCost,
             creditElement,
@@ -1775,20 +1708,9 @@ function renderModelCredit(
 
     }
 
-    /*
-     * generateCreditCost sekarang hanya dianggap
-     * sebagai container.
-     */
-
     if (
         elements.generateCreditCost
     ) {
-
-        /*
-         * Jika elemen tersebut BUKAN canonical
-         * dan TIDAK mengandung canonical,
-         * jangan memaksanya menampilkan angka.
-         */
 
         if (
             elements.generateCreditCost !==
@@ -1797,13 +1719,6 @@ function renderModelCredit(
                 creditElement
             )
         ) {
-
-            /*
-             * Legacy value element.
-             *
-             * Sembunyikan supaya tidak muncul
-             * sebagai angka kedua.
-             */
 
             elements.generateCreditCost.hidden =
                 true;
@@ -1825,11 +1740,6 @@ function renderModelCredit(
 
         else {
 
-            /*
-             * Jika generateCreditCost adalah parent
-             * canonical element, parent tetap terlihat.
-             */
-
             elements.generateCreditCost.hidden =
                 false;
 
@@ -1845,13 +1755,6 @@ function renderModelCredit(
         }
 
     }
-
-    /*
-     * Hapus duplicate ID jika markup lama memiliki
-     * lebih dari satu #generateCreditValue.
-     *
-     * Hanya satu yang dipertahankan.
-     */
 
     const duplicateValues =
         document.querySelectorAll(
@@ -1889,13 +1792,6 @@ function renderModelCredit(
         }
     );
 
-    /*
-     * Compatibility dengan container button.
-     *
-     * Container hanya dibuka.
-     * Tidak pernah diberi textContent credit.
-     */
-
     const creditContainer =
         document.querySelector(
             ".generate-button-credit"
@@ -1918,14 +1814,6 @@ function renderModelCredit(
             "1";
 
     }
-
-    /*
-     * Account Credit (#creditBadge) SENGAJA TIDAK
-     * disentuh di sini.
-     *
-     * Account Credit berasal dari profiles.credits.
-     * Model Usage Credit adalah elemen yang berbeda.
-     */
 
     return credit;
 
@@ -3746,6 +3634,41 @@ async function handleGenerateSubmit(
 
     }
 
+    /*
+     * =====================================================
+     * MODEL ID UNTUK POLLING
+     * =====================================================
+     *
+     * Ambil SEKALI dari current model yang sama dengan
+     * model yang dikirim ke request.
+     *
+     * Ini penting karena generate-polling.js menggunakan
+     * modelId untuk memanggil:
+     *
+     * /api/generate-status
+     *
+     * Tanpa modelId, polling dapat berhenti sebelum
+     * generation_history direkonsiliasi.
+     * =====================================================
+     */
+
+    const modelId =
+        getModelId(
+            model
+        );
+
+    if (
+        !modelId
+    ) {
+
+        showError(
+            "Model ID tidak tersedia untuk polling."
+        );
+
+        return;
+
+    }
+
     const request =
         appState.modules.request;
 
@@ -3872,9 +3795,7 @@ async function handleGenerateSubmit(
                 ),
 
             model_id:
-                getModelId(
-                    model
-                ),
+                modelId,
 
             model_name:
                 getModelName(
@@ -4026,10 +3947,46 @@ async function handleGenerateSubmit(
             `KIE.AI menerima task ${taskId}. Menunggu hasil...`
         );
 
+        /*
+         * =================================================
+         * POLLING FIX
+         * =================================================
+         *
+         * modelId SEKARANG dikirim secara eksplisit.
+         *
+         * Signature yang digunakan:
+         *
+         * pollGenerateTask(
+         *     taskId,
+         *     {
+         *         modelId,
+         *         interval,
+         *         timeout,
+         *         onUpdate
+         *     }
+         * )
+         *
+         * Ini memastikan generate-polling.js dapat
+         * meneruskan modelId ke /api/generate-status.
+         *
+         * /api/generate-status kemudian dapat:
+         *
+         * processing -> lanjut polling
+         * completed  -> update generation_history
+         * failed     -> update generation_history
+         *
+         * Tanpa mengubah taskId, request, atau database
+         * secara langsung dari module ini.
+         * =================================================
+         */
+
         const result =
             await polling.pollGenerateTask(
                 taskId,
                 {
+
+                    modelId:
+                        modelId,
 
                     interval:
                         3000,
