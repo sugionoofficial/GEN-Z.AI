@@ -5147,13 +5147,36 @@ else {
          */
 
         renderKieDiagnostic(
-            result,
-            "COMPLETED"
-        );
+    result,
+    "COMPLETED"
+);
 
-        renderGenerationResult(
-            result
-        );
+/*
+ * RESULT VIDEO TIDAK DITAMPILKAN
+ * LANGSUNG DI HALAMAN GENERATE.
+ *
+ * Result tetap diterima oleh polling/backend
+ * dan generation_history.
+ *
+ * Hasil akhir dilihat melalui History.
+ */
+
+const resultBox =
+    document.getElementById(
+        "genzGenerationResult"
+    );
+
+if (
+    resultBox
+) {
+
+    resultBox.innerHTML =
+        "";
+
+    resultBox.style.display =
+        "none";
+
+}
 
         if (
             elements.resultModel
