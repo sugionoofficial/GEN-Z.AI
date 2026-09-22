@@ -4975,21 +4975,12 @@ setGenerateStatus(
                                     update
                                 );
 
-                            const phase =
-                                failed
-
-                                    ? "FAILED"
-
-                                    : completed
-
-                                        ? "COMPLETED"
-
-                                        : "PROCESSING";
-
-                            renderKieDiagnostic(
-                                update,
-                                phase
-                            );
+/*
+ * Diagnostic KIE tidak dirender ke halaman Generate.
+ *
+ * Polling tetap menggunakan object update untuk
+ * menentukan PROCESSING / SUCCESS / FAILED.
+ */
 
                             if (
     failed
