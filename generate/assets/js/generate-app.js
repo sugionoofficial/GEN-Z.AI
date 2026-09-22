@@ -4864,8 +4864,13 @@ setGenerateStatus(
         }
 
         showLoading(
-            "Mengirim request ke GEN-Z.AI..."
-        );
+    "Mengirim request ke GEN-Z.AI..."
+);
+
+setGenerateStatus(
+    "processing",
+    "Request sedang dikirim ke GEN-Z.AI..."
+);
 
         const response =
             await request.generateVideo(
