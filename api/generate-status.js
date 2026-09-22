@@ -47,9 +47,11 @@
  *      ↓
  *   KIE API
  *      ↓
- *   status / result
+ *   normalize status/result
  *      ↓
  *   UPDATE generation_history
+ *      ↓
+ *   return status to frontend
  *
  * =========================================================
  */
@@ -94,6 +96,55 @@ const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
 const MODEL_REGISTRY = Object.freeze([
     grokImagineImageToVideo
 ]);
+
+
+/* =========================================================
+   STATUS SETS
+========================================================= */
+
+const COMPLETED_STATES =
+    new Set([
+        "success",
+        "successful",
+        "succeeded",
+        "completed",
+        "complete",
+        "done",
+        "finished",
+        "successfully_completed",
+        "successfully-completed"
+    ]);
+
+
+const FAILED_STATES =
+    new Set([
+        "fail",
+        "failed",
+        "failure",
+        "error",
+        "cancelled",
+        "canceled",
+        "rejected",
+        "terminated"
+    ]);
+
+
+const PROCESSING_STATES =
+    new Set([
+        "processing",
+        "running",
+        "generating",
+        "in_progress",
+        "in-progress",
+        "pending",
+        "queued",
+        "queue",
+        "waiting",
+        "created",
+        "submitted",
+        "starting",
+        "started"
+    ]);
 
 
 /* =========================================================
@@ -163,6 +214,54 @@ function failure(
 
 
 /* =========================================================
+   SAFE STRING
+========================================================= */
+
+function normalizeString(
+    value,
+    fallback = ""
+) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return fallback;
+    }
+
+
+    const result =
+        String(
+            value
+        ).trim();
+
+
+    return result ||
+        fallback;
+}
+
+
+/* =========================================================
+   NORMALIZE STATE
+========================================================= */
+
+function normalizeState(
+    value
+) {
+
+    return normalizeString(
+        value
+    )
+        .toLowerCase()
+        .replace(
+            /\s+/g,
+            "_"
+        );
+}
+
+
+/* =========================================================
    SUPABASE REQUEST
 ========================================================= */
 
@@ -178,12 +277,14 @@ async function supabaseRequest(
         );
     }
 
+
     if (!SUPABASE_SERVICE_ROLE_KEY) {
 
         throw new Error(
             "SUPABASE_SERVICE_ROLE_KEY is not configured"
         );
     }
+
 
     const response =
         await fetch(
@@ -207,10 +308,14 @@ async function supabaseRequest(
             }
         );
 
+
     const text =
         await response.text();
 
-    let data = null;
+
+    let data =
+        null;
+
 
     if (text) {
 
@@ -228,10 +333,12 @@ async function supabaseRequest(
         }
     }
 
+
     if (!response.ok) {
 
         let message =
             `Supabase request failed with status ${response.status}`;
+
 
         if (
             data &&
@@ -246,19 +353,24 @@ async function supabaseRequest(
                 message;
         }
 
+
         const error =
             new Error(
                 message
             );
 
+
         error.status =
             response.status;
+
 
         error.data =
             data;
 
+
         throw error;
     }
+
 
     return data;
 }
@@ -279,6 +391,7 @@ async function authenticateUser(
             ""
         ).trim();
 
+
     if (!authorization) {
 
         throw Object.assign(
@@ -291,10 +404,12 @@ async function authenticateUser(
         );
     }
 
+
     const match =
         authorization.match(
             /^Bearer\s+(.+)$/i
         );
+
 
     if (!match) {
 
@@ -308,8 +423,10 @@ async function authenticateUser(
         );
     }
 
+
     const accessToken =
         match[1].trim();
+
 
     if (!accessToken) {
 
@@ -322,6 +439,7 @@ async function authenticateUser(
             }
         );
     }
+
 
     const user =
         await supabaseRequest(
@@ -337,9 +455,11 @@ async function authenticateUser(
 
                     apikey:
                         SUPABASE_SERVICE_ROLE_KEY
+
                 }
             }
         );
+
 
     if (
         !user ||
@@ -355,6 +475,7 @@ async function authenticateUser(
             }
         );
     }
+
 
     return user;
 }
@@ -377,7 +498,10 @@ async function readBody(
         return req.body;
     }
 
-    let body = "";
+
+    let body =
+        "";
+
 
     for await (
         const chunk of req
@@ -386,12 +510,14 @@ async function readBody(
         body += chunk;
     }
 
+
     if (
         !body.trim()
     ) {
 
         return {};
     }
+
 
     try {
 
@@ -421,12 +547,17 @@ function getModelId(
     body
 ) {
 
-    return String(
+    return normalizeString(
+
         body?.model_id ||
+
         body?.modelId ||
+
         body?.model ||
+
         ""
-    ).trim();
+
+    );
 }
 
 
@@ -438,13 +569,19 @@ function getTaskId(
     body
 ) {
 
-    return String(
+    return normalizeString(
+
         body?.task_id ||
+
         body?.taskId ||
+
         body?.jobId ||
+
         body?.job_id ||
+
         ""
-    ).trim();
+
+    );
 }
 
 
@@ -457,23 +594,26 @@ function getModelAdapter(
 ) {
 
     const normalizedId =
-        String(
-            modelId || ""
-        ).trim();
+        normalizeString(
+            modelId
+        );
+
 
     if (!normalizedId) {
+
         return null;
     }
+
 
     return (
         MODEL_REGISTRY.find(
             adapter => {
 
                 const adapterId =
-                    String(
-                        adapter?.config?.id ||
-                        ""
-                    ).trim();
+                    normalizeString(
+                        adapter?.config?.id
+                    );
+
 
                 return (
                     adapterId ===
@@ -488,8 +628,6 @@ function getModelAdapter(
 
 /* =========================================================
    LOAD DATABASE MODEL
-   ---------------------------------------------------------
-   Database model hanya konfigurasi administratif.
 ========================================================= */
 
 async function loadDatabaseModel(
@@ -505,23 +643,28 @@ async function loadDatabaseModel(
         return null;
     }
 
+
     const params =
         new URLSearchParams();
+
 
     params.set(
         "select",
         "*"
     );
 
+
     params.set(
         "model_id",
         `eq.${modelId}`
     );
 
+
     params.set(
         "limit",
         "1"
     );
+
 
     try {
 
@@ -534,6 +677,7 @@ async function loadDatabaseModel(
                 }
             );
 
+
         if (
             !Array.isArray(
                 rows
@@ -544,6 +688,7 @@ async function loadDatabaseModel(
             return null;
         }
 
+
         return rows[0];
 
     } catch (error) {
@@ -552,6 +697,7 @@ async function loadDatabaseModel(
             "[generate-status] Optional model config unavailable:",
             error
         );
+
 
         return null;
     }
@@ -567,26 +713,32 @@ async function loadProviderByDatabaseId(
 ) {
 
     if (!providerDatabaseId) {
+
         return null;
     }
 
+
     const params =
         new URLSearchParams();
+
 
     params.set(
         "select",
         "*"
     );
 
+
     params.set(
         "id",
         `eq.${providerDatabaseId}`
     );
 
+
     params.set(
         "limit",
         "1"
     );
+
 
     const providers =
         await supabaseRequest(
@@ -597,6 +749,7 @@ async function loadProviderByDatabaseId(
             }
         );
 
+
     if (
         !Array.isArray(
             providers
@@ -606,6 +759,7 @@ async function loadProviderByDatabaseId(
 
         return null;
     }
+
 
     return providers[0];
 }
@@ -620,37 +774,38 @@ async function loadProviderByCode(
 ) {
 
     const normalizedCode =
-        String(
-            providerCode || ""
-        ).trim();
+        normalizeString(
+            providerCode
+        );
+
 
     if (!normalizedCode) {
+
         return null;
     }
 
-    /*
-     * Primary:
-     *
-     * providers.provider_id
-     */
 
     const params =
         new URLSearchParams();
+
 
     params.set(
         "select",
         "*"
     );
 
+
     params.set(
         "provider_id",
         `eq.${normalizedCode}`
     );
 
+
     params.set(
         "limit",
         "1"
     );
+
 
     const providers =
         await supabaseRequest(
@@ -660,6 +815,7 @@ async function loadProviderByCode(
                     "GET"
             }
         );
+
 
     if (
         Array.isArray(
@@ -671,29 +827,33 @@ async function loadProviderByCode(
         return providers[0];
     }
 
+
     /*
      * Compatibility:
-     *
      * provider_name
      */
 
     const nameParams =
         new URLSearchParams();
 
+
     nameParams.set(
         "select",
         "*"
     );
+
 
     nameParams.set(
         "provider_name",
         `eq.${normalizedCode}`
     );
 
+
     nameParams.set(
         "limit",
         "1"
     );
+
 
     const namedProviders =
         await supabaseRequest(
@@ -704,6 +864,7 @@ async function loadProviderByCode(
             }
         );
 
+
     if (
         Array.isArray(
             namedProviders
@@ -713,6 +874,7 @@ async function loadProviderByCode(
 
         return namedProviders[0];
     }
+
 
     return null;
 }
@@ -737,6 +899,7 @@ async function resolveProvider(
         databaseModel?.provider_id ||
         null;
 
+
     if (
         databaseProviderId
     ) {
@@ -746,23 +909,25 @@ async function resolveProvider(
                 databaseProviderId
             );
 
+
         if (provider) {
 
             return provider;
         }
     }
 
+
     /*
      * Prioritas 2:
      *
-     * config.providerId
+     * adapter.config.providerId
      */
 
     const registryProviderId =
-        String(
-            adapter?.config?.providerId ||
-            ""
-        ).trim();
+        normalizeString(
+            adapter?.config?.providerId
+        );
+
 
     if (
         registryProviderId
@@ -772,6 +937,7 @@ async function resolveProvider(
             registryProviderId
         );
     }
+
 
     return null;
 }
@@ -792,6 +958,7 @@ function getEncryptionKey() {
         );
     }
 
+
     /*
      * 64 hex chars = 32 bytes.
      */
@@ -808,6 +975,7 @@ function getEncryptionKey() {
         );
     }
 
+
     /*
      * Base64 32 bytes.
      */
@@ -819,6 +987,7 @@ function getEncryptionKey() {
                 PROVIDER_CREDENTIAL_ENCRYPTION_KEY,
                 "base64"
             );
+
 
         if (
             buffer.length ===
@@ -833,6 +1002,7 @@ function getEncryptionKey() {
          * Continue to SHA-256 fallback.
          */
     }
+
 
     return crypto
         .createHash(
@@ -854,13 +1024,16 @@ function decodeBuffer(
 ) {
 
     const text =
-        String(
-            value || ""
-        ).trim();
+        normalizeString(
+            value
+        );
+
 
     if (!text) {
+
         return null;
     }
+
 
     /*
      * Hex.
@@ -888,6 +1061,7 @@ function decodeBuffer(
         }
     }
 
+
     /*
      * Base64.
      */
@@ -899,6 +1073,7 @@ function decodeBuffer(
                 text,
                 "base64"
             );
+
 
         if (
             buffer.length > 0
@@ -912,6 +1087,7 @@ function decodeBuffer(
          * Continue.
          */
     }
+
 
     return null;
 }
@@ -930,6 +1106,7 @@ function decryptAesGcm(
     const key =
         getEncryptionKey();
 
+
     if (
         key.length !==
         32
@@ -940,6 +1117,7 @@ function decryptAesGcm(
         );
     }
 
+
     const decipher =
         crypto.createDecipheriv(
             "aes-256-gcm",
@@ -947,9 +1125,11 @@ function decryptAesGcm(
             iv
         );
 
+
     decipher.setAuthTag(
         authTag
     );
+
 
     const decrypted =
         Buffer.concat([
@@ -961,6 +1141,7 @@ function decryptAesGcm(
             decipher.final()
 
         ]);
+
 
     return decrypted.toString(
         "utf8"
@@ -984,23 +1165,21 @@ function decryptCredential(
         return null;
     }
 
+
     const text =
-        String(
+        normalizeString(
             value
-        ).trim();
+        );
+
 
     if (!text) {
+
         return null;
     }
 
+
     /*
-     * JSON encrypted format:
-     *
-     * {
-     *   iv,
-     *   authTag,
-     *   ciphertext
-     * }
+     * JSON encrypted format.
      */
 
     if (
@@ -1015,10 +1194,12 @@ function decryptCredential(
                     text
                 );
 
+
             const iv =
                 decodeBuffer(
                     parsed.iv
                 );
+
 
             const authTag =
                 decodeBuffer(
@@ -1027,12 +1208,14 @@ function decryptCredential(
                     parsed.tag
                 );
 
+
             const ciphertext =
                 decodeBuffer(
                     parsed.ciphertext ||
                     parsed.data ||
                     parsed.encrypted
                 );
+
 
             if (
                 iv &&
@@ -1054,6 +1237,7 @@ function decryptCredential(
         }
     }
 
+
     /*
      * Colon separated:
      *
@@ -1062,6 +1246,7 @@ function decryptCredential(
 
     const parts =
         text.split(":");
+
 
     if (
         parts.length ===
@@ -1073,15 +1258,18 @@ function decryptCredential(
                 parts[0]
             );
 
+
         const authTag =
             decodeBuffer(
                 parts[1]
             );
 
+
         const ciphertext =
             decodeBuffer(
                 parts[2]
             );
+
 
         if (
             iv &&
@@ -1105,6 +1293,7 @@ function decryptCredential(
         }
     }
 
+
     /*
      * Plaintext fallback.
      */
@@ -1115,30 +1304,16 @@ function decryptCredential(
 
 /* =========================================================
    LOAD PROVIDER API KEY
-   ---------------------------------------------------------
-   SOURCE OF TRUTH:
-       public.provider_credentials
-
-   SCHEMA:
-       provider_id
-       api_key_ciphertext
-       api_key_iv
-       api_key_tag
-
-   Digunakan hanya server-side untuk:
-       adapter.queryTask()
-
-   API key tidak pernah dikirim ke browser.
-   ========================================================= */
+========================================================= */
 
 async function loadProviderApiKey(
     providerCode
 ) {
 
     const normalizedProviderCode =
-        String(
-            providerCode || ""
-        ).trim();
+        normalizeString(
+            providerCode
+        );
 
 
     if (
@@ -1148,13 +1323,8 @@ async function loadProviderApiKey(
         throw new Error(
             "Provider ID is missing"
         );
-
     }
 
-
-    /* =====================================================
-       QUERY CREDENTIAL
-       ===================================================== */
 
     const params =
         new URLSearchParams();
@@ -1207,16 +1377,12 @@ async function loadProviderApiKey(
             error
         );
 
+
         throw new Error(
             `Failed to read provider credential for ${normalizedProviderCode}`
         );
-
     }
 
-
-    /* =====================================================
-       VALIDATE ROW
-       ===================================================== */
 
     if (
         !Array.isArray(
@@ -1228,7 +1394,6 @@ async function loadProviderApiKey(
         throw new Error(
             `No provider credential found for ${normalizedProviderCode}`
         );
-
     }
 
 
@@ -1245,75 +1410,50 @@ async function loadProviderApiKey(
         throw new Error(
             `Invalid provider credential for ${normalizedProviderCode}`
         );
-
     }
 
 
-    /* =====================================================
-       READ ENCRYPTED FIELDS
-       ===================================================== */
-
     const ciphertext =
-        String(
-            credential.api_key_ciphertext ||
-            ""
-        ).trim();
+        normalizeString(
+            credential.api_key_ciphertext
+        );
 
 
     const iv =
-        String(
-            credential.api_key_iv ||
-            ""
-        ).trim();
+        normalizeString(
+            credential.api_key_iv
+        );
 
 
     const authTag =
-        String(
-            credential.api_key_tag ||
-            ""
-        ).trim();
+        normalizeString(
+            credential.api_key_tag
+        );
 
 
-    /* =====================================================
-       VALIDATE ENCRYPTED DATA
-       ===================================================== */
-
-    if (
-        !ciphertext
-    ) {
+    if (!ciphertext) {
 
         throw new Error(
             `Provider credential ciphertext is empty for ${normalizedProviderCode}`
         );
-
     }
 
 
-    if (
-        !iv
-    ) {
+    if (!iv) {
 
         throw new Error(
             `Provider credential IV is empty for ${normalizedProviderCode}`
         );
-
     }
 
 
-    if (
-        !authTag
-    ) {
+    if (!authTag) {
 
         throw new Error(
             `Provider credential authentication tag is empty for ${normalizedProviderCode}`
         );
-
     }
 
-
-    /* =====================================================
-       DECODE
-       ===================================================== */
 
     let ivBuffer;
     let authTagBuffer;
@@ -1346,49 +1486,36 @@ async function loadProviderApiKey(
             error
         );
 
+
         throw new Error(
             `Invalid encrypted provider credential format for ${normalizedProviderCode}`
         );
-
     }
 
 
-    if (
-        !ivBuffer
-    ) {
+    if (!ivBuffer) {
 
         throw new Error(
             `Provider credential IV could not be decoded for ${normalizedProviderCode}`
         );
-
     }
 
 
-    if (
-        !authTagBuffer
-    ) {
+    if (!authTagBuffer) {
 
         throw new Error(
             `Provider credential authentication tag could not be decoded for ${normalizedProviderCode}`
         );
-
     }
 
 
-    if (
-        !ciphertextBuffer
-    ) {
+    if (!ciphertextBuffer) {
 
         throw new Error(
             `Provider credential ciphertext could not be decoded for ${normalizedProviderCode}`
         );
-
     }
 
-
-    /* =====================================================
-       DECRYPT
-       ===================================================== */
 
     let apiKey;
 
@@ -1409,36 +1536,29 @@ async function loadProviderApiKey(
             error
         );
 
+
         throw new Error(
             `Unable to decrypt provider API credential for ${normalizedProviderCode}`
         );
-
     }
 
 
-    /* =====================================================
-       VALIDATE PLAINTEXT
-       ===================================================== */
-
     const normalizedApiKey =
-        String(
-            apiKey || ""
-        ).trim();
+        normalizeString(
+            apiKey
+        );
 
 
-    if (
-        !normalizedApiKey
-    ) {
+    if (!normalizedApiKey) {
 
         throw new Error(
             `Decrypted provider API key is empty for ${normalizedProviderCode}`
         );
-
     }
 
 
     /*
-     * API key tidak pernah ditulis ke log.
+     * Jangan pernah log API key.
      */
 
     console.debug(
@@ -1457,7 +1577,551 @@ async function loadProviderApiKey(
 
 
     return normalizedApiKey;
+}
 
+
+/* =========================================================
+   RESPONSE OBJECT HELPERS
+========================================================= */
+
+/*
+ * Ambil nilai dari beberapa object yang umum digunakan
+ * oleh adapter/provider.
+ */
+
+function firstDefined(
+    ...values
+) {
+
+    for (
+        const value
+        of values
+    ) {
+
+        if (
+            value !==
+                undefined &&
+            value !==
+                null &&
+            String(
+                value
+            ).trim() !==
+                ""
+        ) {
+
+            return value;
+        }
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   FIND STATE
+========================================================= */
+
+function extractTaskState(
+    response
+) {
+
+    const candidates = [
+
+        response?.state,
+
+        response?.status,
+
+        response?.task_state,
+
+        response?.taskStatus,
+
+        response?.task?.state,
+
+        response?.task?.status,
+
+        response?.task?.task_state,
+
+        response?.task?.taskStatus,
+
+        response?.data?.state,
+
+        response?.data?.status,
+
+        response?.data?.task_state,
+
+        response?.data?.taskStatus,
+
+        response?.data?.task?.state,
+
+        response?.data?.task?.status,
+
+        response?.data?.task?.task_state,
+
+        response?.data?.task?.taskStatus,
+
+        response?.result?.state,
+
+        response?.result?.status,
+
+        response?.result?.task_state,
+
+        response?.result?.taskStatus,
+
+        response?.result?.task?.state,
+
+        response?.result?.task?.status,
+
+        response?.result?.task?.task_state,
+
+        response?.result?.task?.taskStatus,
+
+        response?.resultJson?.state,
+
+        response?.resultJson?.status,
+
+        response?.resultJson?.task_state,
+
+        response?.resultJson?.taskStatus
+
+    ];
+
+
+    for (
+        const candidate
+        of candidates
+    ) {
+
+        const state =
+            normalizeState(
+                candidate
+            );
+
+
+        if (state) {
+
+            return state;
+        }
+    }
+
+
+    return "";
+}
+
+
+/* =========================================================
+   FIND BOOLEAN FLAG
+========================================================= */
+
+function findBooleanFlag(
+    response,
+    keys
+) {
+
+    const objects = [
+
+        response,
+
+        response?.data,
+
+        response?.task,
+
+        response?.result,
+
+        response?.data?.task,
+
+        response?.data?.result,
+
+        response?.task?.result,
+
+        response?.data?.task?.result
+
+    ];
+
+
+    for (
+        const object
+        of objects
+    ) {
+
+        if (
+            !object ||
+            typeof object !==
+                "object"
+        ) {
+
+            continue;
+        }
+
+
+        for (
+            const key
+            of keys
+        ) {
+
+            if (
+                object[key] ===
+                    true
+            ) {
+
+                return true;
+            }
+
+
+            if (
+                object[key] ===
+                    false
+            ) {
+
+                return false;
+            }
+        }
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   NORMALIZE RESULT URL
+========================================================= */
+
+function normalizeResultUrlValue(
+    value
+) {
+
+    if (
+        typeof value ===
+            "string"
+    ) {
+
+        return normalizeString(
+            value
+        );
+    }
+
+
+    if (
+        value &&
+        typeof value ===
+            "object"
+    ) {
+
+        return normalizeString(
+
+            value.url ||
+
+            value.result_url ||
+
+            value.resultUrl ||
+
+            value.video_url ||
+
+            value.videoUrl ||
+
+            value.file_url ||
+
+            value.fileUrl ||
+
+            ""
+
+        );
+    }
+
+
+    return "";
+}
+
+
+/* =========================================================
+   COLLECT RESULT URLS
+========================================================= */
+
+function collectResultUrls(
+    response
+) {
+
+    const values = [
+
+        response?.resultUrls,
+
+        response?.result_urls,
+
+        response?.urls,
+
+        response?.videoUrls,
+
+        response?.video_urls,
+
+        response?.result?.resultUrls,
+
+        response?.result?.result_urls,
+
+        response?.result?.urls,
+
+        response?.result?.videoUrls,
+
+        response?.result?.video_urls,
+
+        response?.data?.resultUrls,
+
+        response?.data?.result_urls,
+
+        response?.data?.urls,
+
+        response?.data?.videoUrls,
+
+        response?.data?.video_urls,
+
+        response?.task?.resultUrls,
+
+        response?.task?.result_urls,
+
+        response?.task?.urls,
+
+        response?.task?.videoUrls,
+
+        response?.task?.video_urls,
+
+        response?.data?.task?.resultUrls,
+
+        response?.data?.task?.result_urls,
+
+        response?.data?.task?.urls,
+
+        response?.data?.task?.videoUrls,
+
+        response?.data?.task?.video_urls,
+
+        response?.task?.result?.resultUrls,
+
+        response?.task?.result?.result_urls,
+
+        response?.task?.result?.urls,
+
+        response?.task?.result?.videoUrls,
+
+        response?.task?.result?.video_urls,
+
+        response?.data?.task?.result?.resultUrls,
+
+        response?.data?.task?.result?.result_urls,
+
+        response?.data?.task?.result?.urls,
+
+        response?.data?.task?.result?.videoUrls,
+
+        response?.data?.task?.result?.video_urls,
+
+        response?.resultJson?.resultUrls,
+
+        response?.resultJson?.result_urls,
+
+        response?.resultJson?.urls,
+
+        response?.data?.resultJson?.resultUrls,
+
+        response?.data?.resultJson?.result_urls,
+
+        response?.data?.resultJson?.urls,
+
+        response?.task?.resultJson?.resultUrls,
+
+        response?.task?.resultJson?.result_urls,
+
+        response?.data?.task?.resultJson?.resultUrls,
+
+        response?.data?.task?.resultJson?.result_urls
+
+    ];
+
+
+    const resultUrls =
+        [];
+
+
+    for (
+        const value
+        of values
+    ) {
+
+        if (
+            Array.isArray(
+                value
+            )
+        ) {
+
+            for (
+                const item
+                of value
+            ) {
+
+                const url =
+                    normalizeResultUrlValue(
+                        item
+                    );
+
+
+                if (url) {
+
+                    resultUrls.push(
+                        url
+                    );
+                }
+            }
+
+        } else {
+
+            const url =
+                normalizeResultUrlValue(
+                    value
+                );
+
+
+            if (url) {
+
+                resultUrls.push(
+                    url
+                );
+            }
+        }
+    }
+
+
+    return [
+        ...new Set(
+            resultUrls
+        )
+    ];
+}
+
+
+/* =========================================================
+   FIND RESULT JSON
+========================================================= */
+
+function extractResultJson(
+    response
+) {
+
+    const rawResult =
+        firstDefined(
+
+            response?.resultJson,
+
+            response?.result_json,
+
+            response?.result,
+
+            response?.data?.resultJson,
+
+            response?.data?.result_json,
+
+            response?.data?.result,
+
+            response?.task?.resultJson,
+
+            response?.task?.result_json,
+
+            response?.task?.result,
+
+            response?.data?.task?.resultJson,
+
+            response?.data?.task?.result_json,
+
+            response?.data?.task?.result
+
+        );
+
+
+    if (
+        rawResult ===
+            null
+    ) {
+
+        return null;
+    }
+
+
+    if (
+        typeof rawResult !==
+            "string"
+    ) {
+
+        return rawResult;
+    }
+
+
+    const text =
+        rawResult.trim();
+
+
+    if (!text) {
+
+        return null;
+    }
+
+
+    try {
+
+        return JSON.parse(
+            text
+        );
+
+    } catch {
+
+        return null;
+    }
+}
+
+
+/* =========================================================
+   GET TASK ID FROM RESPONSE
+========================================================= */
+
+function extractResponseTaskId(
+    response,
+    requestedTaskId
+) {
+
+    return normalizeString(
+
+        response?.taskId ||
+
+        response?.task_id ||
+
+        response?.jobId ||
+
+        response?.job_id ||
+
+        response?.data?.taskId ||
+
+        response?.data?.task_id ||
+
+        response?.data?.jobId ||
+
+        response?.data?.job_id ||
+
+        response?.task?.taskId ||
+
+        response?.task?.task_id ||
+
+        response?.task?.jobId ||
+
+        response?.task?.job_id ||
+
+        response?.data?.task?.taskId ||
+
+        response?.data?.task?.task_id ||
+
+        response?.data?.task?.jobId ||
+
+        response?.data?.task?.job_id ||
+
+        requestedTaskId
+
+    );
 }
 
 
@@ -1470,191 +2134,239 @@ function normalizeTaskResponse(
     requestedTaskId
 ) {
 
-    const task =
-        response?.task ||
-        response?.data ||
-        response ||
-        {};
+    const raw =
+        response &&
+        typeof response ===
+            "object"
+            ? response
+            : {};
+
 
     const state =
-        String(
-            response?.state ||
-            task?.state ||
-            ""
-        )
-            .trim()
-            .toLowerCase();
+        extractTaskState(
+            raw
+        );
+
 
     const taskId =
-        String(
-            response?.taskId ||
-            task?.taskId ||
-            task?.task_id ||
-            requestedTaskId ||
-            ""
-        ).trim();
+        extractResponseTaskId(
+            raw,
+            requestedTaskId
+        );
+
 
     const resultJson =
-        response?.resultJson ??
-        task?.resultJson ??
-        null;
+        extractResultJson(
+            raw
+        );
 
-    let parsedResult =
-        resultJson;
-
-    if (
-        typeof resultJson ===
-        "string"
-    ) {
-
-        try {
-
-            parsedResult =
-                JSON.parse(
-                    resultJson
-                );
-
-        } catch {
-            parsedResult =
-                null;
-        }
-    }
-
-    const resultUrls = [];
 
     /*
-     * KIE format:
-     *
-     * resultJson:
-     * {
-     *   resultUrls: [...]
-     * }
+     * Result URL dapat berada di resultJson yang
+     * sebelumnya sudah diparse.
      */
 
-    if (
-        Array.isArray(
-            response?.resultUrls
-        )
-    ) {
+    const mergedResponse = {
 
-        resultUrls.push(
-            ...response.resultUrls
+        ...raw,
+
+        resultJson
+
+    };
+
+
+    const resultUrls =
+        collectResultUrls(
+            mergedResponse
         );
-    }
 
-    if (
-        Array.isArray(
-            task?.resultUrls
-        )
-    ) {
 
-        resultUrls.push(
-            ...task.resultUrls
+    /*
+     * =====================================================
+     * EXPLICIT FLAGS
+     * =====================================================
+     */
+
+    const completedFlag =
+        findBooleanFlag(
+            raw,
+            [
+                "completed",
+                "complete",
+                "finished"
+            ]
         );
-    }
 
-    if (
-        Array.isArray(
-            parsedResult?.resultUrls
-        )
-    ) {
 
-        resultUrls.push(
-            ...parsedResult.resultUrls
+    const failedFlag =
+        findBooleanFlag(
+            raw,
+            [
+                "failed",
+                "failure"
+            ]
         );
-    }
 
-    if (
-        Array.isArray(
-            parsedResult?.result_urls
-        )
-    ) {
 
-        resultUrls.push(
-            ...parsedResult.result_urls
+    const processingFlag =
+        findBooleanFlag(
+            raw,
+            [
+                "processing",
+                "running",
+                "generating"
+            ]
         );
-    }
 
-    const uniqueResultUrls =
-        [
-            ...new Set(
-                resultUrls
-                    .filter(
-                        url =>
-                            typeof url ===
-                                "string"
-                    )
-                    .map(
-                        url =>
-                            url.trim()
-                    )
-                    .filter(Boolean)
-            )
-        ];
 
-    const normalizedState =
+    /*
+     * =====================================================
+     * STATE CLASSIFICATION
+     * =====================================================
+     */
+
+    const stateIsCompleted =
+        COMPLETED_STATES.has(
+            state
+        );
+
+
+    const stateIsFailed =
+        FAILED_STATES.has(
+            state
+        );
+
+
+    const stateIsProcessing =
+        PROCESSING_STATES.has(
+            state
+        );
+
+
+    /*
+     * =====================================================
+     * IMPORTANT
+     * =====================================================
+     *
+     * Prioritas:
+     *
+     * FAILED
+     *   ↓
+     * PROCESSING
+     *   ↓
+     * COMPLETED
+     *
+     * Jika provider secara eksplisit mengatakan
+     * processing, result URL tidak boleh memaksa
+     * completed.
+     *
+     * Tetapi jika provider memberikan:
+     *
+     * - state success/completed/done
+     * - completed=true
+     *
+     * maka task dianggap completed walaupun format
+     * result URL berbeda.
+     */
+
+
+    const failed =
+        failedFlag === true ||
+        stateIsFailed;
+
+
+    const explicitlyProcessing =
+        processingFlag === true ||
+        stateIsProcessing;
+
+
+    const completed =
+        !failed &&
+        !explicitlyProcessing &&
+        (
+            completedFlag === true ||
+            stateIsCompleted
+        );
+
+
+    const processing =
+        !failed &&
+        !completed;
+
+
+    let normalizedState =
         state;
 
-    const isSuccess =
-        normalizedState ===
-            "success" ||
-        normalizedState ===
-            "succeeded" ||
-        normalizedState ===
-            "completed" ||
-        uniqueResultUrls.length >
-            0;
 
-    const isFailed =
-        normalizedState ===
-            "fail" ||
-        normalizedState ===
-            "failed" ||
-        normalizedState ===
-            "error" ||
-        normalizedState ===
-            "cancelled" ||
-        normalizedState ===
-            "canceled";
+    if (failed) {
 
-    const isProcessing =
-        !isSuccess &&
-        !isFailed;
+        normalizedState =
+            "failed";
+
+    } else if (completed) {
+
+        normalizedState =
+            "completed";
+
+    } else {
+
+        normalizedState =
+            "processing";
+    }
+
+
+    /*
+     * =====================================================
+     * RESULT DATA
+     * =====================================================
+     *
+     * URL tidak menentukan status.
+     *
+     * URL hanya data hasil.
+     */
 
     return {
 
         taskId,
 
+        task_id:
+            taskId,
+
         state:
-            normalizedState ||
-            "unknown",
+            normalizedState,
 
         success:
-            isSuccess,
+            completed,
 
-        failed:
-            isFailed,
+        completed,
 
-        processing:
-            isProcessing,
+        failed,
 
-        resultJson:
-            parsedResult,
+        processing,
 
-        resultUrls:
-            uniqueResultUrls,
+        hasResult:
+            resultUrls.length >
+            0,
 
-        raw:
-            response
+        has_result:
+            resultUrls.length >
+            0,
+
+        resultJson,
+
+        resultUrls,
+
+        result_urls:
+            resultUrls,
+
+        raw
+
     };
 }
 
 
 /* =========================================================
    EXTRACT HISTORY ERROR MESSAGE
-   ---------------------------------------------------------
-   Digunakan hanya untuk status failed.
-   Tidak menyimpan API key atau credential.
 ========================================================= */
 
 function getHistoryErrorMessage(
@@ -1662,10 +2374,14 @@ function getHistoryErrorMessage(
 ) {
 
     const raw =
-        result?.raw;
+        result?.raw ||
+        {};
+
 
     const resultJson =
-        result?.resultJson;
+        result?.resultJson ||
+        null;
+
 
     const candidates = [
 
@@ -1685,6 +2401,22 @@ function getHistoryErrorMessage(
 
         raw?.data?.error,
 
+        raw?.task?.error_message,
+
+        raw?.task?.errorMessage,
+
+        raw?.task?.message,
+
+        raw?.task?.error,
+
+        raw?.data?.task?.error_message,
+
+        raw?.data?.task?.errorMessage,
+
+        raw?.data?.task?.message,
+
+        raw?.data?.task?.error,
+
         resultJson?.error_message,
 
         resultJson?.errorMessage,
@@ -1695,8 +2427,10 @@ function getHistoryErrorMessage(
 
     ];
 
+
     for (
-        const candidate of candidates
+        const candidate
+        of candidates
     ) {
 
         if (
@@ -1707,11 +2441,13 @@ function getHistoryErrorMessage(
             const message =
                 candidate.trim();
 
+
             if (message) {
 
                 return message;
             }
         }
+
 
         if (
             candidate &&
@@ -1726,6 +2462,7 @@ function getHistoryErrorMessage(
                         candidate
                     );
 
+
                 if (
                     serialized &&
                     serialized !==
@@ -1737,12 +2474,12 @@ function getHistoryErrorMessage(
 
             } catch {
                 /*
-                 * Ignore unserializable
-                 * provider error object.
+                 * Ignore.
                  */
             }
         }
     }
+
 
     return (
         result?.state &&
@@ -1770,12 +2507,6 @@ function getHistoryErrorMessage(
        processing -> completed
        processing -> failed
  *
-   SECURITY:
-       Update dibatasi dengan user_id milik session aktif.
- *
-   RESULT:
-       result_url menyimpan URL hasil pertama.
- *
    ========================================================= */
 
 async function updateGenerationHistory({
@@ -1785,14 +2516,16 @@ async function updateGenerationHistory({
 }) {
 
     const normalizedUserId =
-        String(
-            userId || ""
-        ).trim();
+        normalizeString(
+            userId
+        );
+
 
     const normalizedTaskId =
-        String(
-            taskId || ""
-        ).trim();
+        normalizeString(
+            taskId
+        );
+
 
     if (
         !normalizedUserId ||
@@ -1804,11 +2537,13 @@ async function updateGenerationHistory({
         );
     }
 
+
     /*
-     * Jangan melakukan UPDATE apabila task masih berjalan.
+     * =====================================================
+     * PROCESSING
+     * =====================================================
      *
-     * Ini juga mengurangi query Supabase pada setiap
-     * siklus polling.
+     * Jangan PATCH selama task masih berjalan.
      */
 
     if (
@@ -1816,19 +2551,40 @@ async function updateGenerationHistory({
     ) {
 
         return {
-            updated: false,
-            status: "processing",
-            reason: "task_still_processing"
+
+            updated:
+                false,
+
+            matched:
+                false,
+
+            status:
+                "processing",
+
+            reason:
+                "task_still_processing"
+
         };
     }
 
+
+    /*
+     * =====================================================
+     * MATCH ROW
+     * =====================================================
+     *
+     * HANYA row milik user yang sedang login.
+     */
+
     const params =
         new URLSearchParams();
+
 
     params.set(
         "user_id",
         `eq.${normalizedUserId}`
     );
+
 
     params.set(
         "task_id",
@@ -1836,14 +2592,19 @@ async function updateGenerationHistory({
     );
 
 
+    params.set(
+        "limit",
+        "1"
+    );
+
+
     /*
      * =====================================================
      * COMPLETED
-     * =====================================================
-     */
+     * ===================================================== */
 
     if (
-        result?.success
+        result?.completed
     ) {
 
         const resultUrl =
@@ -1851,10 +2612,19 @@ async function updateGenerationHistory({
                 result.resultUrls
             ) &&
             result.resultUrls.length
-                ? String(
+                ? normalizeString(
                     result.resultUrls[0]
-                ).trim()
+                )
                 : null;
+
+
+        /*
+         * Jangan menulis completed tanpa hasil URL
+         * apabila adapter sudah menyatakan completed.
+         *
+         * Tetap izinkan completed karena beberapa provider
+         * dapat memberikan hasil melalui struktur lain.
+         */
 
         const payload = {
 
@@ -1872,6 +2642,7 @@ async function updateGenerationHistory({
 
         };
 
+
         const rows =
             await supabaseRequest(
                 `/rest/v1/generation_history?${params.toString()}`,
@@ -1883,6 +2654,7 @@ async function updateGenerationHistory({
 
                         Prefer:
                             "return=representation"
+
                     },
 
                     body:
@@ -1892,15 +2664,22 @@ async function updateGenerationHistory({
                 }
             );
 
+
+        const updated =
+            Array.isArray(
+                rows
+            )
+                ? rows.length >
+                    0
+                : false;
+
+
         return {
 
-            updated:
-                Array.isArray(
-                    rows
-                )
-                    ? rows.length >
-                        0
-                    : true,
+            updated,
+
+            matched:
+                updated,
 
             status:
                 "completed",
@@ -1915,8 +2694,7 @@ async function updateGenerationHistory({
     /*
      * =====================================================
      * FAILED
-     * =====================================================
-     */
+     * ===================================================== */
 
     if (
         result?.failed
@@ -1926,6 +2704,7 @@ async function updateGenerationHistory({
             getHistoryErrorMessage(
                 result
             );
+
 
         const payload = {
 
@@ -1943,6 +2722,7 @@ async function updateGenerationHistory({
 
         };
 
+
         const rows =
             await supabaseRequest(
                 `/rest/v1/generation_history?${params.toString()}`,
@@ -1954,6 +2734,7 @@ async function updateGenerationHistory({
 
                         Prefer:
                             "return=representation"
+
                     },
 
                     body:
@@ -1963,15 +2744,22 @@ async function updateGenerationHistory({
                 }
             );
 
+
+        const updated =
+            Array.isArray(
+                rows
+            )
+                ? rows.length >
+                    0
+                : false;
+
+
         return {
 
-            updated:
-                Array.isArray(
-                    rows
-                )
-                    ? rows.length >
-                        0
-                    : true,
+            updated,
+
+            matched:
+                updated,
 
             status:
                 "failed",
@@ -1985,15 +2773,16 @@ async function updateGenerationHistory({
 
     /*
      * =====================================================
-     * UNKNOWN STATE
+     * UNKNOWN
      * =====================================================
-     *
-     * Tidak mengubah History.
      */
 
     return {
 
         updated:
+            false,
+
+        matched:
             false,
 
         status:
@@ -2002,6 +2791,63 @@ async function updateGenerationHistory({
 
         reason:
             "no_terminal_state"
+
+    };
+}
+
+
+/* =========================================================
+   HISTORY DIAGNOSTIC
+   ---------------------------------------------------------
+   Tidak mengandung credential.
+========================================================= */
+
+function createHistoryDiagnostic(
+    result,
+    historyResult
+) {
+
+    return {
+
+        task_state:
+            result?.state ||
+            "unknown",
+
+        provider_completed:
+            Boolean(
+                result?.completed
+            ),
+
+        provider_failed:
+            Boolean(
+                result?.failed
+            ),
+
+        provider_processing:
+            Boolean(
+                result?.processing
+            ),
+
+        has_result:
+            Boolean(
+                result?.hasResult
+            ),
+
+        result_count:
+            Array.isArray(
+                result?.resultUrls
+            )
+                ? result.resultUrls.length
+                : 0,
+
+        history_updated:
+            Boolean(
+                historyResult?.updated
+            ),
+
+        history_status:
+            historyResult?.status ||
+            "unknown"
 
     };
 }
@@ -2031,6 +2877,7 @@ export default async function handler(
             "Allow",
             "POST"
         );
+
 
         return failure(
             res,
@@ -2067,6 +2914,7 @@ export default async function handler(
 
     let user;
 
+
     try {
 
         user =
@@ -2093,6 +2941,7 @@ export default async function handler(
      */
 
     let body;
+
 
     try {
 
@@ -2124,6 +2973,7 @@ export default async function handler(
             body
         );
 
+
     if (!modelId) {
 
         return failure(
@@ -2145,6 +2995,7 @@ export default async function handler(
             body
         );
 
+
     if (!taskId) {
 
         return failure(
@@ -2157,7 +3008,7 @@ export default async function handler(
 
     /*
      * =====================================================
-     * MODEL
+     * MODEL ADAPTER
      * =====================================================
      */
 
@@ -2165,6 +3016,7 @@ export default async function handler(
         getModelAdapter(
             modelId
         );
+
 
     if (!adapter) {
 
@@ -2189,10 +3041,10 @@ export default async function handler(
 
 
     const adapterModelId =
-        String(
-            modelConfig.id ||
-            ""
-        ).trim();
+        normalizeString(
+            modelConfig.id
+        );
+
 
     if (
         !adapterModelId ||
@@ -2224,6 +3076,7 @@ export default async function handler(
     let databaseModel =
         null;
 
+
     try {
 
         databaseModel =
@@ -2251,12 +3104,10 @@ export default async function handler(
     ) {
 
         const status =
-            String(
-                databaseModel.status ||
-                ""
-            )
-                .trim()
-                .toLowerCase();
+            normalizeString(
+                databaseModel.status
+            ).toLowerCase();
+
 
         if (
             status &&
@@ -2288,6 +3139,7 @@ export default async function handler(
 
     let provider;
 
+
     try {
 
         provider =
@@ -2302,6 +3154,7 @@ export default async function handler(
             "[generate-status] Provider lookup failed:",
             error
         );
+
 
         return failure(
             res,
@@ -2328,11 +3181,16 @@ export default async function handler(
      */
 
     const providerCode =
-        String(
+        normalizeString(
+
             provider.provider_id ||
+
             modelConfig.providerId ||
+
             ""
-        ).trim();
+
+        );
+
 
     if (!providerCode) {
 
@@ -2352,6 +3210,7 @@ export default async function handler(
 
     let providerApiKey;
 
+
     try {
 
         providerApiKey =
@@ -2365,6 +3224,7 @@ export default async function handler(
             "[generate-status] Provider credential error:",
             error.message
         );
+
 
         return failure(
             res,
@@ -2382,11 +3242,10 @@ export default async function handler(
      * =====================================================
      * QUERY TASK
      * =====================================================
-     *
-     * API key hanya digunakan server-side.
      */
 
     let taskResponse;
+
 
     try {
 
@@ -2402,6 +3261,7 @@ export default async function handler(
             );
         }
 
+
         taskResponse =
             await adapter.queryTask(
                 taskId,
@@ -2415,13 +3275,16 @@ export default async function handler(
             error
         );
 
+
         const providerStatus =
             Number(
                 error?.status
             );
 
+
         let statusCode =
             502;
+
 
         if (
             providerStatus >= 400 &&
@@ -2431,6 +3294,7 @@ export default async function handler(
             statusCode =
                 providerStatus;
         }
+
 
         return failure(
             res,
@@ -2448,7 +3312,7 @@ export default async function handler(
 
     /*
      * =====================================================
-     * NORMALIZE
+     * NORMALIZE PROVIDER RESPONSE
      * =====================================================
      */
 
@@ -2464,50 +3328,41 @@ export default async function handler(
      * GENERATION HISTORY
      * =====================================================
      *
-     * History dibuat oleh:
+     * HANYA UPDATE.
      *
-     *     /api/generate
-     *
-     * Endpoint ini hanya UPDATE row yang sudah ada.
+     * Tidak pernah INSERT.
      *
      * MATCH:
      *
-     *     user_id + task_id
+     * user_id + task_id
      *
-     * sehingga user lain tidak dapat mengubah History
-     * milik user ini walaupun mengetahui task_id.
-     *
-     * History failure tidak boleh membuat endpoint status
-     * gagal karena provider status/result sudah berhasil
-     * diperoleh.
+     * Dengan demikian task user lain tidak dapat
+     * mengubah History user ini.
      */
 
     let historyUpdated =
         false;
 
+
     let historyStatus =
         result.processing
             ? "processing"
-            : result.success
+            : result.completed
                 ? "completed"
                 : result.failed
                     ? "failed"
                     : "unknown";
 
+
+    let historyResult =
+        null;
+
+
     try {
 
-        /*
-         * PENTING:
-         *
-         * Gunakan taskId dari request sebagai identitas
-         * row generation_history yang dibuat oleh
-         * /api/generate.
-         *
-         * Jangan menggantinya dengan result.taskId.
-         */
-
-        const historyResult =
+        historyResult =
             await updateGenerationHistory({
+
                 userId:
                     user.id,
 
@@ -2515,35 +3370,45 @@ export default async function handler(
                     taskId,
 
                 result
+
             });
+
 
         historyUpdated =
             Boolean(
                 historyResult?.updated
             );
 
+
         historyStatus =
             historyResult?.status ||
             historyStatus;
 
+
         /*
-         * Jika tidak ditemukan row History,
-         * jangan membuat row baru.
-         *
-         * Ini mencegah duplicate History.
+         * =================================================
+         * LOG TERMINAL UPDATE
+         * =================================================
          */
 
         if (
-            result.success ||
+            result.completed ||
             result.failed
         ) {
 
+            const diagnostic =
+                createHistoryDiagnostic(
+                    result,
+                    historyResult
+                );
+
+
             if (
-                historyResult?.updated
+                historyUpdated
             ) {
 
                 console.info(
-                    "[generate-status] Generation history updated:",
+                    "[generate-status] generation_history synchronized:",
                     {
                         user_id:
                             user.id,
@@ -2552,14 +3417,16 @@ export default async function handler(
                             taskId,
 
                         status:
-                            historyStatus
+                            historyStatus,
+
+                        diagnostic
                     }
                 );
 
             } else {
 
                 console.warn(
-                    "[generate-status] Generation history row not found:",
+                    "[generate-status] Terminal task detected but generation_history row was not updated:",
                     {
                         user_id:
                             user.id,
@@ -2568,7 +3435,9 @@ export default async function handler(
                             taskId,
 
                         status:
-                            historyStatus
+                            historyStatus,
+
+                        diagnostic
                     }
                 );
             }
@@ -2577,34 +3446,26 @@ export default async function handler(
     } catch (historyError) {
 
         /*
-         * History error TIDAK boleh merusak hasil generation.
+         * Jangan membuat status provider gagal hanya
+         * karena database History gagal di-update.
          *
-         * Provider task sudah berhasil diketahui.
-         * Browser tetap harus menerima status/result.
+         * Browser tetap harus mendapatkan status task.
          */
 
         console.error(
-            "[generate-status] WARNING: generation_history update failed:",
+            "[generate-status] generation_history synchronization failed:",
             historyError
         );
-
     }
 
 
     /*
      * =====================================================
-     * SECURITY
+     * RESPONSE
      * =====================================================
      *
-     * Jangan pernah mengembalikan:
-     *
-     * - providerApiKey
-     * - credential
-     * - encrypted credential
-     * - provider_credentials row
-     *
+     * API key / credential TIDAK PERNAH dikirim.
      */
-
 
     return success(
         res,
@@ -2628,10 +3489,12 @@ export default async function handler(
                 providerCode,
 
             task_id:
-                result.taskId,
+                result.taskId ||
+                taskId,
 
             taskId:
-                result.taskId,
+                result.taskId ||
+                taskId,
 
             state:
                 result.state,
@@ -2640,10 +3503,16 @@ export default async function handler(
                 result.processing,
 
             completed:
-                result.success,
+                result.completed,
 
             failed:
                 result.failed,
+
+            has_result:
+                result.hasResult,
+
+            hasResult:
+                result.hasResult,
 
             result_urls:
                 result.resultUrls,
@@ -2659,6 +3528,7 @@ export default async function handler(
 
             history_status:
                 historyStatus
+
         }
     );
 }
