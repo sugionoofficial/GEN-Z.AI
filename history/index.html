@@ -673,7 +673,7 @@ table {
 
     border-collapse: collapse;
 
-    min-width: 850px;
+    min-width: 960px;
 
 }
 
@@ -744,6 +744,514 @@ tbody tr:last-child td {
 
 }
 
+
+/* =========================================================
+   THUMBNAIL COLUMN
+========================================================= */
+
+.thumbnail-header {
+
+    width: 120px;
+
+}
+
+
+.thumbnail-cell {
+
+    width: 120px;
+
+    min-width: 120px;
+
+}
+
+
+/* =========================================================
+   VIDEO THUMBNAIL
+========================================================= */
+
+.history-thumbnail {
+
+    position: relative;
+
+    width: 80px;
+
+    height: 80px;
+
+    min-width: 80px;
+
+    border-radius: 13px;
+
+    overflow: hidden;
+
+    background:
+        #111827;
+
+    border:
+        1px solid rgba(17,24,39,.10);
+
+    box-shadow:
+        0 6px 18px rgba(15,23,42,.10);
+
+    isolation: isolate;
+
+}
+
+
+.history-thumbnail.video-ready {
+
+    cursor: pointer;
+
+}
+
+
+.history-thumbnail.video-ready:hover {
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 9px 22px rgba(15,23,42,.16);
+
+}
+
+
+.history-thumbnail video {
+
+    display: block;
+
+    width: 100%;
+
+    height: 100%;
+
+    object-fit: cover;
+
+    background:
+        #111827;
+
+}
+
+
+.thumbnail-play {
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 50%;
+
+    width: 28px;
+
+    height: 28px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        rgba(17,24,39,.70);
+
+    color: white;
+
+    font-size: 12px;
+
+    padding-left: 2px;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.25);
+
+    pointer-events: none;
+
+}
+
+
+.history-thumbnail.video-ready
+.thumbnail-play {
+
+    opacity: .82;
+
+}
+
+
+.history-thumbnail.video-ready:hover
+.thumbnail-play {
+
+    opacity: 1;
+
+    transform:
+        translate(-50%, -50%)
+        scale(1.05);
+
+}
+
+
+/* =========================================================
+   THUMBNAIL PROCESSING
+========================================================= */
+
+.thumbnail-processing {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            #111827,
+            #1f2937,
+            #111827
+        );
+
+    overflow: hidden;
+
+}
+
+
+.thumbnail-processing::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: -50%;
+
+    background:
+        conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            rgba(255,255,255,.03) 50deg,
+            rgba(255,255,255,.18) 100deg,
+            transparent 150deg,
+            transparent 360deg
+        );
+
+    animation:
+        thumbnailSpin 2.2s linear infinite;
+
+}
+
+
+.thumbnail-processing::after {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        linear-gradient(
+            110deg,
+            transparent 20%,
+            rgba(255,255,255,.10) 48%,
+            transparent 72%
+        );
+
+    transform:
+        translateX(-120%);
+
+    animation:
+        thumbnailShimmer 1.8s ease-in-out infinite;
+
+}
+
+
+.thumbnail-loader {
+
+    position: relative;
+
+    z-index: 3;
+
+    width: 30px;
+
+    height: 30px;
+
+    border:
+        3px solid rgba(255,255,255,.20);
+
+    border-top-color:
+        #ffffff;
+
+    border-radius: 50%;
+
+    animation:
+        thumbnailLoaderSpin .8s linear infinite;
+
+}
+
+
+.thumbnail-processing-label {
+
+    position: absolute;
+
+    left: 0;
+
+    right: 0;
+
+    bottom: 0;
+
+    z-index: 4;
+
+    padding:
+        7px 4px 6px;
+
+    text-align: center;
+
+    background:
+        linear-gradient(
+            transparent,
+            rgba(0,0,0,.72)
+        );
+
+    color: white;
+
+    font-size: 7px;
+
+    font-weight: 800;
+
+    letter-spacing: .6px;
+
+}
+
+
+@keyframes thumbnailSpin {
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+@keyframes thumbnailShimmer {
+
+    0% {
+
+        transform:
+            translateX(-120%);
+
+    }
+
+    55%,
+    100% {
+
+        transform:
+            translateX(120%);
+
+    }
+
+}
+
+
+@keyframes thumbnailLoaderSpin {
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+/* =========================================================
+   THUMBNAIL SUCCESS
+========================================================= */
+
+.thumbnail-success {
+
+    position: absolute;
+
+    right: 4px;
+
+    bottom: 4px;
+
+    z-index: 5;
+
+    padding:
+        3px 5px;
+
+    border-radius: 5px;
+
+    background:
+        rgba(22,163,74,.94);
+
+    color: white;
+
+    font-size: 6px;
+
+    line-height: 1;
+
+    font-weight: 800;
+
+    letter-spacing: .35px;
+
+    box-shadow:
+        0 2px 6px rgba(0,0,0,.20);
+
+}
+
+
+/* =========================================================
+   THUMBNAIL FAILED
+========================================================= */
+
+.thumbnail-failed {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            #450a0a 0%,
+            #7f1d1d 48%,
+            #450a0a 100%
+        );
+
+}
+
+
+.thumbnail-failed::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            transparent 0,
+            transparent 9px,
+            rgba(255,255,255,.035) 9px,
+            rgba(255,255,255,.035) 18px
+        );
+
+}
+
+
+.thumbnail-failed::after {
+
+    content: "GAGAL";
+
+    position: absolute;
+
+    left: -15px;
+
+    right: -15px;
+
+    top: 29px;
+
+    padding:
+        5px 0;
+
+    text-align: center;
+
+    background:
+        rgba(220,38,38,.92);
+
+    color: white;
+
+    font-size: 10px;
+
+    font-weight: 900;
+
+    letter-spacing: 1.4px;
+
+    transform:
+        rotate(-14deg);
+
+    box-shadow:
+        0 3px 10px rgba(0,0,0,.25);
+
+    z-index: 4;
+
+}
+
+
+.thumbnail-failed-icon {
+
+    position: relative;
+
+    z-index: 3;
+
+    width: 29px;
+
+    height: 29px;
+
+    border:
+        2px solid rgba(255,255,255,.72);
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: white;
+
+    font-size: 15px;
+
+    font-weight: 800;
+
+}
+
+
+/* =========================================================
+   THUMBNAIL EMPTY / NO OUTPUT
+========================================================= */
+
+.thumbnail-empty {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: #9ca3af;
+
+    background:
+        #f3f4f6;
+
+    font-size: 18px;
+
+}
+
+
+.thumbnail-empty span {
+
+    opacity: .55;
+
+}
+
+
+/* =========================================================
+   PROMPT
+========================================================= */
 
 .prompt-cell {
 
@@ -873,10 +1381,11 @@ tbody tr:last-child td {
 
 
 /* =========================================================
-   COMPLETED
+   SUCCESS / COMPLETED
 ========================================================= */
 
-.status.completed {
+.status.completed,
+.status.success {
 
     color: #166534;
 
@@ -889,7 +1398,8 @@ tbody tr:last-child td {
 }
 
 
-.status.completed .status-dot {
+.status.completed .status-dot,
+.status.success .status-dot {
 
     background: #22c55e;
 
@@ -1019,10 +1529,6 @@ tbody tr:last-child td {
 }
 
 
-/* =========================================================
-   PROCESSING SHIMMER
-========================================================= */
-
 .status.processing::after {
 
     content: "";
@@ -1063,10 +1569,6 @@ tbody tr:last-child td {
 }
 
 
-/* =========================================================
-   PROCESSING INNER CONTENT
-========================================================= */
-
 .status.processing .processing-label {
 
     position: relative;
@@ -1090,10 +1592,6 @@ tbody tr:last-child td {
 
 }
 
-
-/* =========================================================
-   PREMIUM ORB
-========================================================= */
 
 .status.processing .status-dot {
 
@@ -1137,10 +1635,6 @@ tbody tr:last-child td {
 }
 
 
-/* =========================================================
-   PROCESSING ROTATING RING
-========================================================= */
-
 .status.processing .status-dot::before {
 
     content: "";
@@ -1175,10 +1669,6 @@ tbody tr:last-child td {
 }
 
 
-/* =========================================================
-   PROCESSING OUTER GLOW
-========================================================= */
-
 .status.processing .status-dot::after {
 
     content: "";
@@ -1203,10 +1693,6 @@ tbody tr:last-child td {
 
 }
 
-
-/* =========================================================
-   PREMIUM MOVING DOTS
-========================================================= */
 
 .processing-indicator {
 
@@ -1272,10 +1758,6 @@ tbody tr:last-child td {
 }
 
 
-/* =========================================================
-   PROCESSING BORDER PULSE
-========================================================= */
-
 @keyframes processingBorder {
 
     0%,
@@ -1314,10 +1796,6 @@ tbody tr:last-child td {
 
 }
 
-
-/* =========================================================
-   PROCESSING ORB
-========================================================= */
 
 @keyframes processingOrb {
 
@@ -1361,10 +1839,6 @@ tbody tr:last-child td {
 }
 
 
-/* =========================================================
-   PROCESSING RING
-========================================================= */
-
 @keyframes processingRing {
 
     from {
@@ -1383,10 +1857,6 @@ tbody tr:last-child td {
 
 }
 
-
-/* =========================================================
-   PROCESSING GLOW
-========================================================= */
 
 @keyframes processingGlow {
 
@@ -1411,10 +1881,6 @@ tbody tr:last-child td {
 
 }
 
-
-/* =========================================================
-   PROCESSING DOTS
-========================================================= */
 
 @keyframes processingDot {
 
@@ -1443,10 +1909,6 @@ tbody tr:last-child td {
 }
 
 
-/* =========================================================
-   PROCESSING TEXT
-========================================================= */
-
 @keyframes processingText {
 
     0%,
@@ -1464,10 +1926,6 @@ tbody tr:last-child td {
 
 }
 
-
-/* =========================================================
-   PROCESSING SHIMMER
-========================================================= */
 
 @keyframes processingShimmer {
 
@@ -1491,27 +1949,6 @@ tbody tr:last-child td {
         left: 135%;
 
         opacity: 0;
-
-    }
-
-}
-
-
-/* =========================================================
-   REDUCED MOTION
-========================================================= */
-
-@media (prefers-reduced-motion: reduce) {
-
-    .status.processing,
-    .status.processing::after,
-    .status.processing .status-dot,
-    .status.processing .status-dot::before,
-    .status.processing .status-dot::after,
-    .status.processing .processing-label,
-    .processing-indicator span {
-
-        animation: none !important;
 
     }
 
@@ -1909,6 +2346,42 @@ tbody tr:last-child td {
 
 
 /* =========================================================
+   DETAIL VIDEO PREVIEW
+========================================================= */
+
+.detail-video-preview {
+
+    width: 100%;
+
+    max-height: 360px;
+
+    margin-bottom: 16px;
+
+    border-radius: 16px;
+
+    overflow: hidden;
+
+    background: #111827;
+
+}
+
+
+.detail-video-preview video {
+
+    display: block;
+
+    width: 100%;
+
+    max-height: 360px;
+
+    object-fit: contain;
+
+    background: #111827;
+
+}
+
+
+/* =========================================================
    FOOTER
 ========================================================= */
 
@@ -2021,6 +2494,30 @@ tbody tr:last-child td {
 
 }
 
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .status.processing,
+    .status.processing::after,
+    .status.processing .status-dot,
+    .status.processing .status-dot::before,
+    .status.processing .status-dot::after,
+    .status.processing .processing-label,
+    .processing-indicator span,
+    .thumbnail-processing::before,
+    .thumbnail-processing::after,
+    .thumbnail-loader {
+
+        animation: none !important;
+
+    }
+
+}
+
 </style>
 
 </head>
@@ -2043,9 +2540,7 @@ tbody tr:last-child td {
 >
 
     <span></span>
-
     <span></span>
-
     <span></span>
 
 </button>
@@ -2076,9 +2571,7 @@ tbody tr:last-child td {
     <nav
         class="nav"
         id="navigation"
-    >
-        <!-- Navigation dibuat berdasarkan role -->
-    </nav>
+    ></nav>
 
 
     <div class="sidebar-bottom">
@@ -2205,7 +2698,7 @@ tbody tr:last-child td {
 
             <button
                 class="filter-button"
-                data-filter="completed"
+                data-filter="success"
                 type="button"
             >
                 SELESAI
@@ -2282,6 +2775,11 @@ tbody tr:last-child td {
                 <thead>
 
                     <tr>
+
+                        <th class="thumbnail-header">
+                            Preview
+                        </th>
+
 
                         <th>
                             Tanggal
@@ -2696,10 +3194,6 @@ function buildNavigation() {
 
         `;
 
-    } else {
-
-        html = "";
-
     }
 
 
@@ -2800,9 +3294,42 @@ function formatDate(value) {
 
 function normalizeStatus(status) {
 
-    return String(
-        status || "pending"
-    ).toLowerCase();
+    const value =
+        String(
+            status || "pending"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    /*
+     * Database generation_history menggunakan:
+     *
+     * queued
+     * processing
+     * success
+     * failed
+     * cancelled
+     *
+     * Legacy frontend mungkin masih mengenal:
+     * completed
+     */
+
+    if (value === "completed") {
+
+        return "success";
+
+    }
+
+
+    if (value === "queued") {
+
+        return "pending";
+
+    }
+
+
+    return value;
 
 }
 
@@ -2815,7 +3342,7 @@ function statusLabel(status) {
 
     const labels = {
 
-        completed: "SELESAI",
+        success: "SUCCESS",
 
         processing: "PROSES",
 
@@ -2842,7 +3369,7 @@ function statusClass(status) {
 
     const allowed = [
 
-        "completed",
+        "success",
 
         "processing",
 
@@ -2966,6 +3493,63 @@ function escapeHtml(value) {
             "'",
             "&#039;"
         );
+
+}
+
+
+/* =========================================================
+   URL SAFETY
+========================================================= */
+
+function getSafeMediaUrl(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    const raw =
+        String(value).trim();
+
+
+    if (!raw) {
+
+        return "";
+
+    }
+
+
+    try {
+
+        const url =
+            new URL(
+                raw,
+                window.location.href
+            );
+
+
+        if (
+            url.protocol !== "https:" &&
+            url.protocol !== "http:"
+        ) {
+
+            return "";
+
+        }
+
+
+        return url.href;
+
+    } catch {
+
+        return "";
+
+    }
 
 }
 
@@ -3268,7 +3852,400 @@ function getPrompt(item) {
 
 
 /* =========================================================
-   PROCESSING STATUS HTML
+   THUMBNAIL HELPERS
+========================================================= */
+
+function getResultUrl(item) {
+
+    return getSafeMediaUrl(
+        item?.result_url
+    );
+
+}
+
+
+/* =========================================================
+   PROCESSING THUMBNAIL
+========================================================= */
+
+function getProcessingThumbnailHtml() {
+
+    return `
+
+        <div
+            class="history-thumbnail thumbnail-processing"
+            aria-label="Video sedang diproses"
+        >
+
+            <div
+                class="thumbnail-loader"
+                aria-hidden="true"
+            ></div>
+
+            <div
+                class="thumbnail-processing-label"
+            >
+                GENERATING
+            </div>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   SUCCESS THUMBNAIL
+========================================================= */
+
+function getSuccessThumbnailHtml(item) {
+
+    const resultUrl =
+        getResultUrl(item);
+
+
+    if (!resultUrl) {
+
+        return `
+
+            <div
+                class="history-thumbnail thumbnail-empty"
+                aria-label="Hasil video belum tersedia"
+                title="Hasil video belum tersedia"
+            >
+
+                <span>
+                    🎬
+                </span>
+
+            </div>
+
+        `;
+
+    }
+
+
+    const safeUrl =
+        escapeHtml(
+            resultUrl
+        );
+
+
+    return `
+
+        <div
+            class="history-thumbnail video-ready"
+            data-video-url="${safeUrl}"
+            role="button"
+            tabindex="0"
+            aria-label="Buka hasil video"
+            title="Klik untuk membuka video"
+        >
+
+            <video
+                src="${safeUrl}"
+                muted
+                playsinline
+                preload="metadata"
+                aria-hidden="true"
+            ></video>
+
+            <span
+                class="thumbnail-play"
+                aria-hidden="true"
+            >
+                ▶
+            </span>
+
+            <span
+                class="thumbnail-success"
+            >
+                SUCCESS
+            </span>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   FAILED THUMBNAIL
+========================================================= */
+
+function getFailedThumbnailHtml(item) {
+
+    const resultUrl =
+        getResultUrl(item);
+
+
+    if (!resultUrl) {
+
+        return `
+
+            <div
+                class="history-thumbnail thumbnail-failed"
+                aria-label="Generation gagal"
+                title="Generation gagal"
+            >
+
+                <div
+                    class="thumbnail-failed-icon"
+                >
+                    !
+                </div>
+
+            </div>
+
+        `;
+
+    }
+
+
+    const safeUrl =
+        escapeHtml(
+            resultUrl
+        );
+
+
+    return `
+
+        <div
+            class="history-thumbnail thumbnail-failed video-ready"
+            data-video-url="${safeUrl}"
+            role="button"
+            tabindex="0"
+            aria-label="Generation gagal"
+            title="Generation gagal, klik untuk membuka hasil jika tersedia"
+        >
+
+            <video
+                src="${safeUrl}"
+                muted
+                playsinline
+                preload="metadata"
+                aria-hidden="true"
+            ></video>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   PENDING / CANCELLED / UNKNOWN THUMBNAIL
+========================================================= */
+
+function getEmptyThumbnailHtml(status) {
+
+    const normalized =
+        normalizeStatus(status);
+
+
+    let label =
+        "Belum ada preview";
+
+
+    if (
+        normalized === "cancelled"
+    ) {
+
+        label =
+            "Generation dibatalkan";
+
+    }
+
+
+    return `
+
+        <div
+            class="history-thumbnail thumbnail-empty"
+            aria-label="${escapeHtml(label)}"
+            title="${escapeHtml(label)}"
+        >
+
+            <span>
+                🎬
+            </span>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   MAIN THUMBNAIL RENDERER
+========================================================= */
+
+function getThumbnailHtml(item) {
+
+    const status =
+        normalizeStatus(
+            item?.status
+        );
+
+
+    if (
+        status === "processing"
+    ) {
+
+        return getProcessingThumbnailHtml();
+
+    }
+
+
+    if (
+        status === "success"
+    ) {
+
+        return getSuccessThumbnailHtml(
+            item
+        );
+
+    }
+
+
+    if (
+        status === "failed"
+    ) {
+
+        return getFailedThumbnailHtml(
+            item
+        );
+
+    }
+
+
+    return getEmptyThumbnailHtml(
+        status
+    );
+
+}
+
+
+/* =========================================================
+   VIDEO THUMBNAIL EVENTS
+========================================================= */
+
+function openVideoUrl(url) {
+
+    const safeUrl =
+        getSafeMediaUrl(url);
+
+
+    if (!safeUrl) {
+
+        return;
+
+    }
+
+
+    window.open(
+        safeUrl,
+        "_blank",
+        "noopener,noreferrer"
+    );
+
+}
+
+
+function bindThumbnailEvents(container) {
+
+    container
+        .querySelectorAll(
+            ".history-thumbnail.video-ready"
+        )
+        .forEach(
+            thumbnail => {
+
+                const url =
+                    thumbnail.dataset.videoUrl;
+
+
+                const video =
+                    thumbnail.querySelector(
+                        "video"
+                    );
+
+
+                if (video) {
+
+                    /*
+                     * Menampilkan frame pertama
+                     * sebagai preview tanpa memainkan
+                     * video secara otomatis.
+                     */
+
+                    video.addEventListener(
+                        "loadeddata",
+                        function () {
+
+                            try {
+
+                                video.currentTime =
+                                    0.05;
+
+                            } catch {
+
+                                /* noop */
+
+                            }
+
+                        },
+                        {
+                            once: true
+                        }
+                    );
+
+                }
+
+
+                thumbnail.addEventListener(
+                    "click",
+                    function () {
+
+                        openVideoUrl(
+                            url
+                        );
+
+                    }
+                );
+
+
+                thumbnail.addEventListener(
+                    "keydown",
+                    function (event) {
+
+                        if (
+                            event.key === "Enter" ||
+                            event.key === " "
+                        ) {
+
+                            event.preventDefault();
+
+                            openVideoUrl(
+                                url
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   STATUS HTML
 ========================================================= */
 
 function getStatusHtml(status) {
@@ -3307,9 +4284,7 @@ function getStatusHtml(status) {
                     >
 
                         <span></span>
-
                         <span></span>
-
                         <span></span>
 
                     </span>
@@ -3533,6 +4508,15 @@ function renderHistory() {
 
             row.innerHTML = `
 
+                <td class="thumbnail-cell">
+
+                    ${getThumbnailHtml(
+                        item
+                    )}
+
+                </td>
+
+
                 <td>
 
                     ${escapeHtml(
@@ -3652,6 +4636,11 @@ function renderHistory() {
         }
     );
 
+
+    bindThumbnailEvents(
+        historyBody
+    );
+
 }
 
 
@@ -3693,8 +4682,7 @@ function showDetail(item) {
 
 
     const resultUrl =
-        item?.result_url ||
-        "";
+        getResultUrl(item);
 
 
     const ratio =
@@ -3728,6 +4716,33 @@ function showDetail(item) {
 
 
     modalBody.innerHTML = `
+
+        ${
+            resultUrl &&
+            status === "success"
+
+                ? `
+
+                    <div
+                        class="detail-video-preview"
+                    >
+
+                        <video
+                            src="${escapeHtml(
+                                resultUrl
+                            )}"
+                            controls
+                            playsinline
+                            preload="metadata"
+                        ></video>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
 
         ${
             isAdminOrOwner()
