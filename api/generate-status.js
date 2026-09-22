@@ -24,7 +24,10 @@
    - Credential provider mengikuti pola generate.js.
    - provider_credentials dicari menggunakan provider_id.
    - Tidak menggunakan provider_name sebagai provider credential key.
-   - generation_history di-update hanya setelah task terminal.
+   - generation_history di-update berdasarkan:
+       id
+       user_id
+       task_id
    ========================================================= */
 
 import crypto from "crypto";
@@ -109,6 +112,9 @@ const SUPABASE_ANON_KEY =
     ).trim();
 
 
+/*
+ * HARUS sama dengan generate.js.
+ */
 const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
     String(
         process.env.PROVIDER_CREDENTIAL_ENCRYPTION_KEY ||
@@ -117,7 +123,7 @@ const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
 
 
 /* =========================================================
-   RESPONSE HELPER
+   RESPONSE HELPERS
    ========================================================= */
 
 function json(
@@ -237,21 +243,9 @@ function safeJson(
    SUPABASE REQUEST
    ---------------------------------------------------------
    PENTING:
-   Fungsi ini menangkap error PostgREST secara lengkap.
-
-   Sebelumnya error database bisa hilang dan browser hanya
-   menerima:
-       history_update_exception
-
-   Sekarang error asli akan diteruskan melalui:
-   - status
-   - code
-   - details
-   - hint
-   - data
-   - body
-   - path
-   - method
+   - Semua error Supabase dipertahankan.
+   - Jangan sembunyikan code/details/hint.
+   - Ini diperlukan untuk mengetahui kenapa PATCH gagal.
    ========================================================= */
 
 async function supabaseRequest(
@@ -261,18 +255,18 @@ async function supabaseRequest(
     if (
         !SUPABASE_URL
     ) {
-        const error =
-            new Error(
-                "SUPABASE_URL is not configured."
-            );
+        throw new Error(
+            "SUPABASE_URL is not configured"
+        );
+    }
 
-        error.status =
-            500;
 
-        error.code =
-            "SUPABASE_URL_MISSING";
-
-        throw error;
+    if (
+        !SUPABASE_SERVICE_ROLE_KEY
+    ) {
+        throw new Error(
+            "SUPABASE_SERVICE_ROLE_KEY is not configured"
+        );
     }
 
 
@@ -289,32 +283,27 @@ async function supabaseRequest(
 
     const headers = {
         apikey:
-            SUPABASE_SERVICE_ROLE_KEY ||
-            SUPABASE_ANON_KEY,
+            SUPABASE_SERVICE_ROLE_KEY,
 
         Authorization:
-            `Bearer ${
-                SUPABASE_SERVICE_ROLE_KEY ||
-                SUPABASE_ANON_KEY
-            }`,
+            `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
 
-        Accept:
-            "application/json",
-
-        ...(options.headers || {})
+        ...(
+            options.headers ||
+            {}
+        )
     };
 
 
-    /*
-     * Jangan pernah log Authorization.
-     */
-    const safeHeaders = {
-        ...headers
-    };
-
-    delete safeHeaders.Authorization;
-    delete safeHeaders.authorization;
-    delete safeHeaders.apikey;
+    if (
+        options.body !== undefined &&
+        options.body !== null &&
+        !headers["Content-Type"] &&
+        !headers["content-type"]
+    ) {
+        headers["Content-Type"] =
+            "application/json";
+    }
 
 
     let response;
@@ -326,7 +315,9 @@ async function supabaseRequest(
                 url,
                 {
                     ...options,
+
                     method,
+
                     headers
                 }
             );
@@ -339,48 +330,36 @@ async function supabaseRequest(
 
 
         error.status =
-            502;
+            null;
+
 
         error.code =
             "SUPABASE_NETWORK_ERROR";
 
+
         error.details =
-            networkError?.cause ||
             null;
+
 
         error.hint =
             null;
 
+
         error.data =
             null;
 
-        error.body =
-            null;
 
         error.path =
             path;
+
 
         error.method =
             method;
 
 
-        console.error(
-            "[generate-status] Supabase network error:",
-            {
-                message:
-                    error.message,
-
-                status:
-                    error.status,
-
-                code:
-                    error.code,
-
-                path,
-
-                method
-            }
-        );
+        error.body =
+            options.body ||
+            null;
 
 
         throw error;
@@ -421,20 +400,20 @@ async function supabaseRequest(
                 : {};
 
 
-        const message =
+        const errorMessage =
             firstDefined(
                 providerError?.message,
                 providerError?.error_description,
                 providerError?.error,
                 responseText,
-                `Supabase request failed with status ${response.status}.`
+                `Supabase request failed with status ${response.status}`
             );
 
 
         const error =
             new Error(
                 cleanString(
-                    message
+                    errorMessage
                 )
             );
 
@@ -469,11 +448,6 @@ async function supabaseRequest(
             responseData;
 
 
-        error.body =
-            responseText ||
-            null;
-
-
         error.path =
             path;
 
@@ -482,35 +456,28 @@ async function supabaseRequest(
             method;
 
 
+        error.body =
+            options.body ||
+            null;
+
+
         console.error(
             "[generate-status] Supabase request failed:",
             {
-                message:
-                    error.message,
-
+                method,
+                path,
                 status:
                     error.status,
-
                 code:
                     error.code,
-
+                message:
+                    error.message,
                 details:
                     error.details,
-
                 hint:
                     error.hint,
-
                 data:
-                    error.data,
-
-                body:
-                    error.body,
-
-                path:
-                    error.path,
-
-                method:
-                    error.method
+                    error.data
             }
         );
 
@@ -524,43 +491,16 @@ async function supabaseRequest(
 
 
 /* =========================================================
-   ERROR DIAGNOSTIC HELPER
+   ERROR DIAGNOSTICS
    ========================================================= */
 
-function getErrorDiagnostics(
+function serializeError(
     error
 ) {
     if (
         !error
     ) {
-        return {
-            message:
-                null,
-
-            status:
-                null,
-
-            code:
-                null,
-
-            details:
-                null,
-
-            hint:
-                null,
-
-            data:
-                null,
-
-            body:
-                null,
-
-            path:
-                null,
-
-            method:
-                null
-        };
+        return null;
     }
 
 
@@ -570,7 +510,7 @@ function getErrorDiagnostics(
             null,
 
         status:
-            error?.status ||
+            error?.status ??
             null,
 
         code:
@@ -586,11 +526,7 @@ function getErrorDiagnostics(
             null,
 
         data:
-            error?.data ||
-            null,
-
-        body:
-            error?.body ||
+            error?.data ??
             null,
 
         path:
@@ -599,6 +535,14 @@ function getErrorDiagnostics(
 
         method:
             error?.method ||
+            null,
+
+        body:
+            error?.body ??
+            null,
+
+        diagnostics:
+            error?.diagnostics ??
             null
     };
 }
@@ -1181,7 +1125,7 @@ async function loadProviderCredential(
     } catch (error) {
         console.error(
             "[generate-status] Failed reading provider_credentials:",
-            getErrorDiagnostics(
+            serializeError(
                 error
             )
         );
@@ -1388,6 +1332,9 @@ function decodeBuffer(
     }
 
 
+    /*
+     * Hex.
+     */
     if (
         /^[0-9a-fA-F]+$/.test(
             text
@@ -1408,6 +1355,9 @@ function decodeBuffer(
     }
 
 
+    /*
+     * Base64.
+     */
     try {
         const buffer =
             Buffer.from(
@@ -1665,6 +1615,9 @@ function findAdapter(
     }
 
 
+    /*
+     * Direct match.
+     */
     for (
         const adapter
         of MODEL_REGISTRY
@@ -1717,6 +1670,9 @@ function findAdapter(
     }
 
 
+    /*
+     * Compact fallback.
+     */
     const compactTarget =
         target.replace(
             /[^a-z0-9]/g,
@@ -2217,7 +2173,7 @@ function normalizeProviderResult(
 
     if (
         explicitProcessing ===
-            true &&
+        true &&
         !completed &&
         !failed
     ) {
@@ -2227,7 +2183,7 @@ function normalizeProviderResult(
 
 
     /*
-     * Result URL adalah bukti kuat task selesai.
+     * Result URL = bukti terminal completed.
      */
     if (
         resultUrls.length > 0 &&
@@ -2398,154 +2354,10 @@ async function findGenerationHistory(
 
 
 /* =========================================================
-   BUILD HISTORY PAYLOAD
-   ========================================================= */
-
-function buildHistoryPayload(
-    normalized,
-    mode = "primary"
-) {
-    if (
-        normalized.completed
-    ) {
-        const resultUrl =
-            normalized.result_urls &&
-            normalized.result_urls.length
-                ? normalized.result_urls[0]
-                : null;
-
-
-        if (
-            mode ===
-            "minimal"
-        ) {
-            return {
-                status:
-                    "completed",
-
-                ...(resultUrl
-                    ? {
-                        result_url:
-                            resultUrl
-                    }
-                    : {})
-            };
-        }
-
-
-        if (
-            mode ===
-            "without_error_message"
-        ) {
-            return {
-                status:
-                    "completed",
-
-                ...(resultUrl
-                    ? {
-                        result_url:
-                            resultUrl
-                    }
-                    : {}),
-
-                completed_at:
-                    new Date().toISOString()
-            };
-        }
-
-
-        return {
-            status:
-                "completed",
-
-            ...(resultUrl
-                ? {
-                    result_url:
-                        resultUrl
-                }
-                : {}),
-
-            completed_at:
-                new Date().toISOString(),
-
-            error_message:
-                null
-        };
-    }
-
-
-    if (
-        normalized.failed
-    ) {
-        const providerError =
-            firstDefined(
-                findDeepValue(
-                    normalized.raw,
-                    [
-                        "error_message",
-                        "errorMessage",
-                        "message",
-                        "error"
-                    ]
-                ),
-                "Provider gagal memproses task."
-            );
-
-
-        if (
-            mode ===
-            "failed_minimal"
-        ) {
-            return {
-                status:
-                    "failed",
-
-                error_message:
-                    cleanString(
-                        providerError
-                    )
-            };
-        }
-
-
-        return {
-            status:
-                "failed",
-
-            error_message:
-                cleanString(
-                    providerError
-                ),
-
-            completed_at:
-                new Date().toISOString()
-        };
-    }
-
-
-    return {
-        status:
-            "processing"
-    };
-}
-
-
-/* =========================================================
    UPDATE GENERATION HISTORY
    ---------------------------------------------------------
-   HANYA ADA SATU FUNGSI UPDATE DI FILE INI.
-
-   Strategi:
-   1. Primary
-      status + result_url + completed_at + error_message
-   2. Fallback completed
-      status + result_url + completed_at
-   3. Fallback minimal
-      status + result_url
-   4. Failed fallback
-      status + error_message
-
-   Semua error database dipertahankan.
+   SATU-SATUNYA fungsi update.
+   Jangan definisikan fungsi ini lagi di bawah.
    ========================================================= */
 
 async function updateGenerationHistory(
@@ -2591,13 +2403,94 @@ async function updateGenerationHistory(
 
     /*
      * -------------------------------------------------------
+     * RESULT URL
+     * -------------------------------------------------------
+     */
+
+    const resultUrl =
+        normalized.result_urls &&
+        normalized.result_urls.length
+            ? normalized.result_urls[0]
+            : null;
+
+
+    /*
+     * -------------------------------------------------------
+     * BUILD PAYLOAD
+     * -------------------------------------------------------
+     */
+
+    let payload;
+
+
+    if (
+        normalized.completed
+    ) {
+        payload = {
+            status:
+                "completed",
+
+            result_url:
+                resultUrl,
+
+            completed_at:
+                new Date().toISOString(),
+
+            error_message:
+                null
+        };
+    }
+
+
+    else if (
+        normalized.failed
+    ) {
+        const providerError =
+            firstDefined(
+                findDeepValue(
+                    normalized.raw,
+                    [
+                        "error_message",
+                        "errorMessage",
+                        "message",
+                        "error"
+                    ]
+                ),
+                "Provider gagal memproses task."
+            );
+
+
+        payload = {
+            status:
+                "failed",
+
+            error_message:
+                cleanString(
+                    providerError
+                ),
+
+            completed_at:
+                new Date().toISOString()
+        };
+    }
+
+
+    else {
+        payload = {
+            status:
+                "processing"
+        };
+    }
+
+
+    /*
+     * -------------------------------------------------------
      * FILTER
      * -------------------------------------------------------
      *
-     * ID adalah identitas utama.
+     * id selalu digunakan.
      *
-     * user_id dan task_id ditambahkan sebagai pengaman
-     * agar update tidak bisa mengenai row user/task lain.
+     * user_id dan task_id juga digunakan jika tersedia.
      * -------------------------------------------------------
      */
 
@@ -2637,12 +2530,13 @@ async function updateGenerationHistory(
 
     /*
      * -------------------------------------------------------
-     * INTERNAL PATCH
+     * HELPER PATCH
      * -------------------------------------------------------
      */
 
-    async function patch(
-        payload
+    async function patchHistory(
+        patchPayload,
+        strategy
     ) {
         const rows =
             await supabaseRequest(
@@ -2653,24 +2547,17 @@ async function updateGenerationHistory(
 
                     headers: {
                         Prefer:
-                            "return=representation",
-
-                        "Content-Type":
-                            "application/json"
+                            "return=representation"
                     },
 
                     body:
                         JSON.stringify(
-                            payload
+                            patchPayload
                         )
                 }
             );
 
 
-        /*
-         * Supabase bisa mengembalikan [] jika filter tidak
-         * menemukan row yang boleh di-update.
-         */
         if (
             Array.isArray(rows) &&
             rows.length === 0
@@ -2689,14 +2576,6 @@ async function updateGenerationHistory(
                 "NO_ROWS_UPDATED";
 
 
-            error.details =
-                "PATCH berhasil secara HTTP tetapi response tidak berisi row yang di-update.";
-
-
-            error.hint =
-                "Periksa id, user_id, task_id, RLS/policy, atau trigger database.";
-
-
             error.data =
                 rows;
 
@@ -2710,8 +2589,8 @@ async function updateGenerationHistory(
 
 
             error.body =
-                safeJson(
-                    rows
+                JSON.stringify(
+                    patchPayload
                 );
 
 
@@ -2719,56 +2598,35 @@ async function updateGenerationHistory(
         }
 
 
-        return Array.isArray(
-            rows
-        )
-            ? rows
-            : [];
+        return {
+            payload:
+                patchPayload,
+
+            rows:
+                Array.isArray(rows)
+                    ? rows
+                    : [],
+
+            strategy
+        };
     }
 
 
     /*
      * -------------------------------------------------------
-     * PRIMARY
+     * PRIMARY PATCH
      * -------------------------------------------------------
      */
 
-    const primaryPayload =
-        buildHistoryPayload(
-            normalized,
+    try {
+        return await patchHistory(
+            payload,
             "primary"
         );
-
-
-    try {
-        const rows =
-            await patch(
-                primaryPayload
-            );
-
-
-        return {
-            payload:
-                primaryPayload,
-
-            rows,
-
-            strategy:
-                "primary",
-
-            primary_error:
-                null,
-
-            fallback_error:
-                null,
-
-            minimal_error:
-                null
-        };
     } catch (primaryError) {
         console.error(
             "[generate-status] Primary generation_history PATCH failed:",
-            getErrorDiagnostics(
+            serializeError(
                 primaryError
             )
         );
@@ -2778,49 +2636,44 @@ async function updateGenerationHistory(
          * ---------------------------------------------------
          * COMPLETED FALLBACK #1
          * ---------------------------------------------------
+         *
+         * Buang error_message:null.
+         * ---------------------------------------------------
          */
 
         if (
             normalized.completed
         ) {
-            const fallbackPayload =
-                buildHistoryPayload(
-                    normalized,
-                    "without_error_message"
-                );
+            const fallbackPayload = {
+                status:
+                    "completed",
+
+                result_url:
+                    resultUrl,
+
+                completed_at:
+                    new Date().toISOString()
+            };
 
 
             try {
-                const rows =
-                    await patch(
-                        fallbackPayload
-                    );
-
-
                 return {
-                    payload:
-                        fallbackPayload,
-
-                    rows,
-
-                    strategy:
-                        "fallback_without_error_message",
+                    ...(
+                        await patchHistory(
+                            fallbackPayload,
+                            "fallback_without_error_message"
+                        )
+                    ),
 
                     primary_error:
-                        getErrorDiagnostics(
+                        serializeError(
                             primaryError
-                        ),
-
-                    fallback_error:
-                        null,
-
-                    minimal_error:
-                        null
+                        )
                 };
             } catch (fallbackError) {
                 console.error(
-                    "[generate-status] Fallback generation_history PATCH failed:",
-                    getErrorDiagnostics(
+                    "[generate-status] Completed fallback PATCH failed:",
+                    serializeError(
                         fallbackError
                     )
                 );
@@ -2832,52 +2685,41 @@ async function updateGenerationHistory(
                  * ------------------------------------------------
                  *
                  * Hanya status + result_url.
-                 *
-                 * Jika berhasil, berarti kolom completed_at
-                 * atau field lain kemungkinan bermasalah.
                  * ------------------------------------------------
                  */
 
-                const minimalPayload =
-                    buildHistoryPayload(
-                        normalized,
-                        "minimal"
-                    );
+                const minimalPayload = {
+                    status:
+                        "completed",
+
+                    result_url:
+                        resultUrl
+                };
 
 
                 try {
-                    const rows =
-                        await patch(
-                            minimalPayload
-                        );
-
-
                     return {
-                        payload:
-                            minimalPayload,
-
-                        rows,
-
-                        strategy:
-                            "fallback_minimal",
+                        ...(
+                            await patchHistory(
+                                minimalPayload,
+                                "fallback_minimal"
+                            )
+                        ),
 
                         primary_error:
-                            getErrorDiagnostics(
+                            serializeError(
                                 primaryError
                             ),
 
                         fallback_error:
-                            getErrorDiagnostics(
+                            serializeError(
                                 fallbackError
-                            ),
-
-                        minimal_error:
-                            null
+                            )
                     };
                 } catch (minimalError) {
                     console.error(
-                        "[generate-status] Minimal generation_history PATCH failed:",
-                        getErrorDiagnostics(
+                        "[generate-status] Minimal completed PATCH failed:",
+                        serializeError(
                             minimalError
                         )
                     );
@@ -2893,10 +2735,10 @@ async function updateGenerationHistory(
 
 
                     error.status =
-                        minimalError?.status ||
-                        fallbackError?.status ||
-                        primaryError?.status ||
-                        500;
+                        minimalError?.status ??
+                        fallbackError?.status ??
+                        primaryError?.status ??
+                        null;
 
 
                     error.code =
@@ -2922,30 +2764,15 @@ async function updateGenerationHistory(
 
                     error.data = {
                         primary:
-                            primaryError?.data ||
+                            primaryError?.data ??
                             null,
 
                         fallback:
-                            fallbackError?.data ||
+                            fallbackError?.data ??
                             null,
 
                         minimal:
-                            minimalError?.data ||
-                            null
-                    };
-
-
-                    error.body = {
-                        primary:
-                            primaryError?.body ||
-                            null,
-
-                        fallback:
-                            fallbackError?.body ||
-                            null,
-
-                        minimal:
-                            minimalError?.body ||
+                            minimalError?.data ??
                             null
                     };
 
@@ -2954,26 +2781,38 @@ async function updateGenerationHistory(
                         minimalError?.path ||
                         fallbackError?.path ||
                         primaryError?.path ||
-                        null;
+                        endpoint;
 
 
                     error.method =
                         "PATCH";
 
 
+                    error.body = {
+                        primary:
+                            payload,
+
+                        fallback:
+                            fallbackPayload,
+
+                        minimal:
+                            minimalPayload
+                    };
+
+
                     error.diagnostics = {
                         primary:
-                            getErrorDiagnostics(
+                            serializeError(
                                 primaryError
                             ),
 
                         fallback:
-                            getErrorDiagnostics(
+                            serializeError(
                                 fallbackError
                             ),
 
                         minimal:
-                            getErrorDiagnostics(
+                            serializeError(
                                 minimalError
                             )
                     };
@@ -2994,39 +2833,47 @@ async function updateGenerationHistory(
         if (
             normalized.failed
         ) {
-            const fallbackPayload =
-                buildHistoryPayload(
-                    normalized,
-                    "failed_minimal"
+            const providerError =
+                firstDefined(
+                    findDeepValue(
+                        normalized.raw,
+                        [
+                            "error_message",
+                            "errorMessage",
+                            "message",
+                            "error"
+                        ]
+                    ),
+                    "Provider gagal memproses task."
                 );
 
 
+            const fallbackPayload = {
+                status:
+                    "failed",
+
+                error_message:
+                    cleanString(
+                        providerError
+                    )
+            };
+
+
             try {
-                const rows =
-                    await patch(
-                        fallbackPayload
+                const result =
+                    await patchHistory(
+                        fallbackPayload,
+                        "fallback_failed"
                     );
 
 
                 return {
-                    payload:
-                        fallbackPayload,
-
-                    rows,
-
-                    strategy:
-                        "fallback_failed",
+                    ...result,
 
                     primary_error:
-                        getErrorDiagnostics(
+                        serializeError(
                             primaryError
-                        ),
-
-                    fallback_error:
-                        null,
-
-                    minimal_error:
-                        null
+                        )
                 };
             } catch (fallbackError) {
                 const error =
@@ -3038,9 +2885,9 @@ async function updateGenerationHistory(
 
 
                 error.status =
-                    fallbackError?.status ||
-                    primaryError?.status ||
-                    500;
+                    fallbackError?.status ??
+                    primaryError?.status ??
+                    null;
 
 
                 error.code =
@@ -3063,34 +2910,42 @@ async function updateGenerationHistory(
 
                 error.data = {
                     primary:
-                        primaryError?.data ||
+                        primaryError?.data ??
                         null,
 
                     fallback:
-                        fallbackError?.data ||
+                        fallbackError?.data ??
                         null
                 };
 
 
+                error.path =
+                    fallbackError?.path ||
+                    primaryError?.path ||
+                    endpoint;
+
+
+                error.method =
+                    "PATCH";
+
+
                 error.body = {
                     primary:
-                        primaryError?.body ||
-                        null,
+                        payload,
 
                     fallback:
-                        fallbackError?.body ||
-                        null
+                        fallbackPayload
                 };
 
 
                 error.diagnostics = {
                     primary:
-                        getErrorDiagnostics(
+                        serializeError(
                             primaryError
                         ),
 
                     fallback:
-                        getErrorDiagnostics(
+                        serializeError(
                             fallbackError
                         )
                 };
@@ -3102,8 +2957,7 @@ async function updateGenerationHistory(
 
 
         /*
-         * Processing tidak seharusnya masuk ke fungsi update
-         * karena syncGenerationHistory sudah menghentikannya.
+         * Processing tidak membutuhkan fallback.
          */
         throw primaryError;
     }
@@ -3115,8 +2969,42 @@ async function updateGenerationHistory(
    ========================================================= */
 
 async function verifyGenerationHistory(
-    historyId
+    history
 ) {
+    const historyId =
+        cleanString(
+            typeof history ===
+                "object"
+                ? history?.id
+                : history
+        );
+
+
+    const userId =
+        cleanString(
+            typeof history ===
+                "object"
+                ? history?.user_id
+                : ""
+        );
+
+
+    const taskId =
+        cleanString(
+            typeof history ===
+                "object"
+                ? history?.task_id
+                : ""
+        );
+
+
+    if (
+        !historyId
+    ) {
+        return null;
+    }
+
+
     const params =
         new URLSearchParams();
 
@@ -3125,6 +3013,26 @@ async function verifyGenerationHistory(
         "id",
         `eq.${historyId}`
     );
+
+
+    if (
+        userId
+    ) {
+        params.set(
+            "user_id",
+            `eq.${userId}`
+        );
+    }
+
+
+    if (
+        taskId
+    ) {
+        params.set(
+            "task_id",
+            `eq.${taskId}`
+        );
+    }
 
 
     params.set(
@@ -3196,6 +3104,30 @@ async function syncGenerationHistory(
                 "history_not_found",
 
             history_row_id:
+                null,
+
+            history_error:
+                null,
+
+            history_error_status:
+                null,
+
+            history_error_code:
+                null,
+
+            history_error_details:
+                null,
+
+            history_error_hint:
+                null,
+
+            history_error_data:
+                null,
+
+            history_error_diagnostics:
+                null,
+
+            history_update_payload:
                 null
         };
     }
@@ -3224,34 +3156,55 @@ async function syncGenerationHistory(
                 "task_still_processing",
 
             history_row_id:
-                history.id
+                history.id,
+
+            history_error:
+                null,
+
+            history_error_status:
+                null,
+
+            history_error_code:
+                null,
+
+            history_error_details:
+                null,
+
+            history_error_hint:
+                null,
+
+            history_error_data:
+                null,
+
+            history_error_diagnostics:
+                null,
+
+            history_update_payload:
+                null
         };
     }
 
 
-    /*
-     * Task terminal.
-     */
     let updateResult;
 
 
     try {
+        /*
+         * PENTING:
+         * Kirim object history lengkap.
+         *
+         * Jangan hanya history.id.
+         */
         updateResult =
             await updateGenerationHistory(
                 history,
                 normalized
             );
     } catch (error) {
-        const diagnostics =
-            getErrorDiagnostics(
+        const serialized =
+            serializeError(
                 error
             );
-
-
-        console.error(
-            "[generate-status] generation_history update exception:",
-            diagnostics
-        );
 
 
         return {
@@ -3272,34 +3225,45 @@ async function syncGenerationHistory(
                 history.id,
 
             history_error:
-                diagnostics.message,
+                serialized?.message ||
+                String(
+                    error
+                ),
 
             history_error_status:
-                diagnostics.status,
+                serialized?.status ??
+                null,
 
             history_error_code:
-                diagnostics.code,
+                serialized?.code ||
+                null,
 
             history_error_details:
-                diagnostics.details,
+                serialized?.details ||
+                null,
 
             history_error_hint:
-                diagnostics.hint,
+                serialized?.hint ||
+                null,
 
             history_error_data:
-                diagnostics.data,
-
-            history_error_body:
-                diagnostics.body,
-
-            history_error_path:
-                diagnostics.path,
-
-            history_error_method:
-                diagnostics.method,
+                serialized?.data ??
+                null,
 
             history_error_diagnostics:
-                error?.diagnostics ||
+                serialized?.diagnostics ??
+                null,
+
+            history_error_path:
+                serialized?.path ||
+                null,
+
+            history_error_method:
+                serialized?.method ||
+                null,
+
+            history_error_body:
+                serialized?.body ??
                 null,
 
             history_update_payload:
@@ -3311,7 +3275,7 @@ async function syncGenerationHistory(
 
     /*
      * -------------------------------------------------------
-     * VERIFY
+     * VERIFY DATABASE
      * -------------------------------------------------------
      */
 
@@ -3321,11 +3285,11 @@ async function syncGenerationHistory(
     try {
         verified =
             await verifyGenerationHistory(
-                history.id
+                history
             );
     } catch (error) {
-        const diagnostics =
-            getErrorDiagnostics(
+        const serialized =
+            serializeError(
                 error
             );
 
@@ -3348,28 +3312,47 @@ async function syncGenerationHistory(
                 history.id,
 
             history_error:
-                diagnostics.message,
+                serialized?.message ||
+                String(
+                    error
+                ),
 
             history_error_status:
-                diagnostics.status,
+                serialized?.status ??
+                null,
 
             history_error_code:
-                diagnostics.code,
+                serialized?.code ||
+                null,
 
             history_error_details:
-                diagnostics.details,
+                serialized?.details ||
+                null,
 
             history_error_hint:
-                diagnostics.hint,
+                serialized?.hint ||
+                null,
 
             history_error_data:
-                diagnostics.data,
+                serialized?.data ??
+                null,
 
-            history_error_body:
-                diagnostics.body
+            history_error_diagnostics:
+                serialized?.diagnostics ??
+                null,
+
+            history_update_payload:
+                updateResult?.payload ||
+                null
         };
     }
 
+
+    /*
+     * -------------------------------------------------------
+     * EXPECTED STATUS
+     * -------------------------------------------------------
+     */
 
     const expectedStatus =
         normalized.completed
@@ -3391,6 +3374,16 @@ async function syncGenerationHistory(
             expectedStatus
         );
 
+
+    /*
+     * -------------------------------------------------------
+     * VERIFY RESULT URL
+     * -------------------------------------------------------
+     *
+     * Status completed adalah syarat utama.
+     * result_url dilaporkan sebagai diagnostik.
+     * -------------------------------------------------------
+     */
 
     return {
         history_updated:
@@ -3432,17 +3425,12 @@ async function syncGenerationHistory(
             updateResult?.strategy ||
             null,
 
-        history_primary_error:
-            updateResult?.primary_error ||
-            null,
-
-        history_fallback_error:
-            updateResult?.fallback_error ||
-            null,
-
-        history_minimal_error:
-            updateResult?.minimal_error ||
-            null
+        history_update_rows:
+            Array.isArray(
+                updateResult?.rows
+            )
+                ? updateResult.rows.length
+                : 0
     };
 }
 
@@ -3465,8 +3453,8 @@ async function syncGenerationHistoryWithRetry(
 
 
     /*
-     * Jika task terminal tetapi History belum ter-update,
-     * coba sekali lagi.
+     * Jika task sudah terminal tetapi update
+     * belum berhasil/terverifikasi, retry sekali.
      */
     if (
         (
@@ -3772,17 +3760,17 @@ export default async function handler(
          * PROVIDER CODE
          * ---------------------------------------------------
          *
-         * Credential selalu menggunakan:
+         * HARUS:
          *
-         * provider_credentials.provider_id
+         *   provider.provider_id
          *
          * Contoh:
          *
-         * provider_id = kie
+         *   kie
          *
          * BUKAN:
          *
-         * provider_name = GEN-Z.AI
+         *   GEN-Z.AI
          * ---------------------------------------------------
          */
 
@@ -3838,7 +3826,9 @@ export default async function handler(
         } catch (error) {
             console.error(
                 "[generate-status] Provider credential error:",
-                error
+                serializeError(
+                    error
+                )
             );
 
 
@@ -4052,10 +4042,11 @@ export default async function handler(
                             : null
                     ),
 
-
-                /* -------------------------------------------
-                   HISTORY DIAGNOSTICS
-                   ------------------------------------------- */
+                /*
+                 * ------------------------------------------------
+                 * HISTORY
+                 * ------------------------------------------------
+                 */
 
                 history_updated:
                     history.history_updated,
@@ -4092,28 +4083,26 @@ export default async function handler(
                     history.history_update_strategy ||
                     null,
 
+                history_update_rows:
+                    history.history_update_rows ||
+                    0,
+
                 history_update_payload:
                     history.history_update_payload ||
                     null,
 
-                history_primary_error:
-                    history.history_primary_error ||
-                    null,
-
-                history_fallback_error:
-                    history.history_fallback_error ||
-                    null,
-
-                history_minimal_error:
-                    history.history_minimal_error ||
-                    null,
+                /*
+                 * ------------------------------------------------
+                 * HISTORY ERROR DIAGNOSTICS
+                 * ------------------------------------------------
+                 */
 
                 history_error:
                     history.history_error ||
                     null,
 
                 history_error_status:
-                    history.history_error_status ||
+                    history.history_error_status ??
                     null,
 
                 history_error_code:
@@ -4129,11 +4118,11 @@ export default async function handler(
                     null,
 
                 history_error_data:
-                    history.history_error_data ||
+                    history.history_error_data ??
                     null,
 
-                history_error_body:
-                    history.history_error_body ||
+                history_error_diagnostics:
+                    history.history_error_diagnostics ??
                     null,
 
                 history_error_path:
@@ -4144,14 +4133,15 @@ export default async function handler(
                     history.history_error_method ||
                     null,
 
-                history_error_diagnostics:
-                    history.history_error_diagnostics ||
+                history_error_body:
+                    history.history_error_body ??
                     null,
 
-
-                /* -------------------------------------------
-                   ADAPTER DIAGNOSTICS
-                   ------------------------------------------- */
+                /*
+                 * ------------------------------------------------
+                 * ADAPTER
+                 * ------------------------------------------------
+                 */
 
                 adapter_found:
                     true,
@@ -4164,21 +4154,19 @@ export default async function handler(
                     typeof adapter?.createTask ===
                         "function",
 
-
-                /* -------------------------------------------
-                   CREDENTIAL DIAGNOSTICS
-                   ------------------------------------------- */
+                /*
+                 * ------------------------------------------------
+                 * CREDENTIAL DIAGNOSTICS
+                 * ------------------------------------------------
+                 *
+                 * Tidak pernah mengembalikan API key.
+                 */
 
                 credential_provider_id:
                     providerCode,
 
                 credential_resolved:
                     true,
-
-
-                /* -------------------------------------------
-                   MODEL
-                   ------------------------------------------- */
 
                 modelId:
                     modelId
@@ -4187,22 +4175,18 @@ export default async function handler(
     } catch (error) {
         console.error(
             "[generate-status]",
-            getErrorDiagnostics(
+            serializeError(
                 error
             )
         );
 
 
-        const status =
+        return json(
+            res,
             error?.status >= 400 &&
             error?.status < 600
                 ? error.status
-                : 500;
-
-
-        return json(
-            res,
-            status,
+                : 500,
             {
                 success:
                     false,
@@ -4215,7 +4199,7 @@ export default async function handler(
                     error?.data ||
                     null,
 
-                code:
+                error_code:
                     error?.code ||
                     null,
 
@@ -4227,16 +4211,8 @@ export default async function handler(
                     error?.hint ||
                     null,
 
-                error_body:
-                    error?.body ||
-                    null,
-
-                error_path:
-                    error?.path ||
-                    null,
-
-                error_method:
-                    error?.method ||
+                error_diagnostics:
+                    error?.diagnostics ||
                     null
             }
         );
