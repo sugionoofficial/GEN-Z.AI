@@ -19,7 +19,7 @@
 
     <link
         rel="preconnect"
-        href="https://fonts.gstatic.com"
+        href="https://fonts.googleapis.com"
         crossorigin
     >
 
@@ -2945,6 +2945,23 @@ let currentFilter = "all";
 
 
 /* =========================================================
+   HISTORY AUTO REFRESH
+   ---------------------------------------------------------
+   - Polling hanya aktif jika ada generation aktif.
+   - Interval 5 detik.
+   - Silent refresh tidak menampilkan loading screen.
+   - Timer menggunakan setTimeout agar tidak menumpuk
+     request jika query Supabase lambat.
+========================================================= */
+
+let historyAutoRefreshTimer = null;
+
+let historyLoadInProgress = false;
+
+const HISTORY_AUTO_REFRESH_INTERVAL = 5000;
+
+
+/* =========================================================
    ELEMENTS
 ========================================================= */
 
@@ -3709,81 +3726,252 @@ async function loadProfile() {
 
 
 /* =========================================================
-   LOAD HISTORY
+   HISTORY AUTO REFRESH HELPERS
 ========================================================= */
 
-async function loadHistory() {
+/*
+ * Menghentikan timer polling yang sedang berjalan.
+ *
+ * setTimeout dipakai, bukan setInterval, supaya request
+ * berikutnya baru dibuat setelah request sebelumnya selesai.
+ */
 
-    loadingState.style.display =
-        "block";
+function stopHistoryAutoRefresh() {
+
+    if (
+        historyAutoRefreshTimer !== null
+    ) {
+
+        clearTimeout(
+            historyAutoRefreshTimer
+        );
+
+        historyAutoRefreshTimer = null;
+
+    }
+
+}
 
 
-    tableWrap.style.display =
-        "none";
+/*
+ * Mengecek apakah masih ada generation yang belum terminal.
+ *
+ * queued dinormalisasi menjadi pending oleh normalizeStatus().
+ * Jadi pending + processing dianggap aktif.
+ */
+
+function hasActiveGeneration() {
+
+    return historyData.some(
+        item => {
+
+            const status =
+                normalizeStatus(
+                    item?.status
+                );
 
 
-    emptyState.style.display =
-        "none";
+            return (
+                status === "processing" ||
+                status === "pending"
+            );
+
+        }
+    );
+
+}
 
 
-    hideMessage();
+/*
+ * Menjadwalkan satu kali polling berikutnya.
+ *
+ * Jika sudah tidak ada processing/pending,
+ * polling langsung dihentikan.
+ */
+
+function scheduleHistoryAutoRefresh() {
+
+    stopHistoryAutoRefresh();
 
 
-    let query =
-        supabaseClient
+    if (
+        !hasActiveGeneration()
+    ) {
 
-            .from("generation_history")
+        return;
 
-            .select("*")
+    }
 
-            .order(
-                "created_at",
-                {
-                    ascending: false
+
+    historyAutoRefreshTimer =
+        setTimeout(
+            async function () {
+
+                historyAutoRefreshTimer =
+                    null;
+
+
+                try {
+
+                    await loadHistory({
+                        silent: true
+                    });
+
+                } catch (error) {
+
+                    console.error(
+                        "History auto refresh error:",
+                        error
+                    );
+
+
+                    /*
+                     * Jika request gagal, jangan mematikan
+                     * polling selamanya. Coba lagi 5 detik
+                     * kemudian selama masih ada generation aktif.
+                     */
+
+                    if (
+                        hasActiveGeneration()
+                    ) {
+
+                        scheduleHistoryAutoRefresh();
+
+                    }
+
                 }
-            );
+
+            },
+            HISTORY_AUTO_REFRESH_INTERVAL
+        );
+
+}
 
 
-    if (!isAdminOrOwner()) {
+/* =========================================================
+   LOAD HISTORY
+   ---------------------------------------------------------
+   options.silent = true
+   ---------------------------------
+   Dipakai oleh auto-refresh supaya:
+   - tidak menampilkan spinner utama
+   - tidak menyembunyikan tabel
+   - tidak membuat halaman berkedip
+========================================================= */
 
-        query =
-            query.eq(
-                "user_id",
-                currentUser.id
-            );
+async function loadHistory(options = {}) {
+
+    const silent =
+        options.silent === true;
+
+
+    /*
+     * Mencegah request bertumpuk.
+     */
+
+    if (
+        historyLoadInProgress
+    ) {
+
+        return;
 
     }
 
 
-    const {
-        data,
-        error
-    } =
-        await query;
+    historyLoadInProgress =
+        true;
 
 
-    if (error) {
+    try {
 
-        console.error(
-            "History query error:",
+        if (!silent) {
+
+            loadingState.style.display =
+                "block";
+
+
+            tableWrap.style.display =
+                "none";
+
+
+            emptyState.style.display =
+                "none";
+
+
+            hideMessage();
+
+        }
+
+
+        let query =
+            supabaseClient
+
+                .from("generation_history")
+
+                .select("*")
+
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+
+        if (!isAdminOrOwner()) {
+
+            query =
+                query.eq(
+                    "user_id",
+                    currentUser.id
+                );
+
+        }
+
+
+        const {
+            data,
             error
-        );
+        } =
+            await query;
 
-        throw new Error(
-            "Gagal mengambil generation history: " +
-            error.message
-        );
+
+        if (error) {
+
+            console.error(
+                "History query error:",
+                error
+            );
+
+            throw new Error(
+                "Gagal mengambil generation history: " +
+                error.message
+            );
+
+        }
+
+
+        historyData =
+            Array.isArray(data)
+                ? data
+                : [];
+
+
+        /*
+         * Render normal maupun silent.
+         *
+         * Pada silent refresh, renderer hanya mengganti
+         * isi tabel. Loading screen tidak disentuh.
+         */
+
+        renderHistory();
+
+    } finally {
+
+        historyLoadInProgress =
+            false;
 
     }
-
-
-    historyData =
-        Array.isArray(data)
-            ? data
-            : [];
-
-
-    renderHistory();
 
 }
 
@@ -4417,6 +4605,16 @@ function renderHistory() {
         }
 
 
+        /*
+         * Penting:
+         * Filter aktif bisa saja tidak menampilkan item
+         * processing, tetapi polling tetap harus berjalan
+         * jika historyData masih memiliki generation aktif.
+         */
+
+        scheduleHistoryAutoRefresh();
+
+
         return;
 
     }
@@ -4640,6 +4838,18 @@ function renderHistory() {
     bindThumbnailEvents(
         historyBody
     );
+
+
+    /*
+     * Setelah render selesai, periksa apakah masih ada
+     * generation yang membutuhkan polling.
+     *
+     * Jika semua sudah success/failed/cancelled,
+     * scheduleHistoryAutoRefresh() otomatis tidak membuat
+     * timer baru.
+     */
+
+    scheduleHistoryAutoRefresh();
 
 }
 
@@ -5261,6 +5471,17 @@ refreshButton.addEventListener(
 
         try {
 
+            /*
+             * Hentikan timer lama supaya manual refresh
+             * tidak berjalan bersamaan dengan auto refresh.
+             *
+             * renderHistory() akan menjadwalkan kembali
+             * polling jika masih diperlukan.
+             */
+
+            stopHistoryAutoRefresh();
+
+
             refreshButton.disabled =
                 true;
 
@@ -5310,6 +5531,14 @@ refreshButton.addEventListener(
 logoutButton.addEventListener(
     "click",
     async function () {
+
+        /*
+         * Jangan biarkan timer polling tetap hidup
+         * setelah user logout.
+         */
+
+        stopHistoryAutoRefresh();
+
 
         try {
 
@@ -5433,6 +5662,9 @@ async function init() {
             "GEN-Z.AI History Error:",
             error
         );
+
+
+        stopHistoryAutoRefresh();
 
 
         loadingState.style.display =
