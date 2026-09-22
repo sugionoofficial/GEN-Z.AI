@@ -95,7 +95,7 @@
 
         /* =====================================================
            PAGE LOADING
-           ====================================================== */
+        ====================================================== */
 
         #loading {
 
@@ -1422,7 +1422,7 @@
 
     <!-- =====================================================
          SHARED NAVIGATION
-         
+
          WAJIB menggunakan:
          navigation/navigation.js
 
@@ -1435,7 +1435,7 @@
          - active menu
          - logout
          - redirect
-         
+
          Halaman ini TIDAK membuat navigasi sendiri.
     ====================================================== -->
 
@@ -1444,7 +1444,7 @@
 
     <!-- =====================================================
          PAGE LOADING
-         
+
          Loading ini khusus halaman Admin Control.
          Loading auth utama tetap milik navigation.js.
     ====================================================== -->
@@ -1473,7 +1473,7 @@
 
     <!-- =====================================================
          ADMIN PAGE
-         
+
          Ditampilkan hanya setelah:
          navigation.js
          selesai memverifikasi:
@@ -1578,6 +1578,10 @@
             >
 
 
+                <!-- =================================================
+                     EDIT DASHBOARD USER
+                ================================================== -->
+
                 <a
                     class="feature-card"
                     href="../user/dashboard.html?edit=1"
@@ -1605,6 +1609,10 @@
 
                 </a>
 
+
+                <!-- =================================================
+                     EDIT USER
+                ================================================== -->
 
                 <a
                     class="feature-card"
@@ -1634,6 +1642,10 @@
                 </a>
 
 
+                <!-- =================================================
+                     EDIT PROVIDERS
+                ================================================== -->
+
                 <a
                     class="feature-card"
                     href="./providers.html"
@@ -1661,6 +1673,10 @@
 
                 </a>
 
+
+                <!-- =================================================
+                     EDIT MODEL
+                ================================================== -->
 
                 <a
                     class="feature-card"
@@ -1691,6 +1707,10 @@
                 </a>
 
 
+                <!-- =================================================
+                     EDIT CREDIT
+                ================================================== -->
+
                 <a
                     class="feature-card"
                     href="./credit.html"
@@ -1707,6 +1727,42 @@
                     <p>
                         Kelola sistem credit dan
                         pengaturan saldo pengguna.
+                    </p>
+
+                    <span
+                        class="feature-arrow"
+                        aria-hidden="true"
+                    >
+                        →
+                    </span>
+
+                </a>
+
+
+                <!-- =================================================
+                     HUB ADMIN
+                     
+                     Modul ini hanya membuka halaman konfigurasi
+                     kontak admin. Tidak mengambil alih fungsi
+                     Generate, History, Top Up, Provider, atau Model.
+                ================================================== -->
+
+                <a
+                    class="feature-card"
+                    href="./hub-admin/index.html"
+                >
+
+                    <div class="feature-icon">
+                        ☎
+                    </div>
+
+                    <h2>
+                        Hub Admin
+                    </h2>
+
+                    <p>
+                        Atur nomor WhatsApp dan pesan default
+                        untuk pengguna yang membutuhkan bantuan admin.
                     </p>
 
                     <span
@@ -1763,9 +1819,9 @@
 
     <!-- =====================================================
          SUPABASE CLIENT BRIDGE
-         
+
          BUKAN AUTH.
-         
+
          Hanya membuat SATU Supabase client global.
 
          navigation/navigation.js akan memakai:
@@ -1890,7 +1946,7 @@
 
     <!-- =====================================================
          SHARED NAVIGATION
-         
+
          File yang digunakan:
          ../navigation/navigation.js
 
@@ -1917,7 +1973,7 @@
 
     <!-- =====================================================
          PAGE INITIALIZER
-         
+
          TIDAK:
          - query Supabase
          - getSession()
@@ -1926,7 +1982,7 @@
          - membuat sidebar
          - redirect sendiri
          - logout sendiri
-         
+
          Hanya membaca hasil navigation.js.
     ====================================================== -->
 
