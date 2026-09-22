@@ -3947,6 +3947,15 @@ function ensureKieDiagnosticPanel() {
 
 /* =========================================================
    RENDER KIE RESPONSE
+   ---------------------------------------------------------
+   DIAGNOSTIC UI DINONAKTIFKAN
+   ---------------------------------------------------------
+   Data KIE tetap diproses oleh polling dan backend.
+   Tetapi response JSON / summary KIE TIDAK ditampilkan
+   pada halaman Generate.
+   
+   Status user-facing ditangani oleh:
+   - setGenerateStatus()
 ========================================================= */
 
 function renderKieDiagnostic(
@@ -3954,106 +3963,81 @@ function renderKieDiagnostic(
     phase = "RESPONSE"
 ) {
 
+    /*
+     * Jangan membuat panel diagnostic baru.
+     *
+     * Polling tetap berjalan normal karena fungsi ini
+     * hanya bertanggung jawab terhadap tampilan diagnostic.
+     */
+
     const panel =
-        ensureKieDiagnosticPanel();
-
-    const summary =
-        panel.querySelector(
-            "#genzKieSummary"
+        document.getElementById(
+            "genzKieDiagnostic"
         );
-
-    const raw =
-        panel.querySelector(
-            "#genzKieRaw"
-        );
-
-    const safeResponse =
-        sanitizeKieResponse(
-            response
-        );
-
-    const taskId =
-        response?.taskId ||
-
-        response?.task_id ||
-
-        response?.jobId ||
-
-        response?.data?.taskId ||
-
-        response?.data?.task_id ||
-
-        response?.task?.taskId ||
-
-        response?.task?.task_id ||
-
-        "-";
-
-    const state =
-        response?.state ||
-
-        response?.status ||
-
-        response?.data?.state ||
-
-        response?.data?.status ||
-
-        response?.task?.state ||
-
-        response?.task?.status ||
-
-        "-";
-
-    const code =
-        response?.code ||
-
-        response?.error_code ||
-
-        response?.errorCode ||
-
-        response?.data?.code ||
-
-        "-";
-
-    const message =
-        response?.message ||
-
-        response?.msg ||
-
-        response?.error ||
-
-        response?.data?.message ||
-
-        response?.data?.msg ||
-
-        response?.data?.error ||
-
-        "-";
 
     if (
-        summary
+        panel
     ) {
 
-        summary.textContent =
-            `${phase} • Status: ${String(state)} • Code: ${String(code)} • Task: ${String(taskId)} • ${String(message)}`;
+        panel.innerHTML =
+            "";
+
+        panel.hidden =
+            true;
+
+        panel.style.display =
+            "none";
+
+        panel.style.visibility =
+            "hidden";
+
+        panel.style.opacity =
+            "0";
+
+        panel.setAttribute(
+            "aria-hidden",
+            "true"
+        );
 
     }
 
+    return null;
+
+}
+
+/* =========================================================
+   HIDE LEGACY KIE DIAGNOSTIC UI
+========================================================= */
+
+function hideLegacyKieDiagnostic() {
+
+    const panel =
+        document.getElementById(
+            "genzKieDiagnostic"
+        );
+
     if (
-        raw
+        !panel
     ) {
 
-        raw.textContent =
-            JSON.stringify(
-                safeResponse,
-                null,
-                2
-            );
+        return;
 
     }
 
     panel.hidden =
-        false;
+        true;
+
+    panel.style.display =
+        "none";
+
+    panel.style.visibility =
+        "hidden";
+
+    panel.style.opacity =
+        "0";
+
+    panel.innerHTML =
+        "";
 
 }
 
