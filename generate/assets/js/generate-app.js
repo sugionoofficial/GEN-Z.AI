@@ -5545,9 +5545,11 @@ function initializeVisualState() {
 
     hideError();
 
-   ensureGenerateStatus();
+    ensureGenerateStatus();
    
-   resetGenerateStatus();
+    resetGenerateStatus();
+
+    hideLegacyKieDiagnostic();
 
     const elements =
         getDOM();
