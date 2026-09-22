@@ -14,23 +14,11 @@
    - Escape HTML
    - Format tanggal
    - Video thumbnail interaction helper
-
-   Tidak bertanggung jawab:
-   - Query Supabase
-   - Authentication
-   - Polling backend
-   - Modal
-   - Event listener utama
 ========================================================= */
 
 (function () {
 
     "use strict";
-
-
-    /* =====================================================
-       ROOT NAMESPACE
-    ===================================================== */
 
     window.GENZHistory =
         window.GENZHistory || {};
@@ -41,9 +29,6 @@
 
     /* =====================================================
        STATE
-       -----------------------------------------------------
-       Jangan mengganti state yang sudah dibuat oleh
-       history-state.js.
     ===================================================== */
 
     App.state =
@@ -54,20 +39,14 @@
             App.state.historyData
         )
     ) {
-
-        App.state.historyData =
-            [];
-
+        App.state.historyData = [];
     }
 
     if (
         typeof App.state.currentFilter !==
         "string"
     ) {
-
-        App.state.currentFilter =
-            "all";
-
+        App.state.currentFilter = "all";
     }
 
 
@@ -84,24 +63,17 @@
     ===================================================== */
 
     function getState() {
-
         return App.state;
-
     }
 
 
     function getElements() {
-
         return App.elements;
-
     }
 
 
     function getHistoryData() {
 
-        /*
-         * Prioritaskan API milik history-data.js.
-         */
         if (
             typeof App.getHistoryData ===
             "function"
@@ -110,27 +82,18 @@
             const result =
                 App.getHistoryData();
 
-
             if (
                 Array.isArray(result)
             ) {
-
                 return result;
-
             }
-
         }
 
-
-        /*
-         * Fallback ke state.
-         */
         return Array.isArray(
             getState().historyData
         )
             ? getState().historyData
             : [];
-
     }
 
 
@@ -142,13 +105,10 @@
             typeof App.normalizeStatus ===
             "function"
         ) {
-
             return App.normalizeStatus(
                 status
             );
-
         }
-
 
         const value =
             String(
@@ -157,27 +117,19 @@
                 .trim()
                 .toLowerCase();
 
-
         if (
             value === "completed"
         ) {
-
             return "success";
-
         }
-
 
         if (
             value === "queued"
         ) {
-
             return "pending";
-
         }
 
-
         return value;
-
     }
 
 
@@ -193,11 +145,8 @@
             value === null ||
             value === undefined
         ) {
-
             return "";
-
         }
-
 
         return String(value)
             .replace(
@@ -220,9 +169,7 @@
                 /'/g,
                 "&#039;"
             );
-
     }
-
 
     App.escapeHtml =
         escapeHtml;
@@ -237,26 +184,19 @@
     ) {
 
         if (!value) {
-
             return "-";
-
         }
-
 
         const date =
             new Date(value);
-
 
         if (
             Number.isNaN(
                 date.getTime()
             )
         ) {
-
             return "-";
-
         }
-
 
         try {
 
@@ -270,9 +210,7 @@
                     minute: "2-digit",
                     second: "2-digit"
                 }
-            ).format(
-                date
-            );
+            ).format(date);
 
         } catch (error) {
 
@@ -281,16 +219,14 @@
             );
 
         }
-
     }
-
 
     App.formatDate =
         formatDate;
 
 
     /* =====================================================
-       FORMAT CREDITS
+       FORMAT CREDIT
     ===================================================== */
 
     function formatCredits(
@@ -300,26 +236,19 @@
         const number =
             Number(value);
 
-
         if (
             !Number.isFinite(number)
         ) {
-
             return "0";
-
         }
-
 
         if (
             Number.isInteger(number)
         ) {
-
             return number.toLocaleString(
                 "id-ID"
             );
-
         }
-
 
         return number.toLocaleString(
             "id-ID",
@@ -327,9 +256,7 @@
                 maximumFractionDigits: 4
             }
         );
-
     }
-
 
     App.formatCredits =
         formatCredits;
@@ -347,20 +274,14 @@
             typeof App.getResultUrl ===
             "function"
         ) {
-
             return App.getResultUrl(
                 item
             );
-
         }
-
 
         if (!item) {
-
             return "";
-
         }
-
 
         const value =
             String(
@@ -368,22 +289,13 @@
                 ""
             ).trim();
 
-
         if (!value) {
-
             return "";
-
         }
-
 
         const lower =
             value.toLowerCase();
 
-
-        /*
-         * Jangan izinkan URL berbahaya
-         * masuk ke HTML video.
-         */
         if (
             lower.startsWith(
                 "javascript:"
@@ -392,14 +304,10 @@
                 "data:text/html"
             )
         ) {
-
             return "";
-
         }
 
-
         return value;
-
     }
 
 
@@ -415,20 +323,16 @@
             typeof App.getTaskId ===
             "function"
         ) {
-
             return App.getTaskId(
                 item
             );
-
         }
-
 
         return String(
             item?.task_id ||
             item?.taskId ||
             ""
         ).trim();
-
     }
 
 
@@ -440,20 +344,16 @@
             typeof App.getModelId ===
             "function"
         ) {
-
             return App.getModelId(
                 item
             );
-
         }
-
 
         return String(
             item?.model_id ||
             item?.modelId ||
             ""
         ).trim();
-
     }
 
 
@@ -465,13 +365,10 @@
             typeof App.getModelName ===
             "function"
         ) {
-
             return App.getModelName(
                 item
             );
-
         }
-
 
         return String(
             item?.model_name ||
@@ -479,7 +376,6 @@
             item?.model ||
             ""
         ).trim();
-
     }
 
 
@@ -491,13 +387,10 @@
             typeof App.getProviderName ===
             "function"
         ) {
-
             return App.getProviderName(
                 item
             );
-
         }
-
 
         return String(
             item?.provider_name ||
@@ -505,7 +398,6 @@
             item?.provider ||
             ""
         ).trim();
-
     }
 
 
@@ -517,19 +409,15 @@
             typeof App.getPrompt ===
             "function"
         ) {
-
             return App.getPrompt(
                 item
             );
-
         }
-
 
         return String(
             item?.prompt ||
             ""
         ).trim();
-
     }
 
 
@@ -541,13 +429,10 @@
             typeof App.getCreditCost ===
             "function"
         ) {
-
             return App.getCreditCost(
                 item
             );
-
         }
-
 
         const value =
             Number(
@@ -557,11 +442,9 @@
                 0
             );
 
-
         return Number.isFinite(value)
             ? value
             : 0;
-
     }
 
 
@@ -573,13 +456,10 @@
             typeof App.getErrorMessage ===
             "function"
         ) {
-
             return App.getErrorMessage(
                 item
             );
-
         }
-
 
         return String(
             item?.error_message ||
@@ -587,12 +467,11 @@
             item?.message ||
             ""
         ).trim();
-
     }
 
 
     /* =====================================================
-       STATUS LABEL
+       STATUS
     ===================================================== */
 
     function getStatusLabel(
@@ -604,54 +483,35 @@
                 status
             );
 
-
         switch (
             normalized
         ) {
 
             case "success":
-
                 return "SUCCESS";
 
-
             case "processing":
-
                 return "PROCESSING";
 
-
             case "pending":
-
                 return "PENDING";
 
-
             case "failed":
-
                 return "GAGAL";
 
-
             case "cancelled":
-
                 return "DIBATALKAN";
 
-
             default:
-
                 return normalized
                     ? normalized.toUpperCase()
                     : "UNKNOWN";
-
         }
-
     }
-
 
     App.getStatusLabel =
         getStatusLabel;
 
-
-    /* =====================================================
-       STATUS CLASS
-    ===================================================== */
 
     function getStatusClass(
         status
@@ -662,51 +522,36 @@
                 status
             );
 
-
         switch (
             normalized
         ) {
 
             case "success":
-
                 return "status-success";
 
-
             case "processing":
-
                 return "status-processing";
 
-
             case "pending":
-
                 return "status-pending";
 
-
             case "failed":
-
                 return "status-failed";
 
-
             case "cancelled":
-
                 return "status-cancelled";
 
-
             default:
-
                 return "status-unknown";
-
         }
-
     }
-
 
     App.getStatusClass =
         getStatusClass;
 
 
     /* =====================================================
-       PROCESSING THUMBNAIL
+       THUMBNAIL
     ===================================================== */
 
     function getProcessingThumbnailHtml() {
@@ -725,13 +570,8 @@
 
             </div>
         `;
-
     }
 
-
-    /* =====================================================
-       SUCCESS THUMBNAIL
-    ===================================================== */
 
     function getSuccessThumbnailHtml(
         item
@@ -742,7 +582,6 @@
                 item
             );
 
-
         if (!url) {
 
             return `
@@ -750,22 +589,17 @@
                     class="history-thumbnail thumbnail-empty"
                     aria-label="Hasil video belum tersedia"
                 >
-
                     <span class="thumbnail-empty-icon">
                         🎬
                     </span>
-
                 </div>
             `;
-
         }
-
 
         const safeUrl =
             escapeHtml(
                 url
             );
-
 
         const taskId =
             escapeHtml(
@@ -773,7 +607,6 @@
                     item
                 )
             );
-
 
         return `
             <div
@@ -792,11 +625,9 @@
                     preload="metadata"
                 ></video>
 
-
                 <span class="thumbnail-play">
                     ▶
                 </span>
-
 
                 <span class="thumbnail-success">
                     SUCCESS
@@ -804,13 +635,8 @@
 
             </div>
         `;
-
     }
 
-
-    /* =====================================================
-       FAILED THUMBNAIL
-    ===================================================== */
 
     function getFailedThumbnailHtml(
         item
@@ -821,7 +647,6 @@
                 item
             );
 
-
         if (!url) {
 
             return `
@@ -829,22 +654,17 @@
                     class="history-thumbnail thumbnail-failed"
                     aria-label="Generation gagal"
                 >
-
                     <span class="thumbnail-failed-icon">
                         !
                     </span>
-
                 </div>
             `;
-
         }
-
 
         const safeUrl =
             escapeHtml(
                 url
             );
-
 
         const taskId =
             escapeHtml(
@@ -852,7 +672,6 @@
                     item
                 )
             );
-
 
         return `
             <div
@@ -871,11 +690,9 @@
                     preload="metadata"
                 ></video>
 
-
                 <span class="thumbnail-play">
                     ▶
                 </span>
-
 
                 <span class="thumbnail-failed-label">
                     GAGAL
@@ -883,13 +700,8 @@
 
             </div>
         `;
-
     }
 
-
-    /* =====================================================
-       EMPTY / OTHER THUMBNAIL
-    ===================================================== */
 
     function getEmptyThumbnailHtml(
         status
@@ -900,51 +712,31 @@
                 status
             );
 
-
-        let icon =
-            "🎬";
-
-        let label =
-            "";
-
+        let icon = "🎬";
+        let label = "";
 
         if (
-            normalized ===
-            "cancelled"
+            normalized === "cancelled"
         ) {
 
-            icon =
-                "×";
-
-            label =
-                "DIBATALKAN";
+            icon = "×";
+            label = "DIBATALKAN";
 
         } else if (
-            normalized ===
-            "pending"
+            normalized === "pending"
         ) {
 
-            icon =
-                "◷";
-
-            label =
-                "PENDING";
+            icon = "◷";
+            label = "PENDING";
 
         } else {
 
-            icon =
-                "•";
-
-            label =
-                "";
+            icon = "•";
 
         }
 
-
         return `
-            <div
-                class="history-thumbnail thumbnail-empty"
-            >
+            <div class="history-thumbnail thumbnail-empty">
 
                 <span class="thumbnail-empty-icon">
                     ${escapeHtml(icon)}
@@ -962,13 +754,8 @@
 
             </div>
         `;
-
     }
 
-
-    /* =====================================================
-       MAIN THUMBNAIL SELECTOR
-    ===================================================== */
 
     function getThumbnailHtml(
         item
@@ -979,40 +766,29 @@
                 item?.status
             );
 
-
         switch (
             status
         ) {
 
             case "processing":
-
             case "pending":
-
                 return getProcessingThumbnailHtml();
 
-
             case "success":
-
                 return getSuccessThumbnailHtml(
                     item
                 );
 
-
             case "failed":
-
                 return getFailedThumbnailHtml(
                     item
                 );
 
-
             default:
-
                 return getEmptyThumbnailHtml(
                     status
                 );
-
         }
-
     }
 
 
@@ -1033,64 +809,8 @@
 
 
     /* =====================================================
-       FILTERED DATA
+       FILTER
     ===================================================== */
-
-    function getFilteredData() {
-
-        if (
-            typeof App.getFilteredHistory ===
-            "function"
-        ) {
-
-            const result =
-                App.getFilteredHistory();
-
-
-            if (
-                Array.isArray(result)
-            ) {
-
-                return result;
-
-            }
-
-        }
-
-
-        const data =
-            getHistoryData();
-
-
-        const filter =
-            normalizeFilter(
-                getState().currentFilter
-            );
-
-
-        if (
-            filter === "all"
-        ) {
-
-            return data;
-
-        }
-
-
-        return data.filter(
-            function (item) {
-
-                return (
-                    normalizeStatus(
-                        item?.status
-                    ) === filter
-                );
-
-            }
-        );
-
-    }
-
 
     function normalizeFilter(
         filter
@@ -1103,29 +823,70 @@
                 .trim()
                 .toLowerCase();
 
-
-        const allowed =
-            [
-                "all",
-                "success",
-                "processing",
-                "pending",
-                "failed",
-                "cancelled"
-            ];
-
+        const allowed = [
+            "all",
+            "success",
+            "processing",
+            "pending",
+            "failed",
+            "cancelled"
+        ];
 
         return allowed.includes(
             value
         )
             ? value
             : "all";
+    }
 
+
+    function getFilteredData() {
+
+        if (
+            typeof App.getFilteredHistory ===
+            "function"
+        ) {
+
+            const result =
+                App.getFilteredHistory();
+
+            if (
+                Array.isArray(result)
+            ) {
+                return result;
+            }
+        }
+
+        const data =
+            getHistoryData();
+
+        const filter =
+            normalizeFilter(
+                getState().currentFilter
+            );
+
+        if (
+            filter === "all"
+        ) {
+            return data;
+        }
+
+        return data.filter(
+            function (item) {
+
+                return (
+                    normalizeStatus(
+                        item?.status
+                    ) === filter
+                );
+
+            }
+        );
     }
 
 
     /* =====================================================
-       USER DISPLAY
+       USER
     ===================================================== */
 
     function getUserDisplay(
@@ -1137,12 +898,10 @@
             item?.email ||
             "";
 
-
         const name =
             item?.user_name ||
             item?.name ||
             "";
-
 
         if (
             name &&
@@ -1162,13 +921,9 @@
 
                 </div>
             `;
-
         }
 
-
-        if (
-            email
-        ) {
+        if (email) {
 
             return `
                 <div class="history-user">
@@ -1179,13 +934,9 @@
 
                 </div>
             `;
-
         }
 
-
-        if (
-            name
-        ) {
+        if (name) {
 
             return `
                 <div class="history-user">
@@ -1196,16 +947,13 @@
 
                 </div>
             `;
-
         }
-
 
         const userId =
             String(
                 item?.user_id ||
                 ""
             ).trim();
-
 
         return `
             <div class="history-user">
@@ -1218,12 +966,11 @@
 
             </div>
         `;
-
     }
 
 
     /* =====================================================
-       PROVIDER DISPLAY
+       PROVIDER
     ===================================================== */
 
     function getProviderDisplay(
@@ -1235,10 +982,11 @@
                 item
             );
 
-
         return `
-            <div class="history-provider-cell-content">
-
+            <div
+                class="history-provider-cell-content"
+                title="${escapeHtml(provider)}"
+            >
                 ${
                     provider
                         ? escapeHtml(
@@ -1246,15 +994,13 @@
                         )
                         : "-"
                 }
-
             </div>
         `;
-
     }
 
 
     /* =====================================================
-       MODEL DISPLAY
+       MODEL
     ===================================================== */
 
     function getModelDisplay(
@@ -1266,15 +1012,18 @@
                 item
             );
 
-
         const modelId =
             getModelId(
                 item
             );
 
-
         return `
-            <div class="history-model">
+            <div
+                class="history-model"
+                title="${escapeHtml(
+                    modelName || modelId
+                )}"
+            >
 
                 <strong>
                     ${escapeHtml(
@@ -1296,12 +1045,14 @@
 
             </div>
         `;
-
     }
 
 
     /* =====================================================
        PROMPT DISPLAY
+       -----------------------------------------------------
+       HANYA 1 BARIS DI TABLE.
+       Klik -> buka detail lengkap.
     ===================================================== */
 
     function getPromptDisplay(
@@ -1313,23 +1064,43 @@
                 item
             );
 
-
         if (!prompt) {
 
-            return "-";
-
+            return `
+                <span class="history-prompt-empty">
+                    -
+                </span>
+            `;
         }
 
 
-        return `
-            <div
-                class="history-prompt"
-                title="${escapeHtml(prompt)}"
-            >
-                ${escapeHtml(prompt)}
-            </div>
-        `;
+        const safePrompt =
+            escapeHtml(
+                prompt
+            );
 
+
+        /*
+         * Jangan memotong string dengan JS.
+         * CSS akan menangani ellipsis sehingga
+         * tooltip/detail tetap menggunakan prompt asli.
+         */
+        return `
+            <button
+                type="button"
+                class="history-prompt"
+                data-action="prompt"
+                data-history-id="${escapeHtml(
+                    item?.id || ""
+                )}"
+                title="Klik untuk melihat prompt lengkap"
+                aria-label="Lihat prompt lengkap"
+            >
+                <span class="history-prompt-text">
+                    ${safePrompt}
+                </span>
+            </button>
+        `;
     }
 
 
@@ -1346,18 +1117,15 @@
                 item?.status
             );
 
-
         const label =
             getStatusLabel(
                 status
             );
 
-
         const className =
             getStatusClass(
                 status
             );
-
 
         return `
             <span
@@ -1371,12 +1139,11 @@
                 )}
             </span>
         `;
-
     }
 
 
     /* =====================================================
-       CREDIT DISPLAY
+       CREDIT
     ===================================================== */
 
     function getCreditDisplay(
@@ -1388,7 +1155,6 @@
                 item
             );
 
-
         return `
             <span class="history-credit">
                 ${escapeHtml(
@@ -1398,14 +1164,13 @@
                 )}
             </span>
         `;
-
     }
 
 
     /* =====================================================
-       ROW HTML
+       ROW
        -----------------------------------------------------
-       URUTAN HARUS SAMA DENGAN HEADER HTML:
+       Urutan HARUS sama dengan HTML:
 
        Preview
        Tanggal
@@ -1430,30 +1195,25 @@
                 ""
             ).trim();
 
-
         const taskId =
             getTaskId(
                 item
             );
-
 
         const createdAt =
             item?.created_at ||
             item?.createdAt ||
             null;
 
-
         const safeId =
             escapeHtml(
                 id
             );
 
-
         const safeTaskId =
             escapeHtml(
                 taskId
             );
-
 
         return `
             <tr
@@ -1461,122 +1221,87 @@
                 data-task-id="${safeTaskId}"
             >
 
-                <!-- ======================================
-                     PREVIEW
-                ======================================= -->
+                <!-- PREVIEW -->
 
                 <td class="history-thumbnail-cell">
-
                     ${getThumbnailHtml(
                         item
                     )}
-
                 </td>
 
 
-                <!-- ======================================
-                     TANGGAL
-                ======================================= -->
+                <!-- TANGGAL -->
 
                 <td class="history-date-cell">
-
                     ${escapeHtml(
                         formatDate(
                             createdAt
                         )
                     )}
-
                 </td>
 
 
-                <!-- ======================================
-                     USER
-                     Hanya ADMIN / OWNER
-                ======================================= -->
+                <!-- USER -->
 
                 ${
                     showUserColumn
                         ? `
                             <td class="history-user-cell">
-
                                 ${getUserDisplay(
                                     item
                                 )}
-
                             </td>
                         `
                         : ""
                 }
 
 
-                <!-- ======================================
-                     PROVIDER
-                ======================================= -->
+                <!-- PROVIDER -->
 
                 <td class="history-provider-cell">
-
                     ${getProviderDisplay(
                         item
                     )}
-
                 </td>
 
 
-                <!-- ======================================
-                     MODEL
-                ======================================= -->
+                <!-- MODEL -->
 
                 <td class="history-model-cell">
-
                     ${getModelDisplay(
                         item
                     )}
-
                 </td>
 
 
-                <!-- ======================================
-                     PROMPT
-                ======================================= -->
+                <!-- PROMPT -->
 
                 <td class="history-prompt-cell">
-
                     ${getPromptDisplay(
                         item
                     )}
-
                 </td>
 
 
-                <!-- ======================================
-                     CREDIT
-                ======================================= -->
+                <!-- CREDIT -->
 
                 <td class="history-credit-cell">
-
                     ${getCreditDisplay(
                         item
                     )}
-
                 </td>
 
 
-                <!-- ======================================
-                     STATUS
-                ======================================= -->
+                <!-- STATUS -->
 
                 <td class="history-status-cell">
-
                     ${getStatusDisplay(
                         item
                     )}
-
                 </td>
 
 
-                <!-- ======================================
-                     ACTION
-                ======================================= -->
+                <!-- ACTION -->
 
                 <td class="history-action-cell">
 
@@ -1585,7 +1310,7 @@
                         class="history-detail-button"
                         data-action="detail"
                         data-history-id="${safeId}"
-                        title="Lihat detail"
+                        title="Lihat detail generation"
                     >
                         Detail
                     </button>
@@ -1594,12 +1319,11 @@
 
             </tr>
         `;
-
     }
 
 
     /* =====================================================
-       RENDER EMPTY STATE
+       EMPTY
     ===================================================== */
 
     function renderEmptyState() {
@@ -1607,44 +1331,33 @@
         const elements =
             getElements();
 
-
         if (
             !elements.emptyState
         ) {
-
             return;
-
         }
-
 
         elements.emptyState.style.display =
             "block";
 
-
         if (
             elements.tableWrap
         ) {
-
             elements.tableWrap.style.display =
                 "none";
-
         }
-
 
         if (
             elements.loadingState
         ) {
-
             elements.loadingState.style.display =
                 "none";
-
         }
-
     }
 
 
     /* =====================================================
-       RENDER TABLE
+       TABLE
     ===================================================== */
 
     function renderTable(
@@ -1654,15 +1367,11 @@
         const elements =
             getElements();
 
-
         if (
             !elements.historyBody
         ) {
-
             return;
-
         }
-
 
         const showUserColumn =
             typeof App.isAdminOrOwner ===
@@ -1724,12 +1433,11 @@
                 "none";
 
         }
-
     }
 
 
     /* =====================================================
-       UPDATE USER COLUMN
+       USER COLUMN
     ===================================================== */
 
     function updateUserColumn() {
@@ -1737,15 +1445,11 @@
         const elements =
             getElements();
 
-
         if (
             !elements.userColumnHeader
         ) {
-
             return;
-
         }
-
 
         const visible =
             typeof App.isAdminOrOwner ===
@@ -1760,12 +1464,11 @@
             visible
                 ? ""
                 : "none";
-
     }
 
 
     /* =====================================================
-       HISTORY COUNT
+       COUNT
     ===================================================== */
 
     function updateHistoryCount(
@@ -1776,21 +1479,16 @@
         const elements =
             getElements();
 
-
         if (
             !elements.historyCount
         ) {
-
             return;
-
         }
-
 
         const total =
             Number(
                 totalCount
             ) || 0;
-
 
         const filtered =
             Number(
@@ -1798,23 +1496,10 @@
             ) || 0;
 
 
-        if (
-            total !==
-            filtered
-        ) {
-
-            elements.historyCount.textContent =
-                `${filtered} / ${total}`;
-
-        } else {
-
-            elements.historyCount.textContent =
-                String(
-                    total
-                );
-
-        }
-
+        elements.historyCount.textContent =
+            total !== filtered
+                ? `${filtered} / ${total}`
+                : String(total);
     }
 
 
@@ -1827,21 +1512,16 @@
         const elements =
             getElements();
 
-
         if (
             !elements.historySubtitle
         ) {
-
             return;
-
         }
-
 
         const filter =
             normalizeFilter(
                 getState().currentFilter
             );
-
 
         const labels = {
 
@@ -1869,7 +1549,6 @@
         elements.historySubtitle.textContent =
             labels[filter] ||
             labels.all;
-
     }
 
 
@@ -1882,18 +1561,16 @@
         const elements =
             getElements();
 
-
         if (
             !elements.historyBody
         ) {
 
             console.warn(
-                "[GEN-Z.AI History] Render skipped: #historyBody tidak ditemukan."
+                "[GEN-Z.AI History] " +
+                "#historyBody tidak ditemukan."
             );
 
-
             return;
-
         }
 
 
@@ -1921,26 +1598,18 @@
             !filteredData.length
         ) {
 
-            renderEmptyState();
-
-
-            /*
-             * Pastikan body tabel kosong
-             * ketika filter tidak memiliki data.
-             */
             elements.historyBody.innerHTML =
                 "";
 
+            renderEmptyState();
 
             return;
-
         }
 
 
         renderTable(
             filteredData
         );
-
     }
 
 
@@ -1949,7 +1618,7 @@
 
 
     /* =====================================================
-       RENDER LOADING
+       LOADING
     ===================================================== */
 
     function renderLoading() {
@@ -1957,16 +1626,13 @@
         const elements =
             getElements();
 
-
         if (
             elements.loadingState
         ) {
 
             elements.loadingState.style.display =
                 "block";
-
         }
-
 
         if (
             elements.tableWrap
@@ -1974,9 +1640,7 @@
 
             elements.tableWrap.style.display =
                 "none";
-
         }
-
 
         if (
             elements.emptyState
@@ -1984,9 +1648,7 @@
 
             elements.emptyState.style.display =
                 "none";
-
         }
-
     }
 
 
@@ -1995,7 +1657,7 @@
 
 
     /* =====================================================
-       RENDER ERROR
+       ERROR
     ===================================================== */
 
     function renderError() {
@@ -2003,16 +1665,13 @@
         const elements =
             getElements();
 
-
         if (
             elements.loadingState
         ) {
 
             elements.loadingState.style.display =
                 "none";
-
         }
-
 
         if (
             elements.tableWrap
@@ -2020,9 +1679,7 @@
 
             elements.tableWrap.style.display =
                 "none";
-
         }
-
 
         if (
             elements.emptyState
@@ -2030,9 +1687,7 @@
 
             elements.emptyState.style.display =
                 "none";
-
         }
-
     }
 
 
@@ -2041,7 +1696,7 @@
 
 
     /* =====================================================
-       VIDEO PREVIEW HELPER
+       VIDEO PRELOAD
     ===================================================== */
 
     function preloadThumbnailVideos() {
@@ -2049,13 +1704,10 @@
         const elements =
             getElements();
 
-
         if (
             !elements.historyBody
         ) {
-
             return;
-
         }
 
 
@@ -2076,7 +1728,8 @@
                 } catch (error) {
 
                     console.warn(
-                        "[GEN-Z.AI History] Video thumbnail preload failed:",
+                        "[GEN-Z.AI History] " +
+                        "Video thumbnail preload failed:",
                         error
                     );
 
@@ -2084,7 +1737,6 @@
 
             }
         );
-
     }
 
 
@@ -2093,18 +1745,13 @@
 
 
     /* =====================================================
-       REFRESH RENDER ONLY
+       REFRESH
     ===================================================== */
 
     function refreshRender() {
 
         renderHistory();
 
-
-        /*
-         * Jalankan setelah browser selesai
-         * memasukkan HTML ke DOM.
-         */
         if (
             typeof requestAnimationFrame ===
             "function"
@@ -2119,7 +1766,6 @@
             preloadThumbnailVideos();
 
         }
-
     }
 
 
@@ -2128,10 +1774,7 @@
 
 
     /* =====================================================
-       PUBLIC COMPATIBILITY
-       -----------------------------------------------------
-       API tambahan agar module lain yang masih
-       menggunakan fungsi lama tidak rusak.
+       PUBLIC API
     ===================================================== */
 
     App.getUserDisplay =
