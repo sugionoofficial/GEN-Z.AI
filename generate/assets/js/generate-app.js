@@ -162,6 +162,11 @@ function getDOM() {
                 "generateButton"
             ),
 
+       generateStatus:
+    document.getElementById(
+        "generateStatus"
+    ),
+
         generateCreditCost:
             document.getElementById(
                 "generateCreditCost"
