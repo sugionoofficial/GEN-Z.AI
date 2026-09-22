@@ -1446,10 +1446,13 @@ table td:nth-child(9) {
 
 
 /* =========================================================
-   PROMPT
+   PROMPT TABLE
    ---------------------------------------------------------
-   Prompt tabel hanya satu baris.
-   Prompt lengkap dibuka melalui klik prompt / DETAIL.
+   PROMPT DI TABEL:
+   - HANYA 1 BARIS
+   - TIDAK BOLEH MEMBESAR
+   - TEKS PANJANG DIPOTONG (...)
+   - PROMPT LENGKAP HANYA DI DETAIL
 ========================================================= */
 
 .prompt-cell,
@@ -1457,33 +1460,46 @@ table td:nth-child(9) {
 
     width: 280px;
 
+    min-width: 280px;
+
     max-width: 280px;
 
-    min-width: 0;
+    padding-top: 13px;
+
+    padding-bottom: 13px;
 
     overflow: hidden;
+
+    vertical-align: middle;
 
 }
 
 
-/*
-   Tombol prompt dibuat transparan agar tetap terlihat
-   seperti teks biasa.
-*/
+/* =========================================================
+   PROMPT BUTTON
+========================================================= */
 
 .history-prompt {
 
     display: block;
 
-    width: 100%;
+    position: relative;
 
-    max-width: 100%;
+    width: 100%;
 
     min-width: 0;
 
-    padding: 0;
+    max-width: 100%;
+
+    height: 18px;
+
+    min-height: 18px;
+
+    max-height: 18px;
 
     margin: 0;
+
+    padding: 0;
 
     border: 0;
 
@@ -1499,45 +1515,86 @@ table td:nth-child(9) {
 
     font-weight: 500;
 
-    line-height: 1.45;
+    line-height: 18px;
 
     text-align: left;
 
-    cursor: pointer;
-
-    overflow: hidden;
-
-    text-decoration: none;
-
-}
-
-
-/*
-   Inilah bagian penting:
-   prompt selalu satu baris dan dipotong dengan ...
-*/
-
-.history-prompt-text,
-.prompt-text {
-
-    display: block;
-
-    width: 100%;
-
-    max-width: 100%;
+    white-space: nowrap;
 
     overflow: hidden;
 
     text-overflow: ellipsis;
 
-    white-space: nowrap;
+    cursor: pointer;
 
 }
 
 
-/*
-   Hover memberi indikasi bahwa prompt bisa diklik.
-*/
+/* =========================================================
+   PROMPT TEXT
+========================================================= */
+
+.history-prompt-text {
+
+    display: block;
+
+    width: 100%;
+
+    min-width: 0;
+
+    max-width: 100%;
+
+    height: 18px;
+
+    max-height: 18px;
+
+    line-height: 18px;
+
+    overflow: hidden;
+
+    white-space: nowrap;
+
+    text-overflow: ellipsis;
+
+    word-break: normal;
+
+    overflow-wrap: normal;
+
+}
+
+
+/* =========================================================
+   EMPTY PROMPT
+========================================================= */
+
+.history-prompt-empty {
+
+    display: block;
+
+    width: 100%;
+
+    height: 18px;
+
+    max-height: 18px;
+
+    color: #9ca3af;
+
+    font-size: 10px;
+
+    line-height: 18px;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+}
+
+
+/* =========================================================
+   HOVER
+========================================================= */
 
 .history-prompt:hover {
 
@@ -1549,13 +1606,14 @@ table td:nth-child(9) {
 .history-prompt:hover
 .history-prompt-text {
 
-    text-decoration:
-        underline;
-
-    text-underline-offset: 2px;
+    color: #4f46e5;
 
 }
 
+
+/* =========================================================
+   FOCUS
+========================================================= */
 
 .history-prompt:focus-visible {
 
@@ -1569,19 +1627,69 @@ table td:nth-child(9) {
 }
 
 
-.history-prompt-empty {
+/* =========================================================
+   PROMPT CELL SAFETY
+   ---------------------------------------------------------
+   Mencegah isi prompt memaksa tinggi tabel.
+========================================================= */
 
-    display: block;
+.history-prompt-cell > *,
+.prompt-cell > * {
 
-    color: #9ca3af;
-
-    font-size: 10px;
-
-    white-space: nowrap;
+    max-width: 100%;
 
     overflow: hidden;
 
-    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   DETAIL PROMPT
+   ---------------------------------------------------------
+   BAGIAN INI BERBEDA:
+   Prompt lengkap BOLEH multiline di modal.
+========================================================= */
+
+.detail-value.prompt-detail,
+.detail-value.prompt,
+.detail-value[data-field="prompt"] {
+
+    display: block;
+
+    width: 100%;
+
+    max-width: 100%;
+
+    min-height: 0;
+
+    height: auto;
+
+    max-height: 360px;
+
+    margin-top: 8px;
+
+    padding: 12px 14px;
+
+    border:
+        1px solid #eef0f3;
+
+    border-radius: 10px;
+
+    background: #f9fafb;
+
+    color: #111827;
+
+    font-size: 11px;
+
+    line-height: 1.65;
+
+    white-space: pre-wrap;
+
+    word-break: break-word;
+
+    overflow-wrap: anywhere;
+
+    overflow-y: auto;
 
 }
 
