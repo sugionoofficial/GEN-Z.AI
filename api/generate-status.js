@@ -236,95 +236,796 @@ function safeJson(
 
 
 /* =========================================================
-   SUPABASE REQUEST
+   UPDATE GENERATION HISTORY
+   ---------------------------------------------------------
+   Tanggung jawab:
+   - Update row History terminal
+   - Simpan result URL
+   - Simpan completed_at
+   - Simpan error_message jika gagal
+   - Menggunakan id + user_id + task_id
+   - Fallback payload jika schema menolak field tertentu
+   - Mengembalikan error database asli
    ========================================================= */
 
-async function supabaseRequest(
-    path,
-    options = {}
+async function updateGenerationHistory(
+    history,
+    normalized
 ) {
     if (
-        !SUPABASE_URL
+        !history?.id
     ) {
         throw new Error(
-            "SUPABASE_URL is not configured"
+            "generation_history.id tidak ditemukan."
+        );
+    }
+
+
+    const historyId =
+        cleanString(
+            history.id
+        );
+
+
+    const userId =
+        cleanString(
+            history.user_id
+        );
+
+
+    const taskId =
+        cleanString(
+            history.task_id
+        );
+
+
+    if (
+        !historyId
+    ) {
+        throw new Error(
+            "generation_history.id kosong."
+        );
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * BUILD PAYLOAD
+     * -------------------------------------------------------
+     */
+
+    let payload =
+        {};
+
+
+    if (
+        normalized.completed
+    ) {
+        payload = {
+            status:
+                "completed",
+
+            result_url:
+                normalized.result_urls &&
+                normalized.result_urls.length
+                    ? normalized.result_urls[0]
+                    : null,
+
+            completed_at:
+                new Date().toISOString(),
+
+            error_message:
+                null
+        };
+    }
+
+
+    else if (
+        normalized.failed
+    ) {
+        const providerError =
+            firstDefined(
+                findDeepValue(
+                    normalized.raw,
+                    [
+                        "error_message",
+                        "errorMessage",
+                        "message",
+                        "error"
+                    ]
+                ),
+                "Provider gagal memproses task."
+            );
+
+
+        payload = {
+            status:
+                "failed",
+
+            error_message:
+                cleanString(
+                    providerError
+                ),
+
+            completed_at:
+                new Date().toISOString()
+        };
+    }
+
+
+    else {
+        payload = {
+            status:
+                "processing"
+        };
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * PRIMARY FILTER
+     * -------------------------------------------------------
+     *
+     * id selalu wajib.
+     *
+     * user_id + task_id ditambahkan bila tersedia supaya
+     * update tidak pernah mengenai History milik user/task lain.
+     * -------------------------------------------------------
+     */
+
+    const filters =
+        new URLSearchParams();
+
+
+    filters.set(
+        "id",
+        `eq.${historyId}`
+    );
+
+
+    if (
+        userId
+    ) {
+        filters.set(
+            "user_id",
+            `eq.${userId}`
         );
     }
 
 
     if (
-        !SUPABASE_SERVICE_ROLE_KEY
+        taskId
     ) {
-        throw new Error(
-            "SUPABASE_SERVICE_ROLE_KEY is not configured"
+        filters.set(
+            "task_id",
+            `eq.${taskId}`
         );
     }
 
 
-    const response =
-        await fetch(
-            `${SUPABASE_URL}${path}`,
-            {
-                ...options,
+    const endpoint =
+        `/rest/v1/generation_history?${filters.toString()}`;
 
-                headers: {
-                    apikey:
-                        SUPABASE_SERVICE_ROLE_KEY,
 
-                    Authorization:
-                        `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    /*
+     * -------------------------------------------------------
+     * PRIMARY PATCH
+     * -------------------------------------------------------
+     */
 
-                    "Content-Type":
-                        "application/json",
+    try {
+        const rows =
+            await supabaseRequest(
+                endpoint,
+                {
+                    method:
+                        "PATCH",
 
-                    ...(options.headers || {})
+                    headers: {
+                        Prefer:
+                            "return=representation"
+                    },
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
                 }
+            );
+
+
+        /*
+         * Kalau Supabase mengembalikan array kosong,
+         * berarti tidak ada row yang benar-benar ter-update.
+         */
+        if (
+            Array.isArray(rows) &&
+            rows.length === 0
+        ) {
+            const error =
+                new Error(
+                    "Supabase menerima PATCH tetapi tidak ada generation_history yang berubah."
+                );
+
+
+            error.status =
+                200;
+
+
+            error.code =
+                "NO_ROWS_UPDATED";
+
+
+            error.data =
+                rows;
+
+
+            throw error;
+        }
+
+
+        return {
+            payload,
+
+            rows:
+                Array.isArray(rows)
+                    ? rows
+                    : [],
+
+            strategy:
+                "primary"
+        };
+    } catch (primaryError) {
+        console.error(
+            "[generate-status] Primary generation_history PATCH failed:",
+            {
+                message:
+                    primaryError?.message,
+
+                status:
+                    primaryError?.status,
+
+                code:
+                    primaryError?.code,
+
+                details:
+                    primaryError?.details,
+
+                hint:
+                    primaryError?.hint,
+
+                data:
+                    primaryError?.data
             }
         );
 
 
-    const text =
-        await response.text();
+        /*
+         * ---------------------------------------------------
+         * FALLBACK #1
+         * ---------------------------------------------------
+         *
+         * Jangan menyertakan error_message:null.
+         *
+         * Ini berguna jika ada schema/trigger/constraint
+         * yang bermasalah pada kolom error_message.
+         * ---------------------------------------------------
+         */
+
+        if (
+            normalized.completed
+        ) {
+            const fallbackPayload = {
+                status:
+                    "completed",
+
+                result_url:
+                    normalized.result_urls &&
+                    normalized.result_urls.length
+                        ? normalized.result_urls[0]
+                        : null,
+
+                completed_at:
+                    new Date().toISOString()
+            };
 
 
-    let data =
-        null;
+            try {
+                const rows =
+                    await supabaseRequest(
+                        endpoint,
+                        {
+                            method:
+                                "PATCH",
+
+                            headers: {
+                                Prefer:
+                                    "return=representation"
+                            },
+
+                            body:
+                                JSON.stringify(
+                                    fallbackPayload
+                                )
+                        }
+                    );
 
 
-    if (
-        text
-    ) {
-        try {
-            data =
-                JSON.parse(
-                    text
+                if (
+                    Array.isArray(rows) &&
+                    rows.length === 0
+                ) {
+                    const error =
+                        new Error(
+                            "Fallback PATCH diterima tetapi tidak ada generation_history yang berubah."
+                        );
+
+
+                    error.status =
+                        200;
+
+
+                    error.code =
+                        "NO_ROWS_UPDATED";
+
+
+                    error.data =
+                        rows;
+
+
+                    throw error;
+                }
+
+
+                return {
+                    payload:
+                        fallbackPayload,
+
+                    rows:
+                        Array.isArray(rows)
+                            ? rows
+                            : [],
+
+                    strategy:
+                        "fallback_without_error_message",
+
+                    primary_error: {
+                        message:
+                            primaryError?.message ||
+                            null,
+
+                        status:
+                            primaryError?.status ||
+                            null,
+
+                        code:
+                            primaryError?.code ||
+                            null,
+
+                        details:
+                            primaryError?.details ||
+                            null,
+
+                        hint:
+                            primaryError?.hint ||
+                            null,
+
+                        data:
+                            primaryError?.data ||
+                            null
+                    }
+                };
+            } catch (fallbackError) {
+                console.error(
+                    "[generate-status] Fallback generation_history PATCH failed:",
+                    {
+                        message:
+                            fallbackError?.message,
+
+                        status:
+                            fallbackError?.status,
+
+                        code:
+                            fallbackError?.code,
+
+                        details:
+                            fallbackError?.details,
+
+                        hint:
+                            fallbackError?.hint,
+
+                        data:
+                            fallbackError?.data
+                    }
                 );
-        } catch {
-            data =
-                text;
+
+
+                /*
+                 * ------------------------------------------------
+                 * FALLBACK #2
+                 * ------------------------------------------------
+                 *
+                 * Hanya status + result_url.
+                 *
+                 * Jika ini berhasil, berarti masalahnya
+                 * kemungkinan berada di completed_at.
+                 * ------------------------------------------------
+                 */
+
+                const minimalPayload = {
+                    status:
+                        "completed",
+
+                    result_url:
+                        normalized.result_urls &&
+                        normalized.result_urls.length
+                            ? normalized.result_urls[0]
+                            : null
+                };
+
+
+                try {
+                    const rows =
+                        await supabaseRequest(
+                            endpoint,
+                            {
+                                method:
+                                    "PATCH",
+
+                                headers: {
+                                    Prefer:
+                                        "return=representation"
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        minimalPayload
+                                    )
+                            }
+                        );
+
+
+                    if (
+                        Array.isArray(rows) &&
+                        rows.length === 0
+                    ) {
+                        const error =
+                            new Error(
+                                "Minimal PATCH diterima tetapi tidak ada generation_history yang berubah."
+                            );
+
+
+                        error.status =
+                            200;
+
+
+                        error.code =
+                            "NO_ROWS_UPDATED";
+
+
+                        error.data =
+                            rows;
+
+
+                        throw error;
+                    }
+
+
+                    return {
+                        payload:
+                            minimalPayload,
+
+                        rows:
+                            Array.isArray(rows)
+                                ? rows
+                                : [],
+
+                        strategy:
+                            "fallback_minimal",
+
+                        primary_error: {
+                            message:
+                                primaryError?.message ||
+                                null,
+
+                            status:
+                                primaryError?.status ||
+                                null,
+
+                            code:
+                                primaryError?.code ||
+                                null,
+
+                            details:
+                                primaryError?.details ||
+                                null,
+
+                            hint:
+                                primaryError?.hint ||
+                                null,
+
+                            data:
+                                primaryError?.data ||
+                                null
+                        },
+
+                        fallback_error: {
+                            message:
+                                fallbackError?.message ||
+                                null,
+
+                            status:
+                                fallbackError?.status ||
+                                null,
+
+                            code:
+                                fallbackError?.code ||
+                                null,
+
+                            details:
+                                fallbackError?.details ||
+                                null,
+
+                            hint:
+                                fallbackError?.hint ||
+                                null,
+
+                            data:
+                                fallbackError?.data ||
+                                null
+                        }
+                    };
+                } catch (minimalError) {
+                    /*
+                     * Semua strategi gagal.
+                     *
+                     * Lempar error dengan seluruh informasi
+                     * supaya syncGenerationHistory()
+                     * dapat mengembalikannya ke browser.
+                     */
+
+                    const error =
+                        new Error(
+                            minimalError?.message ||
+                            fallbackError?.message ||
+                            primaryError?.message ||
+                            "Gagal memperbarui generation_history."
+                        );
+
+
+                    error.status =
+                        minimalError?.status ||
+                        fallbackError?.status ||
+                        primaryError?.status ||
+                        null;
+
+
+                    error.code =
+                        minimalError?.code ||
+                        fallbackError?.code ||
+                        primaryError?.code ||
+                        null;
+
+
+                    error.details =
+                        minimalError?.details ||
+                        fallbackError?.details ||
+                        primaryError?.details ||
+                        null;
+
+
+                    error.hint =
+                        minimalError?.hint ||
+                        fallbackError?.hint ||
+                        primaryError?.hint ||
+                        null;
+
+
+                    error.data = {
+                        primary:
+                            primaryError?.data ||
+                            null,
+
+                        fallback:
+                            fallbackError?.data ||
+                            null,
+
+                        minimal:
+                            minimalError?.data ||
+                            null
+                    };
+
+
+                    error.diagnostics = {
+                        primary: {
+                            message:
+                                primaryError?.message ||
+                                null,
+
+                            status:
+                                primaryError?.status ||
+                                null,
+
+                            code:
+                                primaryError?.code ||
+                                null,
+
+                            details:
+                                primaryError?.details ||
+                                null,
+
+                            hint:
+                                primaryError?.hint ||
+                                null
+                        },
+
+                        fallback: {
+                            message:
+                                fallbackError?.message ||
+                                null,
+
+                            status:
+                                fallbackError?.status ||
+                                null,
+
+                            code:
+                                fallbackError?.code ||
+                                null,
+
+                            details:
+                                fallbackError?.details ||
+                                null,
+
+                            hint:
+                                fallbackError?.hint ||
+                                null
+                        },
+
+                        minimal: {
+                            message:
+                                minimalError?.message ||
+                                null,
+
+                            status:
+                                minimalError?.status ||
+                                null,
+
+                            code:
+                                minimalError?.code ||
+                                null,
+
+                            details:
+                                minimalError?.details ||
+                                null,
+
+                            hint:
+                                minimalError?.hint ||
+                                null
+                        }
+                    };
+
+
+                    throw error;
+                }
+            }
         }
+
+
+        /*
+         * Jika task failed, coba payload minimal failed.
+         */
+        if (
+            normalized.failed
+        ) {
+            const fallbackPayload = {
+                status:
+                    "failed",
+
+                error_message:
+                    cleanString(
+                        firstDefined(
+                            findDeepValue(
+                                normalized.raw,
+                                [
+                                    "error_message",
+                                    "errorMessage",
+                                    "message",
+                                    "error"
+                                ]
+                            ),
+                            "Provider gagal memproses task."
+                        )
+                    )
+            };
+
+
+            try {
+                const rows =
+                    await supabaseRequest(
+                        endpoint,
+                        {
+                            method:
+                                "PATCH",
+
+                            headers: {
+                                Prefer:
+                                    "return=representation"
+                            },
+
+                            body:
+                                JSON.stringify(
+                                    fallbackPayload
+                                )
+                        }
+                    );
+
+
+                return {
+                    payload:
+                        fallbackPayload,
+
+                    rows:
+                        Array.isArray(rows)
+                            ? rows
+                            : [],
+
+                    strategy:
+                        "fallback_failed"
+                };
+            } catch (fallbackError) {
+                const error =
+                    new Error(
+                        fallbackError?.message ||
+                        primaryError?.message ||
+                        "Gagal memperbarui generation_history."
+                    );
+
+
+                error.status =
+                    fallbackError?.status ||
+                    primaryError?.status ||
+                    null;
+
+
+                error.code =
+                    fallbackError?.code ||
+                    primaryError?.code ||
+                    null;
+
+
+                error.details =
+                    fallbackError?.details ||
+                    primaryError?.details ||
+                    null;
+
+
+                error.hint =
+                    fallbackError?.hint ||
+                    primaryError?.hint ||
+                    null;
+
+
+                error.data = {
+                    primary:
+                        primaryError?.data ||
+                        null,
+
+                    fallback:
+                        fallbackError?.data ||
+                        null
+                };
+
+
+                throw error;
+            }
+        }
+
+
+        /*
+         * Processing tidak perlu masuk fallback.
+         */
+        throw primaryError;
     }
-
-
-    if (
-        !response.ok
-    ) {
-        const error =
-            new Error(
-                `Supabase request failed with status ${response.status}`
-            );
-
-        error.status =
-            response.status;
-
-        error.data =
-            data;
-
-        throw error;
-    }
-
-
-    return data;
 }
 
 
