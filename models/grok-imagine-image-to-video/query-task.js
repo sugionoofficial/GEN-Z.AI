@@ -20,15 +20,30 @@
    - API key management
 
    CATATAN:
-   KIE dapat mengembalikan HTTP 200 dengan business code
-   tertentu pada response recordInfo. Penentuan berhasil/
-   gagal di sini didasarkan pada data task yang sebenarnya,
-   terutama state/status dan result URL.
+   Response KIE dapat memiliki beberapa lapisan object
+   seperti:
+
+   response
+   response.data
+   response.data.data
+   response.data.task
+   response.task
+   response.recordInfo
+
+   File ini melakukan normalisasi struktur tersebut agar
+   generate-status.js menerima bentuk data yang konsisten.
 ========================================================= */
 
 import {
     getTask
 } from "../../provider/kie/client.js";
+
+
+/* =========================================================
+   CONSTANTS
+========================================================= */
+
+const MAX_SCAN_DEPTH = 8;
 
 
 /* =========================================================
@@ -128,7 +143,7 @@ function normalizeUrl(
 
 
 /* =========================================================
-   ADD URL
+   ADD RESULT URL
 ========================================================= */
 
 function addResultUrl(
@@ -136,14 +151,114 @@ function addResultUrl(
     value
 ) {
 
-    const url =
-        normalizeUrl(
-            value
-        );
-
+    /*
+     * Direct string URL.
+     */
 
     if (
-        !url
+        typeof value === "string"
+    ) {
+
+        const url =
+            normalizeUrl(
+                value
+            );
+
+
+        if (
+            url &&
+            !collection.includes(
+                url
+            )
+        ) {
+
+            collection.push(
+                url
+            );
+
+        }
+
+        return;
+
+    }
+
+
+    /*
+     * Some KIE responses can represent result
+     * items as objects.
+     */
+
+    if (
+        value &&
+        typeof value === "object"
+    ) {
+
+        const candidates = [
+
+            value.url,
+
+            value.videoUrl,
+
+            value.video_url,
+
+            value.resultUrl,
+
+            value.result_url,
+
+            value.fileUrl,
+
+            value.file_url,
+
+            value.downloadUrl,
+
+            value.download_url
+
+        ];
+
+
+        for (
+            const candidate of candidates
+        ) {
+
+            const url =
+                normalizeUrl(
+                    candidate
+                );
+
+
+            if (
+                url &&
+                !collection.includes(
+                    url
+                )
+            ) {
+
+                collection.push(
+                    url
+                );
+
+            }
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   ADD URL ARRAY
+========================================================= */
+
+function addResultUrlArray(
+    collection,
+    value
+) {
+
+    if (
+        !Array.isArray(
+            value
+        )
     ) {
 
         return;
@@ -151,14 +266,13 @@ function addResultUrl(
     }
 
 
-    if (
-        !collection.includes(
-            url
-        )
+    for (
+        const item of value
     ) {
 
-        collection.push(
-            url
+        addResultUrl(
+            collection,
+            item
         );
 
     }
@@ -167,18 +281,308 @@ function addResultUrl(
 
 
 /* =========================================================
+   GET OBJECT CANDIDATES
+   ---------------------------------------------------------
+   Mengambil semua object yang relevan dari response
+   KIE secara recursive.
+
+   Contoh yang didukung:
+
+   response
+   ├─ data
+   │  ├─ task
+   │  └─ data
+   │     └─ resultJson
+   │
+   ├─ task
+   └─ recordInfo
+========================================================= */
+
+function collectObjects(
+    root
+) {
+
+    const objects = [];
+
+    const visited =
+        new Set();
+
+
+    function walk(
+        value,
+        depth
+    ) {
+
+        if (
+            depth >
+            MAX_SCAN_DEPTH
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            !value ||
+            typeof value !== "object"
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            visited.has(
+                value
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        visited.add(
+            value
+        );
+
+
+        objects.push(
+            value
+        );
+
+
+        /*
+         * Only inspect object/array children.
+         * This intentionally avoids blindly traversing
+         * arbitrary primitive values.
+         */
+
+        if (
+            Array.isArray(
+                value
+            )
+        ) {
+
+            for (
+                const item of value
+            ) {
+
+                walk(
+                    item,
+                    depth + 1
+                );
+
+            }
+
+            return;
+
+        }
+
+
+        for (
+            const key of Object.keys(
+                value
+            )
+        ) {
+
+            const child =
+                value[key];
+
+
+            if (
+                child &&
+                typeof child === "object"
+            ) {
+
+                walk(
+                    child,
+                    depth + 1
+                );
+
+            }
+
+        }
+
+    }
+
+
+    walk(
+        root,
+        0
+    );
+
+
+    return objects;
+
+}
+
+
+/* =========================================================
+   FIND TASK OBJECT
+========================================================= */
+
+function findTaskObject(
+    response
+) {
+
+    if (
+        !response ||
+        typeof response !== "object"
+    ) {
+
+        return {};
+
+    }
+
+
+    const objects =
+        collectObjects(
+            response
+        );
+
+
+    /*
+     * Prefer objects that actually look like task
+     * containers.
+     */
+
+    const preferredKeys = [
+
+        "taskId",
+
+        "task_id",
+
+        "state",
+
+        "status",
+
+        "task_state",
+
+        "taskStatus",
+
+        "task_status",
+
+        "resultJson",
+
+        "result_json",
+
+        "resultUrls",
+
+        "result_urls"
+
+    ];
+
+
+    for (
+        const object of objects
+    ) {
+
+        if (
+            preferredKeys.some(
+                key =>
+                    Object.prototype.hasOwnProperty.call(
+                        object,
+                        key
+                    )
+            )
+        ) {
+
+            return object;
+
+        }
+
+    }
+
+
+    /*
+     * Fallback to the first object.
+     */
+
+    return (
+        objects[0] ||
+        {}
+    );
+
+}
+
+
+/* =========================================================
+   FIND VALUE
+   ---------------------------------------------------------
+   Cari property tertentu dari seluruh object tree.
+========================================================= */
+
+function findFirstValue(
+    response,
+    keys
+) {
+
+    const objects =
+        collectObjects(
+            response
+        );
+
+
+    for (
+        const object of objects
+    ) {
+
+        for (
+            const key of keys
+        ) {
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    object,
+                    key
+                )
+            ) {
+
+                const value =
+                    object[key];
+
+
+                if (
+                    value !== null &&
+                    value !== undefined &&
+                    value !== ""
+                ) {
+
+                    return value;
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
    EXTRACT RESULT URLS
    ---------------------------------------------------------
-   Mendukung beberapa bentuk response KIE:
- *
-   resultJson.resultUrls
-   resultJson.result_urls
+   Mendukung:
+
    resultUrls
    result_urls
+   resultUrl
+   result_url
+   videoUrl
+   video_url
+   resultJson.resultUrls
+   resultJson.result_urls
    resultJson.data.resultUrls
    resultJson.data.result_urls
-   task.resultUrls
-   task.result_urls
+   nested response.data.*
 ========================================================= */
 
 function extractResultUrls(
@@ -198,150 +602,188 @@ function extractResultUrls(
     }
 
 
-    const result =
-        parseResultJson(
-            task.resultJson
+    const objects =
+        collectObjects(
+            task
         );
 
 
-    /*
-     * Direct task fields.
-     */
-
-    if (
-        Array.isArray(
-            task.resultUrls
-        )
+    for (
+        const object of objects
     ) {
 
-        for (
-            const url of task.resultUrls
-        ) {
+        /*
+         * Direct arrays.
+         */
 
-            addResultUrl(
-                urls,
-                url
-            );
-
-        }
-
-    }
+        addResultUrlArray(
+            urls,
+            object.resultUrls
+        );
 
 
-    if (
-        Array.isArray(
-            task.result_urls
-        )
-    ) {
-
-        for (
-            const url of task.result_urls
-        ) {
-
-            addResultUrl(
-                urls,
-                url
-            );
-
-        }
-
-    }
+        addResultUrlArray(
+            urls,
+            object.result_urls
+        );
 
 
-    /*
-     * Parsed resultJson.
-     */
-
-    if (
-        result &&
-        typeof result === "object"
-    ) {
-
-        if (
-            Array.isArray(
-                result.resultUrls
-            )
-        ) {
-
-            for (
-                const url of result.resultUrls
-            ) {
-
-                addResultUrl(
-                    urls,
-                    url
-                );
-
-            }
-
-        }
+        addResultUrlArray(
+            urls,
+            object.results
+        );
 
 
-        if (
-            Array.isArray(
-                result.result_urls
-            )
-        ) {
-
-            for (
-                const url of result.result_urls
-            ) {
-
-                addResultUrl(
-                    urls,
-                    url
-                );
-
-            }
-
-        }
+        addResultUrlArray(
+            urls,
+            object.result
+        );
 
 
         /*
-         * Nested data.
+         * Direct URL fields.
          */
 
+        addResultUrl(
+            urls,
+            object.resultUrl
+        );
+
+
+        addResultUrl(
+            urls,
+            object.result_url
+        );
+
+
+        addResultUrl(
+            urls,
+            object.videoUrl
+        );
+
+
+        addResultUrl(
+            urls,
+            object.video_url
+        );
+
+
+        addResultUrl(
+            urls,
+            object.fileUrl
+        );
+
+
+        addResultUrl(
+            urls,
+            object.file_url
+        );
+
+
+        addResultUrl(
+            urls,
+            object.downloadUrl
+        );
+
+
+        addResultUrl(
+            urls,
+            object.download_url
+        );
+
+
+        /*
+         * resultJson can be either an object or a JSON
+         * encoded string.
+         */
+
+        const resultJson =
+            parseResultJson(
+                object.resultJson ??
+                object.result_json ??
+                null
+            );
+
+
         if (
-            result.data &&
-            typeof result.data === "object"
+            resultJson &&
+            typeof resultJson === "object"
         ) {
 
-            if (
-                Array.isArray(
-                    result.data.resultUrls
-                )
+            const resultObjects =
+                collectObjects(
+                    resultJson
+                );
+
+
+            for (
+                const resultObject of resultObjects
             ) {
 
-                for (
-                    const url of result.data.resultUrls
-                ) {
-
-                    addResultUrl(
-                        urls,
-                        url
-                    );
-
-                }
-
-            }
+                addResultUrlArray(
+                    urls,
+                    resultObject.resultUrls
+                );
 
 
-            if (
-                Array.isArray(
-                    result.data.result_urls
-                )
-            ) {
+                addResultUrlArray(
+                    urls,
+                    resultObject.result_urls
+                );
 
-                for (
-                    const url of result.data.result_urls
-                ) {
 
-                    addResultUrl(
-                        urls,
-                        url
-                    );
+                addResultUrlArray(
+                    urls,
+                    resultObject.results
+                );
 
-                }
+
+                addResultUrl(
+                    urls,
+                    resultObject.resultUrl
+                );
+
+
+                addResultUrl(
+                    urls,
+                    resultObject.result_url
+                );
+
+
+                addResultUrl(
+                    urls,
+                    resultObject.videoUrl
+                );
+
+
+                addResultUrl(
+                    urls,
+                    resultObject.video_url
+                );
+
+
+                addResultUrl(
+                    urls,
+                    resultObject.fileUrl
+                );
+
+
+                addResultUrl(
+                    urls,
+                    resultObject.file_url
+                );
+
+
+                addResultUrl(
+                    urls,
+                    resultObject.downloadUrl
+                );
+
+
+                addResultUrl(
+                    urls,
+                    resultObject.download_url
+                );
 
             }
 
@@ -373,45 +815,65 @@ function getTaskState(
     }
 
 
-    const candidates = [
+    const objects =
+        collectObjects(
+            task
+        );
 
-        task.state,
 
-        task.status,
+    const stateKeys = [
 
-        task.task_state,
+        "state",
 
-        task.taskStatus,
+        "status",
 
-        task.task_status
+        "task_state",
+
+        "taskStatus",
+
+        "task_status"
 
     ];
 
 
+    /*
+     * Prefer explicit task-like objects first.
+     */
+
     for (
-        const candidate of candidates
+        const object of objects
     ) {
 
-        if (
-            typeof candidate !== "string"
+        for (
+            const key of stateKeys
         ) {
 
-            continue;
-
-        }
-
-
-        const normalized =
-            candidate
-                .trim()
-                .toLowerCase();
+            const candidate =
+                object[key];
 
 
-        if (
-            normalized
-        ) {
+            if (
+                typeof candidate !== "string"
+            ) {
 
-            return normalized;
+                continue;
+
+            }
+
+
+            const normalized =
+                candidate
+                    .trim()
+                    .toLowerCase();
+
+
+            if (
+                normalized
+            ) {
+
+                return normalized;
+
+            }
 
         }
 
@@ -432,41 +894,132 @@ function getTaskId(
     fallbackTaskId
 ) {
 
-    const candidates = [
-
-        task?.taskId,
-
-        task?.task_id,
-
-        task?.id,
-
-        fallbackTaskId
-
-    ];
-
-
-    for (
-        const candidate of candidates
+    if (
+        task &&
+        typeof task === "object"
     ) {
 
-        const value =
-            String(
-                candidate || ""
-            ).trim();
+        const objects =
+            collectObjects(
+                task
+            );
 
 
-        if (
-            value
+        const idKeys = [
+
+            "taskId",
+
+            "task_id",
+
+            "taskID",
+
+            "id"
+
+        ];
+
+
+        for (
+            const object of objects
         ) {
 
-            return value;
+            for (
+                const key of idKeys
+            ) {
+
+                const candidate =
+                    object[key];
+
+
+                const value =
+                    String(
+                        candidate || ""
+                    ).trim();
+
+
+                if (
+                    value
+                ) {
+
+                    return value;
+
+                }
+
+            }
 
         }
 
     }
 
 
-    return "";
+    const fallback =
+        String(
+            fallbackTaskId || ""
+        ).trim();
+
+
+    return fallback;
+
+}
+
+
+/* =========================================================
+   GET RESULT JSON
+========================================================= */
+
+function getResultJson(
+    response,
+    task
+) {
+
+    /*
+     * Search task/response tree first.
+     */
+
+    const direct =
+        findFirstValue(
+            task,
+            [
+                "resultJson",
+                "result_json"
+            ]
+        );
+
+
+    if (
+        direct !== null &&
+        direct !== undefined
+    ) {
+
+        return parseResultJson(
+            direct
+        );
+
+    }
+
+
+    const responseResult =
+        findFirstValue(
+            response,
+            [
+                "resultJson",
+                "result_json"
+            ]
+        );
+
+
+    if (
+        responseResult !== null &&
+        responseResult !== undefined
+    ) {
+
+        return parseResultJson(
+            responseResult
+        );
+
+    }
+
+
+    return null;
 
 }
 
@@ -478,6 +1031,14 @@ function getTaskId(
 function isSuccessState(
     state
 ) {
+
+    const normalized =
+        String(
+            state || ""
+        )
+            .trim()
+            .toLowerCase();
+
 
     return [
 
@@ -495,10 +1056,14 @@ function isSuccessState(
 
         "finished",
 
-        "finish"
+        "finish",
+
+        "successfully_completed",
+
+        "successful_completed"
 
     ].includes(
-        state
+        normalized
     );
 
 }
@@ -511,6 +1076,14 @@ function isSuccessState(
 function isFailedState(
     state
 ) {
+
+    const normalized =
+        String(
+            state || ""
+        )
+            .trim()
+            .toLowerCase();
+
 
     return [
 
@@ -528,10 +1101,14 @@ function isFailedState(
 
         "rejected",
 
-        "aborted"
+        "aborted",
+
+        "terminated",
+
+        "terminate"
 
     ].includes(
-        state
+        normalized
     );
 
 }
@@ -545,6 +1122,14 @@ function isWaitingState(
     state
 ) {
 
+    const normalized =
+        String(
+            state || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
     return [
 
         "waiting",
@@ -557,10 +1142,61 @@ function isWaitingState(
 
         "created",
 
-        "submitted"
+        "submitted",
+
+        "accepted",
+
+        "received"
 
     ].includes(
-        state
+        normalized
+    );
+
+}
+
+
+/* =========================================================
+   PROCESSING STATE
+========================================================= */
+
+function isProcessingState(
+    state
+) {
+
+    const normalized =
+        String(
+            state || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return [
+
+        "processing",
+
+        "process",
+
+        "running",
+
+        "generating",
+
+        "in_progress",
+
+        "in-progress",
+
+        "inprogress",
+
+        "working",
+
+        "executing",
+
+        "started",
+
+        "active"
+
+    ].includes(
+        normalized
     );
 
 }
@@ -600,11 +1236,9 @@ async function query(
     }
 
 
-    /*
-     * =====================================================
-     * QUERY KIE
-     * =====================================================
-     */
+    /* =====================================================
+       QUERY KIE
+    ===================================================== */
 
     const response =
         await getTask(
@@ -614,41 +1248,31 @@ async function query(
 
 
     /*
-     * =====================================================
-     * NORMALIZE TASK CONTAINER
-     * =====================================================
-     *
-     * getTask() dapat mengembalikan:
-     *
-     * response.task
-     * response.data
-     * response
+     * Pastikan response tetap object.
      */
+
+    const safeResponse =
+        response &&
+        typeof response === "object"
+
+            ? response
+
+            : {};
+
+
+    /* =====================================================
+       FIND TASK
+    ===================================================== */
 
     const task =
-        response?.task &&
-        typeof response.task === "object"
-
-            ? response.task
-
-            : response?.data &&
-              typeof response.data === "object"
-
-                ? response.data
-
-                : response &&
-                  typeof response === "object"
-
-                    ? response
-
-                    : {};
+        findTaskObject(
+            safeResponse
+        );
 
 
-    /*
-     * =====================================================
-     * TASK ID
-     * =====================================================
-     */
+    /* =====================================================
+       TASK ID
+    ===================================================== */
 
     const normalizedTaskId =
         getTaskId(
@@ -657,82 +1281,111 @@ async function query(
         );
 
 
-    /*
-     * =====================================================
-     * STATE
-     * =====================================================
-     */
+    /* =====================================================
+       STATE
+    ===================================================== */
 
     const state =
         getTaskState(
+            safeResponse
+        );
+
+
+    /* =====================================================
+       RESULT JSON
+    ===================================================== */
+
+    const resultJson =
+        getResultJson(
+            safeResponse,
             task
         );
 
 
-    /*
-     * =====================================================
-     * RESULT JSON
-     * =====================================================
-     */
-
-    const resultJson =
-        parseResultJson(
-            task.resultJson ??
-            task.result_json ??
-            response?.resultJson ??
-            response?.result_json ??
-            null
-        );
-
-
-    /*
-     * =====================================================
-     * RESULT URLS
-     * =====================================================
-     */
-
-    const normalizedTask = {
-
-        ...task,
-
-        resultJson
-
-    };
-
+    /* =====================================================
+       RESULT URLS
+    ===================================================== */
 
     const resultUrls =
         extractResultUrls(
-            normalizedTask
+            safeResponse
         );
 
 
     /*
-     * =====================================================
-     * STATUS FLAGS
-     * =====================================================
-     *
-     * Jika result URL sudah tersedia, task dianggap
-     * berhasil walaupun provider mengirim state yang
-     * tidak persis "success".
+     * Also scan the normalized resultJson explicitly.
+     * This protects against resultJson being outside the
+     * normal task object.
      */
+
+    if (
+        resultJson &&
+        typeof resultJson === "object"
+    ) {
+
+        const resultJsonUrls =
+            extractResultUrls(
+                resultJson
+            );
+
+
+        for (
+            const url of resultJsonUrls
+        ) {
+
+            addResultUrl(
+                resultUrls,
+                url
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       STATUS FLAGS
+    ===================================================== */
 
     const hasResult =
         resultUrls.length >
         0;
 
 
-    const success =
-        hasResult ||
+    const stateSuccess =
         isSuccessState(
             state
         );
 
 
-    const failed =
-        !success &&
+    const stateFailed =
         isFailedState(
             state
         );
+
+
+    /*
+     * Terminal success:
+     *
+     * 1. Provider explicitly reports success, OR
+     * 2. Provider has supplied an actual result URL.
+     *
+     * A result URL is treated as terminal because there is
+     * now a concrete generated asset that can be consumed
+     * by the application.
+     */
+
+    const success =
+        !stateFailed &&
+        (
+            stateSuccess ||
+            hasResult
+        );
+
+
+    const failed =
+        !success &&
+        stateFailed;
 
 
     const waiting =
@@ -743,23 +1396,22 @@ async function query(
         );
 
 
+    /*
+     * Unknown/non-terminal states remain processing.
+     */
+
     const processing =
         !success &&
         !failed;
 
 
-    /*
-     * =====================================================
-     * RETURN NORMALIZED RESPONSE
-     * =====================================================
-     *
-     * generate-status.js akan melakukan normalisasi
-     * lanjutan dan meng-update generation_history.
-     */
+    /* =====================================================
+       NORMALIZED RESPONSE
+    ===================================================== */
 
     return {
 
-        ...response,
+        ...safeResponse,
 
         task,
 
@@ -768,11 +1420,17 @@ async function query(
 
         state,
 
+        status:
+            state,
+
         resultJson,
 
         resultUrls,
 
         success,
+
+        completed:
+            success,
 
         failed,
 
@@ -805,7 +1463,9 @@ export {
 
     isFailedState,
 
-    isWaitingState
+    isWaitingState,
+
+    isProcessingState
 
 };
 
