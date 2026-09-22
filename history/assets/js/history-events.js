@@ -135,7 +135,7 @@
 
         if (elements.overlay) {
             elements.overlay.classList.add(
-                "show"
+                "active"
             );
         }
 
@@ -157,7 +157,7 @@
 
         if (elements.overlay) {
             elements.overlay.classList.remove(
-                "show"
+                "active"
             );
         }
 
