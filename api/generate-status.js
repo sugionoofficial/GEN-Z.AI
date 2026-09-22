@@ -1835,6 +1835,7 @@ async function updateGenerationHistory({
         `eq.${normalizedTaskId}`
     );
 
+
     /*
      * =====================================================
      * COMPLETED
@@ -2495,13 +2496,22 @@ export default async function handler(
 
     try {
 
+        /*
+         * PENTING:
+         *
+         * Gunakan taskId dari request sebagai identitas
+         * row generation_history yang dibuat oleh
+         * /api/generate.
+         *
+         * Jangan menggantinya dengan result.taskId.
+         */
+
         const historyResult =
             await updateGenerationHistory({
                 userId:
                     user.id,
 
                 taskId:
-                    result.taskId ||
                     taskId,
 
                 result
@@ -2539,7 +2549,6 @@ export default async function handler(
                             user.id,
 
                         task_id:
-                            result.taskId ||
                             taskId,
 
                         status:
@@ -2556,7 +2565,6 @@ export default async function handler(
                             user.id,
 
                         task_id:
-                            result.taskId ||
                             taskId,
 
                         status:
