@@ -431,52 +431,242 @@
         white-space: nowrap;
     }
 
-    /* =========================
-       STATUS
-    ========================= */
+<style>
+/* =========================================================
+   PREMIUM PROCESSING STATUS
+========================================================= */
 
-    .status {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 9px;
-        border-radius: 999px;
-        font-size: 9px;
-        font-weight: 800;
-        white-space: nowrap;
+.status.processing {
+    position: relative;
+    overflow: hidden;
+    gap: 7px;
+    padding: 6px 10px 6px 8px;
+    background:
+        linear-gradient(
+            135deg,
+            #fff7d6 0%,
+            #fef3c7 45%,
+            #fff8dc 100%
+        );
+    color: #92400e;
+    border: 1px solid rgba(217, 119, 6, .16);
+    box-shadow:
+        0 4px 12px rgba(217, 119, 6, .08);
+}
+
+/* efek cahaya berjalan */
+.status.processing::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -80%;
+    width: 55%;
+    height: 100%;
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.65),
+            transparent
+        );
+    transform: skewX(-18deg);
+    animation: processingShimmer 2.4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* =========================================================
+   PREMIUM ORB
+========================================================= */
+
+.status.processing .status-dot {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow:
+        0 0 0 2px rgba(245,158,11,.12),
+        0 0 8px rgba(245,158,11,.65),
+        0 0 15px rgba(245,158,11,.25);
+    animation: processingOrb 1.6s ease-in-out infinite;
+}
+
+/* rotating ring */
+.status.processing .status-dot::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid rgba(245,158,11,.35);
+    border-top-color: #f59e0b;
+    border-right-color: transparent;
+    animation: processingRing .9s linear infinite;
+}
+
+/* secondary glow */
+.status.processing .status-dot::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+    border-radius: 50%;
+    background: rgba(245,158,11,.12);
+    animation: processingGlow 1.6s ease-in-out infinite;
+}
+
+/* =========================================================
+   TEXT
+========================================================= */
+
+.status.processing > span:nth-child(2) {
+    position: relative;
+    z-index: 2;
+    letter-spacing: .35px;
+    animation: processingText 1.8s ease-in-out infinite;
+}
+
+/* =========================================================
+   PREMIUM DOTS
+========================================================= */
+
+.processing-indicator {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 0;
+}
+
+.processing-indicator span {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .25;
+    animation:
+        processingDot 1.2s ease-in-out infinite;
+}
+
+.processing-indicator span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.processing-indicator span:nth-child(2) {
+    animation-delay: .18s;
+}
+
+.processing-indicator span:nth-child(3) {
+    animation-delay: .36s;
+}
+
+/* =========================================================
+   ANIMATIONS
+========================================================= */
+
+@keyframes processingOrb {
+
+    0%,
+    100% {
+        transform: scale(.88);
+        box-shadow:
+            0 0 0 2px rgba(245,158,11,.10),
+            0 0 6px rgba(245,158,11,.45),
+            0 0 12px rgba(245,158,11,.18);
     }
 
-    .status-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: currentColor;
+    50% {
+        transform: scale(1.12);
+        box-shadow:
+            0 0 0 3px rgba(245,158,11,.14),
+            0 0 10px rgba(245,158,11,.75),
+            0 0 20px rgba(245,158,11,.30);
+    }
+}
+
+@keyframes processingRing {
+
+    from {
+        transform: rotate(0deg);
     }
 
-    .status.completed {
-        background: #dcfce7;
-        color: #166534;
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes processingGlow {
+
+    0%,
+    100% {
+        opacity: .25;
+        transform: scale(.7);
     }
 
-    .status.processing {
-        background: #fef3c7;
-        color: #92400e;
+    50% {
+        opacity: .75;
+        transform: scale(1.1);
+    }
+}
+
+@keyframes processingDot {
+
+    0%,
+    60%,
+    100% {
+        opacity: .2;
+        transform: translateY(0);
     }
 
-    .status.failed {
-        background: #fee2e2;
-        color: #991b1b;
+    30% {
+        opacity: 1;
+        transform: translateY(-2px);
+    }
+}
+
+@keyframes processingText {
+
+    0%,
+    100% {
+        opacity: .78;
     }
 
-    .status.pending {
-        background: #e0e7ff;
-        color: #3730a3;
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes processingShimmer {
+
+    0% {
+        left: -80%;
     }
 
-    .status.cancelled {
-        background: #f3f4f6;
-        color: #4b5563;
+    45%,
+    100% {
+        left: 130%;
     }
+}
+
+/* =========================================================
+   REDUCED MOTION
+   Tetap ramah untuk user yang mematikan animasi sistem.
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .status.processing,
+    .status.processing::after,
+    .status.processing .status-dot,
+    .status.processing .status-dot::before,
+    .status.processing .status-dot::after,
+    .status.processing > span:nth-child(2),
+    .processing-indicator span {
+        animation: none !important;
+    }
+
+}
+</style>
 
     /* =========================
        ACTION
