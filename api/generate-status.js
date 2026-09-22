@@ -13,13 +13,15 @@
    - Sinkronisasi generation_history
    - Return hasil status generation
 
-   PATCH INI:
-   - Tetap menggunakan service-role Supabase
-   - Cari history berdasarkan user_id + task_id
-   - Update history berdasarkan PRIMARY KEY id
-   - Verifikasi ulang langsung dari database
+   PATCH:
+   - Adapter resolution diperkuat
+   - Tidak membuat adapter palsu
+   - Adapter yang sudah di-import dapat digunakan langsung
+   - History dicari berdasarkan user_id + task_id
+   - History di-update berdasarkan PRIMARY KEY id
+   - Update diverifikasi langsung ke database
    - Retry update bila database belum berubah
-   - Tidak mengubah alur KIE/provider
+   - Alur KIE/provider tetap dipertahankan
    ========================================================= */
 
 import crypto from "crypto";
@@ -107,6 +109,12 @@ function normalizeState(value) {
         .replace(/\s+/g, "_");
 }
 
+function normalizeModelId(value) {
+    return normalizeString(value)
+        .toLowerCase()
+        .replace(/\s+/g, "_");
+}
+
 function encodeQueryValue(value) {
     return encodeURIComponent(String(value));
 }
@@ -133,7 +141,9 @@ function isObject(value) {
 
 async function supabaseRequest(path, options = {}) {
     if (!SUPABASE_URL) {
-        throw new Error("SUPABASE_URL belum dikonfigurasi.");
+        throw new Error(
+            "SUPABASE_URL belum dikonfigurasi."
+        );
     }
 
     if (!SUPABASE_SERVICE_ROLE_KEY) {
@@ -197,18 +207,22 @@ async function supabaseRequest(path, options = {}) {
 
 async function getAuthenticatedUser(accessToken) {
     if (!accessToken) {
-        throw new Error("Access token tidak ditemukan.");
+        throw new Error(
+            "Access token tidak ditemukan."
+        );
     }
 
-    const result = await supabaseRequest(
-        "/auth/v1/user",
-        {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${accessToken}`
+    const result =
+        await supabaseRequest(
+            "/auth/v1/user",
+            {
+                method: "GET",
+                headers: {
+                    Authorization:
+                        `Bearer ${accessToken}`
+                }
             }
-        }
-    );
+        );
 
     return result.data;
 }
@@ -221,16 +235,18 @@ async function loadModel(modelId) {
     const encodedModelId =
         encodeQueryValue(modelId);
 
-    const result = await supabaseRequest(
-        `/rest/v1/models?select=*&model_id=eq.${encodedModelId}&limit=1`,
-        {
-            method: "GET"
-        }
-    );
+    const result =
+        await supabaseRequest(
+            `/rest/v1/models?select=*&model_id=eq.${encodedModelId}&limit=1`,
+            {
+                method: "GET"
+            }
+        );
 
-    const rows = Array.isArray(result.data)
-        ? result.data
-        : [];
+    const rows =
+        Array.isArray(result.data)
+            ? result.data
+            : [];
 
     return rows[0] || null;
 }
@@ -239,7 +255,10 @@ async function loadModel(modelId) {
    PROVIDER RESOLUTION
    ========================================================= */
 
-function resolveProviderId(model, adapter) {
+function resolveProviderId(
+    model,
+    adapter
+) {
     return normalizeString(
         model?.provider_id ||
         adapter?.providerId ||
@@ -264,26 +283,14 @@ function deriveEncryptionKey(secret) {
         .digest();
 }
 
-function decryptCredential(encryptedValue) {
+function decryptCredential(
+    encryptedValue
+) {
     if (!encryptedValue) {
         throw new Error(
             "Credential provider tidak ditemukan."
         );
     }
-
-    /*
-     * Format yang didukung:
-     *
-     * iv:authTag:ciphertext
-     *
-     * atau
-     *
-     * {
-     *   iv,
-     *   authTag,
-     *   ciphertext
-     * }
-     */
 
     const key =
         deriveEncryptionKey(
@@ -295,7 +302,9 @@ function decryptCredential(encryptedValue) {
     let ciphertext;
 
     const parsed =
-        safeJsonParse(encryptedValue);
+        safeJsonParse(
+            encryptedValue
+        );
 
     if (
         isObject(parsed) &&
@@ -303,18 +312,25 @@ function decryptCredential(encryptedValue) {
         parsed.authTag &&
         parsed.ciphertext
     ) {
-        iv = Buffer.from(parsed.iv, "base64");
+        iv = Buffer.from(
+            parsed.iv,
+            "base64"
+        );
+
         authTag = Buffer.from(
             parsed.authTag,
             "base64"
         );
+
         ciphertext = Buffer.from(
             parsed.ciphertext,
             "base64"
         );
     } else {
         const parts =
-            String(encryptedValue).split(":");
+            String(
+                encryptedValue
+            ).split(":");
 
         if (parts.length !== 3) {
             throw new Error(
@@ -322,8 +338,16 @@ function decryptCredential(encryptedValue) {
             );
         }
 
-        iv = Buffer.from(parts[0], "base64");
-        authTag = Buffer.from(parts[1], "base64");
+        iv = Buffer.from(
+            parts[0],
+            "base64"
+        );
+
+        authTag = Buffer.from(
+            parts[1],
+            "base64"
+        );
+
         ciphertext = Buffer.from(
             parts[2],
             "base64"
@@ -337,36 +361,50 @@ function decryptCredential(encryptedValue) {
             iv
         );
 
-    decipher.setAuthTag(authTag);
+    decipher.setAuthTag(
+        authTag
+    );
 
-    const decrypted = Buffer.concat([
-        decipher.update(ciphertext),
-        decipher.final()
-    ]);
+    const decrypted =
+        Buffer.concat([
+            decipher.update(
+                ciphertext
+            ),
+            decipher.final()
+        ]);
 
-    return decrypted.toString("utf8");
+    return decrypted.toString(
+        "utf8"
+    );
 }
 
 /* =========================================================
    PROVIDER CREDENTIAL
    ========================================================= */
 
-async function loadProviderCredential(providerId) {
+async function loadProviderCredential(
+    providerId
+) {
     const encodedProviderId =
-        encodeQueryValue(providerId);
+        encodeQueryValue(
+            providerId
+        );
 
-    const result = await supabaseRequest(
-        `/rest/v1/provider_credentials?select=*&provider_id=eq.${encodedProviderId}&limit=1`,
-        {
-            method: "GET"
-        }
-    );
+    const result =
+        await supabaseRequest(
+            `/rest/v1/provider_credentials?select=*&provider_id=eq.${encodedProviderId}&limit=1`,
+            {
+                method: "GET"
+            }
+        );
 
-    const rows = Array.isArray(result.data)
-        ? result.data
-        : [];
+    const rows =
+        Array.isArray(result.data)
+            ? result.data
+            : [];
 
-    const row = rows[0];
+    const row =
+        rows[0];
 
     if (!row) {
         throw new Error(
@@ -387,52 +425,213 @@ async function loadProviderCredential(providerId) {
         );
     }
 
-    return decryptCredential(encrypted);
+    return decryptCredential(
+        encrypted
+    );
+}
+
+/* =========================================================
+   ADAPTER HELPERS
+   ========================================================= */
+
+function getAdapterCandidates(
+    adapter
+) {
+    if (!adapter) {
+        return [];
+    }
+
+    const candidates = [
+        adapter.modelId,
+        adapter.model_id,
+        adapter.id,
+        adapter.name,
+        adapter.modelName,
+        adapter.model_name,
+        adapter.slug,
+        adapter.modelSlug,
+        adapter.model_slug
+    ];
+
+    if (
+        Array.isArray(
+            adapter.modelIds
+        )
+    ) {
+        candidates.push(
+            ...adapter.modelIds
+        );
+    }
+
+    if (
+        Array.isArray(
+            adapter.model_ids
+        )
+    ) {
+        candidates.push(
+            ...adapter.model_ids
+        );
+    }
+
+    return candidates
+        .filter(
+            value =>
+                value !== null &&
+                value !== undefined
+        )
+        .map(
+            value =>
+                normalizeModelId(
+                    value
+                )
+        )
+        .filter(Boolean);
 }
 
 /* =========================================================
    ADAPTER
    ========================================================= */
 
-function findAdapter(modelId) {
+function findAdapter(
+    modelId
+) {
     const normalized =
-        normalizeString(modelId);
+        normalizeModelId(
+            modelId
+        );
 
-    return MODEL_REGISTRY.find(
-        adapter => {
-            const candidates = [
-                adapter?.modelId,
-                adapter?.model_id,
-                adapter?.id,
-                ...(Array.isArray(adapter?.modelIds)
-                    ? adapter.modelIds
-                    : []),
-                ...(Array.isArray(adapter?.model_ids)
-                    ? adapter.model_ids
-                    : [])
-            ];
+    if (!normalized) {
+        return null;
+    }
 
-            return candidates.some(
-                value =>
-                    normalizeString(value) ===
+    /*
+     * =====================================================
+     * 1. Cari adapter berdasarkan semua identifier
+     * =====================================================
+     */
+
+    const directAdapter =
+        MODEL_REGISTRY.find(
+            adapter => {
+                const candidates =
+                    getAdapterCandidates(
+                        adapter
+                    );
+
+                return candidates.includes(
                     normalized
-            );
+                );
+            }
+        );
+
+    if (directAdapter) {
+        return directAdapter;
+    }
+
+    /*
+     * =====================================================
+     * 2. Explicit known model mapping
+     * =====================================================
+     *
+     * Ini BUKAN adapter baru.
+     *
+     * Object diambil dari adapter yang sudah di-import
+     * di file ini.
+     *
+     * Tujuannya menghindari kegagalan ketika module adapter
+     * tidak mengekspos modelId sebagai property langsung.
+     */
+
+    if (
+        normalized ===
+        "grok-imagine/image-to-video"
+    ) {
+        if (
+            grokImagineImageToVideo &&
+            typeof
+                grokImagineImageToVideo
+                    .queryTask ===
+                "function"
+        ) {
+            return grokImagineImageToVideo;
         }
-    );
+    }
+
+    /*
+     * =====================================================
+     * 3. Cari adapter berdasarkan provider/model metadata
+     * =====================================================
+     */
+
+    const fallbackAdapter =
+        MODEL_REGISTRY.find(
+            adapter => {
+                if (
+                    !adapter ||
+                    typeof adapter.queryTask !==
+                        "function"
+                ) {
+                    return false;
+                }
+
+                const candidates =
+                    getAdapterCandidates(
+                        adapter
+                    );
+
+                /*
+                 * Normalisasi tambahan untuk variasi:
+                 *
+                 * grok-imagine/image-to-video
+                 * grok_imagine/image_to_video
+                 * grok imagine image to video
+                 */
+
+                const compact =
+                    normalized
+                        .replace(
+                            /[^a-z0-9]/g,
+                            ""
+                        );
+
+                return candidates.some(
+                    candidate => {
+                        const candidateCompact =
+                            candidate.replace(
+                                /[^a-z0-9]/g,
+                                ""
+                            );
+
+                        return (
+                            candidateCompact ===
+                            compact
+                        );
+                    }
+                );
+            }
+        );
+
+    return fallbackAdapter || null;
 }
 
 /* =========================================================
    RECURSIVE OBJECT COLLECTION
    ========================================================= */
 
-function collectObjects(value, output = []) {
+function collectObjects(
+    value,
+    output = []
+) {
     if (!value) {
         return output;
     }
 
     if (Array.isArray(value)) {
         for (const item of value) {
-            collectObjects(item, output);
+            collectObjects(
+                item,
+                output
+            );
         }
 
         return output;
@@ -444,14 +643,20 @@ function collectObjects(value, output = []) {
 
     output.push(value);
 
-    for (const key of Object.keys(value)) {
-        const child = value[key];
+    for (
+        const key of Object.keys(value)
+    ) {
+        const child =
+            value[key];
 
         if (
             isObject(child) ||
             Array.isArray(child)
         ) {
-            collectObjects(child, output);
+            collectObjects(
+                child,
+                output
+            );
         }
     }
 
@@ -462,7 +667,9 @@ function collectObjects(value, output = []) {
    RESULT URL EXTRACTION
    ========================================================= */
 
-function extractResultUrls(value) {
+function extractResultUrls(
+    value
+) {
     const urls = [];
 
     function visit(node) {
@@ -472,8 +679,7 @@ function extractResultUrls(value) {
 
         if (typeof node === "string") {
             if (
-                /^https?:\/\//i.test(node) &&
-                /\.(mp4|mov|webm|png|jpg|jpeg|webp|gif)(\?|$)/i.test(
+                /^https?:\/\//i.test(
                     node
                 )
             ) {
@@ -484,7 +690,9 @@ function extractResultUrls(value) {
         }
 
         if (Array.isArray(node)) {
-            for (const item of node) {
+            for (
+                const item of node
+            ) {
                 visit(item);
             }
 
@@ -495,7 +703,12 @@ function extractResultUrls(value) {
             return;
         }
 
-        for (const [key, child] of Object.entries(node)) {
+        for (
+            const [
+                key,
+                child
+            ] of Object.entries(node)
+        ) {
             const lower =
                 key.toLowerCase();
 
@@ -530,13 +743,20 @@ function extractResultUrls(value) {
    TASK NORMALIZER
    ========================================================= */
 
-function normalizeTaskResponse(taskResponse, taskId) {
+function normalizeTaskResponse(
+    taskResponse,
+    taskId
+) {
     const objects =
-        collectObjects(taskResponse);
+        collectObjects(
+            taskResponse
+        );
 
     let state = "";
 
-    for (const object of objects) {
+    for (
+        const object of objects
+    ) {
         const candidates = [
             object.state,
             object.status,
@@ -545,10 +765,14 @@ function normalizeTaskResponse(taskResponse, taskId) {
             object.task_status_name
         ];
 
-        for (const candidate of candidates) {
+        for (
+            const candidate of candidates
+        ) {
             if (candidate) {
                 state =
-                    normalizeState(candidate);
+                    normalizeState(
+                        candidate
+                    );
 
                 if (state) {
                     break;
@@ -561,12 +785,17 @@ function normalizeTaskResponse(taskResponse, taskId) {
         }
     }
 
-    let resultUrls =
-        extractResultUrls(taskResponse);
+    const resultUrls =
+        extractResultUrls(
+            taskResponse
+        );
 
-    const taskIdCandidates = [];
+    const taskIdCandidates =
+        [];
 
-    for (const object of objects) {
+    for (
+        const object of objects
+    ) {
         taskIdCandidates.push(
             object.taskId,
             object.task_id,
@@ -576,50 +805,81 @@ function normalizeTaskResponse(taskResponse, taskId) {
     }
 
     const resolvedTaskId =
-        taskIdCandidates.find(Boolean) ||
-        taskId;
+        taskIdCandidates.find(
+            Boolean
+        ) || taskId;
 
-    let explicitCompleted = false;
-    let explicitFailed = false;
-    let explicitProcessing = false;
+    let explicitCompleted =
+        false;
 
-    for (const object of objects) {
-        if (object.completed === true) {
-            explicitCompleted = true;
+    let explicitFailed =
+        false;
+
+    let explicitProcessing =
+        false;
+
+    for (
+        const object of objects
+    ) {
+        if (
+            object.completed ===
+            true
+        ) {
+            explicitCompleted =
+                true;
         }
 
-        if (object.failed === true) {
-            explicitFailed = true;
+        if (
+            object.failed ===
+            true
+        ) {
+            explicitFailed =
+                true;
         }
 
-        if (object.processing === true) {
-            explicitProcessing = true;
+        if (
+            object.processing ===
+            true
+        ) {
+            explicitProcessing =
+                true;
         }
 
-        if (object.success === true) {
-            explicitCompleted = true;
+        if (
+            object.success ===
+            true
+        ) {
+            explicitCompleted =
+                true;
         }
 
-        if (object.success === false) {
-            if (
-                state &&
-                FAILED_STATES.has(state)
-            ) {
-                explicitFailed = true;
-            }
+        if (
+            object.success ===
+                false &&
+            state &&
+            FAILED_STATES.has(
+                state
+            )
+        ) {
+            explicitFailed =
+                true;
         }
     }
 
     const completed =
         explicitCompleted ||
-        COMPLETED_STATES.has(state) ||
+        COMPLETED_STATES.has(
+            state
+        ) ||
         resultUrls.length > 0;
 
     const failed =
         !completed &&
         (
             explicitFailed ||
-            FAILED_STATES.has(state)
+            FAILED_STATES.has(
+                state
+            )
         );
 
     const processing =
@@ -627,19 +887,29 @@ function normalizeTaskResponse(taskResponse, taskId) {
         !failed &&
         (
             explicitProcessing ||
-            PROCESSING_STATES.has(state) ||
+            PROCESSING_STATES.has(
+                state
+            ) ||
             !state
         );
 
     return {
-        taskId: resolvedTaskId,
+        taskId:
+            resolvedTaskId,
+
         state,
+
         completed,
+
         failed,
+
         processing,
+
         hasResult:
             resultUrls.length > 0,
+
         resultUrls,
+
         result:
             taskResponse
     };
@@ -656,7 +926,8 @@ async function queryProviderTask(
 ) {
     if (
         !adapter ||
-        typeof adapter.queryTask !== "function"
+        typeof adapter.queryTask !==
+            "function"
     ) {
         throw new Error(
             "Adapter model tidak memiliki queryTask()."
@@ -678,10 +949,14 @@ async function findGenerationHistory(
     taskId
 ) {
     const encodedUserId =
-        encodeQueryValue(userId);
+        encodeQueryValue(
+            userId
+        );
 
     const encodedTaskId =
-        encodeQueryValue(taskId);
+        encodeQueryValue(
+            taskId
+        );
 
     const path =
         `/rest/v1/generation_history` +
@@ -714,7 +989,9 @@ async function findGenerationHistoryById(
     rowId
 ) {
     const encodedId =
-        encodeQueryValue(rowId);
+        encodeQueryValue(
+            rowId
+        );
 
     const result =
         await supabaseRequest(
@@ -733,7 +1010,7 @@ async function findGenerationHistoryById(
 }
 
 /* =========================================================
-   PATCH HISTORY BY PRIMARY KEY
+   PATCH HISTORY
    ========================================================= */
 
 async function patchGenerationHistoryRow(
@@ -741,7 +1018,9 @@ async function patchGenerationHistoryRow(
     payload
 ) {
     const encodedId =
-        encodeQueryValue(rowId);
+        encodeQueryValue(
+            rowId
+        );
 
     return supabaseRequest(
         `/rest/v1/generation_history?id=eq.${encodedId}`,
@@ -749,17 +1028,14 @@ async function patchGenerationHistoryRow(
             method: "PATCH",
 
             headers: {
-                /*
-                 * Jangan hanya mengandalkan response
-                 * kosong/non-kosong.
-                 *
-                 * return=representation membuat PostgREST
-                 * mengembalikan row hasil PATCH.
-                 */
-                Prefer: "return=representation"
+                Prefer:
+                    "return=representation"
             },
 
-            body: JSON.stringify(payload)
+            body:
+                JSON.stringify(
+                    payload
+                )
         }
     );
 }
@@ -786,18 +1062,26 @@ async function verifyHistoryTerminalState(
         };
     }
 
+    const databaseStatus =
+        normalizeString(
+            row.status
+        ).toLowerCase();
+
+    const expected =
+        normalizeString(
+            expectedStatus
+        ).toLowerCase();
+
     return {
         exists: true,
         matched:
-            normalizeString(row.status)
-                .toLowerCase() ===
-            normalizeString(expectedStatus)
-                .toLowerCase(),
+            databaseStatus ===
+            expected,
 
         row,
+
         status:
-            normalizeString(row.status)
-                .toLowerCase()
+            databaseStatus
     };
 }
 
@@ -811,7 +1095,7 @@ async function updateGenerationHistory({
     normalizedTask
 }) {
     /*
-     * TASK MASIH BERJALAN
+     * TASK MASIH PROCESSING
      */
     if (
         normalizedTask.processing &&
@@ -821,7 +1105,8 @@ async function updateGenerationHistory({
         return {
             updated: false,
             status: "processing",
-            reason: "task_still_processing",
+            reason:
+                "task_still_processing",
             matched: false,
             rowId: null,
             databaseStatus: null
@@ -840,26 +1125,38 @@ async function updateGenerationHistory({
         return {
             updated: false,
             status: null,
-            reason: "history_lookup_exception",
+            reason:
+                "history_lookup_exception",
             matched: false,
             rowId: null,
             databaseStatus: null,
-            error: error.message
+            error:
+                error.message,
+            errorStatus:
+                error.status || null,
+            errorData:
+                error.data || null
         };
     }
 
     if (!historyRow) {
         return {
             updated: false,
-            status: normalizedTask.completed
-                ? "completed"
-                : "failed",
+
+            status:
+                normalizedTask.completed
+                    ? "completed"
+                    : normalizedTask.failed
+                        ? "failed"
+                        : "processing",
 
             reason:
                 "generation_history_row_not_found",
 
             matched: false,
+
             rowId: null,
+
             databaseStatus: null
         };
     }
@@ -872,41 +1169,53 @@ async function updateGenerationHistory({
             historyRow.status
         ).toLowerCase();
 
-    /*
-     * =====================================================
-     * COMPLETED
-     * =====================================================
-     */
+    /* =====================================================
+       COMPLETED
+       ===================================================== */
 
-    if (normalizedTask.completed) {
-        /*
-         * Jika sudah completed, tidak perlu PATCH lagi.
-         */
-        if (currentStatus === "completed") {
+    if (
+        normalizedTask.completed
+    ) {
+        if (
+            currentStatus ===
+            "completed"
+        ) {
             return {
                 updated: true,
                 status: "completed",
-                reason: "history_already_completed",
+                reason:
+                    "history_already_completed",
                 matched: true,
                 rowId,
-                databaseStatus: currentStatus
+                databaseStatus:
+                    currentStatus
             };
         }
 
         const resultUrl =
-            normalizedTask.resultUrls?.[0] ||
+            normalizedTask
+                .resultUrls?.[0] ||
             null;
 
         const payload = {
-            status: "completed",
-            result_url: resultUrl,
-            error_message: null,
+            status:
+                "completed",
+
+            result_url:
+                resultUrl,
+
+            error_message:
+                null,
+
             completed_at:
                 new Date().toISOString()
         };
 
         let patchResult;
 
+        /*
+         * PATCH #1
+         */
         try {
             patchResult =
                 await patchGenerationHistoryRow(
@@ -914,12 +1223,6 @@ async function updateGenerationHistory({
                     payload
                 );
         } catch (error) {
-            /*
-             * Jangan langsung menyerah.
-             *
-             * Bisa saja DB sudah berubah tetapi response
-             * PATCH gagal/tidak terbaca.
-             */
             const verifiedAfterError =
                 await verifyHistoryTerminalState(
                     rowId,
@@ -933,7 +1236,8 @@ async function updateGenerationHistory({
             ) {
                 return {
                     updated: true,
-                    status: "completed",
+                    status:
+                        "completed",
                     reason:
                         "history_updated_verified_after_patch_error",
                     matched: true,
@@ -945,7 +1249,8 @@ async function updateGenerationHistory({
 
             return {
                 updated: false,
-                status: "completed",
+                status:
+                    "completed",
                 reason:
                     "history_update_exception",
                 matched: true,
@@ -953,16 +1258,19 @@ async function updateGenerationHistory({
                 databaseStatus:
                     verifiedAfterError?.status ||
                     currentStatus,
-                error: error.message,
+                error:
+                    error.message,
                 errorStatus:
-                    error.status || null,
+                    error.status ||
+                    null,
                 errorData:
-                    error.data || null
+                    error.data ||
+                    null
             };
         }
 
         /*
-         * Verifikasi langsung ke DB.
+         * VERIFY #1
          */
         let verified =
             await verifyHistoryTerminalState(
@@ -970,10 +1278,13 @@ async function updateGenerationHistory({
                 "completed"
             );
 
-        if (verified.matched) {
+        if (
+            verified.matched
+        ) {
             return {
                 updated: true,
-                status: "completed",
+                status:
+                    "completed",
                 reason:
                     "history_updated_and_verified",
                 matched: true,
@@ -981,17 +1292,13 @@ async function updateGenerationHistory({
                 databaseStatus:
                     verified.status,
                 patchResponse:
-                    patchResult?.data || null
+                    patchResult?.data ||
+                    null
             };
         }
 
         /*
-         * =================================================
-         * RETRY
-         * =================================================
-         *
-         * Jika PATCH pertama tidak mengubah row,
-         * ulangi sekali.
+         * PATCH #2
          */
         try {
             await patchGenerationHistoryRow(
@@ -1012,7 +1319,8 @@ async function updateGenerationHistory({
             ) {
                 return {
                     updated: true,
-                    status: "completed",
+                    status:
+                        "completed",
                     reason:
                         "history_updated_on_retry",
                     matched: true,
@@ -1024,7 +1332,8 @@ async function updateGenerationHistory({
 
             return {
                 updated: false,
-                status: "completed",
+                status:
+                    "completed",
                 reason:
                     "history_retry_exception",
                 matched: true,
@@ -1033,16 +1342,19 @@ async function updateGenerationHistory({
                     verifiedAfterRetryError?.status ||
                     verified.status ||
                     currentStatus,
-                error: error.message,
+                error:
+                    error.message,
                 errorStatus:
-                    error.status || null,
+                    error.status ||
+                    null,
                 errorData:
-                    error.data || null
+                    error.data ||
+                    null
             };
         }
 
         /*
-         * Verifikasi kedua.
+         * VERIFY #2
          */
         verified =
             await verifyHistoryTerminalState(
@@ -1050,10 +1362,13 @@ async function updateGenerationHistory({
                 "completed"
             );
 
-        if (verified.matched) {
+        if (
+            verified.matched
+        ) {
             return {
                 updated: true,
-                status: "completed",
+                status:
+                    "completed",
                 reason:
                     "history_updated_on_retry",
                 matched: true,
@@ -1063,37 +1378,42 @@ async function updateGenerationHistory({
             };
         }
 
-        /*
-         * PATCH sudah dipanggil tetapi DB tetap
-         * tidak berubah.
-         */
         return {
             updated: false,
-            status: "completed",
+
+            status:
+                "completed",
+
             reason:
                 verified.exists
                     ? "history_status_not_changed_after_patch"
                     : "history_row_missing_after_patch",
 
             matched: true,
+
             rowId,
 
             databaseStatus:
-                verified.status || null,
+                verified.status ||
+                null,
 
             databaseRow:
-                verified.row || null
+                verified.row ||
+                null
         };
     }
 
-    /*
-     * =====================================================
-     * FAILED
-     * =====================================================
-     */
+    /* =====================================================
+       FAILED
+       ===================================================== */
 
-    if (normalizedTask.failed) {
-        if (currentStatus === "failed") {
+    if (
+        normalizedTask.failed
+    ) {
+        if (
+            currentStatus ===
+            "failed"
+        ) {
             return {
                 updated: true,
                 status: "failed",
@@ -1101,15 +1421,21 @@ async function updateGenerationHistory({
                     "history_already_failed",
                 matched: true,
                 rowId,
-                databaseStatus: currentStatus
+                databaseStatus:
+                    currentStatus
             };
         }
 
         const payload = {
-            status: "failed",
-            result_url: null,
+            status:
+                "failed",
+
+            result_url:
+                null,
+
             error_message:
                 "Provider generation gagal.",
+
             completed_at:
                 new Date().toISOString()
         };
@@ -1133,7 +1459,8 @@ async function updateGenerationHistory({
             ) {
                 return {
                     updated: true,
-                    status: "failed",
+                    status:
+                        "failed",
                     reason:
                         "history_failed_verified_after_patch_error",
                     matched: true,
@@ -1145,7 +1472,8 @@ async function updateGenerationHistory({
 
             return {
                 updated: false,
-                status: "failed",
+                status:
+                    "failed",
                 reason:
                     "history_update_exception",
                 matched: true,
@@ -1153,11 +1481,14 @@ async function updateGenerationHistory({
                 databaseStatus:
                     verifiedAfterError?.status ||
                     currentStatus,
-                error: error.message,
+                error:
+                    error.message,
                 errorStatus:
-                    error.status || null,
+                    error.status ||
+                    null,
                 errorData:
-                    error.data || null
+                    error.data ||
+                    null
             };
         }
 
@@ -1167,10 +1498,13 @@ async function updateGenerationHistory({
                 "failed"
             );
 
-        if (verified.matched) {
+        if (
+            verified.matched
+        ) {
             return {
                 updated: true,
-                status: "failed",
+                status:
+                    "failed",
                 reason:
                     "history_updated_and_verified",
                 matched: true,
@@ -1181,7 +1515,7 @@ async function updateGenerationHistory({
         }
 
         /*
-         * Retry.
+         * Retry
          */
         try {
             await patchGenerationHistoryRow(
@@ -1202,7 +1536,8 @@ async function updateGenerationHistory({
             ) {
                 return {
                     updated: true,
-                    status: "failed",
+                    status:
+                        "failed",
                     reason:
                         "history_failed_on_retry",
                     matched: true,
@@ -1214,7 +1549,8 @@ async function updateGenerationHistory({
 
             return {
                 updated: false,
-                status: "failed",
+                status:
+                    "failed",
                 reason:
                     "history_retry_exception",
                 matched: true,
@@ -1223,11 +1559,14 @@ async function updateGenerationHistory({
                     verifiedAfterRetryError?.status ||
                     verified.status ||
                     currentStatus,
-                error: error.message,
+                error:
+                    error.message,
                 errorStatus:
-                    error.status || null,
+                    error.status ||
+                    null,
                 errorData:
-                    error.data || null
+                    error.data ||
+                    null
             };
         }
 
@@ -1237,10 +1576,13 @@ async function updateGenerationHistory({
                 "failed"
             );
 
-        if (verified.matched) {
+        if (
+            verified.matched
+        ) {
             return {
                 updated: true,
-                status: "failed",
+                status:
+                    "failed",
                 reason:
                     "history_updated_on_retry",
                 matched: true,
@@ -1252,33 +1594,45 @@ async function updateGenerationHistory({
 
         return {
             updated: false,
-            status: "failed",
+
+            status:
+                "failed",
+
             reason:
                 verified.exists
                     ? "history_status_not_changed_after_patch"
                     : "history_row_missing_after_patch",
 
             matched: true,
+
             rowId,
 
             databaseStatus:
-                verified.status || null,
+                verified.status ||
+                null,
 
             databaseRow:
-                verified.row || null
+                verified.row ||
+                null
         };
     }
 
     /*
-     * Tidak completed dan tidak failed.
+     * =====================================================
+     * NON TERMINAL
+     * =====================================================
      */
+
     return {
         updated: false,
-        status: "processing",
-        reason: "task_state_not_terminal",
+        status:
+            "processing",
+        reason:
+            "task_state_not_terminal",
         matched: true,
         rowId,
-        databaseStatus: currentStatus
+        databaseStatus:
+            currentStatus
     };
 }
 
@@ -1286,10 +1640,17 @@ async function updateGenerationHistory({
    REQUEST BODY
    ========================================================= */
 
-async function readRequestBody(req) {
+async function readRequestBody(
+    req
+) {
     if (req.body) {
-        if (typeof req.body === "string") {
-            return safeJsonParse(req.body);
+        if (
+            typeof req.body ===
+            "string"
+        ) {
+            return safeJsonParse(
+                req.body
+            );
         }
 
         return req.body;
@@ -1302,17 +1663,28 @@ async function readRequestBody(req) {
    MAIN HANDLER
    ========================================================= */
 
-export default async function handler(req, res) {
-    if (req.method !== "POST") {
-        return res.status(405).json({
+export default async function handler(
+    req,
+    res
+) {
+    if (
+        req.method !==
+        "POST"
+    ) {
+        return res.status(
+            405
+        ).json({
             success: false,
-            error: "Method not allowed."
+            error:
+                "Method not allowed."
         });
     }
 
     try {
         const body =
-            await readRequestBody(req);
+            await readRequestBody(
+                req
+            );
 
         const taskId =
             normalizeString(
@@ -1331,11 +1703,16 @@ export default async function handler(req, res) {
                 body.access_token ||
                 body.accessToken ||
                 req.headers?.authorization
-                    ?.replace(/^Bearer\s+/i, "")
+                    ?.replace(
+                        /^Bearer\s+/i,
+                        ""
+                    )
             );
 
         if (!taskId) {
-            return res.status(400).json({
+            return res.status(
+                400
+            ).json({
                 success: false,
                 error:
                     "task_id wajib dikirim."
@@ -1343,7 +1720,9 @@ export default async function handler(req, res) {
         }
 
         if (!modelId) {
-            return res.status(400).json({
+            return res.status(
+                400
+            ).json({
                 success: false,
                 error:
                     "model_id wajib dikirim."
@@ -1362,7 +1741,9 @@ export default async function handler(req, res) {
             );
 
         const userId =
-            normalizeString(user?.id);
+            normalizeString(
+                user?.id
+            );
 
         if (!userId) {
             throw new Error(
@@ -1377,10 +1758,14 @@ export default async function handler(req, res) {
          */
 
         const model =
-            await loadModel(modelId);
+            await loadModel(
+                modelId
+            );
 
         if (!model) {
-            return res.status(404).json({
+            return res.status(
+                404
+            ).json({
                 success: false,
                 error:
                     `Model "${modelId}" tidak ditemukan.`
@@ -1394,21 +1779,50 @@ export default async function handler(req, res) {
          */
 
         const adapter =
-            findAdapter(modelId);
+            findAdapter(
+                modelId
+            );
 
         if (!adapter) {
-            return res.status(404).json({
+            return res.status(
+                404
+            ).json({
                 success: false,
                 error:
-                    `Adapter untuk model "${modelId}" tidak ditemukan.`
+                    `Adapter untuk model "${modelId}" tidak ditemukan.`,
+                model_id:
+                    modelId,
+                registered_adapters:
+                    MODEL_REGISTRY.map(
+                        item => ({
+                            modelId:
+                                item?.modelId ||
+                                null,
+                            model_id:
+                                item?.model_id ||
+                                null,
+                            id:
+                                item?.id ||
+                                null,
+                            name:
+                                item?.name ||
+                                null,
+                            modelName:
+                                item?.modelName ||
+                                null,
+                            has_queryTask:
+                                typeof
+                                    item?.queryTask ===
+                                    "function"
+                        })
+                    )
             });
         }
 
         /*
          * =================================================
          * PROVIDER
-         * =================================================
-         */
+         * ================================================= */
 
         const providerId =
             resolveProviderId(
@@ -1425,8 +1839,7 @@ export default async function handler(req, res) {
         /*
          * =================================================
          * CREDENTIAL
-         * =================================================
-         */
+         * ================================================= */
 
         const providerApiKey =
             await loadProviderCredential(
@@ -1435,9 +1848,8 @@ export default async function handler(req, res) {
 
         /*
          * =================================================
-         * QUERY KIE
-         * =================================================
-         */
+         * QUERY PROVIDER
+         * ================================================= */
 
         const providerResponse =
             await queryProviderTask(
@@ -1449,8 +1861,7 @@ export default async function handler(req, res) {
         /*
          * =================================================
          * NORMALIZE
-         * =================================================
-         */
+         * ================================================= */
 
         const normalizedTask =
             normalizeTaskResponse(
@@ -1461,8 +1872,7 @@ export default async function handler(req, res) {
         /*
          * =================================================
          * HISTORY SYNC
-         * =================================================
-         */
+         * ================================================= */
 
         const history =
             await updateGenerationHistory({
@@ -1474,34 +1884,45 @@ export default async function handler(req, res) {
         /*
          * =================================================
          * RESPONSE
-         * =================================================
-         */
+         * ================================================= */
 
         const resultUrls =
-            normalizedTask.resultUrls || [];
+            normalizedTask.resultUrls ||
+            [];
 
         const result =
-            normalizedTask.result || null;
+            normalizedTask.result ||
+            null;
 
-        return res.status(200).json({
+        return res.status(
+            200
+        ).json({
             success: true,
 
-            user_id: userId,
+            user_id:
+                userId,
 
-            model_id: modelId,
+            model_id:
+                modelId,
+
             model_name:
                 model.model_name ||
                 model.name ||
                 null,
 
-            provider_id: providerId,
+            provider_id:
+                providerId,
+
             provider:
                 model.provider_name ||
                 model.provider ||
                 null,
 
-            task_id: taskId,
-            taskId: taskId,
+            task_id:
+                taskId,
+
+            taskId:
+                taskId,
 
             state:
                 normalizedTask.completed
@@ -1539,6 +1960,7 @@ export default async function handler(req, res) {
             /*
              * HISTORY DIAGNOSTICS
              */
+
             history_updated:
                 history.updated,
 
@@ -1557,10 +1979,6 @@ export default async function handler(req, res) {
             history_database_status:
                 history.databaseStatus,
 
-            /*
-             * Error diagnostics hanya muncul
-             * bila memang ada.
-             */
             ...(history.error
                 ? {
                     history_error:
@@ -1611,7 +2029,8 @@ export default async function handler(req, res) {
                 "Gagal mengambil status generation.",
 
             details:
-                error?.data || null
+                error?.data ||
+                null
         });
     }
 }
