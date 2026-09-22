@@ -3665,12 +3665,497 @@ function normalizeParameterValue(
 
 }
 
+/* =========================================================
+   IMAGE UPLOAD
+   ---------------------------------------------------------
+   Upload file gambar ke Supabase Storage lalu mengambil
+   public URL yang dapat dibaca oleh provider/KIE.
+========================================================= */
+
+function createImageStoragePath(
+    userId,
+    file
+) {
+
+    const safeUserId =
+        String(
+            userId ||
+            "anonymous"
+        )
+            .replace(
+                /[^a-zA-Z0-9_-]/g,
+                ""
+            );
+
+
+    const originalName =
+        String(
+            file?.name ||
+            "image"
+        );
+
+
+    const extensionMatch =
+        originalName.match(
+            /\.([a-zA-Z0-9]+)$/
+        );
+
+
+    const extension =
+        extensionMatch
+            ? extensionMatch[1]
+                .toLowerCase()
+                .replace(
+                    /[^a-z0-9]/g,
+                    ""
+                )
+            : "jpg";
+
+
+    const randomPart =
+        (
+            typeof crypto !==
+                "undefined" &&
+            typeof crypto.randomUUID ===
+                "function"
+        )
+
+            ? crypto.randomUUID()
+
+            : (
+                Date.now().toString(36) +
+                "-" +
+                Math.random()
+                    .toString(36)
+                    .slice(2, 12)
+            );
+
+
+    return (
+        "generate-input/" +
+        safeUserId +
+        "/" +
+        randomPart +
+        "." +
+        extension
+    );
+
+}
+
+
+function validateImageFile(
+    file
+) {
+
+    if (
+        !file
+    ) {
+
+        throw new Error(
+            "File gambar tidak ditemukan."
+        );
+
+    }
+
+
+    if (
+        !ALLOWED_IMAGE_TYPES.has(
+            file.type
+        )
+    ) {
+
+        throw new Error(
+            "Format gambar tidak didukung. Gunakan JPG, PNG, atau WebP."
+        );
+
+    }
+
+
+    if (
+        file.size >
+        MAX_IMAGE_SIZE
+    ) {
+
+        throw new Error(
+            "Ukuran gambar maksimal 10 MB."
+        );
+
+    }
+
+
+    return true;
+
+}
+
+
+async function uploadImageFile(
+    file
+) {
+
+    validateImageFile(
+        file
+    );
+
+
+    const supabase =
+        getSupabaseClient();
+
+
+    if (
+        !supabase ||
+        !supabase.storage
+    ) {
+
+        throw new Error(
+            "Supabase Storage belum tersedia."
+        );
+
+    }
+
+
+    const user =
+        getCurrentUser();
+
+
+    const userId =
+        user?.id ||
+        user?.user?.id ||
+        "";
+
+
+    if (
+        !userId
+    ) {
+
+        throw new Error(
+            "User belum terautentikasi untuk upload gambar."
+        );
+
+    }
+
+
+    const path =
+        createImageStoragePath(
+            userId,
+            file
+        );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] Upload gambar:",
+        {
+            bucket:
+                STORAGE_BUCKET,
+
+            path,
+
+            name:
+                file.name,
+
+            type:
+                file.type,
+
+            size:
+                file.size
+        }
+    );
+
+
+    const {
+        error:
+            uploadError
+    } =
+        await supabase.storage
+            .from(
+                STORAGE_BUCKET
+            )
+            .upload(
+                path,
+                file,
+                {
+                    cacheControl:
+                        "3600",
+
+                    upsert:
+                        false,
+
+                    contentType:
+                        file.type
+                }
+            );
+
+
+    if (
+        uploadError
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][Generate Form] Upload gambar gagal:",
+            uploadError
+        );
+
+
+        throw uploadError;
+
+    }
+
+
+    const publicResult =
+        supabase.storage
+            .from(
+                STORAGE_BUCKET
+            )
+            .getPublicUrl(
+                path
+            );
+
+
+    const publicUrl =
+        String(
+            publicResult?.data?.publicUrl ||
+            ""
+        ).trim();
+
+
+    if (
+        !publicUrl
+    ) {
+
+        throw new Error(
+            "Upload berhasil tetapi URL publik gambar tidak tersedia."
+        );
+
+    }
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] Upload gambar berhasil:",
+        publicUrl
+    );
+
+
+    return {
+        path,
+        url:
+            publicUrl
+    };
+
+}
+
+
+async function resolveImageParameterValue(
+    imageInput,
+    definition
+) {
+
+    if (
+        !imageInput
+    ) {
+
+        return [];
+
+    }
+
+
+    const mode =
+        typeof imageInput.getInputMode ===
+        "function"
+
+            ? imageInput.getInputMode()
+
+            : (
+                imageInput.dataset.imageMode ||
+                "url"
+            );
+
+
+    /*
+     * =====================================================
+     * URL MODE
+     * =====================================================
+     */
+
+    if (
+        mode !==
+        "upload"
+    ) {
+
+        const urlInput =
+            typeof imageInput.getUrlInput ===
+            "function"
+
+                ? imageInput.getUrlInput()
+
+                : imageInput.querySelector(
+                    'input[type="url"]'
+                );
+
+
+        const url =
+            String(
+                urlInput?.value ||
+                ""
+            ).trim();
+
+
+        if (
+            !url
+        ) {
+
+            return [];
+
+        }
+
+
+        return [
+            url
+        ];
+
+    }
+
+
+    /*
+     * =====================================================
+     * UPLOAD MODE
+     * =====================================================
+     */
+
+    const existingUrl =
+        typeof imageInput.getUploadedUrl ===
+        "function"
+
+            ? imageInput.getUploadedUrl()
+
+            : String(
+                imageInput.dataset.uploadedUrl ||
+                ""
+            ).trim();
+
+
+    /*
+     * Jika module lain sudah mengupload file,
+     * gunakan URL tersebut.
+     */
+
+    if (
+        existingUrl
+    ) {
+
+        return [
+            existingUrl
+        ];
+
+    }
+
+
+    const fileInput =
+        typeof imageInput.getFileInput ===
+        "function"
+
+            ? imageInput.getFileInput()
+
+            : imageInput.querySelector(
+                ".generate-image-file"
+            );
+
+
+    const files =
+        Array.from(
+            fileInput?.files ||
+            []
+        );
+
+
+    if (
+        !files.length
+    ) {
+
+        return [];
+
+    }
+
+
+    const configuredMaxItems =
+        Number(
+            definition?.maxItems ??
+            definition?.max_items
+        );
+
+
+    const maxItems =
+        Number.isFinite(
+            configuredMaxItems
+        ) &&
+        configuredMaxItems > 0
+
+            ? Math.floor(
+                configuredMaxItems
+            )
+
+            : 1;
+
+
+    const selectedFiles =
+        files.slice(
+            0,
+            maxItems
+        );
+
+
+    const uploadedUrls =
+        [];
+
+
+    for (
+        const file
+        of selectedFiles
+    ) {
+
+        const uploaded =
+            await uploadImageFile(
+                file
+            );
+
+
+        if (
+            uploaded?.url
+        ) {
+
+            uploadedUrls.push(
+                uploaded.url
+            );
+
+        }
+
+    }
+
+
+    if (
+        uploadedUrls.length
+    ) {
+
+        /*
+         * Simpan URL supaya jika collector dipanggil
+         * kembali pada lifecycle yang sama, file tidak
+         * langsung dianggap kosong.
+         */
+
+        imageInput.dataset.uploadedUrl =
+            uploadedUrls[0];
+
+    }
+
+
+    return uploadedUrls;
+
+}
+
 
 /* =========================================================
    GET FORM PARAMETERS
 ========================================================= */
 
-export function getFormParameters(
+export async function getFormParameters(
     modelArgument = null
 ) {
 
@@ -3690,147 +4175,230 @@ export function getFormParameters(
         {};
 
 
-    names.forEach(
-        name => {
+    for (
+        const name
+        of names
+    ) {
 
-            /*
-             * Safety:
-             * parameter internal dan server-controlled
-             * tidak pernah ikut dikirim.
-             */
+        /*
+         * Safety:
+         * parameter internal dan server-controlled
+         * tidak pernah ikut dikirim.
+         */
 
-            if (
-                isClientForbiddenParameter(
-                    name
-                )
-            ) {
+        if (
+            isClientForbiddenParameter(
+                name
+            )
+        ) {
 
-                return;
-
-            }
-
-
-            const field =
-                findField(
-                    name
-                );
-
-
-            if (
-                !field
-            ) {
-
-                return;
-
-            }
-
-
-            const value =
-                readFieldValue(
-                    field
-                );
-
-
-            const definition =
-                definitions[name];
-
-
-            /*
-             * IMAGE
-             */
-
-            if (
-                name ===
-                    "image_urls" ||
-                name ===
-                    "image_url"
-            ) {
-
-                const images =
-                    normalizeArray(
-                        value
-                    );
-
-
-                const maxItems =
-                    Math.max(
-                        1,
-                        Number(
-                            definition?.maxItems ??
-                            definition?.max_items
-                        ) ||
-                        1
-                    );
-
-
-                if (
-                    images.length
-                ) {
-
-                    parameters.image_urls =
-                        images.slice(
-                            0,
-                            maxItems
-                        );
-
-                }
-
-
-                return;
-
-            }
-
-
-            /*
-             * BOOLEAN
-             */
-
-            if (
-                String(
-                    definition?.type ||
-                    ""
-                ).toLowerCase() ===
-                "boolean"
-            ) {
-
-                parameters[name] =
-                    Boolean(
-                        value
-                    );
-
-
-                return;
-
-            }
-
-
-            /*
-             * EMPTY
-             */
-
-            if (
-                value ===
-                    undefined ||
-                value ===
-                    null ||
-                value ===
-                    ""
-            ) {
-
-                return;
-
-            }
-
-
-            parameters[name] =
-                normalizeParameterValue(
-                    name,
-                    value,
-                    definition
-                );
+            continue;
 
         }
-    );
+
+
+        const field =
+            findField(
+                name
+            );
+
+
+        if (
+            !field
+        ) {
+
+            continue;
+
+        }
+
+
+        const definition =
+            definitions[name];
+
+
+        /*
+         * =====================================================
+         * IMAGE
+         * =====================================================
+         */
+
+        if (
+            name ===
+                "image_urls" ||
+            name ===
+                "image_url"
+        ) {
+
+            const imageInput =
+                field.querySelector(
+                    ".generate-image-input"
+                );
+
+
+            if (
+                !imageInput
+            ) {
+
+                continue;
+
+            }
+
+
+            let images =
+                [];
+
+
+            try {
+
+                images =
+                    await resolveImageParameterValue(
+                        imageInput,
+                        definition
+                    );
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI][Generate Form] Upload gambar gagal:",
+                    error
+                );
+
+
+                throw new Error(
+                    error?.message ||
+                    "Gagal mengupload gambar referensi."
+                );
+
+            }
+
+
+            if (
+                !images.length
+            ) {
+
+                continue;
+
+            }
+
+
+            const maxItemsRaw =
+                Number(
+                    definition?.maxItems ??
+                    definition?.max_items
+                );
+
+
+            const maxItems =
+                Number.isFinite(
+                    maxItemsRaw
+                ) &&
+                maxItemsRaw > 0
+
+                    ? Math.floor(
+                        maxItemsRaw
+                    )
+
+                    : 1;
+
+
+            const normalizedImages =
+                images.slice(
+                    0,
+                    maxItems
+                );
+
+
+            /*
+             * Pertahankan nama parameter asli
+             * dari konfigurasi model.
+             */
+
+            if (
+                name ===
+                "image_url"
+            ) {
+
+                parameters.image_url =
+                    normalizedImages[0];
+
+            } else {
+
+                parameters.image_urls =
+                    normalizedImages;
+
+            }
+
+
+            continue;
+
+        }
+
+
+        /*
+         * =====================================================
+         * NORMAL FIELD
+         * =====================================================
+         */
+
+        const value =
+            readFieldValue(
+                field
+            );
+
+
+        /*
+         * BOOLEAN
+         */
+
+        if (
+            String(
+                definition?.type ||
+                ""
+            )
+                .trim()
+                .toLowerCase() ===
+            "boolean"
+        ) {
+
+            parameters[name] =
+                Boolean(
+                    value
+                );
+
+
+            continue;
+
+        }
+
+
+        /*
+         * EMPTY
+         */
+
+        if (
+            value ===
+                undefined ||
+            value ===
+                null ||
+            value ===
+                ""
+        ) {
+
+            continue;
+
+        }
+
+
+        parameters[name] =
+            normalizeParameterValue(
+                name,
+                value,
+                definition
+            );
+
+    }
 
 
     /*
@@ -3842,9 +4410,49 @@ export function getFormParameters(
     delete parameters.nsfw_checker;
 
 
+    /*
+     * Diagnostic.
+     *
+     * Jangan hanya mencetak object.
+     * Cetak juga informasi image supaya kita langsung
+     * tahu apakah reference image benar-benar masuk.
+     */
+
     console.debug(
         "[GEN-Z.AI][Generate Form] FORM PARAMETERS:",
         parameters
+    );
+
+
+    console.debug(
+        "[GEN-Z.AI][Generate Form] REFERENCE IMAGE:",
+        {
+            image_urls:
+                Array.isArray(
+                    parameters.image_urls
+                )
+                    ? parameters.image_urls.length
+                    : 0,
+
+            image_url:
+                parameters.image_url
+                    ? "present"
+                    : "missing",
+
+            hasReferenceImage:
+                (
+                    (
+                        Array.isArray(
+                            parameters.image_urls
+                        ) &&
+                        parameters.image_urls.length >
+                            0
+                    ) ||
+                    Boolean(
+                        parameters.image_url
+                    )
+                )
+        }
     );
 
 
