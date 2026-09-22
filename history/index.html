@@ -1,21 +1,2933 @@
-<script>
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>GEN-Z.AI | History</title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
+<style>
 
 /* =========================================================
-   GEN-Z.AI
-   HISTORY AUTO STATUS SYNC
-   ---------------------------------------------------------
-   PERBAIKAN:
-   - Generation yang masih processing/pending akan meminta
-     backend /api/generate-status untuk mengecek provider.
-   - Backend kemudian melakukan reconciliation ke
-     generation_history.
-   - Setelah itu History membaca ulang data Supabase.
-   - Polling setiap 5 detik.
-   - Silent, tidak menyebabkan halaman berkedip.
-   - Berhenti otomatis ketika tidak ada generation aktif.
-   - Tidak mengubah renderer thumbnail yang sudah bekerja.
+   ROOT
 ========================================================= */
 
+:root {
+
+    --bg: #f4f6f8;
+
+    --card: #ffffff;
+
+    --text: #111827;
+
+    --muted: #6b7280;
+
+    --border: #e5e7eb;
+
+    --dark: #111827;
+
+    --accent: #6366f1;
+
+    --success: #16a34a;
+
+    --warning: #d97706;
+
+    --danger: #dc2626;
+
+    --shadow:
+        0 20px 50px rgba(15, 23, 42, .08);
+
+}
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+* {
+
+    box-sizing: border-box;
+
+    margin: 0;
+
+    padding: 0;
+
+}
+
+
+/* =========================================================
+   BODY
+========================================================= */
+
+body {
+
+    font-family: "Inter", sans-serif;
+
+    background:
+
+        radial-gradient(
+            circle at 15% 10%,
+            rgba(99, 102, 241, .10),
+            transparent 30%
+        ),
+
+        radial-gradient(
+            circle at 85% 20%,
+            rgba(139, 92, 246, .08),
+            transparent 30%
+        ),
+
+        var(--bg);
+
+    color: var(--text);
+
+    min-height: 100vh;
+
+}
+
+
+/* =========================================================
+   MENU BUTTON
+========================================================= */
+
+.menu-button {
+
+    position: fixed;
+
+    top: 20px;
+
+    left: 20px;
+
+    width: 48px;
+
+    height: 48px;
+
+    border:
+        1px solid rgba(255,255,255,.15);
+
+    border-radius: 15px;
+
+    background:
+        rgba(17,24,39,.94);
+
+    color: white;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    flex-direction: column;
+
+    gap: 5px;
+
+    cursor: pointer;
+
+    z-index: 1200;
+
+    box-shadow:
+        0 12px 30px rgba(0,0,0,.18);
+
+}
+
+
+.menu-button span {
+
+    width: 19px;
+
+    height: 2px;
+
+    background: white;
+
+    border-radius: 10px;
+
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.sidebar {
+
+    position: fixed;
+
+    inset: 0 auto 0 0;
+
+    width: 285px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #111827 0%,
+            #0b1220 100%
+        );
+
+    color: white;
+
+    z-index: 1100;
+
+    transform: translateX(-105%);
+
+    transition:
+        transform .3s ease;
+
+    padding: 28px 18px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    box-shadow:
+        25px 0 70px rgba(0,0,0,.25);
+
+}
+
+
+.sidebar.open {
+
+    transform: translateX(0);
+
+}
+
+
+.brand {
+
+    padding:
+        5px 14px 28px;
+
+}
+
+
+.brand h2 {
+
+    font-size: 22px;
+
+    font-weight: 800;
+
+    letter-spacing: -.7px;
+
+}
+
+
+.brand span {
+
+    display: block;
+
+    margin-top: 5px;
+
+    font-size: 11px;
+
+    color: #9ca3af;
+
+    letter-spacing: 1.6px;
+
+}
+
+
+.nav {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 6px;
+
+}
+
+
+.nav a {
+
+    text-decoration: none;
+
+    color: #9ca3af;
+
+    padding: 13px 14px;
+
+    border-radius: 13px;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    transition: .2s ease;
+
+}
+
+
+.nav a:hover,
+.nav a.active {
+
+    color: white;
+
+    background:
+        rgba(255,255,255,.08);
+
+}
+
+
+.nav a.active {
+
+    box-shadow:
+        inset 3px 0 0 var(--accent);
+
+}
+
+
+.sidebar-bottom {
+
+    margin-top: auto;
+
+}
+
+
+.user-mini {
+
+    padding: 14px;
+
+    border-radius: 16px;
+
+    background:
+        rgba(255,255,255,.06);
+
+    margin-bottom: 10px;
+
+}
+
+
+.user-mini small {
+
+    color: #9ca3af;
+
+    font-size: 10px;
+
+}
+
+
+.user-mini strong {
+
+    display: block;
+
+    margin-top: 5px;
+
+    font-size: 12px;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+
+}
+
+
+.user-mini-role {
+
+    margin-top: 5px;
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    color: #a5b4fc;
+
+    letter-spacing: .8px;
+
+}
+
+
+.logout {
+
+    width: 100%;
+
+    border:
+        1px solid rgba(255,255,255,.1);
+
+    background: transparent;
+
+    color: #d1d5db;
+
+    padding: 12px;
+
+    border-radius: 13px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+}
+
+
+.logout:hover {
+
+    background:
+        rgba(255,255,255,.08);
+
+}
+
+
+.overlay {
+
+    position: fixed;
+
+    inset: 0;
+
+    background:
+        rgba(15,23,42,.35);
+
+    backdrop-filter: blur(4px);
+
+    z-index: 1000;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    transition: .3s ease;
+
+}
+
+
+.overlay.active {
+
+    opacity: 1;
+
+    pointer-events: auto;
+
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+.main {
+
+    min-height: 100vh;
+
+    padding: 30px;
+
+    max-width: 1250px;
+
+    margin: auto;
+
+}
+
+
+.topbar {
+
+    padding-left: 70px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 20px;
+
+    margin-bottom: 30px;
+
+}
+
+
+.welcome h1 {
+
+    font-size: 30px;
+
+    letter-spacing: -.9px;
+
+}
+
+
+.welcome p {
+
+    margin-top: 7px;
+
+    color: var(--muted);
+
+    font-size: 13px;
+
+}
+
+
+.credit-card {
+
+    min-width: 190px;
+
+    background: var(--dark);
+
+    color: white;
+
+    padding: 15px 18px;
+
+    border-radius: 18px;
+
+    box-shadow:
+        0 14px 35px rgba(17,24,39,.18);
+
+}
+
+
+.credit-card small {
+
+    color: #9ca3af;
+
+    font-size: 10px;
+
+    letter-spacing: 1px;
+
+}
+
+
+.credit-card strong {
+
+    display: block;
+
+    margin-top: 5px;
+
+    font-size: 22px;
+
+}
+
+
+/* =========================================================
+   HISTORY CARD
+========================================================= */
+
+.history-card {
+
+    background: var(--card);
+
+    border:
+        1px solid var(--border);
+
+    border-radius: 24px;
+
+    box-shadow: var(--shadow);
+
+    overflow: hidden;
+
+}
+
+
+.history-header {
+
+    padding: 25px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 15px;
+
+    border-bottom:
+        1px solid var(--border);
+
+}
+
+
+.history-title h2 {
+
+    font-size: 18px;
+
+    letter-spacing: -.4px;
+
+}
+
+
+.history-title p {
+
+    margin-top: 5px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+}
+
+
+.refresh-button {
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    color: var(--text);
+
+    padding: 10px 14px;
+
+    border-radius: 12px;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+}
+
+
+.refresh-button:hover {
+
+    background: #f9fafb;
+
+}
+
+
+/* =========================================================
+   FILTER
+========================================================= */
+
+.filters {
+
+    padding: 18px 25px;
+
+    display: flex;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+
+    border-bottom:
+        1px solid var(--border);
+
+}
+
+
+.filter-button {
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    color: var(--muted);
+
+    padding: 9px 13px;
+
+    border-radius: 10px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+}
+
+
+.filter-button.active {
+
+    background: var(--dark);
+
+    color: white;
+
+    border-color: var(--dark);
+
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.table-wrap {
+
+    width: 100%;
+
+    overflow-x: auto;
+
+}
+
+
+table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    min-width: 960px;
+
+}
+
+
+thead {
+
+    background: #f9fafb;
+
+}
+
+
+th {
+
+    padding: 13px 20px;
+
+    text-align: left;
+
+    font-size: 9px;
+
+    color: #6b7280;
+
+    text-transform: uppercase;
+
+    letter-spacing: .7px;
+
+    font-weight: 800;
+
+    border-bottom:
+        1px solid var(--border);
+
+    white-space: nowrap;
+
+}
+
+
+td {
+
+    padding: 16px 20px;
+
+    border-bottom:
+        1px solid #f0f1f3;
+
+    font-size: 11px;
+
+    vertical-align: middle;
+
+}
+
+
+tbody tr {
+
+    transition:
+        background .2s ease;
+
+}
+
+
+tbody tr:hover {
+
+    background: #fafafa;
+
+}
+
+
+tbody tr:last-child td {
+
+    border-bottom: 0;
+
+}
+
+
+/* =========================================================
+   THUMBNAIL COLUMN
+========================================================= */
+
+.thumbnail-header {
+
+    width: 120px;
+
+}
+
+
+.thumbnail-cell {
+
+    width: 120px;
+
+    min-width: 120px;
+
+}
+
+
+/* =========================================================
+   VIDEO THUMBNAIL
+========================================================= */
+
+.history-thumbnail {
+
+    position: relative;
+
+    width: 80px;
+
+    height: 80px;
+
+    min-width: 80px;
+
+    border-radius: 13px;
+
+    overflow: hidden;
+
+    background:
+        #111827;
+
+    border:
+        1px solid rgba(17,24,39,.10);
+
+    box-shadow:
+        0 6px 18px rgba(15,23,42,.10);
+
+    isolation: isolate;
+
+}
+
+
+.history-thumbnail.video-ready {
+
+    cursor: pointer;
+
+}
+
+
+.history-thumbnail.video-ready:hover {
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 9px 22px rgba(15,23,42,.16);
+
+}
+
+
+.history-thumbnail video {
+
+    display: block;
+
+    width: 100%;
+
+    height: 100%;
+
+    object-fit: cover;
+
+    background:
+        #111827;
+
+}
+
+
+.thumbnail-play {
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 50%;
+
+    width: 28px;
+
+    height: 28px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        rgba(17,24,39,.70);
+
+    color: white;
+
+    font-size: 12px;
+
+    padding-left: 2px;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.25);
+
+    pointer-events: none;
+
+}
+
+
+.history-thumbnail.video-ready
+.thumbnail-play {
+
+    opacity: .82;
+
+}
+
+
+.history-thumbnail.video-ready:hover
+.thumbnail-play {
+
+    opacity: 1;
+
+    transform:
+        translate(-50%, -50%)
+        scale(1.05);
+
+}
+
+
+/* =========================================================
+   THUMBNAIL PROCESSING
+========================================================= */
+
+.thumbnail-processing {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            #111827,
+            #1f2937,
+            #111827
+        );
+
+    overflow: hidden;
+
+}
+
+
+.thumbnail-processing::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: -50%;
+
+    background:
+        conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            rgba(255,255,255,.03) 50deg,
+            rgba(255,255,255,.18) 100deg,
+            transparent 150deg,
+            transparent 360deg
+        );
+
+    animation:
+        thumbnailSpin 2.2s linear infinite;
+
+}
+
+
+.thumbnail-processing::after {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        linear-gradient(
+            110deg,
+            transparent 20%,
+            rgba(255,255,255,.10) 48%,
+            transparent 72%
+        );
+
+    transform:
+        translateX(-120%);
+
+    animation:
+        thumbnailShimmer 1.8s ease-in-out infinite;
+
+}
+
+
+.thumbnail-loader {
+
+    position: relative;
+
+    z-index: 3;
+
+    width: 30px;
+
+    height: 30px;
+
+    border:
+        3px solid rgba(255,255,255,.20);
+
+    border-top-color:
+        #ffffff;
+
+    border-radius: 50%;
+
+    animation:
+        thumbnailLoaderSpin .8s linear infinite;
+
+}
+
+
+.thumbnail-processing-label {
+
+    position: absolute;
+
+    left: 0;
+
+    right: 0;
+
+    bottom: 0;
+
+    z-index: 4;
+
+    padding:
+        7px 4px 6px;
+
+    text-align: center;
+
+    background:
+        linear-gradient(
+            transparent,
+            rgba(0,0,0,.72)
+        );
+
+    color: white;
+
+    font-size: 7px;
+
+    font-weight: 800;
+
+    letter-spacing: .6px;
+
+}
+
+
+@keyframes thumbnailSpin {
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+@keyframes thumbnailShimmer {
+
+    0% {
+
+        transform:
+            translateX(-120%);
+
+    }
+
+    55%,
+    100% {
+
+        transform:
+            translateX(120%);
+
+    }
+
+}
+
+
+@keyframes thumbnailLoaderSpin {
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+/* =========================================================
+   THUMBNAIL SUCCESS
+========================================================= */
+
+.thumbnail-success {
+
+    position: absolute;
+
+    right: 4px;
+
+    bottom: 4px;
+
+    z-index: 5;
+
+    padding:
+        3px 5px;
+
+    border-radius: 5px;
+
+    background:
+        rgba(22,163,74,.94);
+
+    color: white;
+
+    font-size: 6px;
+
+    line-height: 1;
+
+    font-weight: 800;
+
+    letter-spacing: .35px;
+
+    box-shadow:
+        0 2px 6px rgba(0,0,0,.20);
+
+}
+
+
+/* =========================================================
+   THUMBNAIL FAILED
+========================================================= */
+
+.thumbnail-failed {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            #450a0a 0%,
+            #7f1d1d 48%,
+            #450a0a 100%
+        );
+
+}
+
+
+.thumbnail-failed::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            transparent 0,
+            transparent 9px,
+            rgba(255,255,255,.035) 9px,
+            rgba(255,255,255,.035) 18px
+        );
+
+}
+
+
+.thumbnail-failed::after {
+
+    content: "GAGAL";
+
+    position: absolute;
+
+    left: -15px;
+
+    right: -15px;
+
+    top: 29px;
+
+    padding:
+        5px 0;
+
+    text-align: center;
+
+    background:
+        rgba(220,38,38,.92);
+
+    color: white;
+
+    font-size: 10px;
+
+    font-weight: 900;
+
+    letter-spacing: 1.4px;
+
+    transform:
+        rotate(-14deg);
+
+    box-shadow:
+        0 3px 10px rgba(0,0,0,.25);
+
+    z-index: 4;
+
+}
+
+
+.thumbnail-failed-icon {
+
+    position: relative;
+
+    z-index: 3;
+
+    width: 29px;
+
+    height: 29px;
+
+    border:
+        2px solid rgba(255,255,255,.72);
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: white;
+
+    font-size: 15px;
+
+    font-weight: 800;
+
+}
+
+
+/* =========================================================
+   THUMBNAIL EMPTY / NO OUTPUT
+========================================================= */
+
+.thumbnail-empty {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: #9ca3af;
+
+    background:
+        #f3f4f6;
+
+    font-size: 18px;
+
+}
+
+
+.thumbnail-empty span {
+
+    opacity: .55;
+
+}
+
+
+/* =========================================================
+   PROMPT
+========================================================= */
+
+.prompt-cell {
+
+    max-width: 340px;
+
+}
+
+
+.prompt-text {
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    max-width: 340px;
+
+    color: #374151;
+
+}
+
+
+.provider {
+
+    font-weight: 700;
+
+    color: #374151;
+
+}
+
+
+.model {
+
+    color: var(--muted);
+
+}
+
+
+.credits {
+
+    font-weight: 800;
+
+    white-space: nowrap;
+
+}
+
+
+.user-cell {
+
+    font-size: 10px;
+
+    color: #6b7280;
+
+    max-width: 180px;
+
+}
+
+
+.user-cell strong {
+
+    display: block;
+
+    color: #374151;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+
+}
+
+
+/* =========================================================
+   STATUS BASE
+========================================================= */
+
+.status {
+
+    position: relative;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 7px;
+
+    min-height: 28px;
+
+    padding: 5px 10px;
+
+    border-radius: 999px;
+
+    font-size: 9px;
+
+    font-weight: 800;
+
+    letter-spacing: .35px;
+
+    line-height: 1;
+
+    white-space: nowrap;
+
+}
+
+
+/* =========================================================
+   STATUS DOT BASE
+========================================================= */
+
+.status-dot {
+
+    position: relative;
+
+    width: 7px;
+
+    height: 7px;
+
+    min-width: 7px;
+
+    border-radius: 50%;
+
+}
+
+
+/* =========================================================
+   SUCCESS / COMPLETED
+========================================================= */
+
+.status.completed,
+.status.success {
+
+    color: #166534;
+
+    background:
+        #f0fdf4;
+
+    border:
+        1px solid rgba(22,163,74,.14);
+
+}
+
+
+.status.completed .status-dot,
+.status.success .status-dot {
+
+    background: #22c55e;
+
+    box-shadow:
+        0 0 7px rgba(34,197,94,.35);
+
+}
+
+
+/* =========================================================
+   FAILED
+========================================================= */
+
+.status.failed {
+
+    color: #991b1b;
+
+    background:
+        #fef2f2;
+
+    border:
+        1px solid rgba(220,38,38,.14);
+
+}
+
+
+.status.failed .status-dot {
+
+    background: #ef4444;
+
+}
+
+
+/* =========================================================
+   PENDING
+========================================================= */
+
+.status.pending {
+
+    color: #6b7280;
+
+    background:
+        #f3f4f6;
+
+    border:
+        1px solid rgba(107,114,128,.12);
+
+}
+
+
+.status.pending .status-dot {
+
+    background: #9ca3af;
+
+}
+
+
+/* =========================================================
+   CANCELLED
+========================================================= */
+
+.status.cancelled {
+
+    color: #6b21a8;
+
+    background:
+        #faf5ff;
+
+    border:
+        1px solid rgba(147,51,234,.14);
+
+}
+
+
+.status.cancelled .status-dot {
+
+    background: #a855f7;
+
+}
+
+
+/* =========================================================
+   PREMIUM PROCESSING STATUS
+========================================================= */
+
+.status.processing {
+
+    position: relative;
+
+    overflow: hidden;
+
+    isolation: isolate;
+
+    gap: 8px;
+
+    min-height: 30px;
+
+    padding:
+        6px 11px 6px 9px;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            #fffaf0 0%,
+            #fff7d6 38%,
+            #fef3c7 65%,
+            #fffaf0 100%
+        );
+
+    color: #92400e;
+
+    border:
+        1px solid rgba(217,119,6,.20);
+
+    box-shadow:
+
+        0 4px 14px
+            rgba(217,119,6,.10),
+
+        inset 0 1px 0
+            rgba(255,255,255,.75);
+
+    animation:
+        processingBorder 2.8s ease-in-out infinite;
+
+}
+
+
+.status.processing::after {
+
+    content: "";
+
+    position: absolute;
+
+    top: -20%;
+
+    left: -75%;
+
+    width: 48%;
+
+    height: 140%;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255,255,255,.10) 20%,
+            rgba(255,255,255,.90) 50%,
+            rgba(255,255,255,.10) 80%,
+            transparent 100%
+        );
+
+    transform:
+        skewX(-18deg);
+
+    animation:
+        processingShimmer 2.2s
+        cubic-bezier(.4,0,.2,1)
+        infinite;
+
+    pointer-events: none;
+
+    z-index: 1;
+
+}
+
+
+.status.processing .processing-label {
+
+    position: relative;
+
+    z-index: 3;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 3px;
+
+    font-weight: 800;
+
+    letter-spacing: .55px;
+
+    animation:
+        processingText 1.8s
+        ease-in-out
+        infinite;
+
+}
+
+
+.status.processing .status-dot {
+
+    position: relative;
+
+    z-index: 4;
+
+    width: 8px;
+
+    height: 8px;
+
+    min-width: 8px;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle at 35% 30%,
+            #fff7c2 0%,
+            #fbbf24 28%,
+            #f59e0b 65%,
+            #d97706 100%
+        );
+
+    box-shadow:
+
+        0 0 0 2px
+            rgba(245,158,11,.12),
+
+        0 0 7px
+            rgba(245,158,11,.60),
+
+        0 0 15px
+            rgba(245,158,11,.30);
+
+    animation:
+        processingOrb 1.6s
+        ease-in-out
+        infinite;
+
+}
+
+
+.status.processing .status-dot::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: -4px;
+
+    border-radius: 50%;
+
+    border:
+        1px solid
+        rgba(245,158,11,.22);
+
+    border-top-color:
+        #f59e0b;
+
+    border-right-color:
+        transparent;
+
+    border-bottom-color:
+        rgba(245,158,11,.08);
+
+    border-left-color:
+        transparent;
+
+    animation:
+        processingRing .85s
+        linear
+        infinite;
+
+}
+
+
+.status.processing .status-dot::after {
+
+    content: "";
+
+    position: absolute;
+
+    inset: -7px;
+
+    border-radius: 50%;
+
+    background:
+        rgba(245,158,11,.12);
+
+    box-shadow:
+        0 0 12px
+        rgba(245,158,11,.12);
+
+    animation:
+        processingGlow 1.6s
+        ease-in-out
+        infinite;
+
+}
+
+
+.processing-indicator {
+
+    position: relative;
+
+    z-index: 4;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 3px;
+
+    min-width: 14px;
+
+    margin-left: 0;
+
+}
+
+
+.processing-indicator span {
+
+    width: 3px;
+
+    height: 3px;
+
+    border-radius: 50%;
+
+    background:
+        currentColor;
+
+    opacity: .25;
+
+    animation:
+        processingDot 1.2s
+        ease-in-out
+        infinite;
+
+}
+
+
+.processing-indicator span:nth-child(1) {
+
+    animation-delay:
+        0s;
+
+}
+
+
+.processing-indicator span:nth-child(2) {
+
+    animation-delay:
+        .18s;
+
+}
+
+
+.processing-indicator span:nth-child(3) {
+
+    animation-delay:
+        .36s;
+
+}
+
+
+@keyframes processingBorder {
+
+    0%,
+    100% {
+
+        border-color:
+            rgba(217,119,6,.16);
+
+        box-shadow:
+
+            0 4px 14px
+                rgba(217,119,6,.08),
+
+            inset 0 1px 0
+                rgba(255,255,255,.70);
+
+    }
+
+    50% {
+
+        border-color:
+            rgba(245,158,11,.34);
+
+        box-shadow:
+
+            0 5px 18px
+                rgba(217,119,6,.15),
+
+            0 0 0 2px
+                rgba(245,158,11,.04),
+
+            inset 0 1px 0
+                rgba(255,255,255,.85);
+
+    }
+
+}
+
+
+@keyframes processingOrb {
+
+    0%,
+    100% {
+
+        transform:
+            scale(.88);
+
+        box-shadow:
+
+            0 0 0 2px
+                rgba(245,158,11,.10),
+
+            0 0 6px
+                rgba(245,158,11,.45),
+
+            0 0 12px
+                rgba(245,158,11,.18);
+
+    }
+
+    50% {
+
+        transform:
+            scale(1.13);
+
+        box-shadow:
+
+            0 0 0 3px
+                rgba(245,158,11,.14),
+
+            0 0 10px
+                rgba(245,158,11,.78),
+
+            0 0 21px
+                rgba(245,158,11,.32);
+
+    }
+
+}
+
+
+@keyframes processingRing {
+
+    from {
+
+        transform:
+            rotate(0deg);
+
+    }
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+@keyframes processingGlow {
+
+    0%,
+    100% {
+
+        opacity: .20;
+
+        transform:
+            scale(.65);
+
+    }
+
+    50% {
+
+        opacity: .78;
+
+        transform:
+            scale(1.08);
+
+    }
+
+}
+
+
+@keyframes processingDot {
+
+    0%,
+    60%,
+    100% {
+
+        opacity: .20;
+
+        transform:
+            translateY(0)
+            scale(.85);
+
+    }
+
+    30% {
+
+        opacity: 1;
+
+        transform:
+            translateY(-2px)
+            scale(1.15);
+
+    }
+
+}
+
+
+@keyframes processingText {
+
+    0%,
+    100% {
+
+        opacity: .78;
+
+    }
+
+    50% {
+
+        opacity: 1;
+
+    }
+
+}
+
+
+@keyframes processingShimmer {
+
+    0% {
+
+        left: -75%;
+
+        opacity: 0;
+
+    }
+
+    12% {
+
+        opacity: 1;
+
+    }
+
+    48%,
+    100% {
+
+        left: 135%;
+
+        opacity: 0;
+
+    }
+
+}
+
+
+/* =========================================================
+   ACTION
+========================================================= */
+
+.view-button {
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    color: var(--text);
+
+    padding: 7px 10px;
+
+    border-radius: 9px;
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+}
+
+
+.view-button:hover {
+
+    background: #f9fafb;
+
+}
+
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.empty-state {
+
+    padding: 70px 25px;
+
+    text-align: center;
+
+    display: none;
+
+}
+
+
+.empty-icon {
+
+    width: 58px;
+
+    height: 58px;
+
+    margin: 0 auto 15px;
+
+    border-radius: 18px;
+
+    background: #f3f4f6;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 25px;
+
+}
+
+
+.empty-state h3 {
+
+    font-size: 15px;
+
+}
+
+
+.empty-state p {
+
+    margin-top: 6px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+}
+
+
+.generate-button {
+
+    margin-top: 18px;
+
+    border: 0;
+
+    background: var(--dark);
+
+    color: white;
+
+    padding: 11px 16px;
+
+    border-radius: 12px;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+
+    padding: 60px 25px;
+
+    text-align: center;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+}
+
+
+.spinner {
+
+    width: 28px;
+
+    height: 28px;
+
+    border:
+        3px solid #e5e7eb;
+
+    border-top-color:
+        var(--accent);
+
+    border-radius: 50%;
+
+    animation:
+        spin .8s linear infinite;
+
+    margin:
+        0 auto 12px;
+
+}
+
+
+@keyframes spin {
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+.message {
+
+    display: none;
+
+    margin: 18px 25px;
+
+    padding: 13px 15px;
+
+    border-radius: 12px;
+
+    font-size: 11px;
+
+    line-height: 1.5;
+
+}
+
+
+.message.show {
+
+    display: block;
+
+}
+
+
+.message.error {
+
+    background: #fef2f2;
+
+    color: #991b1b;
+
+}
+
+
+.message.info {
+
+    background: #eef2ff;
+
+    color: #3730a3;
+
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+.modal {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 2000;
+
+    background:
+        rgba(15,23,42,.55);
+
+    backdrop-filter:
+        blur(5px);
+
+    display: none;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 20px;
+
+}
+
+
+.modal.show {
+
+    display: flex;
+
+}
+
+
+.modal-card {
+
+    width: min(600px, 100%);
+
+    max-height: 90vh;
+
+    overflow-y: auto;
+
+    background: white;
+
+    border-radius: 22px;
+
+    box-shadow:
+        0 30px 80px rgba(0,0,0,.25);
+
+}
+
+
+.modal-header {
+
+    padding: 20px;
+
+    border-bottom:
+        1px solid var(--border);
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+}
+
+
+.modal-header h3 {
+
+    font-size: 16px;
+
+}
+
+
+.close-button {
+
+    width: 34px;
+
+    height: 34px;
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    font-size: 16px;
+
+}
+
+
+.modal-body {
+
+    padding: 20px;
+
+}
+
+
+.detail-row {
+
+    padding: 12px 0;
+
+    border-bottom:
+        1px solid #f0f1f3;
+
+}
+
+
+.detail-row:last-child {
+
+    border-bottom: 0;
+
+}
+
+
+.detail-label {
+
+    color: var(--muted);
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+
+    letter-spacing: .6px;
+
+    font-weight: 800;
+
+}
+
+
+.detail-value {
+
+    margin-top: 5px;
+
+    color: var(--text);
+
+    font-size: 12px;
+
+    line-height: 1.6;
+
+    word-break: break-word;
+
+}
+
+
+.detail-value.mono {
+
+    font-family: monospace;
+
+    font-size: 11px;
+
+    color: #4b5563;
+
+}
+
+
+.output-link {
+
+    color: #4f46e5;
+
+    font-weight: 700;
+
+    text-decoration: none;
+
+}
+
+
+.output-link:hover {
+
+    text-decoration: underline;
+
+}
+
+
+/* =========================================================
+   DETAIL VIDEO PREVIEW
+========================================================= */
+
+.detail-video-preview {
+
+    width: 100%;
+
+    max-height: 360px;
+
+    margin-bottom: 16px;
+
+    border-radius: 16px;
+
+    overflow: hidden;
+
+    background: #111827;
+
+}
+
+
+.detail-video-preview video {
+
+    display: block;
+
+    width: 100%;
+
+    max-height: 360px;
+
+    object-fit: contain;
+
+    background: #111827;
+
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer {
+
+    margin-top: 25px;
+
+    text-align: center;
+
+    color: #9ca3af;
+
+    font-size: 10px;
+
+    padding-bottom: 15px;
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 800px) {
+
+    .main {
+
+        padding: 20px;
+
+    }
+
+    .topbar {
+
+        padding-left: 62px;
+
+        align-items: flex-start;
+
+    }
+
+    .history-header {
+
+        align-items: flex-start;
+
+        flex-direction: column;
+
+    }
+
+    .refresh-button {
+
+        width: 100%;
+
+    }
+
+}
+
+
+@media (max-width: 520px) {
+
+    .menu-button {
+
+        top: 14px;
+
+        left: 14px;
+
+        width: 44px;
+
+        height: 44px;
+
+    }
+
+    .main {
+
+        padding: 15px;
+
+    }
+
+    .topbar {
+
+        padding-left: 58px;
+
+        flex-direction: column;
+
+    }
+
+    .credit-card {
+
+        width: 100%;
+
+    }
+
+    .history-header,
+    .filters {
+
+        padding: 18px;
+
+    }
+
+    .sidebar {
+
+        width: 275px;
+
+    }
+
+    .message {
+
+        margin-left: 18px;
+
+        margin-right: 18px;
+
+    }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .status.processing,
+    .status.processing::after,
+    .status.processing .status-dot,
+    .status.processing .status-dot::before,
+    .status.processing .status-dot::after,
+    .status.processing .processing-label,
+    .processing-indicator span,
+    .thumbnail-processing::before,
+    .thumbnail-processing::after,
+    .thumbnail-loader {
+
+        animation: none !important;
+
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- =========================================================
+     MENU
+========================================================= -->
+
+<button
+    class="menu-button"
+    id="menuButton"
+    type="button"
+    aria-label="Buka navigasi"
+    aria-controls="sidebar"
+    aria-expanded="false"
+>
+
+    <span></span>
+    <span></span>
+    <span></span>
+
+</button>
+
+
+<!-- =========================================================
+     SIDEBAR
+========================================================= -->
+
+<aside
+    class="sidebar"
+    id="sidebar"
+>
+
+    <div class="brand">
+
+        <h2>
+            GEN-Z.AI
+        </h2>
+
+        <span>
+            AI VIDEO GENERATION
+        </span>
+
+    </div>
+
+
+    <nav
+        class="nav"
+        id="navigation"
+    ></nav>
+
+
+    <div class="sidebar-bottom">
+
+        <div class="user-mini">
+
+            <small>
+                ACCOUNT
+            </small>
+
+            <strong id="sidebarEmail">
+                Loading...
+            </strong>
+
+            <div
+                class="user-mini-role"
+                id="sidebarRole"
+            >
+                --
+            </div>
+
+        </div>
+
+
+        <button
+            class="logout"
+            id="logoutButton"
+            type="button"
+        >
+            LOG OUT
+        </button>
+
+    </div>
+
+</aside>
+
+
+<div
+    class="overlay"
+    id="overlay"
+></div>
+
+
+<!-- =========================================================
+     MAIN
+========================================================= -->
+
+<main class="main">
+
+
+    <header class="topbar">
+
+        <div class="welcome">
+
+            <h1>
+                History
+            </h1>
+
+            <p id="historySubtitle">
+                Riwayat generate yang terkait dengan akun kamu.
+            </p>
+
+        </div>
+
+
+        <div class="credit-card">
+
+            <small>
+                AVAILABLE CREDITS
+            </small>
+
+            <strong id="creditBalance">
+                0
+            </strong>
+
+        </div>
+
+    </header>
+
+
+    <section class="history-card">
+
+
+        <div class="history-header">
+
+            <div class="history-title">
+
+                <h2>
+                    Generation History
+                </h2>
+
+                <p id="historyCount">
+                    Memuat riwayat...
+                </p>
+
+            </div>
+
+
+            <button
+                class="refresh-button"
+                id="refreshButton"
+                type="button"
+            >
+                ↻ REFRESH
+            </button>
+
+        </div>
+
+
+        <!-- =================================================
+             FILTER
+        ================================================= -->
+
+        <div class="filters">
+
+            <button
+                class="filter-button active"
+                data-filter="all"
+                type="button"
+            >
+                SEMUA
+            </button>
+
+
+            <button
+                class="filter-button"
+                data-filter="success"
+                type="button"
+            >
+                SELESAI
+            </button>
+
+
+            <button
+                class="filter-button"
+                data-filter="processing"
+                type="button"
+            >
+                PROSES
+            </button>
+
+
+            <button
+                class="filter-button"
+                data-filter="failed"
+                type="button"
+            >
+                GAGAL
+            </button>
+
+
+            <button
+                class="filter-button"
+                data-filter="pending"
+                type="button"
+            >
+                PENDING
+            </button>
+
+        </div>
+
+
+        <!-- =================================================
+             MESSAGE
+        ================================================= -->
+
+        <div
+            class="message"
+            id="message"
+        ></div>
+
+
+        <!-- =================================================
+             LOADING
+        ================================================= -->
+
+        <div
+            class="loading"
+            id="loadingState"
+        >
+
+            <div class="spinner"></div>
+
+            Memuat history...
+
+        </div>
+
+
+        <!-- =================================================
+             TABLE
+        ================================================= -->
+
+        <div
+            class="table-wrap"
+            id="tableWrap"
+            style="display:none;"
+        >
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th class="thumbnail-header">
+                            Preview
+                        </th>
+
+
+                        <th>
+                            Tanggal
+                        </th>
+
+
+                        <th
+                            id="userColumnHeader"
+                            style="display:none;"
+                        >
+                            User
+                        </th>
+
+
+                        <th>
+                            Provider
+                        </th>
+
+
+                        <th>
+                            Model
+                        </th>
+
+
+                        <th>
+                            Prompt
+                        </th>
+
+
+                        <th>
+                            Credit
+                        </th>
+
+
+                        <th>
+                            Status
+                        </th>
+
+
+                        <th>
+                            Action
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="historyBody"></tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- =================================================
+             EMPTY
+        ================================================= -->
+
+        <div
+            class="empty-state"
+            id="emptyState"
+        >
+
+            <div class="empty-icon">
+                🎬
+            </div>
+
+
+            <h3>
+                Belum ada riwayat
+            </h3>
+
+
+            <p>
+                Kamu belum melakukan generate video.
+            </p>
+
+
+            <button
+                class="generate-button"
+                type="button"
+                onclick="goToGenerate()"
+            >
+                MULAI GENERATE
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <div class="footer">
+        GEN-Z.AI • AI VIDEO GENERATION PLATFORM
+    </div>
+
+</main>
+
+
+<!-- =========================================================
+     DETAIL MODAL
+========================================================= -->
+
+<div
+    class="modal"
+    id="detailModal"
+>
+
+    <div class="modal-card">
+
+        <div class="modal-header">
+
+            <h3>
+                Detail Generation
+            </h3>
+
+
+            <button
+                class="close-button"
+                id="closeModal"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div
+            class="modal-body"
+            id="modalBody"
+        ></div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     SUPABASE
+========================================================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="../assets/js/config.js"></script>
+
+
+<script>
 
 /* =========================================================
    GLOBAL STATE
@@ -34,38 +2946,19 @@ let currentFilter = "all";
 
 /* =========================================================
    HISTORY AUTO REFRESH
+   ---------------------------------------------------------
+   - Polling hanya aktif jika ada generation aktif.
+   - Interval 5 detik.
+   - Silent refresh tidak menampilkan loading screen.
+   - Timer menggunakan setTimeout agar tidak menumpuk
+     request jika query Supabase lambat.
 ========================================================= */
 
 let historyAutoRefreshTimer = null;
 
-
-/*
- * Mencegah loadHistory berjalan bersamaan.
- */
 let historyLoadInProgress = false;
 
-
-/*
- * Mencegah dua proses status synchronization berjalan
- * bersamaan.
- */
-let historyStatusSyncInProgress = false;
-
-
-/*
- * Interval auto status check.
- */
 const HISTORY_AUTO_REFRESH_INTERVAL = 5000;
-
-
-/*
- * Endpoint backend yang menjadi sumber status provider.
- *
- * JANGAN query API provider langsung dari browser.
- * API key provider tetap berada di backend.
- */
-const HISTORY_STATUS_ENDPOINT =
-    "/api/generate-status";
 
 
 /* =========================================================
@@ -427,7 +3320,7 @@ function normalizeStatus(status) {
 
 
     /*
-     * Database generation_history:
+     * Database generation_history menggunakan:
      *
      * queued
      * processing
@@ -435,22 +3328,18 @@ function normalizeStatus(status) {
      * failed
      * cancelled
      *
-     * Legacy:
+     * Legacy frontend mungkin masih mengenal:
      * completed
      */
 
-    if (
-        value === "completed"
-    ) {
+    if (value === "completed") {
 
         return "success";
 
     }
 
 
-    if (
-        value === "queued"
-    ) {
+    if (value === "queued") {
 
         return "pending";
 
@@ -470,20 +3359,15 @@ function statusLabel(status) {
 
     const labels = {
 
-        success:
-            "SUCCESS",
+        success: "SUCCESS",
 
-        processing:
-            "PROSES",
+        processing: "PROSES",
 
-        failed:
-            "GAGAL",
+        failed: "GAGAL",
 
-        pending:
-            "PENDING",
+        pending: "PENDING",
 
-        cancelled:
-            "DIBATALKAN"
+        cancelled: "DIBATALKAN"
 
     };
 
@@ -842,589 +3726,15 @@ async function loadProfile() {
 
 
 /* =========================================================
-   AUTH ACCESS TOKEN
-========================================================= */
-
-async function getHistoryAccessToken() {
-
-    if (
-        !supabaseClient
-    ) {
-
-        return "";
-
-    }
-
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .auth
-            .getSession();
-
-
-    if (
-        error
-    ) {
-
-        console.error(
-            "History session error:",
-            error
-        );
-
-        return "";
-
-    }
-
-
-    return (
-        data?.session?.access_token ||
-        ""
-    );
-
-}
-
-
-/* =========================================================
-   ACTIVE GENERATION
-========================================================= */
-
-function isActiveHistoryItem(item) {
-
-    const status =
-        normalizeStatus(
-            item?.status
-        );
-
-
-    return (
-        status === "processing" ||
-        status === "pending"
-    );
-
-}
-
-
-/* =========================================================
-   HISTORY STATUS SYNC
-   ---------------------------------------------------------
-   INI BAGIAN UTAMA PERBAIKAN.
-
-   Sebelumnya History hanya:
-
-       SELECT generation_history
-
-   Sekarang:
-
-       History
-          ↓
-       /api/generate-status
-          ↓
-       provider
-          ↓
-       backend update generation_history
-          ↓
-       SELECT generation_history
-          ↓
-       render
-
-   Dengan begitu status provider benar-benar diperiksa.
-========================================================= */
-
-async function syncHistoryItemStatus(
-    item,
-    accessToken
-) {
-
-    if (
-        !item ||
-        !isActiveHistoryItem(item)
-    ) {
-
-        return {
-
-            skipped: true,
-
-            reason:
-                "not_active"
-
-        };
-
-    }
-
-
-    const taskId =
-        String(
-            item?.task_id ||
-            ""
-        ).trim();
-
-
-    const modelId =
-        String(
-            item?.model_id ||
-            ""
-        ).trim();
-
-
-    /*
-     * Tanpa task_id kita tidak dapat meminta backend
-     * mengecek provider.
-     */
-    if (!taskId) {
-
-        console.warn(
-            "[GEN-Z.AI] History item aktif tidak memiliki task_id.",
-            item
-        );
-
-
-        return {
-
-            skipped: true,
-
-            reason:
-                "missing_task_id",
-
-            history_id:
-                item?.id || null
-
-        };
-
-    }
-
-
-    /*
-     * /api/generate-status memang membutuhkan model_id.
-     */
-    if (!modelId) {
-
-        console.warn(
-            "[GEN-Z.AI] History item aktif tidak memiliki model_id.",
-            item
-        );
-
-
-        return {
-
-            skipped: true,
-
-            reason:
-                "missing_model_id",
-
-            task_id:
-                taskId
-
-        };
-
-    }
-
-
-    if (!accessToken) {
-
-        return {
-
-            skipped: true,
-
-            reason:
-                "missing_access_token",
-
-            task_id:
-                taskId
-
-        };
-
-    }
-
-
-    let response;
-
-
-    try {
-
-        response =
-            await fetch(
-                HISTORY_STATUS_ENDPOINT,
-                {
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        "Accept":
-                            "application/json",
-
-                        "Authorization":
-                            `Bearer ${accessToken}`,
-
-                        "Cache-Control":
-                            "no-cache"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            task_id:
-                                taskId,
-
-                            model_id:
-                                modelId
-
-                        })
-
-                }
-            );
-
-    } catch (
-        error
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] History status network error:",
-            {
-                task_id:
-                    taskId,
-
-                model_id:
-                    modelId,
-
-                error
-
-            }
-        );
-
-
-        return {
-
-            success:
-                false,
-
-            task_id:
-                taskId,
-
-            model_id:
-                modelId,
-
-            error:
-                error?.message ||
-                "Network error"
-
-        };
-
-    }
-
-
-    let data = null;
-
-
-    try {
-
-        data =
-            await response.json();
-
-    } catch {
-
-        data = {};
-
-    }
-
-
-    if (
-        !response.ok
-    ) {
-
-        console.error(
-            "[GEN-Z.AI] History status API error:",
-            {
-                task_id:
-                    taskId,
-
-                model_id:
-                    modelId,
-
-                status:
-                    response.status,
-
-                data
-
-            }
-        );
-
-
-        return {
-
-            success:
-                false,
-
-            task_id:
-                taskId,
-
-            model_id:
-                modelId,
-
-            status:
-                response.status,
-
-            data
-
-        };
-
-    }
-
-
-    /*
-     * Jangan memaksa frontend mengubah status sendiri.
-     *
-     * Backend adalah sumber kebenaran.
-     *
-     * Backend akan:
-     * - query provider
-     * - normalize state
-     * - update generation_history
-     * - return history_updated
-     */
-    return {
-
-        success:
-            data?.success !== false,
-
-        task_id:
-            data?.task_id ||
-            data?.taskId ||
-            taskId,
-
-        model_id:
-            data?.model_id ||
-            data?.modelId ||
-            modelId,
-
-        provider_state:
-            data?.provider_state ||
-            data?.state ||
-            null,
-
-        history_updated:
-            data?.history_updated === true,
-
-        history_status:
-            data?.history_status ||
-            null,
-
-        history_reason:
-            data?.history_reason ||
-            null,
-
-        result_urls:
-            Array.isArray(
-                data?.result_urls
-            )
-                ? data.result_urls
-                : [],
-
-        data
-
-    };
-
-}
-
-
-/* =========================================================
-   SYNC ALL ACTIVE HISTORY
-========================================================= */
-
-async function syncActiveHistoryStatuses() {
-
-    /*
-     * Jangan jalankan dua batch synchronization sekaligus.
-     */
-    if (
-        historyStatusSyncInProgress
-    ) {
-
-        return {
-
-            skipped:
-                true
-
-        };
-
-    }
-
-
-    const activeItems =
-        historyData.filter(
-            item =>
-                isActiveHistoryItem(
-                    item
-                )
-        );
-
-
-    if (
-        activeItems.length === 0
-    ) {
-
-        return {
-
-            skipped:
-                true,
-
-            reason:
-                "no_active_items",
-
-            checked:
-                0
-
-        };
-
-    }
-
-
-    historyStatusSyncInProgress =
-        true;
-
-
-    try {
-
-        const accessToken =
-            await getHistoryAccessToken();
-
-
-        if (!accessToken) {
-
-            console.warn(
-                "[GEN-Z.AI] Tidak ada access token untuk status synchronization."
-            );
-
-
-            return {
-
-                success:
-                    false,
-
-                reason:
-                    "missing_access_token",
-
-                checked:
-                    0
-
-            };
-
-        }
-
-
-        /*
-         * Jangan menjalankan request tanpa batas.
-         *
-         * Kita gunakan Promise.allSettled supaya satu task
-         * error tidak menghentikan task lainnya.
-         */
-        const results =
-            await Promise.allSettled(
-
-                activeItems.map(
-                    item =>
-                        syncHistoryItemStatus(
-                            item,
-                            accessToken
-                        )
-                )
-
-            );
-
-
-        let updatedCount =
-            0;
-
-
-        let checkedCount =
-            0;
-
-
-        results.forEach(
-            (result, index) => {
-
-                const item =
-                    activeItems[index];
-
-
-                if (
-                    result.status ===
-                    "fulfilled"
-                ) {
-
-                    checkedCount += 1;
-
-
-                    if (
-                        result.value?.history_updated === true
-                    ) {
-
-                        updatedCount += 1;
-
-                    }
-
-                    return;
-
-                }
-
-
-                console.error(
-                    "[GEN-Z.AI] Status sync item gagal:",
-                    {
-                        history_id:
-                            item?.id ||
-                            null,
-
-                        task_id:
-                            item?.task_id ||
-                            null,
-
-                        reason:
-                            result.reason
-
-                    }
-                );
-
-            }
-        );
-
-
-        return {
-
-            success:
-                true,
-
-            checked:
-                checkedCount,
-
-            active:
-                activeItems.length,
-
-            updated:
-                updatedCount
-
-        };
-
-    } finally {
-
-        historyStatusSyncInProgress =
-            false;
-
-    }
-
-}
-
-
-/* =========================================================
    HISTORY AUTO REFRESH HELPERS
 ========================================================= */
+
+/*
+ * Menghentikan timer polling yang sedang berjalan.
+ *
+ * setTimeout dipakai, bukan setInterval, supaya request
+ * berikutnya baru dibuat setelah request sebelumnya selesai.
+ */
 
 function stopHistoryAutoRefresh() {
 
@@ -1436,33 +3746,48 @@ function stopHistoryAutoRefresh() {
             historyAutoRefreshTimer
         );
 
-        historyAutoRefreshTimer =
-            null;
+        historyAutoRefreshTimer = null;
 
     }
 
 }
 
 
-/* =========================================================
-   HAS ACTIVE GENERATION
-========================================================= */
+/*
+ * Mengecek apakah masih ada generation yang belum terminal.
+ *
+ * queued dinormalisasi menjadi pending oleh normalizeStatus().
+ * Jadi pending + processing dianggap aktif.
+ */
 
 function hasActiveGeneration() {
 
     return historyData.some(
-        item =>
-            isActiveHistoryItem(
-                item
-            )
+        item => {
+
+            const status =
+                normalizeStatus(
+                    item?.status
+                );
+
+
+            return (
+                status === "processing" ||
+                status === "pending"
+            );
+
+        }
     );
 
 }
 
 
-/* =========================================================
-   SCHEDULE AUTO REFRESH
-========================================================= */
+/*
+ * Menjadwalkan satu kali polling berikutnya.
+ *
+ * Jika sudah tidak ada processing/pending,
+ * polling langsung dihentikan.
+ */
 
 function scheduleHistoryAutoRefresh() {
 
@@ -1488,58 +3813,24 @@ function scheduleHistoryAutoRefresh() {
 
                 try {
 
-                    /*
-                     * STEP 1
-                     *
-                     * Minta backend mengecek provider.
-                     *
-                     * Ini yang sebelumnya tidak dilakukan
-                     * oleh History.
-                     */
-
-                    await syncActiveHistoryStatuses();
-
-
-                    /*
-                     * STEP 2
-                     *
-                     * Setelah backend selesai mengecek provider,
-                     * baca ulang generation_history.
-                     *
-                     * Jika backend mengubah:
-                     *
-                     * processing → success
-                     *
-                     * atau:
-                     *
-                     * processing → failed
-                     *
-                     * renderer akan otomatis memakai thumbnail
-                     * success / failed.
-                     */
-
                     await loadHistory({
-                        silent:
-                            true,
-
-                        skipStatusSync:
-                            true
-
+                        silent: true
                     });
 
-                } catch (
-                    error
-                ) {
+                } catch (error) {
 
                     console.error(
-                        "[GEN-Z.AI] History auto refresh error:",
+                        "History auto refresh error:",
                         error
                     );
 
 
                     /*
-                     * Tetap lanjut polling jika masih aktif.
+                     * Jika request gagal, jangan mematikan
+                     * polling selamanya. Coba lagi 5 detik
+                     * kemudian selama masih ada generation aktif.
                      */
+
                     if (
                         hasActiveGeneration()
                     ) {
@@ -1559,23 +3850,25 @@ function scheduleHistoryAutoRefresh() {
 
 /* =========================================================
    LOAD HISTORY
+   ---------------------------------------------------------
+   options.silent = true
+   ---------------------------------
+   Dipakai oleh auto-refresh supaya:
+   - tidak menampilkan spinner utama
+   - tidak menyembunyikan tabel
+   - tidak membuat halaman berkedip
 ========================================================= */
 
-async function loadHistory(
-    options = {}
-) {
+async function loadHistory(options = {}) {
 
     const silent =
         options.silent === true;
 
 
-    const skipStatusSync =
-        options.skipStatusSync === true;
-
-
     /*
-     * Mencegah query bertumpuk.
+     * Mencegah request bertumpuk.
      */
+
     if (
         historyLoadInProgress
     ) {
@@ -1610,77 +3903,22 @@ async function loadHistory(
         }
 
 
-        /*
-         * =====================================================
-         * STATUS SYNC
-         * =====================================================
-         *
-         * Jangan melakukan status synchronization ketika
-         * loadHistory dipanggil dari syncActiveHistoryStatuses().
-         *
-         * Ini mencegah:
-         *
-         * loadHistory()
-         *    ↓
-         * syncActiveHistoryStatuses()
-         *    ↓
-         * loadHistory()
-         *    ↓
-         * syncActiveHistoryStatuses()
-         *
-         * alias recursive loop.
-         */
-
-        if (
-            !skipStatusSync
-        ) {
-
-            /*
-             * Jika historyData sudah memiliki active task,
-             * backend dipanggil terlebih dahulu.
-             *
-             * Pada initial load historyData masih kosong,
-             * sehingga query awal dilakukan dulu.
-             */
-
-            if (
-                historyData.length > 0 &&
-                hasActiveGeneration()
-            ) {
-
-                await syncActiveHistoryStatuses();
-
-            }
-
-        }
-
-
         let query =
             supabaseClient
 
-                .from(
-                    "generation_history"
-                )
+                .from("generation_history")
 
                 .select("*")
 
                 .order(
                     "created_at",
                     {
-                        ascending:
-                            false
+                        ascending: false
                     }
                 );
 
 
-        /*
-         * USER hanya melihat history miliknya.
-         *
-         * ADMIN / OWNER melihat seluruh history.
-         */
-        if (
-            !isAdminOrOwner()
-        ) {
+        if (!isAdminOrOwner()) {
 
             query =
                 query.eq(
@@ -1698,15 +3936,12 @@ async function loadHistory(
             await query;
 
 
-        if (
-            error
-        ) {
+        if (error) {
 
             console.error(
                 "History query error:",
                 error
             );
-
 
             throw new Error(
                 "Gagal mengambil generation history: " +
@@ -1723,8 +3958,12 @@ async function loadHistory(
 
 
         /*
-         * Render tetap memakai renderer lama.
+         * Render normal maupun silent.
+         *
+         * Pada silent refresh, renderer hanya mengganti
+         * isi tabel. Loading screen tidak disentuh.
          */
+
         renderHistory();
 
     } finally {
@@ -1787,14 +4026,10 @@ function getPrompt(item) {
     if (
         item?.prompt !== null &&
         item?.prompt !== undefined &&
-        String(
-            item.prompt
-        ).trim() !== ""
+        String(item.prompt).trim() !== ""
     ) {
 
-        return String(
-            item.prompt
-        );
+        return String(item.prompt);
 
     }
 
@@ -1930,24 +4165,57 @@ function getSuccessThumbnailHtml(item) {
 
 function getFailedThumbnailHtml(item) {
 
-    /*
-     * Failed tetap menggunakan tampilan GAGAL.
-     * Tidak mengubah renderer yang sudah bekerja.
-     */
+    const resultUrl =
+        getResultUrl(item);
+
+
+    if (!resultUrl) {
+
+        return `
+
+            <div
+                class="history-thumbnail thumbnail-failed"
+                aria-label="Generation gagal"
+                title="Generation gagal"
+            >
+
+                <div
+                    class="thumbnail-failed-icon"
+                >
+                    !
+                </div>
+
+            </div>
+
+        `;
+
+    }
+
+
+    const safeUrl =
+        escapeHtml(
+            resultUrl
+        );
+
 
     return `
 
         <div
-            class="history-thumbnail thumbnail-failed"
+            class="history-thumbnail thumbnail-failed video-ready"
+            data-video-url="${safeUrl}"
+            role="button"
+            tabindex="0"
             aria-label="Generation gagal"
-            title="Generation gagal"
+            title="Generation gagal, klik untuk membuka hasil jika tersedia"
         >
 
-            <div
-                class="thumbnail-failed-icon"
-            >
-                !
-            </div>
+            <video
+                src="${safeUrl}"
+                muted
+                playsinline
+                preload="metadata"
+                aria-hidden="true"
+            ></video>
 
         </div>
 
@@ -1963,9 +4231,7 @@ function getFailedThumbnailHtml(item) {
 function getEmptyThumbnailHtml(status) {
 
     const normalized =
-        normalizeStatus(
-            status
-        );
+        normalizeStatus(status);
 
 
     let label =
@@ -2058,9 +4324,7 @@ function getThumbnailHtml(item) {
 function openVideoUrl(url) {
 
     const safeUrl =
-        getSafeMediaUrl(
-            url
-        );
+        getSafeMediaUrl(url);
 
 
     if (!safeUrl) {
@@ -2079,9 +4343,7 @@ function openVideoUrl(url) {
 }
 
 
-function bindThumbnailEvents(
-    container
-) {
+function bindThumbnailEvents(container) {
 
     container
         .querySelectorAll(
@@ -2102,6 +4364,12 @@ function bindThumbnailEvents(
 
                 if (video) {
 
+                    /*
+                     * Menampilkan frame pertama
+                     * sebagai preview tanpa memainkan
+                     * video secara otomatis.
+                     */
+
                     video.addEventListener(
                         "loadeddata",
                         function () {
@@ -2119,8 +4387,7 @@ function bindThumbnailEvents(
 
                         },
                         {
-                            once:
-                                true
+                            once: true
                         }
                     );
 
@@ -2169,20 +4436,14 @@ function bindThumbnailEvents(
    STATUS HTML
 ========================================================= */
 
-function getStatusHtml(
-    status
-) {
+function getStatusHtml(status) {
 
     const normalized =
-        normalizeStatus(
-            status
-        );
+        normalizeStatus(status);
 
 
     const className =
-        statusClass(
-            normalized
-        );
+        statusClass(normalized);
 
 
     if (
@@ -2237,9 +4498,7 @@ function getStatusHtml(
 
             <span>
                 ${escapeHtml(
-                    statusLabel(
-                        normalized
-                    )
+                    statusLabel(normalized)
                 )}
             </span>
 
@@ -2275,9 +4534,7 @@ function renderHistory() {
 
 
     historyCount.textContent =
-        `${filtered.length.toLocaleString(
-            "id-ID"
-        )} riwayat`;
+        `${filtered.length.toLocaleString("id-ID")} riwayat`;
 
 
     if (
@@ -2348,6 +4605,13 @@ function renderHistory() {
         }
 
 
+        /*
+         * Penting:
+         * Filter aktif bisa saja tidak menampilkan item
+         * processing, tetapi polling tetap harus berjalan
+         * jika historyData masih memiliki generation aktif.
+         */
+
         scheduleHistoryAutoRefresh();
 
 
@@ -2372,27 +4636,19 @@ function renderHistory() {
         item => {
 
             const provider =
-                getProviderName(
-                    item
-                );
+                getProviderName(item);
 
 
             const model =
-                getModelName(
-                    item
-                );
+                getModelName(item);
 
 
             const prompt =
-                getPrompt(
-                    item
-                );
+                getPrompt(item);
 
 
             const credits =
-                getCreditCost(
-                    item
-                );
+                getCreditCost(item);
 
 
             const status =
@@ -2416,16 +4672,12 @@ function renderHistory() {
 
                             <strong
                                 title="${escapeHtml(
-                                    getHistoryUser(
-                                        item
-                                    )
+                                    getHistoryUser(item)
                                 )}"
                             >
 
                                 ${escapeHtml(
-                                    getHistoryUser(
-                                        item
-                                    )
+                                    getHistoryUser(item)
                                 )}
 
                             </strong>
@@ -2569,9 +4821,7 @@ function renderHistory() {
                 "click",
                 function () {
 
-                    showDetail(
-                        item
-                    );
+                    showDetail(item);
 
                 }
             );
@@ -2590,6 +4840,15 @@ function renderHistory() {
     );
 
 
+    /*
+     * Setelah render selesai, periksa apakah masih ada
+     * generation yang membutuhkan polling.
+     *
+     * Jika semua sudah success/failed/cancelled,
+     * scheduleHistoryAutoRefresh() otomatis tidak membuat
+     * timer baru.
+     */
+
     scheduleHistoryAutoRefresh();
 
 }
@@ -2602,21 +4861,15 @@ function renderHistory() {
 function showDetail(item) {
 
     const provider =
-        getProviderName(
-            item
-        );
+        getProviderName(item);
 
 
     const model =
-        getModelName(
-            item
-        );
+        getModelName(item);
 
 
     const prompt =
-        getPrompt(
-            item
-        );
+        getPrompt(item);
 
 
     const status =
@@ -2626,15 +4879,11 @@ function showDetail(item) {
 
 
     const credits =
-        getCreditCost(
-            item
-        );
+        getCreditCost(item);
 
 
     const user =
-        getHistoryUser(
-            item
-        );
+        getHistoryUser(item);
 
 
     const taskId =
@@ -2643,9 +4892,7 @@ function showDetail(item) {
 
 
     const resultUrl =
-        getResultUrl(
-            item
-        );
+        getResultUrl(item);
 
 
     const ratio =
@@ -2658,9 +4905,7 @@ function showDetail(item) {
         item?.duration !== undefined &&
         item?.duration !== ""
 
-            ? String(
-                item.duration
-            )
+            ? String(item.duration)
 
             : "";
 
@@ -3153,7 +5398,8 @@ document.addEventListener(
     function (event) {
 
         if (
-            event.key === "Escape"
+            event.key ===
+            "Escape"
         ) {
 
             detailModal.classList.remove(
@@ -3225,6 +5471,14 @@ refreshButton.addEventListener(
 
         try {
 
+            /*
+             * Hentikan timer lama supaya manual refresh
+             * tidak berjalan bersamaan dengan auto refresh.
+             *
+             * renderHistory() akan menjadwalkan kembali
+             * polling jika masih diperlukan.
+             */
+
             stopHistoryAutoRefresh();
 
 
@@ -3239,16 +5493,9 @@ refreshButton.addEventListener(
             await loadProfile();
 
 
-            /*
-             * Manual refresh:
-             * loadHistory akan melakukan status sync
-             * jika sebelumnya sudah ada active task.
-             */
             await loadHistory();
 
-        } catch (
-            error
-        ) {
+        } catch (error) {
 
             console.error(
                 "Refresh error:",
@@ -3285,6 +5532,11 @@ logoutButton.addEventListener(
     "click",
     async function () {
 
+        /*
+         * Jangan biarkan timer polling tetap hidup
+         * setelah user logout.
+         */
+
         stopHistoryAutoRefresh();
 
 
@@ -3300,9 +5552,7 @@ logoutButton.addEventListener(
 
             }
 
-        } catch (
-            error
-        ) {
+        } catch (error) {
 
             console.error(
                 "Logout error:",
@@ -3404,21 +5654,9 @@ async function init() {
         }
 
 
-        /*
-         * Initial load:
-         *
-         * 1. Query generation_history.
-         * 2. Render.
-         * 3. Jika ada processing/pending,
-         *    scheduleHistoryAutoRefresh()
-         *    akan memanggil backend setelah 5 detik.
-         */
-
         await loadHistory();
 
-    } catch (
-        error
-    ) {
+    } catch (error) {
 
         console.error(
             "GEN-Z.AI History Error:",
@@ -3447,3 +5685,5699 @@ async function init() {
 init();
 
 </script>
+
+
+</body>
+
+</html><!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>GEN-Z.AI | History</title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
+<style>
+
+/* =========================================================
+   ROOT
+========================================================= */
+
+:root {
+
+    --bg: #f4f6f8;
+
+    --card: #ffffff;
+
+    --text: #111827;
+
+    --muted: #6b7280;
+
+    --border: #e5e7eb;
+
+    --dark: #111827;
+
+    --accent: #6366f1;
+
+    --success: #16a34a;
+
+    --warning: #d97706;
+
+    --danger: #dc2626;
+
+    --shadow:
+        0 20px 50px rgba(15, 23, 42, .08);
+
+}
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+* {
+
+    box-sizing: border-box;
+
+    margin: 0;
+
+    padding: 0;
+
+}
+
+
+/* =========================================================
+   BODY
+========================================================= */
+
+body {
+
+    font-family: "Inter", sans-serif;
+
+    background:
+
+        radial-gradient(
+            circle at 15% 10%,
+            rgba(99, 102, 241, .10),
+            transparent 30%
+        ),
+
+        radial-gradient(
+            circle at 85% 20%,
+            rgba(139, 92, 246, .08),
+            transparent 30%
+        ),
+
+        var(--bg);
+
+    color: var(--text);
+
+    min-height: 100vh;
+
+}
+
+
+/* =========================================================
+   MENU BUTTON
+========================================================= */
+
+.menu-button {
+
+    position: fixed;
+
+    top: 20px;
+
+    left: 20px;
+
+    width: 48px;
+
+    height: 48px;
+
+    border:
+        1px solid rgba(255,255,255,.15);
+
+    border-radius: 15px;
+
+    background:
+        rgba(17,24,39,.94);
+
+    color: white;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    flex-direction: column;
+
+    gap: 5px;
+
+    cursor: pointer;
+
+    z-index: 1200;
+
+    box-shadow:
+        0 12px 30px rgba(0,0,0,.18);
+
+}
+
+
+.menu-button span {
+
+    width: 19px;
+
+    height: 2px;
+
+    background: white;
+
+    border-radius: 10px;
+
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.sidebar {
+
+    position: fixed;
+
+    inset: 0 auto 0 0;
+
+    width: 285px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #111827 0%,
+            #0b1220 100%
+        );
+
+    color: white;
+
+    z-index: 1100;
+
+    transform: translateX(-105%);
+
+    transition:
+        transform .3s ease;
+
+    padding: 28px 18px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    box-shadow:
+        25px 0 70px rgba(0,0,0,.25);
+
+}
+
+
+.sidebar.open {
+
+    transform: translateX(0);
+
+}
+
+
+.brand {
+
+    padding:
+        5px 14px 28px;
+
+}
+
+
+.brand h2 {
+
+    font-size: 22px;
+
+    font-weight: 800;
+
+    letter-spacing: -.7px;
+
+}
+
+
+.brand span {
+
+    display: block;
+
+    margin-top: 5px;
+
+    font-size: 11px;
+
+    color: #9ca3af;
+
+    letter-spacing: 1.6px;
+
+}
+
+
+.nav {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 6px;
+
+}
+
+
+.nav a {
+
+    text-decoration: none;
+
+    color: #9ca3af;
+
+    padding: 13px 14px;
+
+    border-radius: 13px;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    transition: .2s ease;
+
+}
+
+
+.nav a:hover,
+.nav a.active {
+
+    color: white;
+
+    background:
+        rgba(255,255,255,.08);
+
+}
+
+
+.nav a.active {
+
+    box-shadow:
+        inset 3px 0 0 var(--accent);
+
+}
+
+
+.sidebar-bottom {
+
+    margin-top: auto;
+
+}
+
+
+.user-mini {
+
+    padding: 14px;
+
+    border-radius: 16px;
+
+    background:
+        rgba(255,255,255,.06);
+
+    margin-bottom: 10px;
+
+}
+
+
+.user-mini small {
+
+    color: #9ca3af;
+
+    font-size: 10px;
+
+}
+
+
+.user-mini strong {
+
+    display: block;
+
+    margin-top: 5px;
+
+    font-size: 12px;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+
+}
+
+
+.user-mini-role {
+
+    margin-top: 5px;
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    color: #a5b4fc;
+
+    letter-spacing: .8px;
+
+}
+
+
+.logout {
+
+    width: 100%;
+
+    border:
+        1px solid rgba(255,255,255,.1);
+
+    background: transparent;
+
+    color: #d1d5db;
+
+    padding: 12px;
+
+    border-radius: 13px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+}
+
+
+.logout:hover {
+
+    background:
+        rgba(255,255,255,.08);
+
+}
+
+
+.overlay {
+
+    position: fixed;
+
+    inset: 0;
+
+    background:
+        rgba(15,23,42,.35);
+
+    backdrop-filter: blur(4px);
+
+    z-index: 1000;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    transition: .3s ease;
+
+}
+
+
+.overlay.active {
+
+    opacity: 1;
+
+    pointer-events: auto;
+
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+.main {
+
+    min-height: 100vh;
+
+    padding: 30px;
+
+    max-width: 1250px;
+
+    margin: auto;
+
+}
+
+
+.topbar {
+
+    padding-left: 70px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 20px;
+
+    margin-bottom: 30px;
+
+}
+
+
+.welcome h1 {
+
+    font-size: 30px;
+
+    letter-spacing: -.9px;
+
+}
+
+
+.welcome p {
+
+    margin-top: 7px;
+
+    color: var(--muted);
+
+    font-size: 13px;
+
+}
+
+
+.credit-card {
+
+    min-width: 190px;
+
+    background: var(--dark);
+
+    color: white;
+
+    padding: 15px 18px;
+
+    border-radius: 18px;
+
+    box-shadow:
+        0 14px 35px rgba(17,24,39,.18);
+
+}
+
+
+.credit-card small {
+
+    color: #9ca3af;
+
+    font-size: 10px;
+
+    letter-spacing: 1px;
+
+}
+
+
+.credit-card strong {
+
+    display: block;
+
+    margin-top: 5px;
+
+    font-size: 22px;
+
+}
+
+
+/* =========================================================
+   HISTORY CARD
+========================================================= */
+
+.history-card {
+
+    background: var(--card);
+
+    border:
+        1px solid var(--border);
+
+    border-radius: 24px;
+
+    box-shadow: var(--shadow);
+
+    overflow: hidden;
+
+}
+
+
+.history-header {
+
+    padding: 25px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 15px;
+
+    border-bottom:
+        1px solid var(--border);
+
+}
+
+
+.history-title h2 {
+
+    font-size: 18px;
+
+    letter-spacing: -.4px;
+
+}
+
+
+.history-title p {
+
+    margin-top: 5px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+}
+
+
+.refresh-button {
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    color: var(--text);
+
+    padding: 10px 14px;
+
+    border-radius: 12px;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+}
+
+
+.refresh-button:hover {
+
+    background: #f9fafb;
+
+}
+
+
+/* =========================================================
+   FILTER
+========================================================= */
+
+.filters {
+
+    padding: 18px 25px;
+
+    display: flex;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+
+    border-bottom:
+        1px solid var(--border);
+
+}
+
+
+.filter-button {
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    color: var(--muted);
+
+    padding: 9px 13px;
+
+    border-radius: 10px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+}
+
+
+.filter-button.active {
+
+    background: var(--dark);
+
+    color: white;
+
+    border-color: var(--dark);
+
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.table-wrap {
+
+    width: 100%;
+
+    overflow-x: auto;
+
+}
+
+
+table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    min-width: 960px;
+
+}
+
+
+thead {
+
+    background: #f9fafb;
+
+}
+
+
+th {
+
+    padding: 13px 20px;
+
+    text-align: left;
+
+    font-size: 9px;
+
+    color: #6b7280;
+
+    text-transform: uppercase;
+
+    letter-spacing: .7px;
+
+    font-weight: 800;
+
+    border-bottom:
+        1px solid var(--border);
+
+    white-space: nowrap;
+
+}
+
+
+td {
+
+    padding: 16px 20px;
+
+    border-bottom:
+        1px solid #f0f1f3;
+
+    font-size: 11px;
+
+    vertical-align: middle;
+
+}
+
+
+tbody tr {
+
+    transition:
+        background .2s ease;
+
+}
+
+
+tbody tr:hover {
+
+    background: #fafafa;
+
+}
+
+
+tbody tr:last-child td {
+
+    border-bottom: 0;
+
+}
+
+
+/* =========================================================
+   THUMBNAIL COLUMN
+========================================================= */
+
+.thumbnail-header {
+
+    width: 120px;
+
+}
+
+
+.thumbnail-cell {
+
+    width: 120px;
+
+    min-width: 120px;
+
+}
+
+
+/* =========================================================
+   VIDEO THUMBNAIL
+========================================================= */
+
+.history-thumbnail {
+
+    position: relative;
+
+    width: 80px;
+
+    height: 80px;
+
+    min-width: 80px;
+
+    border-radius: 13px;
+
+    overflow: hidden;
+
+    background:
+        #111827;
+
+    border:
+        1px solid rgba(17,24,39,.10);
+
+    box-shadow:
+        0 6px 18px rgba(15,23,42,.10);
+
+    isolation: isolate;
+
+}
+
+
+.history-thumbnail.video-ready {
+
+    cursor: pointer;
+
+}
+
+
+.history-thumbnail.video-ready:hover {
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 9px 22px rgba(15,23,42,.16);
+
+}
+
+
+.history-thumbnail video {
+
+    display: block;
+
+    width: 100%;
+
+    height: 100%;
+
+    object-fit: cover;
+
+    background:
+        #111827;
+
+}
+
+
+.thumbnail-play {
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 50%;
+
+    width: 28px;
+
+    height: 28px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        rgba(17,24,39,.70);
+
+    color: white;
+
+    font-size: 12px;
+
+    padding-left: 2px;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.25);
+
+    pointer-events: none;
+
+}
+
+
+.history-thumbnail.video-ready
+.thumbnail-play {
+
+    opacity: .82;
+
+}
+
+
+.history-thumbnail.video-ready:hover
+.thumbnail-play {
+
+    opacity: 1;
+
+    transform:
+        translate(-50%, -50%)
+        scale(1.05);
+
+}
+
+
+/* =========================================================
+   THUMBNAIL PROCESSING
+========================================================= */
+
+.thumbnail-processing {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            #111827,
+            #1f2937,
+            #111827
+        );
+
+    overflow: hidden;
+
+}
+
+
+.thumbnail-processing::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: -50%;
+
+    background:
+        conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            rgba(255,255,255,.03) 50deg,
+            rgba(255,255,255,.18) 100deg,
+            transparent 150deg,
+            transparent 360deg
+        );
+
+    animation:
+        thumbnailSpin 2.2s linear infinite;
+
+}
+
+
+.thumbnail-processing::after {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        linear-gradient(
+            110deg,
+            transparent 20%,
+            rgba(255,255,255,.10) 48%,
+            transparent 72%
+        );
+
+    transform:
+        translateX(-120%);
+
+    animation:
+        thumbnailShimmer 1.8s ease-in-out infinite;
+
+}
+
+
+.thumbnail-loader {
+
+    position: relative;
+
+    z-index: 3;
+
+    width: 30px;
+
+    height: 30px;
+
+    border:
+        3px solid rgba(255,255,255,.20);
+
+    border-top-color:
+        #ffffff;
+
+    border-radius: 50%;
+
+    animation:
+        thumbnailLoaderSpin .8s linear infinite;
+
+}
+
+
+.thumbnail-processing-label {
+
+    position: absolute;
+
+    left: 0;
+
+    right: 0;
+
+    bottom: 0;
+
+    z-index: 4;
+
+    padding:
+        7px 4px 6px;
+
+    text-align: center;
+
+    background:
+        linear-gradient(
+            transparent,
+            rgba(0,0,0,.72)
+        );
+
+    color: white;
+
+    font-size: 7px;
+
+    font-weight: 800;
+
+    letter-spacing: .6px;
+
+}
+
+
+@keyframes thumbnailSpin {
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+@keyframes thumbnailShimmer {
+
+    0% {
+
+        transform:
+            translateX(-120%);
+
+    }
+
+    55%,
+    100% {
+
+        transform:
+            translateX(120%);
+
+    }
+
+}
+
+
+@keyframes thumbnailLoaderSpin {
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+/* =========================================================
+   THUMBNAIL SUCCESS
+========================================================= */
+
+.thumbnail-success {
+
+    position: absolute;
+
+    right: 4px;
+
+    bottom: 4px;
+
+    z-index: 5;
+
+    padding:
+        3px 5px;
+
+    border-radius: 5px;
+
+    background:
+        rgba(22,163,74,.94);
+
+    color: white;
+
+    font-size: 6px;
+
+    line-height: 1;
+
+    font-weight: 800;
+
+    letter-spacing: .35px;
+
+    box-shadow:
+        0 2px 6px rgba(0,0,0,.20);
+
+}
+
+
+/* =========================================================
+   THUMBNAIL FAILED
+========================================================= */
+
+.thumbnail-failed {
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            #450a0a 0%,
+            #7f1d1d 48%,
+            #450a0a 100%
+        );
+
+}
+
+
+.thumbnail-failed::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            transparent 0,
+            transparent 9px,
+            rgba(255,255,255,.035) 9px,
+            rgba(255,255,255,.035) 18px
+        );
+
+}
+
+
+.thumbnail-failed::after {
+
+    content: "GAGAL";
+
+    position: absolute;
+
+    left: -15px;
+
+    right: -15px;
+
+    top: 29px;
+
+    padding:
+        5px 0;
+
+    text-align: center;
+
+    background:
+        rgba(220,38,38,.92);
+
+    color: white;
+
+    font-size: 10px;
+
+    font-weight: 900;
+
+    letter-spacing: 1.4px;
+
+    transform:
+        rotate(-14deg);
+
+    box-shadow:
+        0 3px 10px rgba(0,0,0,.25);
+
+    z-index: 4;
+
+}
+
+
+.thumbnail-failed-icon {
+
+    position: relative;
+
+    z-index: 3;
+
+    width: 29px;
+
+    height: 29px;
+
+    border:
+        2px solid rgba(255,255,255,.72);
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: white;
+
+    font-size: 15px;
+
+    font-weight: 800;
+
+}
+
+
+/* =========================================================
+   THUMBNAIL EMPTY / NO OUTPUT
+========================================================= */
+
+.thumbnail-empty {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: #9ca3af;
+
+    background:
+        #f3f4f6;
+
+    font-size: 18px;
+
+}
+
+
+.thumbnail-empty span {
+
+    opacity: .55;
+
+}
+
+
+/* =========================================================
+   PROMPT
+========================================================= */
+
+.prompt-cell {
+
+    max-width: 340px;
+
+}
+
+
+.prompt-text {
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    max-width: 340px;
+
+    color: #374151;
+
+}
+
+
+.provider {
+
+    font-weight: 700;
+
+    color: #374151;
+
+}
+
+
+.model {
+
+    color: var(--muted);
+
+}
+
+
+.credits {
+
+    font-weight: 800;
+
+    white-space: nowrap;
+
+}
+
+
+.user-cell {
+
+    font-size: 10px;
+
+    color: #6b7280;
+
+    max-width: 180px;
+
+}
+
+
+.user-cell strong {
+
+    display: block;
+
+    color: #374151;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+
+}
+
+
+/* =========================================================
+   STATUS BASE
+========================================================= */
+
+.status {
+
+    position: relative;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 7px;
+
+    min-height: 28px;
+
+    padding: 5px 10px;
+
+    border-radius: 999px;
+
+    font-size: 9px;
+
+    font-weight: 800;
+
+    letter-spacing: .35px;
+
+    line-height: 1;
+
+    white-space: nowrap;
+
+}
+
+
+/* =========================================================
+   STATUS DOT BASE
+========================================================= */
+
+.status-dot {
+
+    position: relative;
+
+    width: 7px;
+
+    height: 7px;
+
+    min-width: 7px;
+
+    border-radius: 50%;
+
+}
+
+
+/* =========================================================
+   SUCCESS / COMPLETED
+========================================================= */
+
+.status.completed,
+.status.success {
+
+    color: #166534;
+
+    background:
+        #f0fdf4;
+
+    border:
+        1px solid rgba(22,163,74,.14);
+
+}
+
+
+.status.completed .status-dot,
+.status.success .status-dot {
+
+    background: #22c55e;
+
+    box-shadow:
+        0 0 7px rgba(34,197,94,.35);
+
+}
+
+
+/* =========================================================
+   FAILED
+========================================================= */
+
+.status.failed {
+
+    color: #991b1b;
+
+    background:
+        #fef2f2;
+
+    border:
+        1px solid rgba(220,38,38,.14);
+
+}
+
+
+.status.failed .status-dot {
+
+    background: #ef4444;
+
+}
+
+
+/* =========================================================
+   PENDING
+========================================================= */
+
+.status.pending {
+
+    color: #6b7280;
+
+    background:
+        #f3f4f6;
+
+    border:
+        1px solid rgba(107,114,128,.12);
+
+}
+
+
+.status.pending .status-dot {
+
+    background: #9ca3af;
+
+}
+
+
+/* =========================================================
+   CANCELLED
+========================================================= */
+
+.status.cancelled {
+
+    color: #6b21a8;
+
+    background:
+        #faf5ff;
+
+    border:
+        1px solid rgba(147,51,234,.14);
+
+}
+
+
+.status.cancelled .status-dot {
+
+    background: #a855f7;
+
+}
+
+
+/* =========================================================
+   PREMIUM PROCESSING STATUS
+========================================================= */
+
+.status.processing {
+
+    position: relative;
+
+    overflow: hidden;
+
+    isolation: isolate;
+
+    gap: 8px;
+
+    min-height: 30px;
+
+    padding:
+        6px 11px 6px 9px;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            #fffaf0 0%,
+            #fff7d6 38%,
+            #fef3c7 65%,
+            #fffaf0 100%
+        );
+
+    color: #92400e;
+
+    border:
+        1px solid rgba(217,119,6,.20);
+
+    box-shadow:
+
+        0 4px 14px
+            rgba(217,119,6,.10),
+
+        inset 0 1px 0
+            rgba(255,255,255,.75);
+
+    animation:
+        processingBorder 2.8s ease-in-out infinite;
+
+}
+
+
+.status.processing::after {
+
+    content: "";
+
+    position: absolute;
+
+    top: -20%;
+
+    left: -75%;
+
+    width: 48%;
+
+    height: 140%;
+
+    background:
+
+        linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255,255,255,.10) 20%,
+            rgba(255,255,255,.90) 50%,
+            rgba(255,255,255,.10) 80%,
+            transparent 100%
+        );
+
+    transform:
+        skewX(-18deg);
+
+    animation:
+        processingShimmer 2.2s
+        cubic-bezier(.4,0,.2,1)
+        infinite;
+
+    pointer-events: none;
+
+    z-index: 1;
+
+}
+
+
+.status.processing .processing-label {
+
+    position: relative;
+
+    z-index: 3;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 3px;
+
+    font-weight: 800;
+
+    letter-spacing: .55px;
+
+    animation:
+        processingText 1.8s
+        ease-in-out
+        infinite;
+
+}
+
+
+.status.processing .status-dot {
+
+    position: relative;
+
+    z-index: 4;
+
+    width: 8px;
+
+    height: 8px;
+
+    min-width: 8px;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle at 35% 30%,
+            #fff7c2 0%,
+            #fbbf24 28%,
+            #f59e0b 65%,
+            #d97706 100%
+        );
+
+    box-shadow:
+
+        0 0 0 2px
+            rgba(245,158,11,.12),
+
+        0 0 7px
+            rgba(245,158,11,.60),
+
+        0 0 15px
+            rgba(245,158,11,.30);
+
+    animation:
+        processingOrb 1.6s
+        ease-in-out
+        infinite;
+
+}
+
+
+.status.processing .status-dot::before {
+
+    content: "";
+
+    position: absolute;
+
+    inset: -4px;
+
+    border-radius: 50%;
+
+    border:
+        1px solid
+        rgba(245,158,11,.22);
+
+    border-top-color:
+        #f59e0b;
+
+    border-right-color:
+        transparent;
+
+    border-bottom-color:
+        rgba(245,158,11,.08);
+
+    border-left-color:
+        transparent;
+
+    animation:
+        processingRing .85s
+        linear
+        infinite;
+
+}
+
+
+.status.processing .status-dot::after {
+
+    content: "";
+
+    position: absolute;
+
+    inset: -7px;
+
+    border-radius: 50%;
+
+    background:
+        rgba(245,158,11,.12);
+
+    box-shadow:
+        0 0 12px
+        rgba(245,158,11,.12);
+
+    animation:
+        processingGlow 1.6s
+        ease-in-out
+        infinite;
+
+}
+
+
+.processing-indicator {
+
+    position: relative;
+
+    z-index: 4;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 3px;
+
+    min-width: 14px;
+
+    margin-left: 0;
+
+}
+
+
+.processing-indicator span {
+
+    width: 3px;
+
+    height: 3px;
+
+    border-radius: 50%;
+
+    background:
+        currentColor;
+
+    opacity: .25;
+
+    animation:
+        processingDot 1.2s
+        ease-in-out
+        infinite;
+
+}
+
+
+.processing-indicator span:nth-child(1) {
+
+    animation-delay:
+        0s;
+
+}
+
+
+.processing-indicator span:nth-child(2) {
+
+    animation-delay:
+        .18s;
+
+}
+
+
+.processing-indicator span:nth-child(3) {
+
+    animation-delay:
+        .36s;
+
+}
+
+
+@keyframes processingBorder {
+
+    0%,
+    100% {
+
+        border-color:
+            rgba(217,119,6,.16);
+
+        box-shadow:
+
+            0 4px 14px
+                rgba(217,119,6,.08),
+
+            inset 0 1px 0
+                rgba(255,255,255,.70);
+
+    }
+
+    50% {
+
+        border-color:
+            rgba(245,158,11,.34);
+
+        box-shadow:
+
+            0 5px 18px
+                rgba(217,119,6,.15),
+
+            0 0 0 2px
+                rgba(245,158,11,.04),
+
+            inset 0 1px 0
+                rgba(255,255,255,.85);
+
+    }
+
+}
+
+
+@keyframes processingOrb {
+
+    0%,
+    100% {
+
+        transform:
+            scale(.88);
+
+        box-shadow:
+
+            0 0 0 2px
+                rgba(245,158,11,.10),
+
+            0 0 6px
+                rgba(245,158,11,.45),
+
+            0 0 12px
+                rgba(245,158,11,.18);
+
+    }
+
+    50% {
+
+        transform:
+            scale(1.13);
+
+        box-shadow:
+
+            0 0 0 3px
+                rgba(245,158,11,.14),
+
+            0 0 10px
+                rgba(245,158,11,.78),
+
+            0 0 21px
+                rgba(245,158,11,.32);
+
+    }
+
+}
+
+
+@keyframes processingRing {
+
+    from {
+
+        transform:
+            rotate(0deg);
+
+    }
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+@keyframes processingGlow {
+
+    0%,
+    100% {
+
+        opacity: .20;
+
+        transform:
+            scale(.65);
+
+    }
+
+    50% {
+
+        opacity: .78;
+
+        transform:
+            scale(1.08);
+
+    }
+
+}
+
+
+@keyframes processingDot {
+
+    0%,
+    60%,
+    100% {
+
+        opacity: .20;
+
+        transform:
+            translateY(0)
+            scale(.85);
+
+    }
+
+    30% {
+
+        opacity: 1;
+
+        transform:
+            translateY(-2px)
+            scale(1.15);
+
+    }
+
+}
+
+
+@keyframes processingText {
+
+    0%,
+    100% {
+
+        opacity: .78;
+
+    }
+
+    50% {
+
+        opacity: 1;
+
+    }
+
+}
+
+
+@keyframes processingShimmer {
+
+    0% {
+
+        left: -75%;
+
+        opacity: 0;
+
+    }
+
+    12% {
+
+        opacity: 1;
+
+    }
+
+    48%,
+    100% {
+
+        left: 135%;
+
+        opacity: 0;
+
+    }
+
+}
+
+
+/* =========================================================
+   ACTION
+========================================================= */
+
+.view-button {
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    color: var(--text);
+
+    padding: 7px 10px;
+
+    border-radius: 9px;
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+}
+
+
+.view-button:hover {
+
+    background: #f9fafb;
+
+}
+
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.empty-state {
+
+    padding: 70px 25px;
+
+    text-align: center;
+
+    display: none;
+
+}
+
+
+.empty-icon {
+
+    width: 58px;
+
+    height: 58px;
+
+    margin: 0 auto 15px;
+
+    border-radius: 18px;
+
+    background: #f3f4f6;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 25px;
+
+}
+
+
+.empty-state h3 {
+
+    font-size: 15px;
+
+}
+
+
+.empty-state p {
+
+    margin-top: 6px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+}
+
+
+.generate-button {
+
+    margin-top: 18px;
+
+    border: 0;
+
+    background: var(--dark);
+
+    color: white;
+
+    padding: 11px 16px;
+
+    border-radius: 12px;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+
+    padding: 60px 25px;
+
+    text-align: center;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+}
+
+
+.spinner {
+
+    width: 28px;
+
+    height: 28px;
+
+    border:
+        3px solid #e5e7eb;
+
+    border-top-color:
+        var(--accent);
+
+    border-radius: 50%;
+
+    animation:
+        spin .8s linear infinite;
+
+    margin:
+        0 auto 12px;
+
+}
+
+
+@keyframes spin {
+
+    to {
+
+        transform:
+            rotate(360deg);
+
+    }
+
+}
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+.message {
+
+    display: none;
+
+    margin: 18px 25px;
+
+    padding: 13px 15px;
+
+    border-radius: 12px;
+
+    font-size: 11px;
+
+    line-height: 1.5;
+
+}
+
+
+.message.show {
+
+    display: block;
+
+}
+
+
+.message.error {
+
+    background: #fef2f2;
+
+    color: #991b1b;
+
+}
+
+
+.message.info {
+
+    background: #eef2ff;
+
+    color: #3730a3;
+
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+.modal {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 2000;
+
+    background:
+        rgba(15,23,42,.55);
+
+    backdrop-filter:
+        blur(5px);
+
+    display: none;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 20px;
+
+}
+
+
+.modal.show {
+
+    display: flex;
+
+}
+
+
+.modal-card {
+
+    width: min(600px, 100%);
+
+    max-height: 90vh;
+
+    overflow-y: auto;
+
+    background: white;
+
+    border-radius: 22px;
+
+    box-shadow:
+        0 30px 80px rgba(0,0,0,.25);
+
+}
+
+
+.modal-header {
+
+    padding: 20px;
+
+    border-bottom:
+        1px solid var(--border);
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+}
+
+
+.modal-header h3 {
+
+    font-size: 16px;
+
+}
+
+
+.close-button {
+
+    width: 34px;
+
+    height: 34px;
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    font-size: 16px;
+
+}
+
+
+.modal-body {
+
+    padding: 20px;
+
+}
+
+
+.detail-row {
+
+    padding: 12px 0;
+
+    border-bottom:
+        1px solid #f0f1f3;
+
+}
+
+
+.detail-row:last-child {
+
+    border-bottom: 0;
+
+}
+
+
+.detail-label {
+
+    color: var(--muted);
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+
+    letter-spacing: .6px;
+
+    font-weight: 800;
+
+}
+
+
+.detail-value {
+
+    margin-top: 5px;
+
+    color: var(--text);
+
+    font-size: 12px;
+
+    line-height: 1.6;
+
+    word-break: break-word;
+
+}
+
+
+.detail-value.mono {
+
+    font-family: monospace;
+
+    font-size: 11px;
+
+    color: #4b5563;
+
+}
+
+
+.output-link {
+
+    color: #4f46e5;
+
+    font-weight: 700;
+
+    text-decoration: none;
+
+}
+
+
+.output-link:hover {
+
+    text-decoration: underline;
+
+}
+
+
+/* =========================================================
+   DETAIL VIDEO PREVIEW
+========================================================= */
+
+.detail-video-preview {
+
+    width: 100%;
+
+    max-height: 360px;
+
+    margin-bottom: 16px;
+
+    border-radius: 16px;
+
+    overflow: hidden;
+
+    background: #111827;
+
+}
+
+
+.detail-video-preview video {
+
+    display: block;
+
+    width: 100%;
+
+    max-height: 360px;
+
+    object-fit: contain;
+
+    background: #111827;
+
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer {
+
+    margin-top: 25px;
+
+    text-align: center;
+
+    color: #9ca3af;
+
+    font-size: 10px;
+
+    padding-bottom: 15px;
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 800px) {
+
+    .main {
+
+        padding: 20px;
+
+    }
+
+    .topbar {
+
+        padding-left: 62px;
+
+        align-items: flex-start;
+
+    }
+
+    .history-header {
+
+        align-items: flex-start;
+
+        flex-direction: column;
+
+    }
+
+    .refresh-button {
+
+        width: 100%;
+
+    }
+
+}
+
+
+@media (max-width: 520px) {
+
+    .menu-button {
+
+        top: 14px;
+
+        left: 14px;
+
+        width: 44px;
+
+        height: 44px;
+
+    }
+
+    .main {
+
+        padding: 15px;
+
+    }
+
+    .topbar {
+
+        padding-left: 58px;
+
+        flex-direction: column;
+
+    }
+
+    .credit-card {
+
+        width: 100%;
+
+    }
+
+    .history-header,
+    .filters {
+
+        padding: 18px;
+
+    }
+
+    .sidebar {
+
+        width: 275px;
+
+    }
+
+    .message {
+
+        margin-left: 18px;
+
+        margin-right: 18px;
+
+    }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .status.processing,
+    .status.processing::after,
+    .status.processing .status-dot,
+    .status.processing .status-dot::before,
+    .status.processing .status-dot::after,
+    .status.processing .processing-label,
+    .processing-indicator span,
+    .thumbnail-processing::before,
+    .thumbnail-processing::after,
+    .thumbnail-loader {
+
+        animation: none !important;
+
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- =========================================================
+     MENU
+========================================================= -->
+
+<button
+    class="menu-button"
+    id="menuButton"
+    type="button"
+    aria-label="Buka navigasi"
+    aria-controls="sidebar"
+    aria-expanded="false"
+>
+
+    <span></span>
+    <span></span>
+    <span></span>
+
+</button>
+
+
+<!-- =========================================================
+     SIDEBAR
+========================================================= -->
+
+<aside
+    class="sidebar"
+    id="sidebar"
+>
+
+    <div class="brand">
+
+        <h2>
+            GEN-Z.AI
+        </h2>
+
+        <span>
+            AI VIDEO GENERATION
+        </span>
+
+    </div>
+
+
+    <nav
+        class="nav"
+        id="navigation"
+    ></nav>
+
+
+    <div class="sidebar-bottom">
+
+        <div class="user-mini">
+
+            <small>
+                ACCOUNT
+            </small>
+
+            <strong id="sidebarEmail">
+                Loading...
+            </strong>
+
+            <div
+                class="user-mini-role"
+                id="sidebarRole"
+            >
+                --
+            </div>
+
+        </div>
+
+
+        <button
+            class="logout"
+            id="logoutButton"
+            type="button"
+        >
+            LOG OUT
+        </button>
+
+    </div>
+
+</aside>
+
+
+<div
+    class="overlay"
+    id="overlay"
+></div>
+
+
+<!-- =========================================================
+     MAIN
+========================================================= -->
+
+<main class="main">
+
+
+    <header class="topbar">
+
+        <div class="welcome">
+
+            <h1>
+                History
+            </h1>
+
+            <p id="historySubtitle">
+                Riwayat generate yang terkait dengan akun kamu.
+            </p>
+
+        </div>
+
+
+        <div class="credit-card">
+
+            <small>
+                AVAILABLE CREDITS
+            </small>
+
+            <strong id="creditBalance">
+                0
+            </strong>
+
+        </div>
+
+    </header>
+
+
+    <section class="history-card">
+
+
+        <div class="history-header">
+
+            <div class="history-title">
+
+                <h2>
+                    Generation History
+                </h2>
+
+                <p id="historyCount">
+                    Memuat riwayat...
+                </p>
+
+            </div>
+
+
+            <button
+                class="refresh-button"
+                id="refreshButton"
+                type="button"
+            >
+                ↻ REFRESH
+            </button>
+
+        </div>
+
+
+        <!-- =================================================
+             FILTER
+        ================================================= -->
+
+        <div class="filters">
+
+            <button
+                class="filter-button active"
+                data-filter="all"
+                type="button"
+            >
+                SEMUA
+            </button>
+
+
+            <button
+                class="filter-button"
+                data-filter="success"
+                type="button"
+            >
+                SELESAI
+            </button>
+
+
+            <button
+                class="filter-button"
+                data-filter="processing"
+                type="button"
+            >
+                PROSES
+            </button>
+
+
+            <button
+                class="filter-button"
+                data-filter="failed"
+                type="button"
+            >
+                GAGAL
+            </button>
+
+
+            <button
+                class="filter-button"
+                data-filter="pending"
+                type="button"
+            >
+                PENDING
+            </button>
+
+        </div>
+
+
+        <!-- =================================================
+             MESSAGE
+        ================================================= -->
+
+        <div
+            class="message"
+            id="message"
+        ></div>
+
+
+        <!-- =================================================
+             LOADING
+        ================================================= -->
+
+        <div
+            class="loading"
+            id="loadingState"
+        >
+
+            <div class="spinner"></div>
+
+            Memuat history...
+
+        </div>
+
+
+        <!-- =================================================
+             TABLE
+        ================================================= -->
+
+        <div
+            class="table-wrap"
+            id="tableWrap"
+            style="display:none;"
+        >
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th class="thumbnail-header">
+                            Preview
+                        </th>
+
+
+                        <th>
+                            Tanggal
+                        </th>
+
+
+                        <th
+                            id="userColumnHeader"
+                            style="display:none;"
+                        >
+                            User
+                        </th>
+
+
+                        <th>
+                            Provider
+                        </th>
+
+
+                        <th>
+                            Model
+                        </th>
+
+
+                        <th>
+                            Prompt
+                        </th>
+
+
+                        <th>
+                            Credit
+                        </th>
+
+
+                        <th>
+                            Status
+                        </th>
+
+
+                        <th>
+                            Action
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="historyBody"></tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- =================================================
+             EMPTY
+        ================================================= -->
+
+        <div
+            class="empty-state"
+            id="emptyState"
+        >
+
+            <div class="empty-icon">
+                🎬
+            </div>
+
+
+            <h3>
+                Belum ada riwayat
+            </h3>
+
+
+            <p>
+                Kamu belum melakukan generate video.
+            </p>
+
+
+            <button
+                class="generate-button"
+                type="button"
+                onclick="goToGenerate()"
+            >
+                MULAI GENERATE
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <div class="footer">
+        GEN-Z.AI • AI VIDEO GENERATION PLATFORM
+    </div>
+
+</main>
+
+
+<!-- =========================================================
+     DETAIL MODAL
+========================================================= -->
+
+<div
+    class="modal"
+    id="detailModal"
+>
+
+    <div class="modal-card">
+
+        <div class="modal-header">
+
+            <h3>
+                Detail Generation
+            </h3>
+
+
+            <button
+                class="close-button"
+                id="closeModal"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div
+            class="modal-body"
+            id="modalBody"
+        ></div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     SUPABASE
+========================================================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="../assets/js/config.js"></script>
+
+
+<script>
+
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
+
+let supabaseClient = null;
+
+let currentUser = null;
+
+let currentProfile = null;
+
+let historyData = [];
+
+let currentFilter = "all";
+
+
+/* =========================================================
+   HISTORY AUTO REFRESH
+   ---------------------------------------------------------
+   - Polling hanya aktif jika ada generation aktif.
+   - Interval 5 detik.
+   - Silent refresh tidak menampilkan loading screen.
+   - Timer menggunakan setTimeout agar tidak menumpuk
+     request jika query Supabase lambat.
+========================================================= */
+
+let historyAutoRefreshTimer = null;
+
+let historyLoadInProgress = false;
+
+const HISTORY_AUTO_REFRESH_INTERVAL = 5000;
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const menuButton =
+    document.getElementById("menuButton");
+
+const sidebar =
+    document.getElementById("sidebar");
+
+const overlay =
+    document.getElementById("overlay");
+
+const navigation =
+    document.getElementById("navigation");
+
+const logoutButton =
+    document.getElementById("logoutButton");
+
+const refreshButton =
+    document.getElementById("refreshButton");
+
+const loadingState =
+    document.getElementById("loadingState");
+
+const tableWrap =
+    document.getElementById("tableWrap");
+
+const historyBody =
+    document.getElementById("historyBody");
+
+const emptyState =
+    document.getElementById("emptyState");
+
+const historyCount =
+    document.getElementById("historyCount");
+
+const historySubtitle =
+    document.getElementById("historySubtitle");
+
+const message =
+    document.getElementById("message");
+
+const detailModal =
+    document.getElementById("detailModal");
+
+const modalBody =
+    document.getElementById("modalBody");
+
+const closeModal =
+    document.getElementById("closeModal");
+
+const creditBalance =
+    document.getElementById("creditBalance");
+
+const sidebarEmail =
+    document.getElementById("sidebarEmail");
+
+const sidebarRole =
+    document.getElementById("sidebarRole");
+
+const userColumnHeader =
+    document.getElementById("userColumnHeader");
+
+
+/* =========================================================
+   ROLE
+========================================================= */
+
+function normalizeRole(role) {
+
+    return String(
+        role || ""
+    )
+        .trim()
+        .toUpperCase();
+
+}
+
+
+function isAdminOrOwner() {
+
+    const role =
+        normalizeRole(
+            currentProfile?.role
+        );
+
+    return (
+        role === "ADMIN" ||
+        role === "OWNER"
+    );
+
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+menuButton.addEventListener(
+    "click",
+    function () {
+
+        const isOpen =
+            sidebar.classList.contains(
+                "open"
+            );
+
+        if (isOpen) {
+
+            closeSidebar();
+
+        } else {
+
+            sidebar.classList.add(
+                "open"
+            );
+
+            overlay.classList.add(
+                "active"
+            );
+
+            menuButton.setAttribute(
+                "aria-expanded",
+                "true"
+            );
+
+        }
+
+    }
+);
+
+
+overlay.addEventListener(
+    "click",
+    closeSidebar
+);
+
+
+function closeSidebar() {
+
+    sidebar.classList.remove(
+        "open"
+    );
+
+    overlay.classList.remove(
+        "active"
+    );
+
+    menuButton.setAttribute(
+        "aria-expanded",
+        "false"
+    );
+
+}
+
+
+/* =========================================================
+   BUILD NAVIGATION
+========================================================= */
+
+function buildNavigation() {
+
+    if (!currentProfile) {
+
+        return;
+
+    }
+
+
+    const role =
+        normalizeRole(
+            currentProfile.role
+        );
+
+
+    let html = "";
+
+
+    if (role === "USER") {
+
+        html = `
+
+            <a
+                href="../user/dashboard.html"
+            >
+                Dashboard
+            </a>
+
+            <a
+                href="../generate/index.html"
+            >
+                Generate
+            </a>
+
+            <a
+                href="../history/index.html"
+                class="active"
+            >
+                History
+            </a>
+
+            <a
+                href="../user/topup.html"
+            >
+                Top Up
+            </a>
+
+            <a
+                href="../user/hub-admin.html"
+            >
+                Hub Admin
+            </a>
+
+        `;
+
+    } else if (
+        role === "ADMIN" ||
+        role === "OWNER"
+    ) {
+
+        html = `
+
+            <a
+                href="../admin/dashboard.html"
+            >
+                Dashboard
+            </a>
+
+            <a
+                href="../generate/index.html"
+            >
+                Generate
+            </a>
+
+            <a
+                href="../history/index.html"
+                class="active"
+            >
+                History
+            </a>
+
+            <a
+                href="../admin-control/admin-panel.html"
+            >
+                Admin Panel
+            </a>
+
+        `;
+
+    }
+
+
+    navigation.innerHTML =
+        html;
+
+
+    navigation
+        .querySelectorAll("a")
+        .forEach(
+            link => {
+
+                link.addEventListener(
+                    "click",
+                    closeSidebar
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+function showMessage(
+    text,
+    type = "info"
+) {
+
+    message.textContent =
+        text;
+
+    message.className =
+        "message show " + type;
+
+}
+
+
+function hideMessage() {
+
+    message.textContent =
+        "";
+
+    message.className =
+        "message";
+
+}
+
+
+/* =========================================================
+   DATE
+========================================================= */
+
+function formatDate(value) {
+
+    if (!value) {
+
+        return "-";
+
+    }
+
+
+    const date =
+        new Date(value);
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+
+        return "-";
+
+    }
+
+
+    return date.toLocaleString(
+        "id-ID",
+        {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        }
+    );
+
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+function normalizeStatus(status) {
+
+    const value =
+        String(
+            status || "pending"
+        )
+            .trim()
+            .toLowerCase();
+
+
+    /*
+     * Database generation_history menggunakan:
+     *
+     * queued
+     * processing
+     * success
+     * failed
+     * cancelled
+     *
+     * Legacy frontend mungkin masih mengenal:
+     * completed
+     */
+
+    if (value === "completed") {
+
+        return "success";
+
+    }
+
+
+    if (value === "queued") {
+
+        return "pending";
+
+    }
+
+
+    return value;
+
+}
+
+
+function statusLabel(status) {
+
+    const value =
+        normalizeStatus(status);
+
+
+    const labels = {
+
+        success: "SUCCESS",
+
+        processing: "PROSES",
+
+        failed: "GAGAL",
+
+        pending: "PENDING",
+
+        cancelled: "DIBATALKAN"
+
+    };
+
+
+    return labels[value] ||
+        value.toUpperCase();
+
+}
+
+
+function statusClass(status) {
+
+    const value =
+        normalizeStatus(status);
+
+
+    const allowed = [
+
+        "success",
+
+        "processing",
+
+        "failed",
+
+        "pending",
+
+        "cancelled"
+
+    ];
+
+
+    return allowed.includes(value)
+
+        ? value
+
+        : "pending";
+
+}
+
+
+/* =========================================================
+   CREDIT
+========================================================= */
+
+function getCreditCost(item) {
+
+    const raw =
+        item?.credit_cost;
+
+
+    if (
+        raw === null ||
+        raw === undefined ||
+        raw === ""
+    ) {
+
+        return 0;
+
+    }
+
+
+    const value =
+        Number(raw);
+
+
+    return Number.isFinite(value)
+
+        ? value
+
+        : 0;
+
+}
+
+
+function formatCredit(value) {
+
+    const numeric =
+        Number(value);
+
+
+    if (
+        !Number.isFinite(numeric)
+    ) {
+
+        return "0";
+
+    }
+
+
+    return numeric.toLocaleString(
+        "id-ID",
+        {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }
+    );
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHtml(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    return String(value)
+
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
+}
+
+
+/* =========================================================
+   URL SAFETY
+========================================================= */
+
+function getSafeMediaUrl(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return "";
+
+    }
+
+
+    const raw =
+        String(value).trim();
+
+
+    if (!raw) {
+
+        return "";
+
+    }
+
+
+    try {
+
+        const url =
+            new URL(
+                raw,
+                window.location.href
+            );
+
+
+        if (
+            url.protocol !== "https:" &&
+            url.protocol !== "http:"
+        ) {
+
+            return "";
+
+        }
+
+
+        return url.href;
+
+    } catch {
+
+        return "";
+
+    }
+
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function goToGenerate() {
+
+    window.location.href =
+        "../generate/index.html";
+
+}
+
+
+/* =========================================================
+   LOAD PROFILE
+========================================================= */
+
+async function loadProfile() {
+
+    const {
+        data: profile,
+        error
+    } =
+        await supabaseClient
+
+            .from("profiles")
+
+            .select(
+                "id,email,name,role,credits,status"
+            )
+
+            .eq(
+                "id",
+                currentUser.id
+            )
+
+            .single();
+
+
+    if (
+        error ||
+        !profile
+    ) {
+
+        console.error(
+            "Profile error:",
+            error
+        );
+
+        throw new Error(
+            "Profil pengguna tidak ditemukan."
+        );
+
+    }
+
+
+    const role =
+        normalizeRole(
+            profile.role
+        );
+
+
+    if (
+        ![
+            "USER",
+            "ADMIN",
+            "OWNER"
+        ].includes(role)
+    ) {
+
+        await supabaseClient
+            .auth
+            .signOut();
+
+
+        window.location.replace(
+            "../login.html"
+        );
+
+
+        return false;
+
+    }
+
+
+    if (
+        profile.status !== "active"
+    ) {
+
+        await supabaseClient
+            .auth
+            .signOut();
+
+
+        window.location.replace(
+            "../login.html"
+        );
+
+
+        return false;
+
+    }
+
+
+    currentProfile =
+        profile;
+
+
+    creditBalance.textContent =
+        Number(
+            profile.credits || 0
+        ).toLocaleString(
+            "id-ID"
+        );
+
+
+    sidebarEmail.textContent =
+        profile.email ||
+        currentUser.email ||
+        "User";
+
+
+    sidebarRole.textContent =
+        role;
+
+
+    buildNavigation();
+
+
+    if (isAdminOrOwner()) {
+
+        historySubtitle.textContent =
+            "Riwayat generate seluruh aplikasi.";
+
+
+        userColumnHeader.style.display =
+            "table-cell";
+
+    } else {
+
+        historySubtitle.textContent =
+            "Riwayat generate yang terkait dengan akun kamu.";
+
+
+        userColumnHeader.style.display =
+            "none";
+
+    }
+
+
+    return true;
+
+}
+
+
+/* =========================================================
+   HISTORY AUTO REFRESH HELPERS
+========================================================= */
+
+/*
+ * Menghentikan timer polling yang sedang berjalan.
+ *
+ * setTimeout dipakai, bukan setInterval, supaya request
+ * berikutnya baru dibuat setelah request sebelumnya selesai.
+ */
+
+function stopHistoryAutoRefresh() {
+
+    if (
+        historyAutoRefreshTimer !== null
+    ) {
+
+        clearTimeout(
+            historyAutoRefreshTimer
+        );
+
+        historyAutoRefreshTimer = null;
+
+    }
+
+}
+
+
+/*
+ * Mengecek apakah masih ada generation yang belum terminal.
+ *
+ * queued dinormalisasi menjadi pending oleh normalizeStatus().
+ * Jadi pending + processing dianggap aktif.
+ */
+
+function hasActiveGeneration() {
+
+    return historyData.some(
+        item => {
+
+            const status =
+                normalizeStatus(
+                    item?.status
+                );
+
+
+            return (
+                status === "processing" ||
+                status === "pending"
+            );
+
+        }
+    );
+
+}
+
+
+/*
+ * Menjadwalkan satu kali polling berikutnya.
+ *
+ * Jika sudah tidak ada processing/pending,
+ * polling langsung dihentikan.
+ */
+
+function scheduleHistoryAutoRefresh() {
+
+    stopHistoryAutoRefresh();
+
+
+    if (
+        !hasActiveGeneration()
+    ) {
+
+        return;
+
+    }
+
+
+    historyAutoRefreshTimer =
+        setTimeout(
+            async function () {
+
+                historyAutoRefreshTimer =
+                    null;
+
+
+                try {
+
+                    await loadHistory({
+                        silent: true
+                    });
+
+                } catch (error) {
+
+                    console.error(
+                        "History auto refresh error:",
+                        error
+                    );
+
+
+                    /*
+                     * Jika request gagal, jangan mematikan
+                     * polling selamanya. Coba lagi 5 detik
+                     * kemudian selama masih ada generation aktif.
+                     */
+
+                    if (
+                        hasActiveGeneration()
+                    ) {
+
+                        scheduleHistoryAutoRefresh();
+
+                    }
+
+                }
+
+            },
+            HISTORY_AUTO_REFRESH_INTERVAL
+        );
+
+}
+
+
+/* =========================================================
+   LOAD HISTORY
+   ---------------------------------------------------------
+   options.silent = true
+   ---------------------------------
+   Dipakai oleh auto-refresh supaya:
+   - tidak menampilkan spinner utama
+   - tidak menyembunyikan tabel
+   - tidak membuat halaman berkedip
+========================================================= */
+
+async function loadHistory(options = {}) {
+
+    const silent =
+        options.silent === true;
+
+
+    /*
+     * Mencegah request bertumpuk.
+     */
+
+    if (
+        historyLoadInProgress
+    ) {
+
+        return;
+
+    }
+
+
+    historyLoadInProgress =
+        true;
+
+
+    try {
+
+        if (!silent) {
+
+            loadingState.style.display =
+                "block";
+
+
+            tableWrap.style.display =
+                "none";
+
+
+            emptyState.style.display =
+                "none";
+
+
+            hideMessage();
+
+        }
+
+
+        let query =
+            supabaseClient
+
+                .from("generation_history")
+
+                .select("*")
+
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+
+        if (!isAdminOrOwner()) {
+
+            query =
+                query.eq(
+                    "user_id",
+                    currentUser.id
+                );
+
+        }
+
+
+        const {
+            data,
+            error
+        } =
+            await query;
+
+
+        if (error) {
+
+            console.error(
+                "History query error:",
+                error
+            );
+
+            throw new Error(
+                "Gagal mengambil generation history: " +
+                error.message
+            );
+
+        }
+
+
+        historyData =
+            Array.isArray(data)
+                ? data
+                : [];
+
+
+        /*
+         * Render normal maupun silent.
+         *
+         * Pada silent refresh, renderer hanya mengganti
+         * isi tabel. Loading screen tidak disentuh.
+         */
+
+        renderHistory();
+
+    } finally {
+
+        historyLoadInProgress =
+            false;
+
+    }
+
+}
+
+
+/* =========================================================
+   USER DISPLAY
+========================================================= */
+
+function getHistoryUser(item) {
+
+    return (
+        item?.user_email ||
+        item?.user_id ||
+        "-"
+    );
+
+}
+
+
+/* =========================================================
+   MODEL / PROVIDER
+========================================================= */
+
+function getProviderName(item) {
+
+    return (
+        item?.provider_name ||
+        item?.provider_id ||
+        "-"
+    );
+
+}
+
+
+function getModelName(item) {
+
+    return (
+        item?.model_name ||
+        item?.model_id ||
+        "-"
+    );
+
+}
+
+
+/* =========================================================
+   PROMPT
+========================================================= */
+
+function getPrompt(item) {
+
+    if (
+        item?.prompt !== null &&
+        item?.prompt !== undefined &&
+        String(item.prompt).trim() !== ""
+    ) {
+
+        return String(item.prompt);
+
+    }
+
+
+    return "-";
+
+}
+
+
+/* =========================================================
+   THUMBNAIL HELPERS
+========================================================= */
+
+function getResultUrl(item) {
+
+    return getSafeMediaUrl(
+        item?.result_url
+    );
+
+}
+
+
+/* =========================================================
+   PROCESSING THUMBNAIL
+========================================================= */
+
+function getProcessingThumbnailHtml() {
+
+    return `
+
+        <div
+            class="history-thumbnail thumbnail-processing"
+            aria-label="Video sedang diproses"
+        >
+
+            <div
+                class="thumbnail-loader"
+                aria-hidden="true"
+            ></div>
+
+            <div
+                class="thumbnail-processing-label"
+            >
+                GENERATING
+            </div>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   SUCCESS THUMBNAIL
+========================================================= */
+
+function getSuccessThumbnailHtml(item) {
+
+    const resultUrl =
+        getResultUrl(item);
+
+
+    if (!resultUrl) {
+
+        return `
+
+            <div
+                class="history-thumbnail thumbnail-empty"
+                aria-label="Hasil video belum tersedia"
+                title="Hasil video belum tersedia"
+            >
+
+                <span>
+                    🎬
+                </span>
+
+            </div>
+
+        `;
+
+    }
+
+
+    const safeUrl =
+        escapeHtml(
+            resultUrl
+        );
+
+
+    return `
+
+        <div
+            class="history-thumbnail video-ready"
+            data-video-url="${safeUrl}"
+            role="button"
+            tabindex="0"
+            aria-label="Buka hasil video"
+            title="Klik untuk membuka video"
+        >
+
+            <video
+                src="${safeUrl}"
+                muted
+                playsinline
+                preload="metadata"
+                aria-hidden="true"
+            ></video>
+
+            <span
+                class="thumbnail-play"
+                aria-hidden="true"
+            >
+                ▶
+            </span>
+
+            <span
+                class="thumbnail-success"
+            >
+                SUCCESS
+            </span>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   FAILED THUMBNAIL
+========================================================= */
+
+function getFailedThumbnailHtml(item) {
+
+    const resultUrl =
+        getResultUrl(item);
+
+
+    if (!resultUrl) {
+
+        return `
+
+            <div
+                class="history-thumbnail thumbnail-failed"
+                aria-label="Generation gagal"
+                title="Generation gagal"
+            >
+
+                <div
+                    class="thumbnail-failed-icon"
+                >
+                    !
+                </div>
+
+            </div>
+
+        `;
+
+    }
+
+
+    const safeUrl =
+        escapeHtml(
+            resultUrl
+        );
+
+
+    return `
+
+        <div
+            class="history-thumbnail thumbnail-failed video-ready"
+            data-video-url="${safeUrl}"
+            role="button"
+            tabindex="0"
+            aria-label="Generation gagal"
+            title="Generation gagal, klik untuk membuka hasil jika tersedia"
+        >
+
+            <video
+                src="${safeUrl}"
+                muted
+                playsinline
+                preload="metadata"
+                aria-hidden="true"
+            ></video>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   PENDING / CANCELLED / UNKNOWN THUMBNAIL
+========================================================= */
+
+function getEmptyThumbnailHtml(status) {
+
+    const normalized =
+        normalizeStatus(status);
+
+
+    let label =
+        "Belum ada preview";
+
+
+    if (
+        normalized === "cancelled"
+    ) {
+
+        label =
+            "Generation dibatalkan";
+
+    }
+
+
+    return `
+
+        <div
+            class="history-thumbnail thumbnail-empty"
+            aria-label="${escapeHtml(label)}"
+            title="${escapeHtml(label)}"
+        >
+
+            <span>
+                🎬
+            </span>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   MAIN THUMBNAIL RENDERER
+========================================================= */
+
+function getThumbnailHtml(item) {
+
+    const status =
+        normalizeStatus(
+            item?.status
+        );
+
+
+    if (
+        status === "processing"
+    ) {
+
+        return getProcessingThumbnailHtml();
+
+    }
+
+
+    if (
+        status === "success"
+    ) {
+
+        return getSuccessThumbnailHtml(
+            item
+        );
+
+    }
+
+
+    if (
+        status === "failed"
+    ) {
+
+        return getFailedThumbnailHtml(
+            item
+        );
+
+    }
+
+
+    return getEmptyThumbnailHtml(
+        status
+    );
+
+}
+
+
+/* =========================================================
+   VIDEO THUMBNAIL EVENTS
+========================================================= */
+
+function openVideoUrl(url) {
+
+    const safeUrl =
+        getSafeMediaUrl(url);
+
+
+    if (!safeUrl) {
+
+        return;
+
+    }
+
+
+    window.open(
+        safeUrl,
+        "_blank",
+        "noopener,noreferrer"
+    );
+
+}
+
+
+function bindThumbnailEvents(container) {
+
+    container
+        .querySelectorAll(
+            ".history-thumbnail.video-ready"
+        )
+        .forEach(
+            thumbnail => {
+
+                const url =
+                    thumbnail.dataset.videoUrl;
+
+
+                const video =
+                    thumbnail.querySelector(
+                        "video"
+                    );
+
+
+                if (video) {
+
+                    /*
+                     * Menampilkan frame pertama
+                     * sebagai preview tanpa memainkan
+                     * video secara otomatis.
+                     */
+
+                    video.addEventListener(
+                        "loadeddata",
+                        function () {
+
+                            try {
+
+                                video.currentTime =
+                                    0.05;
+
+                            } catch {
+
+                                /* noop */
+
+                            }
+
+                        },
+                        {
+                            once: true
+                        }
+                    );
+
+                }
+
+
+                thumbnail.addEventListener(
+                    "click",
+                    function () {
+
+                        openVideoUrl(
+                            url
+                        );
+
+                    }
+                );
+
+
+                thumbnail.addEventListener(
+                    "keydown",
+                    function (event) {
+
+                        if (
+                            event.key === "Enter" ||
+                            event.key === " "
+                        ) {
+
+                            event.preventDefault();
+
+                            openVideoUrl(
+                                url
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   STATUS HTML
+========================================================= */
+
+function getStatusHtml(status) {
+
+    const normalized =
+        normalizeStatus(status);
+
+
+    const className =
+        statusClass(normalized);
+
+
+    if (
+        normalized === "processing"
+    ) {
+
+        return `
+
+            <span
+                class="status processing"
+                aria-label="Sedang diproses"
+            >
+
+                <span
+                    class="status-dot"
+                ></span>
+
+                <span
+                    class="processing-label"
+                >
+                    PROSES
+
+                    <span
+                        class="processing-indicator"
+                        aria-hidden="true"
+                    >
+
+                        <span></span>
+                        <span></span>
+                        <span></span>
+
+                    </span>
+
+                </span>
+
+            </span>
+
+        `;
+
+    }
+
+
+    return `
+
+        <span
+            class="status ${className}"
+        >
+
+            <span
+                class="status-dot"
+            ></span>
+
+            <span>
+                ${escapeHtml(
+                    statusLabel(normalized)
+                )}
+            </span>
+
+        </span>
+
+    `;
+
+}
+
+
+/* =========================================================
+   RENDER HISTORY
+========================================================= */
+
+function renderHistory() {
+
+    loadingState.style.display =
+        "none";
+
+
+    const filtered =
+        currentFilter === "all"
+
+            ? historyData
+
+            : historyData.filter(
+                item =>
+                    normalizeStatus(
+                        item.status
+                    ) ===
+                    currentFilter
+            );
+
+
+    historyCount.textContent =
+        `${filtered.length.toLocaleString("id-ID")} riwayat`;
+
+
+    if (
+        filtered.length === 0
+    ) {
+
+        tableWrap.style.display =
+            "none";
+
+
+        emptyState.style.display =
+            "block";
+
+
+        if (
+            historyData.length > 0 &&
+            currentFilter !== "all"
+        ) {
+
+            emptyState
+                .querySelector("h3")
+                .textContent =
+                "Tidak ada hasil";
+
+
+            emptyState
+                .querySelector("p")
+                .textContent =
+                "Tidak ada history dengan status tersebut.";
+
+
+            emptyState
+                .querySelector(
+                    ".generate-button"
+                )
+                .style.display =
+                "none";
+
+        } else {
+
+            emptyState
+                .querySelector("h3")
+                .textContent =
+                "Belum ada riwayat";
+
+
+            emptyState
+                .querySelector("p")
+                .textContent =
+                isAdminOrOwner()
+
+                    ? "Belum ada aktivitas generate di aplikasi."
+
+                    : "Kamu belum melakukan generate video.";
+
+
+            emptyState
+                .querySelector(
+                    ".generate-button"
+                )
+                .style.display =
+                isAdminOrOwner()
+
+                    ? "none"
+
+                    : "inline-block";
+
+        }
+
+
+        /*
+         * Penting:
+         * Filter aktif bisa saja tidak menampilkan item
+         * processing, tetapi polling tetap harus berjalan
+         * jika historyData masih memiliki generation aktif.
+         */
+
+        scheduleHistoryAutoRefresh();
+
+
+        return;
+
+    }
+
+
+    emptyState.style.display =
+        "none";
+
+
+    tableWrap.style.display =
+        "block";
+
+
+    historyBody.innerHTML =
+        "";
+
+
+    filtered.forEach(
+        item => {
+
+            const provider =
+                getProviderName(item);
+
+
+            const model =
+                getModelName(item);
+
+
+            const prompt =
+                getPrompt(item);
+
+
+            const credits =
+                getCreditCost(item);
+
+
+            const status =
+                normalizeStatus(
+                    item.status
+                );
+
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+
+            const userCell =
+                isAdminOrOwner()
+
+                    ? `
+
+                        <td class="user-cell">
+
+                            <strong
+                                title="${escapeHtml(
+                                    getHistoryUser(item)
+                                )}"
+                            >
+
+                                ${escapeHtml(
+                                    getHistoryUser(item)
+                                )}
+
+                            </strong>
+
+                            ${
+                                item.user_id
+
+                                    ? escapeHtml(
+                                        String(
+                                            item.user_id
+                                        ).slice(
+                                            0,
+                                            8
+                                        ) + "..."
+                                    )
+
+                                    : ""
+                            }
+
+                        </td>
+
+                    `
+
+                    : "";
+
+
+            row.innerHTML = `
+
+                <td class="thumbnail-cell">
+
+                    ${getThumbnailHtml(
+                        item
+                    )}
+
+                </td>
+
+
+                <td>
+
+                    ${escapeHtml(
+                        formatDate(
+                            item.created_at
+                        )
+                    )}
+
+                </td>
+
+
+                ${userCell}
+
+
+                <td>
+
+                    <span class="provider">
+
+                        ${escapeHtml(
+                            provider
+                        )}
+
+                    </span>
+
+                </td>
+
+
+                <td>
+
+                    <span class="model">
+
+                        ${escapeHtml(
+                            model
+                        )}
+
+                    </span>
+
+                </td>
+
+
+                <td class="prompt-cell">
+
+                    <div
+                        class="prompt-text"
+                        title="${escapeHtml(
+                            prompt
+                        )}"
+                    >
+
+                        ${escapeHtml(
+                            prompt
+                        )}
+
+                    </div>
+
+                </td>
+
+
+                <td>
+
+                    <span class="credits">
+
+                        ${escapeHtml(
+                            formatCredit(
+                                credits
+                            )
+                        )}
+
+                    </span>
+
+                </td>
+
+
+                <td>
+
+                    ${getStatusHtml(
+                        status
+                    )}
+
+                </td>
+
+
+                <td>
+
+                    <button
+                        class="view-button"
+                        type="button"
+                    >
+                        DETAIL
+                    </button>
+
+                </td>
+
+            `;
+
+
+            const button =
+                row.querySelector(
+                    ".view-button"
+                );
+
+
+            button.addEventListener(
+                "click",
+                function () {
+
+                    showDetail(item);
+
+                }
+            );
+
+
+            historyBody.appendChild(
+                row
+            );
+
+        }
+    );
+
+
+    bindThumbnailEvents(
+        historyBody
+    );
+
+
+    /*
+     * Setelah render selesai, periksa apakah masih ada
+     * generation yang membutuhkan polling.
+     *
+     * Jika semua sudah success/failed/cancelled,
+     * scheduleHistoryAutoRefresh() otomatis tidak membuat
+     * timer baru.
+     */
+
+    scheduleHistoryAutoRefresh();
+
+}
+
+
+/* =========================================================
+   DETAIL
+========================================================= */
+
+function showDetail(item) {
+
+    const provider =
+        getProviderName(item);
+
+
+    const model =
+        getModelName(item);
+
+
+    const prompt =
+        getPrompt(item);
+
+
+    const status =
+        normalizeStatus(
+            item.status
+        );
+
+
+    const credits =
+        getCreditCost(item);
+
+
+    const user =
+        getHistoryUser(item);
+
+
+    const taskId =
+        item?.task_id ||
+        "";
+
+
+    const resultUrl =
+        getResultUrl(item);
+
+
+    const ratio =
+        item?.ratio ||
+        "";
+
+
+    const duration =
+        item?.duration !== null &&
+        item?.duration !== undefined &&
+        item?.duration !== ""
+
+            ? String(item.duration)
+
+            : "";
+
+
+    const resolution =
+        item?.resolution ||
+        "";
+
+
+    const createdAt =
+        item?.created_at ||
+        "";
+
+
+    const completedAt =
+        item?.completed_at ||
+        "";
+
+
+    modalBody.innerHTML = `
+
+        ${
+            resultUrl &&
+            status === "success"
+
+                ? `
+
+                    <div
+                        class="detail-video-preview"
+                    >
+
+                        <video
+                            src="${escapeHtml(
+                                resultUrl
+                            )}"
+                            controls
+                            playsinline
+                            preload="metadata"
+                        ></video>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        ${
+            isAdminOrOwner()
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            User
+                        </div>
+
+                        <div class="detail-value">
+
+                            ${escapeHtml(
+                                user
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Tanggal Generate
+            </div>
+
+            <div class="detail-value">
+
+                ${escapeHtml(
+                    formatDate(
+                        createdAt
+                    )
+                )}
+
+            </div>
+
+        </div>
+
+
+        ${
+            completedAt
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            Selesai
+                        </div>
+
+                        <div class="detail-value">
+
+                            ${escapeHtml(
+                                formatDate(
+                                    completedAt
+                                )
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Provider
+            </div>
+
+            <div class="detail-value">
+
+                ${escapeHtml(
+                    provider
+                )}
+
+            </div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Model
+            </div>
+
+            <div class="detail-value">
+
+                ${escapeHtml(
+                    model
+                )}
+
+            </div>
+
+        </div>
+
+
+        ${
+            item?.model_id
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            Model ID
+                        </div>
+
+                        <div
+                            class="detail-value mono"
+                        >
+
+                            ${escapeHtml(
+                                item.model_id
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Prompt
+            </div>
+
+            <div class="detail-value">
+
+                ${escapeHtml(
+                    prompt
+                )}
+
+            </div>
+
+        </div>
+
+
+        ${
+            ratio
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            Aspect Ratio
+                        </div>
+
+                        <div class="detail-value">
+
+                            ${escapeHtml(
+                                ratio
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        ${
+            duration
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            Duration
+                        </div>
+
+                        <div class="detail-value">
+
+                            ${escapeHtml(
+                                duration
+                            )}
+                            detik
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        ${
+            resolution
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            Resolution
+                        </div>
+
+                        <div class="detail-value">
+
+                            ${escapeHtml(
+                                resolution
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Credit Digunakan
+            </div>
+
+            <div class="detail-value">
+
+                ${escapeHtml(
+                    formatCredit(
+                        credits
+                    )
+                )}
+
+            </div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Status
+            </div>
+
+            <div class="detail-value">
+
+                ${getStatusHtml(
+                    status
+                )}
+
+            </div>
+
+        </div>
+
+
+        ${
+            taskId
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            Task ID
+                        </div>
+
+                        <div
+                            class="detail-value mono"
+                        >
+
+                            ${escapeHtml(
+                                taskId
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        ${
+            item?.user_id
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            User ID
+                        </div>
+
+                        <div
+                            class="detail-value mono"
+                        >
+
+                            ${escapeHtml(
+                                item.user_id
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        ${
+            resultUrl
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            Output
+                        </div>
+
+                        <div class="detail-value">
+
+                            <a
+                                class="output-link"
+                                href="${escapeHtml(
+                                    resultUrl
+                                )}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Buka hasil video →
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+
+        ${
+            item?.error_message
+
+                ? `
+
+                    <div class="detail-row">
+
+                        <div class="detail-label">
+                            Error
+                        </div>
+
+                        <div
+                            class="detail-value"
+                            style="color:#991b1b;"
+                        >
+
+                            ${escapeHtml(
+                                item.error_message
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+
+                : ""
+        }
+
+    `;
+
+
+    detailModal.classList.add(
+        "show"
+    );
+
+}
+
+
+/* =========================================================
+   CLOSE MODAL
+========================================================= */
+
+closeModal.addEventListener(
+    "click",
+    function () {
+
+        detailModal.classList.remove(
+            "show"
+        );
+
+    }
+);
+
+
+detailModal.addEventListener(
+    "click",
+    function (event) {
+
+        if (
+            event.target ===
+            detailModal
+        ) {
+
+            detailModal.classList.remove(
+                "show"
+            );
+
+        }
+
+    }
+);
+
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key ===
+            "Escape"
+        ) {
+
+            detailModal.classList.remove(
+                "show"
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   FILTER
+========================================================= */
+
+document
+    .querySelectorAll(
+        ".filter-button"
+    )
+    .forEach(
+        button => {
+
+            button.addEventListener(
+                "click",
+                function () {
+
+                    document
+                        .querySelectorAll(
+                            ".filter-button"
+                        )
+                        .forEach(
+                            item => {
+
+                                item.classList.remove(
+                                    "active"
+                                );
+
+                            }
+                        );
+
+
+                    this.classList.add(
+                        "active"
+                    );
+
+
+                    currentFilter =
+                        this.dataset.filter ||
+                        "all";
+
+
+                    renderHistory();
+
+                }
+            );
+
+        }
+    );
+
+
+/* =========================================================
+   REFRESH
+========================================================= */
+
+refreshButton.addEventListener(
+    "click",
+    async function () {
+
+        try {
+
+            /*
+             * Hentikan timer lama supaya manual refresh
+             * tidak berjalan bersamaan dengan auto refresh.
+             *
+             * renderHistory() akan menjadwalkan kembali
+             * polling jika masih diperlukan.
+             */
+
+            stopHistoryAutoRefresh();
+
+
+            refreshButton.disabled =
+                true;
+
+
+            refreshButton.textContent =
+                "MEMUAT...";
+
+
+            await loadProfile();
+
+
+            await loadHistory();
+
+        } catch (error) {
+
+            console.error(
+                "Refresh error:",
+                error
+            );
+
+
+            showMessage(
+                error.message ||
+                "Gagal memuat history.",
+                "error"
+            );
+
+        } finally {
+
+            refreshButton.disabled =
+                false;
+
+
+            refreshButton.textContent =
+                "↻ REFRESH";
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+logoutButton.addEventListener(
+    "click",
+    async function () {
+
+        /*
+         * Jangan biarkan timer polling tetap hidup
+         * setelah user logout.
+         */
+
+        stopHistoryAutoRefresh();
+
+
+        try {
+
+            if (
+                supabaseClient
+            ) {
+
+                await supabaseClient
+                    .auth
+                    .signOut();
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Logout error:",
+                error
+            );
+
+        } finally {
+
+            window.location.replace(
+                "../login.html"
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   INIT
+========================================================= */
+
+async function init() {
+
+    try {
+
+        if (
+            !window.supabase
+        ) {
+
+            window.location.replace(
+                "../login.html"
+            );
+
+            return;
+
+        }
+
+
+        if (
+            !window.GENZ_CONFIG ||
+            !GENZ_CONFIG.SUPABASE_URL ||
+            !GENZ_CONFIG.SUPABASE_KEY
+        ) {
+
+            window.location.replace(
+                "../login.html"
+            );
+
+            return;
+
+        }
+
+
+        supabaseClient =
+            window.supabase.createClient(
+                GENZ_CONFIG.SUPABASE_URL,
+                GENZ_CONFIG.SUPABASE_KEY
+            );
+
+
+        const {
+            data: {
+                session
+            },
+            error
+        } =
+            await supabaseClient
+                .auth
+                .getSession();
+
+
+        if (
+            error ||
+            !session
+        ) {
+
+            window.location.replace(
+                "../login.html"
+            );
+
+            return;
+
+        }
+
+
+        currentUser =
+            session.user;
+
+
+        const profileOK =
+            await loadProfile();
+
+
+        if (!profileOK) {
+
+            return;
+
+        }
+
+
+        await loadHistory();
+
+    } catch (error) {
+
+        console.error(
+            "GEN-Z.AI History Error:",
+            error
+        );
+
+
+        stopHistoryAutoRefresh();
+
+
+        loadingState.style.display =
+            "none";
+
+
+        showMessage(
+            error.message ||
+            "Gagal memuat halaman history.",
+            "error"
+        );
+
+    }
+
+}
+
+
+init();
+
+</script>
+
+
+</body>
+
+</html>
