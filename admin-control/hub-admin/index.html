@@ -1,0 +1,2708 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>GEN-Z.AI • Hub Admin</title>
+
+    <!-- =====================================================
+         SUPABASE
+    ====================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="../../assets/js/config.js"></script>
+
+
+    <!-- =====================================================
+         PAGE STYLE
+    ====================================================== -->
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+
+        html {
+            width: 100%;
+            min-height: 100%;
+        }
+
+
+        body {
+
+            width: 100%;
+            min-height: 100vh;
+
+            overflow-x: hidden;
+
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                Arial,
+                sans-serif;
+
+            color: #ffffff;
+
+            background:
+
+                radial-gradient(
+                    circle at 10% 0%,
+                    rgba(255,23,68,0.10),
+                    transparent 28%
+                ),
+
+                radial-gradient(
+                    circle at 90% 10%,
+                    rgba(255,23,68,0.07),
+                    transparent 30%
+                ),
+
+                linear-gradient(
+                    135deg,
+                    #eeeeee 0%,
+                    #c9c9c9 17%,
+                    #777777 38%,
+                    #303030 65%,
+                    #080808 100%
+                );
+
+            background-attachment: fixed;
+        }
+
+
+        button,
+        input,
+        textarea {
+
+            font: inherit;
+
+        }
+
+
+        button,
+        a {
+
+            -webkit-tap-highlight-color:
+                transparent;
+
+        }
+
+
+        /* =====================================================
+           LOADING
+        ====================================================== */
+
+        #loading {
+
+            position: fixed;
+
+            inset: 0;
+
+            z-index: 99998;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            flex-direction: column;
+
+            gap: 18px;
+
+            background:
+
+                radial-gradient(
+                    circle at center,
+                    rgba(255,23,68,0.10),
+                    rgba(5,5,7,0.98) 55%
+                );
+
+            backdrop-filter:
+                blur(14px);
+        }
+
+
+        .loading-logo {
+
+            width: 64px;
+            height: 64px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 18px;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,0.16),
+                    rgba(255,255,255,0.025)
+                );
+
+            border:
+                1px solid
+                rgba(255,23,68,0.50);
+
+            box-shadow:
+
+                0 0 12px
+                rgba(255,23,68,0.35),
+
+                0 0 30px
+                rgba(255,23,68,0.14);
+        }
+
+
+        .loading-g {
+
+            font-size: 31px;
+
+            font-weight: 950;
+
+            letter-spacing: -3px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #ffffff,
+                    #53efff,
+                    #b36cff,
+                    #ff3159
+                );
+
+            -webkit-background-clip:
+                text;
+
+            background-clip:
+                text;
+
+            color: transparent;
+        }
+
+
+        .loading-spinner {
+
+            width: 25px;
+            height: 25px;
+
+            border-radius: 50%;
+
+            border:
+                2px solid
+                rgba(255,255,255,0.12);
+
+            border-top-color:
+                #ff3159;
+
+            animation:
+                loadingSpin
+                0.8s
+                linear
+                infinite;
+        }
+
+
+        .loading-text {
+
+            color:
+                rgba(255,255,255,0.55);
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            letter-spacing: 1.4px;
+
+            text-transform:
+                uppercase;
+        }
+
+
+        @keyframes loadingSpin {
+
+            to {
+
+                transform:
+                    rotate(360deg);
+
+            }
+
+        }
+
+
+        /* =====================================================
+           PAGE
+        ====================================================== */
+
+        .page {
+
+            min-height: 100vh;
+
+            padding:
+                112px
+                24px
+                55px;
+
+            position: relative;
+        }
+
+
+        .page::before {
+
+            content: "";
+
+            position: fixed;
+
+            inset: 0;
+
+            pointer-events: none;
+
+            background:
+
+                linear-gradient(
+                    120deg,
+                    transparent 0%,
+                    rgba(255,255,255,0.07) 35%,
+                    transparent 55%
+                );
+
+            opacity: 0.35;
+
+            z-index: 0;
+        }
+
+
+        .container {
+
+            width: 100%;
+
+            max-width: 900px;
+
+            margin: 0 auto;
+
+            position: relative;
+
+            z-index: 1;
+        }
+
+
+        /* =====================================================
+           HEADER
+        ====================================================== */
+
+        .page-header {
+
+            position: relative;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 20px;
+
+            padding:
+                20px
+                22px;
+
+            margin-bottom: 22px;
+
+            border-radius: 24px;
+
+            background:
+
+                linear-gradient(
+                    145deg,
+                    rgba(18,18,21,0.94),
+                    rgba(4,4,5,0.86)
+                );
+
+            border:
+                1px solid
+                rgba(255,23,68,0.48);
+
+            box-shadow:
+
+                0 0 7px
+                rgba(255,23,68,0.28),
+
+                0 0 25px
+                rgba(255,23,68,0.12),
+
+                inset 0 0 25px
+                rgba(255,23,68,0.025);
+
+            overflow: hidden;
+        }
+
+
+        .page-header::after {
+
+            content: "";
+
+            position: absolute;
+
+            left: 0;
+            right: 0;
+            bottom: 0;
+
+            height: 1px;
+
+            background:
+
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    rgba(255,23,68,0.75),
+                    transparent
+                );
+
+            opacity: 0.65;
+        }
+
+
+        .brand-area {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 16px;
+
+            min-width: 0;
+        }
+
+
+        .holo-logo {
+
+            width: 58px;
+            height: 58px;
+
+            flex: 0 0 58px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 17px;
+
+            background:
+
+                linear-gradient(
+                    145deg,
+                    rgba(255,255,255,0.17),
+                    rgba(255,255,255,0.035)
+                );
+
+            border:
+                1px solid
+                rgba(255,255,255,0.20);
+
+            box-shadow:
+
+                0 0 8px
+                rgba(255,23,68,0.50),
+
+                0 0 22px
+                rgba(255,23,68,0.20);
+        }
+
+
+        .holo-g {
+
+            font-size: 30px;
+
+            line-height: 1;
+
+            font-weight: 950;
+
+            letter-spacing: -3px;
+
+            background:
+
+                linear-gradient(
+                    135deg,
+                    #ffffff,
+                    #53efff,
+                    #b36cff,
+                    #ff3159
+                );
+
+            -webkit-background-clip:
+                text;
+
+            background-clip:
+                text;
+
+            color: transparent;
+        }
+
+
+        .brand-name {
+
+            font-size:
+                clamp(20px, 3vw, 28px);
+
+            font-weight: 900;
+
+            letter-spacing:
+                -0.7px;
+
+            background:
+
+                linear-gradient(
+                    90deg,
+                    #ffffff,
+                    #e8e8e8,
+                    #9eefff,
+                    #ffffff
+                );
+
+            -webkit-background-clip:
+                text;
+
+            background-clip:
+                text;
+
+            color: transparent;
+        }
+
+
+        .brand-subtitle {
+
+            margin-top: 5px;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            letter-spacing: 1.8px;
+
+            text-transform:
+                uppercase;
+
+            color:
+                rgba(255,255,255,0.46);
+        }
+
+
+        .header-badge {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding:
+                9px
+                13px;
+
+            border-radius: 999px;
+
+            background:
+                rgba(255,23,68,0.08);
+
+            border:
+                1px solid
+                rgba(255,23,68,0.35);
+
+            color:
+                rgba(255,255,255,0.78);
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            letter-spacing: 1.1px;
+
+            white-space: nowrap;
+        }
+
+
+        .header-badge-dot {
+
+            width: 7px;
+            height: 7px;
+
+            border-radius: 50%;
+
+            background:
+                #ff3159;
+
+            box-shadow:
+                0 0 10px
+                rgba(255,23,68,0.85);
+        }
+
+
+        /* =====================================================
+           HERO
+        ====================================================== */
+
+        .hero {
+
+            position: relative;
+
+            padding:
+                27px
+                25px;
+
+            margin-bottom: 18px;
+
+            border-radius: 23px;
+
+            background:
+
+                linear-gradient(
+                    145deg,
+                    rgba(12,12,14,0.90),
+                    rgba(8,8,9,0.72)
+                );
+
+            border:
+                1px solid
+                rgba(255,23,68,0.34);
+
+            box-shadow:
+
+                0 0 6px
+                rgba(255,23,68,0.18),
+
+                0 0 22px
+                rgba(255,23,68,0.08);
+        }
+
+
+        .eyebrow {
+
+            display: inline-flex;
+
+            padding:
+                7px
+                12px;
+
+            margin-bottom: 12px;
+
+            border-radius: 999px;
+
+            background:
+                rgba(255,23,68,0.08);
+
+            border:
+                1px solid
+                rgba(255,23,68,0.32);
+
+            color:
+                #ff8ba0;
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            letter-spacing: 1.8px;
+
+            text-transform:
+                uppercase;
+        }
+
+
+        .hero h1 {
+
+            font-size:
+                clamp(28px, 5vw, 44px);
+
+            line-height: 1.05;
+
+            font-weight: 900;
+
+            letter-spacing: -1.5px;
+        }
+
+
+        .hero h1 span {
+
+            background:
+
+                linear-gradient(
+                    90deg,
+                    #ffffff,
+                    #ffb3c2,
+                    #ff3159,
+                    #ffffff
+                );
+
+            -webkit-background-clip:
+                text;
+
+            background-clip:
+                text;
+
+            color: transparent;
+        }
+
+
+        .hero p {
+
+            max-width: 680px;
+
+            margin-top: 11px;
+
+            color:
+                rgba(255,255,255,0.57);
+
+            line-height: 1.7;
+
+            font-size: 13px;
+        }
+
+
+        /* =====================================================
+           CARD
+        ====================================================== */
+
+        .card {
+
+            position: relative;
+
+            padding: 24px;
+
+            border-radius: 23px;
+
+            background:
+
+                linear-gradient(
+                    145deg,
+                    rgba(18,18,20,0.95),
+                    rgba(6,6,7,0.86)
+                );
+
+            border:
+                1px solid
+                rgba(255,23,68,0.34);
+
+            box-shadow:
+
+                0 0 6px
+                rgba(255,23,68,0.14),
+
+                0 15px 40px
+                rgba(0,0,0,0.22);
+
+            overflow: hidden;
+        }
+
+
+        .card-title {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            margin-bottom: 21px;
+        }
+
+
+        .card-icon {
+
+            width: 42px;
+            height: 42px;
+
+            flex: 0 0 42px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 13px;
+
+            background:
+                rgba(255,23,68,0.09);
+
+            border:
+                1px solid
+                rgba(255,23,68,0.28);
+
+            font-size: 19px;
+
+            box-shadow:
+                0 0 16px
+                rgba(255,23,68,0.10);
+        }
+
+
+        .card-title h2 {
+
+            font-size: 18px;
+
+            font-weight: 850;
+        }
+
+
+        .card-title p {
+
+            margin-top: 3px;
+
+            font-size: 11px;
+
+            color:
+                rgba(255,255,255,0.45);
+        }
+
+
+        /* =====================================================
+           FORM
+        ====================================================== */
+
+        .form-group {
+
+            margin-bottom: 19px;
+        }
+
+
+        .form-label {
+
+            display: block;
+
+            margin-bottom: 8px;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            letter-spacing: 0.5px;
+
+            color:
+                rgba(255,255,255,0.80);
+        }
+
+
+        .form-help {
+
+            margin-top: 7px;
+
+            font-size: 10px;
+
+            line-height: 1.6;
+
+            color:
+                rgba(255,255,255,0.38);
+        }
+
+
+        .form-input,
+        .form-textarea {
+
+            width: 100%;
+
+            color: #ffffff;
+
+            background:
+                rgba(0,0,0,0.30);
+
+            border:
+                1px solid
+                rgba(255,255,255,0.12);
+
+            border-radius: 13px;
+
+            outline: none;
+
+            transition:
+                border-color .2s ease,
+                box-shadow .2s ease,
+                background .2s ease;
+        }
+
+
+        .form-input {
+
+            min-height: 48px;
+
+            padding:
+                0
+                14px;
+
+        }
+
+
+        .form-textarea {
+
+            min-height: 125px;
+
+            padding: 13px 14px;
+
+            resize: vertical;
+
+            line-height: 1.6;
+        }
+
+
+        .form-input:focus,
+        .form-textarea:focus {
+
+            border-color:
+                rgba(255,49,89,0.68);
+
+            background:
+                rgba(255,23,68,0.035);
+
+            box-shadow:
+
+                0 0 0 3px
+                rgba(255,23,68,0.08),
+
+                0 0 18px
+                rgba(255,23,68,0.08);
+        }
+
+
+        .phone-row {
+
+            display: grid;
+
+            grid-template-columns:
+                1fr
+                auto;
+
+            gap: 10px;
+
+            align-items: stretch;
+        }
+
+
+        .normalize-button {
+
+            min-width: 105px;
+
+            padding:
+                0
+                15px;
+
+            border-radius: 13px;
+
+            border:
+                1px solid
+                rgba(255,255,255,0.13);
+
+            background:
+                rgba(255,255,255,0.055);
+
+            color:
+                rgba(255,255,255,0.82);
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            cursor: pointer;
+
+            transition:
+                .2s ease;
+        }
+
+
+        .normalize-button:hover {
+
+            background:
+                rgba(255,23,68,0.09);
+
+            border-color:
+                rgba(255,23,68,0.34);
+        }
+
+
+        /* =====================================================
+           TOGGLE
+        ====================================================== */
+
+        .setting-row {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 20px;
+
+            padding:
+                15px 16px;
+
+            margin-top: 5px;
+
+            border-radius: 15px;
+
+            background:
+                rgba(255,255,255,0.025);
+
+            border:
+                1px solid
+                rgba(255,255,255,0.08);
+        }
+
+
+        .setting-copy {
+
+            min-width: 0;
+        }
+
+
+        .setting-title {
+
+            font-size: 12px;
+
+            font-weight: 800;
+        }
+
+
+        .setting-description {
+
+            margin-top: 4px;
+
+            font-size: 10px;
+
+            line-height: 1.5;
+
+            color:
+                rgba(255,255,255,0.40);
+        }
+
+
+        .switch {
+
+            position: relative;
+
+            width: 52px;
+            height: 29px;
+
+            flex: 0 0 52px;
+        }
+
+
+        .switch input {
+
+            position: absolute;
+
+            opacity: 0;
+
+            pointer-events: none;
+        }
+
+
+        .switch-track {
+
+            position: absolute;
+
+            inset: 0;
+
+            cursor: pointer;
+
+            border-radius: 999px;
+
+            background:
+                rgba(255,255,255,0.13);
+
+            border:
+                1px solid
+                rgba(255,255,255,0.10);
+
+            transition:
+                .2s ease;
+        }
+
+
+        .switch-track::before {
+
+            content: "";
+
+            position: absolute;
+
+            width: 21px;
+            height: 21px;
+
+            top: 3px;
+            left: 3px;
+
+            border-radius: 50%;
+
+            background: #ffffff;
+
+            box-shadow:
+                0 2px 8px
+                rgba(0,0,0,0.35);
+
+            transition:
+                .2s ease;
+        }
+
+
+        .switch input:checked
+        + .switch-track {
+
+            background:
+                rgba(255,23,68,0.70);
+
+            border-color:
+                rgba(255,23,68,0.80);
+
+            box-shadow:
+                0 0 14px
+                rgba(255,23,68,0.22);
+        }
+
+
+        .switch input:checked
+        + .switch-track::before {
+
+            transform:
+                translateX(23px);
+        }
+
+
+        /* =====================================================
+           ACTIONS
+        ====================================================== */
+
+        .actions {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 14px;
+
+            margin-top: 22px;
+
+            padding-top: 19px;
+
+            border-top:
+                1px solid
+                rgba(255,255,255,0.08);
+        }
+
+
+        .status {
+
+            min-height: 20px;
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            color:
+                rgba(255,255,255,0.42);
+        }
+
+
+        .status.success {
+
+            color:
+                #69f5a4;
+        }
+
+
+        .status.error {
+
+            color:
+                #ff718b;
+        }
+
+
+        .save-button {
+
+            min-height: 46px;
+
+            padding:
+                0
+                21px;
+
+            border: 0;
+
+            border-radius: 13px;
+
+            color: #ffffff;
+
+            background:
+
+                linear-gradient(
+                    135deg,
+                    #ff3159,
+                    #d91542
+                );
+
+            box-shadow:
+
+                0 8px 24px
+                rgba(255,23,68,0.22),
+
+                inset 0 1px 0
+                rgba(255,255,255,0.14);
+
+            font-size: 12px;
+
+            font-weight: 850;
+
+            cursor: pointer;
+
+            transition:
+                transform .2s ease,
+                opacity .2s ease,
+                box-shadow .2s ease;
+        }
+
+
+        .save-button:hover {
+
+            transform:
+                translateY(-1px);
+
+            box-shadow:
+
+                0 11px 28px
+                rgba(255,23,68,0.30),
+
+                inset 0 1px 0
+                rgba(255,255,255,0.14);
+        }
+
+
+        .save-button:disabled {
+
+            opacity: 0.55;
+
+            cursor: wait;
+
+            transform: none;
+        }
+
+
+        /* =====================================================
+           PREVIEW
+        ====================================================== */
+
+        .preview {
+
+            margin-top: 18px;
+
+            padding: 18px;
+
+            border-radius: 18px;
+
+            background:
+                rgba(255,255,255,0.025);
+
+            border:
+                1px solid
+                rgba(255,255,255,0.08);
+        }
+
+
+        .preview-label {
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            letter-spacing: 1.5px;
+
+            text-transform:
+                uppercase;
+
+            color:
+                rgba(255,255,255,0.40);
+
+            margin-bottom: 10px;
+        }
+
+
+        .preview-box {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 15px;
+
+            padding:
+                14px;
+
+            border-radius: 14px;
+
+            background:
+                rgba(0,0,0,0.25);
+
+            border:
+                1px solid
+                rgba(255,255,255,0.07);
+        }
+
+
+        .preview-copy {
+
+            min-width: 0;
+        }
+
+
+        .preview-title {
+
+            font-size: 12px;
+
+            font-weight: 800;
+        }
+
+
+        .preview-message {
+
+            margin-top: 4px;
+
+            color:
+                rgba(255,255,255,0.42);
+
+            font-size: 10px;
+
+            line-height: 1.5;
+
+            word-break: break-word;
+        }
+
+
+        .preview-status {
+
+            flex: 0 0 auto;
+
+            padding:
+                6px 9px;
+
+            border-radius: 999px;
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            letter-spacing: 0.7px;
+
+            background:
+                rgba(105,245,164,0.08);
+
+            border:
+                1px solid
+                rgba(105,245,164,0.25);
+
+            color:
+                #69f5a4;
+        }
+
+
+        .preview-status.off {
+
+            background:
+                rgba(255,255,255,0.05);
+
+            border-color:
+                rgba(255,255,255,0.10);
+
+            color:
+                rgba(255,255,255,0.42);
+        }
+
+
+        /* =====================================================
+           RESPONSIVE
+        ====================================================== */
+
+        @media (max-width: 700px) {
+
+            .page {
+
+                padding:
+                    92px
+                    13px
+                    35px;
+            }
+
+
+            .page-header {
+
+                padding:
+                    16px;
+
+                border-radius:
+                    19px;
+            }
+
+
+            .holo-logo {
+
+                width: 49px;
+                height: 49px;
+
+                flex-basis: 49px;
+
+                border-radius: 14px;
+            }
+
+
+            .holo-g {
+
+                font-size: 25px;
+            }
+
+
+            .brand-subtitle {
+
+                font-size: 8px;
+
+                letter-spacing: 1.1px;
+            }
+
+
+            .header-badge {
+
+                padding:
+                    7px 9px;
+
+                font-size: 8px;
+            }
+
+
+            .hero {
+
+                padding:
+                    21px 18px;
+
+                border-radius:
+                    19px;
+            }
+
+
+            .card {
+
+                padding:
+                    18px;
+
+                border-radius:
+                    19px;
+            }
+
+
+            .phone-row {
+
+                grid-template-columns:
+                    1fr;
+            }
+
+
+            .normalize-button {
+
+                min-height: 43px;
+            }
+
+
+            .actions {
+
+                align-items:
+                    stretch;
+
+                flex-direction:
+                    column;
+            }
+
+
+            .save-button {
+
+                width: 100%;
+            }
+
+
+            .preview-box {
+
+                align-items:
+                    flex-start;
+
+                flex-direction:
+                    column;
+            }
+
+        }
+
+
+        @media (max-width: 430px) {
+
+            .header-badge {
+
+                display: none;
+            }
+
+
+            .brand-name {
+
+                font-size: 20px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+    ====================================================== -->
+
+    <div id="navigation"></div>
+
+
+    <!-- =====================================================
+         PAGE LOADING
+    ====================================================== -->
+
+    <div
+        id="loading"
+        aria-live="polite"
+    >
+
+        <div class="loading-logo">
+
+            <span class="loading-g">
+                G
+            </span>
+
+        </div>
+
+        <div class="loading-spinner"></div>
+
+        <div class="loading-text">
+            Memverifikasi akses admin...
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         ADMIN PAGE
+    ====================================================== -->
+
+    <main
+        id="adminPage"
+        class="page"
+        style="display:none;"
+    >
+
+        <div class="container">
+
+
+            <!-- =================================================
+                 HEADER
+            ================================================== -->
+
+            <header class="page-header">
+
+                <div class="brand-area">
+
+                    <div class="holo-logo">
+
+                        <span class="holo-g">
+                            G
+                        </span>
+
+                    </div>
+
+
+                    <div>
+
+                        <div class="brand-name">
+                            GEN-Z.AI
+                        </div>
+
+                        <div class="brand-subtitle">
+                            Hub Admin Configuration
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="header-badge">
+
+                    <span
+                        class="header-badge-dot"
+                        aria-hidden="true"
+                    ></span>
+
+                    HUB ADMIN
+
+                </div>
+
+            </header>
+
+
+            <!-- =================================================
+                 HERO
+            ================================================== -->
+
+            <section class="hero">
+
+                <div class="eyebrow">
+                    ADMIN SETTINGS
+                </div>
+
+                <h1>
+                    Hub <span>Admin</span>
+                </h1>
+
+                <p>
+                    Atur kontak WhatsApp yang digunakan
+                    pengguna untuk menghubungi admin GEN-Z.AI.
+                    Halaman ini hanya mengatur kanal kontak admin.
+                </p>
+
+            </section>
+
+
+            <!-- =================================================
+                 SETTINGS CARD
+            ================================================== -->
+
+            <section class="card">
+
+                <div class="card-title">
+
+                    <div class="card-icon">
+                        ◉
+                    </div>
+
+                    <div>
+
+                        <h2>
+                            WhatsApp Admin
+                        </h2>
+
+                        <p>
+                            Konfigurasi kontak yang ditampilkan
+                            pada Hub Admin pengguna.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =============================================
+                     PHONE
+                ============================================== -->
+
+                <div class="form-group">
+
+                    <label
+                        class="form-label"
+                        for="whatsappNumber"
+                    >
+                        Nomor WhatsApp Admin
+                    </label>
+
+
+                    <div class="phone-row">
+
+                        <input
+                            id="whatsappNumber"
+                            class="form-input"
+                            type="tel"
+                            inputmode="numeric"
+                            autocomplete="tel"
+                            placeholder="6281234567890"
+                        >
+
+
+                        <button
+                            type="button"
+                            id="normalizeButton"
+                            class="normalize-button"
+                        >
+                            Normalisasi
+                        </button>
+
+                    </div>
+
+
+                    <div class="form-help">
+
+                        Gunakan format internasional tanpa tanda
+                        <strong>+</strong>, spasi, atau tanda baca.
+                        Contoh: 6281234567890.
+
+                    </div>
+
+                </div>
+
+
+                <!-- =============================================
+                     MESSAGE
+                ============================================== -->
+
+                <div class="form-group">
+
+                    <label
+                        class="form-label"
+                        for="whatsappMessage"
+                    >
+                        Pesan WhatsApp Default
+                    </label>
+
+
+                    <textarea
+                        id="whatsappMessage"
+                        class="form-textarea"
+                        maxlength="500"
+                        placeholder="Halo Admin GEN-Z.AI, saya membutuhkan bantuan."
+                    ></textarea>
+
+
+                    <div class="form-help">
+
+                        Pesan ini otomatis dimasukkan ketika user
+                        menekan tombol Hubungi Admin.
+
+                    </div>
+
+                </div>
+
+
+                <!-- =============================================
+                     ENABLE
+                ============================================== -->
+
+                <div class="setting-row">
+
+                    <div class="setting-copy">
+
+                        <div class="setting-title">
+                            Aktifkan Hub Admin
+                        </div>
+
+                        <div class="setting-description">
+
+                            Jika aktif, pengguna dapat membuka
+                            WhatsApp admin dari halaman Hub Admin.
+
+                        </div>
+
+                    </div>
+
+
+                    <label class="switch">
+
+                        <input
+                            id="isActive"
+                            type="checkbox"
+                        >
+
+                        <span class="switch-track"></span>
+
+                    </label>
+
+                </div>
+
+
+                <!-- =============================================
+                     PREVIEW
+                ============================================== -->
+
+                <div class="preview">
+
+                    <div class="preview-label">
+                        Preview
+                    </div>
+
+
+                    <div class="preview-box">
+
+                        <div class="preview-copy">
+
+                            <div
+                                id="previewNumber"
+                                class="preview-title"
+                            >
+                                Nomor belum diatur
+                            </div>
+
+                            <div
+                                id="previewMessage"
+                                class="preview-message"
+                            >
+                                Pesan belum diatur.
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            id="previewStatus"
+                            class="preview-status off"
+                        >
+                            NONAKTIF
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =============================================
+                     ACTION
+                ============================================== -->
+
+                <div class="actions">
+
+                    <div
+                        id="status"
+                        class="status"
+                        aria-live="polite"
+                    ></div>
+
+
+                    <button
+                        type="button"
+                        id="saveButton"
+                        class="save-button"
+                    >
+                        Simpan Konfigurasi
+                    </button>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <!-- =====================================================
+         SUPABASE CLIENT BRIDGE
+    ====================================================== -->
+
+    <script>
+
+        (() => {
+
+            "use strict";
+
+
+            try {
+
+                if (
+                    !window.supabase ||
+                    typeof window.supabase.createClient !==
+                        "function"
+                ) {
+
+                    throw new Error(
+                        "Supabase library tidak tersedia."
+                    );
+
+                }
+
+
+                if (
+                    !window.GENZ_CONFIG ||
+                    !window.GENZ_CONFIG.SUPABASE_URL ||
+                    !window.GENZ_CONFIG.SUPABASE_KEY
+                ) {
+
+                    throw new Error(
+                        "Konfigurasi Supabase tidak tersedia."
+                    );
+
+                }
+
+
+                if (
+                    window.GENZ_SUPABASE &&
+                    window.GENZ_SUPABASE.auth &&
+                    typeof
+                        window.GENZ_SUPABASE.auth.getSession ===
+                        "function"
+                ) {
+
+                    window.supabaseClient =
+                        window.GENZ_SUPABASE;
+
+                    return;
+
+                }
+
+
+                if (
+                    window.supabaseClient &&
+                    window.supabaseClient.auth &&
+                    typeof
+                        window.supabaseClient.auth.getSession ===
+                        "function"
+                ) {
+
+                    window.GENZ_SUPABASE =
+                        window.supabaseClient;
+
+                    return;
+
+                }
+
+
+                const client =
+                    window.supabase.createClient(
+                        window.GENZ_CONFIG.SUPABASE_URL,
+                        window.GENZ_CONFIG.SUPABASE_KEY
+                    );
+
+
+                window.GENZ_SUPABASE =
+                    client;
+
+                window.supabaseClient =
+                    client;
+
+
+            } catch (error) {
+
+                console.error(
+                    "[GEN-Z.AI] Supabase initialization error:",
+                    error
+                );
+
+            }
+
+        })();
+
+    </script>
+
+
+    <!-- =====================================================
+         SHARED NAVIGATION
+    ====================================================== -->
+
+    <script
+        src="/navigation/navigation.js"
+    ></script>
+
+
+    <!-- =====================================================
+         HUB ADMIN PAGE CONTROLLER
+    ====================================================== -->
+
+    <script>
+
+        (() => {
+
+            "use strict";
+
+
+            const TABLE =
+                "hub_admin_settings";
+
+
+            const loading =
+                document.getElementById(
+                    "loading"
+                );
+
+
+            const adminPage =
+                document.getElementById(
+                    "adminPage"
+                );
+
+
+            const whatsappNumber =
+                document.getElementById(
+                    "whatsappNumber"
+                );
+
+
+            const whatsappMessage =
+                document.getElementById(
+                    "whatsappMessage"
+                );
+
+
+            const isActive =
+                document.getElementById(
+                    "isActive"
+                );
+
+
+            const saveButton =
+                document.getElementById(
+                    "saveButton"
+                );
+
+
+            const normalizeButton =
+                document.getElementById(
+                    "normalizeButton"
+                );
+
+
+            const status =
+                document.getElementById(
+                    "status"
+                );
+
+
+            const previewNumber =
+                document.getElementById(
+                    "previewNumber"
+                );
+
+
+            const previewMessage =
+                document.getElementById(
+                    "previewMessage"
+                );
+
+
+            const previewStatus =
+                document.getElementById(
+                    "previewStatus"
+                );
+
+
+            let settingsId = null;
+
+
+            function hideLoading() {
+
+                if (loading) {
+
+                    loading.style.display =
+                        "none";
+
+                }
+
+            }
+
+
+            function showPage() {
+
+                if (adminPage) {
+
+                    adminPage.style.display =
+                        "";
+
+                }
+
+                hideLoading();
+
+            }
+
+
+            function setStatus(
+                message,
+                type = ""
+            ) {
+
+                if (!status) {
+                    return;
+                }
+
+                status.textContent =
+                    message || "";
+
+                status.className =
+                    "status";
+
+                if (type) {
+
+                    status.classList.add(
+                        type
+                    );
+
+                }
+
+            }
+
+
+            function normalizePhone(
+                value
+            ) {
+
+                let phone =
+                    String(
+                        value || ""
+                    )
+                    .trim();
+
+
+                /*
+                 * Hapus seluruh karakter
+                 * selain angka.
+                 */
+
+                phone =
+                    phone.replace(
+                        /\D/g,
+                        ""
+                    );
+
+
+                /*
+                 * 08xxxxxxxxxx
+                 * menjadi
+                 * 628xxxxxxxxxx
+                 */
+
+                if (
+                    phone.startsWith("08")
+                ) {
+
+                    phone =
+                        "62" +
+                        phone.slice(1);
+
+                }
+
+
+                /*
+                 * +62xxxxxxxxxx
+                 * setelah karakter non-digit
+                 * dihapus menjadi 62xxxxxxxxxx.
+                 */
+
+                return phone;
+
+            }
+
+
+            function updatePreview() {
+
+                const number =
+                    String(
+                        whatsappNumber?.value ||
+                        ""
+                    ).trim();
+
+
+                const message =
+                    String(
+                        whatsappMessage?.value ||
+                        ""
+                    ).trim();
+
+
+                if (previewNumber) {
+
+                    previewNumber.textContent =
+                        number
+                            ? number
+                            : "Nomor belum diatur";
+
+                }
+
+
+                if (previewMessage) {
+
+                    previewMessage.textContent =
+                        message
+                            ? message
+                            : "Pesan belum diatur.";
+
+                }
+
+
+                if (previewStatus) {
+
+                    const active =
+                        Boolean(
+                            isActive?.checked
+                        );
+
+
+                    previewStatus.textContent =
+                        active
+                            ? "AKTIF"
+                            : "NONAKTIF";
+
+
+                    previewStatus.classList.toggle(
+                        "off",
+                        !active
+                    );
+
+                }
+
+            }
+
+
+            function hasAdminAccess() {
+
+                const role =
+                    String(
+                        window.GENZ_NAVIGATION_ROLE ||
+                        ""
+                    )
+                    .trim()
+                    .toLowerCase();
+
+
+                return (
+                    role === "admin" ||
+                    role === "owner"
+                );
+
+            }
+
+
+            async function loadSettings() {
+
+                const client =
+                    window.GENZ_SUPABASE ||
+                    window.supabaseClient;
+
+
+                if (!client) {
+
+                    throw new Error(
+                        "Supabase client tidak tersedia."
+                    );
+
+                }
+
+
+                const {
+                    data,
+                    error
+                } = await client
+
+                    .from(TABLE)
+
+                    .select(
+                        "id,whatsapp_number,whatsapp_message,is_active"
+                    )
+
+                    .limit(1);
+
+
+                if (error) {
+
+                    throw error;
+
+                }
+
+
+                const row =
+                    Array.isArray(data) &&
+                    data.length
+                        ? data[0]
+                        : null;
+
+
+                if (!row) {
+
+                    settingsId = null;
+
+                    whatsappNumber.value = "";
+
+                    whatsappMessage.value =
+                        "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
+
+                    isActive.checked =
+                        true;
+
+                    updatePreview();
+
+                    return;
+
+                }
+
+
+                settingsId =
+                    row.id;
+
+
+                whatsappNumber.value =
+                    row.whatsapp_number ||
+                    "";
+
+
+                whatsappMessage.value =
+                    row.whatsapp_message ||
+                    "";
+
+
+                isActive.checked =
+                    row.is_active === true;
+
+
+                updatePreview();
+
+            }
+
+
+            async function saveSettings() {
+
+                const client =
+                    window.GENZ_SUPABASE ||
+                    window.supabaseClient;
+
+
+                if (!client) {
+
+                    throw new Error(
+                        "Supabase client tidak tersedia."
+                    );
+
+                }
+
+
+                const number =
+                    normalizePhone(
+                        whatsappNumber.value
+                    );
+
+
+                const message =
+                    String(
+                        whatsappMessage.value ||
+                        ""
+                    ).trim();
+
+
+                const active =
+                    Boolean(
+                        isActive.checked
+                    );
+
+
+                if (!number) {
+
+                    throw new Error(
+                        "Nomor WhatsApp admin wajib diisi."
+                    );
+
+                }
+
+
+                if (
+                    !/^62\d{8,15}$/.test(
+                        number
+                    )
+                ) {
+
+                    throw new Error(
+                        "Nomor WhatsApp tidak valid. Gunakan format 628xxxxxxxxxx."
+                    );
+
+                }
+
+
+                if (!message) {
+
+                    throw new Error(
+                        "Pesan WhatsApp wajib diisi."
+                    );
+
+                }
+
+
+                /*
+                 * Tampilkan hasil normalisasi
+                 * sebelum disimpan.
+                 */
+
+                whatsappNumber.value =
+                    number;
+
+
+                const payload = {
+
+                    whatsapp_number:
+                        number,
+
+                    whatsapp_message:
+                        message,
+
+                    is_active:
+                        active,
+
+                    updated_at:
+                        new Date().toISOString()
+
+                };
+
+
+                let result;
+
+
+                if (settingsId !== null) {
+
+                    result =
+                        await client
+
+                            .from(TABLE)
+
+                            .update(
+                                payload
+                            )
+
+                            .eq(
+                                "id",
+                                settingsId
+                            )
+
+                            .select(
+                                "id,whatsapp_number,whatsapp_message,is_active"
+                            )
+
+                            .single();
+
+                } else {
+
+                    result =
+                        await client
+
+                            .from(TABLE)
+
+                            .insert(
+                                payload
+                            )
+
+                            .select(
+                                "id,whatsapp_number,whatsapp_message,is_active"
+                            )
+
+                            .single();
+
+                }
+
+
+                if (result.error) {
+
+                    throw result.error;
+
+                }
+
+
+                if (result.data) {
+
+                    settingsId =
+                        result.data.id;
+
+                    whatsappNumber.value =
+                        result.data.whatsapp_number ||
+                        "";
+
+                    whatsappMessage.value =
+                        result.data.whatsapp_message ||
+                        "";
+
+                    isActive.checked =
+                        result.data.is_active === true;
+
+                }
+
+
+                updatePreview();
+
+            }
+
+
+            async function start() {
+
+                /*
+                 * navigation.js adalah sumber
+                 * kebenaran authentication,
+                 * profile, dan role.
+                 */
+
+                if (
+                    window.GENZNavigationReady &&
+                    typeof
+                        window.GENZNavigationReady.then ===
+                        "function"
+                ) {
+
+                    try {
+
+                        const ready =
+                            await
+                                window.GENZNavigationReady;
+
+
+                        if (
+                            ready !== true
+                        ) {
+
+                            hideLoading();
+
+                            return;
+
+                        }
+
+
+                        if (
+                            !hasAdminAccess()
+                        ) {
+
+                            hideLoading();
+
+                            return;
+
+                        }
+
+
+                        showPage();
+
+
+                        await loadSettings();
+
+
+                    } catch (error) {
+
+                        console.error(
+                            "[GEN-Z.AI] Hub Admin initialization failed:",
+                            error
+                        );
+
+
+                        setStatus(
+                            error?.message ||
+                            "Gagal memuat konfigurasi.",
+                            "error"
+                        );
+
+
+                        showPage();
+
+                    }
+
+
+                    return;
+
+                }
+
+
+                /*
+                 * Compatibility fallback.
+                 */
+
+                let attempts = 0;
+
+
+                const timer =
+                    setInterval(
+                        async () => {
+
+                            attempts++;
+
+
+                            if (
+                                hasAdminAccess()
+                            ) {
+
+                                clearInterval(
+                                    timer
+                                );
+
+
+                                try {
+
+                                    showPage();
+
+                                    await
+                                        loadSettings();
+
+                                } catch (
+                                    error
+                                ) {
+
+                                    console.error(
+                                        error
+                                    );
+
+                                    setStatus(
+                                        error?.message ||
+                                        "Gagal memuat konfigurasi.",
+                                        "error"
+                                    );
+
+                                }
+
+                                return;
+
+                            }
+
+
+                            if (
+                                window.GENZ_NAVIGATION_PROFILE ||
+                                attempts >= 100
+                            ) {
+
+                                clearInterval(
+                                    timer
+                                );
+
+                                hideLoading();
+
+                            }
+
+                        },
+                        100
+                    );
+
+            }
+
+
+            normalizeButton?.addEventListener(
+                "click",
+                () => {
+
+                    whatsappNumber.value =
+                        normalizePhone(
+                            whatsappNumber.value
+                        );
+
+                    updatePreview();
+
+                    setStatus(
+                        "Nomor dinormalisasi."
+                    );
+
+                }
+            );
+
+
+            whatsappNumber?.addEventListener(
+                "input",
+                updatePreview
+            );
+
+
+            whatsappMessage?.addEventListener(
+                "input",
+                updatePreview
+            );
+
+
+            isActive?.addEventListener(
+                "change",
+                updatePreview
+            );
+
+
+            saveButton?.addEventListener(
+                "click",
+                async () => {
+
+                    if (
+                        saveButton.disabled
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    saveButton.disabled =
+                        true;
+
+
+                    setStatus(
+                        "Menyimpan..."
+                    );
+
+
+                    try {
+
+                        await saveSettings();
+
+
+                        setStatus(
+                            "Konfigurasi berhasil disimpan.",
+                            "success"
+                        );
+
+
+                    } catch (error) {
+
+                        console.error(
+                            "[GEN-Z.AI] Hub Admin save error:",
+                            error
+                        );
+
+
+                        setStatus(
+                            error?.message ||
+                            "Gagal menyimpan konfigurasi.",
+                            "error"
+                        );
+
+                    } finally {
+
+                        saveButton.disabled =
+                            false;
+
+                    }
+
+                }
+            );
+
+
+            if (
+                document.readyState ===
+                "loading"
+            ) {
+
+                document.addEventListener(
+                    "DOMContentLoaded",
+                    start,
+                    {
+                        once: true
+                    }
+                );
+
+            } else {
+
+                start();
+
+            }
+
+        })();
+
+    </script>
+
+
+</body>
+
+</html>
