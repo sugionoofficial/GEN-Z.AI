@@ -1799,6 +1799,10 @@ function createImageField(
      * pada wrapper jika module upload lain memasangnya.
      */
 
+    /* =====================================================
+       UPLOAD STATE
+     ===================================================== */
+
     wrapper.getUploadedUrl =
         () =>
             String(
@@ -1834,6 +1838,19 @@ function createImageField(
             return normalized;
 
         };
+
+
+    wrapper.getSelectedFiles =
+        () =>
+            Array.from(
+                fileInput.files || []
+            );
+
+
+    wrapper.getImageMode =
+        () =>
+            wrapper.dataset.imageMode ||
+            "url";
 
 
     wrapper.clearUploadedFile =
