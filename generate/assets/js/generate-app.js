@@ -5486,6 +5486,10 @@ function initializeVisualState() {
 
     hideError();
 
+   ensureGenerateStatus();
+   
+   resetGenerateStatus();
+
     const elements =
         getDOM();
 
