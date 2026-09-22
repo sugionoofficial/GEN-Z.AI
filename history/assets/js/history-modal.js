@@ -12,6 +12,7 @@
    - Menampilkan prompt / model / provider / status
    - Menampilkan result URL
    - Menampilkan error generation
+   - Menampilkan video hasil generation
 
    Tidak bertanggung jawab:
    - Query Supabase
@@ -23,80 +24,185 @@
 ========================================================= */
 
 (function () {
+
     "use strict";
 
-    window.GENZHistory = window.GENZHistory || {};
 
-    const App = window.GENZHistory;
+    /* =====================================================
+       ROOT NAMESPACE
+    ===================================================== */
 
-    App.state = App.state || {
-        historyData: [],
-        currentFilter: "all",
-        currentModalHistoryId: null
-    };
+    window.GENZHistory =
+        window.GENZHistory || {};
 
-    App.elements = App.elements || {};
+    const App =
+        window.GENZHistory;
+
+
+    /* =====================================================
+       STATE
+       -----------------------------------------------------
+       Jangan mengganti state yang sudah dibuat oleh
+       history-state.js.
+    ===================================================== */
+
+    App.state =
+        App.state || {};
+
+    if (
+        !Array.isArray(
+            App.state.historyData
+        )
+    ) {
+
+        App.state.historyData = [];
+
+    }
+
+    if (
+        typeof App.state.currentFilter !==
+        "string"
+    ) {
+
+        App.state.currentFilter = "all";
+
+    }
+
+    if (
+        !Object.prototype.hasOwnProperty.call(
+            App.state,
+            "currentModalHistoryId"
+        )
+    ) {
+
+        App.state.currentModalHistoryId = null;
+
+    }
+
+
+    /* =====================================================
+       ELEMENTS
+    ===================================================== */
+
+    App.elements =
+        App.elements || {};
+
 
     /* =====================================================
        HELPERS
     ===================================================== */
 
     function getState() {
+
         return App.state;
+
     }
+
 
     function getElements() {
+
         return App.elements;
+
     }
 
-    function escapeHtml(value) {
+
+    function escapeHtml(
+        value
+    ) {
 
         if (
             typeof App.escapeHtml ===
             "function"
         ) {
-            return App.escapeHtml(value);
+
+            return App.escapeHtml(
+                value
+            );
+
         }
+
 
         if (
             value === null ||
             value === undefined
         ) {
+
             return "";
+
         }
 
+
         return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+
     }
 
-    function normalizeStatus(status) {
+
+    function normalizeStatus(
+        status
+    ) {
 
         if (
             typeof App.normalizeStatus ===
             "function"
         ) {
-            return App.normalizeStatus(status);
+
+            return App.normalizeStatus(
+                status
+            );
+
         }
 
+
         const value =
-            String(status || "pending")
+            String(
+                status || "pending"
+            )
                 .trim()
                 .toLowerCase();
 
-        if (value === "completed") {
+
+        if (
+            value === "completed"
+        ) {
+
             return "success";
+
         }
 
-        if (value === "queued") {
+
+        if (
+            value === "queued"
+        ) {
+
             return "pending";
+
         }
+
 
         return value;
+
     }
+
 
     function getHistoryData() {
 
@@ -104,86 +210,140 @@
             typeof App.getHistoryData ===
             "function"
         ) {
-            return App.getHistoryData();
+
+            const data =
+                App.getHistoryData();
+
+
+            return Array.isArray(data)
+                ? data
+                : [];
+
         }
+
 
         return Array.isArray(
             getState().historyData
         )
             ? getState().historyData
             : [];
+
     }
 
-    function getHistoryById(id) {
+
+    function getHistoryById(
+        id
+    ) {
 
         const target =
-            String(id || "").trim();
+            String(
+                id || ""
+            ).trim();
+
 
         if (!target) {
+
             return null;
+
         }
+
 
         if (
             typeof App.findHistoryById ===
             "function"
         ) {
+
             return App.findHistoryById(
                 target
             );
+
         }
 
+
         return getHistoryData().find(
-            item =>
-                String(
-                    item?.id || ""
-                ).trim() === target
+            function (item) {
+
+                return (
+                    String(
+                        item?.id || ""
+                    ).trim() === target
+                );
+
+            }
         ) || null;
+
     }
 
+
     /* =====================================================
-       BASIC DATA
+       DATA HELPERS
     ===================================================== */
 
-    function getTaskId(item) {
+    function getTaskId(
+        item
+    ) {
 
         if (
             typeof App.getTaskId ===
             "function"
         ) {
-            return App.getTaskId(item);
+
+            return App.getTaskId(
+                item
+            );
+
         }
+
 
         return String(
             item?.task_id ||
             item?.taskId ||
             ""
         ).trim();
+
     }
 
-    function getModelId(item) {
+
+    function getModelId(
+        item
+    ) {
 
         if (
             typeof App.getModelId ===
             "function"
         ) {
-            return App.getModelId(item);
+
+            return App.getModelId(
+                item
+            );
+
         }
+
 
         return String(
             item?.model_id ||
             item?.modelId ||
             ""
         ).trim();
+
     }
 
-    function getModelName(item) {
+
+    function getModelName(
+        item
+    ) {
 
         if (
             typeof App.getModelName ===
             "function"
         ) {
-            return App.getModelName(item);
+
+            return App.getModelName(
+                item
+            );
+
         }
+
 
         return String(
             item?.model_name ||
@@ -191,16 +351,25 @@
             item?.model ||
             ""
         ).trim();
+
     }
 
-    function getProviderName(item) {
+
+    function getProviderName(
+        item
+    ) {
 
         if (
             typeof App.getProviderName ===
             "function"
         ) {
-            return App.getProviderName(item);
+
+            return App.getProviderName(
+                item
+            );
+
         }
+
 
         return String(
             item?.provider_name ||
@@ -208,31 +377,49 @@
             item?.provider ||
             ""
         ).trim();
+
     }
 
-    function getPrompt(item) {
+
+    function getPrompt(
+        item
+    ) {
 
         if (
             typeof App.getPrompt ===
             "function"
         ) {
-            return App.getPrompt(item);
+
+            return App.getPrompt(
+                item
+            );
+
         }
+
 
         return String(
             item?.prompt ||
             ""
         ).trim();
+
     }
 
-    function getCreditCost(item) {
+
+    function getCreditCost(
+        item
+    ) {
 
         if (
             typeof App.getCreditCost ===
             "function"
         ) {
-            return App.getCreditCost(item);
+
+            return App.getCreditCost(
+                item
+            );
+
         }
+
 
         const value =
             Number(
@@ -242,19 +429,29 @@
                 0
             );
 
+
         return Number.isFinite(value)
             ? value
             : 0;
+
     }
 
-    function getErrorMessage(item) {
+
+    function getErrorMessage(
+        item
+    ) {
 
         if (
             typeof App.getErrorMessage ===
             "function"
         ) {
-            return App.getErrorMessage(item);
+
+            return App.getErrorMessage(
+                item
+            );
+
         }
+
 
         return String(
             item?.error_message ||
@@ -262,341 +459,549 @@
             item?.message ||
             ""
         ).trim();
+
     }
 
-    function getResultUrl(item) {
+
+    function getResultUrl(
+        item
+    ) {
 
         if (
             typeof App.getResultUrl ===
             "function"
         ) {
-            return App.getResultUrl(item);
+
+            return App.getResultUrl(
+                item
+            );
+
         }
 
-        return String(
-            item?.result_url || ""
-        ).trim();
+
+        const value =
+            String(
+                item?.result_url ||
+                ""
+            ).trim();
+
+
+        if (!value) {
+
+            return "";
+
+        }
+
+
+        const lower =
+            value.toLowerCase();
+
+
+        if (
+            lower.startsWith(
+                "javascript:"
+            ) ||
+            lower.startsWith(
+                "data:text/html"
+            )
+        ) {
+
+            return "";
+
+        }
+
+
+        return value;
+
     }
 
-    function formatDate(value) {
+
+    function formatDate(
+        value
+    ) {
 
         if (
             typeof App.formatDate ===
             "function"
         ) {
-            return App.formatDate(value);
+
+            return App.formatDate(
+                value
+            );
+
         }
 
+
         if (!value) {
+
             return "-";
+
         }
+
 
         const date =
             new Date(value);
+
 
         if (
             Number.isNaN(
                 date.getTime()
             )
         ) {
+
             return "-";
+
         }
+
 
         return date.toLocaleString(
             "id-ID"
         );
+
     }
 
-    function formatCredits(value) {
+
+    function formatCredits(
+        value
+    ) {
 
         if (
             typeof App.formatCredits ===
             "function"
         ) {
-            return App.formatCredits(value);
+
+            return App.formatCredits(
+                value
+            );
+
         }
+
 
         const number =
             Number(value);
 
+
         if (
             !Number.isFinite(number)
         ) {
+
             return "0";
+
         }
+
 
         return number.toLocaleString(
             "id-ID"
         );
+
     }
+
 
     /* =====================================================
        STATUS
     ===================================================== */
 
-    function getStatusLabel(status) {
+    function getStatusLabel(
+        status
+    ) {
 
         if (
             typeof App.getStatusLabel ===
             "function"
         ) {
+
             return App.getStatusLabel(
                 status
             );
+
         }
 
-        const normalized =
-            normalizeStatus(status);
 
-        switch (normalized) {
+        const normalized =
+            normalizeStatus(
+                status
+            );
+
+
+        switch (
+            normalized
+        ) {
 
             case "success":
+
                 return "SUCCESS";
 
+
             case "processing":
+
                 return "PROCESSING";
 
+
             case "pending":
+
                 return "PENDING";
 
+
             case "failed":
+
                 return "GAGAL";
 
+
             case "cancelled":
+
                 return "DIBATALKAN";
 
+
             default:
+
                 return normalized
                     ? normalized.toUpperCase()
                     : "UNKNOWN";
+
         }
+
     }
 
-    function getStatusClass(status) {
+
+    function getStatusClass(
+        status
+    ) {
 
         if (
             typeof App.getStatusClass ===
             "function"
         ) {
+
             return App.getStatusClass(
                 status
             );
+
         }
 
-        const normalized =
-            normalizeStatus(status);
 
         return (
             "status-" +
-            normalized
+            normalizeStatus(
+                status
+            )
         );
+
     }
 
+
     /* =====================================================
-       FIELD
+       DETAIL FIELD
+       -----------------------------------------------------
+       Menggunakan class yang memang sudah tersedia
+       di CSS history/index.html:
+       .detail-row
+       .detail-label
+       .detail-value
     ===================================================== */
 
     function renderField(
         label,
         value,
-        className = ""
+        options = {}
     ) {
 
-        const safeValue =
+        const rawValue =
             value === null ||
-            value === undefined ||
-            String(value).trim() === ""
-                ? "-"
-                : String(value);
+            value === undefined
+                ? ""
+                : String(value).trim();
+
+
+        const displayValue =
+            rawValue || "-";
+
+
+        const extraClass =
+            String(
+                options.className || ""
+            ).trim();
+
+
+        const mono =
+            options.mono === true
+                ? " mono"
+                : "";
+
 
         return `
-            <div class="history-detail-field ${escapeHtml(className)}">
+            <div
+                class="detail-row ${escapeHtml(
+                    extraClass
+                )}"
+            >
 
-                <div class="history-detail-label">
-                    ${escapeHtml(label)}
+                <div class="detail-label">
+                    ${escapeHtml(
+                        label
+                    )}
                 </div>
 
-                <div class="history-detail-value">
-                    ${escapeHtml(safeValue)}
+                <div
+                    class="detail-value${mono}"
+                >
+                    ${escapeHtml(
+                        displayValue
+                    )}
                 </div>
 
             </div>
         `;
+
     }
 
+
     /* =====================================================
-       PROMPT FIELD
+       PROMPT
     ===================================================== */
 
-    function renderPrompt(item) {
+    function renderPrompt(
+        item
+    ) {
 
         const prompt =
-            getPrompt(item);
+            getPrompt(
+                item
+            );
+
 
         return `
-            <div class="history-detail-field history-detail-prompt">
+            <div class="detail-row">
 
-                <div class="history-detail-label">
+                <div class="detail-label">
                     Prompt
                 </div>
 
-                <div class="history-detail-value history-detail-prompt-value">
+                <div class="detail-value">
                     ${
                         prompt
-                            ? escapeHtml(prompt)
+                            ? escapeHtml(
+                                prompt
+                            )
                             : "-"
                     }
                 </div>
 
             </div>
         `;
+
     }
 
+
     /* =====================================================
-       STATUS FIELD
+       STATUS
     ===================================================== */
 
-    function renderStatus(item) {
+    function renderStatus(
+        item
+    ) {
 
         const status =
             normalizeStatus(
                 item?.status
             );
 
+
         const label =
-            getStatusLabel(status);
+            getStatusLabel(
+                status
+            );
+
 
         const className =
-            getStatusClass(status);
+            getStatusClass(
+                status
+            );
+
 
         return `
-            <div class="history-detail-field">
+            <div class="detail-row">
 
-                <div class="history-detail-label">
+                <div class="detail-label">
                     Status
                 </div>
 
-                <div class="history-detail-value">
+                <div class="detail-value">
 
                     <span
-                        class="history-status ${escapeHtml(className)}"
+                        class="status ${escapeHtml(
+                            className
+                        )}"
                     >
-                        ${escapeHtml(label)}
+
+                        <span
+                            class="status-dot"
+                        ></span>
+
+                        ${escapeHtml(
+                            label
+                        )}
+
                     </span>
 
                 </div>
 
             </div>
         `;
+
     }
 
+
     /* =====================================================
-       RESULT FIELD
+       RESULT
     ===================================================== */
 
-    function renderResult(item) {
+    function renderResult(
+        item
+    ) {
 
         const url =
-            getResultUrl(item);
+            getResultUrl(
+                item
+            );
+
 
         if (!url) {
 
             return `
-                <div class="history-detail-field">
+                <div class="detail-row">
 
-                    <div class="history-detail-label">
+                    <div class="detail-label">
                         Result
                     </div>
 
-                    <div class="history-detail-value">
+                    <div class="detail-value">
                         -
                     </div>
 
                 </div>
             `;
+
         }
 
+
         const safeUrl =
-            escapeHtml(url);
+            escapeHtml(
+                url
+            );
+
 
         return `
-            <div class="history-detail-field">
+            <div class="detail-row">
 
-                <div class="history-detail-label">
+                <div class="detail-label">
                     Result
                 </div>
 
-                <div class="history-detail-result">
+                <div class="detail-value">
 
                     <a
                         href="${safeUrl}"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="history-result-link"
+                        class="output-link"
                     >
-                        Buka hasil
+                        Buka hasil generation
                     </a>
 
                 </div>
 
             </div>
         `;
+
     }
 
+
     /* =====================================================
-       ERROR FIELD
+       ERROR
     ===================================================== */
 
-    function renderError(item) {
+    function renderError(
+        item
+    ) {
 
         const error =
-            getErrorMessage(item);
+            getErrorMessage(
+                item
+            );
+
 
         if (!error) {
+
             return "";
+
         }
 
-        return `
-            <div class="history-detail-error">
 
-                <div class="history-detail-error-title">
+        return `
+            <div class="detail-row">
+
+                <div class="detail-label">
                     Error
                 </div>
 
-                <div class="history-detail-error-message">
-                    ${escapeHtml(error)}
+                <div
+                    class="detail-value"
+                    style="
+                        color:#991b1b;
+                    "
+                >
+                    ${escapeHtml(
+                        error
+                    )}
                 </div>
 
             </div>
         `;
+
     }
+
 
     /* =====================================================
        VIDEO PREVIEW
+       -----------------------------------------------------
+       Menggunakan class yang memang tersedia:
+       .detail-video-preview
     ===================================================== */
 
-    function renderVideoPreview(item) {
+    function renderVideoPreview(
+        item
+    ) {
 
         const status =
             normalizeStatus(
                 item?.status
             );
 
+
         const url =
-            getResultUrl(item);
+            getResultUrl(
+                item
+            );
+
 
         if (
             status !== "success" ||
             !url
         ) {
+
             return "";
+
         }
 
+
         const safeUrl =
-            escapeHtml(url);
+            escapeHtml(
+                url
+            );
+
 
         return `
-            <div class="history-detail-video">
+            <div class="detail-video-preview">
 
                 <video
                     controls
@@ -607,187 +1012,298 @@
 
             </div>
         `;
+
     }
+
 
     /* =====================================================
        MODAL BODY
     ===================================================== */
 
-    function renderModalBody(item) {
+    function renderModalBody(
+        item
+    ) {
 
         const elements =
             getElements();
 
-        if (!elements.modalBody) {
+
+        if (
+            !elements.modalBody
+        ) {
+
             return;
+
         }
+
 
         if (!item) {
 
             elements.modalBody.innerHTML = `
-                <div class="history-detail-empty">
-                    Data history tidak ditemukan.
+                <div class="detail-row">
+
+                    <div class="detail-label">
+                        History
+                    </div>
+
+                    <div class="detail-value">
+                        Data history tidak ditemukan.
+                    </div>
+
                 </div>
             `;
 
+
             return;
+
         }
+
 
         const createdAt =
             item?.created_at ||
             item?.createdAt ||
             null;
 
+
         const completedAt =
             item?.completed_at ||
             item?.completedAt ||
             null;
 
+
         const taskId =
-            getTaskId(item);
+            getTaskId(
+                item
+            );
+
 
         const modelId =
-            getModelId(item);
+            getModelId(
+                item
+            );
+
 
         const modelName =
-            getModelName(item);
+            getModelName(
+                item
+            );
+
 
         const provider =
-            getProviderName(item);
+            getProviderName(
+                item
+            );
+
 
         const credits =
-            getCreditCost(item);
+            getCreditCost(
+                item
+            );
+
 
         elements.modalBody.innerHTML = `
 
-            <div class="history-detail-container">
+            ${renderVideoPreview(
+                item
+            )}
 
-                ${renderVideoPreview(item)}
 
-                <div class="history-detail-grid">
+            ${renderStatus(
+                item
+            )}
 
-                    ${renderStatus(item)}
 
-                    ${renderField(
-                        "Model",
-                        modelName
-                    )}
+            ${renderField(
+                "Provider",
+                provider
+            )}
 
-                    ${renderField(
-                        "Model ID",
-                        modelId
-                    )}
 
-                    ${renderField(
-                        "Provider",
-                        provider
-                    )}
+            ${renderField(
+                "Model",
+                modelName
+            )}
 
-                    ${renderField(
-                        "Task ID",
-                        taskId
-                    )}
 
-                    ${renderField(
-                        "Credit",
-                        formatCredits(
-                            credits
-                        )
-                    )}
+            ${renderField(
+                "Model ID",
+                modelId,
+                {
+                    mono: true
+                }
+            )}
 
-                    ${renderField(
-                        "Dibuat",
-                        formatDate(
-                            createdAt
-                        )
-                    )}
 
-                    ${renderField(
-                        "Selesai",
+            ${renderField(
+                "Task ID",
+                taskId,
+                {
+                    mono: true
+                }
+            )}
+
+
+            ${renderField(
+                "Credit",
+                formatCredits(
+                    credits
+                )
+            )}
+
+
+            ${renderField(
+                "Dibuat",
+                formatDate(
+                    createdAt
+                )
+            )}
+
+
+            ${renderField(
+                "Selesai",
+                completedAt
+                    ? formatDate(
                         completedAt
-                            ? formatDate(
-                                completedAt
-                            )
-                            : "-"
-                    )}
+                    )
+                    : "-"
+            )}
 
-                </div>
 
-                ${renderPrompt(item)}
+            ${renderPrompt(
+                item
+            )}
 
-                ${renderResult(item)}
 
-                ${renderError(item)}
+            ${renderResult(
+                item
+            )}
 
-            </div>
+
+            ${renderError(
+                item
+            )}
+
         `;
+
     }
+
 
     /* =====================================================
        OPEN MODAL
     ===================================================== */
 
-    function openDetailModal(id) {
+    function openDetailModal(
+        id
+    ) {
 
         const elements =
             getElements();
 
+
         const targetId =
-            String(id || "").trim();
+            String(
+                id || ""
+            ).trim();
+
 
         if (!targetId) {
+
             return;
+
         }
 
+
         const item =
-            getHistoryById(targetId);
+            getHistoryById(
+                targetId
+            );
+
 
         if (!item) {
 
             console.warn(
-                "History detail tidak ditemukan:",
+                "[GEN-Z.AI History] History detail tidak ditemukan:",
                 targetId
             );
 
+
             return;
+
         }
+
 
         getState().currentModalHistoryId =
             targetId;
 
-        renderModalBody(item);
 
-        if (!elements.detailModal) {
+        renderModalBody(
+            item
+        );
+
+
+        if (
+            !elements.detailModal
+        ) {
+
             return;
+
         }
 
+
+        /*
+         * CSS awal memakai display:none.
+         * Menggunakan inline display:flex
+         * tetap kompatibel dengan CSS tersebut.
+         */
         elements.detailModal.style.display =
             "flex";
+
 
         elements.detailModal.setAttribute(
             "aria-hidden",
             "false"
         );
 
+
+        /*
+         * Tambahkan class show agar
+         * kompatibel dengan CSS .modal.show.
+         */
+        elements.detailModal.classList.add(
+            "show"
+        );
+
+
         document.body.classList.add(
             "history-modal-open"
         );
 
+
         /*
-         * Fokus ke tombol close jika tersedia.
+         * Fokus tombol close.
          */
-        if (elements.closeModal) {
+        if (
+            elements.closeModal
+        ) {
 
             try {
+
                 elements.closeModal.focus();
+
             } catch (error) {
+
                 /* noop */
+
             }
+
         }
+
     }
+
 
     App.openDetailModal =
         openDetailModal;
+
 
     /* =====================================================
        CLOSE MODAL
@@ -798,12 +1314,19 @@
         const elements =
             getElements();
 
-        if (!elements.detailModal) {
+
+        if (
+            !elements.detailModal
+        ) {
+
             return;
+
         }
 
+
         /*
-         * Hentikan video yang sedang berjalan.
+         * Hentikan video yang sedang
+         * dimainkan di dalam modal.
          */
         const videos =
             elements.detailModal
@@ -811,37 +1334,58 @@
                     "video"
                 );
 
-        videos.forEach(video => {
 
-            try {
+        videos.forEach(
+            function (video) {
 
-                video.pause();
+                try {
 
-                video.currentTime = 0;
+                    video.pause();
 
-            } catch (error) {
-                /* noop */
+                    video.currentTime = 0;
+
+                } catch (error) {
+
+                    /* noop */
+
+                }
+
             }
-        });
+        );
 
+
+        /*
+         * Bersihkan modal state.
+         */
         elements.detailModal.style.display =
             "none";
+
+
+        elements.detailModal.classList.remove(
+            "show"
+        );
+
 
         elements.detailModal.setAttribute(
             "aria-hidden",
             "true"
         );
 
+
         document.body.classList.remove(
             "history-modal-open"
         );
 
+
         getState().currentModalHistoryId =
             null;
+
     }
+
 
     App.closeDetailModal =
         closeDetailModal;
+
 
     /* =====================================================
        TOGGLE MODAL
@@ -854,25 +1398,43 @@
         const elements =
             getElements();
 
+
         if (
             elements.detailModal &&
-            elements.detailModal.style.display ===
-                "flex"
+            (
+                elements.detailModal.style.display ===
+                    "flex" ||
+
+                elements.detailModal.classList.contains(
+                    "show"
+                )
+            )
         ) {
 
             closeDetailModal();
 
             return;
+
         }
 
-        openDetailModal(id);
+
+        openDetailModal(
+            id
+        );
+
     }
+
 
     App.toggleDetailModal =
         toggleDetailModal;
 
+
     /* =====================================================
        REFRESH OPEN MODAL
+       -----------------------------------------------------
+       Dipakai setelah history reload supaya
+       modal yang sedang terbuka ikut mendapatkan
+       data terbaru.
     ===================================================== */
 
     function refreshOpenModal() {
@@ -880,41 +1442,69 @@
         const state =
             getState();
 
+
         const id =
             state.currentModalHistoryId;
 
+
         if (!id) {
+
             return;
+
         }
 
+
         const item =
-            getHistoryById(id);
+            getHistoryById(
+                id
+            );
+
 
         if (!item) {
 
             closeDetailModal();
 
             return;
+
         }
 
-        renderModalBody(item);
+
+        renderModalBody(
+            item
+        );
+
     }
+
 
     App.refreshOpenModal =
         refreshOpenModal;
+
+
+    /* =====================================================
+       PUBLIC COMPATIBILITY
+    ===================================================== */
+
+    App.renderModalBody =
+        renderModalBody;
+
+    App.renderHistoryModal =
+        openDetailModal;
+
 
     /* =====================================================
        GLOBAL COMPATIBILITY
        -----------------------------------------------------
        Dipertahankan untuk HTML lama yang mungkin masih
-       menggunakan onclick="openDetailModal(...)"
-       atau nama fungsi global sejenis.
+       menggunakan:
+       onclick="openHistoryDetail(...)"
     ===================================================== */
 
     window.openHistoryDetail =
         openDetailModal;
 
+
     window.closeHistoryDetail =
         closeDetailModal;
+
 
 })();
