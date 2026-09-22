@@ -24,114 +24,239 @@
 ========================================================= */
 
 (function () {
+
     "use strict";
 
-    window.GENZHistory = window.GENZHistory || {};
 
-    const App = window.GENZHistory;
+    /* =====================================================
+       ROOT NAMESPACE
+    ===================================================== */
 
-    App.state = App.state || {
-        historyData: [],
-        currentFilter: "all"
-    };
+    window.GENZHistory =
+        window.GENZHistory || {};
 
-    App.elements = App.elements || {};
+    const App =
+        window.GENZHistory;
+
+
+    /* =====================================================
+       STATE
+       -----------------------------------------------------
+       Jangan mengganti state yang sudah dibuat oleh
+       history-state.js.
+    ===================================================== */
+
+    App.state =
+        App.state || {};
+
+    if (
+        !Array.isArray(
+            App.state.historyData
+        )
+    ) {
+
+        App.state.historyData =
+            [];
+
+    }
+
+    if (
+        typeof App.state.currentFilter !==
+        "string"
+    ) {
+
+        App.state.currentFilter =
+            "all";
+
+    }
+
+
+    /* =====================================================
+       ELEMENTS
+    ===================================================== */
+
+    App.elements =
+        App.elements || {};
+
 
     /* =====================================================
        BASIC HELPERS
     ===================================================== */
 
     function getState() {
+
         return App.state;
+
     }
+
 
     function getElements() {
+
         return App.elements;
+
     }
 
+
     function getHistoryData() {
+
+        /*
+         * Prioritaskan API milik history-data.js.
+         */
         if (
             typeof App.getHistoryData ===
             "function"
         ) {
-            return App.getHistoryData();
+
+            const result =
+                App.getHistoryData();
+
+
+            if (
+                Array.isArray(result)
+            ) {
+
+                return result;
+
+            }
+
         }
 
+
+        /*
+         * Fallback ke state.
+         */
         return Array.isArray(
             getState().historyData
         )
             ? getState().historyData
             : [];
+
     }
 
-    function normalizeStatus(status) {
+
+    function normalizeStatus(
+        status
+    ) {
 
         if (
             typeof App.normalizeStatus ===
             "function"
         ) {
-            return App.normalizeStatus(status);
+
+            return App.normalizeStatus(
+                status
+            );
+
         }
 
+
         const value =
-            String(status || "pending")
+            String(
+                status || "pending"
+            )
                 .trim()
                 .toLowerCase();
 
-        if (value === "completed") {
+
+        if (
+            value === "completed"
+        ) {
+
             return "success";
+
         }
 
-        if (value === "queued") {
+
+        if (
+            value === "queued"
+        ) {
+
             return "pending";
+
         }
+
 
         return value;
+
     }
+
 
     /* =====================================================
        ESCAPE HTML
     ===================================================== */
 
-    function escapeHtml(value) {
+    function escapeHtml(
+        value
+    ) {
 
         if (
             value === null ||
             value === undefined
         ) {
+
             return "";
+
         }
 
+
         return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+
     }
 
-    App.escapeHtml = escapeHtml;
+
+    App.escapeHtml =
+        escapeHtml;
+
 
     /* =====================================================
        FORMAT DATE
     ===================================================== */
 
-    function formatDate(value) {
+    function formatDate(
+        value
+    ) {
 
         if (!value) {
+
             return "-";
+
         }
+
 
         const date =
             new Date(value);
+
 
         if (
             Number.isNaN(
                 date.getTime()
             )
         ) {
+
             return "-";
+
         }
+
 
         try {
 
@@ -145,40 +270,56 @@
                     minute: "2-digit",
                     second: "2-digit"
                 }
-            ).format(date);
+            ).format(
+                date
+            );
 
         } catch (error) {
 
             return date.toLocaleString(
                 "id-ID"
             );
+
         }
+
     }
 
-    App.formatDate = formatDate;
+
+    App.formatDate =
+        formatDate;
+
 
     /* =====================================================
        FORMAT CREDITS
     ===================================================== */
 
-    function formatCredits(value) {
+    function formatCredits(
+        value
+    ) {
 
         const number =
             Number(value);
 
+
         if (
             !Number.isFinite(number)
         ) {
+
             return "0";
+
         }
+
 
         if (
             Number.isInteger(number)
         ) {
+
             return number.toLocaleString(
                 "id-ID"
             );
+
         }
+
 
         return number.toLocaleString(
             "id-ID",
@@ -186,40 +327,63 @@
                 maximumFractionDigits: 4
             }
         );
+
     }
+
 
     App.formatCredits =
         formatCredits;
+
 
     /* =====================================================
        RESULT URL
     ===================================================== */
 
-    function getResultUrl(item) {
+    function getResultUrl(
+        item
+    ) {
 
         if (
             typeof App.getResultUrl ===
             "function"
         ) {
-            return App.getResultUrl(item);
+
+            return App.getResultUrl(
+                item
+            );
+
         }
 
+
         if (!item) {
+
             return "";
+
         }
+
 
         const value =
             String(
-                item.result_url || ""
+                item.result_url ||
+                ""
             ).trim();
 
+
         if (!value) {
+
             return "";
+
         }
+
 
         const lower =
             value.toLowerCase();
 
+
+        /*
+         * Jangan izinkan URL berbahaya
+         * masuk ke HTML video.
+         */
         if (
             lower.startsWith(
                 "javascript:"
@@ -228,56 +392,86 @@
                 "data:text/html"
             )
         ) {
+
             return "";
+
         }
 
+
         return value;
+
     }
+
 
     /* =====================================================
        DATA ACCESS
     ===================================================== */
 
-    function getTaskId(item) {
+    function getTaskId(
+        item
+    ) {
 
         if (
             typeof App.getTaskId ===
             "function"
         ) {
-            return App.getTaskId(item);
+
+            return App.getTaskId(
+                item
+            );
+
         }
+
 
         return String(
             item?.task_id ||
             item?.taskId ||
             ""
         ).trim();
+
     }
 
-    function getModelId(item) {
+
+    function getModelId(
+        item
+    ) {
 
         if (
             typeof App.getModelId ===
             "function"
         ) {
-            return App.getModelId(item);
+
+            return App.getModelId(
+                item
+            );
+
         }
+
 
         return String(
             item?.model_id ||
             item?.modelId ||
             ""
         ).trim();
+
     }
 
-    function getModelName(item) {
+
+    function getModelName(
+        item
+    ) {
 
         if (
             typeof App.getModelName ===
             "function"
         ) {
-            return App.getModelName(item);
+
+            return App.getModelName(
+                item
+            );
+
         }
+
 
         return String(
             item?.model_name ||
@@ -285,16 +479,25 @@
             item?.model ||
             ""
         ).trim();
+
     }
 
-    function getProviderName(item) {
+
+    function getProviderName(
+        item
+    ) {
 
         if (
             typeof App.getProviderName ===
             "function"
         ) {
-            return App.getProviderName(item);
+
+            return App.getProviderName(
+                item
+            );
+
         }
+
 
         return String(
             item?.provider_name ||
@@ -302,31 +505,49 @@
             item?.provider ||
             ""
         ).trim();
+
     }
 
-    function getPrompt(item) {
+
+    function getPrompt(
+        item
+    ) {
 
         if (
             typeof App.getPrompt ===
             "function"
         ) {
-            return App.getPrompt(item);
+
+            return App.getPrompt(
+                item
+            );
+
         }
+
 
         return String(
             item?.prompt ||
             ""
         ).trim();
+
     }
 
-    function getCreditCost(item) {
+
+    function getCreditCost(
+        item
+    ) {
 
         if (
             typeof App.getCreditCost ===
             "function"
         ) {
-            return App.getCreditCost(item);
+
+            return App.getCreditCost(
+                item
+            );
+
         }
+
 
         const value =
             Number(
@@ -336,19 +557,29 @@
                 0
             );
 
+
         return Number.isFinite(value)
             ? value
             : 0;
+
     }
 
-    function getErrorMessage(item) {
+
+    function getErrorMessage(
+        item
+    ) {
 
         if (
             typeof App.getErrorMessage ===
             "function"
         ) {
-            return App.getErrorMessage(item);
+
+            return App.getErrorMessage(
+                item
+            );
+
         }
+
 
         return String(
             item?.error_message ||
@@ -356,77 +587,123 @@
             item?.message ||
             ""
         ).trim();
+
     }
+
 
     /* =====================================================
        STATUS LABEL
     ===================================================== */
 
-    function getStatusLabel(status) {
+    function getStatusLabel(
+        status
+    ) {
 
         const normalized =
-            normalizeStatus(status);
+            normalizeStatus(
+                status
+            );
 
-        switch (normalized) {
+
+        switch (
+            normalized
+        ) {
 
             case "success":
+
                 return "SUCCESS";
 
+
             case "processing":
+
                 return "PROCESSING";
 
+
             case "pending":
+
                 return "PENDING";
 
+
             case "failed":
+
                 return "GAGAL";
 
+
             case "cancelled":
+
                 return "DIBATALKAN";
 
+
             default:
+
                 return normalized
                     ? normalized.toUpperCase()
                     : "UNKNOWN";
+
         }
+
     }
+
 
     App.getStatusLabel =
         getStatusLabel;
+
 
     /* =====================================================
        STATUS CLASS
     ===================================================== */
 
-    function getStatusClass(status) {
+    function getStatusClass(
+        status
+    ) {
 
         const normalized =
-            normalizeStatus(status);
+            normalizeStatus(
+                status
+            );
 
-        switch (normalized) {
+
+        switch (
+            normalized
+        ) {
 
             case "success":
+
                 return "status-success";
 
+
             case "processing":
+
                 return "status-processing";
 
+
             case "pending":
+
                 return "status-pending";
 
+
             case "failed":
+
                 return "status-failed";
 
+
             case "cancelled":
+
                 return "status-cancelled";
 
+
             default:
+
                 return "status-unknown";
+
         }
+
     }
+
 
     App.getStatusClass =
         getStatusClass;
+
 
     /* =====================================================
        PROCESSING THUMBNAIL
@@ -435,40 +712,68 @@
     function getProcessingThumbnailHtml() {
 
         return `
-            <div class="history-thumbnail thumbnail-processing">
+            <div
+                class="history-thumbnail thumbnail-processing"
+                aria-label="Generation sedang diproses"
+            >
+
                 <div class="thumbnail-loader"></div>
-                <span class="thumbnail-processing-text">
+
+                <span class="thumbnail-processing-label">
                     GENERATING
                 </span>
+
             </div>
         `;
+
     }
+
 
     /* =====================================================
        SUCCESS THUMBNAIL
     ===================================================== */
 
-    function getSuccessThumbnailHtml(item) {
+    function getSuccessThumbnailHtml(
+        item
+    ) {
 
         const url =
-            getResultUrl(item);
+            getResultUrl(
+                item
+            );
+
 
         if (!url) {
 
             return `
-                <div class="history-thumbnail thumbnail-empty">
-                    <span class="thumbnail-empty-icon">🎬</span>
+                <div
+                    class="history-thumbnail thumbnail-empty"
+                    aria-label="Hasil video belum tersedia"
+                >
+
+                    <span class="thumbnail-empty-icon">
+                        🎬
+                    </span>
+
                 </div>
             `;
+
         }
 
+
         const safeUrl =
-            escapeHtml(url);
+            escapeHtml(
+                url
+            );
+
 
         const taskId =
             escapeHtml(
-                getTaskId(item)
+                getTaskId(
+                    item
+                )
             );
+
 
         return `
             <div
@@ -479,6 +784,7 @@
                 tabindex="0"
                 aria-label="Putar hasil video"
             >
+
                 <video
                     src="${safeUrl}"
                     muted
@@ -486,48 +792,78 @@
                     preload="metadata"
                 ></video>
 
+
                 <span class="thumbnail-play">
                     ▶
                 </span>
 
+
                 <span class="thumbnail-success">
                     SUCCESS
                 </span>
+
             </div>
         `;
+
     }
+
 
     /* =====================================================
        FAILED THUMBNAIL
     ===================================================== */
 
-    function getFailedThumbnailHtml(item) {
+    function getFailedThumbnailHtml(
+        item
+    ) {
 
         const url =
-            getResultUrl(item);
+            getResultUrl(
+                item
+            );
+
 
         if (!url) {
 
             return `
-                <div class="history-thumbnail thumbnail-failed">
+                <div
+                    class="history-thumbnail thumbnail-failed"
+                    aria-label="Generation gagal"
+                >
+
                     <span class="thumbnail-failed-icon">
                         !
                     </span>
+
                 </div>
             `;
+
         }
 
+
         const safeUrl =
-            escapeHtml(url);
+            escapeHtml(
+                url
+            );
+
+
+        const taskId =
+            escapeHtml(
+                getTaskId(
+                    item
+                )
+            );
+
 
         return `
             <div
                 class="history-thumbnail video-ready thumbnail-failed"
                 data-video-url="${safeUrl}"
+                data-task-id="${taskId}"
                 role="button"
                 tabindex="0"
                 aria-label="Lihat hasil generation"
             >
+
                 <video
                     src="${safeUrl}"
                     muted
@@ -535,46 +871,81 @@
                     preload="metadata"
                 ></video>
 
+
                 <span class="thumbnail-play">
                     ▶
                 </span>
 
+
                 <span class="thumbnail-failed-label">
                     GAGAL
                 </span>
+
             </div>
         `;
+
     }
+
 
     /* =====================================================
        EMPTY / OTHER THUMBNAIL
     ===================================================== */
 
-    function getEmptyThumbnailHtml(status) {
+    function getEmptyThumbnailHtml(
+        status
+    ) {
 
         const normalized =
-            normalizeStatus(status);
+            normalizeStatus(
+                status
+            );
 
-        let icon = "🎬";
-        let label = "";
+
+        let icon =
+            "🎬";
+
+        let label =
+            "";
+
 
         if (
-            normalized === "cancelled"
+            normalized ===
+            "cancelled"
         ) {
-            icon = "×";
-            label = "DIBATALKAN";
+
+            icon =
+                "×";
+
+            label =
+                "DIBATALKAN";
+
         } else if (
-            normalized === "pending"
+            normalized ===
+            "pending"
         ) {
-            icon = "◷";
-            label = "PENDING";
+
+            icon =
+                "◷";
+
+            label =
+                "PENDING";
+
         } else {
-            icon = "•";
-            label = "";
+
+            icon =
+                "•";
+
+            label =
+                "";
+
         }
 
+
         return `
-            <div class="history-thumbnail thumbnail-empty">
+            <div
+                class="history-thumbnail thumbnail-empty"
+            >
+
                 <span class="thumbnail-empty-icon">
                     ${escapeHtml(icon)}
                 </span>
@@ -588,43 +959,62 @@
                         `
                         : ""
                 }
+
             </div>
         `;
+
     }
+
 
     /* =====================================================
        MAIN THUMBNAIL SELECTOR
     ===================================================== */
 
-    function getThumbnailHtml(item) {
+    function getThumbnailHtml(
+        item
+    ) {
 
         const status =
             normalizeStatus(
                 item?.status
             );
 
-        switch (status) {
+
+        switch (
+            status
+        ) {
 
             case "processing":
+
             case "pending":
+
                 return getProcessingThumbnailHtml();
 
+
             case "success":
+
                 return getSuccessThumbnailHtml(
                     item
                 );
 
+
             case "failed":
+
                 return getFailedThumbnailHtml(
                     item
                 );
 
+
             default:
+
                 return getEmptyThumbnailHtml(
                     status
                 );
+
         }
+
     }
+
 
     App.getProcessingThumbnailHtml =
         getProcessingThumbnailHtml;
@@ -641,6 +1031,7 @@
     App.getThumbnailHtml =
         getThumbnailHtml;
 
+
     /* =====================================================
        FILTERED DATA
     ===================================================== */
@@ -651,112 +1042,236 @@
             typeof App.getFilteredHistory ===
             "function"
         ) {
-            return App.getFilteredHistory();
+
+            const result =
+                App.getFilteredHistory();
+
+
+            if (
+                Array.isArray(result)
+            ) {
+
+                return result;
+
+            }
+
         }
+
 
         const data =
             getHistoryData();
 
-        const filter =
-            getState().currentFilter ||
-            "all";
 
-        if (filter === "all") {
+        const filter =
+            normalizeFilter(
+                getState().currentFilter
+            );
+
+
+        if (
+            filter === "all"
+        ) {
+
             return data;
+
         }
 
-        return data.filter(item => {
 
-            return (
-                normalizeStatus(
-                    item?.status
-                ) === filter
-            );
-        });
+        return data.filter(
+            function (item) {
+
+                return (
+                    normalizeStatus(
+                        item?.status
+                    ) === filter
+                );
+
+            }
+        );
+
     }
+
+
+    function normalizeFilter(
+        filter
+    ) {
+
+        const value =
+            String(
+                filter || "all"
+            )
+                .trim()
+                .toLowerCase();
+
+
+        const allowed =
+            [
+                "all",
+                "success",
+                "processing",
+                "pending",
+                "failed",
+                "cancelled"
+            ];
+
+
+        return allowed.includes(
+            value
+        )
+            ? value
+            : "all";
+
+    }
+
 
     /* =====================================================
        USER DISPLAY
     ===================================================== */
 
-    function getUserDisplay(item) {
+    function getUserDisplay(
+        item
+    ) {
 
         const email =
             item?.user_email ||
             item?.email ||
             "";
 
+
         const name =
             item?.user_name ||
             item?.name ||
             "";
 
-        if (name && email) {
+
+        if (
+            name &&
+            email
+        ) {
 
             return `
                 <div class="history-user">
+
                     <strong>
                         ${escapeHtml(name)}
                     </strong>
+
                     <span>
                         ${escapeHtml(email)}
                     </span>
+
                 </div>
             `;
+
         }
 
-        if (email) {
+
+        if (
+            email
+        ) {
 
             return `
                 <div class="history-user">
+
                     <span>
                         ${escapeHtml(email)}
                     </span>
+
                 </div>
             `;
+
         }
 
-        if (name) {
+
+        if (
+            name
+        ) {
 
             return `
                 <div class="history-user">
+
                     <strong>
                         ${escapeHtml(name)}
                     </strong>
+
                 </div>
             `;
+
         }
+
 
         const userId =
             String(
-                item?.user_id || ""
+                item?.user_id ||
+                ""
             ).trim();
+
 
         return `
             <div class="history-user">
+
                 <span>
                     ${escapeHtml(
                         userId || "-"
                     )}
                 </span>
+
             </div>
         `;
+
     }
+
+
+    /* =====================================================
+       PROVIDER DISPLAY
+    ===================================================== */
+
+    function getProviderDisplay(
+        item
+    ) {
+
+        const provider =
+            getProviderName(
+                item
+            );
+
+
+        return `
+            <div class="history-provider-cell-content">
+
+                ${
+                    provider
+                        ? escapeHtml(
+                            provider
+                        )
+                        : "-"
+                }
+
+            </div>
+        `;
+
+    }
+
 
     /* =====================================================
        MODEL DISPLAY
     ===================================================== */
 
-    function getModelDisplay(item) {
+    function getModelDisplay(
+        item
+    ) {
 
         const modelName =
-            getModelName(item);
+            getModelName(
+                item
+            );
+
 
         const modelId =
-            getModelId(item);
+            getModelId(
+                item
+            );
 
-        const provider =
-            getProviderName(item);
 
         return `
             <div class="history-model">
@@ -779,34 +1294,32 @@
                         : ""
                 }
 
-                ${
-                    provider
-                        ? `
-                            <span class="history-provider">
-                                ${escapeHtml(
-                                    provider
-                                )}
-                            </span>
-                        `
-                        : ""
-                }
-
             </div>
         `;
+
     }
+
 
     /* =====================================================
        PROMPT DISPLAY
     ===================================================== */
 
-    function getPromptDisplay(item) {
+    function getPromptDisplay(
+        item
+    ) {
 
         const prompt =
-            getPrompt(item);
+            getPrompt(
+                item
+            );
+
 
         if (!prompt) {
+
             return "-";
+
         }
+
 
         return `
             <div
@@ -816,24 +1329,35 @@
                 ${escapeHtml(prompt)}
             </div>
         `;
+
     }
+
 
     /* =====================================================
        STATUS DISPLAY
     ===================================================== */
 
-    function getStatusDisplay(item) {
+    function getStatusDisplay(
+        item
+    ) {
 
         const status =
             normalizeStatus(
                 item?.status
             );
 
+
         const label =
-            getStatusLabel(status);
+            getStatusLabel(
+                status
+            );
+
 
         const className =
-            getStatusClass(status);
+            getStatusClass(
+                status
+            );
+
 
         return `
             <span
@@ -842,31 +1366,56 @@
                     status
                 )}"
             >
-                ${escapeHtml(label)}
+                ${escapeHtml(
+                    label
+                )}
             </span>
         `;
+
     }
+
 
     /* =====================================================
        CREDIT DISPLAY
     ===================================================== */
 
-    function getCreditDisplay(item) {
+    function getCreditDisplay(
+        item
+    ) {
 
         const credits =
-            getCreditCost(item);
+            getCreditCost(
+                item
+            );
+
 
         return `
             <span class="history-credit">
                 ${escapeHtml(
-                    formatCredits(credits)
+                    formatCredits(
+                        credits
+                    )
                 )}
             </span>
         `;
+
     }
+
 
     /* =====================================================
        ROW HTML
+       -----------------------------------------------------
+       URUTAN HARUS SAMA DENGAN HEADER HTML:
+
+       Preview
+       Tanggal
+       User
+       Provider
+       Model
+       Prompt
+       Credit
+       Status
+       Action
     ===================================================== */
 
     function getRowHtml(
@@ -877,22 +1426,34 @@
 
         const id =
             String(
-                item?.id || ""
+                item?.id ||
+                ""
             ).trim();
 
+
         const taskId =
-            getTaskId(item);
+            getTaskId(
+                item
+            );
+
 
         const createdAt =
             item?.created_at ||
             item?.createdAt ||
             null;
 
+
         const safeId =
-            escapeHtml(id);
+            escapeHtml(
+                id
+            );
+
 
         const safeTaskId =
-            escapeHtml(taskId);
+            escapeHtml(
+                taskId
+            );
+
 
         return `
             <tr
@@ -900,45 +1461,122 @@
                 data-task-id="${safeTaskId}"
             >
 
-                <td class="history-number">
-                    ${index + 1}
+                <!-- ======================================
+                     PREVIEW
+                ======================================= -->
+
+                <td class="history-thumbnail-cell">
+
+                    ${getThumbnailHtml(
+                        item
+                    )}
+
                 </td>
+
+
+                <!-- ======================================
+                     TANGGAL
+                ======================================= -->
+
+                <td class="history-date-cell">
+
+                    ${escapeHtml(
+                        formatDate(
+                            createdAt
+                        )
+                    )}
+
+                </td>
+
+
+                <!-- ======================================
+                     USER
+                     Hanya ADMIN / OWNER
+                ======================================= -->
 
                 ${
                     showUserColumn
                         ? `
                             <td class="history-user-cell">
-                                ${getUserDisplay(item)}
+
+                                ${getUserDisplay(
+                                    item
+                                )}
+
                             </td>
                         `
                         : ""
                 }
 
-                <td class="history-thumbnail-cell">
-                    ${getThumbnailHtml(item)}
+
+                <!-- ======================================
+                     PROVIDER
+                ======================================= -->
+
+                <td class="history-provider-cell">
+
+                    ${getProviderDisplay(
+                        item
+                    )}
+
                 </td>
+
+
+                <!-- ======================================
+                     MODEL
+                ======================================= -->
 
                 <td class="history-model-cell">
-                    ${getModelDisplay(item)}
+
+                    ${getModelDisplay(
+                        item
+                    )}
+
                 </td>
+
+
+                <!-- ======================================
+                     PROMPT
+                ======================================= -->
 
                 <td class="history-prompt-cell">
-                    ${getPromptDisplay(item)}
+
+                    ${getPromptDisplay(
+                        item
+                    )}
+
                 </td>
+
+
+                <!-- ======================================
+                     CREDIT
+                ======================================= -->
 
                 <td class="history-credit-cell">
-                    ${getCreditDisplay(item)}
+
+                    ${getCreditDisplay(
+                        item
+                    )}
+
                 </td>
+
+
+                <!-- ======================================
+                     STATUS
+                ======================================= -->
 
                 <td class="history-status-cell">
-                    ${getStatusDisplay(item)}
+
+                    ${getStatusDisplay(
+                        item
+                    )}
+
                 </td>
 
-                <td class="history-date-cell">
-                    ${escapeHtml(
-                        formatDate(createdAt)
-                    )}
-                </td>
+
+                <!-- ======================================
+                     ACTION
+                ======================================= -->
 
                 <td class="history-action-cell">
 
@@ -956,7 +1594,9 @@
 
             </tr>
         `;
+
     }
+
 
     /* =====================================================
        RENDER EMPTY STATE
@@ -967,72 +1607,126 @@
         const elements =
             getElements();
 
-        if (!elements.emptyState) {
+
+        if (
+            !elements.emptyState
+        ) {
+
             return;
+
         }
+
 
         elements.emptyState.style.display =
             "block";
 
-        if (elements.tableWrap) {
+
+        if (
+            elements.tableWrap
+        ) {
+
             elements.tableWrap.style.display =
                 "none";
+
         }
 
-        if (elements.loadingState) {
+
+        if (
+            elements.loadingState
+        ) {
+
             elements.loadingState.style.display =
                 "none";
+
         }
+
     }
+
 
     /* =====================================================
        RENDER TABLE
     ===================================================== */
 
-    function renderTable(data) {
+    function renderTable(
+        data
+    ) {
 
         const elements =
             getElements();
 
-        if (!elements.historyBody) {
+
+        if (
+            !elements.historyBody
+        ) {
+
             return;
+
         }
+
 
         const showUserColumn =
             typeof App.isAdminOrOwner ===
             "function"
+
                 ? App.isAdminOrOwner()
+
                 : false;
 
-        elements.historyBody.innerHTML =
-            data.map(
-                (item, index) =>
-                    getRowHtml(
-                        item,
-                        index,
-                        showUserColumn
-                    )
-            ).join("");
 
-        if (elements.tableWrap) {
+        elements.historyBody.innerHTML =
+            data
+                .map(
+                    function (
+                        item,
+                        index
+                    ) {
+
+                        return getRowHtml(
+                            item,
+                            index,
+                            showUserColumn
+                        );
+
+                    }
+                )
+                .join("");
+
+
+        if (
+            elements.tableWrap
+        ) {
+
             elements.tableWrap.style.display =
                 data.length
                     ? "block"
                     : "none";
+
         }
 
-        if (elements.emptyState) {
+
+        if (
+            elements.emptyState
+        ) {
+
             elements.emptyState.style.display =
                 data.length
                     ? "none"
                     : "block";
+
         }
 
-        if (elements.loadingState) {
+
+        if (
+            elements.loadingState
+        ) {
+
             elements.loadingState.style.display =
                 "none";
+
         }
+
     }
+
 
     /* =====================================================
        UPDATE USER COLUMN
@@ -1043,21 +1737,32 @@
         const elements =
             getElements();
 
-        if (!elements.userColumnHeader) {
+
+        if (
+            !elements.userColumnHeader
+        ) {
+
             return;
+
         }
+
 
         const visible =
             typeof App.isAdminOrOwner ===
             "function"
+
                 ? App.isAdminOrOwner()
+
                 : false;
+
 
         elements.userColumnHeader.style.display =
             visible
                 ? ""
                 : "none";
+
     }
+
 
     /* =====================================================
        HISTORY COUNT
@@ -1071,18 +1776,31 @@
         const elements =
             getElements();
 
-        if (!elements.historyCount) {
-            return;
-        }
-
-        const total =
-            Number(totalCount) || 0;
-
-        const filtered =
-            Number(filteredCount) || 0;
 
         if (
-            total !== filtered
+            !elements.historyCount
+        ) {
+
+            return;
+
+        }
+
+
+        const total =
+            Number(
+                totalCount
+            ) || 0;
+
+
+        const filtered =
+            Number(
+                filteredCount
+            ) || 0;
+
+
+        if (
+            total !==
+            filtered
         ) {
 
             elements.historyCount.textContent =
@@ -1091,9 +1809,14 @@
         } else {
 
             elements.historyCount.textContent =
-                String(total);
+                String(
+                    total
+                );
+
         }
+
     }
+
 
     /* =====================================================
        SUBTITLE
@@ -1104,27 +1827,51 @@
         const elements =
             getElements();
 
-        if (!elements.historySubtitle) {
+
+        if (
+            !elements.historySubtitle
+        ) {
+
             return;
+
         }
 
+
         const filter =
-            getState().currentFilter ||
-            "all";
+            normalizeFilter(
+                getState().currentFilter
+            );
+
 
         const labels = {
-            all: "Semua generation",
-            success: "Generation berhasil",
-            processing: "Generation sedang diproses",
-            pending: "Generation menunggu proses",
-            failed: "Generation gagal",
-            cancelled: "Generation dibatalkan"
+
+            all:
+                "Semua generation",
+
+            success:
+                "Generation berhasil",
+
+            processing:
+                "Generation sedang diproses",
+
+            pending:
+                "Generation menunggu proses",
+
+            failed:
+                "Generation gagal",
+
+            cancelled:
+                "Generation dibatalkan"
+
         };
+
 
         elements.historySubtitle.textContent =
             labels[filter] ||
             labels.all;
+
     }
+
 
     /* =====================================================
        MAIN RENDER
@@ -1135,42 +1882,71 @@
         const elements =
             getElements();
 
-        if (!elements.historyBody) {
+
+        if (
+            !elements.historyBody
+        ) {
+
             console.warn(
-                "History render skipped: " +
-                "#historyBody tidak ditemukan."
+                "[GEN-Z.AI History] Render skipped: #historyBody tidak ditemukan."
             );
 
+
             return;
+
         }
+
 
         const allData =
             getHistoryData();
 
+
         const filteredData =
             getFilteredData();
 
+
         updateUserColumn();
+
 
         updateHistoryCount(
             allData.length,
             filteredData.length
         );
 
+
         updateSubtitle();
 
-        if (!filteredData.length) {
+
+        if (
+            !filteredData.length
+        ) {
+
             renderEmptyState();
+
+
+            /*
+             * Pastikan body tabel kosong
+             * ketika filter tidak memiliki data.
+             */
+            elements.historyBody.innerHTML =
+                "";
+
+
             return;
+
         }
+
 
         renderTable(
             filteredData
         );
+
     }
+
 
     App.renderHistory =
         renderHistory;
+
 
     /* =====================================================
        RENDER LOADING
@@ -1181,24 +1957,42 @@
         const elements =
             getElements();
 
-        if (elements.loadingState) {
+
+        if (
+            elements.loadingState
+        ) {
+
             elements.loadingState.style.display =
                 "block";
+
         }
 
-        if (elements.tableWrap) {
+
+        if (
+            elements.tableWrap
+        ) {
+
             elements.tableWrap.style.display =
                 "none";
+
         }
 
-        if (elements.emptyState) {
+
+        if (
+            elements.emptyState
+        ) {
+
             elements.emptyState.style.display =
                 "none";
+
         }
+
     }
+
 
     App.renderLoading =
         renderLoading;
+
 
     /* =====================================================
        RENDER ERROR
@@ -1209,24 +2003,42 @@
         const elements =
             getElements();
 
-        if (elements.loadingState) {
+
+        if (
+            elements.loadingState
+        ) {
+
             elements.loadingState.style.display =
                 "none";
+
         }
 
-        if (elements.tableWrap) {
+
+        if (
+            elements.tableWrap
+        ) {
+
             elements.tableWrap.style.display =
                 "none";
+
         }
 
-        if (elements.emptyState) {
+
+        if (
+            elements.emptyState
+        ) {
+
             elements.emptyState.style.display =
                 "none";
+
         }
+
     }
+
 
     App.renderError =
         renderError;
+
 
     /* =====================================================
        VIDEO PREVIEW HELPER
@@ -1237,9 +2049,15 @@
         const elements =
             getElements();
 
-        if (!elements.historyBody) {
+
+        if (
+            !elements.historyBody
+        ) {
+
             return;
+
         }
+
 
         const videos =
             elements.historyBody
@@ -1247,21 +2065,32 @@
                     ".history-thumbnail video"
                 );
 
-        videos.forEach(video => {
 
-            try {
-                video.load();
-            } catch (error) {
-                console.warn(
-                    "Video thumbnail preload failed:",
-                    error
-                );
+        videos.forEach(
+            function (video) {
+
+                try {
+
+                    video.load();
+
+                } catch (error) {
+
+                    console.warn(
+                        "[GEN-Z.AI History] Video thumbnail preload failed:",
+                        error
+                    );
+
+                }
+
             }
-        });
+        );
+
     }
+
 
     App.preloadThumbnailVideos =
         preloadThumbnailVideos;
+
 
     /* =====================================================
        REFRESH RENDER ONLY
@@ -1270,6 +2099,7 @@
     function refreshRender() {
 
         renderHistory();
+
 
         /*
          * Jalankan setelah browser selesai
@@ -1287,10 +2117,57 @@
         } else {
 
             preloadThumbnailVideos();
+
         }
+
     }
+
 
     App.refreshRender =
         refreshRender;
+
+
+    /* =====================================================
+       PUBLIC COMPATIBILITY
+       -----------------------------------------------------
+       API tambahan agar module lain yang masih
+       menggunakan fungsi lama tidak rusak.
+    ===================================================== */
+
+    App.getUserDisplay =
+        getUserDisplay;
+
+    App.getProviderDisplay =
+        getProviderDisplay;
+
+    App.getModelDisplay =
+        getModelDisplay;
+
+    App.getPromptDisplay =
+        getPromptDisplay;
+
+    App.getStatusDisplay =
+        getStatusDisplay;
+
+    App.getCreditDisplay =
+        getCreditDisplay;
+
+    App.getRowHtml =
+        getRowHtml;
+
+    App.renderTable =
+        renderTable;
+
+    App.renderEmptyState =
+        renderEmptyState;
+
+    App.updateUserColumn =
+        updateUserColumn;
+
+    App.updateHistoryCount =
+        updateHistoryCount;
+
+    App.updateSubtitle =
+        updateSubtitle;
 
 })();
