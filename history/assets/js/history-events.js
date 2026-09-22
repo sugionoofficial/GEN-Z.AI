@@ -911,7 +911,7 @@
 
         const button =
             target.closest(
-                "[data-history-filter]"
+                "[data-filter]"
             );
 
         if (!button) {
@@ -922,7 +922,7 @@
 
         const filter =
             button.dataset
-                .historyFilter ||
+                .Filter ||
             "all";
 
         setFilter(filter);
