@@ -10,6 +10,8 @@
    - Mengambil access token Supabase
    - Menentukan status processing / completed / failed
    - Mengambil result URL dari backend
+   - Memastikan generation_history sudah tersinkron sebelum
+     polling terminal dianggap benar-benar selesai
    - Timeout polling
    - Menyediakan callback/event untuk module lain
 
@@ -37,12 +39,18 @@
           ↓
    completed
           ↓
+   history_updated === true
+          ↓
    result_urls
+          ↓
+   selesai
 
    CATATAN:
    - /api/generate-status membutuhkan task_id + model_id
    - Module ini tidak membuat row generation_history
-   - Status History harus direkonsiliasi oleh backend
+   - Backend tetap menjadi pemilik sinkronisasi History
+   - Polling TIDAK boleh berhenti sebelum terminal task
+     sudah direkonsiliasi oleh backend
 ========================================================= */
 
 
@@ -65,6 +73,19 @@ const DEFAULT_INTERVAL =
 
 const DEFAULT_TIMEOUT =
     10 * 60 * 1000;
+
+
+/*
+ * Setelah provider sudah completed tetapi History belum
+ * tersinkron, kita tetap meminta backend melakukan
+ * reconciliation pada polling berikutnya.
+ *
+ * Nilai ini tidak membatasi jumlah polling task.
+ * Hanya digunakan sebagai diagnostic counter.
+ */
+
+const HISTORY_RECONCILIATION_LOG_INTERVAL =
+    3;
 
 
 /* =========================================================
@@ -528,7 +549,7 @@ function normalizeTaskState(
     )
         .toLowerCase()
         .replace(
-            /\s+/g,
+            /[\s-]+/g,
             "_"
         );
 }
@@ -638,6 +659,10 @@ function normalizeResultUrls(
 
                             item.fileUrl ||
 
+                            item.download_url ||
+
+                            item.downloadUrl ||
+
                             ""
 
                         );
@@ -696,6 +721,10 @@ function normalizeResultUrls(
                 value.file_url ||
 
                 value.fileUrl ||
+
+                value.download_url ||
+
+                value.downloadUrl ||
 
                 ""
 
@@ -808,9 +837,21 @@ function extractResultUrls(
 
         data?.data?.resultJson?.resultUrls,
 
-        data?.data?.resultJson?.result_urls
+        data?.data?.resultJson?.result_urls,
+
+        data?.resultJson?.data?.resultUrls,
+
+        data?.resultJson?.data?.result_urls,
+
+        data?.data?.resultJson?.data?.resultUrls,
+
+        data?.data?.resultJson?.data?.result_urls
 
     ];
+
+
+    const urls =
+        [];
 
 
     for (
@@ -818,22 +859,177 @@ function extractResultUrls(
         of candidates
     ) {
 
-        const urls =
+        const extracted =
             normalizeResultUrls(
                 candidate
             );
 
 
-        if (
-            urls.length
+        for (
+            const url
+            of extracted
         ) {
 
-            return urls;
+            if (
+                url &&
+                !urls.includes(
+                    url
+                )
+            ) {
+
+                urls.push(
+                    url
+                );
+            }
+        }
+
+    }
+
+
+    return urls;
+}
+
+
+/* =========================================================
+   BOOLEAN FLAG
+========================================================= */
+
+function findBooleanFlag(
+    data,
+    keys
+) {
+
+    const objects = [
+
+        data,
+
+        data?.data,
+
+        data?.task,
+
+        data?.result,
+
+        data?.data?.task,
+
+        data?.data?.result
+
+    ];
+
+
+    for (
+        const object
+        of objects
+    ) {
+
+        if (
+            !object ||
+            typeof object !==
+                "object"
+        ) {
+
+            continue;
+        }
+
+
+        for (
+            const key
+            of keys
+        ) {
+
+            if (
+                object?.[key] === true
+            ) {
+
+                return true;
+            }
+
         }
     }
 
 
-    return [];
+    return false;
+}
+
+
+/* =========================================================
+   HISTORY SYNC STATE
+   ---------------------------------------------------------
+   Backend /api/generate-status mengembalikan:
+
+     history_updated
+     history_status
+     history_reason
+
+   Kita harus mempertahankan informasi ini.
+========================================================= */
+
+function extractHistoryUpdated(
+    data
+) {
+
+    return (
+
+        data?.history_updated === true ||
+
+        data?.historyUpdated === true ||
+
+        data?.data?.history_updated === true ||
+
+        data?.data?.historyUpdated === true ||
+
+        data?.task?.history_updated === true ||
+
+        data?.task?.historyUpdated === true
+
+    );
+}
+
+
+function extractHistoryStatus(
+    data
+) {
+
+    return normalizeTaskState(
+
+        data?.history_status ||
+
+        data?.historyStatus ||
+
+        data?.data?.history_status ||
+
+        data?.data?.historyStatus ||
+
+        data?.task?.history_status ||
+
+        data?.task?.historyStatus ||
+
+        ""
+
+    );
+}
+
+
+function extractHistoryReason(
+    data
+) {
+
+    return normalizeString(
+
+        data?.history_reason ||
+
+        data?.historyReason ||
+
+        data?.data?.history_reason ||
+
+        data?.data?.historyReason ||
+
+        data?.task?.history_reason ||
+
+        data?.task?.historyReason ||
+
+        ""
+
+    );
 }
 
 
@@ -879,25 +1075,44 @@ export function normalizePollingResult(
         );
 
 
+    /*
+     * Backend generate-status sudah melakukan normalisasi.
+     *
+     * Kita tetap membaca flag dari beberapa kemungkinan
+     * bentuk response agar module ini tidak rapuh.
+     */
+
     const explicitCompleted =
-        data.completed === true ||
-        data.data?.completed === true ||
-        data.task?.completed === true ||
-        data.data?.task?.completed === true;
+        findBooleanFlag(
+            data,
+            [
+                "completed",
+                "complete",
+                "finished",
+                "success"
+            ]
+        );
 
 
     const explicitFailed =
-        data.failed === true ||
-        data.data?.failed === true ||
-        data.task?.failed === true ||
-        data.data?.task?.failed === true;
+        findBooleanFlag(
+            data,
+            [
+                "failed",
+                "failure"
+            ]
+        );
 
 
     const explicitProcessing =
-        data.processing === true ||
-        data.data?.processing === true ||
-        data.task?.processing === true ||
-        data.data?.task?.processing === true;
+        findBooleanFlag(
+            data,
+            [
+                "processing",
+                "running",
+                "generating"
+            ]
+        );
 
 
     const completedStates =
@@ -909,7 +1124,9 @@ export function normalizePollingResult(
             "complete",
             "done",
             "finished",
-            "successfully_completed"
+            "finish",
+            "successfully_completed",
+            "successfully-completed"
         ]);
 
 
@@ -922,7 +1139,8 @@ export function normalizePollingResult(
             "cancelled",
             "canceled",
             "rejected",
-            "terminated"
+            "terminated",
+            "aborted"
         ]);
 
 
@@ -946,10 +1164,32 @@ export function normalizePollingResult(
 
     /*
      * =====================================================
+     * HISTORY INFORMATION
+     * =====================================================
+     */
+
+    const historyUpdated =
+        extractHistoryUpdated(
+            data
+        );
+
+
+    const historyStatus =
+        extractHistoryStatus(
+            data
+        );
+
+
+    const historyReason =
+        extractHistoryReason(
+            data
+        );
+
+
+    /*
+     * =====================================================
      * STATUS PRIORITY
      * =====================================================
-     *
-     * Urutan status harus tegas:
      *
      * FAILED
      *   ↓
@@ -957,23 +1197,8 @@ export function normalizePollingResult(
      *   ↓
      * PROCESSING
      *
-     * RESULT URL TIDAK BOLEH sendirian mengubah
-     * processing menjadi completed.
-     *
-     * Sebelumnya:
-     *
-     *     completed =
-     *         explicitCompleted ||
-     *         completedState ||
-     *         hasResult;
-     *
-     * Ini berbahaya karena backend/provider bisa
-     * mengirim URL sementara state masih processing.
-     *
-     * Sekarang URL hanya dianggap sebagai DATA HASIL.
-     * Status tetap mengikuti state/flag final.
+     * Result URL TIDAK boleh sendirian membuat completed.
      */
-
 
     const hasResult =
         resultUrls.length > 0;
@@ -993,16 +1218,6 @@ export function normalizePollingResult(
         );
 
 
-    /*
-     * COMPLETED:
-     *
-     * Hanya berdasarkan:
-     * - explicit completed
-     * - completed state
-     *
-     * Result URL TIDAK cukup untuk menyatakan selesai.
-     */
-
     const completed =
         !failed &&
         !processingState &&
@@ -1013,14 +1228,6 @@ export function normalizePollingResult(
             )
         );
 
-
-    /*
-     * PROCESSING:
-     *
-     * Jika backend masih menyatakan processing,
-     * jangan pernah mengubahnya menjadi completed
-     * hanya karena result URL tersedia.
-     */
 
     const processing =
         !failed &&
@@ -1071,16 +1278,15 @@ export function normalizePollingResult(
         state:
             normalizedState,
 
+        provider_state:
+            state,
+
         processing,
 
         completed,
 
         failed,
 
-        /*
-         * Tetap expose informasi bahwa URL tersedia.
-         * Ini penting agar module lain tidak kehilangan data.
-         */
         has_result:
             hasResult,
 
@@ -1091,7 +1297,29 @@ export function normalizePollingResult(
             resultUrls,
 
         resultUrls:
-            resultUrls
+            resultUrls,
+
+        /*
+         * History synchronization state.
+         */
+
+        history_updated:
+            historyUpdated,
+
+        historyUpdated:
+            historyUpdated,
+
+        history_status:
+            historyStatus,
+
+        historyStatus:
+            historyStatus,
+
+        history_reason:
+            historyReason,
+
+        historyReason:
+            historyReason
 
     };
 }
@@ -1186,7 +1414,10 @@ export async function requestTaskStatus(
                             `Bearer ${accessToken}`,
 
                         "Accept":
-                            "application/json"
+                            "application/json",
+
+                        "Cache-Control":
+                            "no-cache"
 
                     },
 
@@ -1399,6 +1630,65 @@ function checkAbort(
 
 
 /* =========================================================
+   HISTORY RECONCILIATION CHECK
+========================================================= */
+
+function isHistorySynchronized(
+    result
+) {
+
+    /*
+     * Backend adalah sumber kebenaran.
+     *
+     * history_updated === true
+     * berarti PATCH generation_history berhasil.
+     */
+
+    if (
+        result?.history_updated === true
+    ) {
+
+        return true;
+    }
+
+
+    /*
+     * Beberapa backend lama mungkin hanya mengembalikan
+     * history_status.
+     *
+     * Tetap izinkan completed jika backend secara eksplisit
+     * menyatakan History sudah completed.
+     */
+
+    if (
+        normalizeTaskState(
+            result?.history_status
+        ) ===
+        "completed"
+    ) {
+
+        /*
+         * Jangan langsung menganggap ini true bila
+         * history_updated tersedia dan bernilai false.
+         */
+
+        if (
+            result?.history_updated === false
+        ) {
+
+            return false;
+        }
+
+
+        return true;
+    }
+
+
+    return false;
+}
+
+
+/* =========================================================
    POLL TASK
 ========================================================= */
 
@@ -1433,8 +1723,6 @@ export async function pollTask(
 
     /*
      * /api/generate-status membutuhkan model_id.
-     *
-     * Jangan melakukan polling tanpa model ID.
      */
 
     if (!polling.modelId) {
@@ -1464,6 +1752,10 @@ export async function pollTask(
 
 
     let pollCount =
+        0;
+
+
+    let historyReconciliationCount =
         0;
 
 
@@ -1503,9 +1795,11 @@ export async function pollTask(
                             poll_count:
                                 pollCount,
 
+                            history_reconciliation_count:
+                                historyReconciliationCount,
+
                             last_result:
                                 lastResult
-
                         }
                 }
             );
@@ -1537,8 +1831,6 @@ export async function pollTask(
              * Error request status tetap diteruskan.
              *
              * Jangan menganggap error sebagai completed.
-             * Jika backend gagal menjawab, History tidak boleh
-             * dipalsukan menjadi completed.
              */
 
             throw error;
@@ -1576,9 +1868,9 @@ export async function pollTask(
         }
 
 
-        /*
-         * FAILED harus diperiksa sebelum COMPLETED.
-         */
+        /* =================================================
+           FAILED
+        ================================================= */
 
         if (
             result.failed
@@ -1603,24 +1895,124 @@ export async function pollTask(
         }
 
 
-        /*
-         * COMPLETED hanya dikembalikan jika backend
-         * benar-benar memberikan status final.
-         *
-         * Result URL saja tidak cukup.
-         */
+        /* =================================================
+           COMPLETED
+           + HISTORY SYNCHRONIZATION
+        ================================================= */
 
         if (
             result.completed
         ) {
 
-            return result;
+            const historySynchronized =
+                isHistorySynchronized(
+                    result
+                );
+
+
+            /*
+             * =================================================
+             * CASE 1:
+             * Provider completed + History completed
+             *
+             * Ini kondisi terminal sebenarnya.
+             * =================================================
+             */
+
+            if (
+                historySynchronized
+            ) {
+
+                return result;
+            }
+
+
+            /*
+             * =================================================
+             * CASE 2:
+             * Provider completed tetapi History belum update.
+             *
+             * JANGAN langsung return.
+             *
+             * Kita panggil /api/generate-status lagi sehingga
+             * backend memiliki kesempatan melakukan PATCH ulang.
+             * =================================================
+             */
+
+            historyReconciliationCount += 1;
+
+
+            if (
+                historyReconciliationCount === 1 ||
+                historyReconciliationCount %
+                    HISTORY_RECONCILIATION_LOG_INTERVAL ===
+                    0
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI] Task sudah completed tetapi generation_history belum tersinkron. Reconciliation ulang...",
+                    {
+
+                        task_id:
+                            normalizedTaskId,
+
+                        model_id:
+                            polling.modelId,
+
+                        poll_count:
+                            pollCount,
+
+                        history_reconciliation_count:
+                            historyReconciliationCount,
+
+                        history_updated:
+                            result.history_updated,
+
+                        history_status:
+                            result.history_status,
+
+                        history_reason:
+                            result.history_reason,
+
+                        result_count:
+                            Array.isArray(
+                                result.result_urls
+                            )
+                                ? result.result_urls.length
+                                : 0
+
+                    }
+                );
+            }
+
+
+            /*
+             * Jangan sleep terlalu lama ketika provider sudah
+             * selesai. Backend perlu segera mendapat request
+             * berikutnya untuk reconciliation.
+             */
+
+            await sleep(
+                Math.min(
+                    polling.interval,
+                    2000
+                )
+            );
+
+
+            continue;
         }
 
+
+        /* =================================================
+           PROCESSING
+        ================================================= */
 
         /*
          * Selama belum completed / failed,
          * task tetap dipolling.
+         *
+         * Result URL saja tidak mengakhiri polling.
          */
 
         await sleep(
