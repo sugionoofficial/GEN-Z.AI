@@ -252,14 +252,24 @@ function extractMessage(
  * =========================================================
  *
  * HTTP 2xx dianggap berhasil kecuali API response
- * secara eksplisit memberikan code >= 400 atau
- * success === false.
+ * secara eksplisit memberikan business code error.
+ *
+ * CATATAN KIE.AI:
+ *
+ * Endpoint recordInfo dapat menggunakan business code
+ * 505 walaupun HTTP response tetap 2xx dan data task
+ * valid. Code 505 tersebut harus diterima sebagai
+ * respons task yang valid.
+ *
+ * Business code 505 HANYA diizinkan melalui opsi
+ * acceptedBusinessCodes dari caller.
  * =========================================================
  */
 
 function isSuccessfulResponse(
     response,
-    data
+    data,
+    options = {}
 ) {
 
     if (!response.ok) {
@@ -273,9 +283,24 @@ function isSuccessfulResponse(
         typeof data === "object"
     ) {
 
+        const acceptedBusinessCodes =
+            Array.isArray(
+                options.acceptedBusinessCodes
+            )
+                ? options.acceptedBusinessCodes
+                : [];
+
+        const businessCode =
+            typeof data.code === "number"
+                ? data.code
+                : null;
+
         if (
-            typeof data.code === "number" &&
-            data.code >= 400
+            businessCode !== null &&
+            businessCode >= 400 &&
+            !acceptedBusinessCodes.includes(
+                businessCode
+            )
         ) {
 
             return false;
@@ -418,7 +443,8 @@ async function request(
     if (
         !isSuccessfulResponse(
             response,
-            data
+            data,
+            options
         )
     ) {
 
@@ -581,6 +607,12 @@ async function createTask(
  * GET:
  *
  * /api/v1/jobs/recordInfo?taskId=...
+ *
+ * KIE recordInfo dapat menggunakan business code 505
+ * pada HTTP 2xx ketika detail task berhasil dikembalikan.
+ *
+ * Code 505 tersebut TIDAK boleh dianggap sebagai
+ * HTTP error.
  * =========================================================
  */
 
@@ -629,7 +661,15 @@ async function getTask(
                 method:
                     "GET",
 
-                apiKey
+                apiKey,
+
+                /*
+                 * KIE recordInfo:
+                 * business code 505 dapat tetap membawa
+                 * data task yang valid.
+                 */
+                acceptedBusinessCodes:
+                    [505]
 
             }
 
