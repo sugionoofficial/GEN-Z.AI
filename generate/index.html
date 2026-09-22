@@ -426,6 +426,47 @@
     pointer-events: none !important;
 }
 
+/* =========================================================
+   REMOVE DUPLICATE PROCESS INDICATOR
+   ---------------------------------------------------------
+   Hanya indikator kiri "Memproses..." yang dihilangkan.
+   Status proses pada #generateButton TETAP BERFUNGSI.
+========================================================= */
+
+#loading,
+#loading.loading,
+.generate-actions-right > #loading {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 0 !important;
+    max-height: 0 !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(100%) !important;
+
+    pointer-events: none !important;
+}
+
+/* Jangan biarkan elemen loading membuat jarak di area tombol */
+.generate-actions-right {
+    gap: 0 !important;
+}
+
+.generate-actions-right > #generateButton {
+    margin-left: 0 !important;
+}
+        
     </style>
 
 
