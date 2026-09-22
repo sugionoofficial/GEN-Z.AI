@@ -4938,8 +4938,13 @@ setGenerateStatus(
         }
 
         showLoading(
-            `KIE.AI menerima task ${taskId}. Menunggu hasil...`
-        );
+    `KIE.AI menerima task ${taskId}. Menunggu hasil...`
+);
+
+setGenerateStatus(
+    "processing",
+    "Generate sedang diproses. Mohon tunggu..."
+);
 
         /*
          * =================================================
