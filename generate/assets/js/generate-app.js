@@ -5210,18 +5210,23 @@ if (
         }
 
         if (
-            elements.status
-        ) {
+    elements.status
+) {
 
-            elements.status.textContent =
-                "Generate selesai.";
+    elements.status.textContent =
+        "Generate selesai.";
 
-            elements.status.hidden =
-                false;
+    elements.status.hidden =
+        false;
 
-        }
+}
 
-        hideLoading();
+setGenerateStatus(
+    "success",
+    "Check Hasil Generate di History...!!!"
+);
+
+hideLoading();
 
     } catch (
         error
@@ -5246,6 +5251,11 @@ if (
         showError(
             errorMessage
         );
+
+       setGenerateStatus(
+    "failed",
+    errorMessage
+);
 
         if (
             elements.status
