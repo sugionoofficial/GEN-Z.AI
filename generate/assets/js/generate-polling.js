@@ -945,60 +945,110 @@ export function normalizePollingResult(
 
 
     /*
-     * Hasil URL adalah indikator kuat bahwa backend
-     * sudah menerima hasil akhir.
+     * =====================================================
+     * STATUS PRIORITY
+     * =====================================================
      *
-     * Jangan hanya bergantung pada nama state KIE,
-     * karena adapter/backend dapat menggunakan
-     * struktur response yang berbeda.
+     * Urutan status harus tegas:
+     *
+     * FAILED
+     *   ↓
+     * COMPLETED
+     *   ↓
+     * PROCESSING
+     *
+     * RESULT URL TIDAK BOLEH sendirian mengubah
+     * processing menjadi completed.
+     *
+     * Sebelumnya:
+     *
+     *     completed =
+     *         explicitCompleted ||
+     *         completedState ||
+     *         hasResult;
+     *
+     * Ini berbahaya karena backend/provider bisa
+     * mengirim URL sementara state masih processing.
+     *
+     * Sekarang URL hanya dianggap sebagai DATA HASIL.
+     * Status tetap mengikuti state/flag final.
      */
+
 
     const hasResult =
         resultUrls.length > 0;
 
 
-    const completed =
-        explicitCompleted ||
-        completedStates.has(
+    const processingState =
+        explicitProcessing ||
+        waitingStates.has(
             state
-        ) ||
-        hasResult;
+        );
 
 
     const failed =
-        !completed &&
+        explicitFailed ||
+        failedStates.has(
+            state
+        );
+
+
+    /*
+     * COMPLETED:
+     *
+     * Hanya berdasarkan:
+     * - explicit completed
+     * - completed state
+     *
+     * Result URL TIDAK cukup untuk menyatakan selesai.
+     */
+
+    const completed =
+        !failed &&
+        !processingState &&
         (
-            explicitFailed ||
-            failedStates.has(
+            explicitCompleted ||
+            completedStates.has(
                 state
             )
         );
 
 
+    /*
+     * PROCESSING:
+     *
+     * Jika backend masih menyatakan processing,
+     * jangan pernah mengubahnya menjadi completed
+     * hanya karena result URL tersedia.
+     */
+
     const processing =
-        !completed &&
         !failed &&
-        (
-            explicitProcessing ||
-            waitingStates.has(
-                state
-            ) ||
-            !state
-        );
+        !completed;
 
 
     let normalizedState =
         state;
 
 
-    if (!normalizedState) {
+    if (
+        failed
+    ) {
 
         normalizedState =
-            completed
-                ? "success"
-                : failed
-                    ? "failed"
-                    : "processing";
+            "failed";
+
+    } else if (
+        completed
+    ) {
+
+        normalizedState =
+            "completed";
+
+    } else {
+
+        normalizedState =
+            "processing";
     }
 
 
@@ -1026,6 +1076,16 @@ export function normalizePollingResult(
         completed,
 
         failed,
+
+        /*
+         * Tetap expose informasi bahwa URL tersedia.
+         * Ini penting agar module lain tidak kehilangan data.
+         */
+        has_result:
+            hasResult,
+
+        hasResult:
+            hasResult,
 
         result_urls:
             resultUrls,
@@ -1518,9 +1578,6 @@ export async function pollTask(
 
         /*
          * FAILED harus diperiksa sebelum COMPLETED.
-         *
-         * Normalizer sudah mencegah state failed
-         * menjadi completed kecuali terdapat result URL.
          */
 
         if (
@@ -1548,8 +1605,9 @@ export async function pollTask(
 
         /*
          * COMPLETED hanya dikembalikan jika backend
-         * benar-benar memberikan status selesai atau
-         * result URL.
+         * benar-benar memberikan status final.
+         *
+         * Result URL saja tidak cukup.
          */
 
         if (
