@@ -1866,11 +1866,9 @@ function normalizeTaskResponse(
         );
 
 
-    /*
-     * -----------------------------------------------------
-     * Explicit flags
-     * -----------------------------------------------------
-     */
+    /* =====================================================
+       EXPLICIT FLAGS
+    ===================================================== */
 
     const explicitCompleted =
         getBooleanFlag(
@@ -1906,11 +1904,9 @@ function normalizeTaskResponse(
         );
 
 
-    /*
-     * -----------------------------------------------------
-     * Provider state
-     * -----------------------------------------------------
-     */
+    /* =====================================================
+       PROVIDER STATE
+    ===================================================== */
 
     const stateCompleted =
         COMPLETED_STATES.has(
@@ -1928,28 +1924,13 @@ function normalizeTaskResponse(
         );
 
 
-    /*
-     * -----------------------------------------------------
-     * TERMINAL DECISION
-     * -----------------------------------------------------
-     *
-     * FAILED selalu memiliki prioritas tertinggi.
-     */
+    /* =====================================================
+       TERMINAL DECISION
+    ===================================================== */
 
     const failed =
         explicitFailed ||
         stateFailed;
-
-
-    /*
-     * Adapter KIE query-task dapat mengembalikan
-     *
-     * success: true
-     *
-     * walaupun state berada di object nested.
-     *
-     * explicitCompleted menangani kondisi tersebut.
-     */
 
     const completed =
         !failed &&
@@ -1957,11 +1938,6 @@ function normalizeTaskResponse(
             stateCompleted ||
             explicitCompleted
         );
-
-
-    /*
-     * Processing hanya true apabila belum terminal.
-     */
 
     const processing =
         !failed &&
@@ -2184,6 +2160,208 @@ async function findGenerationHistory(
 
 
 /* =========================================================
+   FIND HISTORY ROW BY ID
+   ---------------------------------------------------------
+   Setelah row ditemukan melalui user_id + task_id,
+   seluruh operasi berikutnya menggunakan primary key.
+========================================================= */
+
+async function findGenerationHistoryById(
+    rowId
+) {
+
+    const normalizedRowId =
+        normalizeString(
+            rowId
+        );
+
+    if (!normalizedRowId) {
+
+        return null;
+
+    }
+
+    const params =
+        new URLSearchParams();
+
+    params.set(
+        "select",
+        "id,user_id,task_id,status,result_url,error_message,completed_at"
+    );
+
+    params.set(
+        "id",
+        `eq.${normalizedRowId}`
+    );
+
+    params.set(
+        "limit",
+        "1"
+    );
+
+    const rows =
+        await supabaseRequest(
+            `/rest/v1/generation_history?${params.toString()}`,
+            {
+                method:
+                    "GET"
+            }
+        );
+
+    if (
+        !Array.isArray(rows) ||
+        !rows.length
+    ) {
+
+        return null;
+
+    }
+
+    return rows[0];
+
+}
+
+
+/* =========================================================
+   PATCH HISTORY ROW
+   ---------------------------------------------------------
+   Update hanya berdasarkan primary key.
+   Tidak lagi mengandalkan user_id pada PATCH.
+========================================================= */
+
+async function patchGenerationHistoryRow(
+    rowId,
+    payload
+) {
+
+    const normalizedRowId =
+        normalizeString(
+            rowId
+        );
+
+    if (!normalizedRowId) {
+
+        throw new Error(
+            "generation_history row id is missing"
+        );
+
+    }
+
+    const params =
+        new URLSearchParams();
+
+    params.set(
+        "id",
+        `eq.${normalizedRowId}`
+    );
+
+    return supabaseRequest(
+        `/rest/v1/generation_history?${params.toString()}`,
+        {
+
+            method:
+                "PATCH",
+
+            headers: {
+
+                /*
+                 * Representation diminta untuk
+                 * debugging dan verifikasi.
+                 *
+                 * Namun hasil PATCH TIDAK dijadikan
+                 * sumber kebenaran utama.
+                 */
+
+                Prefer:
+                    "return=representation"
+
+            },
+
+            body:
+                JSON.stringify(
+                    payload
+                )
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   VERIFY HISTORY TERMINAL STATUS
+========================================================= */
+
+async function verifyHistoryTerminalState(
+    rowId,
+    expectedStatus
+) {
+
+    const normalizedRowId =
+        normalizeString(
+            rowId
+        );
+
+    const normalizedExpectedStatus =
+        normalizeState(
+            expectedStatus
+        );
+
+    if (
+        !normalizedRowId ||
+        !normalizedExpectedStatus
+    ) {
+
+        return {
+
+            verified:
+                false,
+
+            row:
+                null
+
+        };
+
+    }
+
+    const row =
+        await findGenerationHistoryById(
+            normalizedRowId
+        );
+
+    if (!row) {
+
+        return {
+
+            verified:
+                false,
+
+            row:
+                null
+
+        };
+
+    }
+
+    const actualStatus =
+        normalizeState(
+            row.status
+        );
+
+    return {
+
+        verified:
+            actualStatus ===
+            normalizedExpectedStatus,
+
+        row
+
+    };
+
+}
+
+
+/* =========================================================
    UPDATE HISTORY
 ========================================================= */
 
@@ -2215,11 +2393,9 @@ async function updateGenerationHistory({
     }
 
 
-    /*
-     * =====================================================
-     * PROCESSING
-     * =====================================================
-     */
+    /* =====================================================
+       PROCESSING
+    ===================================================== */
 
     if (
         result?.processing &&
@@ -2246,11 +2422,9 @@ async function updateGenerationHistory({
     }
 
 
-    /*
-     * =====================================================
-     * FIND ROW
-     * =====================================================
-     */
+    /* =====================================================
+       FIND EXISTING ROW
+    ===================================================== */
 
     let existingRow;
 
@@ -2283,11 +2457,9 @@ async function updateGenerationHistory({
     }
 
 
-    /*
-     * =====================================================
-     * ROW NOT FOUND
-     * =====================================================
-     */
+    /* =====================================================
+       ROW NOT FOUND
+    ===================================================== */
 
     if (!existingRow) {
 
@@ -2332,11 +2504,85 @@ async function updateGenerationHistory({
     }
 
 
-    /*
-     * =====================================================
-     * COMPLETED
-     * =====================================================
-     */
+    /* =====================================================
+       ALREADY COMPLETED
+       -----------------------------------------------------
+       Jika sebelumnya sudah selesai, jangan menganggap
+       response PATCH sebagai satu-satunya sumber kebenaran.
+    ===================================================== */
+
+    const existingStatus =
+        normalizeState(
+            existingRow.status
+        );
+
+    if (
+        result?.completed &&
+        existingStatus ===
+            "completed"
+    ) {
+
+        return {
+
+            updated:
+                true,
+
+            matched:
+                true,
+
+            status:
+                "completed",
+
+            result_url:
+                normalizeString(
+                    existingRow.result_url
+                ) || null,
+
+            row_id:
+                rowId,
+
+            reason:
+                "history_already_completed"
+
+        };
+
+    }
+
+    if (
+        result?.failed &&
+        existingStatus ===
+            "failed"
+    ) {
+
+        return {
+
+            updated:
+                true,
+
+            matched:
+                true,
+
+            status:
+                "failed",
+
+            error_message:
+                existingRow.error_message ||
+                null,
+
+            row_id:
+                rowId,
+
+            reason:
+                "history_already_failed"
+
+        };
+
+    }
+
+
+    /* =====================================================
+       COMPLETED
+    ===================================================== */
 
     if (
         result?.completed
@@ -2352,10 +2598,8 @@ async function updateGenerationHistory({
                 )
                 : null;
 
-
         const completedAt =
             new Date().toISOString();
-
 
         const payload = {
 
@@ -2374,51 +2618,20 @@ async function updateGenerationHistory({
         };
 
 
-        const params =
-            new URLSearchParams();
-
         /*
-         * PATCH berdasarkan primary key.
-         *
-         * Tidak menggunakan limit.
+         * -------------------------------------------------
+         * FIRST PATCH
+         * -------------------------------------------------
          */
 
-        params.set(
-            "id",
-            `eq.${rowId}`
-        );
-
-        params.set(
-            "user_id",
-            `eq.${normalizedUserId}`
-        );
-
-
-        let rows;
+        let patchResponse;
 
         try {
 
-            rows =
-                await supabaseRequest(
-                    `/rest/v1/generation_history?${params.toString()}`,
-                    {
-
-                        method:
-                            "PATCH",
-
-                        headers: {
-
-                            Prefer:
-                                "return=representation"
-
-                        },
-
-                        body:
-                            JSON.stringify(
-                                payload
-                            )
-
-                    }
+            patchResponse =
+                await patchGenerationHistoryRow(
+                    rowId,
+                    payload
                 );
 
         } catch (error) {
@@ -2442,81 +2655,55 @@ async function updateGenerationHistory({
         }
 
 
-        const updatedRows =
-            Array.isArray(rows)
-                ? rows
-                : [];
-
-
-        const updated =
-            updatedRows.some(
-                row =>
-                    normalizeString(
-                        row?.id
-                    ) === rowId
-            );
-
-
         /*
-         * Jika Supabase tidak mengembalikan representation,
-         * lakukan verifikasi ulang row.
+         * -------------------------------------------------
+         * FIRST VERIFICATION
+         * -------------------------------------------------
          *
-         * Ini penting agar status history tidak salah
-         * dilaporkan hanya karena response kosong.
+         * Jangan percaya begitu saja pada response PATCH.
+         * Supabase/PostgREST dapat mengembalikan response
+         * kosong tergantung Prefer/header/schema.
          */
 
-        if (!updated) {
+        let verification;
 
-            const verifiedRow =
-                await findGenerationHistory(
-                    normalizedUserId,
-                    normalizedTaskId
+        try {
+
+            verification =
+                await verifyHistoryTerminalState(
+                    rowId,
+                    "completed"
                 );
 
+        } catch (error) {
 
-            const verified =
-                normalizeString(
-                    verifiedRow?.id
-                ) === rowId &&
-                normalizeState(
-                    verifiedRow?.status
-                ) === "completed";
+            const diagnostic =
+                new Error(
+                    "Failed to verify completed generation_history row"
+                );
+
+            diagnostic.status =
+                error?.status || 500;
+
+            diagnostic.data =
+                error?.data || null;
+
+            diagnostic.cause =
+                error;
+
+            throw diagnostic;
+
+        }
 
 
-            if (verified) {
-
-                return {
-
-                    updated:
-                        true,
-
-                    matched:
-                        true,
-
-                    status:
-                        "completed",
-
-                    result_url:
-                        normalizeString(
-                            verifiedRow?.result_url,
-                            resultUrl || ""
-                        ) || null,
-
-                    row_id:
-                        rowId,
-
-                    reason:
-                        "history_verified_after_patch"
-
-                };
-
-            }
-
+        if (
+            verification?.verified
+        ) {
 
             return {
 
                 updated:
-                    false,
+                    true,
 
                 matched:
                     true,
@@ -2525,23 +2712,164 @@ async function updateGenerationHistory({
                     "completed",
 
                 result_url:
-                    resultUrl,
+                    normalizeString(
+                        verification.row?.result_url,
+                        resultUrl || ""
+                    ) || null,
 
                 row_id:
                     rowId,
 
                 reason:
-                    "history_patch_returned_no_matching_row"
+                    "history_verified_after_patch"
 
             };
 
         }
 
 
+        /*
+         * -------------------------------------------------
+         * RETRY PATCH
+         * -------------------------------------------------
+         *
+         * Jika PATCH pertama tidak menghasilkan perubahan
+         * yang terlihat ketika diverifikasi, ulangi sekali.
+         *
+         * Ini menangani kemungkinan request transient,
+         * response representation kosong, atau race kecil
+         * antara write dan read.
+         */
+
+        let retryResponse;
+
+        try {
+
+            retryResponse =
+                await patchGenerationHistoryRow(
+                    rowId,
+                    payload
+                );
+
+        } catch (error) {
+
+            console.error(
+                "[generate-status] History retry PATCH failed:",
+                {
+
+                    message:
+                        error?.message ||
+                        String(
+                            error
+                        ),
+
+                    status:
+                        error?.status ||
+                        null,
+
+                    data:
+                        error?.data ||
+                        null,
+
+                    row_id:
+                        rowId,
+
+                    task_id:
+                        normalizedTaskId
+
+                }
+            );
+
+            retryResponse =
+                null;
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * SECOND VERIFICATION
+         * -------------------------------------------------
+         */
+
+        let retryVerification;
+
+        try {
+
+            retryVerification =
+                await verifyHistoryTerminalState(
+                    rowId,
+                    "completed"
+                );
+
+        } catch (error) {
+
+            const diagnostic =
+                new Error(
+                    "Failed to verify completed generation_history row after retry"
+                );
+
+            diagnostic.status =
+                error?.status || 500;
+
+            diagnostic.data =
+                error?.data || null;
+
+            diagnostic.cause =
+                error;
+
+            throw diagnostic;
+
+        }
+
+
+        if (
+            retryVerification?.verified
+        ) {
+
+            return {
+
+                updated:
+                    true,
+
+                matched:
+                    true,
+
+                status:
+                    "completed",
+
+                result_url:
+                    normalizeString(
+                        retryVerification.row?.result_url,
+                        resultUrl || ""
+                    ) || null,
+
+                row_id:
+                    rowId,
+
+                reason:
+                    "history_verified_after_retry"
+
+            };
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * FINAL DIAGNOSTIC
+         * -------------------------------------------------
+         */
+
+        const verifiedRow =
+            retryVerification?.row ||
+            verification?.row ||
+            null;
+
         return {
 
             updated:
-                true,
+                false,
 
             matched:
                 true,
@@ -2555,19 +2883,35 @@ async function updateGenerationHistory({
             row_id:
                 rowId,
 
+            database_status:
+                normalizeString(
+                    verifiedRow?.status
+                ) || null,
+
+            patch_response_type:
+                Array.isArray(
+                    retryResponse ||
+                    patchResponse
+                )
+                    ? "array"
+                    : typeof (
+                        retryResponse ||
+                        patchResponse
+                    ),
+
             reason:
-                null
+                verifiedRow
+                    ? "history_status_not_changed_after_patch"
+                    : "history_row_missing_after_patch"
 
         };
 
     }
 
 
-    /*
-     * =====================================================
-     * FAILED
-     * =====================================================
-     */
+    /* =====================================================
+       FAILED
+    ===================================================== */
 
     if (
         result?.failed
@@ -2577,7 +2921,6 @@ async function updateGenerationHistory({
             getHistoryErrorMessage(
                 result
             );
-
 
         const payload = {
 
@@ -2596,45 +2939,20 @@ async function updateGenerationHistory({
         };
 
 
-        const params =
-            new URLSearchParams();
+        /*
+         * -------------------------------------------------
+         * FIRST PATCH
+         * -------------------------------------------------
+         */
 
-        params.set(
-            "id",
-            `eq.${rowId}`
-        );
-
-        params.set(
-            "user_id",
-            `eq.${normalizedUserId}`
-        );
-
-
-        let rows;
+        let patchResponse;
 
         try {
 
-            rows =
-                await supabaseRequest(
-                    `/rest/v1/generation_history?${params.toString()}`,
-                    {
-
-                        method:
-                            "PATCH",
-
-                        headers: {
-
-                            Prefer:
-                                "return=representation"
-
-                        },
-
-                        body:
-                            JSON.stringify(
-                                payload
-                            )
-
-                    }
+            patchResponse =
+                await patchGenerationHistoryRow(
+                    rowId,
+                    payload
                 );
 
         } catch (error) {
@@ -2658,71 +2976,51 @@ async function updateGenerationHistory({
         }
 
 
-        const updatedRows =
-            Array.isArray(rows)
-                ? rows
-                : [];
+        /*
+         * -------------------------------------------------
+         * FIRST VERIFICATION
+         * -------------------------------------------------
+         */
 
+        let verification;
 
-        const updated =
-            updatedRows.some(
-                row =>
-                    normalizeString(
-                        row?.id
-                    ) === rowId
-            );
+        try {
 
-
-        if (!updated) {
-
-            const verifiedRow =
-                await findGenerationHistory(
-                    normalizedUserId,
-                    normalizedTaskId
+            verification =
+                await verifyHistoryTerminalState(
+                    rowId,
+                    "failed"
                 );
 
+        } catch (error) {
 
-            const verified =
-                normalizeString(
-                    verifiedRow?.id
-                ) === rowId &&
-                normalizeState(
-                    verifiedRow?.status
-                ) === "failed";
+            const diagnostic =
+                new Error(
+                    "Failed to verify failed generation_history row"
+                );
+
+            diagnostic.status =
+                error?.status || 500;
+
+            diagnostic.data =
+                error?.data || null;
+
+            diagnostic.cause =
+                error;
+
+            throw diagnostic;
+
+        }
 
 
-            if (verified) {
-
-                return {
-
-                    updated:
-                        true,
-
-                    matched:
-                        true,
-
-                    status:
-                        "failed",
-
-                    error_message:
-                        verifiedRow?.error_message ||
-                        errorMessage,
-
-                    row_id:
-                        rowId,
-
-                    reason:
-                        "history_verified_after_patch"
-
-                };
-
-            }
-
+        if (
+            verification?.verified
+        ) {
 
             return {
 
                 updated:
-                    false,
+                    true,
 
                 matched:
                     true,
@@ -2731,23 +3029,147 @@ async function updateGenerationHistory({
                     "failed",
 
                 error_message:
+                    verification.row?.error_message ||
                     errorMessage,
 
                 row_id:
                     rowId,
 
                 reason:
-                    "history_patch_returned_no_matching_row"
+                    "history_verified_after_patch"
 
             };
 
         }
 
 
+        /*
+         * -------------------------------------------------
+         * RETRY PATCH
+         * -------------------------------------------------
+         */
+
+        let retryResponse;
+
+        try {
+
+            retryResponse =
+                await patchGenerationHistoryRow(
+                    rowId,
+                    payload
+                );
+
+        } catch (error) {
+
+            console.error(
+                "[generate-status] Failed history retry PATCH:",
+                {
+
+                    message:
+                        error?.message ||
+                        String(
+                            error
+                        ),
+
+                    status:
+                        error?.status ||
+                        null,
+
+                    data:
+                        error?.data ||
+                        null,
+
+                    row_id:
+                        rowId,
+
+                    task_id:
+                        normalizedTaskId
+
+                }
+            );
+
+            retryResponse =
+                null;
+
+        }
+
+
+        /*
+         * -------------------------------------------------
+         * SECOND VERIFICATION
+         * -------------------------------------------------
+         */
+
+        let retryVerification;
+
+        try {
+
+            retryVerification =
+                await verifyHistoryTerminalState(
+                    rowId,
+                    "failed"
+                );
+
+        } catch (error) {
+
+            const diagnostic =
+                new Error(
+                    "Failed to verify failed generation_history row after retry"
+                );
+
+            diagnostic.status =
+                error?.status || 500;
+
+            diagnostic.data =
+                error?.data || null;
+
+            diagnostic.cause =
+                error;
+
+            throw diagnostic;
+
+        }
+
+
+        if (
+            retryVerification?.verified
+        ) {
+
+            return {
+
+                updated:
+                    true,
+
+                matched:
+                    true,
+
+                status:
+                    "failed",
+
+                error_message:
+                    retryVerification.row?.error_message ||
+                    errorMessage,
+
+                row_id:
+                    rowId,
+
+                reason:
+                    "history_verified_after_retry"
+
+            };
+
+        }
+
+
+        const verifiedRow =
+            retryVerification?.row ||
+            verification?.row ||
+            null;
+
         return {
 
             updated:
-                true,
+                false,
 
             matched:
                 true,
@@ -2761,19 +3183,35 @@ async function updateGenerationHistory({
             row_id:
                 rowId,
 
+            database_status:
+                normalizeString(
+                    verifiedRow?.status
+                ) || null,
+
+            patch_response_type:
+                Array.isArray(
+                    retryResponse ||
+                    patchResponse
+                )
+                    ? "array"
+                    : typeof (
+                        retryResponse ||
+                        patchResponse
+                    ),
+
             reason:
-                null
+                verifiedRow
+                    ? "history_status_not_changed_after_patch"
+                    : "history_row_missing_after_patch"
 
         };
 
     }
 
 
-    /*
-     * =====================================================
-     * NO TERMINAL STATE
-     * =====================================================
-     */
+    /* =====================================================
+       NO TERMINAL STATE
+    ===================================================== */
 
     return {
 
@@ -3288,12 +3726,6 @@ export default async function handler(
 
     } catch (historyError) {
 
-        /*
-         * Provider status tetap dikembalikan.
-         *
-         * Jangan bocorkan credential.
-         */
-
         console.error(
             "[generate-status] generation_history update FAILED:",
             {
@@ -3400,6 +3832,10 @@ export default async function handler(
 
             history_row_id:
                 historyResult?.row_id ||
+                null,
+
+            history_database_status:
+                historyResult?.database_status ||
                 null
 
         }
@@ -3487,6 +3923,10 @@ export default async function handler(
 
             history_row_id:
                 historyResult?.row_id ||
+                null,
+
+            history_database_status:
+                historyResult?.database_status ||
                 null
 
         }
