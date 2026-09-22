@@ -9,8 +9,9 @@
    - Auth user
    - Load model
    - Resolve provider
+   - Resolve provider code
    - Load encrypted provider credential
-   - Decrypt credential
+   - Decrypt provider credential
    - Resolve model adapter
    - Query provider task
    - Normalize provider response
@@ -18,11 +19,11 @@
    - Verify update
    - Return status + diagnostics
 
-   CATATAN:
-   Adapter Grok menggunakan DEFAULT EXPORT dari:
-   ../models/grok-imagine-image-to-video/index.js
-
-   Jangan mengubah generate.js / generate-polling.js dari file ini.
+   PENTING:
+   - Adapter Grok menggunakan DEFAULT EXPORT.
+   - Credential provider mengikuti pola generate.js.
+   - provider_credentials dicari menggunakan provider_id.
+   - Tidak menggunakan provider_name sebagai provider credential key.
    ========================================================= */
 
 import crypto from "crypto";
@@ -39,6 +40,7 @@ const MODEL_REGISTRY = [
     grokImagineImageToVideo
 ];
 
+
 const COMPLETED_STATES = new Set([
     "completed",
     "complete",
@@ -47,6 +49,7 @@ const COMPLETED_STATES = new Set([
     "finished",
     "done"
 ]);
+
 
 const FAILED_STATES = new Set([
     "failed",
@@ -58,6 +61,7 @@ const FAILED_STATES = new Set([
     "timeout",
     "timed_out"
 ]);
+
 
 const PROCESSING_STATES = new Set([
     "processing",
@@ -77,87 +81,109 @@ const PROCESSING_STATES = new Set([
    ENVIRONMENT
    ========================================================= */
 
-const SUPABASE_URL = String(
-    process.env.SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    ""
-).replace(/\/+$/, "");
+const SUPABASE_URL =
+    String(
+        process.env.SUPABASE_URL ||
+        ""
+    )
+        .trim()
+        .replace(
+            /\/+$/,
+            ""
+        );
+
 
 const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_KEY ||
-    "";
+    String(
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        ""
+    ).trim();
+
 
 const SUPABASE_ANON_KEY =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    "";
+    String(
+        process.env.SUPABASE_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        ""
+    ).trim();
 
-const CREDENTIAL_ENCRYPTION_KEY =
-    process.env.CREDENTIAL_ENCRYPTION_KEY ||
-    process.env.PROVIDER_CREDENTIAL_ENCRYPTION_KEY ||
-    process.env.ENCRYPTION_KEY ||
-    "";
 
-const HISTORY_TABLE = "generation_history";
-const MODEL_TABLE = "models";
-const PROVIDER_TABLE = "providers";
-const CREDENTIAL_TABLE = "provider_credentials";
+/*
+ * HARUS sama dengan generate.js.
+ */
+const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
+    String(
+        process.env.PROVIDER_CREDENTIAL_ENCRYPTION_KEY ||
+        ""
+    ).trim();
+
+
+/* =========================================================
+   RESPONSE HELPERS
+   ========================================================= */
+
+function json(
+    res,
+    statusCode,
+    data
+) {
+    res.statusCode =
+        statusCode;
+
+    res.setHeader(
+        "Content-Type",
+        "application/json; charset=utf-8"
+    );
+
+    res.setHeader(
+        "Cache-Control",
+        "no-store"
+    );
+
+    return res.end(
+        JSON.stringify(
+            data
+        )
+    );
+}
 
 
 /* =========================================================
    BASIC HELPERS
    ========================================================= */
 
-function json(res, status, body) {
-    res.status(status).json(body);
-}
-
-
-function cleanString(value) {
-    if (value === undefined || value === null) {
+function cleanString(
+    value
+) {
+    if (
+        value === null ||
+        value === undefined
+    ) {
         return "";
     }
 
-    return String(value).trim();
+    return String(
+        value
+    ).trim();
 }
 
 
-function lower(value) {
-    return cleanString(value).toLowerCase();
+function lower(
+    value
+) {
+    return cleanString(
+        value
+    ).toLowerCase();
 }
 
 
-function normalizeIdentifier(value) {
-    return lower(value)
-        .replace(/^["']|["']$/g, "")
-        .replace(/\s+/g, "")
-        .replace(/\\/g, "")
-        .replace(/:+/g, ":")
-        .replace(/\/+/g, "/");
-}
-
-
-function safeJson(value) {
-    try {
-        return JSON.stringify(value);
-    } catch {
-        return "[unserializable]";
-    }
-}
-
-
-function isObject(value) {
-    return (
-        value !== null &&
-        typeof value === "object" &&
-        !Array.isArray(value)
-    );
-}
-
-
-function firstDefined(...values) {
-    for (const value of values) {
+function firstDefined(
+    ...values
+) {
+    for (
+        const value
+        of values
+    ) {
         if (
             value !== undefined &&
             value !== null &&
@@ -171,86 +197,144 @@ function firstDefined(...values) {
 }
 
 
-/* =========================================================
-   SUPABASE HELPERS
-   ========================================================= */
-
-function supabaseHeaders(extra = {}) {
-    const key =
-        SUPABASE_SERVICE_ROLE_KEY ||
-        SUPABASE_ANON_KEY;
-
-    return {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        ...extra
-    };
+function normalizeIdentifier(
+    value
+) {
+    return lower(
+        value
+    )
+        .replace(
+            /^["']|["']$/g,
+            ""
+        )
+        .replace(
+            /\s+/g,
+            ""
+        )
+        .replace(
+            /\\/g,
+            ""
+        )
+        .replace(
+            /\/+/g,
+            "/"
+        );
 }
 
 
+function safeJson(
+    value
+) {
+    try {
+        return JSON.stringify(
+            value
+        );
+    } catch {
+        return "[unserializable]";
+    }
+}
+
+
+/* =========================================================
+   SUPABASE REQUEST
+   ========================================================= */
+
 async function supabaseRequest(
     path,
-    {
-        method = "GET",
-        body = undefined,
-        headers = {}
-    } = {}
+    options = {}
 ) {
-    if (!SUPABASE_URL) {
+    if (
+        !SUPABASE_URL
+    ) {
         throw new Error(
-            "SUPABASE_URL belum dikonfigurasi."
+            "SUPABASE_URL is not configured"
         );
     }
 
-    const response = await fetch(
-        `${SUPABASE_URL}${path}`,
-        {
-            method,
-            headers: supabaseHeaders(headers),
-            body:
-                body === undefined
-                    ? undefined
-                    : JSON.stringify(body)
-        }
-    );
 
-    const text = await response.text();
+    if (
+        !SUPABASE_SERVICE_ROLE_KEY
+    ) {
+        throw new Error(
+            "SUPABASE_SERVICE_ROLE_KEY is not configured"
+        );
+    }
 
-    let data = null;
 
-    if (text) {
+    const response =
+        await fetch(
+            `${SUPABASE_URL}${path}`,
+            {
+                ...options,
+
+                headers: {
+                    apikey:
+                        SUPABASE_SERVICE_ROLE_KEY,
+
+                    Authorization:
+                        `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    ...(options.headers || {})
+                }
+            }
+        );
+
+
+    const text =
+        await response.text();
+
+
+    let data =
+        null;
+
+
+    if (
+        text
+    ) {
         try {
-            data = JSON.parse(text);
+            data =
+                JSON.parse(
+                    text
+                );
         } catch {
-            data = text;
+            data =
+                text;
         }
     }
 
-    if (!response.ok) {
-        const error = new Error(
-            `Supabase request gagal: ${response.status}`
-        );
 
-        error.status = response.status;
-        error.data = data;
+    if (
+        !response.ok
+    ) {
+        const error =
+            new Error(
+                `Supabase request failed with status ${response.status}`
+            );
+
+        error.status =
+            response.status;
+
+        error.data =
+            data;
 
         throw error;
     }
 
-    return {
-        ok: true,
-        status: response.status,
-        data
-    };
+
+    return data;
 }
 
 
 /* =========================================================
-   URL ENCODING
+   FILTER HELPER
    ========================================================= */
 
-function eqFilter(value) {
+function eqFilter(
+    value
+) {
     return encodeURIComponent(
         `eq.${value}`
     );
@@ -258,427 +342,879 @@ function eqFilter(value) {
 
 
 /* =========================================================
-   AUTH
+   AUTHENTICATE USER
    ========================================================= */
 
-async function authenticateUser(req) {
+async function authenticateUser(
+    req
+) {
     const authorization =
-        req.headers?.authorization ||
-        req.headers?.Authorization ||
-        "";
+        String(
+            req.headers?.authorization ||
+            req.headers?.Authorization ||
+            ""
+        ).trim();
 
-    if (!authorization) {
-        throw new Error(
-            "Authorization header tidak ditemukan."
+
+    if (
+        !authorization
+    ) {
+        throw Object.assign(
+            new Error(
+                "Authorization header is required"
+            ),
+            {
+                status: 401
+            }
         );
     }
+
 
     const match =
-        authorization.match(/^Bearer\s+(.+)$/i);
+        authorization.match(
+            /^Bearer\s+(.+)$/i
+        );
 
-    if (!match) {
-        throw new Error(
-            "Bearer token tidak valid."
+
+    if (
+        !match
+    ) {
+        throw Object.assign(
+            new Error(
+                "Invalid Authorization header"
+            ),
+            {
+                status: 401
+            }
         );
     }
+
 
     const accessToken =
-        cleanString(match[1]);
+        match[1].trim();
 
-    if (!accessToken) {
-        throw new Error(
-            "Access token kosong."
-        );
-    }
 
-    if (!SUPABASE_URL) {
-        throw new Error(
-            "SUPABASE_URL belum dikonfigurasi."
-        );
-    }
-
-    const response = await fetch(
-        `${SUPABASE_URL}/auth/v1/user`,
-        {
-            method: "GET",
-            headers: {
-                apikey:
-                    SUPABASE_ANON_KEY ||
-                    SUPABASE_SERVICE_ROLE_KEY,
-                Authorization:
-                    `Bearer ${accessToken}`
+    if (
+        !accessToken
+    ) {
+        throw Object.assign(
+            new Error(
+                "Access token is missing"
+            ),
+            {
+                status: 401
             }
-        }
-    );
-
-    const text =
-        await response.text();
-
-    let data = null;
-
-    try {
-        data = text
-            ? JSON.parse(text)
-            : null;
-    } catch {
-        data = null;
+        );
     }
 
-    if (!response.ok || !data?.id) {
-        const error = new Error(
-            "User tidak terautentikasi."
+
+    const user =
+        await supabaseRequest(
+            "/auth/v1/user",
+            {
+                method:
+                    "GET",
+
+                headers: {
+                    Authorization:
+                        `Bearer ${accessToken}`,
+
+                    apikey:
+                        SUPABASE_SERVICE_ROLE_KEY ||
+                        SUPABASE_ANON_KEY
+                }
+            }
         );
 
-        error.status = response.status;
-        error.data = data;
 
-        throw error;
+    if (
+        !user ||
+        !user.id
+    ) {
+        throw Object.assign(
+            new Error(
+                "Invalid or expired session"
+            ),
+            {
+                status: 401
+            }
+        );
     }
+
 
     return {
-        id: data.id,
+        id:
+            user.id,
+
         email:
-            data.email ||
+            user.email ||
             null,
+
         accessToken
     };
 }
 
 
 /* =========================================================
-   MODEL LOADER
+   LOAD MODEL
    ========================================================= */
 
-async function loadModel(modelId) {
-    const cleanModelId =
-        cleanString(modelId);
+async function loadModel(
+    modelId
+) {
+    const normalizedModelId =
+        cleanString(
+            modelId
+        );
 
-    if (!cleanModelId) {
+
+    if (
+        !normalizedModelId
+    ) {
         throw new Error(
             "model_id wajib diisi."
         );
     }
 
-    const response =
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "model_id",
+        `eq.${normalizedModelId}`
+    );
+
+
+    params.set(
+        "select",
+        "*"
+    );
+
+
+    params.set(
+        "limit",
+        "1"
+    );
+
+
+    const models =
         await supabaseRequest(
-            `/rest/v1/${MODEL_TABLE}` +
-            `?model_id=${eqFilter(cleanModelId)}` +
-            `&select=*` +
-            `&limit=1`
-        );
-
-    const rows =
-        Array.isArray(response.data)
-            ? response.data
-            : [];
-
-    if (!rows.length) {
-        throw new Error(
-            `Model "${cleanModelId}" tidak ditemukan di database.`
-        );
-    }
-
-    return rows[0];
-}
-
-
-/* =========================================================
-   PROVIDER RESOLUTION
-   ========================================================= */
-
-async function loadProvider(providerReference) {
-    const reference =
-        cleanString(providerReference);
-
-    if (!reference) {
-        throw new Error(
-            "Provider model tidak ditemukan."
-        );
-    }
-
-    const attempts = [];
-
-    /*
-     * 1. Cari berdasarkan id
-     */
-    attempts.push(
-        `/rest/v1/${PROVIDER_TABLE}` +
-        `?id=${eqFilter(reference)}` +
-        `&select=*` +
-        `&limit=1`
-    );
-
-    /*
-     * 2. Cari berdasarkan provider_id
-     */
-    attempts.push(
-        `/rest/v1/${PROVIDER_TABLE}` +
-        `?provider_id=${eqFilter(reference)}` +
-        `&select=*` +
-        `&limit=1`
-    );
-
-    /*
-     * 3. Cari berdasarkan provider name
-     */
-    attempts.push(
-        `/rest/v1/${PROVIDER_TABLE}` +
-        `?provider_name=${eqFilter(reference)}` +
-        `&select=*` +
-        `&limit=1`
-    );
-
-    for (const path of attempts) {
-        try {
-            const response =
-                await supabaseRequest(path);
-
-            const rows =
-                Array.isArray(response.data)
-                    ? response.data
-                    : [];
-
-            if (rows.length) {
-                return rows[0];
+            `/rest/v1/models?${params.toString()}`,
+            {
+                method:
+                    "GET"
             }
-        } catch {
-            /*
-             * Beberapa schema tidak memiliki
-             * salah satu kolom pencarian.
-             * Lanjutkan ke metode berikutnya.
-             */
-        }
+        );
+
+
+    if (
+        !Array.isArray(
+            models
+        ) ||
+        !models.length
+    ) {
+        throw new Error(
+            `Model "${normalizedModelId}" tidak ditemukan di database.`
+        );
     }
 
-    throw new Error(
-        `Provider "${reference}" tidak ditemukan.`
-    );
+
+    return models[0];
 }
 
 
 /* =========================================================
-   PROVIDER REFERENCE
+   LOAD PROVIDER BY DATABASE ID
    ========================================================= */
 
-function getProviderReference(model) {
-    return firstDefined(
-        model?.provider_id,
-        model?.providerId,
-        model?.provider,
-        model?.provider_name,
-        model?.providerName
+async function loadProviderByDatabaseId(
+    providerDatabaseId
+) {
+    if (
+        !providerDatabaseId
+    ) {
+        return null;
+    }
+
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "select",
+        "*"
     );
-}
 
 
-/* =========================================================
-   CREDENTIAL FIELD RESOLUTION
-   ========================================================= */
+    params.set(
+        "id",
+        `eq.${providerDatabaseId}`
+    );
 
-function getCredentialValue(row) {
-    if (!row || !isObject(row)) {
-        return "";
-    }
 
-    /*
-     * Prioritaskan field yang umum digunakan.
-     */
-    const candidates = [
-        row.api_key,
-        row.apiKey,
-        row.secret_key,
-        row.secretKey,
-        row.credential,
-        row.credentials,
-        row.encrypted_api_key,
-        row.encryptedApiKey,
-        row.encrypted_key,
-        row.encryptedKey,
-        row.encrypted_value,
-        row.encryptedValue,
-        row.value,
-        row.data
-    ];
+    params.set(
+        "limit",
+        "1"
+    );
 
-    for (const value of candidates) {
-        if (
-            value !== undefined &&
-            value !== null &&
-            cleanString(value) !== ""
-        ) {
-            return value;
-        }
-    }
 
-    /*
-     * Fallback:
-     * cari property yang namanya berkaitan
-     * dengan credential / key / secret.
-     */
-    for (const [key, value] of Object.entries(row)) {
-        const name =
-            lower(key);
+    try {
+        const providers =
+            await supabaseRequest(
+                `/rest/v1/providers?${params.toString()}`,
+                {
+                    method:
+                        "GET"
+                }
+            );
+
 
         if (
-            name.includes("credential") ||
-            name.includes("encrypted") ||
-            name.includes("api_key") ||
-            name.includes("apikey") ||
-            name === "key" ||
-            name.includes("secret")
+            Array.isArray(
+                providers
+            ) &&
+            providers.length
         ) {
-            if (
-                value !== undefined &&
-                value !== null &&
-                cleanString(value) !== ""
-            ) {
-                return value;
-            }
+            return providers[0];
+        }
+    } catch {
+        /*
+         * Fallback ke provider_id.
+         */
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   LOAD PROVIDER BY CODE
+   ---------------------------------------------------------
+   Contoh:
+     provider_id = kie
+   ========================================================= */
+
+async function loadProviderByCode(
+    providerCode
+) {
+    const normalizedCode =
+        cleanString(
+            providerCode
+        );
+
+
+    if (
+        !normalizedCode
+    ) {
+        return null;
+    }
+
+
+    /*
+     * PRIMARY:
+     * providers.provider_id
+     */
+    try {
+        const params =
+            new URLSearchParams();
+
+
+        params.set(
+            "select",
+            "*"
+        );
+
+
+        params.set(
+            "provider_id",
+            `eq.${normalizedCode}`
+        );
+
+
+        params.set(
+            "limit",
+            "1"
+        );
+
+
+        const providers =
+            await supabaseRequest(
+                `/rest/v1/providers?${params.toString()}`,
+                {
+                    method:
+                        "GET"
+                }
+            );
+
+
+        if (
+            Array.isArray(
+                providers
+            ) &&
+            providers.length
+        ) {
+            return providers[0];
+        }
+    } catch {
+        /*
+         * Lanjut fallback.
+         */
+    }
+
+
+    /*
+     * SECONDARY:
+     * providers.provider_name
+     */
+    try {
+        const params =
+            new URLSearchParams();
+
+
+        params.set(
+            "select",
+            "*"
+        );
+
+
+        params.set(
+            "provider_name",
+            `eq.${normalizedCode}`
+        );
+
+
+        params.set(
+            "limit",
+            "1"
+        );
+
+
+        const providers =
+            await supabaseRequest(
+                `/rest/v1/providers?${params.toString()}`,
+                {
+                    method:
+                        "GET"
+                }
+            );
+
+
+        if (
+            Array.isArray(
+                providers
+            ) &&
+            providers.length
+        ) {
+            return providers[0];
+        }
+    } catch {
+        /*
+         * Tidak ditemukan.
+         */
+    }
+
+
+    return null;
+}
+
+
+/* =========================================================
+   RESOLVE PROVIDER
+   ========================================================= */
+
+async function resolveProvider(
+    model,
+    adapter
+) {
+    /*
+     * Prioritas utama:
+     *
+     * models.provider_id
+     *
+     * Untuk model saat ini:
+     *
+     *   provider_id = kie
+     */
+    const databaseProviderReference =
+        firstDefined(
+            model?.provider_id,
+            model?.providerId
+        );
+
+
+    if (
+        databaseProviderReference
+    ) {
+        /*
+         * Coba sebagai database UUID / id.
+         */
+        const providerById =
+            await loadProviderByDatabaseId(
+                databaseProviderReference
+            );
+
+
+        if (
+            providerById
+        ) {
+            return {
+                provider:
+                    providerById,
+
+                providerCode:
+                    firstDefined(
+                        providerById?.provider_id,
+                        databaseProviderReference
+                    ),
+
+                source:
+                    "database_id"
+            };
+        }
+
+
+        /*
+         * Coba sebagai provider code.
+         *
+         * Contoh:
+         *   kie
+         */
+        const providerByCode =
+            await loadProviderByCode(
+                databaseProviderReference
+            );
+
+
+        if (
+            providerByCode
+        ) {
+            return {
+                provider:
+                    providerByCode,
+
+                providerCode:
+                    firstDefined(
+                        providerByCode?.provider_id,
+                        databaseProviderReference
+                    ),
+
+                source:
+                    "database_provider_code"
+            };
         }
     }
 
-    return "";
+
+    /*
+     * Fallback ke adapter config.
+     *
+     * Grok adapter biasanya:
+     *
+     * config.providerId
+     */
+    const registryProviderCode =
+        cleanString(
+            adapter?.config?.providerId
+        );
+
+
+    if (
+        registryProviderCode
+    ) {
+        const provider =
+            await loadProviderByCode(
+                registryProviderCode
+            );
+
+
+        if (
+            provider
+        ) {
+            return {
+                provider,
+
+                providerCode:
+                    firstDefined(
+                        provider?.provider_id,
+                        registryProviderCode
+                    ),
+
+                source:
+                    "adapter_config"
+            };
+        }
+
+
+        return {
+            provider:
+                null,
+
+            providerCode:
+                registryProviderCode,
+
+            source:
+                "adapter_config",
+
+            error:
+                "Provider not found"
+        };
+    }
+
+
+    return {
+        provider:
+            null,
+
+        providerCode:
+            null,
+
+        source:
+            null,
+
+        error:
+            "Model provider is not configured"
+    };
 }
 
 
 /* =========================================================
    LOAD PROVIDER CREDENTIAL
+   ---------------------------------------------------------
+   PENTING:
+
+   generate.js menggunakan:
+
+     provider_credentials.provider_id
+       = providerCode
+
+   Contoh:
+
+     provider_id = kie
+
+   JANGAN menggunakan:
+
+     provider_name = GEN-Z.AI
+
+   sebagai kunci credential.
    ========================================================= */
 
-async function loadProviderCredential(provider) {
-    const providerId =
-        firstDefined(
-            provider?.id,
-            provider?.provider_id,
-            provider?.providerId
+async function loadProviderCredential(
+    providerCode
+) {
+    const normalizedProviderCode =
+        cleanString(
+            providerCode
         );
 
-    const providerName =
-        firstDefined(
-            provider?.provider_name,
-            provider?.providerName,
-            provider?.name
-        );
 
-    const queries = [];
-
-    if (providerId) {
-        queries.push(
-            `/rest/v1/${CREDENTIAL_TABLE}` +
-            `?provider_id=${eqFilter(providerId)}` +
-            `&select=*` +
-            `&limit=20`
-        );
-
-        queries.push(
-            `/rest/v1/${CREDENTIAL_TABLE}` +
-            `?providerId=${eqFilter(providerId)}` +
-            `&select=*` +
-            `&limit=20`
+    if (
+        !normalizedProviderCode
+    ) {
+        throw new Error(
+            "Provider ID is missing"
         );
     }
 
-    if (providerName) {
-        queries.push(
-            `/rest/v1/${CREDENTIAL_TABLE}` +
-            `?provider_name=${eqFilter(providerName)}` +
-            `&select=*` +
-            `&limit=20`
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "select",
+        [
+            "id",
+            "provider_id",
+            "api_key_ciphertext",
+            "api_key_iv",
+            "api_key_tag"
+        ].join(",")
+    );
+
+
+    params.set(
+        "provider_id",
+        `eq.${normalizedProviderCode}`
+    );
+
+
+    params.set(
+        "limit",
+        "1"
+    );
+
+
+    let credentials;
+
+
+    try {
+        credentials =
+            await supabaseRequest(
+                `/rest/v1/provider_credentials?${params.toString()}`,
+                {
+                    method:
+                        "GET"
+                }
+            );
+    } catch (error) {
+        console.error(
+            "[generate-status] Failed reading provider_credentials:",
+            error
+        );
+
+        throw new Error(
+            `Failed to read provider credential for ${normalizedProviderCode}`
         );
     }
 
-    let allRows = [];
 
-    for (const path of queries) {
+    if (
+        !Array.isArray(
+            credentials
+        ) ||
+        !credentials.length
+    ) {
+        throw new Error(
+            `No provider credential found for ${normalizedProviderCode}`
+        );
+    }
+
+
+    const credential =
+        credentials[0];
+
+
+    if (
+        !credential ||
+        typeof credential !==
+            "object"
+    ) {
+        throw new Error(
+            `Invalid provider credential for ${normalizedProviderCode}`
+        );
+    }
+
+
+    const ciphertext =
+        String(
+            credential.api_key_ciphertext ||
+            ""
+        ).trim();
+
+
+    const iv =
+        String(
+            credential.api_key_iv ||
+            ""
+        ).trim();
+
+
+    const authTag =
+        String(
+            credential.api_key_tag ||
+            ""
+        ).trim();
+
+
+    if (
+        !ciphertext
+    ) {
+        throw new Error(
+            `Provider credential ciphertext is empty for ${normalizedProviderCode}`
+        );
+    }
+
+
+    if (
+        !iv
+    ) {
+        throw new Error(
+            `Provider credential IV is empty for ${normalizedProviderCode}`
+        );
+    }
+
+
+    if (
+        !authTag
+    ) {
+        throw new Error(
+            `Provider credential authentication tag is empty for ${normalizedProviderCode}`
+        );
+    }
+
+
+    const ivBuffer =
+        decodeBuffer(
+            iv
+        );
+
+
+    const authTagBuffer =
+        decodeBuffer(
+            authTag
+        );
+
+
+    const ciphertextBuffer =
+        decodeBuffer(
+            ciphertext
+        );
+
+
+    if (
+        !ivBuffer
+    ) {
+        throw new Error(
+            `Provider credential IV could not be decoded for ${normalizedProviderCode}`
+        );
+    }
+
+
+    if (
+        !authTagBuffer
+    ) {
+        throw new Error(
+            `Provider credential authentication tag could not be decoded for ${normalizedProviderCode}`
+        );
+    }
+
+
+    if (
+        !ciphertextBuffer
+    ) {
+        throw new Error(
+            `Provider credential ciphertext could not be decoded for ${normalizedProviderCode}`
+        );
+    }
+
+
+    let apiKey;
+
+
+    try {
+        apiKey =
+            decryptAesGcm(
+                ivBuffer,
+                authTagBuffer,
+                ciphertextBuffer
+            );
+    } catch (error) {
+        console.error(
+            "[generate-status] Provider credential decryption failed:",
+            error
+        );
+
+        throw new Error(
+            `Unable to decrypt provider API credential for ${normalizedProviderCode}`
+        );
+    }
+
+
+    const normalizedApiKey =
+        String(
+            apiKey || ""
+        ).trim();
+
+
+    if (
+        !normalizedApiKey
+    ) {
+        throw new Error(
+            `Decrypted provider API key is empty for ${normalizedProviderCode}`
+        );
+    }
+
+
+    console.debug(
+        "[generate-status] Provider API credential resolved successfully:",
+        {
+            provider_id:
+                normalizedProviderCode,
+
+            credential_id:
+                credential.id,
+
+            has_api_key:
+                true
+        }
+    );
+
+
+    return normalizedApiKey;
+}
+
+
+/* =========================================================
+   BUFFER DECODER
+   ========================================================= */
+
+function decodeBuffer(
+    value
+) {
+    const text =
+        String(
+            value || ""
+        ).trim();
+
+
+    if (
+        !text
+    ) {
+        return null;
+    }
+
+
+    /*
+     * Hex.
+     */
+    if (
+        /^[0-9a-fA-F]+$/.test(
+            text
+        ) &&
+        text.length % 2 ===
+            0
+    ) {
         try {
-            const response =
-                await supabaseRequest(path);
-
-            const rows =
-                Array.isArray(response.data)
-                    ? response.data
-                    : [];
-
-            if (rows.length) {
-                allRows = [
-                    ...allRows,
-                    ...rows
-                ];
-            }
+            return Buffer.from(
+                text,
+                "hex"
+            );
         } catch {
             /*
-             * Schema fallback.
+             * fallback base64
              */
         }
     }
 
-    /*
-     * Hilangkan duplicate berdasarkan id.
-     */
-    const uniqueRows =
-        Array.from(
-            new Map(
-                allRows.map(
-                    (row, index) => [
-                        row?.id ||
-                        `${index}:${safeJson(row)}`,
-                        row
-                    ]
-                )
-            ).values()
-        );
-
-    if (!uniqueRows.length) {
-        throw new Error(
-            `Credential provider "${providerName || providerId}" tidak ditemukan.`
-        );
-    }
 
     /*
-     * Prioritaskan credential aktif bila field tersedia.
+     * Base64.
      */
-    const activeRow =
-        uniqueRows.find((row) => {
-            const values = [
-                row?.is_active,
-                row?.active,
-                row?.enabled,
-                row?.status
-            ];
+    try {
+        const buffer =
+            Buffer.from(
+                text,
+                "base64"
+            );
 
-            return values.some((value) => {
-                if (
-                    value === true ||
-                    value === 1
-                ) {
-                    return true;
-                }
 
-                const text =
-                    lower(value);
-
-                return (
-                    text === "active" ||
-                    text === "enabled" ||
-                    text === "true"
-                );
-            });
-        }) ||
-        uniqueRows[0];
-
-    const credential =
-        getCredentialValue(activeRow);
-
-    if (!credential) {
-        throw new Error(
-            "Credential provider ditemukan tetapi nilai credential kosong."
-        );
+        if (
+            buffer.length > 0
+        ) {
+            return buffer;
+        }
+    } catch {
+        /*
+         * invalid
+         */
     }
 
-    return {
-        row: activeRow,
-        encryptedCredential: credential
-    };
+
+    return null;
 }
 
 
@@ -687,312 +1223,141 @@ async function loadProviderCredential(provider) {
    ========================================================= */
 
 function getEncryptionKey() {
-    if (!CREDENTIAL_ENCRYPTION_KEY) {
+    if (
+        !PROVIDER_CREDENTIAL_ENCRYPTION_KEY
+    ) {
         throw new Error(
-            "CREDENTIAL_ENCRYPTION_KEY belum dikonfigurasi."
+            "PROVIDER_CREDENTIAL_ENCRYPTION_KEY is not configured"
         );
     }
 
+
     /*
-     * 32-byte hex
+     * 64 hex chars = 32 bytes.
      */
     if (
         /^[0-9a-fA-F]{64}$/.test(
-            CREDENTIAL_ENCRYPTION_KEY
+            PROVIDER_CREDENTIAL_ENCRYPTION_KEY
         )
     ) {
         return Buffer.from(
-            CREDENTIAL_ENCRYPTION_KEY,
+            PROVIDER_CREDENTIAL_ENCRYPTION_KEY,
             "hex"
         );
     }
 
+
     /*
-     * 32-byte base64
+     * 32-byte base64.
      */
     try {
-        const base64 =
+        const buffer =
             Buffer.from(
-                CREDENTIAL_ENCRYPTION_KEY,
+                PROVIDER_CREDENTIAL_ENCRYPTION_KEY,
                 "base64"
             );
 
-        if (base64.length === 32) {
-            return base64;
+
+        if (
+            buffer.length ===
+            32
+        ) {
+            return buffer;
         }
     } catch {
-        /* fallback */
+        /*
+         * fallback
+         */
     }
 
-    /*
-     * UTF-8 32 bytes
-     */
-    const utf8 =
-        Buffer.from(
-            CREDENTIAL_ENCRYPTION_KEY,
-            "utf8"
-        );
-
-    if (utf8.length === 32) {
-        return utf8;
-    }
 
     /*
-     * SHA-256 fallback untuk secret berbasis string.
+     * Sama seperti generate.js:
+     * hash secret menjadi 32 byte.
      */
     return crypto
-        .createHash("sha256")
+        .createHash(
+            "sha256"
+        )
         .update(
-            CREDENTIAL_ENCRYPTION_KEY
+            PROVIDER_CREDENTIAL_ENCRYPTION_KEY
         )
         .digest();
 }
 
 
 /* =========================================================
-   DECRYPT CREDENTIAL
+   AES-256-GCM DECRYPTION
    ========================================================= */
 
-function decryptCredential(value) {
-    const encrypted =
-        cleanString(value);
+function decryptAesGcm(
+    iv,
+    authTag,
+    ciphertext
+) {
+    const key =
+        getEncryptionKey();
 
-    if (!encrypted) {
+
+    if (
+        key.length !==
+        32
+    ) {
         throw new Error(
-            "Encrypted credential kosong."
+            "Encryption key must be 32 bytes"
         );
     }
 
-    /*
-     * Jika sudah berupa JSON object,
-     * coba ambil value secara langsung.
-     */
-    if (
-        encrypted.startsWith("{") &&
-        encrypted.endsWith("}")
-    ) {
-        try {
-            const parsed =
-                JSON.parse(encrypted);
 
-            const direct =
-                firstDefined(
-                    parsed?.api_key,
-                    parsed?.apiKey,
-                    parsed?.key,
-                    parsed?.secret,
-                    parsed?.value,
-                    parsed?.credential
-                );
+    const decipher =
+        crypto.createDecipheriv(
+            "aes-256-gcm",
+            key,
+            iv
+        );
 
-            if (direct) {
-                return cleanString(direct);
-            }
-        } catch {
-            /* lanjut decrypt */
-        }
-    }
 
-    /*
-     * Format umum:
-     * iv:authTag:ciphertext
-     *
-     * atau:
-     * iv.authTag.ciphertext
-     */
-    const parts =
-        encrypted.includes(":")
-            ? encrypted.split(":")
-            : encrypted.split(".");
+    decipher.setAuthTag(
+        authTag
+    );
 
-    if (parts.length >= 3) {
-        const key =
-            getEncryptionKey();
 
-        const iv =
-            Buffer.from(
-                parts[0],
-                "hex"
-            );
+    const decrypted =
+        Buffer.concat([
+            decipher.update(
+                ciphertext
+            ),
 
-        const authTag =
-            Buffer.from(
-                parts[1],
-                "hex"
-            );
+            decipher.final()
+        ]);
 
-        const ciphertext =
-            Buffer.from(
-                parts
-                    .slice(2)
-                    .join(
-                        encrypted.includes(":")
-                            ? ":"
-                            : "."
-                    ),
-                "hex"
-            );
 
-        if (
-            iv.length &&
-            authTag.length &&
-            ciphertext.length
-        ) {
-            const decipher =
-                crypto.createDecipheriv(
-                    "aes-256-gcm",
-                    key,
-                    iv
-                );
-
-            decipher.setAuthTag(
-                authTag
-            );
-
-            const decrypted =
-                Buffer.concat([
-                    decipher.update(
-                        ciphertext
-                    ),
-                    decipher.final()
-                ]);
-
-            return decrypted
-                .toString("utf8")
-                .trim();
-        }
-    }
-
-    /*
-     * Format JSON encrypted object:
-     * {
-     *   iv,
-     *   authTag,
-     *   encrypted
-     * }
-     */
-    try {
-        const parsed =
-            JSON.parse(encrypted);
-
-        const ivValue =
-            firstDefined(
-                parsed?.iv,
-                parsed?.initializationVector
-            );
-
-        const authTagValue =
-            firstDefined(
-                parsed?.authTag,
-                parsed?.auth_tag,
-                parsed?.tag
-            );
-
-        const cipherValue =
-            firstDefined(
-                parsed?.encrypted,
-                parsed?.ciphertext,
-                parsed?.cipher,
-                parsed?.data
-            );
-
-        if (
-            ivValue &&
-            authTagValue &&
-            cipherValue
-        ) {
-            const key =
-                getEncryptionKey();
-
-            const decode = (input) => {
-                const text =
-                    cleanString(input);
-
-                if (
-                    /^[0-9a-fA-F]+$/.test(text) &&
-                    text.length % 2 === 0
-                ) {
-                    return Buffer.from(
-                        text,
-                        "hex"
-                    );
-                }
-
-                return Buffer.from(
-                    text,
-                    "base64"
-                );
-            };
-
-            const iv =
-                decode(ivValue);
-
-            const authTag =
-                decode(authTagValue);
-
-            const ciphertext =
-                decode(cipherValue);
-
-            const decipher =
-                crypto.createDecipheriv(
-                    "aes-256-gcm",
-                    key,
-                    iv
-                );
-
-            decipher.setAuthTag(
-                authTag
-            );
-
-            return Buffer.concat([
-                decipher.update(
-                    ciphertext
-                ),
-                decipher.final()
-            ])
-                .toString("utf8")
-                .trim();
-        }
-    } catch {
-        /*
-         * Bukan encrypted JSON format.
-         */
-    }
-
-    /*
-     * Jangan menganggap encrypted string
-     * sebagai API key secara diam-diam.
-     *
-     * Namun bila credential memang tersimpan
-     * sebagai plaintext API key, gunakan langsung.
-     */
-    if (
-        encrypted.startsWith("sk-") ||
-        encrypted.startsWith("kie_") ||
-        encrypted.length >= 20
-    ) {
-        return encrypted;
-    }
-
-    throw new Error(
-        "Credential tidak dapat didekripsi."
+    return decrypted.toString(
+        "utf8"
     );
 }
 
 
 /* =========================================================
-   ADAPTER IDENTIFIERS
+   ADAPTER CANDIDATES
    ========================================================= */
 
-function getAdapterCandidates(adapter) {
-    if (!adapter) {
+function getAdapterCandidates(
+    adapter
+) {
+    if (
+        !adapter
+    ) {
         return [];
     }
 
-    const config =
-        adapter.config || {};
 
-    const candidates = [
+    const config =
+        adapter.config ||
+        {};
+
+
+    const values = [
         adapter.modelId,
         adapter.model_id,
         adapter.id,
@@ -1011,87 +1376,133 @@ function getAdapterCandidates(adapter) {
         config.model_name,
         config.slug,
         config.modelSlug,
-        config.model_slug,
-
-        ...(Array.isArray(adapter.modelIds)
-            ? adapter.modelIds
-            : []),
-
-        ...(Array.isArray(adapter.model_ids)
-            ? adapter.model_ids
-            : []),
-
-        ...(Array.isArray(config.modelIds)
-            ? config.modelIds
-            : []),
-
-        ...(Array.isArray(config.model_ids)
-            ? config.model_ids
-            : [])
+        config.model_slug
     ];
 
-    return candidates
-        .filter(
-            (value) =>
-                value !== undefined &&
-                value !== null &&
-                cleanString(value) !== ""
+
+    if (
+        Array.isArray(
+            adapter.modelIds
         )
-        .map(cleanString);
+    ) {
+        values.push(
+            ...adapter.modelIds
+        );
+    }
+
+
+    if (
+        Array.isArray(
+            adapter.model_ids
+        )
+    ) {
+        values.push(
+            ...adapter.model_ids
+        );
+    }
+
+
+    if (
+        Array.isArray(
+            config.modelIds
+        )
+    ) {
+        values.push(
+            ...config.modelIds
+        );
+    }
+
+
+    if (
+        Array.isArray(
+            config.model_ids
+        )
+    ) {
+        values.push(
+            ...config.model_ids
+        );
+    }
+
+
+    return values
+        .filter(
+            value =>
+                value !==
+                    undefined &&
+                value !==
+                    null &&
+                cleanString(
+                    value
+                ) !== ""
+        )
+        .map(
+            cleanString
+        );
 }
 
 
 /* =========================================================
-   ADAPTER LOOKUP
+   FIND ADAPTER
    ========================================================= */
 
-function findAdapter(modelId) {
+function findAdapter(
+    modelId
+) {
     const target =
-        normalizeIdentifier(modelId);
+        normalizeIdentifier(
+            modelId
+        );
 
-    if (!target) {
+
+    if (
+        !target
+    ) {
         return null;
     }
 
+
     /*
-     * -------------------------------------------------------
-     * 1. Direct registry match
-     * -------------------------------------------------------
+     * Direct match.
      */
-    for (const adapter of MODEL_REGISTRY) {
+    for (
+        const adapter
+        of MODEL_REGISTRY
+    ) {
         if (
             !adapter ||
-            typeof adapter.queryTask !== "function"
+            typeof adapter.queryTask !==
+                "function"
         ) {
             continue;
         }
 
+
         const candidates =
-            getAdapterCandidates(adapter);
+            getAdapterCandidates(
+                adapter
+            );
+
 
         if (
             candidates.some(
-                (candidate) =>
+                candidate =>
                     normalizeIdentifier(
                         candidate
-                    ) === target
+                    ) ===
+                    target
             )
         ) {
             return adapter;
         }
     }
 
+
     /*
-     * -------------------------------------------------------
-     * 2. Explicit model mapping
+     * Explicit Grok mapping.
      *
-     * index.js Grok menggunakan DEFAULT EXPORT:
+     * index.js menggunakan:
      *
      * export default model;
-     *
-     * Jadi adapter sudah tersedia langsung di
-     * grokImagineImageToVideo.
-     * -------------------------------------------------------
      */
     if (
         target ===
@@ -1108,27 +1519,40 @@ function findAdapter(modelId) {
         }
     }
 
+
     /*
-     * -------------------------------------------------------
-     * 3. Fallback identifier matching
-     * -------------------------------------------------------
+     * Compact fallback.
      */
     const compactTarget =
-        target
-            .replace(/[^a-z0-9]/g, "");
+        target.replace(
+            /[^a-z0-9]/g,
+            ""
+        );
 
-    for (const adapter of MODEL_REGISTRY) {
+
+    for (
+        const adapter
+        of MODEL_REGISTRY
+    ) {
         if (
             !adapter ||
-            typeof adapter.queryTask !== "function"
+            typeof adapter.queryTask !==
+                "function"
         ) {
             continue;
         }
 
-        const candidates =
-            getAdapterCandidates(adapter);
 
-        for (const candidate of candidates) {
+        const candidates =
+            getAdapterCandidates(
+                adapter
+            );
+
+
+        for (
+            const candidate
+            of candidates
+        ) {
             const compactCandidate =
                 normalizeIdentifier(
                     candidate
@@ -1136,6 +1560,7 @@ function findAdapter(modelId) {
                     /[^a-z0-9]/g,
                     ""
                 );
+
 
             if (
                 compactCandidate &&
@@ -1147,6 +1572,7 @@ function findAdapter(modelId) {
         }
     }
 
+
     return null;
 }
 
@@ -1157,29 +1583,46 @@ function findAdapter(modelId) {
 
 function getAdapterDiagnostics() {
     return MODEL_REGISTRY.map(
-        (adapter) => ({
+        adapter => ({
             modelId:
-                adapter?.modelId ??
+                adapter?.modelId ||
                 null,
 
             model_id:
-                adapter?.model_id ??
+                adapter?.model_id ||
                 null,
 
             id:
-                adapter?.id ??
+                adapter?.id ||
                 null,
 
             name:
-                adapter?.name ??
+                adapter?.name ||
                 null,
 
             modelName:
-                adapter?.modelName ??
+                adapter?.modelName ||
+                null,
+
+            config_id:
+                adapter?.config?.id ||
+                null,
+
+            config_model_id:
+                adapter?.config?.modelId ||
+                adapter?.config?.model_id ||
+                null,
+
+            config_provider_id:
+                adapter?.config?.providerId ||
                 null,
 
             has_queryTask:
                 typeof adapter?.queryTask ===
+                    "function",
+
+            has_createTask:
+                typeof adapter?.createTask ===
                     "function"
         })
     );
@@ -1187,7 +1630,7 @@ function getAdapterDiagnostics() {
 
 
 /* =========================================================
-   PROVIDER TASK QUERY
+   QUERY PROVIDER TASK
    ========================================================= */
 
 async function queryProviderTask(
@@ -1196,7 +1639,15 @@ async function queryProviderTask(
     providerApiKey
 ) {
     if (
-        !adapter ||
+        !adapter
+    ) {
+        throw new Error(
+            "Adapter tidak tersedia."
+        );
+    }
+
+
+    if (
         typeof adapter.queryTask !==
             "function"
     ) {
@@ -1205,13 +1656,11 @@ async function queryProviderTask(
         );
     }
 
-    const result =
-        await adapter.queryTask(
-            taskId,
-            providerApiKey
-        );
 
-    return result;
+    return await adapter.queryTask(
+        taskId,
+        providerApiKey
+    );
 }
 
 
@@ -1225,43 +1674,64 @@ function findDeepValue(
     depth = 0
 ) {
     if (
-        depth > 8 ||
+        depth > 10 ||
         value === null ||
         value === undefined
     ) {
         return null;
     }
 
+
     if (
-        typeof value !== "object"
+        typeof value !==
+        "object"
     ) {
         return null;
     }
 
+
     const wanted =
         new Set(
-            keys.map(lower)
+            keys.map(
+                lower
+            )
         );
 
-    for (const [
-        key,
-        child
-    ] of Object.entries(value)) {
+
+    for (
+        const [
+            key,
+            child
+        ]
+        of Object.entries(
+            value
+        )
+    ) {
         if (
             wanted.has(
-                lower(key)
+                lower(
+                    key
+                )
             )
         ) {
             if (
-                child !== undefined &&
-                child !== null
+                child !==
+                    undefined &&
+                child !==
+                    null
             ) {
                 return child;
             }
         }
     }
 
-    for (const child of Object.values(value)) {
+
+    for (
+        const child
+        of Object.values(
+            value
+        )
+    ) {
         const found =
             findDeepValue(
                 child,
@@ -1269,13 +1739,17 @@ function findDeepValue(
                 depth + 1
             );
 
+
         if (
-            found !== null &&
-            found !== undefined
+            found !==
+                null &&
+            found !==
+                undefined
         ) {
             return found;
         }
     }
+
 
     return null;
 }
@@ -1298,23 +1772,39 @@ function collectUrls(
         return output;
     }
 
+
     if (
-        typeof value === "string"
+        typeof value ===
+        "string"
     ) {
         const text =
             value.trim();
 
+
         if (
-            /^https?:\/\//i.test(text)
+            /^https?:\/\//i.test(
+                text
+            )
         ) {
-            output.push(text);
+            output.push(
+                text
+            );
         }
+
 
         return output;
     }
 
-    if (Array.isArray(value)) {
-        for (const item of value) {
+
+    if (
+        Array.isArray(
+            value
+        )
+    ) {
+        for (
+            const item
+            of value
+        ) {
             collectUrls(
                 item,
                 output,
@@ -1322,25 +1812,46 @@ function collectUrls(
             );
         }
 
+
         return output;
     }
 
+
     if (
-        typeof value === "object"
+        typeof value ===
+        "object"
     ) {
-        for (const [
-            key,
-            child
-        ] of Object.entries(value)) {
+        for (
+            const [
+                key,
+                child
+            ]
+            of Object.entries(
+                value
+            )
+        ) {
             const keyName =
-                lower(key);
+                lower(
+                    key
+                );
+
 
             if (
-                keyName.includes("url") ||
-                keyName.includes("result") ||
-                keyName.includes("output") ||
-                keyName.includes("video") ||
-                keyName.includes("image")
+                keyName.includes(
+                    "url"
+                ) ||
+                keyName.includes(
+                    "result"
+                ) ||
+                keyName.includes(
+                    "output"
+                ) ||
+                keyName.includes(
+                    "video"
+                ) ||
+                keyName.includes(
+                    "image"
+                )
             ) {
                 collectUrls(
                     child,
@@ -1348,7 +1859,7 @@ function collectUrls(
                     depth + 1
                 );
             } else if (
-                depth < 5
+                depth < 6
             ) {
                 collectUrls(
                     child,
@@ -1359,6 +1870,7 @@ function collectUrls(
         }
     }
 
+
     return output;
 }
 
@@ -1367,14 +1879,17 @@ function collectUrls(
    UNIQUE URLS
    ========================================================= */
 
-function uniqueUrls(urls) {
+function uniqueUrls(
+    urls
+) {
     return Array.from(
         new Set(
             urls
-                .filter(Boolean)
-                .map(cleanString)
+                .map(
+                    cleanString
+                )
                 .filter(
-                    (url) =>
+                    url =>
                         /^https?:\/\//i.test(
                             url
                         )
@@ -1406,8 +1921,12 @@ function normalizeProviderResult(
             ""
         );
 
+
     const state =
-        lower(providerState);
+        lower(
+            providerState
+        );
+
 
     const explicitCompleted =
         findDeepValue(
@@ -1421,16 +1940,17 @@ function normalizeProviderResult(
             ]
         );
 
+
     const explicitFailed =
         findDeepValue(
             raw,
             [
                 "failed",
                 "is_failed",
-                "isFailed",
-                "error"
+                "isFailed"
             ]
         );
+
 
     const explicitProcessing =
         findDeepValue(
@@ -1444,81 +1964,128 @@ function normalizeProviderResult(
             ]
         );
 
+
     const resultUrls =
         uniqueUrls(
             collectUrls(
-                raw,
-                []
+                raw
             )
         );
 
+
     let completed =
-        COMPLETED_STATES.has(state);
+        COMPLETED_STATES.has(
+            state
+        );
+
 
     let failed =
-        FAILED_STATES.has(state);
+        FAILED_STATES.has(
+            state
+        );
+
 
     let processing =
-        PROCESSING_STATES.has(state);
+        PROCESSING_STATES.has(
+            state
+        );
 
+
+    /*
+     * Boolean terminal flags.
+     */
     if (
-        explicitCompleted === true
+        explicitCompleted ===
+        true
     ) {
-        completed = true;
-        failed = false;
-        processing = false;
+        completed =
+            true;
+
+        failed =
+            false;
+
+        processing =
+            false;
     }
 
-    if (
-        explicitFailed === true
-    ) {
-        failed = true;
-        completed = false;
-        processing = false;
-    }
 
     if (
-        explicitProcessing === true &&
+        explicitFailed ===
+        true
+    ) {
+        failed =
+            true;
+
+        completed =
+            false;
+
+        processing =
+            false;
+    }
+
+
+    if (
+        explicitProcessing ===
+        true &&
         !completed &&
         !failed
     ) {
-        processing = true;
+        processing =
+            true;
     }
+
 
     /*
-     * Provider KIE kadang mengembalikan success
-     * dengan result URL tanpa state yang konsisten.
+     * Result URL adalah bukti kuat
+     * bahwa task sudah menghasilkan output.
+     *
+     * Ini penting karena KIE bisa memberikan
+     * result URL dengan struktur response
+     * yang tidak selalu sama.
      */
     if (
-        resultUrls.length &&
+        resultUrls.length > 0 &&
         !failed
     ) {
-        completed = true;
-        processing = false;
+        completed =
+            true;
+
+        processing =
+            false;
     }
 
+
+    /*
+     * Jika provider tidak mengembalikan
+     * state yang dikenali dan belum ada
+     * result/failure, pertahankan polling.
+     */
     if (
         !completed &&
         !failed &&
         !processing
     ) {
-        /*
-         * Jika state kosong, anggap processing
-         * agar polling tidak berhenti terlalu cepat.
-         */
-        processing = true;
+        processing =
+            true;
     }
+
 
     let normalizedState =
         "processing";
 
-    if (completed) {
+
+    if (
+        completed
+    ) {
         normalizedState =
             "completed";
-    } else if (failed) {
+    } else if (
+        failed
+    ) {
         normalizedState =
             "failed";
     }
+
 
     const resolvedTaskId =
         firstDefined(
@@ -1532,6 +2099,7 @@ function normalizeProviderResult(
             ),
             taskId
         );
+
 
     const resultJson =
         firstDefined(
@@ -1550,89 +2118,158 @@ function normalizeProviderResult(
             )
         );
 
+
     return {
         raw,
-        state: normalizedState,
+
+        state:
+            normalizedState,
+
         provider_state:
-            providerState || null,
+            providerState ||
+            null,
+
         task_id:
             cleanString(
                 resolvedTaskId
             ),
+
         resultJson:
-            resultJson || null,
+            resultJson ||
+            null,
+
         result_urls:
             resultUrls,
+
         processing,
+
         completed,
+
         failed
     };
 }
 
 
 /* =========================================================
-   FIND HISTORY ROW
+   FIND GENERATION HISTORY
    ========================================================= */
 
 async function findGenerationHistory(
     userId,
     taskId
 ) {
-    const response =
-        await supabaseRequest(
-            `/rest/v1/${HISTORY_TABLE}` +
-            `?user_id=${eqFilter(userId)}` +
-            `&task_id=${eqFilter(taskId)}` +
-            `&select=*` +
-            `&order=created_at.desc` +
-            `&limit=1`
-        );
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "user_id",
+        `eq.${userId}`
+    );
+
+
+    params.set(
+        "task_id",
+        `eq.${taskId}`
+    );
+
+
+    params.set(
+        "select",
+        "*"
+    );
+
+
+    params.set(
+        "order",
+        "created_at.desc"
+    );
+
+
+    params.set(
+        "limit",
+        "1"
+    );
+
 
     const rows =
-        Array.isArray(response.data)
-            ? response.data
-            : [];
+        await supabaseRequest(
+            `/rest/v1/generation_history?${params.toString()}`,
+            {
+                method:
+                    "GET"
+            }
+        );
 
-    return rows[0] || null;
+
+    if (
+        !Array.isArray(
+            rows
+        )
+    ) {
+        return null;
+    }
+
+
+    return rows[0] ||
+        null;
 }
 
 
 /* =========================================================
-   HISTORY UPDATE
+   UPDATE GENERATION HISTORY
    ========================================================= */
 
 async function updateGenerationHistory(
     historyId,
     normalized
 ) {
-    if (!historyId) {
+    if (
+        !historyId
+    ) {
         throw new Error(
             "generation_history.id tidak ditemukan."
         );
     }
 
-    const payload = {};
 
-    if (normalized.completed) {
+    const payload =
+        {};
+
+
+    if (
+        normalized.completed
+    ) {
         payload.status =
             "completed";
 
+
         if (
-            normalized.result_urls?.length
+            normalized.result_urls &&
+            normalized.result_urls.length
         ) {
             payload.result_url =
                 normalized.result_urls[0];
         }
 
-        payload.error_message = null;
+
+        payload.error_message =
+            null;
+
 
         payload.completed_at =
             new Date().toISOString();
-    } else if (normalized.failed) {
+    }
+
+
+    else if (
+        normalized.failed
+    ) {
         payload.status =
             "failed";
 
-        const errorMessage =
+
+        const providerError =
             firstDefined(
                 findDeepValue(
                     normalized.raw,
@@ -1646,70 +2283,122 @@ async function updateGenerationHistory(
                 "Provider gagal memproses task."
             );
 
+
         payload.error_message =
             cleanString(
-                errorMessage
+                providerError
             );
+
 
         payload.completed_at =
             new Date().toISOString();
-    } else {
+    }
+
+
+    else {
         payload.status =
             "processing";
     }
 
-    const response =
+
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "id",
+        `eq.${historyId}`
+    );
+
+
+    const rows =
         await supabaseRequest(
-            `/rest/v1/${HISTORY_TABLE}` +
-            `?id=${eqFilter(historyId)}`,
+            `/rest/v1/generation_history?${params.toString()}`,
             {
-                method: "PATCH",
+                method:
+                    "PATCH",
+
                 headers: {
                     Prefer:
                         "return=representation"
                 },
-                body: payload
+
+                body:
+                    JSON.stringify(
+                        payload
+                    )
             }
         );
 
-    const rows =
-        Array.isArray(response.data)
-            ? response.data
-            : [];
 
     return {
         payload,
-        rows
+
+        rows:
+            Array.isArray(
+                rows
+            )
+                ? rows
+                : []
     };
 }
 
 
 /* =========================================================
-   VERIFY HISTORY
+   VERIFY GENERATION HISTORY
    ========================================================= */
 
 async function verifyGenerationHistory(
     historyId
 ) {
-    const response =
-        await supabaseRequest(
-            `/rest/v1/${HISTORY_TABLE}` +
-            `?id=${eqFilter(historyId)}` +
-            `&select=*` +
-            `&limit=1`
-        );
+    const params =
+        new URLSearchParams();
+
+
+    params.set(
+        "id",
+        `eq.${historyId}`
+    );
+
+
+    params.set(
+        "select",
+        "*"
+    );
+
+
+    params.set(
+        "limit",
+        "1"
+    );
+
 
     const rows =
-        Array.isArray(response.data)
-            ? response.data
-            : [];
+        await supabaseRequest(
+            `/rest/v1/generation_history?${params.toString()}`,
+            {
+                method:
+                    "GET"
+            }
+        );
 
-    return rows[0] || null;
+
+    if (
+        !Array.isArray(
+            rows
+        )
+    ) {
+        return null;
+    }
+
+
+    return rows[0] ||
+        null;
 }
 
 
 /* =========================================================
-   HISTORY SYNC
+   SYNC GENERATION HISTORY
    ========================================================= */
 
 async function syncGenerationHistory(
@@ -1723,20 +2412,31 @@ async function syncGenerationHistory(
             taskId
         );
 
-    if (!history) {
+
+    if (
+        !history
+    ) {
         return {
-            history_updated: false,
-            history_matched: false,
-            history_status: null,
+            history_updated:
+                false,
+
+            history_matched:
+                false,
+
+            history_status:
+                null,
+
             history_reason:
                 "history_not_found",
-            history_row_id: null
+
+            history_row_id:
+                null
         };
     }
 
+
     /*
-     * Jika task masih processing,
-     * jangan menulis completed/failed.
+     * Task masih berjalan.
      */
     if (
         normalized.processing &&
@@ -1744,18 +2444,27 @@ async function syncGenerationHistory(
         !normalized.failed
     ) {
         return {
-            history_updated: false,
-            history_matched: true,
+            history_updated:
+                false,
+
+            history_matched:
+                true,
+
             history_status:
-                history.status || null,
+                history.status ||
+                null,
+
             history_reason:
                 "task_still_processing",
+
             history_row_id:
                 history.id
         };
     }
 
+
     let updateResult;
+
 
     try {
         updateResult =
@@ -1765,30 +2474,44 @@ async function syncGenerationHistory(
             );
     } catch (error) {
         return {
-            history_updated: false,
-            history_matched: true,
+            history_updated:
+                false,
+
+            history_matched:
+                true,
+
             history_status:
-                history.status || null,
+                history.status ||
+                null,
+
             history_reason:
                 "history_update_exception",
+
             history_row_id:
                 history.id,
+
             history_error:
                 error?.message ||
-                String(error),
+                String(
+                    error
+                ),
+
             history_error_status:
                 error?.status ||
                 null,
+
             history_error_data:
                 error?.data ||
                 null
         };
     }
 
+
     /*
-     * Verify database setelah PATCH.
+     * Baca kembali database.
      */
-    let verified = null;
+    let verified;
+
 
     try {
         verified =
@@ -1797,19 +2520,30 @@ async function syncGenerationHistory(
             );
     } catch (error) {
         return {
-            history_updated: false,
-            history_matched: true,
+            history_updated:
+                false,
+
+            history_matched:
+                true,
+
             history_status:
-                history.status || null,
+                history.status ||
+                null,
+
             history_reason:
                 "history_verify_exception",
+
             history_row_id:
                 history.id,
+
             history_error:
                 error?.message ||
-                String(error)
+                String(
+                    error
+                )
         };
     }
+
 
     const expectedStatus =
         normalized.completed
@@ -1818,14 +2552,19 @@ async function syncGenerationHistory(
                 ? "failed"
                 : "processing";
 
+
     const actualStatus =
         lower(
             verified?.status
         );
 
+
     const historyUpdated =
         actualStatus ===
-        lower(expectedStatus);
+        lower(
+            expectedStatus
+        );
+
 
     return {
         history_updated:
@@ -1835,8 +2574,8 @@ async function syncGenerationHistory(
             true,
 
         history_status:
-            actualStatus ||
             verified?.status ||
+            actualStatus ||
             null,
 
         history_reason:
@@ -1882,22 +2621,26 @@ async function syncGenerationHistoryWithRetry(
             normalized
         );
 
+
     /*
-     * Retry hanya untuk terminal task yang
-     * belum berhasil masuk ke History.
+     * Jika task sudah terminal tetapi PATCH
+     * belum terverifikasi, coba sekali lagi.
      */
     if (
-        (normalized.completed ||
-            normalized.failed) &&
+        (
+            normalized.completed ||
+            normalized.failed
+        ) &&
         !result.history_updated
     ) {
         await new Promise(
-            (resolve) =>
+            resolve =>
                 setTimeout(
                     resolve,
                     150
                 )
         );
+
 
         const retryResult =
             await syncGenerationHistory(
@@ -1906,32 +2649,42 @@ async function syncGenerationHistoryWithRetry(
                 normalized
             );
 
+
         result = {
             ...retryResult,
-            history_retry: true
+
+            history_retry:
+                true
         };
     } else {
         result = {
             ...result,
-            history_retry: false
+
+            history_retry:
+                false
         };
     }
+
 
     return result;
 }
 
 
 /* =========================================================
-   REQUEST VALIDATION
+   REQUEST BODY
    ========================================================= */
 
-function getRequestBody(req) {
+function getRequestBody(
+    req
+) {
     if (
         req.body &&
-        typeof req.body === "object"
+        typeof req.body ===
+            "object"
     ) {
         return req.body;
     }
+
 
     return {};
 }
@@ -1947,65 +2700,78 @@ export default async function handler(
 ) {
     /*
      * -------------------------------------------------------
-     * Method
+     * METHOD
      * -------------------------------------------------------
      */
-    if (req.method !== "POST") {
+    if (
+        req.method !==
+        "POST"
+    ) {
         res.setHeader(
             "Allow",
             "POST"
         );
 
+
         return json(
             res,
             405,
             {
-                success: false,
+                success:
+                    false,
+
                 error:
                     "Method tidak diizinkan."
             }
         );
     }
 
+
     /*
      * -------------------------------------------------------
-     * Environment check
+     * ENVIRONMENT
      * -------------------------------------------------------
      */
     if (
         !SUPABASE_URL ||
-        !(
-            SUPABASE_SERVICE_ROLE_KEY ||
-            SUPABASE_ANON_KEY
-        )
+        !SUPABASE_SERVICE_ROLE_KEY
     ) {
         return json(
             res,
             500,
             {
-                success: false,
+                success:
+                    false,
+
                 error:
                     "Konfigurasi Supabase server belum lengkap."
             }
         );
     }
 
+
     try {
         /*
          * ---------------------------------------------------
-         * Auth
+         * AUTH
          * ---------------------------------------------------
          */
         const user =
-            await authenticateUser(req);
+            await authenticateUser(
+                req
+            );
+
 
         /*
          * ---------------------------------------------------
-         * Body
+         * BODY
          * ---------------------------------------------------
          */
         const body =
-            getRequestBody(req);
+            getRequestBody(
+                req
+            );
+
 
         const taskId =
             cleanString(
@@ -2015,41 +2781,54 @@ export default async function handler(
                 )
             );
 
+
         const modelId =
             cleanString(
                 firstDefined(
                     body.model_id,
-                    body.modelId
+                    body.modelId,
+                    body.model
                 )
             );
 
-        if (!taskId) {
+
+        if (
+            !taskId
+        ) {
             return json(
                 res,
                 400,
                 {
-                    success: false,
+                    success:
+                        false,
+
                     error:
                         "task_id wajib diisi."
                 }
             );
         }
 
-        if (!modelId) {
+
+        if (
+            !modelId
+        ) {
             return json(
                 res,
                 400,
                 {
-                    success: false,
+                    success:
+                        false,
+
                     error:
                         "model_id wajib diisi."
                 }
             );
         }
 
+
         /*
          * ---------------------------------------------------
-         * Load model
+         * MODEL
          * ---------------------------------------------------
          */
         const model =
@@ -2057,65 +2836,139 @@ export default async function handler(
                 modelId
             );
 
+
         /*
          * ---------------------------------------------------
-         * Resolve provider
+         * ADAPTER
+         * ---------------------------------------------------
+         *
+         * Cari adapter SEBELUM credential.
+         * Dengan demikian error adapter dan credential
+         * tidak saling menutupi.
          * ---------------------------------------------------
          */
-        const providerReference =
-            getProviderReference(
-                model
+        const adapter =
+            findAdapter(
+                modelId
             );
 
-        if (!providerReference) {
+
+        if (
+            !adapter
+        ) {
             return json(
                 res,
                 500,
                 {
-                    success: false,
+                    success:
+                        false,
+
                     error:
-                        `Provider untuk model "${modelId}" tidak ditemukan.`,
+                        `Adapter untuk model "${modelId}" tidak ditemukan.`,
+
                     model_id:
-                        modelId
+                        modelId,
+
+                    registered_adapters:
+                        getAdapterDiagnostics()
                 }
             );
         }
 
+
+        /*
+         * ---------------------------------------------------
+         * PROVIDER
+         * ---------------------------------------------------
+         */
+        const providerResult =
+            await resolveProvider(
+                model,
+                adapter
+            );
+
+
+        if (
+            providerResult.error
+        ) {
+            return json(
+                res,
+                404,
+                {
+                    success:
+                        false,
+
+                    error:
+                        providerResult.error,
+
+                    model_id:
+                        modelId,
+
+                    provider_id:
+                        providerResult.providerCode ||
+                        null,
+
+                    provider:
+                        providerResult.provider
+                            ?.provider_name ||
+                        providerResult.provider
+                            ?.name ||
+                        null
+                }
+            );
+        }
+
+
         const provider =
-            await loadProvider(
-                providerReference
-            );
+            providerResult.provider;
+
 
         /*
          * ---------------------------------------------------
-         * Load credential
+         * PROVIDER CODE
+         * ---------------------------------------------------
+         *
+         * PENTING:
+         *
+         * Credential menggunakan:
+         *
+         *   provider_credentials.provider_id
+         *
+         * Jadi gunakan:
+         *
+         *   provider.provider_id
+         *
+         * bukan:
+         *
+         *   provider.provider_name
          * ---------------------------------------------------
          */
-        const credential =
-            await loadProviderCredential(
-                provider
+        const providerCode =
+            cleanString(
+                firstDefined(
+                    providerResult.providerCode,
+                    provider?.provider_id,
+                    adapter?.config?.providerId
+                )
             );
 
-        /*
-         * ---------------------------------------------------
-         * Decrypt provider credential
-         * ---------------------------------------------------
-         */
-        const providerApiKey =
-            decryptCredential(
-                credential.encryptedCredential
-            );
 
-        if (!providerApiKey) {
+        if (
+            !providerCode
+        ) {
             return json(
                 res,
                 500,
                 {
-                    success: false,
+                    success:
+                        false,
+
                     error:
-                        "Provider API key kosong setelah decrypt.",
+                        "Provider ID is missing.",
+
                     model_id:
                         modelId,
+
                     provider:
                         provider?.provider_name ||
                         provider?.name ||
@@ -2124,48 +2977,76 @@ export default async function handler(
             );
         }
 
+
         /*
          * ---------------------------------------------------
-         * IMPORTANT:
+         * PROVIDER CREDENTIAL
+         * ---------------------------------------------------
          *
-         * index.js:
+         * Sekarang HARUS mencari:
          *
-         * export default model;
+         * provider_credentials.provider_id
+         *       =
+         * providerCode
          *
-         * Jadi adapter di-import sebagai:
+         * Contoh:
          *
-         * import grokImagineImageToVideo
-         *   from ".../index.js";
-         *
+         * providerCode = kie
          * ---------------------------------------------------
          */
-        const adapter =
-            findAdapter(
-                modelId
+        let providerApiKey;
+
+
+        try {
+            providerApiKey =
+                await loadProviderCredential(
+                    providerCode
+                );
+        } catch (error) {
+            console.error(
+                "[generate-status] Provider credential error:",
+                error
             );
 
-        if (!adapter) {
+
             return json(
                 res,
                 500,
                 {
-                    success: false,
+                    success:
+                        false,
+
                     error:
-                        `Adapter untuk model "${modelId}" tidak ditemukan.`,
+                        `Credential provider "${providerCode}" tidak ditemukan.`,
+
                     model_id:
                         modelId,
-                    registered_adapters:
-                        getAdapterDiagnostics()
+
+                    provider_id:
+                        providerCode,
+
+                    provider:
+                        provider?.provider_name ||
+                        provider?.name ||
+                        null,
+
+                    details: {
+                        message:
+                            error?.message ||
+                            null
+                    }
                 }
             );
         }
 
+
         /*
          * ---------------------------------------------------
-         * Query provider task
+         * QUERY KIE
          * ---------------------------------------------------
          */
         let providerRaw;
+
 
         try {
             providerRaw =
@@ -2175,38 +3056,60 @@ export default async function handler(
                     providerApiKey
                 );
         } catch (error) {
+            console.error(
+                "[generate-status] Provider query failed:",
+                error
+            );
+
+
             return json(
                 res,
                 502,
                 {
-                    success: false,
+                    success:
+                        false,
+
                     error:
                         error?.message ||
                         "Gagal query status task ke provider.",
+
                     model_id:
                         modelId,
-                    task_id:
-                        taskId,
-                    provider_id:
-                        provider?.id ||
-                        provider?.provider_id ||
+
+                    model_name:
+                        model?.model_name ||
+                        model?.name ||
                         null,
+
+                    provider_id:
+                        providerCode,
+
                     provider:
                         provider?.provider_name ||
                         provider?.name ||
                         null,
+
+                    task_id:
+                        taskId,
+
                     adapter_found:
                         true,
+
                     adapter_has_queryTask:
                         typeof adapter?.queryTask ===
+                            "function",
+
+                    adapter_has_createTask:
+                        typeof adapter?.createTask ===
                             "function"
                 }
             );
         }
 
+
         /*
          * ---------------------------------------------------
-         * Normalize provider result
+         * NORMALIZE KIE RESPONSE
          * ---------------------------------------------------
          */
         const normalized =
@@ -2215,9 +3118,10 @@ export default async function handler(
                 taskId
             );
 
+
         /*
          * ---------------------------------------------------
-         * Sync generation_history
+         * UPDATE HISTORY
          * ---------------------------------------------------
          */
         const history =
@@ -2227,16 +3131,18 @@ export default async function handler(
                 normalized
             );
 
+
         /*
          * ---------------------------------------------------
-         * Final response
+         * RESPONSE
          * ---------------------------------------------------
          */
         return json(
             res,
             200,
             {
-                success: true,
+                success:
+                    true,
 
                 user_id:
                     user.id,
@@ -2252,11 +3158,7 @@ export default async function handler(
                     ),
 
                 provider_id:
-                    firstDefined(
-                        provider?.id,
-                        provider?.provider_id,
-                        provider?.providerId
-                    ),
+                    providerCode,
 
                 provider:
                     firstDefined(
@@ -2313,6 +3215,9 @@ export default async function handler(
                             : null
                     ),
 
+                /*
+                 * History diagnostics.
+                 */
                 history_updated:
                     history.history_updated,
 
@@ -2345,9 +3250,7 @@ export default async function handler(
                     false,
 
                 /*
-                 * Diagnostics adapter.
-                 * Berguna untuk memastikan deployment
-                 * benar-benar memakai default export.
+                 * Adapter diagnostics.
                  */
                 adapter_found:
                     true,
@@ -2355,6 +3258,20 @@ export default async function handler(
                 adapter_has_queryTask:
                     typeof adapter?.queryTask ===
                         "function",
+
+                adapter_has_createTask:
+                    typeof adapter?.createTask ===
+                        "function",
+
+                /*
+                 * Credential diagnostics.
+                 * Tidak pernah mengembalikan API key.
+                 */
+                credential_provider_id:
+                    providerCode,
+
+                credential_resolved:
+                    true,
 
                 modelId:
                     modelId
@@ -2366,6 +3283,7 @@ export default async function handler(
             error
         );
 
+
         return json(
             res,
             error?.status >= 400 &&
@@ -2373,10 +3291,13 @@ export default async function handler(
                 ? error.status
                 : 500,
             {
-                success: false,
+                success:
+                    false,
+
                 error:
                     error?.message ||
                     "Gagal memproses status generation.",
+
                 details:
                     error?.data ||
                     null
