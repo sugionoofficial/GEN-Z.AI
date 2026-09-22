@@ -256,6 +256,666 @@ function getDOM() {
 
 }
 
+/* =========================================================
+   GENERATE PREMIUM STATUS
+   ---------------------------------------------------------
+   Status:
+   - processing
+   - success
+   - failed
+   - idle
+========================================================= */
+
+function ensureGenerateStatus() {
+
+    const elements =
+        getDOM();
+
+    if (
+        elements.generateStatus
+    ) {
+
+        applyGenerateStatusStyles(
+            elements.generateStatus
+        );
+
+        return elements.generateStatus;
+
+    }
+
+    const button =
+        elements.generateButton;
+
+    if (
+        !button
+    ) {
+
+        return null;
+
+    }
+
+    let wrapper =
+        button.parentElement;
+
+    if (
+        !wrapper
+    ) {
+
+        return null;
+
+    }
+
+    let status =
+        wrapper.querySelector(
+            "#generateStatus"
+        );
+
+    if (
+        !status
+    ) {
+
+        status =
+            document.createElement(
+                "div"
+            );
+
+        status.id =
+            "generateStatus";
+
+        status.setAttribute(
+            "aria-live",
+            "polite"
+        );
+
+        status.setAttribute(
+            "aria-atomic",
+            "true"
+        );
+
+        /*
+         * Status ditempatkan tepat di samping
+         * tombol Generate.
+         */
+        status.style.cssText =
+            [
+                "display:none",
+                "align-items:center",
+                "justify-content:flex-start",
+                "gap:10px",
+                "min-width:190px",
+                "max-width:320px",
+                "margin-left:14px",
+                "font-family:inherit",
+                "box-sizing:border-box",
+                "vertical-align:middle"
+            ].join(";");
+
+        wrapper.style.display =
+            "flex";
+
+        wrapper.style.alignItems =
+            "center";
+
+        wrapper.style.flexWrap =
+            "wrap";
+
+        wrapper.style.gap =
+            "8px";
+
+        button.insertAdjacentElement(
+            "afterend",
+            status
+        );
+
+    }
+
+    applyGenerateStatusStyles(
+        status
+    );
+
+    return status;
+
+}
+
+
+/* =========================================================
+   PREMIUM STATUS STYLE
+========================================================= */
+
+function applyGenerateStatusStyles(
+    status
+) {
+
+    if (
+        !status
+    ) {
+
+        return;
+
+    }
+
+    /*
+     * Animasi dibuat menggunakan CSS injection
+     * satu kali saja.
+     */
+
+    if (
+        !document.getElementById(
+            "genzGenerateStatusStyles"
+        )
+    ) {
+
+        const style =
+            document.createElement(
+                "style"
+            );
+
+        style.id =
+            "genzGenerateStatusStyles";
+
+        style.textContent =
+            `
+            #generateStatus {
+                position:relative;
+                box-sizing:border-box;
+                min-height:42px;
+                padding:7px 13px;
+                border-radius:12px;
+                border:1px solid rgba(255,255,255,.08);
+                background:
+                    linear-gradient(
+                        135deg,
+                        rgba(255,255,255,.055),
+                        rgba(255,255,255,.018)
+                    );
+                backdrop-filter:blur(14px);
+                -webkit-backdrop-filter:blur(14px);
+                box-shadow:
+                    0 8px 24px rgba(0,0,0,.18),
+                    inset 0 1px 0 rgba(255,255,255,.055);
+                overflow:hidden;
+                transition:
+                    opacity .28s ease,
+                    transform .28s ease,
+                    border-color .28s ease,
+                    box-shadow .28s ease;
+            }
+
+            #generateStatus::before {
+                content:"";
+                position:absolute;
+                inset:0;
+                pointer-events:none;
+                background:
+                    linear-gradient(
+                        110deg,
+                        transparent 0%,
+                        rgba(255,255,255,.07) 45%,
+                        transparent 70%
+                    );
+                transform:translateX(-120%);
+                animation:genzStatusShimmer 2.8s infinite;
+            }
+
+            #generateStatus.genz-status-hidden {
+                display:none !important;
+                opacity:0;
+                transform:translateY(4px);
+            }
+
+            #generateStatus.genz-status-processing {
+                border-color:
+                    rgba(255,255,255,.14);
+
+                box-shadow:
+                    0 8px 26px rgba(0,0,0,.22),
+                    0 0 18px rgba(255,255,255,.035),
+                    inset 0 1px 0 rgba(255,255,255,.07);
+            }
+
+            #generateStatus.genz-status-success {
+                border-color:
+                    rgba(34,197,94,.30);
+
+                box-shadow:
+                    0 8px 28px rgba(0,0,0,.22),
+                    0 0 22px rgba(34,197,94,.10),
+                    inset 0 1px 0 rgba(255,255,255,.06);
+            }
+
+            #generateStatus.genz-status-failed {
+                border-color:
+                    rgba(239,68,68,.34);
+
+                box-shadow:
+                    0 8px 28px rgba(0,0,0,.22),
+                    0 0 22px rgba(239,68,68,.10),
+                    inset 0 1px 0 rgba(255,255,255,.05);
+            }
+
+            .genz-generate-status-inner {
+                position:relative;
+                z-index:1;
+                display:flex;
+                align-items:center;
+                gap:9px;
+                min-width:0;
+            }
+
+            .genz-generate-status-icon {
+                width:21px;
+                height:21px;
+                min-width:21px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                border-radius:50%;
+                box-sizing:border-box;
+            }
+
+            .genz-status-spinner {
+                width:17px;
+                height:17px;
+                border-radius:50%;
+                border:2px solid rgba(255,255,255,.18);
+                border-top-color:#fff;
+                border-right-color:rgba(255,255,255,.72);
+                animation:genzStatusSpin .78s linear infinite;
+                box-sizing:border-box;
+            }
+
+            .genz-status-success-icon {
+                width:21px;
+                height:21px;
+                border-radius:50%;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                background:rgba(34,197,94,.14);
+                border:1px solid rgba(34,197,94,.35);
+                color:#4ade80;
+                font-size:13px;
+                font-weight:800;
+                box-shadow:0 0 14px rgba(34,197,94,.14);
+            }
+
+            .genz-status-failed-icon {
+                width:21px;
+                height:21px;
+                border-radius:50%;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                background:rgba(239,68,68,.14);
+                border:1px solid rgba(239,68,68,.35);
+                color:#f87171;
+                font-size:12px;
+                font-weight:900;
+                box-shadow:0 0 14px rgba(239,68,68,.12);
+            }
+
+            .genz-generate-status-content {
+                min-width:0;
+                display:flex;
+                flex-direction:column;
+                gap:2px;
+            }
+
+            .genz-generate-status-title {
+                font-size:11px;
+                line-height:15px;
+                font-weight:800;
+                letter-spacing:1.25px;
+                white-space:nowrap;
+            }
+
+            .genz-generate-status-title.processing {
+                color:#fff;
+            }
+
+            .genz-generate-status-title.success {
+                color:#4ade80;
+            }
+
+            .genz-generate-status-title.failed {
+                color:#f87171;
+            }
+
+            .genz-generate-status-message {
+                max-width:250px;
+                font-size:9.5px;
+                line-height:14px;
+                font-weight:500;
+                color:rgba(255,255,255,.58);
+                white-space:normal;
+                word-break:break-word;
+            }
+
+            .genz-generate-status-message.success {
+                color:rgba(134,239,172,.82);
+            }
+
+            .genz-generate-status-message.failed {
+                color:rgba(252,165,165,.82);
+            }
+
+            @keyframes genzStatusSpin {
+                to {
+                    transform:rotate(360deg);
+                }
+            }
+
+            @keyframes genzStatusShimmer {
+                0% {
+                    transform:translateX(-120%);
+                }
+
+                45%,
+                100% {
+                    transform:translateX(120%);
+                }
+            }
+
+            @media (max-width:640px) {
+
+                #generateStatus {
+                    width:100%;
+                    min-width:0;
+                    max-width:none;
+                    margin-left:0;
+                    margin-top:6px;
+                }
+
+                .genz-generate-status-message {
+                    max-width:none;
+                }
+
+            }
+            `;
+
+        document.head.appendChild(
+            style
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   SET GENERATE STATUS
+========================================================= */
+
+function setGenerateStatus(
+    type,
+    message = ""
+) {
+
+    const status =
+        ensureGenerateStatus();
+
+    if (
+        !status
+    ) {
+
+        return;
+
+    }
+
+    const normalized =
+        String(
+            type ||
+            "idle"
+        )
+        .trim()
+        .toLowerCase();
+
+    status.className =
+        "";
+
+    if (
+        normalized ===
+        "idle"
+    ) {
+
+        status.classList.add(
+            "genz-status-hidden"
+        );
+
+        status.style.display =
+            "none";
+
+        status.innerHTML =
+            "";
+
+        return;
+
+    }
+
+    status.style.display =
+        "flex";
+
+    status.classList.remove(
+        "genz-status-hidden"
+    );
+
+    let title =
+        "";
+
+    let titleClass =
+        "";
+
+    let icon =
+        "";
+
+    let messageClass =
+        "";
+
+    if (
+        normalized ===
+        "processing"
+    ) {
+
+        status.classList.add(
+            "genz-status-processing"
+        );
+
+        title =
+            "PROSES";
+
+        titleClass =
+            "processing";
+
+        icon =
+            `
+            <span
+                class="genz-generate-status-icon"
+                aria-hidden="true"
+            >
+                <span
+                    class="genz-status-spinner"
+                ></span>
+            </span>
+            `;
+
+    }
+
+    else if (
+        normalized ===
+        "success"
+    ) {
+
+        status.classList.add(
+            "genz-status-success"
+        );
+
+        title =
+            "SUCCESS";
+
+        titleClass =
+            "success";
+
+        message =
+            message ||
+            "Check Hasil Generate di History...!!!";
+
+        messageClass =
+            "success";
+
+        icon =
+            `
+            <span
+                class="genz-status-success-icon"
+                aria-hidden="true"
+            >
+                ✓
+            </span>
+            `;
+
+    }
+
+    else if (
+        normalized ===
+            "failed" ||
+        normalized ===
+            "failure" ||
+        normalized ===
+            "error"
+    ) {
+
+        status.classList.add(
+            "genz-status-failed"
+        );
+
+        title =
+            "[GAGAL]";
+
+        titleClass =
+            "failed";
+
+        message =
+            message ||
+            "Generate gagal diproses.";
+
+        messageClass =
+            "failed";
+
+        icon =
+            `
+            <span
+                class="genz-status-failed-icon"
+                aria-hidden="true"
+            >
+                ×
+            </span>
+            `;
+
+    }
+
+    else {
+
+        status.classList.add(
+            "genz-status-processing"
+        );
+
+        title =
+            "PROSES";
+
+        titleClass =
+            "processing";
+
+        icon =
+            `
+            <span
+                class="genz-generate-status-icon"
+                aria-hidden="true"
+            >
+                <span
+                    class="genz-status-spinner"
+                ></span>
+            </span>
+            `;
+
+    }
+
+    status.innerHTML =
+        `
+        <div
+            class="genz-generate-status-inner"
+        >
+
+            ${icon}
+
+            <div
+                class="genz-generate-status-content"
+            >
+
+                <div
+                    class="genz-generate-status-title ${titleClass}"
+                >
+                    ${title}
+                </div>
+
+                ${
+                    message
+                        ? `
+                            <div
+                                class="genz-generate-status-message ${messageClass}"
+                            >
+                                ${escapeGenerateStatusText(
+                                    message
+                                )}
+                            </div>
+                        `
+                        : ""
+                }
+
+            </div>
+
+        </div>
+        `;
+
+}
+
+
+/* =========================================================
+   ESCAPE STATUS MESSAGE
+========================================================= */
+
+function escapeGenerateStatusText(
+    value
+) {
+
+    const text =
+        String(
+            value ??
+            ""
+        );
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.textContent =
+        text;
+
+    return div.innerHTML;
+
+}
+
+
+/* =========================================================
+   RESET GENERATE STATUS
+========================================================= */
+
+function resetGenerateStatus() {
+
+    setGenerateStatus(
+        "idle"
+    );
+
+}
 
 /* =========================================================
    ERROR
