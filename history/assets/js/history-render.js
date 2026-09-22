@@ -14,6 +14,8 @@
    - Escape HTML
    - Format tanggal
    - Video thumbnail interaction helper
+   - Prompt table hanya 1 baris
+   - Prompt detail tetap menggunakan data asli
 ========================================================= */
 
 (function () {
@@ -416,6 +418,8 @@
 
         return String(
             item?.prompt ||
+            item?.input_prompt ||
+            item?.description ||
             ""
         ).trim();
     }
@@ -1051,8 +1055,15 @@
     /* =====================================================
        PROMPT DISPLAY
        -----------------------------------------------------
-       HANYA 1 BARIS DI TABLE.
-       Klik -> buka detail lengkap.
+       TABLE:
+       - SELALU 1 BARIS
+       - TIDAK MEMOTONG DATA ASLI
+       - ELLIPSIS DITANGANI CSS
+       - KLIK -> DETAIL
+
+       MODAL:
+       - DATA PROMPT ASLI TETAP UTUH
+       - TIDAK ADA TRUNCATE DI JAVASCRIPT
     ===================================================== */
 
     function getPromptDisplay(
@@ -1067,7 +1078,10 @@
         if (!prompt) {
 
             return `
-                <span class="history-prompt-empty">
+                <span
+                    class="history-prompt-empty"
+                    title="-"
+                >
                     -
                 </span>
             `;
@@ -1080,28 +1094,50 @@
             );
 
 
+        const historyId =
+            String(
+                item?.id ||
+                ""
+            ).trim();
+
+
+        const safeHistoryId =
+            escapeHtml(
+                historyId
+            );
+
+
         /*
-         * Jangan memotong string dengan JS.
-         * CSS akan menangani ellipsis sehingga
-         * tooltip/detail tetap menggunakan prompt asli.
+         * PENTING:
+         *
+         * Prompt TIDAK dipotong dengan substring().
+         *
+         * Seluruh prompt tetap berada di DOM.
+         * CSS yang membatasi tampilan menjadi satu
+         * baris dan memberikan ellipsis.
          */
         return `
             <button
                 type="button"
                 class="history-prompt"
                 data-action="prompt"
-                data-history-id="${escapeHtml(
-                    item?.id || ""
-                )}"
+                data-history-id="${safeHistoryId}"
                 title="Klik untuk melihat prompt lengkap"
                 aria-label="Lihat prompt lengkap"
             >
-                <span class="history-prompt-text">
-                    ${safePrompt}
-                </span>
+
+                <span
+                    class="history-prompt-text"
+                    title="${safePrompt}"
+                >${safePrompt}</span>
+
             </button>
         `;
     }
+
+
+    App.getPromptDisplay =
+        getPromptDisplay;
 
 
     /* =====================================================
@@ -1812,5 +1848,6 @@
 
     App.updateSubtitle =
         updateSubtitle;
+
 
 })();
