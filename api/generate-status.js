@@ -47,12 +47,10 @@ const SUPABASE_URL =
             ""
         );
 
-
 const SUPABASE_SERVICE_ROLE_KEY =
     String(
         process.env.SUPABASE_SERVICE_ROLE_KEY || ""
     ).trim();
-
 
 const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
     String(
@@ -87,7 +85,6 @@ const COMPLETED_STATES =
         "successfully-completed"
     ]);
 
-
 const FAILED_STATES =
     new Set([
         "fail",
@@ -99,6 +96,23 @@ const FAILED_STATES =
         "rejected",
         "terminated",
         "aborted"
+    ]);
+
+const PROCESSING_STATES =
+    new Set([
+        "processing",
+        "running",
+        "generating",
+        "in_progress",
+        "in-progress",
+        "pending",
+        "queued",
+        "queue",
+        "waiting",
+        "created",
+        "submitted",
+        "starting",
+        "started"
     ]);
 
 
@@ -115,18 +129,15 @@ function json(
     res.statusCode =
         statusCode;
 
-
     res.setHeader(
         "Content-Type",
         "application/json; charset=utf-8"
     );
 
-
     res.setHeader(
         "Cache-Control",
         "no-store, no-cache, must-revalidate"
     );
-
 
     return res.end(
         JSON.stringify(
@@ -192,12 +203,10 @@ function normalizeString(
 
     }
 
-
     const result =
         String(
             value
         ).trim();
-
 
     return result ||
         fallback;
@@ -242,7 +251,6 @@ async function supabaseRequest(
 
     }
 
-
     if (!SUPABASE_SERVICE_ROLE_KEY) {
 
         throw new Error(
@@ -250,7 +258,6 @@ async function supabaseRequest(
         );
 
     }
-
 
     const response =
         await fetch(
@@ -277,14 +284,11 @@ async function supabaseRequest(
             }
         );
 
-
     const text =
         await response.text();
 
-
     let data =
         null;
-
 
     if (text) {
 
@@ -304,12 +308,10 @@ async function supabaseRequest(
 
     }
 
-
     if (!response.ok) {
 
         let message =
             `Supabase request failed with status ${response.status}`;
-
 
         if (
             data &&
@@ -324,25 +326,20 @@ async function supabaseRequest(
 
         }
 
-
         const error =
             new Error(
                 message
             );
 
-
         error.status =
             response.status;
-
 
         error.data =
             data;
 
-
         throw error;
 
     }
-
 
     return data;
 
@@ -364,7 +361,6 @@ async function authenticateUser(
             ""
         ).trim();
 
-
     if (!authorization) {
 
         throw Object.assign(
@@ -378,12 +374,10 @@ async function authenticateUser(
 
     }
 
-
     const match =
         authorization.match(
             /^Bearer\s+(.+)$/i
         );
-
 
     if (!match) {
 
@@ -398,10 +392,8 @@ async function authenticateUser(
 
     }
 
-
     const accessToken =
         match[1].trim();
-
 
     if (!accessToken) {
 
@@ -415,7 +407,6 @@ async function authenticateUser(
         );
 
     }
-
 
     const user =
         await supabaseRequest(
@@ -438,7 +429,6 @@ async function authenticateUser(
             }
         );
 
-
     if (
         !user ||
         !user.id
@@ -454,7 +444,6 @@ async function authenticateUser(
         );
 
     }
-
 
     return user;
 
@@ -478,19 +467,17 @@ async function readBody(
 
     }
 
-
     let body =
         "";
 
-
     for await (
-        const chunk of req
+        const chunk
+        of req
     ) {
 
         body += chunk;
 
     }
-
 
     if (
         !body.trim()
@@ -499,7 +486,6 @@ async function readBody(
         return {};
 
     }
-
 
     try {
 
@@ -584,13 +570,11 @@ function getModelAdapter(
             modelId
         );
 
-
     if (!normalizedId) {
 
         return null;
 
     }
-
 
     return (
         MODEL_REGISTRY.find(
@@ -624,28 +608,23 @@ async function loadDatabaseModel(
 
     }
 
-
     const params =
         new URLSearchParams();
-
 
     params.set(
         "select",
         "*"
     );
 
-
     params.set(
         "model_id",
         `eq.${modelId}`
     );
 
-
     params.set(
         "limit",
         "1"
     );
-
 
     try {
 
@@ -657,7 +636,6 @@ async function loadDatabaseModel(
                         "GET"
                 }
             );
-
 
         return (
             Array.isArray(rows) &&
@@ -673,7 +651,6 @@ async function loadDatabaseModel(
             error?.message ||
             error
         );
-
 
         return null;
 
@@ -696,28 +673,23 @@ async function loadProviderByDatabaseId(
 
     }
 
-
     const params =
         new URLSearchParams();
-
 
     params.set(
         "select",
         "*"
     );
 
-
     params.set(
         "id",
         `eq.${providerDatabaseId}`
     );
 
-
     params.set(
         "limit",
         "1"
     );
-
 
     const providers =
         await supabaseRequest(
@@ -727,7 +699,6 @@ async function loadProviderByDatabaseId(
                     "GET"
             }
         );
-
 
     return (
         Array.isArray(providers) &&
@@ -752,35 +723,29 @@ async function loadProviderByCode(
             providerCode
         );
 
-
     if (!normalizedCode) {
 
         return null;
 
     }
 
-
     const params =
         new URLSearchParams();
-
 
     params.set(
         "select",
         "*"
     );
 
-
     params.set(
         "provider_id",
         `eq.${normalizedCode}`
     );
 
-
     params.set(
         "limit",
         "1"
     );
-
 
     const providers =
         await supabaseRequest(
@@ -791,7 +756,6 @@ async function loadProviderByCode(
             }
         );
 
-
     if (
         Array.isArray(providers) &&
         providers.length
@@ -801,28 +765,23 @@ async function loadProviderByCode(
 
     }
 
-
     const nameParams =
         new URLSearchParams();
-
 
     nameParams.set(
         "select",
         "*"
     );
 
-
     nameParams.set(
         "provider_name",
         `eq.${normalizedCode}`
     );
 
-
     nameParams.set(
         "limit",
         "1"
     );
-
 
     const namedProviders =
         await supabaseRequest(
@@ -832,7 +791,6 @@ async function loadProviderByCode(
                     "GET"
             }
         );
-
 
     return (
         Array.isArray(namedProviders) &&
@@ -858,7 +816,6 @@ async function resolveProvider(
             databaseModel?.provider_id
         );
 
-
     if (
         databaseProviderId
     ) {
@@ -868,7 +825,6 @@ async function resolveProvider(
                 databaseProviderId
             );
 
-
         if (provider) {
 
             return provider;
@@ -877,12 +833,10 @@ async function resolveProvider(
 
     }
 
-
     const registryProviderId =
         normalizeString(
             adapter?.config?.providerId
         );
-
 
     if (
         registryProviderId
@@ -893,7 +847,6 @@ async function resolveProvider(
         );
 
     }
-
 
     return null;
 
@@ -916,7 +869,6 @@ function getEncryptionKey() {
 
     }
 
-
     if (
         /^[0-9a-fA-F]{64}$/.test(
             PROVIDER_CREDENTIAL_ENCRYPTION_KEY
@@ -930,7 +882,6 @@ function getEncryptionKey() {
 
     }
 
-
     try {
 
         const buffer =
@@ -938,7 +889,6 @@ function getEncryptionKey() {
                 PROVIDER_CREDENTIAL_ENCRYPTION_KEY,
                 "base64"
             );
-
 
         if (
             buffer.length ===
@@ -954,7 +904,6 @@ function getEncryptionKey() {
          * Continue.
          */
     }
-
 
     return crypto
         .createHash(
@@ -981,13 +930,11 @@ function decodeBuffer(
             value
         );
 
-
     if (!text) {
 
         return null;
 
     }
-
 
     if (
         /^[0-9a-fA-F]+$/.test(text) &&
@@ -1009,7 +956,6 @@ function decodeBuffer(
 
     }
 
-
     try {
 
         const buffer =
@@ -1017,7 +963,6 @@ function decodeBuffer(
                 text,
                 "base64"
             );
-
 
         if (
             buffer.length > 0
@@ -1032,7 +977,6 @@ function decodeBuffer(
          * Continue.
          */
     }
-
 
     return null;
 
@@ -1052,7 +996,6 @@ function decryptAesGcm(
     const key =
         getEncryptionKey();
 
-
     if (
         key.length !==
         32
@@ -1064,7 +1007,6 @@ function decryptAesGcm(
 
     }
 
-
     const decipher =
         crypto.createDecipheriv(
             "aes-256-gcm",
@@ -1072,11 +1014,9 @@ function decryptAesGcm(
             iv
         );
 
-
     decipher.setAuthTag(
         authTag
     );
-
 
     const decrypted =
         Buffer.concat([
@@ -1089,155 +1029,9 @@ function decryptAesGcm(
 
         ]);
 
-
     return decrypted.toString(
         "utf8"
     );
-
-}
-
-
-/* =========================================================
-   DECRYPT CREDENTIAL
-========================================================= */
-
-function decryptCredential(
-    value
-) {
-
-    if (
-        value === null ||
-        value === undefined
-    ) {
-
-        return null;
-
-    }
-
-
-    const text =
-        normalizeString(
-            value
-        );
-
-
-    if (!text) {
-
-        return null;
-
-    }
-
-
-    if (
-        text.startsWith("{") &&
-        text.endsWith("}")
-    ) {
-
-        try {
-
-            const parsed =
-                JSON.parse(
-                    text
-                );
-
-
-            const iv =
-                decodeBuffer(
-                    parsed.iv
-                );
-
-
-            const authTag =
-                decodeBuffer(
-                    parsed.authTag ||
-                    parsed.auth_tag ||
-                    parsed.tag
-                );
-
-
-            const ciphertext =
-                decodeBuffer(
-                    parsed.ciphertext ||
-                    parsed.data ||
-                    parsed.encrypted
-                );
-
-
-            if (
-                iv &&
-                authTag &&
-                ciphertext
-            ) {
-
-                return decryptAesGcm(
-                    iv,
-                    authTag,
-                    ciphertext
-                );
-
-            }
-
-        } catch {
-            /*
-             * Continue.
-             */
-        }
-
-    }
-
-
-    const parts =
-        text.split(":");
-
-
-    if (
-        parts.length === 3
-    ) {
-
-        const iv =
-            decodeBuffer(
-                parts[0]
-            );
-
-
-        const authTag =
-            decodeBuffer(
-                parts[1]
-            );
-
-
-        const ciphertext =
-            decodeBuffer(
-                parts[2]
-            );
-
-
-        if (
-            iv &&
-            authTag &&
-            ciphertext
-        ) {
-
-            try {
-
-                return decryptAesGcm(
-                    iv,
-                    authTag,
-                    ciphertext
-                );
-
-            } catch {
-                /*
-                 * Plaintext fallback.
-                 */
-            }
-
-        }
-
-    }
-
-
-    return text;
 
 }
 
@@ -1255,7 +1049,6 @@ async function loadProviderApiKey(
             providerCode
         );
 
-
     if (!normalizedProviderCode) {
 
         throw new Error(
@@ -1264,10 +1057,8 @@ async function loadProviderApiKey(
 
     }
 
-
     const params =
         new URLSearchParams();
-
 
     params.set(
         "select",
@@ -1282,18 +1073,15 @@ async function loadProviderApiKey(
         ].join(",")
     );
 
-
     params.set(
         "provider_id",
         `eq.${normalizedProviderCode}`
     );
 
-
     params.set(
         "limit",
         "1"
     );
-
 
     const credentials =
         await supabaseRequest(
@@ -1303,7 +1091,6 @@ async function loadProviderApiKey(
                     "GET"
             }
         );
-
 
     if (
         !Array.isArray(credentials) ||
@@ -1316,28 +1103,23 @@ async function loadProviderApiKey(
 
     }
 
-
     const credential =
         credentials[0];
-
 
     const ciphertext =
         normalizeString(
             credential?.api_key_ciphertext
         );
 
-
     const iv =
         normalizeString(
             credential?.api_key_iv
         );
 
-
     const authTag =
         normalizeString(
             credential?.api_key_tag
         );
-
 
     if (
         !ciphertext ||
@@ -1351,24 +1133,20 @@ async function loadProviderApiKey(
 
     }
 
-
     const ivBuffer =
         decodeBuffer(
             iv
         );
-
 
     const authTagBuffer =
         decodeBuffer(
             authTag
         );
 
-
     const ciphertextBuffer =
         decodeBuffer(
             ciphertext
         );
-
 
     if (
         !ivBuffer ||
@@ -1382,9 +1160,7 @@ async function loadProviderApiKey(
 
     }
 
-
     let apiKey;
-
 
     try {
 
@@ -1403,19 +1179,16 @@ async function loadProviderApiKey(
             error
         );
 
-
         throw new Error(
             `Unable to decrypt provider API credential for ${normalizedProviderCode}`
         );
 
     }
 
-
     const normalizedApiKey =
         normalizeString(
             apiKey
         );
-
 
     if (!normalizedApiKey) {
 
@@ -1424,7 +1197,6 @@ async function loadProviderApiKey(
         );
 
     }
-
 
     return normalizedApiKey;
 
@@ -1458,7 +1230,6 @@ function firstDefined(
 
     }
 
-
     return null;
 
 }
@@ -1476,10 +1247,8 @@ function collectObjects(
     const objects =
         [];
 
-
     const visited =
         new Set();
-
 
     function walk(
         value,
@@ -1495,7 +1264,6 @@ function collectObjects(
 
         }
 
-
         if (
             !value ||
             typeof value !== "object"
@@ -1504,7 +1272,6 @@ function collectObjects(
             return;
 
         }
-
 
         if (
             visited.has(
@@ -1516,16 +1283,13 @@ function collectObjects(
 
         }
 
-
         visited.add(
             value
         );
 
-
         objects.push(
             value
         );
-
 
         if (
             Array.isArray(
@@ -1545,11 +1309,9 @@ function collectObjects(
 
             }
 
-
             return;
 
         }
-
 
         for (
             const key
@@ -1560,7 +1322,6 @@ function collectObjects(
 
             const child =
                 value[key];
-
 
             if (
                 child &&
@@ -1578,12 +1339,10 @@ function collectObjects(
 
     }
 
-
     walk(
         root,
         0
     );
-
 
     return objects;
 
@@ -1603,7 +1362,6 @@ function extractTaskState(
             response
         );
 
-
     const keys = [
 
         "state",
@@ -1617,7 +1375,6 @@ function extractTaskState(
         "task_status"
 
     ];
-
 
     for (
         const object
@@ -1634,7 +1391,6 @@ function extractTaskState(
                     object?.[key]
                 );
 
-
             if (state) {
 
                 return state;
@@ -1644,7 +1400,6 @@ function extractTaskState(
         }
 
     }
-
 
     return "";
 
@@ -1665,7 +1420,6 @@ function extractTaskId(
             response
         );
 
-
     const keys = [
 
         "taskId",
@@ -1679,7 +1433,6 @@ function extractTaskId(
         "job_id"
 
     ];
-
 
     for (
         const object
@@ -1696,7 +1449,6 @@ function extractTaskId(
                     object?.[key]
                 );
 
-
             if (value) {
 
                 return value;
@@ -1707,7 +1459,6 @@ function extractTaskId(
 
     }
 
-
     return normalizeString(
         fallbackTaskId
     );
@@ -1716,7 +1467,7 @@ function extractTaskId(
 
 
 /* =========================================================
-   EXTRACT RESULT JSON
+   PARSE JSON VALUE
 ========================================================= */
 
 function parseJsonValue(
@@ -1732,7 +1483,6 @@ function parseJsonValue(
 
     }
 
-
     if (
         typeof value === "object"
     ) {
@@ -1740,7 +1490,6 @@ function parseJsonValue(
         return value;
 
     }
-
 
     if (
         typeof value !== "string"
@@ -1750,17 +1499,14 @@ function parseJsonValue(
 
     }
 
-
     const text =
         value.trim();
-
 
     if (!text) {
 
         return null;
 
     }
-
 
     try {
 
@@ -1790,7 +1536,6 @@ function extractResultJson(
             response
         );
 
-
     for (
         const object
         of objects
@@ -1805,7 +1550,6 @@ function extractResultJson(
 
             );
 
-
         if (
             value !== null &&
             value !== undefined
@@ -1818,7 +1562,6 @@ function extractResultJson(
         }
 
     }
-
 
     return null;
 
@@ -1842,7 +1585,6 @@ function normalizeResultUrl(
         );
 
     }
-
 
     if (
         value &&
@@ -1875,7 +1617,6 @@ function normalizeResultUrl(
 
     }
 
-
     return "";
 
 }
@@ -1892,7 +1633,6 @@ function collectResultUrls(
 
     const urls =
         [];
-
 
     function add(
         value
@@ -1915,17 +1655,14 @@ function collectResultUrls(
 
             }
 
-
             return;
 
         }
-
 
         const url =
             normalizeResultUrl(
                 value
             );
-
 
         if (
             url &&
@@ -1942,12 +1679,10 @@ function collectResultUrls(
 
     }
 
-
     const objects =
         collectObjects(
             response
         );
-
 
     for (
         const object
@@ -1958,48 +1693,39 @@ function collectResultUrls(
             object?.resultUrls
         );
 
-
         add(
             object?.result_urls
         );
-
 
         add(
             object?.urls
         );
 
-
         add(
             object?.videoUrls
         );
-
 
         add(
             object?.video_urls
         );
 
-
         add(
             object?.resultUrl
         );
-
 
         add(
             object?.result_url
         );
 
-
         add(
             object?.videoUrl
         );
-
 
         add(
             object?.video_url
         );
 
     }
-
 
     if (
         resultJson &&
@@ -2011,7 +1737,6 @@ function collectResultUrls(
                 resultJson
             );
 
-
         for (
             const object
             of resultObjects
@@ -2021,41 +1746,33 @@ function collectResultUrls(
                 object?.resultUrls
             );
 
-
             add(
                 object?.result_urls
             );
-
 
             add(
                 object?.urls
             );
 
-
             add(
                 object?.videoUrls
             );
-
 
             add(
                 object?.video_urls
             );
 
-
             add(
                 object?.resultUrl
             );
-
 
             add(
                 object?.result_url
             );
 
-
             add(
                 object?.videoUrl
             );
-
 
             add(
                 object?.video_url
@@ -2064,7 +1781,6 @@ function collectResultUrls(
         }
 
     }
-
 
     return urls;
 
@@ -2084,7 +1800,6 @@ function getBooleanFlag(
         collectObjects(
             response
         );
-
 
     for (
         const object
@@ -2108,7 +1823,6 @@ function getBooleanFlag(
 
     }
 
-
     return false;
 
 }
@@ -2126,17 +1840,13 @@ function normalizeTaskResponse(
     const raw =
         response &&
         typeof response === "object"
-
             ? response
-
             : {};
-
 
     const state =
         extractTaskState(
             raw
         );
-
 
     const taskId =
         extractTaskId(
@@ -2144,12 +1854,10 @@ function normalizeTaskResponse(
             requestedTaskId
         );
 
-
     const resultJson =
         extractResultJson(
             raw
         );
-
 
     const resultUrls =
         collectResultUrls(
@@ -2158,6 +1866,12 @@ function normalizeTaskResponse(
         );
 
 
+    /*
+     * -----------------------------------------------------
+     * Explicit flags
+     * -----------------------------------------------------
+     */
+
     const explicitCompleted =
         getBooleanFlag(
             raw,
@@ -2165,41 +1879,61 @@ function normalizeTaskResponse(
                 "completed",
                 "complete",
                 "finished",
-                "success"
+                "success",
+                "succeeded",
+                "successful"
             ]
         );
-
 
     const explicitFailed =
         getBooleanFlag(
             raw,
             [
                 "failed",
-                "failure"
+                "failure",
+                "error"
             ]
         );
 
+    const explicitProcessing =
+        getBooleanFlag(
+            raw,
+            [
+                "processing",
+                "running",
+                "generating"
+            ]
+        );
+
+
+    /*
+     * -----------------------------------------------------
+     * Provider state
+     * -----------------------------------------------------
+     */
 
     const stateCompleted =
         COMPLETED_STATES.has(
             state
         );
 
-
     const stateFailed =
         FAILED_STATES.has(
             state
         );
 
+    const stateProcessing =
+        PROCESSING_STATES.has(
+            state
+        );
+
 
     /*
-     * =====================================================
+     * -----------------------------------------------------
      * TERMINAL DECISION
-     * =====================================================
+     * -----------------------------------------------------
      *
-     * Explicit failed selalu kalah? Tidak.
-     * Failed harus selalu diprioritaskan agar task gagal
-     * tidak dianggap sukses.
+     * FAILED selalu memiliki prioritas tertinggi.
      */
 
     const failed =
@@ -2208,9 +1942,13 @@ function normalizeTaskResponse(
 
 
     /*
-     * Untuk task terminal, state provider dan completed
-     * flag lebih kuat daripada flag processing lama yang
-     * mungkin ikut terbawa dari adapter.
+     * Adapter KIE query-task dapat mengembalikan
+     *
+     * success: true
+     *
+     * walaupun state berada di object nested.
+     *
+     * explicitCompleted menangani kondisi tersebut.
      */
 
     const completed =
@@ -2221,13 +1959,21 @@ function normalizeTaskResponse(
         );
 
 
+    /*
+     * Processing hanya true apabila belum terminal.
+     */
+
     const processing =
         !failed &&
-        !completed;
+        !completed &&
+        (
+            explicitProcessing ||
+            stateProcessing ||
+            !state
+        );
 
 
     let normalizedState;
-
 
     if (failed) {
 
@@ -2271,12 +2017,10 @@ function normalizeTaskResponse(
         processing,
 
         hasResult:
-            resultUrls.length >
-            0,
+            resultUrls.length > 0,
 
         has_result:
-            resultUrls.length >
-            0,
+            resultUrls.length > 0,
 
         resultJson,
 
@@ -2303,7 +2047,6 @@ function getHistoryErrorMessage(
     const raw =
         result?.raw ||
         {};
-
 
     const candidates = [
 
@@ -2333,7 +2076,6 @@ function getHistoryErrorMessage(
 
     ];
 
-
     for (
         const candidate
         of candidates
@@ -2347,7 +2089,6 @@ function getHistoryErrorMessage(
             const value =
                 candidate.trim();
 
-
             if (value) {
 
                 return value;
@@ -2357,7 +2098,6 @@ function getHistoryErrorMessage(
         }
 
     }
-
 
     return (
         result?.state
@@ -2370,9 +2110,6 @@ function getHistoryErrorMessage(
 
 /* =========================================================
    FIND HISTORY ROW
-   ---------------------------------------------------------
-   Penting:
-   Sebelum PATCH, kita pastikan row memang ada.
 ========================================================= */
 
 async function findGenerationHistory(
@@ -2380,33 +2117,47 @@ async function findGenerationHistory(
     taskId
 ) {
 
+    const normalizedUserId =
+        normalizeString(
+            userId
+        );
+
+    const normalizedTaskId =
+        normalizeString(
+            taskId
+        );
+
+    if (
+        !normalizedUserId ||
+        !normalizedTaskId
+    ) {
+
+        return null;
+
+    }
+
     const params =
         new URLSearchParams();
-
 
     params.set(
         "select",
         "id,user_id,task_id,status,result_url,error_message,completed_at"
     );
 
-
     params.set(
         "user_id",
-        `eq.${userId}`
+        `eq.${normalizedUserId}`
     );
-
 
     params.set(
         "task_id",
-        `eq.${taskId}`
+        `eq.${normalizedTaskId}`
     );
-
 
     params.set(
         "limit",
         "1"
     );
-
 
     const rows =
         await supabaseRequest(
@@ -2417,13 +2168,17 @@ async function findGenerationHistory(
             }
         );
 
+    if (
+        !Array.isArray(rows)
+    ) {
 
-    return (
-        Array.isArray(rows) &&
-        rows.length
-            ? rows[0]
-            : null
-    );
+        return null;
+
+    }
+
+    return rows.length
+        ? rows[0]
+        : null;
 
 }
 
@@ -2443,12 +2198,10 @@ async function updateGenerationHistory({
             userId
         );
 
-
     const normalizedTaskId =
         normalizeString(
             taskId
         );
-
 
     if (
         !normalizedUserId ||
@@ -2463,7 +2216,9 @@ async function updateGenerationHistory({
 
 
     /*
-     * Task masih berjalan.
+     * =====================================================
+     * PROCESSING
+     * =====================================================
      */
 
     if (
@@ -2493,26 +2248,48 @@ async function updateGenerationHistory({
 
     /*
      * =====================================================
-     * FIND EXISTING ROW
+     * FIND ROW
      * =====================================================
      */
 
-    const existingRow =
-        await findGenerationHistory(
-            normalizedUserId,
-            normalizedTaskId
-        );
+    let existingRow;
 
+    try {
+
+        existingRow =
+            await findGenerationHistory(
+                normalizedUserId,
+                normalizedTaskId
+            );
+
+    } catch (error) {
+
+        const diagnostic =
+            new Error(
+                "Failed to query generation_history"
+            );
+
+        diagnostic.status =
+            error?.status || 500;
+
+        diagnostic.data =
+            error?.data || null;
+
+        diagnostic.cause =
+            error;
+
+        throw diagnostic;
+
+    }
+
+
+    /*
+     * =====================================================
+     * ROW NOT FOUND
+     * =====================================================
+     */
 
     if (!existingRow) {
-
-        /*
-         * Jangan INSERT.
-         *
-         * Ini sengaja dianggap diagnostic agar kita tahu
-         * task sudah terminal tetapi row history tidak
-         * ditemukan.
-         */
 
         return {
 
@@ -2528,9 +2305,29 @@ async function updateGenerationHistory({
                     : "completed",
 
             reason:
-                "generation_history_row_not_found"
+                "generation_history_row_not_found",
+
+            user_id:
+                normalizedUserId,
+
+            task_id:
+                normalizedTaskId
 
         };
+
+    }
+
+
+    const rowId =
+        normalizeString(
+            existingRow.id
+        );
+
+    if (!rowId) {
+
+        throw new Error(
+            "generation_history row does not contain an id"
+        );
 
     }
 
@@ -2538,7 +2335,8 @@ async function updateGenerationHistory({
     /*
      * =====================================================
      * COMPLETED
-     * ===================================================== */
+     * =====================================================
+     */
 
     if (
         result?.completed
@@ -2549,12 +2347,14 @@ async function updateGenerationHistory({
                 result?.resultUrls
             ) &&
             result.resultUrls.length > 0
-
                 ? normalizeString(
                     result.resultUrls[0]
                 )
-
                 : null;
+
+
+        const completedAt =
+            new Date().toISOString();
 
 
         const payload = {
@@ -2569,41 +2369,24 @@ async function updateGenerationHistory({
                 null,
 
             completed_at:
-                new Date().toISOString()
+                completedAt
 
         };
-
-
-        /*
-         * Gunakan primary key row yang sudah ditemukan.
-         * Ini jauh lebih presisi daripada PATCH hanya berdasarkan
-         * user_id + task_id.
-         */
-
-        const rowId =
-            normalizeString(
-                existingRow.id
-            );
-
-
-        if (!rowId) {
-
-            throw new Error(
-                "generation_history row does not contain an id"
-            );
-
-        }
 
 
         const params =
             new URLSearchParams();
 
+        /*
+         * PATCH berdasarkan primary key.
+         *
+         * Tidak menggunakan limit.
+         */
 
         params.set(
             "id",
             `eq.${rowId}`
         );
-
 
         params.set(
             "user_id",
@@ -2611,38 +2394,154 @@ async function updateGenerationHistory({
         );
 
 
-        const rows =
-            await supabaseRequest(
-                `/rest/v1/generation_history?${params.toString()}`,
-                {
+        let rows;
 
-                    method:
-                        "PATCH",
+        try {
 
-                    headers: {
+            rows =
+                await supabaseRequest(
+                    `/rest/v1/generation_history?${params.toString()}`,
+                    {
 
-                        Prefer:
-                            "return=representation"
+                        method:
+                            "PATCH",
 
-                    },
+                        headers: {
 
-                    body:
-                        JSON.stringify(
-                            payload
-                        )
+                            Prefer:
+                                "return=representation"
 
-                }
-            );
+                        },
+
+                        body:
+                            JSON.stringify(
+                                payload
+                            )
+
+                    }
+                );
+
+        } catch (error) {
+
+            const diagnostic =
+                new Error(
+                    "Failed to update completed generation_history row"
+                );
+
+            diagnostic.status =
+                error?.status || 500;
+
+            diagnostic.data =
+                error?.data || null;
+
+            diagnostic.cause =
+                error;
+
+            throw diagnostic;
+
+        }
+
+
+        const updatedRows =
+            Array.isArray(rows)
+                ? rows
+                : [];
 
 
         const updated =
-            Array.isArray(rows) &&
-            rows.length > 0;
+            updatedRows.some(
+                row =>
+                    normalizeString(
+                        row?.id
+                    ) === rowId
+            );
+
+
+        /*
+         * Jika Supabase tidak mengembalikan representation,
+         * lakukan verifikasi ulang row.
+         *
+         * Ini penting agar status history tidak salah
+         * dilaporkan hanya karena response kosong.
+         */
+
+        if (!updated) {
+
+            const verifiedRow =
+                await findGenerationHistory(
+                    normalizedUserId,
+                    normalizedTaskId
+                );
+
+
+            const verified =
+                normalizeString(
+                    verifiedRow?.id
+                ) === rowId &&
+                normalizeState(
+                    verifiedRow?.status
+                ) === "completed";
+
+
+            if (verified) {
+
+                return {
+
+                    updated:
+                        true,
+
+                    matched:
+                        true,
+
+                    status:
+                        "completed",
+
+                    result_url:
+                        normalizeString(
+                            verifiedRow?.result_url,
+                            resultUrl || ""
+                        ) || null,
+
+                    row_id:
+                        rowId,
+
+                    reason:
+                        "history_verified_after_patch"
+
+                };
+
+            }
+
+
+            return {
+
+                updated:
+                    false,
+
+                matched:
+                    true,
+
+                status:
+                    "completed",
+
+                result_url:
+                    resultUrl,
+
+                row_id:
+                    rowId,
+
+                reason:
+                    "history_patch_returned_no_matching_row"
+
+            };
+
+        }
 
 
         return {
 
-            updated,
+            updated:
+                true,
 
             matched:
                 true,
@@ -2654,7 +2553,10 @@ async function updateGenerationHistory({
                 resultUrl,
 
             row_id:
-                rowId
+                rowId,
+
+            reason:
+                null
 
         };
 
@@ -2664,7 +2566,8 @@ async function updateGenerationHistory({
     /*
      * =====================================================
      * FAILED
-     * ===================================================== */
+     * =====================================================
+     */
 
     if (
         result?.failed
@@ -2693,30 +2596,13 @@ async function updateGenerationHistory({
         };
 
 
-        const rowId =
-            normalizeString(
-                existingRow.id
-            );
-
-
-        if (!rowId) {
-
-            throw new Error(
-                "generation_history row does not contain an id"
-            );
-
-        }
-
-
         const params =
             new URLSearchParams();
-
 
         params.set(
             "id",
             `eq.${rowId}`
         );
-
 
         params.set(
             "user_id",
@@ -2724,38 +2610,144 @@ async function updateGenerationHistory({
         );
 
 
-        const rows =
-            await supabaseRequest(
-                `/rest/v1/generation_history?${params.toString()}`,
-                {
+        let rows;
 
-                    method:
-                        "PATCH",
+        try {
 
-                    headers: {
+            rows =
+                await supabaseRequest(
+                    `/rest/v1/generation_history?${params.toString()}`,
+                    {
 
-                        Prefer:
-                            "return=representation"
+                        method:
+                            "PATCH",
 
-                    },
+                        headers: {
 
-                    body:
-                        JSON.stringify(
-                            payload
-                        )
+                            Prefer:
+                                "return=representation"
 
-                }
-            );
+                        },
+
+                        body:
+                            JSON.stringify(
+                                payload
+                            )
+
+                    }
+                );
+
+        } catch (error) {
+
+            const diagnostic =
+                new Error(
+                    "Failed to update failed generation_history row"
+                );
+
+            diagnostic.status =
+                error?.status || 500;
+
+            diagnostic.data =
+                error?.data || null;
+
+            diagnostic.cause =
+                error;
+
+            throw diagnostic;
+
+        }
+
+
+        const updatedRows =
+            Array.isArray(rows)
+                ? rows
+                : [];
 
 
         const updated =
-            Array.isArray(rows) &&
-            rows.length > 0;
+            updatedRows.some(
+                row =>
+                    normalizeString(
+                        row?.id
+                    ) === rowId
+            );
+
+
+        if (!updated) {
+
+            const verifiedRow =
+                await findGenerationHistory(
+                    normalizedUserId,
+                    normalizedTaskId
+                );
+
+
+            const verified =
+                normalizeString(
+                    verifiedRow?.id
+                ) === rowId &&
+                normalizeState(
+                    verifiedRow?.status
+                ) === "failed";
+
+
+            if (verified) {
+
+                return {
+
+                    updated:
+                        true,
+
+                    matched:
+                        true,
+
+                    status:
+                        "failed",
+
+                    error_message:
+                        verifiedRow?.error_message ||
+                        errorMessage,
+
+                    row_id:
+                        rowId,
+
+                    reason:
+                        "history_verified_after_patch"
+
+                };
+
+            }
+
+
+            return {
+
+                updated:
+                    false,
+
+                matched:
+                    true,
+
+                status:
+                    "failed",
+
+                error_message:
+                    errorMessage,
+
+                row_id:
+                    rowId,
+
+                reason:
+                    "history_patch_returned_no_matching_row"
+
+            };
+
+        }
 
 
         return {
 
-            updated,
+            updated:
+                true,
 
             matched:
                 true,
@@ -2767,12 +2759,21 @@ async function updateGenerationHistory({
                 errorMessage,
 
             row_id:
-                rowId
+                rowId,
+
+            reason:
+                null
 
         };
 
     }
 
+
+    /*
+     * =====================================================
+     * NO TERMINAL STATE
+     * =====================================================
+     */
 
     return {
 
@@ -2787,7 +2788,10 @@ async function updateGenerationHistory({
             "unknown",
 
         reason:
-            "no_terminal_state"
+            "no_terminal_state",
+
+        row_id:
+            rowId
 
     };
 
@@ -2816,7 +2820,6 @@ export default async function handler(
             "Allow",
             "POST"
         );
-
 
         return failure(
             res,
@@ -2851,7 +2854,6 @@ export default async function handler(
 
     let user;
 
-
     try {
 
         user =
@@ -2877,7 +2879,6 @@ export default async function handler(
     ===================================================== */
 
     let body;
-
 
     try {
 
@@ -2908,7 +2909,6 @@ export default async function handler(
             body
         );
 
-
     if (!modelId) {
 
         return failure(
@@ -2928,7 +2928,6 @@ export default async function handler(
         getTaskId(
             body
         );
-
 
     if (!taskId) {
 
@@ -2950,7 +2949,6 @@ export default async function handler(
             modelId
         );
 
-
     if (!adapter) {
 
         return failure(
@@ -2958,11 +2956,13 @@ export default async function handler(
             404,
             "Model not found",
             {
+
                 model_id:
                     modelId,
 
                 source:
                     "repository"
+
             }
         );
 
@@ -2973,12 +2973,10 @@ export default async function handler(
         adapter.config ||
         {};
 
-
     const adapterModelId =
         normalizeString(
             modelConfig.id
         );
-
 
     if (
         !adapterModelId ||
@@ -2991,11 +2989,13 @@ export default async function handler(
             500,
             "Model adapter ID mismatch",
             {
+
                 requested_model:
                     modelId,
 
                 adapter_model:
                     adapterModelId
+
             }
         );
 
@@ -3008,7 +3008,6 @@ export default async function handler(
 
     let databaseModel =
         null;
-
 
     try {
 
@@ -3034,7 +3033,6 @@ export default async function handler(
 
     let provider;
 
-
     try {
 
         provider =
@@ -3050,7 +3048,6 @@ export default async function handler(
             error?.message ||
             error
         );
-
 
         return failure(
             res,
@@ -3101,7 +3098,6 @@ export default async function handler(
 
     let providerApiKey;
 
-
     try {
 
         providerApiKey =
@@ -3117,14 +3113,15 @@ export default async function handler(
             error
         );
 
-
         return failure(
             res,
             500,
             "Provider API credential is unavailable",
             {
+
                 provider_id:
                     providerCode
+
             }
         );
 
@@ -3136,7 +3133,6 @@ export default async function handler(
     ===================================================== */
 
     let taskResponse;
-
 
     try {
 
@@ -3153,13 +3149,11 @@ export default async function handler(
 
         }
 
-
         taskResponse =
             await adapter.queryTask(
                 taskId,
                 providerApiKey
             );
-
 
     } catch (error) {
 
@@ -3169,21 +3163,16 @@ export default async function handler(
             error
         );
 
-
         const providerStatus =
             Number(
                 error?.status
             );
 
-
         const statusCode =
             providerStatus >= 400 &&
             providerStatus <= 599
-
                 ? providerStatus
-
                 : 502;
-
 
         return failure(
             res,
@@ -3191,9 +3180,11 @@ export default async function handler(
             error?.message ||
                 "Failed to query generation task",
             {
+
                 code:
                     error?.code ||
                     "GENERATION_STATUS_FAILED"
+
             }
         );
 
@@ -3211,13 +3202,9 @@ export default async function handler(
         );
 
 
-    /*
-     * =====================================================
-     * IMPORTANT DIAGNOSTIC LOG
-     * =====================================================
-     *
-     * Tidak pernah mencetak API key.
-     */
+    /* =====================================================
+       DIAGNOSTIC LOG
+    ===================================================== */
 
     console.info(
         "[generate-status] Task normalized:",
@@ -3244,6 +3231,9 @@ export default async function handler(
             processing:
                 result.processing,
 
+            has_result:
+                result.hasResult,
+
             result_count:
                 result.resultUrls.length
 
@@ -3258,10 +3248,8 @@ export default async function handler(
     let historyResult =
         null;
 
-
     let historyUpdated =
         false;
-
 
     let historyStatus =
         result.completed
@@ -3303,9 +3291,7 @@ export default async function handler(
         /*
          * Provider status tetap dikembalikan.
          *
-         * Tetapi sekarang error benar-benar dicatat
-         * secara jelas sehingga deployment log akan
-         * menunjukkan penyebab History tidak berubah.
+         * Jangan bocorkan credential.
          */
 
         console.error(
@@ -3347,6 +3333,27 @@ export default async function handler(
             }
         );
 
+
+        historyResult = {
+
+            updated:
+                false,
+
+            matched:
+                false,
+
+            status:
+                historyStatus,
+
+            reason:
+                "history_update_exception",
+
+            error:
+                historyError?.message ||
+                "History update failed"
+
+        };
+
     }
 
 
@@ -3354,47 +3361,49 @@ export default async function handler(
        FINAL DIAGNOSTIC
     ===================================================== */
 
-    if (
-        result.completed ||
-        result.failed
-    ) {
+    console.info(
+        "[generate-status] History synchronization:",
+        {
 
-        console.info(
-            "[generate-status] Terminal task:",
-            {
+            task_id:
+                taskId,
 
-                task_id:
-                    taskId,
+            state:
+                result.state,
 
-                state:
-                    result.state,
+            provider_state:
+                result.provider_state,
 
-                provider_state:
-                    result.provider_state,
+            completed:
+                result.completed,
 
-                completed:
-                    result.completed,
+            failed:
+                result.failed,
 
-                failed:
-                    result.failed,
+            processing:
+                result.processing,
 
-                result_count:
-                    result.resultUrls.length,
+            history_updated:
+                historyUpdated,
 
-                history_updated:
-                    historyUpdated,
+            history_matched:
+                Boolean(
+                    historyResult?.matched
+                ),
 
-                history_status:
-                    historyStatus,
+            history_status:
+                historyStatus,
 
-                history_reason:
-                    historyResult?.reason ||
-                    null
+            history_reason:
+                historyResult?.reason ||
+                null,
 
-            }
-        );
+            history_row_id:
+                historyResult?.row_id ||
+                null
 
-    }
+        }
+    );
 
 
     /* =====================================================
@@ -3431,16 +3440,8 @@ export default async function handler(
                 result.taskId ||
                 taskId,
 
-            /*
-             * State normalized untuk frontend.
-             */
-
             state:
                 result.state,
-
-            /*
-             * State asli dari provider untuk diagnosis.
-             */
 
             provider_state:
                 result.provider_state,
@@ -3477,6 +3478,15 @@ export default async function handler(
 
             history_reason:
                 historyResult?.reason ||
+                null,
+
+            history_matched:
+                Boolean(
+                    historyResult?.matched
+                ),
+
+            history_row_id:
+                historyResult?.row_id ||
                 null
 
         }
