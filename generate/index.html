@@ -466,6 +466,116 @@
 .generate-actions-right > #generateButton {
     margin-left: 0 !important;
 }
+
+      /* =========================================================
+   GEN-Z.AI
+   MOBILE PROCESS SPINNER FIX
+   ---------------------------------------------------------
+   Memastikan animasi PROSES tetap berputar di HP.
+   Tidak mengubah JavaScript atau alur Generate.
+========================================================= */
+
+/* Spinner pada tombol Generate */
+#generateButton .spinner,
+#generateButton .btn-spinner,
+#generateButton .loading-spinner,
+#generateButton [class*="spinner"] {
+    display: inline-block !important;
+    width: 16px !important;
+    height: 16px !important;
+
+    min-width: 16px !important;
+    min-height: 16px !important;
+
+    margin-right: 7px !important;
+
+    border: 2px solid currentColor !important;
+    border-top-color: transparent !important;
+
+    border-radius: 50% !important;
+
+    animation-name: genzMobileSpinner !important;
+    animation-duration: 0.75s !important;
+    animation-timing-function: linear !important;
+    animation-iteration-count: infinite !important;
+
+    -webkit-animation-name: genzMobileSpinner !important;
+    -webkit-animation-duration: 0.75s !important;
+    -webkit-animation-timing-function: linear !important;
+    -webkit-animation-iteration-count: infinite !important;
+
+    transform-origin: center center !important;
+    -webkit-transform-origin: center center !important;
+
+    will-change: transform !important;
+    -webkit-will-change: transform !important;
+
+    flex: 0 0 16px !important;
+}
+
+/* Animasi utama */
+@keyframes genzMobileSpinner {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Safari / iPhone / iPad */
+@-webkit-keyframes genzMobileSpinner {
+    from {
+        -webkit-transform: rotate(0deg);
+    }
+
+    to {
+        -webkit-transform: rotate(360deg);
+    }
+}
+
+/* Pastikan motion tidak dimatikan oleh aturan mobile */
+@media (prefers-reduced-motion: reduce) {
+
+    #generateButton .spinner,
+    #generateButton .btn-spinner,
+    #generateButton .loading-spinner,
+    #generateButton [class*="spinner"] {
+        animation-name: genzMobileSpinner !important;
+        animation-duration: 0.75s !important;
+        animation-iteration-count: infinite !important;
+
+        -webkit-animation-name: genzMobileSpinner !important;
+        -webkit-animation-duration: 0.75s !important;
+        -webkit-animation-iteration-count: infinite !important;
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+
+    #generateButton .spinner,
+    #generateButton .btn-spinner,
+    #generateButton .loading-spinner,
+    #generateButton [class*="spinner"] {
+        width: 16px !important;
+        height: 16px !important;
+
+        min-width: 16px !important;
+        min-height: 16px !important;
+
+        animation-name: genzMobileSpinner !important;
+        animation-duration: 0.75s !important;
+        animation-timing-function: linear !important;
+        animation-iteration-count: infinite !important;
+
+        -webkit-animation-name: genzMobileSpinner !important;
+        -webkit-animation-duration: 0.75s !important;
+        -webkit-animation-timing-function: linear !important;
+        -webkit-animation-iteration-count: infinite !important;
+    }
+}  
         
     </style>
 
