@@ -399,6 +399,32 @@
             }
 
         }
+        /* =========================================================
+   HIDE DUPLICATE GENERATE LOADING
+   ---------------------------------------------------------
+   Indikator "Memproses..." di sebelah kiri tombol Generate
+   tidak diperlukan.
+
+   Status proses tetap ditampilkan pada tombol Generate
+   di sebelah kanan, misalnya:
+   "PROSES PREMIUM"
+
+   JavaScript loading tetap dipertahankan agar tidak
+   mengganggu fungsi generate/polling.
+========================================================= */
+
+#loading {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
 
     </style>
 
