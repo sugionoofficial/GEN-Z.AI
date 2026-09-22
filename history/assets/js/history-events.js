@@ -26,30 +26,79 @@
 ========================================================= */
 
 (function () {
+
     "use strict";
 
-    window.GENZHistory = window.GENZHistory || {};
 
-    const App = window.GENZHistory;
+    /* =====================================================
+       ROOT NAMESPACE
+    ===================================================== */
 
-    App.state = App.state || {
-        currentFilter: "all",
-        currentModalHistoryId: null
-    };
+    window.GENZHistory =
+        window.GENZHistory || {};
 
-    App.elements = App.elements || {};
+    const App =
+        window.GENZHistory;
+
+
+    /* =====================================================
+       STATE
+       -----------------------------------------------------
+       Jangan mengganti state yang sudah dibuat oleh
+       history-state.js.
+    ===================================================== */
+
+    App.state =
+        App.state || {};
+
+    if (
+        typeof App.state.currentFilter !==
+        "string"
+    ) {
+
+        App.state.currentFilter =
+            "all";
+
+    }
+
+    if (
+        !Object.prototype.hasOwnProperty.call(
+            App.state,
+            "currentModalHistoryId"
+        )
+    ) {
+
+        App.state.currentModalHistoryId =
+            null;
+
+    }
+
+
+    /* =====================================================
+       ELEMENTS
+       ===================================================== */
+
+    App.elements =
+        App.elements || {};
+
 
     /* =====================================================
        HELPERS
     ===================================================== */
 
     function getElements() {
+
         return App.elements;
+
     }
 
+
     function getState() {
+
         return App.state;
+
     }
+
 
     function safeCall(
         functionName,
@@ -60,11 +109,17 @@
             typeof App[functionName] ===
             "function"
         ) {
-            return App[functionName](...args);
+
+            return App[functionName](
+                ...args
+            );
+
         }
 
         return undefined;
+
     }
+
 
     /* =====================================================
        MESSAGE
@@ -78,29 +133,47 @@
         const elements =
             getElements();
 
-        if (!elements.message) {
+        if (
+            !elements.message
+        ) {
+
             return;
+
         }
 
+
         elements.message.textContent =
-            String(text || "");
+            String(
+                text || ""
+            );
+
 
         elements.message.className =
             "message " +
-            String(type || "error");
+            String(
+                type || "error"
+            );
+
 
         elements.message.style.display =
             "block";
+
     }
+
 
     function hideMessage() {
 
         const elements =
             getElements();
 
-        if (!elements.message) {
+        if (
+            !elements.message
+        ) {
+
             return;
+
         }
+
 
         elements.message.textContent =
             "";
@@ -110,7 +183,9 @@
 
         elements.message.className =
             "message";
+
     }
+
 
     App.showMessage =
         showMessage;
@@ -118,73 +193,156 @@
     App.hideMessage =
         hideMessage;
 
+
     /* =====================================================
        SIDEBAR
     ===================================================== */
+
+    function syncMenuState(
+        expanded
+    ) {
+
+        const elements =
+            getElements();
+
+        if (
+            !elements.menuButton
+        ) {
+
+            return;
+
+        }
+
+
+        elements.menuButton.setAttribute(
+            "aria-expanded",
+            expanded
+                ? "true"
+                : "false"
+        );
+
+    }
+
 
     function openSidebar() {
 
         const elements =
             getElements();
 
-        if (elements.sidebar) {
+
+        if (
+            elements.sidebar
+        ) {
+
             elements.sidebar.classList.add(
                 "open"
             );
+
         }
 
-        if (elements.overlay) {
+
+        /*
+         * CSS History menggunakan
+         * .overlay.active.
+         */
+        if (
+            elements.overlay
+        ) {
+
             elements.overlay.classList.add(
                 "active"
             );
+
         }
+
 
         document.body.classList.add(
             "sidebar-open"
         );
+
+
+        syncMenuState(
+            true
+        );
+
     }
+
 
     function closeSidebar() {
 
         const elements =
             getElements();
 
-        if (elements.sidebar) {
+
+        if (
+            elements.sidebar
+        ) {
+
             elements.sidebar.classList.remove(
                 "open"
             );
+
         }
 
-        if (elements.overlay) {
+
+        /*
+         * CSS History menggunakan
+         * .overlay.active.
+         */
+        if (
+            elements.overlay
+        ) {
+
             elements.overlay.classList.remove(
                 "active"
             );
+
         }
+
 
         document.body.classList.remove(
             "sidebar-open"
         );
+
+
+        syncMenuState(
+            false
+        );
+
     }
+
 
     function toggleSidebar() {
 
         const elements =
             getElements();
 
-        if (!elements.sidebar) {
+
+        if (
+            !elements.sidebar
+        ) {
+
             return;
+
         }
+
 
         if (
             elements.sidebar.classList.contains(
                 "open"
             )
         ) {
+
             closeSidebar();
+
         } else {
+
             openSidebar();
+
         }
+
     }
+
 
     App.openSidebar =
         openSidebar;
@@ -195,6 +353,7 @@
     App.toggleSidebar =
         toggleSidebar;
 
+
     /* =====================================================
        NAVIGATION
     ===================================================== */
@@ -203,24 +362,30 @@
 
         window.location.href =
             "../generate/index.html";
+
     }
+
 
     function goToDashboard() {
 
         const profile =
             App.state?.currentProfile;
 
+
         const role =
             typeof App.normalizeRole ===
             "function"
+
                 ? App.normalizeRole(
                     profile?.role
                 )
+
                 : String(
                     profile?.role || ""
                 )
                     .trim()
                     .toUpperCase();
+
 
         if (
             role === "ADMIN" ||
@@ -231,29 +396,39 @@
                 "../admin/dashboard.html";
 
             return;
+
         }
+
 
         window.location.href =
             "../user/dashboard.html";
+
     }
+
 
     function goToTopup() {
 
         window.location.href =
             "../user/topup.html";
+
     }
+
 
     function goToHubAdmin() {
 
         window.location.href =
             "../user/hub-admin.html";
+
     }
+
 
     function goToAdminPanel() {
 
         window.location.href =
             "../admin-control/admin-panel.html";
+
     }
+
 
     App.goToGenerate =
         goToGenerate;
@@ -270,8 +445,10 @@
     App.goToAdminPanel =
         goToAdminPanel;
 
+
     /*
-     * Compatibility untuk inline onclick lama.
+     * Compatibility untuk inline onclick
+     * yang masih terdapat pada HTML.
      */
     window.goToGenerate =
         goToGenerate;
@@ -288,16 +465,109 @@
     window.goToAdminPanel =
         goToAdminPanel;
 
+
     /* =====================================================
        FILTER
     ===================================================== */
 
-    function setFilter(filter) {
+    function normalizeFilter(
+        filter
+    ) {
 
-        const normalized =
-            String(filter || "all")
+        const value =
+            String(
+                filter || "all"
+            )
                 .trim()
                 .toLowerCase();
+
+
+        const allowedFilters = [
+            "all",
+            "success",
+            "processing",
+            "failed",
+            "pending"
+        ];
+
+
+        if (
+            allowedFilters.includes(
+                value
+            )
+        ) {
+
+            return value;
+
+        }
+
+
+        return "all";
+
+    }
+
+
+    function updateFilterButtons(
+        activeFilter
+    ) {
+
+        /*
+         * HTML aktual menggunakan:
+         *
+         * data-filter="all"
+         *
+         * bukan:
+         *
+         * data-history-filter
+         */
+        const filterButtons =
+            document.querySelectorAll(
+                ".filter-button[data-filter]"
+            );
+
+
+        filterButtons.forEach(
+            function (button) {
+
+                const value =
+                    normalizeFilter(
+                        button.dataset.filter
+                    );
+
+
+                const active =
+                    value ===
+                    activeFilter;
+
+
+                button.classList.toggle(
+                    "active",
+                    active
+                );
+
+
+                button.setAttribute(
+                    "aria-selected",
+                    active
+                        ? "true"
+                        : "false"
+                );
+
+            }
+        );
+
+    }
+
+
+    function setFilter(
+        filter
+    ) {
+
+        const normalized =
+            normalizeFilter(
+                filter
+            );
+
 
         if (
             typeof App.setCurrentFilter ===
@@ -312,60 +582,37 @@
 
             getState().currentFilter =
                 normalized;
+
         }
 
-        /*
-         * Update active button.
-         */
+
         updateFilterButtons(
             normalized
         );
 
+
         /*
-         * Render hanya menggunakan
-         * data yang sudah ada.
+         * Render menggunakan data yang
+         * sudah dimuat. Tidak melakukan
+         * query Supabase tambahan.
          */
         safeCall(
             "renderHistory"
         );
+
     }
 
-    function updateFilterButtons(
-        activeFilter
-    ) {
-
-        const filterButtons =
-            document.querySelectorAll(
-                "[data-history-filter]"
-            );
-
-        filterButtons.forEach(button => {
-
-            const value =
-                String(
-                    button.dataset
-                        .historyFilter ||
-                    ""
-                )
-                    .trim()
-                    .toLowerCase();
-
-            button.classList.toggle(
-                "active",
-                value === activeFilter
-            );
-
-            button.setAttribute(
-                "aria-selected",
-                value === activeFilter
-                    ? "true"
-                    : "false"
-            );
-        });
-    }
 
     App.setHistoryFilter =
         setFilter;
+
+
+    /*
+     * Compatibility tambahan.
+     */
+    App.setFilter =
+        setFilter;
+
 
     /* =====================================================
        REFRESH
@@ -376,6 +623,7 @@
         const elements =
             getElements();
 
+
         if (
             elements.refreshButton
         ) {
@@ -385,29 +633,40 @@
                     .dataset.refreshing ===
                 "true"
             ) {
+
                 return;
+
             }
+
 
             elements.refreshButton
                 .dataset.refreshing =
                 "true";
+
 
             elements.refreshButton
                 .classList.add(
                     "is-refreshing"
                 );
 
+
             elements.refreshButton
                 .setAttribute(
                     "aria-busy",
                     "true"
                 );
+
         }
+
 
         try {
 
             hideMessage();
 
+
+            /*
+             * Reload history dari Supabase.
+             */
             if (
                 typeof App.loadHistory ===
                 "function"
@@ -416,11 +675,14 @@
                 await App.loadHistory({
                     silent: false
                 });
+
             }
 
+
             /*
-             * Setelah manual refresh, langsung
-             * sinkronkan task yang masih aktif.
+             * Setelah data dimuat ulang,
+             * langsung sinkronkan generation
+             * yang masih aktif dengan backend.
              */
             if (
                 typeof App.refreshActiveGenerationStatus ===
@@ -435,14 +697,16 @@
             ) {
 
                 await App.startHistoryStatusMonitor();
+
             }
 
         } catch (error) {
 
             console.error(
-                "Manual history refresh error:",
+                "[GEN-Z.AI History] Manual refresh error:",
                 error
             );
+
 
             showMessage(
                 error?.message ||
@@ -460,83 +724,110 @@
                     .dataset.refreshing =
                     "false";
 
+
                 elements.refreshButton
                     .classList.remove(
                         "is-refreshing"
                     );
+
 
                 elements.refreshButton
                     .setAttribute(
                         "aria-busy",
                         "false"
                     );
+
             }
+
         }
+
     }
+
 
     App.handleRefresh =
         handleRefresh;
+
 
     /* =====================================================
        DETAIL
     ===================================================== */
 
-    function openDetail(id) {
+    function openDetail(
+        id
+    ) {
+
+        const value =
+            String(
+                id || ""
+            ).trim();
+
+
+        if (!value) {
+
+            return;
+
+        }
+
 
         if (
             typeof App.openDetailModal ===
             "function"
         ) {
 
-            App.openDetailModal(id);
+            App.openDetailModal(
+                value
+            );
+
         }
+
     }
+
 
     App.openDetail =
         openDetail;
+
 
     /* =====================================================
        VIDEO THUMBNAIL
     ===================================================== */
 
-    function openVideo(url) {
+    function openVideo(
+        url
+    ) {
 
         const value =
-            String(url || "").trim();
+            String(
+                url || ""
+            ).trim();
+
 
         if (!value) {
+
             return;
+
         }
+
 
         /*
-         * Gunakan modal video bila tersedia.
-         * Jika tidak, buka tab baru.
+         * Video tidak dipaksa masuk ke
+         * detail modal karena modal saat ini
+         * bekerja berdasarkan history ID.
+         *
+         * Fallback aman:
+         * buka result URL di tab baru.
          */
-        const modal =
-            getElements().detailModal;
-
-        if (
-            modal &&
-            typeof App.openDetailModal ===
-            "function"
-        ) {
-
-            /*
-             * Detail modal mengambil data dari
-             * history ID, sehingga untuk URL saja
-             * fallback ke tab baru.
-             */
-        }
-
         window.open(
             value,
             "_blank",
             "noopener,noreferrer"
         );
+
     }
+
 
     App.openHistoryVideo =
         openVideo;
+
 
     /* =====================================================
        CLICK EVENT DELEGATION
@@ -549,102 +840,158 @@
         const target =
             event.target;
 
+
         if (!target) {
+
             return;
+
         }
 
-        /*
-         * DETAIL BUTTON
-         */
+
+        /* =================================================
+           DETAIL BUTTON
+        ================================================= */
+
         const detailButton =
             target.closest(
                 "[data-action='detail']"
             );
 
-        if (detailButton) {
+
+        if (
+            detailButton
+        ) {
 
             event.preventDefault();
             event.stopPropagation();
+
 
             const id =
                 detailButton.dataset
                     .historyId;
 
-            openDetail(id);
+
+            openDetail(
+                id
+            );
+
 
             return;
+
         }
 
-        /*
-         * VIDEO THUMBNAIL
-         */
+
+        /* =================================================
+           VIDEO THUMBNAIL
+        ================================================= */
+
         const thumbnail =
             target.closest(
                 ".video-ready"
             );
 
-        if (thumbnail) {
 
-            event.preventDefault();
+        if (
+            !thumbnail
+        ) {
 
-            const video =
-                thumbnail.querySelector(
-                    "video"
-                );
+            return;
 
-            if (video) {
+        }
 
-                try {
 
-                    /*
-                     * Klik thumbnail:
-                     * play/pause inline terlebih dahulu.
-                     */
+        event.preventDefault();
+
+
+        const video =
+            thumbnail.querySelector(
+                "video"
+            );
+
+
+        if (
+            video
+        ) {
+
+            try {
+
+                if (
+                    video.paused
+                ) {
+
+                    const playPromise =
+                        video.play();
+
+
                     if (
-                        video.paused
+                        playPromise &&
+                        typeof playPromise.catch ===
+                        "function"
                     ) {
 
-                        const result =
-                            video.play();
+                        playPromise.catch(
+                            function () {
 
-                        if (
-                            result &&
-                            typeof result.catch ===
-                            "function"
-                        ) {
-                            result.catch(
-                                () => {}
-                            );
-                        }
+                                /*
+                                 * Autoplay/browser
+                                 * restriction.
+                                 * Fallback di bawah
+                                 * tetap tersedia.
+                                 */
 
-                    } else {
+                            }
+                        );
 
-                        video.pause();
                     }
+
 
                     thumbnail.classList.add(
                         "video-active"
                     );
 
+
                     return;
 
-                } catch (error) {
-                    console.warn(
-                        "Inline video playback failed:",
-                        error
-                    );
                 }
+
+
+                video.pause();
+
+
+                thumbnail.classList.remove(
+                    "video-active"
+                );
+
+
+                return;
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI History] Inline video playback failed:",
+                    error
+                );
+
             }
 
-            const url =
-                thumbnail.dataset
-                    .videoUrl;
-
-            openVideo(url);
-
-            return;
         }
+
+
+        /*
+         * Jika inline video tidak bisa
+         * dimainkan, gunakan URL.
+         */
+        const url =
+            thumbnail.dataset
+                .videoUrl;
+
+
+        openVideo(
+            url
+        );
+
     }
+
 
     /* =====================================================
        KEYBOARD VIDEO
@@ -658,32 +1005,48 @@
             event.key !== "Enter" &&
             event.key !== " "
         ) {
+
             return;
+
         }
+
 
         const target =
             event.target;
+
 
         if (
             !target ||
             !target.closest
         ) {
+
             return;
+
         }
+
 
         const thumbnail =
             target.closest(
                 ".video-ready"
             );
 
-        if (!thumbnail) {
+
+        if (
+            !thumbnail
+        ) {
+
             return;
+
         }
+
 
         event.preventDefault();
 
+
         thumbnail.click();
+
     }
+
 
     /* =====================================================
        MODAL BACKDROP
@@ -696,14 +1059,18 @@
         const elements =
             getElements();
 
+
         if (
             !elements.detailModal
         ) {
+
             return;
+
         }
 
+
         /*
-         * Hanya klik area backdrop yang
+         * Hanya klik backdrop yang
          * menutup modal.
          */
         if (
@@ -714,8 +1081,11 @@
             safeCall(
                 "closeDetailModal"
             );
+
         }
+
     }
+
 
     /* =====================================================
        ESCAPE KEY
@@ -726,29 +1096,51 @@
     ) {
 
         if (
-            event.key !== "Escape"
+            event.key !==
+            "Escape"
         ) {
+
             return;
+
         }
+
 
         const elements =
             getElements();
 
+
         /*
-         * Tutup modal terlebih dahulu.
+         * Modal bisa menggunakan display:flex
+         * atau class active, tergantung CSS.
          */
         if (
-            elements.detailModal &&
-            elements.detailModal.style.display ===
-                "flex"
+            elements.detailModal
         ) {
 
-            safeCall(
-                "closeDetailModal"
-            );
+            const modalVisible =
+                elements.detailModal.style.display ===
+                    "flex" ||
 
-            return;
+                elements.detailModal.classList.contains(
+                    "active"
+                );
+
+
+            if (
+                modalVisible
+            ) {
+
+                safeCall(
+                    "closeDetailModal"
+                );
+
+
+                return;
+
+            }
+
         }
+
 
         /*
          * Jika sidebar terbuka,
@@ -762,8 +1154,11 @@
         ) {
 
             closeSidebar();
+
         }
+
     }
+
 
     /* =====================================================
        LOGOUT
@@ -774,16 +1169,20 @@
         const client =
             App.state?.supabaseClient;
 
+
         if (!client) {
 
             window.location.href =
                 "../login.html";
 
             return;
+
         }
+
 
         const elements =
             getElements();
+
 
         if (
             elements.logoutButton
@@ -792,17 +1191,21 @@
             elements.logoutButton.disabled =
                 true;
 
+
             elements.logoutButton
                 .setAttribute(
                     "aria-busy",
                     "true"
                 );
+
         }
+
 
         try {
 
             /*
-             * Hentikan polling sebelum logout.
+             * Hentikan polling sebelum
+             * session dihapus.
              */
             if (
                 typeof App.stopHistoryAutoRefresh ===
@@ -810,38 +1213,49 @@
             ) {
 
                 App.stopHistoryAutoRefresh();
+
             }
+
 
             const {
                 error
             } =
                 await client.auth.signOut();
 
-            if (error) {
+
+            if (
+                error
+            ) {
 
                 console.error(
-                    "Logout error:",
+                    "[GEN-Z.AI History] Logout error:",
                     error
                 );
 
+
                 throw error;
+
             }
+
 
             window.location.href =
                 "../login.html";
 
+
         } catch (error) {
 
             console.error(
-                "Logout failed:",
+                "[GEN-Z.AI History] Logout failed:",
                 error
             );
+
 
             showMessage(
                 error?.message ||
                 "Logout gagal.",
                 "error"
             );
+
 
             if (
                 elements.logoutButton
@@ -850,17 +1264,23 @@
                 elements.logoutButton.disabled =
                     false;
 
+
                 elements.logoutButton
                     .setAttribute(
                         "aria-busy",
                         "false"
                     );
+
             }
+
         }
+
     }
+
 
     App.handleLogout =
         handleLogout;
+
 
     /* =====================================================
        GENERIC NAVIGATION CLICK
@@ -873,26 +1293,45 @@
         const target =
             event.target;
 
+
         if (!target) {
+
             return;
+
         }
 
-        const link =
-            target.closest(
-                "a[data-history-nav]"
-            );
-
-        if (!link) {
-            return;
-        }
 
         /*
-         * Biarkan browser melakukan navigation
-         * normal. Kita hanya menutup sidebar
-         * mobile agar tidak tertinggal terbuka.
+         * Navigation HTML dibuat dinamis
+         * oleh history-auth.js.
+         *
+         * Jangan bergantung pada
+         * data-history-nav karena anchor
+         * aktual tidak memiliki atribut tersebut.
+         */
+        const link =
+            target.closest(
+                "#navigation a"
+            );
+
+
+        if (
+            !link
+        ) {
+
+            return;
+
+        }
+
+
+        /*
+         * Biarkan browser melakukan
+         * navigation normal.
          */
         closeSidebar();
+
     }
+
 
     /* =====================================================
        FILTER CLICK
@@ -905,47 +1344,82 @@
         const target =
             event.target;
 
+
         if (!target) {
+
             return;
+
         }
 
+
+        /*
+         * HTML aktual:
+         *
+         * <button
+         *     class="filter-button"
+         *     data-filter="success"
+         * >
+         *
+         * Jadi selector harus memakai
+         * data-filter.
+         */
         const button =
             target.closest(
-                "[data-filter]"
+                ".filter-button[data-filter]"
             );
 
-        if (!button) {
+
+        if (
+            !button
+        ) {
+
             return;
+
         }
+
 
         event.preventDefault();
 
+
         const filter =
-            button.dataset
-                .Filter ||
+            button.dataset.filter ||
             "all";
 
-        setFilter(filter);
+
+        setFilter(
+            filter
+        );
+
     }
+
 
     /* =====================================================
        EVENT BINDING
     ===================================================== */
 
-    let eventsBound = false;
+    let eventsBound =
+        false;
+
 
     function bindEvents() {
 
-        if (eventsBound) {
+        if (
+            eventsBound
+        ) {
+
             return;
+
         }
+
 
         const elements =
             getElements();
 
-        /*
-         * SIDEBAR
-         */
+
+        /* =================================================
+           SIDEBAR
+        ================================================= */
+
         if (
             elements.menuButton
         ) {
@@ -954,7 +1428,9 @@
                 "click",
                 toggleSidebar
             );
+
         }
+
 
         if (
             elements.overlay
@@ -964,11 +1440,14 @@
                 "click",
                 closeSidebar
             );
+
         }
 
-        /*
-         * NAVIGATION
-         */
+
+        /* =================================================
+           NAVIGATION
+        ================================================= */
+
         if (
             elements.navigation
         ) {
@@ -977,11 +1456,14 @@
                 "click",
                 handleNavigationClick
             );
+
         }
 
-        /*
-         * LOGOUT
-         */
+
+        /* =================================================
+           LOGOUT
+        ================================================= */
+
         if (
             elements.logoutButton
         ) {
@@ -990,11 +1472,14 @@
                 "click",
                 handleLogout
             );
+
         }
 
-        /*
-         * REFRESH
-         */
+
+        /* =================================================
+           REFRESH
+        ================================================= */
+
         if (
             elements.refreshButton
         ) {
@@ -1003,11 +1488,14 @@
                 "click",
                 handleRefresh
             );
+
         }
 
-        /*
-         * HISTORY TABLE
-         */
+
+        /* =================================================
+           HISTORY TABLE
+        ================================================= */
+
         if (
             elements.historyBody
         ) {
@@ -1017,23 +1505,29 @@
                 handleHistoryBodyClick
             );
 
+
             elements.historyBody.addEventListener(
                 "keydown",
                 handleHistoryBodyKeydown
             );
+
         }
 
-        /*
-         * FILTERS
-         */
+
+        /* =================================================
+           FILTERS
+        ================================================= */
+
         document.addEventListener(
             "click",
             handleFilterClick
         );
 
-        /*
-         * MODAL
-         */
+
+        /* =================================================
+           MODAL CLOSE BUTTON
+        ================================================= */
+
         if (
             elements.closeModal
         ) {
@@ -1044,12 +1538,20 @@
 
                     event.preventDefault();
 
+
                     safeCall(
                         "closeDetailModal"
                     );
+
                 }
             );
+
         }
+
+
+        /* =================================================
+           MODAL BACKDROP
+        ================================================= */
 
         if (
             elements.detailModal
@@ -1059,62 +1561,87 @@
                 "click",
                 handleModalClick
             );
+
         }
 
-        /*
-         * GLOBAL KEYBOARD
-         */
+
+        /* =================================================
+           GLOBAL KEYBOARD
+        ================================================= */
+
         document.addEventListener(
             "keydown",
             handleDocumentKeydown
         );
 
-        /*
-         * Window resize:
-         * jika kembali ke desktop, sidebar
-         * mobile dipastikan ditutup.
-         */
+
+        /* =================================================
+           WINDOW RESIZE
+        ================================================= */
+
         window.addEventListener(
             "resize",
             function () {
 
                 if (
-                    window.innerWidth >= 900
+                    window.innerWidth >=
+                    900
                 ) {
+
                     closeSidebar();
+
                 }
+
             }
         );
 
-        eventsBound = true;
+
+        /*
+         * Sinkronkan filter pertama kali
+         * setelah semua event siap.
+         */
+        updateFilterButtons(
+            normalizeFilter(
+                getState().currentFilter
+            )
+        );
+
+
+        eventsBound =
+            true;
+
     }
+
 
     App.bindHistoryEvents =
         bindEvents;
 
+
     /* =====================================================
        UNBIND
        -----------------------------------------------------
-       Tidak dipanggil saat bootstrap normal.
-       Disediakan agar modul tidak membuat event
-       duplicate jika aplikasi diinisialisasi ulang.
+       Bootstrap normal menggunakan single-init.
+       Fungsi tetap dipertahankan untuk compatibility.
     ===================================================== */
 
     function unbindEvents() {
 
         /*
-         * Event listener utama sengaja tidak
-         * dilepas satu per satu karena sebagian
-         * menggunakan anonymous function.
+         * Event listener tidak dilepas satu per satu
+         * karena beberapa listener menggunakan
+         * anonymous function.
          *
-         * Bootstrap dijaga single-init oleh
-         * history-app.js sehingga duplicate
-         * listener tidak terjadi.
+         * history-app.js mencegah bootstrap
+         * berjalan dua kali.
          */
-        eventsBound = false;
+        eventsBound =
+            false;
+
     }
+
 
     App.unbindHistoryEvents =
         unbindEvents;
+
 
 })();
