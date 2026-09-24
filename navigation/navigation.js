@@ -989,19 +989,31 @@
             {
                 label: "Dashboard",
                 href: "/user/dashboard.html",
-                icon: "* "
+                icon: "🎖️ "
             },
 
             {
                 label: "Generate",
                 href: "/generate/index.html",
-                icon: "* "
+                icon: "🎖️ "
             },
 
             {
                 label: "History",
                 href: "/history/index.html",
-                icon: "* "
+                icon: "🎖️ "
+            },
+
+            {
+                label: "Top-Up",
+                href: "/user/topup.html",
+                icon: "🎖️ "
+            },
+
+           {
+                label: "Hub Admin",
+                href: "/user/hub-admin.html",
+                icon: "🎖️ "
             }
 
         ],
@@ -1012,25 +1024,25 @@
             {
                 label: "Dashboard",
                 href: "/admin/dashboard.html",
-                icon: "* "
+                icon: "🥇 "
             },
 
             {
                 label: "Generate",
                 href: "/generate/index.html",
-                icon: "* "
+                icon: "🥈 "
             },
 
             {
                 label: "History",
                 href: "/history/index.html",
-                icon: "* "
+                icon: "🥉 "
             },
 
             {
                 label: "Admin Panel",
                 href: "/admin-control/admin-panel.html",
-                icon: "* "
+                icon: "🏅 "
             }
 
         ],
@@ -1041,25 +1053,25 @@
             {
                 label: "Dashboard",
                 href: "/admin/dashboard.html",
-                icon: "* "
+                icon: "🥇 "
             },
 
             {
                 label: "Generate",
                 href: "/generate/index.html",
-                icon: "* "
+                icon: "🥈 "
             },
 
             {
                 label: "History",
                 href: "/history/index.html",
-                icon: "* "
+                icon: "🥉 "
             },
 
             {
                 label: "Admin Panel",
                 href: "/admin-control/admin-panel.html",
-                icon: "* "
+                icon: "🏅 "
             }
 
         ]
