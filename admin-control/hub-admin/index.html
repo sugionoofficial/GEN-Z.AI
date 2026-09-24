@@ -12,6 +12,7 @@
 
     <title>GEN-Z.AI • Hub Admin</title>
 
+
     <!-- =====================================================
          SUPABASE
     ====================================================== -->
@@ -846,7 +847,8 @@
 
             min-height: 125px;
 
-            padding: 13px 14px;
+            padding:
+                13px 14px;
 
             resize: vertical;
 
@@ -1804,7 +1806,7 @@
 
 
     <!-- =====================================================
-         SUPABASE CLIENT BRIDGE
+         CONTROLLER
     ====================================================== -->
 
     <script>
@@ -1818,7 +1820,9 @@
        CONFIG
     ========================================================= */
 
-    const TABLE = "hub_admin_settings";
+    const TABLE =
+        "hub_admin_settings";
+
 
     const DEFAULT_MESSAGE =
         "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
@@ -1829,37 +1833,69 @@
     ========================================================= */
 
     const loading =
-        document.getElementById("loading");
+        document.getElementById(
+            "loading"
+        );
+
 
     const adminPage =
-        document.getElementById("adminPage");
+        document.getElementById(
+            "adminPage"
+        );
+
 
     const whatsappNumber =
-        document.getElementById("whatsappNumber");
+        document.getElementById(
+            "whatsappNumber"
+        );
+
 
     const whatsappMessage =
-        document.getElementById("whatsappMessage");
+        document.getElementById(
+            "whatsappMessage"
+        );
+
 
     const isActive =
-        document.getElementById("isActive");
+        document.getElementById(
+            "isActive"
+        );
+
 
     const saveButton =
-        document.getElementById("saveButton");
+        document.getElementById(
+            "saveButton"
+        );
+
 
     const normalizeButton =
-        document.getElementById("normalizeButton");
+        document.getElementById(
+            "normalizeButton"
+        );
+
 
     const status =
-        document.getElementById("status");
+        document.getElementById(
+            "status"
+        );
+
 
     const previewNumber =
-        document.getElementById("previewNumber");
+        document.getElementById(
+            "previewNumber"
+        );
+
 
     const previewMessage =
-        document.getElementById("previewMessage");
+        document.getElementById(
+            "previewMessage"
+        );
+
 
     const previewStatus =
-        document.getElementById("previewStatus");
+        document.getElementById(
+            "previewStatus"
+        );
 
 
     /* =========================================================
@@ -1873,16 +1909,144 @@
        SUPABASE CLIENT
     ========================================================= */
 
+    function ensureSupabaseClient() {
+
+        /*
+         * Prioritaskan client GEN-Z.AI.
+         */
+
+        if (
+            window.GENZ_SUPABASE &&
+            typeof
+                window.GENZ_SUPABASE.from ===
+                "function"
+        ) {
+
+            window.supabaseClient =
+                window.GENZ_SUPABASE;
+
+
+            return window.GENZ_SUPABASE;
+
+        }
+
+
+        /*
+         * Fallback client global.
+         */
+
+        if (
+            window.supabaseClient &&
+            typeof
+                window.supabaseClient.from ===
+                "function"
+        ) {
+
+            window.GENZ_SUPABASE =
+                window.supabaseClient;
+
+
+            return window.supabaseClient;
+
+        }
+
+
+        /*
+         * Pastikan library Supabase tersedia.
+         */
+
+        if (
+            !window.supabase ||
+            typeof
+                window.supabase.createClient !==
+                "function"
+        ) {
+
+            throw new Error(
+                "Library Supabase belum tersedia."
+            );
+
+        }
+
+
+        /*
+         * Pastikan config tersedia.
+         */
+
+        if (
+            !window.GENZ_CONFIG
+        ) {
+
+            throw new Error(
+                "GENZ_CONFIG tidak tersedia. Periksa ../../assets/js/config.js."
+            );
+
+        }
+
+
+        const url =
+            String(
+                window.GENZ_CONFIG
+                    .SUPABASE_URL ||
+                ""
+            ).trim();
+
+
+        const key =
+            String(
+                window.GENZ_CONFIG
+                    .SUPABASE_KEY ||
+                ""
+            ).trim();
+
+
+        if (
+            !url ||
+            !key
+        ) {
+
+            throw new Error(
+                "Konfigurasi Supabase tidak lengkap."
+            );
+
+        }
+
+
+        /*
+         * Buat client hanya jika memang
+         * belum tersedia.
+         */
+
+        const client =
+            window.supabase.createClient(
+                url,
+                key
+            );
+
+
+        window.GENZ_SUPABASE =
+            client;
+
+
+        window.supabaseClient =
+            client;
+
+
+        return client;
+
+    }
+
+
     function getClient() {
 
         const client =
-            window.GENZ_SUPABASE ||
-            window.supabaseClient;
+            ensureSupabaseClient();
 
 
         if (
             !client ||
-            typeof client.from !== "function"
+            typeof client.from !==
+                "function"
         ) {
 
             throw new Error(
@@ -1898,14 +2062,15 @@
 
 
     /* =========================================================
-       LOADING / PAGE
+       LOADING
     ========================================================= */
 
     function hideLoading() {
 
         if (loading) {
 
-            loading.style.display = "none";
+            loading.style.display =
+                "none";
 
         }
 
@@ -1916,9 +2081,11 @@
 
         if (adminPage) {
 
-            adminPage.style.display = "";
+            adminPage.style.display =
+                "";
 
         }
+
 
         hideLoading();
 
@@ -1951,7 +2118,9 @@
 
         if (type) {
 
-            status.classList.add(type);
+            status.classList.add(
+                type
+            );
 
         }
 
@@ -1962,20 +2131,25 @@
        PHONE NORMALIZER
     ========================================================= */
 
-    function normalizePhone(value) {
+    function normalizePhone(
+        value
+    ) {
 
         let phone =
-            String(value || "")
-                .trim();
+            String(
+                value || ""
+            ).trim();
 
 
         /*
-         * Hapus semua karakter
-         * selain angka.
+         * Hapus karakter selain angka.
          */
 
         phone =
-            phone.replace(/\D/g, "");
+            phone.replace(
+                /\D/g,
+                ""
+            );
 
 
         /*
@@ -1985,7 +2159,9 @@
          */
 
         if (
-            phone.startsWith("08")
+            phone.startsWith(
+                "08"
+            )
         ) {
 
             phone =
@@ -1996,22 +2172,15 @@
 
 
         /*
-         * +628...
-         * setelah karakter non-digit
-         * dihapus sudah menjadi 628...
-         */
-
-
-        /*
-         * 6208...
-         * bukan format Indonesia yang benar.
-         *
-         * Jika user memasukkan 008...
-         * ubah menjadi 628...
+         * 008xxxxxxxxxx
+         * →
+         * 628xxxxxxxxxx
          */
 
         if (
-            phone.startsWith("008")
+            phone.startsWith(
+                "008"
+            )
         ) {
 
             phone =
@@ -2034,13 +2203,15 @@
 
         const number =
             String(
-                whatsappNumber?.value || ""
+                whatsappNumber?.value ||
+                ""
             ).trim();
 
 
         const message =
             String(
-                whatsappMessage?.value || ""
+                whatsappMessage?.value ||
+                ""
             ).trim();
 
 
@@ -2096,7 +2267,8 @@
 
         const role =
             String(
-                window.GENZ_NAVIGATION_ROLE || ""
+                window.GENZ_NAVIGATION_ROLE ||
+                ""
             )
             .trim()
             .toLowerCase();
@@ -2129,7 +2301,8 @@
                 .order(
                     "id",
                     {
-                        ascending: true
+                        ascending:
+                            true
                     }
                 )
                 .limit(1);
@@ -2143,7 +2316,9 @@
 
 
         const rows =
-            Array.isArray(result.data)
+            Array.isArray(
+                result.data
+            )
                 ? result.data
                 : [];
 
@@ -2160,17 +2335,20 @@
 
         if (!row) {
 
-            settingsId = null;
+            settingsId =
+                null;
 
 
-            whatsappNumber.value = "";
+            whatsappNumber.value =
+                "";
 
 
             whatsappMessage.value =
                 DEFAULT_MESSAGE;
 
 
-            isActive.checked = true;
+            isActive.checked =
+                true;
 
 
             updatePreview();
@@ -2191,7 +2369,8 @@
 
         whatsappNumber.value =
             String(
-                row.whatsapp_number || ""
+                row.whatsapp_number ||
+                ""
             ).trim();
 
 
@@ -2213,8 +2392,6 @@
 
     /* =========================================================
        FIND EXISTING SETTINGS
-       
-       Digunakan jika settingsId belum diketahui.
     ========================================================= */
 
     async function findExistingSettings() {
@@ -2232,7 +2409,8 @@
                 .order(
                     "id",
                     {
-                        ascending: true
+                        ascending:
+                            true
                     }
                 )
                 .limit(1);
@@ -2246,7 +2424,9 @@
 
 
         const rows =
-            Array.isArray(result.data)
+            Array.isArray(
+                result.data
+            )
                 ? result.data
                 : [];
 
@@ -2260,11 +2440,6 @@
 
     /* =========================================================
        VERIFY SAVED DATA
-       
-       Sangat penting:
-       jangan percaya response UPDATE saja.
-       
-       Kita baca ulang dari database.
     ========================================================= */
 
     async function verifySavedData(
@@ -2277,10 +2452,6 @@
             getClient();
 
 
-        const id =
-            settingsId;
-
-
         let query =
             client
                 .from(TABLE)
@@ -2289,28 +2460,35 @@
                 );
 
 
+        /*
+         * Jika ID sudah diketahui,
+         * verifikasi row tersebut.
+         */
+
         if (
-            id !== null &&
-            id !== undefined &&
-            id !== ""
+            settingsId !== null &&
+            settingsId !== undefined &&
+            settingsId !== ""
         ) {
 
             query =
                 query.eq(
                     "id",
-                    id
+                    settingsId
                 );
 
         } else {
 
             query =
-                query.order(
-                    "id",
-                    {
-                        ascending: true
-                    }
-                )
-                .limit(1);
+                query
+                    .order(
+                        "id",
+                        {
+                            ascending:
+                                true
+                        }
+                    )
+                    .limit(1);
 
         }
 
@@ -2327,7 +2505,9 @@
 
 
         const rows =
-            Array.isArray(result.data)
+            Array.isArray(
+                result.data
+            )
                 ? result.data
                 : [];
 
@@ -2337,10 +2517,6 @@
                 ? rows[0]
                 : null;
 
-
-        /*
-         * Tidak ada row yang bisa dibaca.
-         */
 
         if (!row) {
 
@@ -2363,7 +2539,8 @@
 
         const savedMessage =
             String(
-                row.whatsapp_message || ""
+                row.whatsapp_message ||
+                ""
             ).trim();
 
 
@@ -2382,7 +2559,10 @@
 
             throw new Error(
                 "Nomor WhatsApp tidak tersimpan ke database. Database masih mengembalikan: " +
-                (row.whatsapp_number || "(kosong)")
+                (
+                    row.whatsapp_number ||
+                    "(kosong)"
+                )
             );
 
         }
@@ -2425,15 +2605,17 @@
          */
 
         whatsappNumber.value =
-            savedNumber;
+            row.whatsapp_number ||
+            "";
 
 
         whatsappMessage.value =
-            savedMessage;
+            row.whatsapp_message ||
+            DEFAULT_MESSAGE;
 
 
         isActive.checked =
-            savedActive;
+            row.is_active === true;
 
 
         updatePreview();
@@ -2455,7 +2637,7 @@
 
 
         /*
-         * Ambil nilai terbaru dari form.
+         * Ambil nilai terbaru.
          */
 
         const number =
@@ -2466,7 +2648,8 @@
 
         const message =
             String(
-                whatsappMessage.value || ""
+                whatsappMessage.value ||
+                ""
             ).trim();
 
 
@@ -2490,7 +2673,9 @@
 
 
         if (
-            !/^62\d{8,15}$/.test(number)
+            !/^62\d{8,15}$/.test(
+                number
+            )
         ) {
 
             throw new Error(
@@ -2514,7 +2699,7 @@
 
 
         /*
-         * Tampilkan nomor hasil normalisasi.
+         * Tampilkan hasil normalisasi.
          */
 
         whatsappNumber.value =
@@ -2546,7 +2731,7 @@
 
 
         /* =====================================================
-           PASTIKAN ROW TARGET ADA
+           CARI ROW YANG SUDAH ADA
         ===================================================== */
 
         if (
@@ -2569,9 +2754,6 @@
         }
 
 
-        let operationResult;
-
-
         /* =====================================================
            UPDATE
         ===================================================== */
@@ -2583,23 +2765,39 @@
         ) {
 
             /*
-             * PENTING:
-             *
-             * Tidak menggunakan .select()
-             * setelah UPDATE.
-             *
-             * Setelah UPDATE kita SELECT
-             * ulang untuk verifikasi.
+             * Tidak memakai .select()
+             * agar tidak terjadi masalah coercion
+             * atau response kosong dari PostgREST.
              */
 
-            operationResult =
+            const updateResult =
                 await client
                     .from(TABLE)
-                    .update(payload)
+                    .update(
+                        payload
+                    )
                     .eq(
                         "id",
                         settingsId
                     );
+
+
+            if (
+                updateResult.error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI] Hub Admin UPDATE error:",
+                    updateResult.error
+                );
+
+
+                throw new Error(
+                    updateResult.error.message ||
+                    "Gagal memperbarui konfigurasi Hub Admin."
+                );
+
+            }
 
         }
 
@@ -2611,47 +2809,62 @@
         else {
 
             /*
-             * Hanya insert jika tabel benar-benar
-             * belum mempunyai konfigurasi.
+             * Hanya insert jika tabel
+             * benar-benar belum mempunyai row.
              */
 
-            operationResult =
+            const insertResult =
                 await client
                     .from(TABLE)
-                    .insert(payload);
+                    .insert(
+                        payload
+                    );
+
+
+            if (
+                insertResult.error
+            ) {
+
+                console.error(
+                    "[GEN-Z.AI] Hub Admin INSERT error:",
+                    insertResult.error
+                );
+
+
+                throw new Error(
+                    insertResult.error.message ||
+                    "Gagal membuat konfigurasi Hub Admin."
+                );
+
+            }
+
+
+            /*
+             * Jangan mengandalkan response INSERT.
+             * Cari row kembali.
+             */
+
+            const inserted =
+                await findExistingSettings();
+
+
+            if (!inserted) {
+
+                throw new Error(
+                    "Konfigurasi berhasil diproses tetapi row tidak dapat ditemukan kembali."
+                );
+
+            }
+
+
+            settingsId =
+                inserted.id;
 
         }
 
 
         /* =====================================================
-           CHECK DATABASE ERROR
-        ===================================================== */
-
-        if (
-            operationResult &&
-            operationResult.error
-        ) {
-
-            const error =
-                operationResult.error;
-
-
-            console.error(
-                "[GEN-Z.AI] Supabase save error:",
-                error
-            );
-
-
-            throw new Error(
-                error.message ||
-                "Supabase gagal menyimpan konfigurasi Hub Admin."
-            );
-
-        }
-
-
-        /* =====================================================
-           VERIFY
+           VERIFIKASI FINAL
         ===================================================== */
 
         await verifySavedData(
@@ -2660,12 +2873,6 @@
             active
         );
 
-
-        /*
-         * Sampai titik ini data benar-benar
-         * sudah dibaca kembali dari database
-         * dan cocok dengan input.
-         */
 
         return true;
 
@@ -2679,7 +2886,7 @@
     async function start() {
 
         /*
-         * navigation.js adalah sumber kebenaran
+         * Navigation tetap menjadi sumber
          * authentication dan role.
          */
 
@@ -2720,6 +2927,13 @@
 
 
                 showPage();
+
+
+                /*
+                 * Pastikan Supabase tersedia.
+                 */
+
+                ensureSupabaseClient();
 
 
                 await loadSettings();
@@ -2778,8 +2992,10 @@
                             showPage();
 
 
-                            await
-                                loadSettings();
+                            ensureSupabaseClient();
+
+
+                            await loadSettings();
 
 
                         } catch (
