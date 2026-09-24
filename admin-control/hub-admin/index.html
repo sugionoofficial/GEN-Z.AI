@@ -34,14 +34,9 @@
             min-height: 100vh;
         }
 
-        #navigation {
-            min-height: 0;
-        }
-
         .page {
             min-height: 100vh;
             padding: 32px;
-            margin-left: 0;
         }
 
         .container {
@@ -92,10 +87,25 @@
             line-height: 1.6;
         }
 
-        .form-grid {
+        .admin-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 20px;
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .admin-box {
+            padding: 18px;
+            border: 1px solid #263244;
+            border-radius: 12px;
+            background: #0f172a;
+        }
+
+        .admin-title {
+            margin-bottom: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #f8fafc;
         }
 
         .form-group {
@@ -119,13 +129,10 @@
             width: 100%;
             border: 1px solid #334155;
             border-radius: 10px;
-            background: #0f172a;
+            background: #0b1120;
             color: #f8fafc;
             outline: none;
             font: inherit;
-            transition:
-                border-color 0.15s ease,
-                box-shadow 0.15s ease;
         }
 
         input {
@@ -142,7 +149,9 @@
         input:focus,
         textarea:focus {
             border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+            box-shadow:
+                0 0 0 3px
+                rgba(99, 102, 241, 0.14);
         }
 
         .help-text {
@@ -280,26 +289,33 @@
         }
 
         .status.success {
-            background: rgba(22, 163, 74, 0.12);
-            border: 1px solid rgba(22, 163, 74, 0.3);
+            background:
+                rgba(22, 163, 74, 0.12);
+            border:
+                1px solid rgba(22, 163, 74, 0.3);
             color: #86efac;
         }
 
         .status.error {
-            background: rgba(220, 38, 38, 0.12);
-            border: 1px solid rgba(220, 38, 38, 0.3);
+            background:
+                rgba(220, 38, 38, 0.12);
+            border:
+                1px solid rgba(220, 38, 38, 0.3);
             color: #fca5a5;
         }
 
         .status.info {
-            background: rgba(59, 130, 246, 0.12);
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            background:
+                rgba(59, 130, 246, 0.12);
+            border:
+                1px solid rgba(59, 130, 246, 0.3);
             color: #93c5fd;
         }
 
         .preview {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
             gap: 14px;
         }
 
@@ -369,18 +385,10 @@
             }
         }
 
-        @media (max-width: 800px) {
-            .page {
-                padding: 20px;
-            }
-
-            .form-grid,
+        @media (max-width: 900px) {
+            .admin-grid,
             .preview {
                 grid-template-columns: 1fr;
-            }
-
-            .form-group.full {
-                grid-column: auto;
             }
         }
 
@@ -391,7 +399,6 @@
 
             .card {
                 padding: 18px;
-                border-radius: 14px;
             }
 
             .actions {
@@ -408,14 +415,8 @@
 
 <body>
 
-    <!-- =========================================================
-         SHARED NAVIGATION
-         ========================================================= -->
     <div id="navigation"></div>
 
-    <!-- =========================================================
-         LOADING
-         ========================================================= -->
     <div
         id="loadingOverlay"
         class="loading-overlay"
@@ -426,9 +427,6 @@
         </div>
     </div>
 
-    <!-- =========================================================
-         ADMIN PAGE
-         ========================================================= -->
     <main
         id="adminPage"
         class="page"
@@ -439,82 +437,155 @@
             <header class="page-header">
                 <h1>Hub Admin</h1>
                 <p>
-                    Kelola nomor WhatsApp dan pesan bantuan yang digunakan
-                    pengguna untuk menghubungi Admin GEN-Z.AI.
+                    Kelola tiga nomor WhatsApp Admin
+                    yang dapat digunakan pengguna
+                    untuk menghubungi GEN-Z.AI.
                 </p>
             </header>
 
             <!-- =================================================
-                 SETTINGS FORM
+                 NOMOR ADMIN
                  ================================================= -->
             <section class="card">
 
                 <h2 class="card-title">
-                    Konfigurasi WhatsApp
+                    Nomor WhatsApp Admin
                 </h2>
 
                 <p class="card-description">
-                    Nomor WhatsApp digunakan sebagai tujuan kontak bantuan
-                    dari sisi pengguna.
+                    Masukkan nomor WhatsApp untuk
+                    Admin 1, Admin 2, dan Admin 3.
                 </p>
 
-                <div class="form-grid">
+                <div class="admin-grid">
 
-                    <div class="form-group full">
-                        <label for="whatsappNumber">
-                            Nomor WhatsApp
-                        </label>
+                    <div class="admin-box">
+                        <div class="admin-title">
+                            Admin 1
+                        </div>
 
-                        <input
-                            id="whatsappNumber"
-                            type="text"
-                            inputmode="numeric"
-                            autocomplete="tel"
-                            placeholder="628123456789"
-                        >
-
-                        <p class="help-text">
-                            Gunakan format internasional tanpa tanda +
-                            atau spasi. Contoh: 628123456789.
-                        </p>
-                    </div>
-
-                    <div class="form-group full">
-                        <label for="whatsappMessage">
-                            Pesan WhatsApp
-                        </label>
-
-                        <textarea
-                            id="whatsappMessage"
-                            placeholder="Halo Admin GEN-Z.AI, saya membutuhkan bantuan."
-                        ></textarea>
-                    </div>
-
-                    <div class="form-group full">
-                        <div class="switch-row">
-
-                            <div class="switch-info">
-                                <div class="switch-title">
-                                    Hub Admin Aktif
-                                </div>
-
-                                <div class="switch-description">
-                                    Jika aktif, konfigurasi ini dapat
-                                    digunakan oleh sistem.
-                                </div>
-                            </div>
-
-                            <label class="switch">
-                                <input
-                                    id="isActive"
-                                    type="checkbox"
-                                    checked
-                                >
-                                <span class="slider"></span>
+                        <div class="form-group">
+                            <label for="whatsappNumberAdmin1">
+                                Nomor WhatsApp
                             </label>
 
+                            <input
+                                id="whatsappNumberAdmin1"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="tel"
+                                placeholder="628123456789"
+                            >
                         </div>
                     </div>
+
+                    <div class="admin-box">
+                        <div class="admin-title">
+                            Admin 2
+                        </div>
+
+                        <div class="form-group">
+                            <label for="whatsappNumberAdmin2">
+                                Nomor WhatsApp
+                            </label>
+
+                            <input
+                                id="whatsappNumberAdmin2"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="tel"
+                                placeholder="628123456789"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="admin-box">
+                        <div class="admin-title">
+                            Admin 3
+                        </div>
+
+                        <div class="form-group">
+                            <label for="whatsappNumberAdmin3">
+                                Nomor WhatsApp
+                            </label>
+
+                            <input
+                                id="whatsappNumberAdmin3"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="tel"
+                                placeholder="628123456789"
+                            >
+                        </div>
+                    </div>
+
+                </div>
+
+                <p class="help-text" style="margin-top:18px;">
+                    Format nomor: 628xxxxxxxxxx.
+                    Nomor lama tetap disimpan pada
+                    <code>whatsapp_number</code> sebagai fallback.
+                </p>
+
+            </section>
+
+            <!-- =================================================
+                 MESSAGE
+                 ================================================= -->
+            <section class="card">
+
+                <h2 class="card-title">
+                    Pesan WhatsApp
+                </h2>
+
+                <p class="card-description">
+                    Pesan default yang digunakan ketika
+                    pengguna menghubungi salah satu Admin.
+                </p>
+
+                <div class="form-group">
+                    <label for="whatsappMessage">
+                        Pesan
+                    </label>
+
+                    <textarea
+                        id="whatsappMessage"
+                        placeholder="Halo Admin GEN-Z.AI, saya membutuhkan bantuan."
+                    ></textarea>
+                </div>
+
+            </section>
+
+            <!-- =================================================
+                 STATUS
+                 ================================================= -->
+            <section class="card">
+
+                <h2 class="card-title">
+                    Status Hub Admin
+                </h2>
+
+                <div class="switch-row">
+
+                    <div class="switch-info">
+                        <div class="switch-title">
+                            Hub Admin Aktif
+                        </div>
+
+                        <div class="switch-description">
+                            Aktifkan agar nomor Admin
+                            tersedia untuk pengguna.
+                        </div>
+                    </div>
+
+                    <label class="switch">
+                        <input
+                            id="isActive"
+                            type="checkbox"
+                            checked
+                        >
+                        <span class="slider"></span>
+                    </label>
 
                 </div>
 
@@ -554,19 +625,15 @@
                     Preview
                 </h2>
 
-                <p class="card-description">
-                    Nilai berikut mengikuti konfigurasi form saat ini.
-                </p>
-
                 <div class="preview">
 
                     <div class="preview-item">
                         <div class="preview-label">
-                            Nomor
+                            Admin 1
                         </div>
 
                         <div
-                            id="previewNumber"
+                            id="previewNumberAdmin1"
                             class="preview-value"
                         >
                             -
@@ -575,11 +642,24 @@
 
                     <div class="preview-item">
                         <div class="preview-label">
-                            Pesan
+                            Admin 2
                         </div>
 
                         <div
-                            id="previewMessage"
+                            id="previewNumberAdmin2"
+                            class="preview-value"
+                        >
+                            -
+                        </div>
+                    </div>
+
+                    <div class="preview-item">
+                        <div class="preview-label">
+                            Admin 3
+                        </div>
+
+                        <div
+                            id="previewNumberAdmin3"
                             class="preview-value"
                         >
                             -
@@ -606,24 +686,12 @@
         </div>
     </main>
 
-    <!-- =========================================================
-         SUPABASE
-         ========================================================= -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- =========================================================
-         GEN-Z CONFIG
-         ========================================================= -->
     <script src="../../assets/js/config.js"></script>
 
-    <!-- =========================================================
-         SHARED NAVIGATION
-         ========================================================= -->
     <script src="../../navigation/navigation.js"></script>
 
-    <!-- =========================================================
-         HUB ADMIN
-         ========================================================= -->
     <script>
         (() => {
             "use strict";
@@ -632,7 +700,8 @@
                CONSTANTS
                ===================================================== */
 
-            const TABLE = "hub_admin_settings";
+            const TABLE =
+                "hub_admin_settings";
 
             const DEFAULT_MESSAGE =
                 "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
@@ -644,47 +713,86 @@
                ===================================================== */
 
             const adminPage =
-                document.getElementById("adminPage");
+                document.getElementById(
+                    "adminPage"
+                );
 
             const loadingOverlay =
-                document.getElementById("loadingOverlay");
+                document.getElementById(
+                    "loadingOverlay"
+                );
 
-            const whatsappNumber =
-                document.getElementById("whatsappNumber");
+            const whatsappNumberAdmin1 =
+                document.getElementById(
+                    "whatsappNumberAdmin1"
+                );
+
+            const whatsappNumberAdmin2 =
+                document.getElementById(
+                    "whatsappNumberAdmin2"
+                );
+
+            const whatsappNumberAdmin3 =
+                document.getElementById(
+                    "whatsappNumberAdmin3"
+                );
 
             const whatsappMessage =
-                document.getElementById("whatsappMessage");
+                document.getElementById(
+                    "whatsappMessage"
+                );
 
             const isActive =
-                document.getElementById("isActive");
+                document.getElementById(
+                    "isActive"
+                );
 
             const normalizeButton =
-                document.getElementById("normalizeButton");
+                document.getElementById(
+                    "normalizeButton"
+                );
 
             const saveButton =
-                document.getElementById("saveButton");
+                document.getElementById(
+                    "saveButton"
+                );
 
             const statusElement =
-                document.getElementById("status");
+                document.getElementById(
+                    "status"
+                );
 
-            const previewNumber =
-                document.getElementById("previewNumber");
+            const previewNumberAdmin1 =
+                document.getElementById(
+                    "previewNumberAdmin1"
+                );
 
-            const previewMessage =
-                document.getElementById("previewMessage");
+            const previewNumberAdmin2 =
+                document.getElementById(
+                    "previewNumberAdmin2"
+                );
+
+            const previewNumberAdmin3 =
+                document.getElementById(
+                    "previewNumberAdmin3"
+                );
 
             const previewStatus =
-                document.getElementById("previewStatus");
+                document.getElementById(
+                    "previewStatus"
+                );
 
             /* =====================================================
                SUPABASE
                ===================================================== */
 
             function ensureSupabaseClient() {
+
                 if (
                     window.GENZ_SUPABASE &&
-                    typeof window.GENZ_SUPABASE
-                        .from === "function"
+                    typeof
+                        window.GENZ_SUPABASE.from ===
+                        "function"
                 ) {
                     window.supabaseClient =
                         window.GENZ_SUPABASE;
@@ -694,8 +802,9 @@
 
                 if (
                     window.supabaseClient &&
-                    typeof window.supabaseClient
-                        .from === "function"
+                    typeof
+                        window.supabaseClient.from ===
+                        "function"
                 ) {
                     window.GENZ_SUPABASE =
                         window.supabaseClient;
@@ -721,7 +830,8 @@
                     !url ||
                     !key ||
                     !window.supabase ||
-                    typeof window.supabase.createClient !==
+                    typeof
+                        window.supabase.createClient !==
                         "function"
                 ) {
                     throw new Error(
@@ -735,29 +845,41 @@
                         key
                     );
 
-                window.GENZ_SUPABASE = client;
-                window.supabaseClient = client;
+                window.GENZ_SUPABASE =
+                    client;
+
+                window.supabaseClient =
+                    client;
 
                 return client;
             }
 
             /* =====================================================
-               BOOLEAN NORMALIZER
+               BOOLEAN
                ===================================================== */
 
             function normalizeBoolean(
                 value,
                 fallback = false
             ) {
-                if (typeof value === "boolean") {
+                if (
+                    typeof value ===
+                    "boolean"
+                ) {
                     return value;
                 }
 
-                if (typeof value === "number") {
+                if (
+                    typeof value ===
+                    "number"
+                ) {
                     return value !== 0;
                 }
 
-                if (typeof value === "string") {
+                if (
+                    typeof value ===
+                    "string"
+                ) {
                     const normalized =
                         value
                             .trim()
@@ -771,7 +893,9 @@
                             "on",
                             "aktif",
                             "active"
-                        ].includes(normalized)
+                        ].includes(
+                            normalized
+                        )
                     ) {
                         return true;
                     }
@@ -784,7 +908,9 @@
                             "off",
                             "nonaktif",
                             "inactive"
-                        ].includes(normalized)
+                        ].includes(
+                            normalized
+                        )
                     ) {
                         return false;
                     }
@@ -794,10 +920,11 @@
             }
 
             /* =====================================================
-               PHONE NORMALIZER
+               PHONE
                ===================================================== */
 
             function normalizePhone(value) {
+
                 let phone =
                     String(value || "")
                         .trim();
@@ -814,12 +941,14 @@
                     phone =
                         "62" +
                         phone.substring(3);
+
                 } else if (
                     phone.startsWith("0062")
                 ) {
                     phone =
                         "62" +
                         phone.substring(4);
+
                 } else if (
                     phone.startsWith("0")
                 ) {
@@ -867,21 +996,12 @@
                ===================================================== */
 
             function hideLoading() {
-                if (!loadingOverlay) {
-                    return;
+                if (
+                    loadingOverlay
+                ) {
+                    loadingOverlay.style.display =
+                        "none";
                 }
-
-                loadingOverlay.style.display =
-                    "none";
-            }
-
-            function showLoading() {
-                if (!loadingOverlay) {
-                    return;
-                }
-
-                loadingOverlay.style.display =
-                    "flex";
             }
 
             /* =====================================================
@@ -889,53 +1009,44 @@
                ===================================================== */
 
             function updatePreview() {
-                if (previewNumber) {
-                    previewNumber.textContent =
-                        whatsappNumber.value.trim() ||
-                        "-";
-                }
 
-                if (previewMessage) {
-                    previewMessage.textContent =
-                        whatsappMessage.value.trim() ||
-                        "-";
-                }
+                previewNumberAdmin1.textContent =
+                    whatsappNumberAdmin1.value.trim() ||
+                    "-";
 
-                if (previewStatus) {
-                    const active =
-                        Boolean(isActive.checked);
+                previewNumberAdmin2.textContent =
+                    whatsappNumberAdmin2.value.trim() ||
+                    "-";
 
-                    previewStatus.textContent =
+                previewNumberAdmin3.textContent =
+                    whatsappNumberAdmin3.value.trim() ||
+                    "-";
+
+                const active =
+                    Boolean(
+                        isActive.checked
+                    );
+
+                previewStatus.textContent =
+                    active
+                        ? "Aktif"
+                        : "Nonaktif";
+
+                previewStatus.className =
+                    "preview-value " +
+                    (
                         active
-                            ? "Aktif"
-                            : "Nonaktif";
-
-                    previewStatus.className =
-                        "preview-value " +
-                        (
-                            active
-                                ? "preview-status-active"
-                                : "preview-status-inactive"
-                        );
-                }
+                            ? "preview-status-active"
+                            : "preview-status-inactive"
+                    );
             }
 
             /* =====================================================
-               FIND EXISTING SETTINGS
-               -----------------------------------------------------
-               PENTING:
-               Jangan lagi menggunakan:
-                   order("id", ascending: true)
-
-               Karena tabel memiliki beberapa row.
-
-               Prioritas:
-               1. is_active = true
-               2. updated_at terbaru
-               3. created_at terbaru
+               FIND CURRENT ROW
                ===================================================== */
 
             async function findExistingSettings() {
+
                 const client =
                     ensureSupabaseClient();
 
@@ -948,6 +1059,9 @@
                         [
                             "id",
                             "whatsapp_number",
+                            "whatsapp_number_admin_1",
+                            "whatsapp_number_admin_2",
+                            "whatsapp_number_admin_3",
                             "whatsapp_message",
                             "is_active",
                             "created_at",
@@ -989,17 +1103,25 @@
             }
 
             /* =====================================================
-               LOAD SETTINGS
+               LOAD
                ===================================================== */
 
             async function loadSettings() {
+
                 const existing =
                     await findExistingSettings();
 
                 if (!existing) {
+
                     settingsId = null;
 
-                    whatsappNumber.value =
+                    whatsappNumberAdmin1.value =
+                        "";
+
+                    whatsappNumberAdmin2.value =
+                        "";
+
+                    whatsappNumberAdmin3.value =
                         "";
 
                     whatsappMessage.value =
@@ -1016,8 +1138,22 @@
                 settingsId =
                     existing.id;
 
-                whatsappNumber.value =
+                /*
+                 * Fallback nomor lama:
+                 * jika Admin 1 belum punya nomor,
+                 * gunakan whatsapp_number lama.
+                 */
+                whatsappNumberAdmin1.value =
+                    existing.whatsapp_number_admin_1 ||
                     existing.whatsapp_number ||
+                    "";
+
+                whatsappNumberAdmin2.value =
+                    existing.whatsapp_number_admin_2 ||
+                    "";
+
+                whatsappNumberAdmin3.value =
+                    existing.whatsapp_number_admin_3 ||
                     "";
 
                 whatsappMessage.value =
@@ -1033,28 +1169,32 @@
                 updatePreview();
 
                 console.log(
-                    "[GEN-Z.AI] Hub Admin settings loaded:",
+                    "[GEN-Z.AI] Hub Admin loaded:",
                     {
-                        id: settingsId,
-                        whatsapp_number:
-                            existing.whatsapp_number,
-                        is_active:
-                            existing.is_active,
-                        updated_at:
-                            existing.updated_at
+                        id:
+                            settingsId,
+                        admin1:
+                            whatsappNumberAdmin1.value,
+                        admin2:
+                            whatsappNumberAdmin2.value,
+                        admin3:
+                            whatsappNumberAdmin3.value
                     }
                 );
             }
 
             /* =====================================================
-               VERIFY SAVED DATA
+               VERIFY
                ===================================================== */
 
             async function verifySavedData(
-                expectedNumber,
+                expectedAdmin1,
+                expectedAdmin2,
+                expectedAdmin3,
                 expectedMessage,
                 expectedActive
             ) {
+
                 const client =
                     ensureSupabaseClient();
 
@@ -1070,7 +1210,15 @@
                 } = await client
                     .from(TABLE)
                     .select(
-                        "id,whatsapp_number,whatsapp_message,is_active"
+                        [
+                            "id",
+                            "whatsapp_number",
+                            "whatsapp_number_admin_1",
+                            "whatsapp_number_admin_2",
+                            "whatsapp_number_admin_3",
+                            "whatsapp_message",
+                            "is_active"
+                        ].join(",")
                     )
                     .eq(
                         "id",
@@ -1088,35 +1236,59 @@
                     );
                 }
 
-                const databaseNumber =
+                const dbAdmin1 =
                     normalizePhone(
-                        data.whatsapp_number
+                        data.whatsapp_number_admin_1 ||
+                        data.whatsapp_number ||
+                        ""
                     );
 
-                const expectedNormalizedNumber =
+                const dbAdmin2 =
                     normalizePhone(
-                        expectedNumber
+                        data.whatsapp_number_admin_2 ||
+                        ""
                     );
 
-                const databaseMessage =
+                const dbAdmin3 =
+                    normalizePhone(
+                        data.whatsapp_number_admin_3 ||
+                        ""
+                    );
+
+                const expected1 =
+                    normalizePhone(
+                        expectedAdmin1
+                    );
+
+                const expected2 =
+                    normalizePhone(
+                        expectedAdmin2
+                    );
+
+                const expected3 =
+                    normalizePhone(
+                        expectedAdmin3
+                    );
+
+                const dbMessage =
                     String(
                         data.whatsapp_message ||
                         ""
                     ).trim();
 
-                const expectedNormalizedMessage =
+                const expectedMsg =
                     String(
                         expectedMessage ||
                         ""
                     ).trim();
 
-                const databaseActive =
+                const dbActive =
                     normalizeBoolean(
                         data.is_active,
                         false
                     );
 
-                const expectedNormalizedActive =
+                const expectedStatus =
                     Boolean(
                         expectedActive
                     );
@@ -1124,45 +1296,65 @@
                 console.log(
                     "[GEN-Z.AI] Hub Admin verification:",
                     {
-                        expected: {
-                            number:
-                                expectedNormalizedNumber,
-                            message:
-                                expectedNormalizedMessage,
-                            active:
-                                expectedNormalizedActive
-                        },
                         database: {
                             id:
                                 data.id,
-                            number:
-                                databaseNumber,
+                            admin1:
+                                dbAdmin1,
+                            admin2:
+                                dbAdmin2,
+                            admin3:
+                                dbAdmin3,
                             message:
-                                databaseMessage,
+                                dbMessage,
                             active:
-                                databaseActive
+                                dbActive
                         },
-                        raw:
-                            data
+                        expected: {
+                            admin1:
+                                expected1,
+                            admin2:
+                                expected2,
+                            admin3:
+                                expected3,
+                            message:
+                                expectedMsg,
+                            active:
+                                expectedStatus
+                        }
                     }
                 );
 
                 if (
-                    databaseNumber !==
-                    expectedNormalizedNumber
+                    dbAdmin1 !==
+                    expected1
                 ) {
                     throw new Error(
-                        "Nomor WhatsApp tidak sesuai setelah penyimpanan. Nilai database: " +
-                        (
-                            data.whatsapp_number ||
-                            "(kosong)"
-                        )
+                        "Nomor WhatsApp Admin 1 tidak sesuai setelah penyimpanan."
                     );
                 }
 
                 if (
-                    databaseMessage !==
-                    expectedNormalizedMessage
+                    dbAdmin2 !==
+                    expected2
+                ) {
+                    throw new Error(
+                        "Nomor WhatsApp Admin 2 tidak sesuai setelah penyimpanan."
+                    );
+                }
+
+                if (
+                    dbAdmin3 !==
+                    expected3
+                ) {
+                    throw new Error(
+                        "Nomor WhatsApp Admin 3 tidak sesuai setelah penyimpanan."
+                    );
+                }
+
+                if (
+                    dbMessage !==
+                    expectedMsg
                 ) {
                     throw new Error(
                         "Pesan WhatsApp tidak sesuai setelah penyimpanan."
@@ -1170,8 +1362,8 @@
                 }
 
                 if (
-                    databaseActive !==
-                    expectedNormalizedActive
+                    dbActive !==
+                    expectedStatus
                 ) {
                     throw new Error(
                         "Status aktif tidak sesuai setelah penyimpanan."
@@ -1182,16 +1374,27 @@
             }
 
             /* =====================================================
-               SAVE SETTINGS
+               SAVE
                ===================================================== */
 
             async function saveSettings() {
+
                 const client =
                     ensureSupabaseClient();
 
-                const number =
+                const admin1 =
                     normalizePhone(
-                        whatsappNumber.value
+                        whatsappNumberAdmin1.value
+                    );
+
+                const admin2 =
+                    normalizePhone(
+                        whatsappNumberAdmin2.value
+                    );
+
+                const admin3 =
+                    normalizePhone(
+                        whatsappNumberAdmin3.value
                     );
 
                 const message =
@@ -1205,20 +1408,58 @@
                         isActive.checked
                     );
 
-                if (!number) {
+                /*
+                 * Minimal satu Admin harus tersedia.
+                 */
+                if (
+                    !admin1 &&
+                    !admin2 &&
+                    !admin3
+                ) {
                     throw new Error(
-                        "Nomor WhatsApp wajib diisi."
+                        "Minimal satu nomor Admin harus diisi."
                     );
                 }
 
-                if (
-                    !/^62\d{8,15}$/.test(
-                        number
-                    )
+                /*
+                 * Validasi nomor yang terisi.
+                 */
+                const numbers = [
+                    {
+                        label: "Admin 1",
+                        value: admin1
+                    },
+                    {
+                        label: "Admin 2",
+                        value: admin2
+                    },
+                    {
+                        label: "Admin 3",
+                        value: admin3
+                    }
+                ];
+
+                for (
+                    const item of numbers
                 ) {
-                    throw new Error(
-                        "Nomor WhatsApp tidak valid. Gunakan format 62xxxxxxxxxx."
-                    );
+
+                    if (
+                        !item.value
+                    ) {
+                        continue;
+                    }
+
+                    if (
+                        !/^62\d{8,15}$/.test(
+                            item.value
+                        )
+                    ) {
+                        throw new Error(
+                            "Nomor WhatsApp " +
+                            item.label +
+                            " tidak valid. Gunakan format 62xxxxxxxxxx."
+                        );
+                    }
                 }
 
                 if (!message) {
@@ -1228,10 +1469,11 @@
                 }
 
                 /*
-                 * Pastikan ID selalu berasal dari row
-                 * aktif/current yang sama dengan load.
+                 * Jika ID belum diketahui,
+                 * cari row aktif terbaru.
                  */
                 if (!settingsId) {
+
                     const existing =
                         await findExistingSettings();
 
@@ -1241,9 +1483,32 @@
                     }
                 }
 
+                /*
+                 * whatsapp_number lama dipertahankan
+                 * sebagai fallback.
+                 *
+                 * Prioritas:
+                 * Admin 1 -> nomor lama
+                 * jika Admin 1 kosong.
+                 */
+                const legacyNumber =
+                    admin1 ||
+                    admin2 ||
+                    admin3 ||
+                    "";
+
                 const payload = {
                     whatsapp_number:
-                        number,
+                        legacyNumber,
+
+                    whatsapp_number_admin_1:
+                        admin1,
+
+                    whatsapp_number_admin_2:
+                        admin2,
+
+                    whatsapp_number_admin_3:
+                        admin3,
 
                     whatsapp_message:
                         message,
@@ -1264,10 +1529,11 @@
                 );
 
                 /* =================================================
-                   UPDATE EXISTING ROW
+                   UPDATE
                    ================================================= */
 
                 if (settingsId) {
+
                     const {
                         data,
                         error
@@ -1279,7 +1545,15 @@
                             settingsId
                         )
                         .select(
-                            "id,whatsapp_number,whatsapp_message,is_active"
+                            [
+                                "id",
+                                "whatsapp_number",
+                                "whatsapp_number_admin_1",
+                                "whatsapp_number_admin_2",
+                                "whatsapp_number_admin_3",
+                                "whatsapp_message",
+                                "is_active"
+                            ].join(",")
                         )
                         .maybeSingle();
 
@@ -1287,13 +1561,6 @@
                         throw error;
                     }
 
-                    /*
-                     * Supabase/PostgREST dapat memberikan
-                     * error = null ketika tidak ada row yang
-                     * terkena UPDATE akibat RLS.
-                     *
-                     * Karena itu data kosong dianggap gagal.
-                     */
                     if (!data) {
                         throw new Error(
                             "UPDATE tidak mengubah data. Row tidak terkena UPDATE. Periksa RLS/policy UPDATE pada tabel hub_admin_settings."
@@ -1310,10 +1577,11 @@
                 }
 
                 /* =================================================
-                   INSERT JIKA BELUM ADA ROW
+                   INSERT
                    ================================================= */
 
                 else {
+
                     const {
                         data,
                         error
@@ -1321,7 +1589,15 @@
                         .from(TABLE)
                         .insert(payload)
                         .select(
-                            "id,whatsapp_number,whatsapp_message,is_active"
+                            [
+                                "id",
+                                "whatsapp_number",
+                                "whatsapp_number_admin_1",
+                                "whatsapp_number_admin_2",
+                                "whatsapp_number_admin_3",
+                                "whatsapp_message",
+                                "is_active"
+                            ].join(",")
                         )
                         .maybeSingle();
 
@@ -1349,17 +1625,24 @@
                    ================================================= */
 
                 await verifySavedData(
-                    number,
+                    admin1,
+                    admin2,
+                    admin3,
                     message,
                     active
                 );
 
                 /*
-                 * Sinkronkan form dengan nilai yang sudah
-                 * benar-benar diverifikasi dari database.
+                 * Sinkronkan nilai form.
                  */
-                whatsappNumber.value =
-                    number;
+                whatsappNumberAdmin1.value =
+                    admin1;
+
+                whatsappNumberAdmin2.value =
+                    admin2;
+
+                whatsappNumberAdmin3.value =
+                    admin3;
 
                 whatsappMessage.value =
                     message;
@@ -1373,115 +1656,133 @@
             }
 
             /* =====================================================
-               EVENT: NORMALIZE
+               NORMALIZE BUTTON
                ===================================================== */
 
-            if (normalizeButton) {
-                normalizeButton.addEventListener(
-                    "click",
-                    () => {
-                        whatsappNumber.value =
-                            normalizePhone(
-                                whatsappNumber.value
-                            );
+            normalizeButton.addEventListener(
+                "click",
+                () => {
 
-                        updatePreview();
+                    whatsappNumberAdmin1.value =
+                        normalizePhone(
+                            whatsappNumberAdmin1.value
+                        );
+
+                    whatsappNumberAdmin2.value =
+                        normalizePhone(
+                            whatsappNumberAdmin2.value
+                        );
+
+                    whatsappNumberAdmin3.value =
+                        normalizePhone(
+                            whatsappNumberAdmin3.value
+                        );
+
+                    updatePreview();
+
+                    setStatus(
+                        "Semua nomor Admin telah dinormalisasi.",
+                        "info"
+                    );
+                }
+            );
+
+            /* =====================================================
+               INPUT EVENTS
+               ===================================================== */
+
+            whatsappNumberAdmin1.addEventListener(
+                "input",
+                updatePreview
+            );
+
+            whatsappNumberAdmin2.addEventListener(
+                "input",
+                updatePreview
+            );
+
+            whatsappNumberAdmin3.addEventListener(
+                "input",
+                updatePreview
+            );
+
+            whatsappMessage.addEventListener(
+                "input",
+                updatePreview
+            );
+
+            isActive.addEventListener(
+                "change",
+                updatePreview
+            );
+
+            /* =====================================================
+               SAVE BUTTON
+               ===================================================== */
+
+            saveButton.addEventListener(
+                "click",
+                async () => {
+
+                    if (
+                        saveButton.disabled
+                    ) {
+                        return;
+                    }
+
+                    saveButton.disabled =
+                        true;
+
+                    const originalText =
+                        saveButton.textContent;
+
+                    saveButton.textContent =
+                        "Menyimpan...";
+
+                    setStatus(
+                        "Menyimpan konfigurasi...",
+                        "info"
+                    );
+
+                    try {
+
+                        await saveSettings();
 
                         setStatus(
-                            "Nomor WhatsApp telah dinormalisasi.",
-                            "info"
+                            "3 nomor Admin berhasil disimpan dan diverifikasi.",
+                            "success"
                         );
-                    }
-                );
-            }
 
-            /* =====================================================
-               EVENT: INPUT
-               ===================================================== */
+                    } catch (error) {
 
-            if (whatsappNumber) {
-                whatsappNumber.addEventListener(
-                    "input",
-                    updatePreview
-                );
-            }
+                        console.error(
+                            "[GEN-Z.AI] Hub Admin save failed:",
+                            error
+                        );
 
-            if (whatsappMessage) {
-                whatsappMessage.addEventListener(
-                    "input",
-                    updatePreview
-                );
-            }
+                        setStatus(
+                            error?.message ||
+                            "Gagal menyimpan konfigurasi Hub Admin.",
+                            "error"
+                        );
 
-            if (isActive) {
-                isActive.addEventListener(
-                    "change",
-                    updatePreview
-                );
-            }
-
-            /* =====================================================
-               EVENT: SAVE
-               ===================================================== */
-
-            if (saveButton) {
-                saveButton.addEventListener(
-                    "click",
-                    async () => {
-                        if (
-                            saveButton.disabled
-                        ) {
-                            return;
-                        }
+                    } finally {
 
                         saveButton.disabled =
-                            true;
-
-                        const originalText =
-                            saveButton.textContent;
+                            false;
 
                         saveButton.textContent =
-                            "Menyimpan...";
-
-                        setStatus(
-                            "Menyimpan konfigurasi...",
-                            "info"
-                        );
-
-                        try {
-                            await saveSettings();
-
-                            setStatus(
-                                "Konfigurasi Hub Admin berhasil disimpan dan diverifikasi.",
-                                "success"
-                            );
-                        } catch (error) {
-                            console.error(
-                                "[GEN-Z.AI] Hub Admin save failed:",
-                                error
-                            );
-
-                            setStatus(
-                                error?.message ||
-                                "Gagal menyimpan konfigurasi Hub Admin.",
-                                "error"
-                            );
-                        } finally {
-                            saveButton.disabled =
-                                false;
-
-                            saveButton.textContent =
-                                originalText;
-                        }
+                            originalText;
                     }
-                );
-            }
+                }
+            );
 
             /* =====================================================
-               ROLE CHECK
+               ROLE
                ===================================================== */
 
             function getCurrentRole() {
+
                 return String(
                     window.GENZ_NAVIGATION_ROLE ||
                     ""
@@ -1490,39 +1791,25 @@
                     .toLowerCase();
             }
 
-            function hasAdminAccess() {
-                const role =
-                    getCurrentRole();
-
-                return (
-                    role === "admin" ||
-                    role === "owner"
-                );
-            }
-
             /* =====================================================
                START
                ===================================================== */
 
             async function start() {
-                showLoading();
 
-                /*
-                 * navigation.js membuat:
-                 *
-                 * window.GENZNavigationReady
-                 *
-                 * Tunggu sampai navigation selesai.
-                 */
                 if (
                     window.GENZNavigationReady &&
                     typeof
                         window.GENZNavigationReady.then ===
                         "function"
                 ) {
+
                     try {
+
                         await window.GENZNavigationReady;
+
                     } catch (error) {
+
                         console.error(
                             "[GEN-Z.AI] Navigation initialization failed:",
                             error
@@ -1530,10 +1817,6 @@
                     }
                 }
 
-                /*
-                 * Beri waktu tambahan jika role baru
-                 * dipasang setelah profile selesai dibaca.
-                 */
                 let attempts = 0;
 
                 const maxAttempts = 20;
@@ -1542,6 +1825,7 @@
                     attempts <
                     maxAttempts
                 ) {
+
                     const role =
                         getCurrentRole();
 
@@ -1580,10 +1864,6 @@
                     }
                 );
 
-                /*
-                 * Jangan pernah membuat halaman blank
-                 * hanya karena role belum terbaca.
-                 */
                 if (adminPage) {
                     adminPage.style.display =
                         "";
@@ -1592,6 +1872,7 @@
                 hideLoading();
 
                 if (!adminAccess) {
+
                     setStatus(
                         role
                             ? "Akses Hub Admin memerlukan role admin atau owner."
@@ -1603,18 +1884,17 @@
                 }
 
                 try {
+
                     ensureSupabaseClient();
 
                     await loadSettings();
 
                     updatePreview();
 
-                    /*
-                     * Jangan menampilkan status sukses
-                     * kosong jika sebelumnya ada error.
-                     */
                     setStatus("");
+
                 } catch (error) {
+
                     console.error(
                         "[GEN-Z.AI] Hub Admin initialization failed:",
                         error
@@ -1629,7 +1909,7 @@
             }
 
             /* =====================================================
-               GLOBAL API
+               PUBLIC API
                ===================================================== */
 
             window.GENZHubAdmin = {
@@ -1642,13 +1922,14 @@
             };
 
             /* =====================================================
-               BOOTSTRAP
+               BOOT
                ===================================================== */
 
             if (
                 document.readyState ===
                 "loading"
             ) {
+
                 document.addEventListener(
                     "DOMContentLoaded",
                     start,
@@ -1656,7 +1937,9 @@
                         once: true
                     }
                 );
+
             } else {
+
                 start();
             }
 
