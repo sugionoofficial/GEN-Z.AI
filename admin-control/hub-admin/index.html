@@ -10,79 +10,61 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>GEN-Z.AI • Hub Admin</title>
+    <title>Hub Admin | GEN-Z.AI</title>
 
 
-    <!-- =====================================================
+    <!-- =========================================================
          SUPABASE
-    ====================================================== -->
+         ========================================================= -->
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
+
+    <!-- =========================================================
+         GEN-Z CONFIG
+         ========================================================= -->
 
     <script src="../../assets/js/config.js"></script>
 
 
-    <!-- =====================================================
-         PAGE STYLE
-    ====================================================== -->
+    <!-- =========================================================
+         SHARED NAVIGATION
+         =========================================================
+         Penting:
+         navigation.js membaca session Supabase,
+         profile, role, lalu mengisi #navigation.
+         ========================================================= -->
+
+    <script src="../../navigation/navigation.js"></script>
+
 
     <style>
 
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
         }
 
 
-        html {
-            width: 100%;
+        html,
+        body {
+            margin: 0;
+            padding: 0;
             min-height: 100%;
         }
 
 
         body {
-
-            width: 100%;
-            min-height: 100vh;
-
-            overflow-x: hidden;
-
+            background: #0b0d12;
+            color: #ffffff;
             font-family:
                 Inter,
+                system-ui,
                 -apple-system,
                 BlinkMacSystemFont,
                 "Segoe UI",
-                Roboto,
-                Arial,
                 sans-serif;
-
-            color: #ffffff;
-
-            background:
-
-                radial-gradient(
-                    circle at 10% 0%,
-                    rgba(255,23,68,0.10),
-                    transparent 28%
-                ),
-
-                radial-gradient(
-                    circle at 90% 10%,
-                    rgba(255,23,68,0.07),
-                    transparent 30%
-                ),
-
-                linear-gradient(
-                    135deg,
-                    #eeeeee 0%,
-                    #c9c9c9 17%,
-                    #777777 38%,
-                    #303030 65%,
-                    #080808 100%
-                );
-
-            background-attachment: fixed;
         }
 
 
@@ -93,1376 +75,422 @@
         }
 
 
-        button,
-        a {
-            -webkit-tap-highlight-color:
-                transparent;
-        }
-
-
-        /* =====================================================
-           LOADING
-        ====================================================== */
-
-        #loading {
-
-            position: fixed;
-
-            inset: 0;
-
-            z-index: 99998;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            flex-direction: column;
-
-            gap: 18px;
-
-            background:
-
-                radial-gradient(
-                    circle at center,
-                    rgba(255,23,68,0.10),
-                    rgba(5,5,7,0.98) 55%
-                );
-
-            backdrop-filter:
-                blur(14px);
-        }
-
-
-        .loading-logo {
-
-            width: 64px;
-            height: 64px;
-
-            display: flex;
-
-            align-items: center;
-            justify-content: center;
-
-            border-radius: 18px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,0.16),
-                    rgba(255,255,255,0.025)
-                );
-
-            border:
-                1px solid
-                rgba(255,23,68,0.50);
-
-            box-shadow:
-
-                0 0 12px
-                rgba(255,23,68,0.35),
-
-                0 0 30px
-                rgba(255,23,68,0.14);
-        }
-
-
-        .loading-g {
-
-            font-size: 31px;
-
-            font-weight: 950;
-
-            letter-spacing: -3px;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    #ffffff,
-                    #53efff,
-                    #b36cff,
-                    #ff3159
-                );
-
-            -webkit-background-clip:
-                text;
-
-            background-clip:
-                text;
-
-            color: transparent;
-        }
-
-
-        .loading-spinner {
-
-            width: 25px;
-            height: 25px;
-
-            border-radius: 50%;
-
-            border:
-                2px solid
-                rgba(255,255,255,0.12);
-
-            border-top-color:
-                #ff3159;
-
-            animation:
-                loadingSpin
-                0.8s
-                linear
-                infinite;
-        }
-
-
-        .loading-text {
-
-            color:
-                rgba(255,255,255,0.55);
-
-            font-size: 11px;
-
-            font-weight: 700;
-
-            letter-spacing: 1.4px;
-
-            text-transform:
-                uppercase;
-        }
-
-
-        @keyframes loadingSpin {
-
-            to {
-                transform:
-                    rotate(360deg);
-            }
-
-        }
-
-
-        /* =====================================================
-           PAGE
-        ====================================================== */
-
         .page {
-
             min-height: 100vh;
-
-            padding:
-                112px
-                24px
-                55px;
-
-            position: relative;
+            padding: 32px;
         }
 
 
-        .page::before {
-
-            content: "";
-
-            position: fixed;
-
-            inset: 0;
-
-            pointer-events: none;
-
-            background:
-
-                linear-gradient(
-                    120deg,
-                    transparent 0%,
-                    rgba(255,255,255,0.07) 35%,
-                    transparent 55%
-                );
-
-            opacity: 0.35;
-
-            z-index: 0;
-        }
-
-
-        .container {
-
+        .page-container {
             width: 100%;
-
-            max-width: 900px;
-
+            max-width: 1100px;
             margin: 0 auto;
-
-            position: relative;
-
-            z-index: 1;
         }
 
-
-        /* =====================================================
-           HEADER
-        ====================================================== */
 
         .page-header {
+            margin-bottom: 24px;
+        }
 
-            position: relative;
 
-            display: flex;
+        .page-title {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -.4px;
+        }
 
-            align-items: center;
 
-            justify-content: space-between;
+        .page-subtitle {
+            margin-top: 8px;
+            color: rgba(255,255,255,.58);
+            font-size: 14px;
+            line-height: 1.6;
+        }
 
+
+        .grid {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(300px, 380px);
             gap: 20px;
-
-            padding:
-                20px
-                22px;
-
-            margin-bottom: 22px;
-
-            border-radius: 24px;
-
-            background:
-
-                linear-gradient(
-                    145deg,
-                    rgba(18,18,21,0.94),
-                    rgba(4,4,5,0.86)
-                );
-
-            border:
-                1px solid
-                rgba(255,23,68,0.48);
-
-            box-shadow:
-
-                0 0 7px
-                rgba(255,23,68,0.28),
-
-                0 0 25px
-                rgba(255,23,68,0.12),
-
-                inset 0 0 25px
-                rgba(255,23,68,0.025);
-
-            overflow: hidden;
+            align-items: start;
         }
 
-
-        .page-header::after {
-
-            content: "";
-
-            position: absolute;
-
-            left: 0;
-            right: 0;
-            bottom: 0;
-
-            height: 1px;
-
-            background:
-
-                linear-gradient(
-                    90deg,
-                    transparent,
-                    rgba(255,23,68,0.75),
-                    transparent
-                );
-
-            opacity: 0.65;
-        }
-
-
-        .brand-area {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 16px;
-
-            min-width: 0;
-        }
-
-
-        .holo-logo {
-
-            width: 58px;
-            height: 58px;
-
-            flex: 0 0 58px;
-
-            display: flex;
-
-            align-items: center;
-            justify-content: center;
-
-            border-radius: 17px;
-
-            background:
-
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,0.17),
-                    rgba(255,255,255,0.035)
-                );
-
-            border:
-                1px solid
-                rgba(255,255,255,0.20);
-
-            box-shadow:
-
-                0 0 8px
-                rgba(255,23,68,0.50),
-
-                0 0 22px
-                rgba(255,23,68,0.20);
-        }
-
-
-        .holo-g {
-
-            font-size: 30px;
-
-            line-height: 1;
-
-            font-weight: 950;
-
-            letter-spacing: -3px;
-
-            background:
-
-                linear-gradient(
-                    135deg,
-                    #ffffff,
-                    #53efff,
-                    #b36cff,
-                    #ff3159
-                );
-
-            -webkit-background-clip:
-                text;
-
-            background-clip:
-                text;
-
-            color: transparent;
-        }
-
-
-        .brand-name {
-
-            font-size:
-                clamp(20px, 3vw, 28px);
-
-            font-weight: 900;
-
-            letter-spacing:
-                -0.7px;
-
-            background:
-
-                linear-gradient(
-                    90deg,
-                    #ffffff,
-                    #e8e8e8,
-                    #9eefff,
-                    #ffffff
-                );
-
-            -webkit-background-clip:
-                text;
-
-            background-clip:
-                text;
-
-            color: transparent;
-        }
-
-
-        .brand-subtitle {
-
-            margin-top: 5px;
-
-            font-size: 10px;
-
-            font-weight: 700;
-
-            letter-spacing: 1.8px;
-
-            text-transform:
-                uppercase;
-
-            color:
-                rgba(255,255,255,0.46);
-        }
-
-
-        .header-badge {
-
-            display: inline-flex;
-
-            align-items: center;
-
-            gap: 8px;
-
-            padding:
-                9px
-                13px;
-
-            border-radius: 999px;
-
-            background:
-                rgba(255,23,68,0.08);
-
-            border:
-                1px solid
-                rgba(255,23,68,0.35);
-
-            color:
-                rgba(255,255,255,0.78);
-
-            font-size: 10px;
-
-            font-weight: 800;
-
-            letter-spacing: 1.1px;
-
-            white-space: nowrap;
-        }
-
-
-        .header-badge-dot {
-
-            width: 7px;
-            height: 7px;
-
-            border-radius: 50%;
-
-            background:
-                #ff3159;
-
-            box-shadow:
-                0 0 10px
-                rgba(255,23,68,0.85);
-        }
-
-
-        /* =====================================================
-           HERO
-        ====================================================== */
-
-        .hero {
-
-            position: relative;
-
-            padding:
-                27px
-                25px;
-
-            margin-bottom: 18px;
-
-            border-radius: 23px;
-
-            background:
-
-                linear-gradient(
-                    145deg,
-                    rgba(12,12,14,0.90),
-                    rgba(8,8,9,0.72)
-                );
-
-            border:
-                1px solid
-                rgba(255,23,68,0.34);
-
-            box-shadow:
-
-                0 0 6px
-                rgba(255,23,68,0.18),
-
-                0 0 22px
-                rgba(255,23,68,0.08);
-        }
-
-
-        .eyebrow {
-
-            display: inline-flex;
-
-            padding:
-                7px
-                12px;
-
-            margin-bottom: 12px;
-
-            border-radius: 999px;
-
-            background:
-                rgba(255,23,68,0.08);
-
-            border:
-                1px solid
-                rgba(255,23,68,0.32);
-
-            color:
-                #ff8ba0;
-
-            font-size: 9px;
-
-            font-weight: 800;
-
-            letter-spacing: 1.8px;
-
-            text-transform:
-                uppercase;
-        }
-
-
-        .hero h1 {
-
-            font-size:
-                clamp(28px, 5vw, 44px);
-
-            line-height: 1.05;
-
-            font-weight: 900;
-
-            letter-spacing: -1.5px;
-        }
-
-
-        .hero h1 span {
-
-            background:
-
-                linear-gradient(
-                    90deg,
-                    #ffffff,
-                    #ffb3c2,
-                    #ff3159,
-                    #ffffff
-                );
-
-            -webkit-background-clip:
-                text;
-
-            background-clip:
-                text;
-
-            color: transparent;
-        }
-
-
-        .hero p {
-
-            max-width: 680px;
-
-            margin-top: 11px;
-
-            color:
-                rgba(255,255,255,0.57);
-
-            line-height: 1.7;
-
-            font-size: 13px;
-        }
-
-
-        /* =====================================================
-           CARD
-        ====================================================== */
 
         .card {
-
-            position: relative;
-
-            padding: 24px;
-
-            border-radius: 23px;
-
-            background:
-
-                linear-gradient(
-                    145deg,
-                    rgba(18,18,20,0.95),
-                    rgba(6,6,7,0.86)
-                );
-
-            border:
-                1px solid
-                rgba(255,23,68,0.34);
-
+            background: #11141b;
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 16px;
+            padding: 22px;
             box-shadow:
-
-                0 0 6px
-                rgba(255,23,68,0.14),
-
-                0 15px 40px
-                rgba(0,0,0,0.22);
-
-            overflow: hidden;
+                0 16px 40px rgba(0,0,0,.18);
         }
 
 
         .card-title {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 12px;
-
-            margin-bottom: 21px;
+            margin: 0;
+            font-size: 17px;
+            font-weight: 750;
         }
 
 
-        .card-icon {
-
-            width: 42px;
-            height: 42px;
-
-            flex: 0 0 42px;
-
-            display: flex;
-
-            align-items: center;
-            justify-content: center;
-
-            border-radius: 13px;
-
-            background:
-                rgba(255,23,68,0.09);
-
-            border:
-                1px solid
-                rgba(255,23,68,0.28);
-
-            font-size: 19px;
-
-            box-shadow:
-                0 0 16px
-                rgba(255,23,68,0.10);
+        .card-description {
+            margin: 7px 0 22px;
+            color: rgba(255,255,255,.52);
+            font-size: 13px;
+            line-height: 1.55;
         }
 
-
-        .card-title h2 {
-
-            font-size: 18px;
-
-            font-weight: 850;
-        }
-
-
-        .card-title p {
-
-            margin-top: 3px;
-
-            font-size: 11px;
-
-            color:
-                rgba(255,255,255,0.45);
-        }
-
-
-        /* =====================================================
-           FORM
-        ====================================================== */
 
         .form-group {
-
-            margin-bottom: 19px;
+            margin-bottom: 18px;
         }
 
 
         .form-label {
-
             display: block;
-
             margin-bottom: 8px;
-
-            font-size: 11px;
-
-            font-weight: 800;
-
-            letter-spacing: 0.5px;
-
-            color:
-                rgba(255,255,255,0.80);
-        }
-
-
-        .form-help {
-
-            margin-top: 7px;
-
-            font-size: 10px;
-
-            line-height: 1.6;
-
-            color:
-                rgba(255,255,255,0.38);
+            font-size: 13px;
+            font-weight: 650;
+            color: rgba(255,255,255,.82);
         }
 
 
         .form-input,
         .form-textarea {
-
             width: 100%;
-
-            color: #ffffff;
-
-            background:
-                rgba(0,0,0,0.30);
-
-            border:
-                1px solid
-                rgba(255,255,255,0.12);
-
-            border-radius: 13px;
-
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 10px;
             outline: none;
-
+            background: #0c0f15;
+            color: #ffffff;
             transition:
-                border-color .2s ease,
-                box-shadow .2s ease,
-                background .2s ease;
+                border-color .15s ease,
+                box-shadow .15s ease;
         }
 
 
         .form-input {
-
-            min-height: 48px;
-
-            padding:
-                0
-                14px;
+            min-height: 46px;
+            padding: 0 13px;
         }
 
 
         .form-textarea {
-
-            min-height: 125px;
-
-            padding:
-                13px 14px;
-
+            min-height: 120px;
+            padding: 12px 13px;
             resize: vertical;
-
-            line-height: 1.6;
+            line-height: 1.55;
         }
 
 
         .form-input:focus,
         .form-textarea:focus {
-
-            border-color:
-                rgba(255,49,89,0.68);
-
-            background:
-                rgba(255,23,68,0.035);
-
+            border-color: rgba(255,255,255,.28);
             box-shadow:
-
-                0 0 0 3px
-                rgba(255,23,68,0.08),
-
-                0 0 18px
-                rgba(255,23,68,0.08);
+                0 0 0 3px rgba(255,255,255,.04);
         }
 
 
-        .phone-row {
-
-            display: grid;
-
-            grid-template-columns:
-                1fr
-                auto;
-
-            gap: 10px;
-
-            align-items: stretch;
-        }
-
-
-        .normalize-button {
-
-            min-width: 105px;
-
-            padding:
-                0
-                15px;
-
-            border-radius: 13px;
-
-            border:
-                1px solid
-                rgba(255,255,255,0.13);
-
-            background:
-                rgba(255,255,255,0.055);
-
-            color:
-                rgba(255,255,255,0.82);
-
+        .form-help {
+            margin-top: 7px;
+            color: rgba(255,255,255,.4);
             font-size: 11px;
-
-            font-weight: 800;
-
-            cursor: pointer;
-
-            transition:
-                .2s ease;
+            line-height: 1.5;
         }
 
 
-        .normalize-button:hover {
-
-            background:
-                rgba(255,23,68,0.09);
-
-            border-color:
-                rgba(255,23,68,0.34);
-        }
-
-
-        /* =====================================================
-           TOGGLE
-        ====================================================== */
-
-        .setting-row {
-
+        .switch-row {
             display: flex;
-
             align-items: center;
-
             justify-content: space-between;
-
-            gap: 20px;
-
-            padding:
-                15px 16px;
-
-            margin-top: 5px;
-
-            border-radius: 15px;
-
-            background:
-                rgba(255,255,255,0.025);
-
-            border:
-                1px solid
-                rgba(255,255,255,0.08);
+            gap: 16px;
+            padding: 14px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.035);
+            border: 1px solid rgba(255,255,255,.06);
         }
 
 
-        .setting-copy {
-
+        .switch-info {
             min-width: 0;
         }
 
 
-        .setting-title {
-
-            font-size: 12px;
-
-            font-weight: 800;
+        .switch-title {
+            font-size: 13px;
+            font-weight: 700;
         }
 
 
-        .setting-description {
-
+        .switch-description {
             margin-top: 4px;
-
-            font-size: 10px;
-
-            line-height: 1.5;
-
-            color:
-                rgba(255,255,255,0.40);
+            color: rgba(255,255,255,.45);
+            font-size: 11px;
+            line-height: 1.45;
         }
 
 
         .switch {
-
             position: relative;
-
-            width: 52px;
-            height: 29px;
-
-            flex: 0 0 52px;
+            width: 46px;
+            height: 26px;
+            flex: 0 0 46px;
         }
 
 
         .switch input {
-
-            position: absolute;
-
             opacity: 0;
-
-            pointer-events: none;
+            width: 0;
+            height: 0;
         }
 
 
-        .switch-track {
-
+        .slider {
             position: absolute;
-
             inset: 0;
-
-            cursor: pointer;
-
             border-radius: 999px;
-
-            background:
-                rgba(255,255,255,0.13);
-
-            border:
-                1px solid
-                rgba(255,255,255,0.10);
-
-            transition:
-                .2s ease;
+            background: #303540;
+            cursor: pointer;
+            transition: .2s ease;
         }
 
 
-        .switch-track::before {
-
+        .slider::before {
             content: "";
-
             position: absolute;
-
-            width: 21px;
-            height: 21px;
-
-            top: 3px;
+            width: 20px;
+            height: 20px;
             left: 3px;
-
+            top: 3px;
             border-radius: 50%;
-
             background: #ffffff;
-
-            box-shadow:
-                0 2px 8px
-                rgba(0,0,0,0.35);
-
-            transition:
-                .2s ease;
+            transition: .2s ease;
         }
 
 
-        .switch input:checked
-        + .switch-track {
-
-            background:
-                rgba(255,23,68,0.70);
-
-            border-color:
-                rgba(255,23,68,0.80);
-
-            box-shadow:
-                0 0 14px
-                rgba(255,23,68,0.22);
+        .switch input:checked + .slider {
+            background: #16a34a;
         }
 
 
-        .switch input:checked
-        + .switch-track::before {
-
-            transform:
-                translateX(23px);
+        .switch input:checked + .slider::before {
+            transform: translateX(20px);
         }
 
-
-        /* =====================================================
-           ACTIONS
-        ====================================================== */
 
         .actions {
-
             display: flex;
-
-            align-items: center;
-
-            justify-content: space-between;
-
-            gap: 14px;
-
+            gap: 10px;
+            flex-wrap: wrap;
             margin-top: 22px;
+        }
 
-            padding-top: 19px;
 
-            border-top:
-                1px solid
-                rgba(255,255,255,0.08);
+        .button {
+            min-height: 44px;
+            padding: 0 17px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.1);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            transition:
+                opacity .15s ease,
+                background .15s ease;
+        }
+
+
+        .button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+
+        .button-primary {
+            background: #ffffff;
+            color: #0b0d12;
+        }
+
+
+        .button-primary:hover:not(:disabled) {
+            opacity: .9;
+        }
+
+
+        .button-secondary {
+            background: rgba(255,255,255,.05);
+            color: #ffffff;
+        }
+
+
+        .button-secondary:hover:not(:disabled) {
+            background: rgba(255,255,255,.09);
         }
 
 
         .status {
-
             min-height: 20px;
-
-            font-size: 11px;
-
-            font-weight: 700;
-
-            color:
-                rgba(255,255,255,0.42);
+            margin-top: 14px;
+            font-size: 12px;
+            line-height: 1.5;
         }
 
 
         .status.success {
-
-            color:
-                #69f5a4;
+            color: #4ade80;
         }
 
 
         .status.error {
-
-            color:
-                #ff718b;
+            color: #f87171;
         }
 
 
-        .save-button {
-
-            min-height: 46px;
-
-            padding:
-                0
-                21px;
-
-            border: 0;
-
-            border-radius: 13px;
-
-            color: #ffffff;
-
-            background:
-
-                linear-gradient(
-                    135deg,
-                    #ff3159,
-                    #d91542
-                );
-
-            box-shadow:
-
-                0 8px 24px
-                rgba(255,23,68,0.22),
-
-                inset 0 1px 0
-                rgba(255,255,255,0.14);
-
-            font-size: 12px;
-
-            font-weight: 850;
-
-            cursor: pointer;
-
-            transition:
-                transform .2s ease,
-                opacity .2s ease,
-                box-shadow .2s ease;
-        }
-
-
-        .save-button:hover {
-
-            transform:
-                translateY(-1px);
-
-            box-shadow:
-
-                0 11px 28px
-                rgba(255,23,68,0.30),
-
-                inset 0 1px 0
-                rgba(255,255,255,0.14);
-        }
-
-
-        .save-button:disabled {
-
-            opacity: 0.55;
-
-            cursor: wait;
-
-            transform: none;
-        }
-
-
-        /* =====================================================
-           PREVIEW
-        ====================================================== */
-
-        .preview {
-
-            margin-top: 18px;
-
-            padding: 18px;
-
-            border-radius: 18px;
-
-            background:
-                rgba(255,255,255,0.025);
-
-            border:
-                1px solid
-                rgba(255,255,255,0.08);
-        }
-
-
-        .preview-label {
-
-            font-size: 9px;
-
-            font-weight: 800;
-
-            letter-spacing: 1.5px;
-
-            text-transform:
-                uppercase;
-
-            color:
-                rgba(255,255,255,0.40);
-
-            margin-bottom: 10px;
+        .status.info {
+            color: #93c5fd;
         }
 
 
         .preview-box {
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: space-between;
-
-            gap: 15px;
-
-            padding:
-                14px;
-
+            padding: 18px;
             border-radius: 14px;
-
-            background:
-                rgba(0,0,0,0.25);
-
-            border:
-                1px solid
-                rgba(255,255,255,0.07);
+            background: #0c0f15;
+            border: 1px solid rgba(255,255,255,.07);
         }
 
 
-        .preview-copy {
-
-            min-width: 0;
+        .preview-label {
+            margin-bottom: 12px;
+            color: rgba(255,255,255,.42);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .7px;
         }
 
 
-        .preview-title {
+        .preview-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
 
-            font-size: 12px;
 
+        .preview-icon {
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #25d366;
+            color: #ffffff;
+            font-size: 20px;
             font-weight: 800;
         }
 
 
-        .preview-message {
-
-            margin-top: 4px;
-
-            color:
-                rgba(255,255,255,0.42);
-
-            font-size: 10px;
-
-            line-height: 1.5;
-
-            word-break: break-word;
+        .preview-name {
+            font-size: 14px;
+            font-weight: 750;
         }
 
 
         .preview-status {
-
-            flex: 0 0 auto;
-
-            padding:
-                6px 9px;
-
-            border-radius: 999px;
-
-            font-size: 9px;
-
-            font-weight: 800;
-
-            letter-spacing: 0.7px;
-
-            background:
-                rgba(105,245,164,0.08);
-
-            border:
-                1px solid
-                rgba(105,245,164,0.25);
-
-            color:
-                #69f5a4;
+            margin-top: 3px;
+            color: rgba(255,255,255,.45);
+            font-size: 11px;
         }
 
 
-        .preview-status.off {
-
-            background:
-                rgba(255,255,255,0.05);
-
-            border-color:
-                rgba(255,255,255,0.10);
-
-            color:
-                rgba(255,255,255,0.42);
+        .preview-message {
+            padding: 12px 13px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.06);
+            color: rgba(255,255,255,.82);
+            font-size: 13px;
+            line-height: 1.55;
+            word-break: break-word;
         }
 
 
-        /* =====================================================
-           RESPONSIVE
-        ====================================================== */
+        .preview-number {
+            margin-top: 12px;
+            color: rgba(255,255,255,.4);
+            font-size: 11px;
+        }
 
-        @media (max-width: 700px) {
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0b0d12;
+        }
+
+
+        .loading-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+
+
+        .loading-spinner {
+            width: 34px;
+            height: 34px;
+            border: 3px solid rgba(255,255,255,.12);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation:
+                hub-admin-spin .8s linear infinite;
+        }
+
+
+        .loading-text {
+            color: rgba(255,255,255,.55);
+            font-size: 12px;
+        }
+
+
+        @keyframes hub-admin-spin {
+
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+
+        }
+
+
+        @media (max-width: 900px) {
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+
+        @media (max-width: 768px) {
 
             .page {
-
-                padding:
-                    92px
-                    13px
-                    35px;
-            }
-
-
-            .page-header {
-
-                padding:
-                    16px;
-
-                border-radius:
-                    19px;
-            }
-
-
-            .holo-logo {
-
-                width: 49px;
-                height: 49px;
-
-                flex-basis: 49px;
-
-                border-radius: 14px;
-            }
-
-
-            .holo-g {
-
-                font-size: 25px;
-            }
-
-
-            .brand-subtitle {
-
-                font-size: 8px;
-
-                letter-spacing: 1.1px;
-            }
-
-
-            .header-badge {
-
-                padding:
-                    7px 9px;
-
-                font-size: 8px;
-            }
-
-
-            .hero {
-
-                padding:
-                    21px 18px;
-
-                border-radius:
-                    19px;
-            }
-
-
-            .card {
-
-                padding:
-                    18px;
-
-                border-radius:
-                    19px;
-            }
-
-
-            .phone-row {
-
-                grid-template-columns:
-                    1fr;
-            }
-
-
-            .normalize-button {
-
-                min-height: 43px;
-            }
-
-
-            .actions {
-
-                align-items:
-                    stretch;
-
-                flex-direction:
-                    column;
-            }
-
-
-            .save-button {
-
-                width: 100%;
-            }
-
-
-            .preview-box {
-
-                align-items:
-                    flex-start;
-
-                flex-direction:
-                    column;
+                padding: 22px 16px;
+                padding-top: 72px;
             }
 
         }
 
-
-        @media (max-width: 430px) {
-
-            .header-badge {
-
-                display: none;
-            }
-
-
-            .brand-name {
-
-                font-size: 20px;
-            }
-
-        }
 
     </style>
 
@@ -1472,42 +500,35 @@
 <body>
 
 
-    <!-- =====================================================
+    <!-- =========================================================
          SHARED NAVIGATION
-    ====================================================== -->
+         ========================================================= -->
 
     <div id="navigation"></div>
 
 
-    <!-- =====================================================
+    <!-- =========================================================
          PAGE LOADING
-    ====================================================== -->
+         ========================================================= -->
 
-    <div
-        id="loading"
-        aria-live="polite"
-    >
+    <div id="loading" class="loading-overlay">
 
-        <div class="loading-logo">
+        <div class="loading-box">
 
-            <span class="loading-g">
-                G
-            </span>
+            <div class="loading-spinner"></div>
 
-        </div>
+            <div class="loading-text">
+                Memuat Hub Admin...
+            </div>
 
-        <div class="loading-spinner"></div>
-
-        <div class="loading-text">
-            Memverifikasi akses admin...
         </div>
 
     </div>
 
 
-    <!-- =====================================================
+    <!-- =========================================================
          ADMIN PAGE
-    ====================================================== -->
+         ========================================================= -->
 
     <main
         id="adminPage"
@@ -1515,1798 +536,1408 @@
         style="display:none;"
     >
 
-        <div class="container">
+        <div class="page-container">
 
-
-            <!-- =================================================
-                 HEADER
-            ================================================== -->
 
             <header class="page-header">
 
-                <div class="brand-area">
+                <h1 class="page-title">
+                    Hub Admin
+                </h1>
 
-                    <div class="holo-logo">
-
-                        <span class="holo-g">
-                            G
-                        </span>
-
-                    </div>
-
-
-                    <div>
-
-                        <div class="brand-name">
-                            GEN-Z.AI
-                        </div>
-
-                        <div class="brand-subtitle">
-                            Hub Admin Configuration
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <div class="header-badge">
-
-                    <span
-                        class="header-badge-dot"
-                        aria-hidden="true"
-                    ></span>
-
-                    HUB ADMIN
-
+                <div class="page-subtitle">
+                    Konfigurasi kontak WhatsApp admin yang
+                    digunakan pengguna untuk meminta bantuan.
                 </div>
 
             </header>
 
 
-            <!-- =================================================
-                 HERO
-            ================================================== -->
-
-            <section class="hero">
-
-                <div class="eyebrow">
-                    ADMIN SETTINGS
-                </div>
-
-                <h1>
-                    Hub <span>Admin</span>
-                </h1>
-
-                <p>
-                    Atur kontak WhatsApp yang digunakan
-                    pengguna untuk menghubungi admin GEN-Z.AI.
-                    Halaman ini hanya mengatur kanal kontak admin.
-                </p>
-
-            </section>
+            <div class="grid">
 
 
-            <!-- =================================================
-                 SETTINGS CARD
-            ================================================== -->
+                <!-- =================================================
+                     SETTINGS
+                     ================================================= -->
 
-            <section class="card">
+                <section class="card">
 
-                <div class="card-title">
+                    <h2 class="card-title">
+                        Konfigurasi WhatsApp Admin
+                    </h2>
 
-                    <div class="card-icon">
-                        ◉
-                    </div>
-
-                    <div>
-
-                        <h2>
-                            WhatsApp Admin
-                        </h2>
-
-                        <p>
-                            Konfigurasi kontak yang ditampilkan
-                            pada Hub Admin pengguna.
-                        </p>
-
-                    </div>
-
-                </div>
+                    <p class="card-description">
+                        Nomor dan pesan ini akan digunakan
+                        sebagai tujuan bantuan admin.
+                    </p>
 
 
-                <!-- =============================================
-                     PHONE
-                ============================================== -->
+                    <div class="form-group">
 
-                <div class="form-group">
+                        <label
+                            class="form-label"
+                            for="whatsappNumber"
+                        >
+                            Nomor WhatsApp Admin
+                        </label>
 
-                    <label
-                        class="form-label"
-                        for="whatsappNumber"
-                    >
-                        Nomor WhatsApp Admin
-                    </label>
-
-
-                    <div class="phone-row">
 
                         <input
                             id="whatsappNumber"
                             class="form-input"
-                            type="tel"
+                            type="text"
                             inputmode="numeric"
                             autocomplete="tel"
-                            placeholder="6281234567890"
+                            placeholder="628xxxxxxxxxx"
                         >
+
+
+                        <div class="form-help">
+                            Gunakan format internasional tanpa tanda
+                            +, contoh: 628123456789.
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label
+                            class="form-label"
+                            for="whatsappMessage"
+                        >
+                            Pesan WhatsApp
+                        </label>
+
+
+                        <textarea
+                            id="whatsappMessage"
+                            class="form-textarea"
+                            placeholder="Pesan bantuan admin..."
+                        ></textarea>
+
+
+                        <div class="form-help">
+                            Pesan awal yang akan otomatis dimasukkan
+                            ketika pengguna membuka WhatsApp admin.
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <div class="switch-row">
+
+                            <div class="switch-info">
+
+                                <div class="switch-title">
+                                    Status Hub Admin
+                                </div>
+
+                                <div class="switch-description">
+                                    Aktifkan agar konfigurasi ini
+                                    dapat digunakan oleh sistem.
+                                </div>
+
+                            </div>
+
+
+                            <label class="switch">
+
+                                <input
+                                    id="isActive"
+                                    type="checkbox"
+                                    checked
+                                >
+
+                                <span class="slider"></span>
+
+                            </label>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="actions">
+
+                        <button
+                            id="normalizeButton"
+                            type="button"
+                            class="button button-secondary"
+                        >
+                            Normalisasi Nomor
+                        </button>
 
 
                         <button
+                            id="saveButton"
                             type="button"
-                            id="normalizeButton"
-                            class="normalize-button"
+                            class="button button-primary"
                         >
-                            Normalisasi
+                            Simpan Konfigurasi
                         </button>
 
                     </div>
 
 
-                    <div class="form-help">
+                    <div
+                        id="status"
+                        class="status"
+                    ></div>
 
-                        Gunakan format internasional tanpa tanda
-                        <strong>+</strong>, spasi, atau tanda baca.
-                        Contoh: 6281234567890.
-
-                    </div>
-
-                </div>
+                </section>
 
 
-                <!-- =============================================
-                     MESSAGE
-                ============================================== -->
-
-                <div class="form-group">
-
-                    <label
-                        class="form-label"
-                        for="whatsappMessage"
-                    >
-                        Pesan WhatsApp Default
-                    </label>
-
-
-                    <textarea
-                        id="whatsappMessage"
-                        class="form-textarea"
-                        maxlength="500"
-                        placeholder="Halo Admin GEN-Z.AI, saya membutuhkan bantuan."
-                    ></textarea>
-
-
-                    <div class="form-help">
-
-                        Pesan ini otomatis dimasukkan ketika user
-                        menekan tombol Hubungi Admin.
-
-                    </div>
-
-                </div>
-
-
-                <!-- =============================================
-                     ENABLE
-                ============================================== -->
-
-                <div class="setting-row">
-
-                    <div class="setting-copy">
-
-                        <div class="setting-title">
-                            Aktifkan Hub Admin
-                        </div>
-
-                        <div class="setting-description">
-
-                            Jika aktif, pengguna dapat membuka
-                            WhatsApp admin dari halaman Hub Admin.
-
-                        </div>
-
-                    </div>
-
-
-                    <label class="switch">
-
-                        <input
-                            id="isActive"
-                            type="checkbox"
-                        >
-
-                        <span class="switch-track"></span>
-
-                    </label>
-
-                </div>
-
-
-                <!-- =============================================
+                <!-- =================================================
                      PREVIEW
-                ============================================== -->
+                     ================================================= -->
 
-                <div class="preview">
+                <section class="card">
 
-                    <div class="preview-label">
+                    <h2 class="card-title">
                         Preview
-                    </div>
+                    </h2>
+
+                    <p class="card-description">
+                        Tampilan informasi kontak admin
+                        berdasarkan konfigurasi saat ini.
+                    </p>
 
 
                     <div class="preview-box">
 
-                        <div class="preview-copy">
+                        <div class="preview-label">
+                            Hub Admin
+                        </div>
 
-                            <div
-                                id="previewNumber"
-                                class="preview-title"
-                            >
-                                Nomor belum diatur
+
+                        <div class="preview-header">
+
+                            <div class="preview-icon">
+                                WA
                             </div>
 
-                            <div
-                                id="previewMessage"
-                                class="preview-message"
-                            >
-                                Pesan belum diatur.
+
+                            <div>
+
+                                <div class="preview-name">
+                                    Admin GEN-Z.AI
+                                </div>
+
+
+                                <div
+                                    id="previewStatus"
+                                    class="preview-status"
+                                >
+                                    Aktif
+                                </div>
+
                             </div>
 
                         </div>
 
 
                         <div
-                            id="previewStatus"
-                            class="preview-status off"
+                            id="previewMessage"
+                            class="preview-message"
                         >
-                            NONAKTIF
+                            Halo Admin GEN-Z.AI,
+                            saya membutuhkan bantuan.
+                        </div>
+
+
+                        <div
+                            id="previewNumber"
+                            class="preview-number"
+                        >
+                            Nomor belum diatur
                         </div>
 
                     </div>
 
-                </div>
+                </section>
 
 
-                <!-- =============================================
-                     ACTION
-                ============================================== -->
-
-                <div class="actions">
-
-                    <div
-                        id="status"
-                        class="status"
-                        aria-live="polite"
-                    ></div>
-
-
-                    <button
-                        type="button"
-                        id="saveButton"
-                        class="save-button"
-                    >
-                        Simpan Konfigurasi
-                    </button>
-
-                </div>
-
-            </section>
+            </div>
 
         </div>
 
     </main>
 
 
-    <!-- =====================================================
-         CONTROLLER
-    ====================================================== -->
-
     <script>
 
-(() => {
+        (() => {
 
-    "use strict";
+            "use strict";
 
 
-    /* =========================================================
-       CONFIG
-    ========================================================= */
+            /* =====================================================
+               CONFIG
+               ===================================================== */
 
-    const TABLE =
-        "hub_admin_settings";
+            const TABLE =
+                "hub_admin_settings";
 
 
-    const DEFAULT_MESSAGE =
-        "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
+            const DEFAULT_MESSAGE =
+                "Halo Admin GEN-Z.AI, saya membutuhkan bantuan.";
 
 
-    /* =========================================================
-       ELEMENTS
-    ========================================================= */
+            /* =====================================================
+               DOM
+               ===================================================== */
 
-    const loading =
-        document.getElementById(
-            "loading"
-        );
-
-
-    const adminPage =
-        document.getElementById(
-            "adminPage"
-        );
-
-
-    const whatsappNumber =
-        document.getElementById(
-            "whatsappNumber"
-        );
-
-
-    const whatsappMessage =
-        document.getElementById(
-            "whatsappMessage"
-        );
-
-
-    const isActive =
-        document.getElementById(
-            "isActive"
-        );
-
-
-    const saveButton =
-        document.getElementById(
-            "saveButton"
-        );
-
-
-    const normalizeButton =
-        document.getElementById(
-            "normalizeButton"
-        );
-
-
-    const status =
-        document.getElementById(
-            "status"
-        );
-
-
-    const previewNumber =
-        document.getElementById(
-            "previewNumber"
-        );
-
-
-    const previewMessage =
-        document.getElementById(
-            "previewMessage"
-        );
-
-
-    const previewStatus =
-        document.getElementById(
-            "previewStatus"
-        );
-
-
-    /* =========================================================
-       STATE
-    ========================================================= */
-
-    let settingsId = null;
-
-
-    /* =========================================================
-       SUPABASE CLIENT
-    ========================================================= */
-
-    function ensureSupabaseClient() {
-
-        /*
-         * Prioritaskan client GEN-Z.AI.
-         */
-
-        if (
-            window.GENZ_SUPABASE &&
-            typeof
-                window.GENZ_SUPABASE.from ===
-                "function"
-        ) {
-
-            window.supabaseClient =
-                window.GENZ_SUPABASE;
-
-
-            return window.GENZ_SUPABASE;
-
-        }
-
-
-        /*
-         * Fallback client global.
-         */
-
-        if (
-            window.supabaseClient &&
-            typeof
-                window.supabaseClient.from ===
-                "function"
-        ) {
-
-            window.GENZ_SUPABASE =
-                window.supabaseClient;
-
-
-            return window.supabaseClient;
-
-        }
-
-
-        /*
-         * Pastikan library Supabase tersedia.
-         */
-
-        if (
-            !window.supabase ||
-            typeof
-                window.supabase.createClient !==
-                "function"
-        ) {
-
-            throw new Error(
-                "Library Supabase belum tersedia."
-            );
-
-        }
-
-
-        /*
-         * Pastikan config tersedia.
-         */
-
-        if (
-            !window.GENZ_CONFIG
-        ) {
-
-            throw new Error(
-                "GENZ_CONFIG tidak tersedia. Periksa ../../assets/js/config.js."
-            );
-
-        }
-
-
-        const url =
-            String(
-                window.GENZ_CONFIG
-                    .SUPABASE_URL ||
-                ""
-            ).trim();
-
-
-        const key =
-            String(
-                window.GENZ_CONFIG
-                    .SUPABASE_KEY ||
-                ""
-            ).trim();
-
-
-        if (
-            !url ||
-            !key
-        ) {
-
-            throw new Error(
-                "Konfigurasi Supabase tidak lengkap."
-            );
-
-        }
-
-
-        /*
-         * Buat client hanya jika memang
-         * belum tersedia.
-         */
-
-        const client =
-            window.supabase.createClient(
-                url,
-                key
-            );
-
-
-        window.GENZ_SUPABASE =
-            client;
-
-
-        window.supabaseClient =
-            client;
-
-
-        return client;
-
-    }
-
-
-    function getClient() {
-
-        const client =
-            ensureSupabaseClient();
-
-
-        if (
-            !client ||
-            typeof client.from !==
-                "function"
-        ) {
-
-            throw new Error(
-                "Supabase client tidak tersedia."
-            );
-
-        }
-
-
-        return client;
-
-    }
-
-
-    /* =========================================================
-       LOADING
-    ========================================================= */
-
-    function hideLoading() {
-
-        if (loading) {
-
-            loading.style.display =
-                "none";
-
-        }
-
-    }
-
-
-    function showPage() {
-
-        if (adminPage) {
-
-            adminPage.style.display =
-                "";
-
-        }
-
-
-        hideLoading();
-
-    }
-
-
-    /* =========================================================
-       STATUS
-    ========================================================= */
-
-    function setStatus(
-        message,
-        type = ""
-    ) {
-
-        if (!status) {
-
-            return;
-
-        }
-
-
-        status.textContent =
-            message || "";
-
-
-        status.className =
-            "status";
-
-
-        if (type) {
-
-            status.classList.add(
-                type
-            );
-
-        }
-
-    }
-
-
-    /* =========================================================
-       PHONE NORMALIZER
-    ========================================================= */
-
-    function normalizePhone(
-        value
-    ) {
-
-        let phone =
-            String(
-                value || ""
-            ).trim();
-
-
-        /*
-         * Hapus karakter selain angka.
-         */
-
-        phone =
-            phone.replace(
-                /\D/g,
-                ""
-            );
-
-
-        /*
-         * 08xxxxxxxxxx
-         * →
-         * 628xxxxxxxxxx
-         */
-
-        if (
-            phone.startsWith(
-                "08"
-            )
-        ) {
-
-            phone =
-                "62" +
-                phone.slice(1);
-
-        }
-
-
-        /*
-         * 008xxxxxxxxxx
-         * →
-         * 628xxxxxxxxxx
-         */
-
-        if (
-            phone.startsWith(
-                "008"
-            )
-        ) {
-
-            phone =
-                "62" +
-                phone.slice(3);
-
-        }
-
-
-        return phone;
-
-    }
-
-
-    /* =========================================================
-       PREVIEW
-    ========================================================= */
-
-    function updatePreview() {
-
-        const number =
-            String(
-                whatsappNumber?.value ||
-                ""
-            ).trim();
-
-
-        const message =
-            String(
-                whatsappMessage?.value ||
-                ""
-            ).trim();
-
-
-        if (previewNumber) {
-
-            previewNumber.textContent =
-                number
-                    ? number
-                    : "Nomor belum diatur";
-
-        }
-
-
-        if (previewMessage) {
-
-            previewMessage.textContent =
-                message
-                    ? message
-                    : "Pesan belum diatur.";
-
-        }
-
-
-        if (previewStatus) {
-
-            const active =
-                Boolean(
-                    isActive?.checked
+            const adminPage =
+                document.getElementById(
+                    "adminPage"
                 );
 
 
-            previewStatus.textContent =
-                active
-                    ? "AKTIF"
-                    : "NONAKTIF";
-
-
-            previewStatus.classList.toggle(
-                "off",
-                !active
-            );
-
-        }
-
-    }
-
-
-    /* =========================================================
-       ADMIN ACCESS
-    ========================================================= */
-
-    function hasAdminAccess() {
-
-        const role =
-            String(
-                window.GENZ_NAVIGATION_ROLE ||
-                ""
-            )
-            .trim()
-            .toLowerCase();
-
-
-        return (
-            role === "admin" ||
-            role === "owner"
-        );
-
-    }
-
-
-    /* =========================================================
-       LOAD SETTINGS
-    ========================================================= */
-
-    async function loadSettings() {
-
-        const client =
-            getClient();
-
-
-        const result =
-            await client
-                .from(TABLE)
-                .select(
-                    "id,whatsapp_number,whatsapp_message,is_active"
-                )
-                .order(
-                    "id",
-                    {
-                        ascending:
-                            true
-                    }
-                )
-                .limit(1);
-
-
-        if (result.error) {
-
-            throw result.error;
-
-        }
-
-
-        const rows =
-            Array.isArray(
-                result.data
-            )
-                ? result.data
-                : [];
-
-
-        const row =
-            rows.length
-                ? rows[0]
-                : null;
-
-
-        /*
-         * BELUM ADA KONFIGURASI
-         */
-
-        if (!row) {
-
-            settingsId =
-                null;
-
-
-            whatsappNumber.value =
-                "";
-
-
-            whatsappMessage.value =
-                DEFAULT_MESSAGE;
-
-
-            isActive.checked =
-                true;
-
-
-            updatePreview();
-
-
-            return;
-
-        }
-
-
-        /*
-         * KONFIGURASI SUDAH ADA
-         */
-
-        settingsId =
-            row.id;
-
-
-        whatsappNumber.value =
-            String(
-                row.whatsapp_number ||
-                ""
-            ).trim();
-
-
-        whatsappMessage.value =
-            String(
-                row.whatsapp_message ||
-                DEFAULT_MESSAGE
-            );
-
-
-        isActive.checked =
-            row.is_active === true;
-
-
-        updatePreview();
-
-    }
-
-
-    /* =========================================================
-       FIND EXISTING SETTINGS
-    ========================================================= */
-
-    async function findExistingSettings() {
-
-        const client =
-            getClient();
-
-
-        const result =
-            await client
-                .from(TABLE)
-                .select(
-                    "id,whatsapp_number,whatsapp_message,is_active"
-                )
-                .order(
-                    "id",
-                    {
-                        ascending:
-                            true
-                    }
-                )
-                .limit(1);
-
-
-        if (result.error) {
-
-            throw result.error;
-
-        }
-
-
-        const rows =
-            Array.isArray(
-                result.data
-            )
-                ? result.data
-                : [];
-
-
-        return rows.length
-            ? rows[0]
-            : null;
-
-    }
-
-
-    /* =========================================================
-       VERIFY SAVED DATA
-    ========================================================= */
-
-    async function verifySavedData(
-        expectedNumber,
-        expectedMessage,
-        expectedActive
-    ) {
-
-        const client =
-            getClient();
-
-
-        let query =
-            client
-                .from(TABLE)
-                .select(
-                    "id,whatsapp_number,whatsapp_message,is_active"
+            const loading =
+                document.getElementById(
+                    "loading"
                 );
 
 
-        /*
-         * Jika ID sudah diketahui,
-         * verifikasi row tersebut.
-         */
-
-        if (
-            settingsId !== null &&
-            settingsId !== undefined &&
-            settingsId !== ""
-        ) {
-
-            query =
-                query.eq(
-                    "id",
-                    settingsId
+            const whatsappNumber =
+                document.getElementById(
+                    "whatsappNumber"
                 );
 
-        } else {
 
-            query =
-                query
-                    .order(
-                        "id",
-                        {
-                            ascending:
-                                true
-                        }
-                    )
-                    .limit(1);
+            const whatsappMessage =
+                document.getElementById(
+                    "whatsappMessage"
+                );
 
-        }
 
+            const isActive =
+                document.getElementById(
+                    "isActive"
+                );
 
-        const result =
-            await query;
 
+            const normalizeButton =
+                document.getElementById(
+                    "normalizeButton"
+                );
 
-        if (result.error) {
 
-            throw result.error;
+            const saveButton =
+                document.getElementById(
+                    "saveButton"
+                );
 
-        }
 
+            const status =
+                document.getElementById(
+                    "status"
+                );
 
-        const rows =
-            Array.isArray(
-                result.data
-            )
-                ? result.data
-                : [];
 
+            const previewNumber =
+                document.getElementById(
+                    "previewNumber"
+                );
 
-        const row =
-            rows.length
-                ? rows[0]
-                : null;
 
+            const previewMessage =
+                document.getElementById(
+                    "previewMessage"
+                );
 
-        if (!row) {
 
-            throw new Error(
-                "Data tidak ditemukan setelah disimpan. Periksa RLS policy tabel hub_admin_settings."
-            );
+            const previewStatus =
+                document.getElementById(
+                    "previewStatus"
+                );
 
-        }
 
+            /* =====================================================
+               STATE
+               ===================================================== */
 
-        settingsId =
-            row.id;
+            let settingsId = null;
 
 
-        const savedNumber =
-            normalizePhone(
-                row.whatsapp_number
-            );
+            /* =====================================================
+               STATUS
+               ===================================================== */
 
-
-        const savedMessage =
-            String(
-                row.whatsapp_message ||
-                ""
-            ).trim();
-
-
-        const savedActive =
-            row.is_active === true;
-
-
-        /*
-         * VERIFIKASI NOMOR
-         */
-
-        if (
-            savedNumber !==
-            expectedNumber
-        ) {
-
-            throw new Error(
-                "Nomor WhatsApp tidak tersimpan ke database. Database masih mengembalikan: " +
-                (
-                    row.whatsapp_number ||
-                    "(kosong)"
-                )
-            );
-
-        }
-
-
-        /*
-         * VERIFIKASI PESAN
-         */
-
-        if (
-            savedMessage !==
-            expectedMessage
-        ) {
-
-            throw new Error(
-                "Pesan WhatsApp tidak sesuai dengan data yang disimpan."
-            );
-
-        }
-
-
-        /*
-         * VERIFIKASI STATUS
-         */
-
-        if (
-            savedActive !==
-            expectedActive
-        ) {
-
-            throw new Error(
-                "Status Hub Admin tidak sesuai dengan data yang disimpan."
-            );
-
-        }
-
-
-        /*
-         * Sinkronkan UI dengan database.
-         */
-
-        whatsappNumber.value =
-            row.whatsapp_number ||
-            "";
-
-
-        whatsappMessage.value =
-            row.whatsapp_message ||
-            DEFAULT_MESSAGE;
-
-
-        isActive.checked =
-            row.is_active === true;
-
-
-        updatePreview();
-
-
-        return row;
-
-    }
-
-
-    /* =========================================================
-       SAVE SETTINGS
-    ========================================================= */
-
-    async function saveSettings() {
-
-        const client =
-            getClient();
-
-
-        /*
-         * Ambil nilai terbaru.
-         */
-
-        const number =
-            normalizePhone(
-                whatsappNumber.value
-            );
-
-
-        const message =
-            String(
-                whatsappMessage.value ||
-                ""
-            ).trim();
-
-
-        const active =
-            Boolean(
-                isActive.checked
-            );
-
-
-        /* =====================================================
-           VALIDASI NOMOR
-        ====================================================== */
-
-        if (!number) {
-
-            throw new Error(
-                "Nomor WhatsApp admin wajib diisi."
-            );
-
-        }
-
-
-        if (
-            !/^62\d{8,15}$/.test(
-                number
-            )
-        ) {
-
-            throw new Error(
-                "Nomor WhatsApp tidak valid. Gunakan format 628xxxxxxxxxx."
-            );
-
-        }
-
-
-        /* =====================================================
-           VALIDASI PESAN
-        ====================================================== */
-
-        if (!message) {
-
-            throw new Error(
-                "Pesan WhatsApp wajib diisi."
-            );
-
-        }
-
-
-        /*
-         * Tampilkan hasil normalisasi.
-         */
-
-        whatsappNumber.value =
-            number;
-
-
-        updatePreview();
-
-
-        /* =====================================================
-           PAYLOAD
-        ====================================================== */
-
-        const payload = {
-
-            whatsapp_number:
-                number,
-
-            whatsapp_message:
+            function setStatus(
                 message,
+                type = "info"
+            ) {
 
-            is_active:
-                active,
-
-            updated_at:
-                new Date().toISOString()
-
-        };
+                if (!status) {
+                    return;
+                }
 
 
-        /* =====================================================
-           CARI ROW YANG SUDAH ADA
-        ====================================================== */
-
-        if (
-            settingsId === null ||
-            settingsId === undefined ||
-            settingsId === ""
-        ) {
-
-            const existing =
-                await findExistingSettings();
+                status.textContent =
+                    message || "";
 
 
-            if (existing) {
+                status.className =
+                    "status";
+
+
+                if (message) {
+
+                    status.classList.add(
+                        type
+                    );
+
+                }
+
+            }
+
+
+            /* =====================================================
+               LOADING
+               ===================================================== */
+
+            function hideLoading() {
+
+                if (!loading) {
+                    return;
+                }
+
+
+                loading.remove();
+            }
+
+
+            /* =====================================================
+               SUPABASE CLIENT
+               ===================================================== */
+
+            function ensureSupabaseClient() {
+
+                /*
+                 * navigation.js seharusnya sudah membuat
+                 * shared client.
+                 *
+                 * Jangan membuat client kedua jika
+                 * shared client tersedia.
+                 */
+
+                if (
+                    window.GENZ_SUPABASE &&
+                    window.GENZ_SUPABASE.auth
+                ) {
+
+                    window.supabaseClient =
+                        window.GENZ_SUPABASE;
+
+                    return window.GENZ_SUPABASE;
+                }
+
+
+                if (
+                    window.supabaseClient &&
+                    window.supabaseClient.auth
+                ) {
+
+                    window.GENZ_SUPABASE =
+                        window.supabaseClient;
+
+                    return window.supabaseClient;
+                }
+
+
+                const supabaseLibrary =
+                    window.supabase;
+
+
+                const config =
+                    window.GENZ_CONFIG;
+
+
+                if (
+                    !supabaseLibrary ||
+                    typeof supabaseLibrary.createClient !==
+                        "function"
+                ) {
+
+                    throw new Error(
+                        "Supabase JS library tidak tersedia."
+                    );
+                }
+
+
+                if (!config) {
+
+                    throw new Error(
+                        "GENZ_CONFIG tidak tersedia."
+                    );
+                }
+
+
+                const url =
+                    String(
+                        config.SUPABASE_URL ||
+                        ""
+                    ).trim();
+
+
+                const key =
+                    String(
+                        config.SUPABASE_KEY ||
+                        ""
+                    ).trim();
+
+
+                if (!url || !key) {
+
+                    throw new Error(
+                        "SUPABASE_URL atau SUPABASE_KEY tidak tersedia."
+                    );
+                }
+
+
+                const client =
+                    supabaseLibrary.createClient(
+                        url,
+                        key,
+                        {
+                            auth: {
+                                persistSession: true,
+                                autoRefreshToken: true,
+                                detectSessionInUrl: true
+                            }
+                        }
+                    );
+
+
+                window.GENZ_SUPABASE =
+                    client;
+
+                window.supabaseClient =
+                    client;
+
+
+                return client;
+            }
+
+
+            function getClient() {
+
+                return ensureSupabaseClient();
+            }
+
+
+            /* =====================================================
+               ACCESS
+               ===================================================== */
+
+            function hasAdminAccess() {
+
+                const role =
+                    String(
+                        window.GENZ_NAVIGATION_ROLE ||
+                        ""
+                    )
+                    .trim()
+                    .toLowerCase();
+
+
+                return (
+                    role === "admin" ||
+                    role === "owner"
+                );
+            }
+
+
+            /* =====================================================
+               PHONE NORMALIZATION
+               ===================================================== */
+
+            function normalizePhone(
+                value
+            ) {
+
+                let number =
+                    String(
+                        value || ""
+                    )
+                    .trim();
+
+
+                /*
+                 * Hapus karakter non-digit.
+                 */
+
+                number =
+                    number.replace(
+                        /\D/g,
+                        ""
+                    );
+
+
+                /*
+                 * 08xxxxxxxxxx
+                 * menjadi
+                 * 628xxxxxxxxxx
+                 */
+
+                if (
+                    number.startsWith("0")
+                ) {
+
+                    number =
+                        "62" +
+                        number.slice(1);
+                }
+
+
+                /*
+                 * +62xxxx
+                 */
+
+                if (
+                    number.startsWith("620")
+                ) {
+
+                    number =
+                        "62" +
+                        number.slice(3);
+                }
+
+
+                return number;
+            }
+
+
+            /* =====================================================
+               PREVIEW
+               ===================================================== */
+
+            function updatePreview() {
+
+                const number =
+                    normalizePhone(
+                        whatsappNumber?.value
+                    );
+
+
+                const message =
+                    String(
+                        whatsappMessage?.value ||
+                        DEFAULT_MESSAGE
+                    ).trim();
+
+
+                const active =
+                    Boolean(
+                        isActive?.checked
+                    );
+
+
+                if (previewNumber) {
+
+                    previewNumber.textContent =
+                        number
+                            ? number
+                            : "Nomor belum diatur";
+
+                }
+
+
+                if (previewMessage) {
+
+                    previewMessage.textContent =
+                        message ||
+                        DEFAULT_MESSAGE;
+
+                }
+
+
+                if (previewStatus) {
+
+                    previewStatus.textContent =
+                        active
+                            ? "Aktif"
+                            : "Nonaktif";
+
+                }
+
+            }
+
+
+            /* =====================================================
+               FIND EXISTING SETTINGS
+               ===================================================== */
+
+            async function findExistingSettings() {
+
+                const client =
+                    getClient();
+
+
+                const result =
+                    await client
+                        .from(TABLE)
+                        .select(
+                            "id,whatsapp_number,whatsapp_message,is_active"
+                        )
+                        .order(
+                            "id",
+                            {
+                                ascending: true
+                            }
+                        )
+                        .limit(1);
+
+
+                if (result.error) {
+
+                    console.error(
+                        "[GEN-Z.AI] Hub Admin SELECT error:",
+                        result.error
+                    );
+
+
+                    throw new Error(
+                        result.error.message ||
+                        "Gagal membaca konfigurasi Hub Admin."
+                    );
+                }
+
+
+                return (
+                    result.data &&
+                    result.data.length
+                )
+                    ? result.data[0]
+                    : null;
+            }
+
+
+            /* =====================================================
+               LOAD SETTINGS
+               ===================================================== */
+
+            async function loadSettings() {
+
+                const existing =
+                    await findExistingSettings();
+
+
+                if (!existing) {
+
+                    settingsId =
+                        null;
+
+
+                    whatsappNumber.value =
+                        "";
+
+
+                    whatsappMessage.value =
+                        DEFAULT_MESSAGE;
+
+
+                    isActive.checked =
+                        true;
+
+
+                    updatePreview();
+
+
+                    return;
+                }
+
 
                 settingsId =
                     existing.id;
 
+
+                whatsappNumber.value =
+                    existing.whatsapp_number ||
+                    "";
+
+
+                whatsappMessage.value =
+                    existing.whatsapp_message ||
+                    DEFAULT_MESSAGE;
+
+
+                isActive.checked =
+                    existing.is_active !== false;
+
+
+                updatePreview();
+
             }
 
-        }
+
+            /* =====================================================
+               VERIFY SAVED DATA
+               ===================================================== */
+
+            async function verifySavedData(
+                number,
+                message,
+                active
+            ) {
+
+                const client =
+                    getClient();
 
 
-        /* =====================================================
-           UPDATE
-        ====================================================== */
+                const result =
+                    await client
+                        .from(TABLE)
+                        .select(
+                            "id,whatsapp_number,whatsapp_message,is_active"
+                        )
+                        .eq(
+                            "id",
+                            settingsId
+                        )
+                        .maybeSingle();
 
-        if (
-            settingsId !== null &&
-            settingsId !== undefined &&
-            settingsId !== ""
-        ) {
 
-            /*
-             * Tidak memakai .select()
-             * agar tidak terjadi masalah coercion
-             * atau response kosong dari PostgREST.
-             */
+                if (result.error) {
 
-            const updateResult =
-                await client
-                    .from(TABLE)
-                    .update(
-                        payload
+                    console.error(
+                        "[GEN-Z.AI] Hub Admin VERIFY error:",
+                        result.error
+                    );
+
+
+                    throw new Error(
+                        result.error.message ||
+                        "Konfigurasi tersimpan tetapi gagal diverifikasi."
+                    );
+                }
+
+
+                const row =
+                    result.data;
+
+
+                if (!row) {
+
+                    throw new Error(
+                        "Konfigurasi berhasil diproses tetapi data tidak ditemukan saat verifikasi."
+                    );
+                }
+
+
+                const savedNumber =
+                    normalizePhone(
+                        row.whatsapp_number
+                    );
+
+
+                const savedMessage =
+                    String(
+                        row.whatsapp_message ||
+                        ""
+                    ).trim();
+
+
+                const savedActive =
+                    Boolean(
+                        row.is_active
+                    );
+
+
+                if (
+                    savedNumber !== number ||
+                    savedMessage !== message ||
+                    savedActive !== active
+                ) {
+
+                    throw new Error(
+                        "Data berhasil diproses tetapi hasil verifikasi tidak sesuai."
+                    );
+                }
+
+
+                return true;
+            }
+
+
+            /* =====================================================
+               SAVE SETTINGS
+               ===================================================== */
+
+            async function saveSettings() {
+
+                const client =
+                    getClient();
+
+
+                const number =
+                    normalizePhone(
+                        whatsappNumber.value
+                    );
+
+
+                const message =
+                    String(
+                        whatsappMessage.value ||
+                        ""
+                    ).trim();
+
+
+                const active =
+                    Boolean(
+                        isActive.checked
+                    );
+
+
+                if (!number) {
+
+                    throw new Error(
+                        "Nomor WhatsApp admin wajib diisi."
+                    );
+                }
+
+
+                if (
+                    !/^62\d{8,15}$/.test(
+                        number
                     )
-                    .eq(
-                        "id",
-                        settingsId
+                ) {
+
+                    throw new Error(
+                        "Nomor WhatsApp tidak valid. Gunakan format 628xxxxxxxxxx."
                     );
+                }
 
 
-            if (
-                updateResult.error
-            ) {
+                if (!message) {
 
-                console.error(
-                    "[GEN-Z.AI] Hub Admin UPDATE error:",
-                    updateResult.error
-                );
-
-
-                throw new Error(
-                    updateResult.error.message ||
-                    "Gagal memperbarui konfigurasi Hub Admin."
-                );
-
-            }
-
-        }
-
-
-        /* =====================================================
-           INSERT
-        ====================================================== */
-
-        else {
-
-            /*
-             * Hanya insert jika tabel
-             * benar-benar belum mempunyai row.
-             */
-
-            const insertResult =
-                await client
-                    .from(TABLE)
-                    .insert(
-                        payload
+                    throw new Error(
+                        "Pesan WhatsApp wajib diisi."
                     );
+                }
 
 
-            if (
-                insertResult.error
-            ) {
-
-                console.error(
-                    "[GEN-Z.AI] Hub Admin INSERT error:",
-                    insertResult.error
-                );
+                whatsappNumber.value =
+                    number;
 
 
-                throw new Error(
-                    insertResult.error.message ||
-                    "Gagal membuat konfigurasi Hub Admin."
-                );
-
-            }
+                updatePreview();
 
 
-            /*
-             * Jangan mengandalkan response INSERT.
-             * Cari row kembali.
-             */
+                const payload = {
 
-            const inserted =
-                await findExistingSettings();
+                    whatsapp_number:
+                        number,
 
+                    whatsapp_message:
+                        message,
 
-            if (!inserted) {
+                    is_active:
+                        active,
 
-                throw new Error(
-                    "Konfigurasi berhasil diproses tetapi row tidak dapat ditemukan kembali."
-                );
+                    updated_at:
+                        new Date().toISOString()
 
-            }
+                };
 
-
-            settingsId =
-                inserted.id;
-
-        }
-
-
-        /* =====================================================
-           VERIFIKASI FINAL
-        ====================================================== */
-
-        await verifySavedData(
-            number,
-            message,
-            active
-        );
-
-
-        return true;
-
-    }
-
-
-    /* =========================================================
-       START
-       FIX: MENCEGAH BLANK SCREEN
-    ========================================================= */
-
-    async function start() {
-
-        /*
-         * Jangan langsung menghilangkan loading
-         * sebelum adminPage ditampilkan.
-         *
-         * Versi lama bisa menghasilkan:
-         *
-         * loading = hidden
-         * adminPage = display:none
-         *
-         * sehingga layar menjadi kosong.
-         */
-
-
-        let navigationReady =
-            false;
-
-
-        /* =====================================================
-           TUNGGU NAVIGATION
-        ====================================================== */
-
-        if (
-            window.GENZNavigationReady &&
-            typeof
-                window.GENZNavigationReady.then ===
-                "function"
-        ) {
-
-            try {
-
-                await window.GENZNavigationReady;
-
-                navigationReady =
-                    true;
-
-            } catch (error) {
-
-                console.error(
-                    "[GEN-Z.AI] Navigation initialization failed:",
-                    error
-                );
 
                 /*
-                 * Jangan biarkan navigation error
-                 * membuat halaman menjadi blank.
+                 * Jika ID belum diketahui,
+                 * cari row existing terlebih dahulu.
                  */
 
-                navigationReady =
-                    false;
+                if (
+                    settingsId === null ||
+                    settingsId === undefined ||
+                    settingsId === ""
+                ) {
 
-            }
+                    const existing =
+                        await findExistingSettings();
 
-        }
 
+                    if (existing) {
 
-        /* =====================================================
-           TUNGGU ROLE
-        ====================================================== */
+                        settingsId =
+                            existing.id;
 
-        let attempts =
-            0;
+                    }
 
+                }
 
-        const maxAttempts =
-            30;
 
+                /*
+                 * UPDATE
+                 */
 
-        while (
-            attempts < maxAttempts
-        ) {
+                if (
+                    settingsId !== null &&
+                    settingsId !== undefined &&
+                    settingsId !== ""
+                ) {
 
-            const currentRole =
-                String(
-                    window.GENZ_NAVIGATION_ROLE ||
-                    ""
-                )
-                .trim()
-                .toLowerCase();
+                    const updateResult =
+                        await client
+                            .from(TABLE)
+                            .update(
+                                payload
+                            )
+                            .eq(
+                                "id",
+                                settingsId
+                            );
 
 
-            /*
-             * Role sudah tersedia.
-             */
+                    if (
+                        updateResult.error
+                    ) {
 
-            if (
-                currentRole
-            ) {
+                        console.error(
+                            "[GEN-Z.AI] Hub Admin UPDATE error:",
+                            updateResult.error
+                        );
 
-                break;
 
-            }
+                        throw new Error(
+                            updateResult.error.message ||
+                            "Gagal memperbarui konfigurasi Hub Admin."
+                        );
+                    }
 
+                }
 
-            /*
-             * Profile navigation sudah tersedia.
-             * Tidak perlu menunggu selamanya.
-             */
+                /*
+                 * INSERT
+                 */
 
-            if (
-                window.GENZ_NAVIGATION_PROFILE
-            ) {
+                else {
 
-                break;
+                    const insertResult =
+                        await client
+                            .from(TABLE)
+                            .insert(
+                                payload
+                            );
 
-            }
 
+                    if (
+                        insertResult.error
+                    ) {
 
-            attempts++;
+                        console.error(
+                            "[GEN-Z.AI] Hub Admin INSERT error:",
+                            insertResult.error
+                        );
 
 
-            await new Promise(
-                resolve =>
-                    setTimeout(
-                        resolve,
-                        100
-                    )
-            );
+                        throw new Error(
+                            insertResult.error.message ||
+                            "Gagal membuat konfigurasi Hub Admin."
+                        );
+                    }
 
-        }
 
+                    /*
+                     * Ambil row kembali.
+                     *
+                     * Tidak menggunakan .select()
+                     * pada INSERT agar tidak terkena
+                     * masalah single-object coercion.
+                     */
 
-        /* =====================================================
-           BACA ROLE TERAKHIR
-        ====================================================== */
+                    const inserted =
+                        await findExistingSettings();
 
-        const role =
-            String(
-                window.GENZ_NAVIGATION_ROLE ||
-                ""
-            )
-            .trim()
-            .toLowerCase();
 
+                    if (!inserted) {
 
-        const adminAccess =
-            (
-                role === "admin" ||
-                role === "owner"
-            );
+                        throw new Error(
+                            "Konfigurasi berhasil diproses tetapi row tidak dapat ditemukan kembali."
+                        );
+                    }
 
 
-        console.log(
-            "[GEN-Z.AI] Hub Admin initialization:",
-            {
-                navigationReady:
-                    navigationReady,
+                    settingsId =
+                        inserted.id;
 
-                role:
-                    role,
+                }
 
-                adminAccess:
-                    adminAccess,
 
-                profile:
-                    window.GENZ_NAVIGATION_PROFILE
-            }
-        );
+                /*
+                 * Verifikasi terpisah.
+                 */
 
-
-        /* =====================================================
-           SELALU TAMPILKAN PAGE
-        ====================================================== */
-
-        /*
-         * INI BAGIAN UTAMA PERBAIKAN.
-         *
-         * Jangan pernah hideLoading() tanpa
-         * memastikan adminPage terlihat.
-         */
-
-        if (
-            adminPage
-        ) {
-
-            adminPage.style.display =
-                "";
-
-        }
-
-
-        hideLoading();
-
-
-        /* =====================================================
-           CEK AKSES ADMIN
-        ====================================================== */
-
-        if (
-            !adminAccess
-        ) {
-
-            /*
-             * Navigation tetap menjadi sumber
-             * authentication/authorization.
-             *
-             * Tidak melakukan redirect manual
-             * agar tidak bertabrakan dengan
-             * shared navigation.
-             */
-
-            setStatus(
-                role
-                    ? "Akses Hub Admin memerlukan role admin atau owner."
-                    : "Role admin belum terdeteksi dari navigation.",
-                "error"
-            );
-
-
-            return;
-
-        }
-
-
-        /* =====================================================
-           LOAD SUPABASE + SETTINGS
-        ====================================================== */
-
-        try {
-
-            /*
-             * Pastikan client tersedia.
-             */
-
-            ensureSupabaseClient();
-
-
-            /*
-             * Load data Hub Admin.
-             */
-
-            await loadSettings();
-
-
-            /*
-             * Jika berhasil,
-             * bersihkan status error lama.
-             */
-
-            setStatus(
-                ""
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "[GEN-Z.AI] Hub Admin initialization failed:",
-                error
-            );
-
-
-            /*
-             * Jangan sembunyikan halaman.
-             *
-             * Error ditampilkan di status
-             * agar halaman tetap dapat digunakan.
-             */
-
-            setStatus(
-                error?.message ||
-                "Gagal memuat konfigurasi Hub Admin.",
-                "error"
-            );
-
-        }
-
-    }
-
-
-    /* =========================================================
-       NORMALIZE BUTTON
-    ========================================================= */
-
-    normalizeButton?.addEventListener(
-        "click",
-        () => {
-
-            const normalized =
-                normalizePhone(
-                    whatsappNumber.value
+                await verifySavedData(
+                    number,
+                    message,
+                    active
                 );
 
 
-            whatsappNumber.value =
-                normalized;
+                return true;
+            }
 
 
-            updatePreview();
+            /* =====================================================
+               EVENTS
+               ===================================================== */
+
+            if (whatsappNumber) {
+
+                whatsappNumber.addEventListener(
+                    "input",
+                    updatePreview
+                );
+
+            }
 
 
-            if (normalized) {
+            if (whatsappMessage) {
 
-                setStatus(
-                    "Nomor dinormalisasi."
+                whatsappMessage.addEventListener(
+                    "input",
+                    updatePreview
+                );
+
+            }
+
+
+            if (isActive) {
+
+                isActive.addEventListener(
+                    "change",
+                    updatePreview
+                );
+
+            }
+
+
+            if (normalizeButton) {
+
+                normalizeButton.addEventListener(
+                    "click",
+                    () => {
+
+                        whatsappNumber.value =
+                            normalizePhone(
+                                whatsappNumber.value
+                            );
+
+
+                        updatePreview();
+
+
+                        setStatus(
+                            "Nomor berhasil dinormalisasi.",
+                            "success"
+                        );
+
+                    }
+                );
+
+            }
+
+
+            if (saveButton) {
+
+                saveButton.addEventListener(
+                    "click",
+                    async () => {
+
+                        if (
+                            !hasAdminAccess()
+                        ) {
+
+                            setStatus(
+                                "Akses Hub Admin memerlukan role admin atau owner.",
+                                "error"
+                            );
+
+
+                            return;
+                        }
+
+
+                        saveButton.disabled =
+                            true;
+
+
+                        setStatus(
+                            "Menyimpan konfigurasi...",
+                            "info"
+                        );
+
+
+                        try {
+
+                            await saveSettings();
+
+
+                            setStatus(
+                                "Konfigurasi Hub Admin berhasil disimpan dan diverifikasi.",
+                                "success"
+                            );
+
+
+                            await loadSettings();
+
+                        } catch (error) {
+
+                            console.error(
+                                "[GEN-Z.AI] Hub Admin save error:",
+                                error
+                            );
+
+
+                            setStatus(
+                                error?.message ||
+                                "Gagal menyimpan konfigurasi Hub Admin.",
+                                "error"
+                            );
+
+                        } finally {
+
+                            saveButton.disabled =
+                                false;
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            /* =====================================================
+               START
+               ===================================================== */
+
+            async function start() {
+
+                /*
+                 * =================================================
+                 * TUNGGU SHARED NAVIGATION
+                 * =================================================
+                 */
+
+                if (
+                    window.GENZNavigationReady &&
+                    typeof
+                        window.GENZNavigationReady.then ===
+                        "function"
+                ) {
+
+                    try {
+
+                        await window.GENZNavigationReady;
+
+                    } catch (error) {
+
+                        console.error(
+                            "[GEN-Z.AI] Navigation initialization failed:",
+                            error
+                        );
+
+                    }
+
+                }
+
+
+                /*
+                 * =================================================
+                 * TUNGGU ROLE
+                 * =================================================
+                 */
+
+                let attempts =
+                    0;
+
+
+                const maxAttempts =
+                    20;
+
+
+                while (
+                    attempts <
+                    maxAttempts
+                ) {
+
+                    const role =
+                        String(
+                            window.GENZ_NAVIGATION_ROLE ||
+                            ""
+                        )
+                        .trim()
+                        .toLowerCase();
+
+
+                    if (role) {
+                        break;
+                    }
+
+
+                    attempts++;
+
+
+                    await new Promise(
+                        resolve => {
+
+                            setTimeout(
+                                resolve,
+                                100
+                            );
+
+                        }
+                    );
+
+                }
+
+
+                /*
+                 * =================================================
+                 * BACA ROLE ASLI NAVIGATION
+                 * ================================================= */
+
+                const role =
+                    String(
+                        window.GENZ_NAVIGATION_ROLE ||
+                        ""
+                    )
+                    .trim()
+                    .toLowerCase();
+
+
+                const adminAccess =
+                    (
+                        role === "admin" ||
+                        role === "owner"
+                    );
+
+
+                console.log(
+                    "[GEN-Z.AI] Hub Admin initialization:",
+                    {
+                        role:
+                            role,
+
+                        adminAccess:
+                            adminAccess,
+
+                        user:
+                            window.GENZ_NAVIGATION_USER,
+
+                        profile:
+                            window.GENZ_NAVIGATION_PROFILE
+                    }
+                );
+
+
+                /*
+                 * =================================================
+                 * TAMPILKAN PAGE
+                 * =================================================
+                 *
+                 * Jangan biarkan adminPage tetap display:none
+                 * ketika navigation gagal.
+                 */
+
+                if (adminPage) {
+
+                    adminPage.style.display =
+                        "";
+
+                }
+
+
+                hideLoading();
+
+
+                /*
+                 * =================================================
+                 * VALIDASI ROLE
+                 * ================================================= */
+
+                if (!adminAccess) {
+
+                    setStatus(
+                        role
+                            ? "Akses Hub Admin memerlukan role admin atau owner."
+                            : "Role admin belum terdeteksi dari navigation.",
+                        "error"
+                    );
+
+
+                    return;
+                }
+
+
+                /*
+                 * =================================================
+                 * LOAD SUPABASE + SETTINGS
+                 * ================================================= */
+
+                try {
+
+                    ensureSupabaseClient();
+
+
+                    await loadSettings();
+
+
+                    setStatus(
+                        ""
+                    );
+
+
+                } catch (error) {
+
+                    console.error(
+                        "[GEN-Z.AI] Hub Admin initialization failed:",
+                        error
+                    );
+
+
+                    setStatus(
+                        error?.message ||
+                        "Gagal memuat konfigurasi Hub Admin.",
+                        "error"
+                    );
+
+                }
+
+            }
+
+
+            /* =====================================================
+               INITIAL START
+               ===================================================== */
+
+            if (
+                document.readyState ===
+                "loading"
+            ) {
+
+                document.addEventListener(
+                    "DOMContentLoaded",
+                    start,
+                    {
+                        once: true
+                    }
                 );
 
             } else {
 
-                setStatus(
-                    "Nomor masih kosong.",
-                    "error"
-                );
+                start();
 
             }
 
-        }
-    );
+        })();
 
-
-    /* =========================================================
-       LIVE PREVIEW
-    ========================================================= */
-
-    whatsappNumber?.addEventListener(
-        "input",
-        updatePreview
-    );
-
-
-    whatsappMessage?.addEventListener(
-        "input",
-        updatePreview
-    );
-
-
-    isActive?.addEventListener(
-        "change",
-        updatePreview
-    );
-
-
-    /* =========================================================
-       SAVE BUTTON
-    ========================================================= */
-
-    saveButton?.addEventListener(
-        "click",
-        async () => {
-
-            if (
-                saveButton.disabled
-            ) {
-
-                return;
-
-            }
-
-
-            saveButton.disabled =
-                true;
-
-
-            setStatus(
-                "Menyimpan dan memverifikasi..."
-            );
-
-
-            try {
-
-                await saveSettings();
-
-
-                setStatus(
-                    "Konfigurasi berhasil disimpan dan diverifikasi.",
-                    "success"
-                );
-
-
-            } catch (error) {
-
-                console.error(
-                    "[GEN-Z.AI] Hub Admin save error:",
-                    error
-                );
-
-
-                setStatus(
-                    error?.message ||
-                    "Gagal menyimpan konfigurasi.",
-                    "error"
-                );
-
-
-            } finally {
-
-                saveButton.disabled =
-                    false;
-
-            }
-
-        }
-    );
-
-
-    /* =========================================================
-       DOM READY
-    ========================================================= */
-
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            start,
-            {
-                once: true
-            }
-        );
-
-    } else {
-
-        start();
-
-    }
-
-
-})();
-
-</script>
+    </script>
 
 
 </body>
