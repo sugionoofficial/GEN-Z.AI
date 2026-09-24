@@ -2661,7 +2661,7 @@
 
         /* =====================================================
            VALIDASI NOMOR
-        ===================================================== */
+        ====================================================== */
 
         if (!number) {
 
@@ -2687,7 +2687,7 @@
 
         /* =====================================================
            VALIDASI PESAN
-        ===================================================== */
+        ====================================================== */
 
         if (!message) {
 
@@ -2711,7 +2711,7 @@
 
         /* =====================================================
            PAYLOAD
-        ===================================================== */
+        ====================================================== */
 
         const payload = {
 
@@ -2732,7 +2732,7 @@
 
         /* =====================================================
            CARI ROW YANG SUDAH ADA
-        ===================================================== */
+        ====================================================== */
 
         if (
             settingsId === null ||
@@ -2756,7 +2756,7 @@
 
         /* =====================================================
            UPDATE
-        ===================================================== */
+        ====================================================== */
 
         if (
             settingsId !== null &&
@@ -2804,7 +2804,7 @@
 
         /* =====================================================
            INSERT
-        ===================================================== */
+        ====================================================== */
 
         else {
 
@@ -2865,7 +2865,7 @@
 
         /* =====================================================
            VERIFIKASI FINAL
-        ===================================================== */
+        ====================================================== */
 
         await verifySavedData(
             number,
@@ -2881,14 +2881,31 @@
 
     /* =========================================================
        START
+       FIX: MENCEGAH BLANK SCREEN
     ========================================================= */
 
     async function start() {
 
         /*
-         * Navigation tetap menjadi sumber
-         * authentication dan role.
+         * Jangan langsung menghilangkan loading
+         * sebelum adminPage ditampilkan.
+         *
+         * Versi lama bisa menghasilkan:
+         *
+         * loading = hidden
+         * adminPage = display:none
+         *
+         * sehingga layar menjadi kosong.
          */
+
+
+        let navigationReady =
+            false;
+
+
+        /* =====================================================
+           TUNGGU NAVIGATION
+        ====================================================== */
 
         if (
             window.GENZNavigationReady &&
@@ -2899,64 +2916,182 @@
 
             try {
 
-                const ready =
-                    await
-                        window.GENZNavigationReady;
+                await window.GENZNavigationReady;
 
-
-                if (
-                    ready !== true
-                ) {
-
-                    hideLoading();
-
-                    return;
-
-                }
-
-
-                if (
-                    !hasAdminAccess()
-                ) {
-
-                    hideLoading();
-
-                    return;
-
-                }
-
-
-                showPage();
-
-
-                /*
-                 * Pastikan Supabase tersedia.
-                 */
-
-                ensureSupabaseClient();
-
-
-                await loadSettings();
-
+                navigationReady =
+                    true;
 
             } catch (error) {
 
                 console.error(
-                    "[GEN-Z.AI] Hub Admin initialization failed:",
+                    "[GEN-Z.AI] Navigation initialization failed:",
                     error
                 );
 
+                /*
+                 * Jangan biarkan navigation error
+                 * membuat halaman menjadi blank.
+                 */
 
-                setStatus(
-                    error?.message ||
-                    "Gagal memuat konfigurasi.",
-                    "error"
-                );
-
-
-                showPage();
+                navigationReady =
+                    false;
 
             }
+
+        }
+
+
+        /* =====================================================
+           TUNGGU ROLE
+        ====================================================== */
+
+        let attempts =
+            0;
+
+
+        const maxAttempts =
+            30;
+
+
+        while (
+            attempts < maxAttempts
+        ) {
+
+            const currentRole =
+                String(
+                    window.GENZ_NAVIGATION_ROLE ||
+                    ""
+                )
+                .trim()
+                .toLowerCase();
+
+
+            /*
+             * Role sudah tersedia.
+             */
+
+            if (
+                currentRole
+            ) {
+
+                break;
+
+            }
+
+
+            /*
+             * Profile navigation sudah tersedia.
+             * Tidak perlu menunggu selamanya.
+             */
+
+            if (
+                window.GENZ_NAVIGATION_PROFILE
+            ) {
+
+                break;
+
+            }
+
+
+            attempts++;
+
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        100
+                    )
+            );
+
+        }
+
+
+        /* =====================================================
+           BACA ROLE TERAKHIR
+        ====================================================== */
+
+        const role =
+            String(
+                window.GENZ_NAVIGATION_ROLE ||
+                ""
+            )
+            .trim()
+            .toLowerCase();
+
+
+        const adminAccess =
+            (
+                role === "admin" ||
+                role === "owner"
+            );
+
+
+        console.log(
+            "[GEN-Z.AI] Hub Admin initialization:",
+            {
+                navigationReady:
+                    navigationReady,
+
+                role:
+                    role,
+
+                adminAccess:
+                    adminAccess,
+
+                profile:
+                    window.GENZ_NAVIGATION_PROFILE
+            }
+        );
+
+
+        /* =====================================================
+           SELALU TAMPILKAN PAGE
+        ====================================================== */
+
+        /*
+         * INI BAGIAN UTAMA PERBAIKAN.
+         *
+         * Jangan pernah hideLoading() tanpa
+         * memastikan adminPage terlihat.
+         */
+
+        if (
+            adminPage
+        ) {
+
+            adminPage.style.display =
+                "";
+
+        }
+
+
+        hideLoading();
+
+
+        /* =====================================================
+           CEK AKSES ADMIN
+        ====================================================== */
+
+        if (
+            !adminAccess
+        ) {
+
+            /*
+             * Navigation tetap menjadi sumber
+             * authentication/authorization.
+             *
+             * Tidak melakukan redirect manual
+             * agar tidak bertabrakan dengan
+             * shared navigation.
+             */
+
+            setStatus(
+                role
+                    ? "Akses Hub Admin memerlukan role admin atau owner."
+                    : "Role admin belum terdeteksi dari navigation.",
+                "error"
+            );
 
 
             return;
@@ -2965,80 +3100,57 @@
 
 
         /* =====================================================
-           COMPATIBILITY FALLBACK
-        ===================================================== */
+           LOAD SUPABASE + SETTINGS
+        ====================================================== */
 
-        let attempts = 0;
+        try {
 
+            /*
+             * Pastikan client tersedia.
+             */
 
-        const timer =
-            setInterval(
-                async () => {
-
-                    attempts++;
-
-
-                    if (
-                        hasAdminAccess()
-                    ) {
-
-                        clearInterval(
-                            timer
-                        );
+            ensureSupabaseClient();
 
 
-                        try {
+            /*
+             * Load data Hub Admin.
+             */
 
-                            showPage();
-
-
-                            ensureSupabaseClient();
-
-
-                            await loadSettings();
+            await loadSettings();
 
 
-                        } catch (
-                            error
-                        ) {
+            /*
+             * Jika berhasil,
+             * bersihkan status error lama.
+             */
 
-                            console.error(
-                                "[GEN-Z.AI] Hub Admin fallback error:",
-                                error
-                            );
-
-
-                            setStatus(
-                                error?.message ||
-                                "Gagal memuat konfigurasi.",
-                                "error"
-                            );
-
-                        }
-
-
-                        return;
-
-                    }
-
-
-                    if (
-                        window.GENZ_NAVIGATION_PROFILE ||
-                        attempts >= 100
-                    ) {
-
-                        clearInterval(
-                            timer
-                        );
-
-
-                        hideLoading();
-
-                    }
-
-                },
-                100
+            setStatus(
+                ""
             );
+
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI] Hub Admin initialization failed:",
+                error
+            );
+
+
+            /*
+             * Jangan sembunyikan halaman.
+             *
+             * Error ditampilkan di status
+             * agar halaman tetap dapat digunakan.
+             */
+
+            setStatus(
+                error?.message ||
+                "Gagal memuat konfigurasi Hub Admin.",
+                "error"
+            );
+
+        }
 
     }
 
