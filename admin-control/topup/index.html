@@ -2574,124 +2574,40 @@
 
     /* =====================================================
        APPROVE
+       -----------------------------------------------------
+       Approval diproses oleh:
+       admin-control/topup/topup-approval.js
     ====================================================== */
 
     async function approveTopup(
         id
     ) {
 
-        const item =
-            findTopup(id);
-
-        if (!item) {
-            return;
+        if (
+            window.GENZTopUpApproval &&
+            typeof window.GENZTopUpApproval.approveTopup ===
+                "function"
+        ) {
+            return window.GENZTopUpApproval.approveTopup(
+                id
+            );
         }
 
         if (
-            normalizeStatus(
-                item.status
-            ) !==
-            "pending"
+            typeof window.GENZApproveTopup ===
+            "function"
         ) {
-
-            showToast(
-                "Top up ini sudah diproses.",
-                "error"
-            );
-
-            return;
-        }
-
-        const user =
-            getUserDisplay(
-                item
-            );
-
-        const confirmed =
-            window.confirm(
-                "Approve top up " +
-                formatNumber(
-                    item.credits
-                ) +
-                " credit untuk " +
-                user.email +
-                " senilai " +
-                formatCurrency(
-                    item.amount
-                ) +
-                "?"
-            );
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-
-            /*
-             * Mekanisme ini dipertahankan
-             * dari sistem sebelumnya.
-             *
-             * Approval melalui RPC dapat
-             * ditambahkan kemudian apabila
-             * proses penambahan credit ingin
-             * dibuat atomic di database.
-             */
-
-            const {
-                error
-            } =
-                await supabaseClient
-                .from(
-                    "topup_requests"
-                )
-                .update({
-
-                    status:
-                        "approved",
-
-                    processed_at:
-                        new Date()
-                            .toISOString(),
-
-                    updated_at:
-                        new Date()
-                            .toISOString()
-
-                })
-                .eq(
-                    "id",
-                    id
-                )
-                .eq(
-                    "status",
-                    "pending"
-                );
-
-            if (error) {
-                throw error;
-            }
-
-            showToast(
-                "Top up berhasil diubah menjadi Approved.",
-                "success"
-            );
-
-            await loadTopups();
-
-        } catch (error) {
-
-            console.error(
-                "GENZ Top Up approve error:",
-                error
-            );
-
-            showToast(
-                error.message ||
-                "Gagal approve top up.",
-                "error"
+            return window.GENZApproveTopup(
+                id
             );
         }
+
+        showToast(
+            "Modul approval top up belum tersedia.",
+            "error"
+        );
+
+        return false;
     }
 
 
@@ -3862,6 +3778,35 @@
 
 
     /* =====================================================
+       EXPOSE PAGE API
+       -----------------------------------------------------
+       Dipakai oleh topup-approval.js.
+    ====================================================== */
+
+    window.supabaseClient =
+        window.supabaseClient ||
+        null;
+
+    window.showToast =
+        showToast;
+
+    window.formatNumber =
+        formatNumber;
+
+    window.formatCurrency =
+        formatCurrency;
+
+    window.getUserDisplay =
+        getUserDisplay;
+
+    window.findTopup =
+        findTopup;
+
+    window.loadTopups =
+        loadTopups;
+
+
+    /* =====================================================
        EVENT BINDING
     ====================================================== */
 
@@ -4255,6 +4200,17 @@
                 getSupabaseClient();
 
 
+            /*
+             * Pastikan client yang sudah dibuat halaman
+             * tersedia secara global untuk modul approval.
+             */
+            window.supabaseClient =
+                supabaseClient;
+
+            window.GENZ_SUPABASE =
+                supabaseClient;
+
+
             bindEvents();
 
 
@@ -4308,6 +4264,14 @@
 
 })();
 </script>
+
+
+<!-- =========================================================
+     TOP UP APPROVAL MODULE
+     Harus dimuat setelah script halaman di atas.
+========================================================== -->
+
+<script src="./topup-approval.js"></script>
 
 
 <script src="../../navigation/navigation.js"></script>
