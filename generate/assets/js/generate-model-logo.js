@@ -1,12 +1,6 @@
 /* =========================================================
    GEN-Z.AI
    GENERATE MODEL LOGO
-   ---------------------------------------------------------
-   Tanggung jawab:
-   - Menentukan logo berdasarkan model/provider
-   - Menampilkan logo model aktif
-   - Tidak mengubah value #modelSelect
-   - Tidak mengubah proses Generate
 ========================================================= */
 
 "use strict";
@@ -17,37 +11,33 @@ const MODEL_LOGO_BASE_PATH =
 
 
 /* =========================================================
-   LOGO MAP
+   PROVIDER / MODEL LOGO MAP
 ========================================================= */
 
-const LOGO_MAP = {
+const LOGO_MAP = Object.freeze({
 
-    /* =====================================================
-       xAI / GROK
-    ===================================================== */
-
-    grok: "grok.svg",
+    grok:
+        "grok.svg",
 
     "grok-imagine":
         "grok.svg",
 
+    "x-ai":
+        "grok.svg",
 
-    /* =====================================================
-       KLING
-    ===================================================== */
+    xai:
+        "grok.svg",
 
-    kling: "kling.svg",
+
+    kling:
+        "kling.svg",
 
     "kling-ai":
         "kling.svg",
 
-    "klingai":
+    klingai:
         "kling.svg",
 
-
-    /* =====================================================
-       BYTEDANCE / SEEDANCE
-    ===================================================== */
 
     seedance:
         "seedance.svg",
@@ -55,10 +45,13 @@ const LOGO_MAP = {
     bytedance:
         "seedance.svg",
 
+    "bytedance-seed":
+        "seedance.svg",
+
     seed:
         "seedance.svg"
 
-};
+});
 
 
 /* =========================================================
@@ -77,7 +70,6 @@ function safeString(
         return "";
 
     }
-
 
     return String(
         value
@@ -118,49 +110,35 @@ function normalizeModel(
 
     return {
 
-        modelId: safeString(
+        modelId:
+            safeString(
+                model.model_id ||
+                model.modelId ||
+                model.id ||
+                model.config?.id
+            ),
 
-            model.model_id ||
+        modelName:
+            safeString(
+                model.model_name ||
+                model.modelName ||
+                model.name ||
+                model.config?.name
+            ),
 
-            model.modelId ||
+        providerId:
+            safeString(
+                model.provider_id ||
+                model.providerId ||
+                model.provider?.id
+            ),
 
-            model.id ||
-
-            model.config?.id
-
-        ),
-
-        modelName: safeString(
-
-            model.model_name ||
-
-            model.modelName ||
-
-            model.name ||
-
-            model.config?.name
-
-        ),
-
-        providerId: safeString(
-
-            model.provider_id ||
-
-            model.providerId ||
-
-            model.provider?.id
-
-        ),
-
-        providerName: safeString(
-
-            model.provider_name ||
-
-            model.providerName ||
-
-            model.provider?.name
-
-        )
+        providerName:
+            safeString(
+                model.provider_name ||
+                model.providerName ||
+                model.provider?.name
+            )
 
     };
 
@@ -181,7 +159,7 @@ export function getModelLogoFile(
         );
 
 
-    const values = [
+    const candidates = [
 
         normalized.modelId,
 
@@ -194,19 +172,34 @@ export function getModelLogoFile(
     ];
 
 
-    /* =====================================================
-       EXACT / PARTIAL MAP
-    ===================================================== */
-
     for (
-        const value
-        of values
+        const candidate
+        of candidates
     ) {
 
-        if (!value) {
+        if (!candidate) {
             continue;
         }
 
+
+        /*
+         * Exact match lebih dulu.
+         */
+
+        if (
+            LOGO_MAP[candidate]
+        ) {
+
+            return LOGO_MAP[
+                candidate
+            ];
+
+        }
+
+
+        /*
+         * Partial match.
+         */
 
         for (
             const [
@@ -219,8 +212,9 @@ export function getModelLogoFile(
         ) {
 
             if (
-                value === key ||
-                value.includes(key)
+                candidate.includes(
+                    key
+                )
             ) {
 
                 return logo;
@@ -238,7 +232,7 @@ export function getModelLogoFile(
 
 
 /* =========================================================
-   GET PREVIEW ELEMENT
+   PREVIEW ELEMENT
 ========================================================= */
 
 function getPreviewElement() {
@@ -269,15 +263,13 @@ export function clearModelLogo() {
 
     container.hidden = true;
 
-    container.removeAttribute(
-        "data-model-id"
-    );
+    delete container.dataset.modelId;
 
 }
 
 
 /* =========================================================
-   UPDATE LOGO
+   UPDATE
 ========================================================= */
 
 export function updateModelLogo(
@@ -314,9 +306,6 @@ export function updateModelLogo(
         );
 
 
-    container.innerHTML = "";
-
-
     const image =
         document.createElement(
             "img"
@@ -335,7 +324,7 @@ export function updateModelLogo(
     image.alt =
         normalized.modelName ||
         normalized.providerName ||
-        "Model logo";
+        "Model";
 
 
     image.loading =
@@ -359,13 +348,14 @@ export function updateModelLogo(
     );
 
 
+    container.innerHTML = "";
+
     container.appendChild(
         image
     );
 
 
-    container.hidden =
-        false;
+    container.hidden = false;
 
 
     if (
@@ -394,11 +384,12 @@ export function initModelLogo(
             model
         );
 
-    } else {
-
-        clearModelLogo();
+        return;
 
     }
+
+
+    clearModelLogo();
 
 }
 
