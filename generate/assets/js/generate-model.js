@@ -70,6 +70,9 @@ import {
     getAccessToken
 } from "./generate-auth.js";
 
+import {
+    updateModelLogo
+} from "./generate-model-logo.js";
 
 /* =========================================================
    CONSTANT
