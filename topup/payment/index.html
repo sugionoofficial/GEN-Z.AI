@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Pembayaran Top Up - GEN-Z.AI</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../assets/js/config.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            font-family:
+                Inter,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            background: #0b0f19;
+            color: #f5f7fb;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 32px 20px 60px;
+        }
+
+        .header {
+            margin-bottom: 24px;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 0;
+            background: transparent;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 0;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            color: #ffffff;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            margin: 8px 0 0;
+            color: #9ca3af;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: #121827;
+            border: 1px solid #20293a;
+            border-radius: 14px;
+            padding: 18px;
+        }
+
+        .summary-label {
+            color: #8b95a7;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .section {
+            background: #121827;
+            border: 1px solid #20293a;
+            border-radius: 16px;
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+
+        .section-title {
+            margin: 0 0 6px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .section-description {
+            margin: 0 0 18px;
+            color: #8b95a7;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .methods {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .method {
+            border: 1px solid #293448;
+            background: #0f1522;
+            border-radius: 14px;
+            padding: 18px 14px;
+            cursor: pointer;
+            transition:
+                border-color 0.2s,
+                background 0.2s,
+                transform 0.2s;
+            text-align: left;
+        }
+
+        .method:hover {
+            border-color: #4b5563;
+            transform: translateY(-1px);
+        }
+
+        .method.active {
+            border-color: #6366f1;
+            background: #171b32;
+        }
+
+        .method-icon {
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: #1c2535;
+            margin-bottom: 12px;
+            font-size: 21px;
+        }
+
+        .method-name {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .method-description {
+            margin-top: 5px;
+            color: #8b95a7;
+            font-size: 11px;
+        }
+
+        .payment-detail {
+            display: none;
+        }
+
+        .payment-detail.active {
+            display: block;
+        }
+
+        .payment-box {
+            background: #0d131f;
+            border: 1px solid #252f41;
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .payment-method-title {
+            margin: 0 0 18px;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .account-label {
+            color: #8b95a7;
+            font-size: 12px;
+            margin-bottom: 7px;
+        }
+
+        .account-value {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            word-break: break-word;
+        }
+
+        .account-name {
+            margin-top: 7px;
+            color: #c8cfdb;
+            font-size: 13px;
+        }
+
+        .copy-button {
+            margin-top: 14px;
+            border: 1px solid #313c50;
+            background: #182131;
+            color: #ffffff;
+            border-radius: 9px;
+            padding: 9px 14px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-button:hover {
+            background: #202b3e;
+        }
+
+        .qris-container {
+            text-align: center;
+        }
+
+        .qris-image {
+            width: 260px;
+            height: 260px;
+            max-width: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 12px;
+            display: block;
+            margin: 0 auto 16px;
+        }
+
+        .qris-placeholder {
+            width: 260px;
+            height: 260px;
+            max-width: 100%;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 25px;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #111827;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .instruction-list {
+            margin: 18px 0 0;
+            padding-left: 20px;
+            color: #b6bfcd;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .upload-area {
+            border: 1px dashed #38445a;
+            background: #0d131f;
+            border-radius: 14px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .upload-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .upload-description {
+            color: #8b95a7;
+            font-size: 12px;
+            margin-bottom: 16px;
+        }
+
+        .file-input {
+            width: 100%;
+            max-width: 420px;
+            color: #b8c1cf;
+            font-size: 12px;
+        }
+
+        .preview {
+            display: none;
+            margin: 18px auto 0;
+            max-width: 360px;
+            max-height: 360px;
+            border-radius: 10px;
+            border: 1px solid #293448;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 22px;
+        }
+
+        .button {
+            border: 0;
+            border-radius: 10px;
+            padding: 12px 18px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .button-secondary {
+            background: #202a3a;
+            color: #ffffff;
+        }
+
+        .button-primary {
+            background: #6366f1;
+            color: #ffffff;
+        }
+
+        .button-primary:hover {
+            background: #5558d8;
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .notice {
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            background: #151c2b;
+            border: 1px solid #273247;
+            color: #9ca8b9;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .loading {
+            display: flex;
+            min-height: 240px;
+            align-items: center;
+            justify-content: center;
+            color: #8b95a7;
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            max-width: 360px;
+            padding: 13px 16px;
+            border-radius: 10px;
+            background: #182131;
+            border: 1px solid #2d394d;
+            color: #ffffff;
+            font-size: 13px;
+            box-shadow:
+                0 15px 40px
+                rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            transform: translateY(10px);
+            pointer-events: none;
+            transition:
+                opacity 0.2s,
+                transform 0.2s;
+            z-index: 9999;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 760px) {
+            .summary {
+                grid-template-columns: 1fr;
+            }
+
+            .methods {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .page {
+                padding: 22px 14px 45px;
+            }
+
+            .section {
+                padding: 17px;
+            }
+        }
+
+        @media (max-width: 460px) {
+            .methods {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .title {
+                font-size: 24px;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="page">
+
+    <header class="header">
+
+        <button
+            type="button"
+            class="back-button"
+            id="backButton"
+        >
+            ← Kembali
+        </button>
+
+        <h1 class="title">
+            Pembayaran Top Up
+        </h1>
+
+        <p class="subtitle">
+            Pilih metode pembayaran yang tersedia,
+            lakukan pembayaran sesuai nominal,
+            kemudian kirim bukti pembayaran.
+        </p>
+
+    </header>
+
+    <div id="loading" class="loading">
+        Memuat informasi pembayaran...
+    </div>
+
+    <main id="paymentPage" class="hidden">
+
+        <!-- =================================================
+             RINGKASAN
+             ================================================= -->
+
+        <section class="summary">
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Paket
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="packageName"
+                >
+                    -
+                </div>
+
+            </div>
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Credit
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="packageCredits"
+                >
+                    0
+                </div>
+
+            </div>
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Total Pembayaran
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="paymentAmount"
+                >
+                    Rp0
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- =================================================
+             METODE PEMBAYARAN
+             ================================================= -->
+
+        <section class="section">
+
+            <h2 class="section-title">
+                Pilih Metode Pembayaran
+            </h2>
+
+            <p class="section-description">
+                Pilih salah satu metode pembayaran
+                yang tersedia.
+            </p>
+
+            <div class="methods">
+
+                <button
+                    type="button"
+                    class="method"
+                    data-method="bca"
+                >
+
+                    <div class="method-icon">
+                        🏦
+                    </div>
+
+                    <div class="method-name">
+                        BCA
+                    </div>
+
+                    <div class="method-description">
+                        Transfer bank
+                    </div>
+
+                </button>
+
+                <button
+                    type="button"
+                    class="method"
+                    data-method="dana"
+                >
+
+                    <div class="method-icon">
+                        💳
+                    </div>
+
+                    <div class="method-name">
+                        DANA
+                    </div>
+
+                    <div class="method-description">
+                        Transfer e-wallet
+                    </div>
+
+                </button>
+
+                <button
+                    type="button"
+                    class="method"
+                    data-method="seabank"
+                >
+
+                    <div class="method-icon">
+                        🏦
+                    </div>
+
+                    <div class="method-name">
+                        SeaBank
+                    </div>
+
+                    <div class="method-description">
+                        Transfer bank
+                    </div>
+
+                </button>
+
+                <button
+                    type="button"
+                    class="method"
+                    data-method="qris"
+                >
+
+                    <div class="method-icon">
+                        ▦
+                    </div>
+
+                    <div class="method-name">
+                        QRIS
+                    </div>
+
+                    <div class="method-description">
+                        Scan QRIS
+                    </div>
+
+                </button>
+
+            </div>
+
+        </section>
+
+        <!-- =================================================
+             DETAIL BCA
+             ================================================= -->
+
+        <section
+            class="section payment-detail"
+            data-detail="bca"
+        >
+
+            <div class="payment-box">
+
+                <h2 class="payment-method-title">
+                    Pembayaran BCA
+                </h2>
+
+                <div class="account-label">
+                    Nomor Rekening
+                </div>
+
+                <div
+                    class="account-value"
+                    id="bcaAccountNumber"
+                >
+                    Belum dikonfigurasi
+                </div>
+
+                <div
+                    class="account-name"
+                    id="bcaAccountName"
+                >
+                    -
+                </div>
+
+                <button
+                    type="button"
+                    class="copy-button"
+                    data-copy-target="bcaAccountNumber"
+                >
+                    Salin Nomor Rekening
+                </button>
+
+                <ol class="instruction-list">
+                    <li>
+                        Buka aplikasi BCA Mobile atau
+                        myBCA.
+                    </li>
+
+                    <li>
+                        Pilih transfer ke rekening BCA.
+                    </li>
+
+                    <li>
+                        Masukkan nominal pembayaran
+                        sesuai total tagihan.
+                    </li>
+
+                    <li>
+                        Pastikan nama penerima sesuai
+                        sebelum melakukan transfer.
+                    </li>
+                </ol>
+
+            </div>
+
+        </section>
+
+        <!-- =================================================
+             DETAIL DANA
+             ================================================= -->
+
+        <section
+            class="section payment-detail"
+            data-detail="dana"
+        >
+
+            <div class="payment-box">
+
+                <h2 class="payment-method-title">
+                    Pembayaran DANA
+                </h2>
+
+                <div class="account-label">
+                    Nomor DANA
+                </div>
+
+                <div
+                    class="account-value"
+                    id="danaAccountNumber"
+                >
+                    Belum dikonfigurasi
+                </div>
+
+                <div
+                    class="account-name"
+                    id="danaAccountName"
+                >
+                    -
+                </div>
+
+                <button
+                    type="button"
+                    class="copy-button"
+                    data-copy-target="danaAccountNumber"
+                >
+                    Salin Nomor DANA
+                </button>
+
+                <ol class="instruction-list">
+                    <li>
+                        Buka aplikasi DANA.
+                    </li>
+
+                    <li>
+                        Pilih menu Kirim.
+                    </li>
+
+                    <li>
+                        Masukkan nomor DANA tujuan.
+                    </li>
+
+                    <li>
+                        Masukkan nominal pembayaran.
+                    </li>
+                </ol>
+
+            </div>
+
+        </section>
+
+        <!-- =================================================
+             DETAIL SEABANK
+             ================================================= -->
+
+        <section
+            class="section payment-detail"
+            data-detail="seabank"
+        >
+
+            <div class="payment-box">
+
+                <h2 class="payment-method-title">
+                    Pembayaran SeaBank
+                </h2>
+
+                <div class="account-label">
+                    Nomor Rekening
+                </div>
+
+                <div
+                    class="account-value"
+                    id="seabankAccountNumber"
+                >
+                    Belum dikonfigurasi
+                </div>
+
+                <div
+                    class="account-name"
+                    id="seabankAccountName"
+                >
+                    -
+                </div>
+
+                <button
+                    type="button"
+                    class="copy-button"
+                    data-copy-target="seabankAccountNumber"
+                >
+                    Salin Nomor Rekening
+                </button>
+
+                <ol class="instruction-list">
+                    <li>
+                        Buka aplikasi SeaBank.
+                    </li>
+
+                    <li>
+                        Pilih transfer.
+                    </li>
+
+                    <li>
+                        Masukkan rekening SeaBank tujuan.
+                    </li>
+
+                    <li>
+                        Masukkan nominal pembayaran.
+                    </li>
+                </ol>
+
+            </div>
+
+        </section>
+
+        <!-- =================================================
+             DETAIL QRIS
+             ================================================= -->
+
+        <section
+            class="section payment-detail"
+            data-detail="qris"
+        >
+
+            <div class="payment-box qris-container">
+
+                <h2 class="payment-method-title">
+                    Pembayaran QRIS
+                </h2>
+
+                <div id="qrisContent">
+
+                    <div class="qris-placeholder">
+                        QRIS belum dikonfigurasi.
+                    </div>
+
+                </div>
+
+                <p class="section-description">
+                    Scan QRIS menggunakan aplikasi
+                    mobile banking atau e-wallet yang
+                    mendukung QRIS.
+                </p>
+
+            </div>
+
+        </section>
+
+        <!-- =================================================
+             BUKTI PEMBAYARAN
+             ================================================= -->
+
+        <section class="section">
+
+            <h2 class="section-title">
+                Bukti Pembayaran
+            </h2>
+
+            <p class="section-description">
+                Setelah pembayaran dilakukan,
+                upload bukti pembayaran untuk
+                dikirim ke admin.
+            </p>
+
+            <div class="upload-area">
+
+                <div class="upload-title">
+                    Upload Bukti Transfer
+                </div>
+
+                <div class="upload-description">
+                    JPG, JPEG, PNG maksimal 5 MB.
+                </div>
+
+                <input
+                    type="file"
+                    id="paymentProof"
+                    class="file-input"
+                    accept="image/jpeg,image/png,image/webp"
+                >
+
+                <img
+                    id="proofPreview"
+                    class="preview"
+                    alt="Preview bukti pembayaran"
+                >
+
+            </div>
+
+            <div class="notice">
+                Pastikan nominal pembayaran sesuai
+                dengan total tagihan. Pengajuan akan
+                berstatus <strong>pending</strong>
+                sampai diverifikasi oleh admin.
+            </div>
+
+            <div class="actions">
+
+                <button
+                    type="button"
+                    class="button button-secondary"
+                    id="cancelButton"
+                >
+                    Batal
+                </button>
+
+                <button
+                    type="button"
+                    class="button button-primary"
+                    id="submitButton"
+                >
+                    Kirim Pengajuan Top Up
+                </button>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+<div
+    id="toast"
+    class="toast"
+></div>
+
+<script>
+(function () {
+    "use strict";
+
+    let supabaseClient = null;
+
+    let selectedMethod = null;
+
+    let selectedPackage = {
+        id: null,
+        name: "-",
+        credits: 0,
+        price: 0
+    };
+
+    let currentUser = null;
+
+    /* =====================================================
+       UTILITIES
+       ===================================================== */
+
+    function formatNumber(value) {
+        return Number(value || 0)
+            .toLocaleString("id-ID");
+    }
+
+    function formatCurrency(value) {
+        return (
+            "Rp" +
+            Number(value || 0)
+                .toLocaleString("id-ID")
+        );
+    }
+
+    function showToast(
+        message,
+        type
+    ) {
+        const toast =
+            document.getElementById(
+                "toast"
+            );
+
+        toast.textContent =
+            message;
+
+        toast.classList.add(
+            "show"
+        );
+
+        if (type === "error") {
+            toast.style.borderColor =
+                "#7f1d1d";
+        } else {
+            toast.style.borderColor =
+                "#374151";
+        }
+
+        clearTimeout(
+            showToast.timer
+        );
+
+        showToast.timer =
+            setTimeout(
+                function () {
+                    toast.classList.remove(
+                        "show"
+                    );
+                },
+                3500
+            );
+    }
+
+    function getSupabaseClient() {
+
+        if (
+            window.GENZ_SUPABASE
+        ) {
+            return window.GENZ_SUPABASE;
+        }
+
+        if (
+            window.supabaseClient
+        ) {
+            return window.supabaseClient;
+        }
+
+        if (
+            window.GENZ_SUPABASE_URL &&
+            window.GENZ_SUPABASE_ANON_KEY &&
+            window.supabase
+        ) {
+            return window.supabase.createClient(
+                window.GENZ_SUPABASE_URL,
+                window.GENZ_SUPABASE_ANON_KEY
+            );
+        }
+
+        if (
+            window.SUPABASE_URL &&
+            window.SUPABASE_ANON_KEY &&
+            window.supabase
+        ) {
+            return window.supabase.createClient(
+                window.SUPABASE_URL,
+                window.SUPABASE_ANON_KEY
+            );
+        }
+
+        return null;
+    }
+
+    /* =====================================================
+       AMBIL PARAMETER PAKET
+       ===================================================== */
+
+    function loadPackageFromUrl() {
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        const packageId =
+            params.get(
+                "package"
+            );
+
+        const packageName =
+            params.get(
+                "name"
+            );
+
+        const credits =
+            Number(
+                params.get(
+                    "credits"
+                )
+            );
+
+        const price =
+            Number(
+                params.get(
+                    "price"
+                )
+            );
+
+        if (packageId) {
+            selectedPackage.id =
+                packageId;
+        }
+
+        if (packageName) {
+            selectedPackage.name =
+                packageName;
+        }
+
+        if (
+            Number.isFinite(
+                credits
+            ) &&
+            credits > 0
+        ) {
+            selectedPackage.credits =
+                credits;
+        }
+
+        if (
+            Number.isFinite(
+                price
+            ) &&
+            price > 0
+        ) {
+            selectedPackage.price =
+                price;
+        }
+    }
+
+    /* =====================================================
+       TAMPILKAN PAKET
+       ===================================================== */
+
+    function renderPackage() {
+
+        document.getElementById(
+            "packageName"
+        ).textContent =
+            selectedPackage.name;
+
+        document.getElementById(
+            "packageCredits"
+        ).textContent =
+            formatNumber(
+                selectedPackage.credits
+            );
+
+        document.getElementById(
+            "paymentAmount"
+        ).textContent =
+            formatCurrency(
+                selectedPackage.price
+            );
+    }
+
+    /* =====================================================
+       AMBIL PACKAGE DARI DATABASE
+       ===================================================== */
+
+    async function loadPackageFromDatabase() {
+
+        if (
+            !supabaseClient ||
+            !selectedPackage.id
+        ) {
+            return;
+        }
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from(
+                    "credit_packages"
+                )
+                .select(
+                    "id,name,credits,price,is_active"
+                )
+                .eq(
+                    "id",
+                    selectedPackage.id
+                )
+                .maybeSingle();
+
+        if (error) {
+            console.error(
+                "Package load error:",
+                error
+            );
+
+            return;
+        }
+
+        if (!data) {
+            showToast(
+                "Paket top up tidak ditemukan.",
+                "error"
+            );
+
+            return;
+        }
+
+        if (
+            data.is_active === false
+        ) {
+            showToast(
+                "Paket top up sedang tidak aktif.",
+                "error"
+            );
+
+            return;
+        }
+
+        selectedPackage = {
+            id: data.id,
+            name: data.name,
+            credits: Number(
+                data.credits
+            ),
+            price: Number(
+                data.price
+            )
+        };
+
+        renderPackage();
+    }
+
+    /* =====================================================
+       PILIH METODE
+       ===================================================== */
+
+    function selectMethod(
+        method
+    ) {
+
+        selectedMethod =
+            method;
+
+        document
+            .querySelectorAll(
+                ".method"
+            )
+            .forEach(
+                function (
+                    button
+                ) {
+
+                    button.classList.toggle(
+                        "active",
+                        button.dataset.method ===
+                            method
+                    );
+                }
+            );
+
+        document
+            .querySelectorAll(
+                ".payment-detail"
+            )
+            .forEach(
+                function (
+                    detail
+                ) {
+
+                    detail.classList.toggle(
+                        "active",
+                        detail.dataset.detail ===
+                            method
+                    );
+                }
+            );
+    }
+
+    /* =====================================================
+       COPY
+       ===================================================== */
+
+    async function copyTarget(
+        targetId
+    ) {
+
+        const target =
+            document.getElementById(
+                targetId
+            );
+
+        if (!target) {
+            return;
+        }
+
+        const value =
+            target.textContent
+                .trim();
+
+        if (
+            !value ||
+            value ===
+                "Belum dikonfigurasi"
+        ) {
+            showToast(
+                "Data pembayaran belum dikonfigurasi.",
+                "error"
+            );
+
+            return;
+        }
+
+        try {
+
+            await navigator.clipboard.writeText(
+                value
+            );
+
+            showToast(
+                "Berhasil disalin.",
+                "success"
+            );
+
+        } catch (error) {
+
+            showToast(
+                "Gagal menyalin.",
+                "error"
+            );
+        }
+    }
+
+    /* =====================================================
+       PREVIEW BUKTI
+       ===================================================== */
+
+    function handleProofPreview(
+        event
+    ) {
+
+        const file =
+            event.target.files &&
+            event.target.files[0];
+
+        const preview =
+            document.getElementById(
+                "proofPreview"
+            );
+
+        if (!file) {
+
+            preview.src = "";
+            preview.style.display =
+                "none";
+
+            return;
+        }
+
+        if (
+            file.size >
+            5 * 1024 * 1024
+        ) {
+
+            event.target.value =
+                "";
+
+            preview.src = "";
+            preview.style.display =
+                "none";
+
+            showToast(
+                "Ukuran bukti pembayaran maksimal 5 MB.",
+                "error"
+            );
+
+            return;
+        }
+
+        const allowedTypes = [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+        ];
+
+        if (
+            !allowedTypes.includes(
+                file.type
+            )
+        ) {
+
+            event.target.value =
+                "";
+
+            showToast(
+                "Format file tidak didukung.",
+                "error"
+            );
+
+            return;
+        }
+
+        const reader =
+            new FileReader();
+
+        reader.onload =
+            function () {
+
+                preview.src =
+                    reader.result;
+
+                preview.style.display =
+                    "block";
+            };
+
+        reader.readAsDataURL(
+            file
+        );
+    }
+
+    /* =====================================================
+       USER
+       ===================================================== */
+
+    async function loadUser() {
+
+        if (
+            !supabaseClient
+        ) {
+            return null;
+        }
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient.auth.getUser();
+
+        if (error) {
+            throw error;
+        }
+
+        currentUser =
+            data &&
+            data.user
+                ? data.user
+                : null;
+
+        return currentUser;
+    }
+
+    /* =====================================================
+       SUBMIT
+       -----------------------------------------------------
+       Untuk sementara membuat record topup pending.
+       Upload bukti dan payment storage akan disambungkan
+       setelah struktur storage final ditentukan.
+       ===================================================== */
+
+    async function submitTopup() {
+
+        if (!currentUser) {
+
+            showToast(
+                "Sesi login tidak ditemukan.",
+                "error"
+            );
+
+            return;
+        }
+
+        if (
+            !selectedPackage.id
+        ) {
+
+            showToast(
+                "Paket top up belum dipilih.",
+                "error"
+            );
+
+            return;
+        }
+
+        if (
+            !selectedMethod
+        ) {
+
+            showToast(
+                "Pilih metode pembayaran terlebih dahulu.",
+                "error"
+            );
+
+            return;
+        }
+
+        const proofInput =
+            document.getElementById(
+                "paymentProof"
+            );
+
+        const proofFile =
+            proofInput.files &&
+            proofInput.files[0];
+
+        if (!proofFile) {
+
+            showToast(
+                "Silakan upload bukti pembayaran.",
+                "error"
+            );
+
+            return;
+        }
+
+        const submitButton =
+            document.getElementById(
+                "submitButton"
+            );
+
+        submitButton.disabled =
+            true;
+
+        submitButton.textContent =
+            "Mengirim...";
+
+        try {
+
+            /*
+             * Membuat pengajuan top up.
+             *
+             * Upload bukti pembayaran akan
+             * disambungkan ke Supabase Storage
+             * setelah bucket final ditentukan.
+             */
+
+            const {
+                error
+            } =
+                await supabaseClient
+                    .from(
+                        "topup_requests"
+                    )
+                    .insert({
+                        user_id:
+                            currentUser.id,
+
+                        package_name:
+                            selectedPackage.name,
+
+                        credits:
+                            selectedPackage.credits,
+
+                        amount:
+                            selectedPackage.price,
+
+                        status:
+                            "pending"
+                    });
+
+            if (error) {
+                throw error;
+            }
+
+            showToast(
+                "Pengajuan top up berhasil dikirim dan menunggu verifikasi admin.",
+                "success"
+            );
+
+            setTimeout(
+                function () {
+
+                    window.location.href =
+                        "../index.html";
+
+                },
+                1200
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Submit topup error:",
+                error
+            );
+
+            showToast(
+                error.message ||
+                    "Gagal mengirim pengajuan top up.",
+                "error"
+            );
+
+        } finally {
+
+            submitButton.disabled =
+                false;
+
+            submitButton.textContent =
+                "Kirim Pengajuan Top Up";
+        }
+    }
+
+    /* =====================================================
+       EVENT
+       ===================================================== */
+
+    function bindEvents() {
+
+        document
+            .querySelectorAll(
+                ".method"
+            )
+            .forEach(
+                function (
+                    button
+                ) {
+
+                    button.addEventListener(
+                        "click",
+                        function () {
+
+                            selectMethod(
+                                button.dataset.method
+                            );
+                        }
+                    );
+
+                }
+            );
+
+        document
+            .querySelectorAll(
+                ".copy-button"
+            )
+            .forEach(
+                function (
+                    button
+                ) {
+
+                    button.addEventListener(
+                        "click",
+                        function () {
+
+                            copyTarget(
+                                button.dataset.copyTarget
+                            );
+                        }
+                    );
+
+                }
+            );
+
+        document
+            .getElementById(
+                "paymentProof"
+            )
+            .addEventListener(
+                "change",
+                handleProofPreview
+            );
+
+        document
+            .getElementById(
+                "submitButton"
+            )
+            .addEventListener(
+                "click",
+                submitTopup
+            );
+
+        document
+            .getElementById(
+                "cancelButton"
+            )
+            .addEventListener(
+                "click",
+                function () {
+
+                    window.location.href =
+                        "../index.html";
+
+                }
+            );
+
+        document
+            .getElementById(
+                "backButton"
+            )
+            .addEventListener(
+                "click",
+                function () {
+
+                    window.history.back();
+
+                }
+            );
+    }
+
+    /* =====================================================
+       INIT
+       ===================================================== */
+
+    async function init() {
+
+        try {
+
+            loadPackageFromUrl();
+
+            renderPackage();
+
+            supabaseClient =
+                getSupabaseClient();
+
+            if (
+                !supabaseClient
+            ) {
+                throw new Error(
+                    "Konfigurasi Supabase belum tersedia."
+                );
+            }
+
+            window.supabaseClient =
+                supabaseClient;
+
+            await loadUser();
+
+            if (!currentUser) {
+
+                window.location.href =
+                    "../../login/index.html";
+
+                return;
+            }
+
+            await loadPackageFromDatabase();
+
+            bindEvents();
+
+            document
+                .getElementById(
+                    "loading"
+                )
+                .classList.add(
+                    "hidden"
+                );
+
+            document
+                .getElementById(
+                    "paymentPage"
+                )
+                .classList.remove(
+                    "hidden"
+                );
+
+        } catch (error) {
+
+            console.error(
+                "Payment page init error:",
+                error
+            );
+
+            document
+                .getElementById(
+                    "loading"
+                )
+                .textContent =
+                error.message ||
+                "Gagal memuat halaman pembayaran.";
+
+        }
+    }
+
+    init();
+
+})();
+</script>
+
+</body>
+</html>
