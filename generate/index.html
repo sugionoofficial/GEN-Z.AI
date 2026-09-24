@@ -134,9 +134,96 @@
         }
 
 
-        .generate-model-select {
-            width: 100%;
-        }
+/* =====================================================
+   MODEL SELECTOR + INLINE LOGO
+===================================================== */
+
+.generate-model-select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+
+.generate-model-select {
+    width: 100%;
+    min-height: 46px;
+    box-sizing: border-box;
+}
+
+
+/* Logo berada DI DALAM area select */
+.generate-model-select-wrap .generate-model-logo-preview {
+    position: absolute;
+
+    left: 13px;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 30px;
+    height: 30px;
+
+    min-height: 30px;
+
+    margin: 0;
+    padding: 0;
+
+    border: 0;
+    border-radius: 0;
+
+    background: transparent;
+
+    z-index: 3;
+
+    pointer-events: none;
+
+    box-sizing: border-box;
+}
+
+
+/* Logo asli */
+.generate-model-select-wrap
+.generate-model-logo-preview
+.generate-model-logo-image {
+
+    display: block;
+
+    width: 28px;
+    height: 28px;
+
+    max-width: 28px;
+    max-height: 28px;
+
+    object-fit: contain;
+}
+
+
+/*
+ * Beri ruang kiri pada teks model
+ * hanya ketika logo sedang tampil.
+ */
+.generate-model-select-wrap:has(
+    .generate-model-logo-preview:not([hidden])
+)
+.generate-model-select {
+
+    padding-left: 54px;
+}
+
+
+/*
+ * Jangan biarkan preview lama
+ * mengambil ruang layout.
+ */
+.generate-model-logo-preview[hidden] {
+    display: none !important;
+}
 
 
         /* =====================================================
