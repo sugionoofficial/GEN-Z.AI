@@ -6,8 +6,20 @@
 
   <title>Top Up Credit - GEN-Z.AI</title>
 
+  <!-- =====================================================
+       SUPABASE
+       ===================================================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- =====================================================
+       GEN-Z CONFIG
+       ===================================================== -->
   <script src="../assets/js/config.js"></script>
+
+  <!-- =====================================================
+       SHARED NAVIGATION
+       ===================================================== -->
+  <script src="../navigation/navigation.js"></script>
 
   <style>
     * {
@@ -21,52 +33,15 @@
       color: #fff;
     }
 
-    .layout {
-      min-height: 100vh;
-      display: flex;
-    }
-
-    .sidebar {
-      width: 240px;
-      background: #111827;
-      border-right: 1px solid rgba(255,255,255,.08);
-      padding: 22px 16px;
-      flex-shrink: 0;
-    }
-
-    .brand {
-      font-size: 21px;
-      font-weight: 700;
-      margin-bottom: 30px;
-      padding: 0 10px;
-    }
-
-    .brand span {
-      color: #8b5cf6;
-    }
-
-    .nav {
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-    }
-
-    .nav a {
-      text-decoration: none;
-      color: #aeb7c9;
-      padding: 11px 12px;
-      border-radius: 9px;
-      transition: .2s;
-    }
-
-    .nav a:hover,
-    .nav a.active {
-      background: rgba(139,92,246,.14);
-      color: #fff;
-    }
+    /*
+     * navigation/navigation.js menggunakan
+     * padding-left: 260px pada desktop.
+     *
+     * Jangan membuat sidebar lokal di halaman ini.
+     */
 
     .main {
-      flex: 1;
+      width: 100%;
       padding: 30px;
       min-width: 0;
     }
@@ -86,7 +61,12 @@
     }
 
     .balance-card {
-      background: linear-gradient(135deg, #171d31, #111827);
+      background: linear-gradient(
+        135deg,
+        #171d31,
+        #111827
+      );
+
       border: 1px solid rgba(255,255,255,.08);
       border-radius: 15px;
       padding: 22px;
@@ -118,7 +98,9 @@
 
     .packages {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns:
+        repeat(auto-fit, minmax(220px, 1fr));
+
       gap: 16px;
     }
 
@@ -139,7 +121,8 @@
 
     .package-card.selected {
       border-color: #8b5cf6;
-      box-shadow: 0 0 0 1px #8b5cf6;
+      box-shadow:
+        0 0 0 1px #8b5cf6;
     }
 
     .package-badge {
@@ -282,70 +265,102 @@
       font-size: 12px;
     }
 
-    @media (max-width: 760px) {
-      .sidebar {
-        display: none;
-      }
+    @media (max-width: 768px) {
 
       .main {
-        padding: 20px;
+        padding: 75px 20px 20px;
       }
 
-      .packages {
-        grid-template-columns: 1fr;
-      }
     }
   </style>
 </head>
 
 <body>
 
-<div class="layout">
+  <!-- =====================================================
+       SHARED NAVIGATION CONTAINER
 
-  <aside class="sidebar">
-    <div class="brand">
-      GEN-Z<span>.AI</span>
-    </div>
+       navigation/navigation.js akan mengisi container ini.
+       ===================================================== -->
+  <div id="genz-navigation"></div>
 
-    <nav class="nav">
-      <a href="./dashboard.html">Dashboard</a>
-      <a href="./generate.html">Generate</a>
-      <a href="./models.html">Models</a>
-      <a href="./topup.html" class="active">Top Up Credit</a>
-      <a href="./history.html">History</a>
-      <a href="./profile.html">Profile</a>
-    </nav>
-  </aside>
 
+  <!-- =====================================================
+       MAIN CONTENT
+       ===================================================== -->
   <main class="main">
 
     <div class="page-header">
-      <h1>Top Up Credit</h1>
-      <p>Tambahkan credit untuk menggunakan fitur AI GEN-Z.AI.</p>
+
+      <h1>
+        Top Up Credit
+      </h1>
+
+      <p>
+        Tambahkan credit untuk menggunakan fitur AI GEN-Z.AI.
+      </p>
+
     </div>
 
+
+    <!-- ===================================================
+         BALANCE
+         =================================================== -->
+
     <section class="balance-card">
-      <div class="balance-label">Saldo Credit Saat Ini</div>
+
+      <div class="balance-label">
+        Saldo Credit Saat Ini
+      </div>
 
       <div class="balance">
-        <span id="balanceCredits">0</span>
-        <small>credit</small>
+
+        <span id="balanceCredits">
+          0
+        </span>
+
+        <small>
+          credit
+        </small>
+
       </div>
+
     </section>
 
-    <section>
-      <h2 class="section-title">Pilih Paket Credit</h2>
 
-      <div id="packages" class="packages">
+    <!-- ===================================================
+         PACKAGES
+         =================================================== -->
+
+    <section>
+
+      <h2 class="section-title">
+        Pilih Paket Credit
+      </h2>
+
+      <div
+        id="packages"
+        class="packages"
+      >
+
         <div class="loading">
           Memuat paket credit...
         </div>
+
       </div>
+
     </section>
+
+
+    <!-- ===================================================
+         PAYMENT / SUBMIT
+         =================================================== -->
 
     <section class="payment-card">
 
-      <h3>Informasi Pembayaran</h3>
+      <h3>
+        Informasi Pembayaran
+      </h3>
 
       <p>
         Setelah memilih paket, lanjutkan pengajuan top up.
@@ -355,6 +370,7 @@
       <p id="selectedPackageInfo">
         Belum ada paket yang dipilih.
       </p>
+
 
       <div class="submit-area">
 
@@ -367,92 +383,156 @@
           Ajukan Top Up
         </button>
 
-        <div id="message" class="message"></div>
+
+        <div
+          id="message"
+          class="message"
+        ></div>
 
       </div>
 
     </section>
 
+
+    <!-- ===================================================
+         USER INFO
+         =================================================== -->
+
     <div class="user-info">
+
       Login sebagai:
-      <strong id="userEmail">-</strong>
+
+      <strong id="userEmail">
+        -
+      </strong>
+
     </div>
 
   </main>
 
-</div>
 
 <script>
 (function () {
+
   "use strict";
 
+
+  /* =======================================================
+     STATE
+     ======================================================= */
+
   let supabaseClient = null;
+
   let currentUser = null;
+
   let currentProfile = null;
 
   let packages = [];
 
+
   let selectedPackageId = null;
+
   let selectedPackageName = "";
+
   let selectedCredits = 0;
+
   let selectedPrice = 0;
 
-  function getSupabaseConfig() {
-    const config = window.GENZ_CONFIG || {};
 
-    const url =
-      config.SUPABASE_URL ||
-      config.supabaseUrl ||
-      config.url ||
-      "";
-
-    const key =
-      config.SUPABASE_ANON_KEY ||
-      config.supabaseAnonKey ||
-      config.anonKey ||
-      config.key ||
-      "";
-
-    return {
-      url,
-      key
-    };
-  }
+  /* =======================================================
+     SUPABASE
+     ======================================================= */
 
   function initSupabase() {
 
-    if (window.GENZ_SUPABASE) {
-      supabaseClient = window.GENZ_SUPABASE;
-      return true;
-    }
-
-    if (window.supabaseClient) {
-      supabaseClient = window.supabaseClient;
-      return true;
-    }
-
-    const config = getSupabaseConfig();
+    /*
+     * Navigation.js membuat shared client.
+     */
 
     if (
-      config.url &&
-      config.key &&
-      window.supabase &&
-      typeof window.supabase.createClient === "function"
+      window.GENZ_SUPABASE &&
+      window.GENZ_SUPABASE.auth
     ) {
-      supabaseClient = window.supabase.createClient(
-        config.url,
-        config.key
-      );
 
-      window.supabaseClient = supabaseClient;
+      supabaseClient =
+        window.GENZ_SUPABASE;
 
       return true;
     }
+
+
+    if (
+      window.supabaseClient &&
+      window.supabaseClient.auth
+    ) {
+
+      supabaseClient =
+        window.supabaseClient;
+
+      return true;
+    }
+
+
+    /*
+     * Fallback hanya jika navigation belum membuat
+     * shared client.
+     */
+
+    const config =
+      window.GENZ_CONFIG || {};
+
+
+    const url =
+      config.SUPABASE_URL || "";
+
+
+    const key =
+      config.SUPABASE_KEY || "";
+
+
+    if (
+      url &&
+      key &&
+      window.supabase &&
+      typeof window.supabase.createClient ===
+        "function"
+    ) {
+
+      supabaseClient =
+        window.supabase.createClient(
+          url,
+          key,
+          {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true
+            }
+          }
+        );
+
+
+      window.GENZ_SUPABASE =
+        supabaseClient;
+
+      window.supabaseClient =
+        supabaseClient;
+
+
+      return true;
+    }
+
 
     return false;
   }
 
+
+  /* =======================================================
+     UTILITIES
+     ======================================================= */
+
   function escapeHtml(value) {
+
     return String(value ?? "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -461,109 +541,196 @@
       .replace(/'/g, "&#039;");
   }
 
+
   function formatRupiah(value) {
 
-    const number = Number(value) || 0;
+    const number =
+      Number(value) || 0;
 
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(number);
+
+    return new Intl.NumberFormat(
+      "id-ID",
+      {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }
+    ).format(number);
   }
+
 
   function formatCredits(value) {
 
-    return new Intl.NumberFormat("id-ID").format(
+    return new Intl.NumberFormat(
+      "id-ID"
+    ).format(
       Number(value) || 0
     );
   }
 
-  function showMessage(message, type) {
 
-    const el = document.getElementById("message");
+  function showMessage(
+    message,
+    type
+  ) {
 
-    if (!el) return;
+    const element =
+      document.getElementById(
+        "message"
+      );
 
-    el.textContent = message;
-    el.className = "message show " + (type || "info");
+
+    if (!element) {
+      return;
+    }
+
+
+    element.textContent =
+      message;
+
+
+    element.className =
+      "message show " +
+      (type || "info");
   }
+
 
   function clearMessage() {
 
-    const el = document.getElementById("message");
+    const element =
+      document.getElementById(
+        "message"
+      );
 
-    if (!el) return;
 
-    el.textContent = "";
-    el.className = "message";
+    if (!element) {
+      return;
+    }
+
+
+    element.textContent = "";
+
+    element.className =
+      "message";
   }
+
+
+  /* =======================================================
+     PACKAGE SELECTION
+     ======================================================= */
 
   function updateSubmitState() {
 
-    const button = document.getElementById("submitTopup");
+    const button =
+      document.getElementById(
+        "submitTopup"
+      );
 
-    if (!button) return;
 
-    button.disabled = !selectedPackageId;
+    if (!button) {
+      return;
+    }
+
+
+    button.disabled =
+      !selectedPackageId;
   }
+
 
   function updateSelectedInfo() {
 
-    const el = document.getElementById(
-      "selectedPackageInfo"
-    );
+    const element =
+      document.getElementById(
+        "selectedPackageInfo"
+      );
 
-    if (!el) return;
+
+    if (!element) {
+      return;
+    }
+
 
     if (!selectedPackageId) {
 
-      el.textContent =
+      element.textContent =
         "Belum ada paket yang dipilih.";
 
       return;
     }
 
-    el.textContent =
+
+    element.textContent =
       "Paket " +
       selectedPackageName +
       " • " +
-      formatCredits(selectedCredits) +
+      formatCredits(
+        selectedCredits
+      ) +
       " credit • " +
-      formatRupiah(selectedPrice);
+      formatRupiah(
+        selectedPrice
+      );
   }
+
 
   function selectPackage(pkg) {
 
-    selectedPackageId = pkg.id;
-    selectedPackageName = pkg.name;
-    selectedCredits = Number(pkg.credits) || 0;
-    selectedPrice = Number(pkg.price) || 0;
+    selectedPackageId =
+      pkg.id;
+
+
+    selectedPackageName =
+      pkg.name;
+
+
+    selectedCredits =
+      Number(pkg.credits) || 0;
+
+
+    selectedPrice =
+      Number(pkg.price) || 0;
+
 
     document
-      .querySelectorAll(".package-card")
+      .querySelectorAll(
+        ".package-card"
+      )
       .forEach(function (card) {
 
         card.classList.toggle(
           "selected",
-          card.dataset.packageId === String(pkg.id)
+          card.dataset.packageId ===
+            String(pkg.id)
         );
 
       });
 
+
     updateSelectedInfo();
+
     updateSubmitState();
+
     clearMessage();
   }
 
+
+  /* =======================================================
+     RENDER PACKAGES
+     ======================================================= */
+
   function renderPackages() {
 
-    const container = document.getElementById(
-      "packages"
-    );
+    const container =
+      document.getElementById(
+        "packages"
+      );
 
-    if (!container) return;
+
+    if (!container) {
+      return;
+    }
+
 
     if (!packages.length) {
 
@@ -573,64 +740,94 @@
         </div>
       `;
 
-      selectedPackageId = null;
+
+      selectedPackageId =
+        null;
+
+
       updateSelectedInfo();
+
       updateSubmitState();
 
       return;
     }
 
-    container.innerHTML = packages
-      .map(function (pkg) {
 
-        const badge =
-          String(pkg.badge || "").trim();
+    container.innerHTML =
+      packages
+        .map(function (pkg) {
 
-        const badgeHtml = badge
-          ? `<div class="package-badge">${escapeHtml(badge)}</div>`
-          : `<div class="package-badge empty">-</div>`;
+          const badge =
+            String(
+              pkg.badge || ""
+            ).trim();
 
-        const description =
-          String(pkg.description || "").trim();
 
-        return `
-          <div
-            class="package-card"
-            data-package-id="${escapeHtml(pkg.id)}"
-          >
+          const badgeHtml =
+            badge
+              ? `
+                <div class="package-badge">
+                  ${escapeHtml(badge)}
+                </div>
+              `
+              : `
+                <div class="package-badge empty">
+                  -
+                </div>
+              `;
 
-            ${badgeHtml}
 
-            <div class="package-name">
-              ${escapeHtml(pkg.name)}
+          const description =
+            String(
+              pkg.description || ""
+            ).trim();
+
+
+          return `
+            <div
+              class="package-card"
+              data-package-id="${escapeHtml(pkg.id)}"
+            >
+
+              ${badgeHtml}
+
+              <div class="package-name">
+                ${escapeHtml(pkg.name)}
+              </div>
+
+              <div class="package-credit">
+                ${formatCredits(pkg.credits)}
+
+                <span>
+                  credit
+                </span>
+              </div>
+
+              <div class="package-price">
+                ${formatRupiah(pkg.price)}
+              </div>
+
+              ${
+                description
+                  ? `
+                    <div class="package-description">
+                      ${escapeHtml(description)}
+                    </div>
+                  `
+                  : ""
+              }
+
             </div>
+          `;
 
-            <div class="package-credit">
-              ${formatCredits(pkg.credits)}
-              <span>credit</span>
-            </div>
+        })
+        .join("");
 
-            <div class="package-price">
-              ${formatRupiah(pkg.price)}
-            </div>
-
-            ${
-              description
-                ? `
-                  <div class="package-description">
-                    ${escapeHtml(description)}
-                  </div>
-                `
-                : ""
-            }
-
-          </div>
-        `;
-      })
-      .join("");
 
     container
-      .querySelectorAll(".package-card")
+      .querySelectorAll(
+        ".package-card"
+      )
       .forEach(function (card) {
 
         card.addEventListener(
@@ -640,10 +837,19 @@
             const id =
               card.dataset.packageId;
 
+
             const pkg =
-              packages.find(function (item) {
-                return String(item.id) === String(id);
-              });
+              packages.find(
+                function (item) {
+
+                  return (
+                    String(item.id) ===
+                    String(id)
+                  );
+
+                }
+              );
+
 
             if (pkg) {
               selectPackage(pkg);
@@ -655,16 +861,26 @@
       });
   }
 
+
+  /* =======================================================
+     LOAD PACKAGES
+     ======================================================= */
+
   async function loadPackages() {
 
     const container =
-      document.getElementById("packages");
+      document.getElementById(
+        "packages"
+      );
+
 
     try {
 
       const result =
         await supabaseClient
-          .from("credit_packages")
+          .from(
+            "credit_packages"
+          )
           .select(`
             id,
             name,
@@ -673,25 +889,40 @@
             description,
             badge,
             is_active,
-            sort_order
+            sort_order,
+            created_at
           `)
-          .eq("is_active", true)
-          .order("sort_order", {
-            ascending: true
-          })
-          .order("created_at", {
-            ascending: true
-          });
+          .eq(
+            "is_active",
+            true
+          )
+          .order(
+            "sort_order",
+            {
+              ascending: true
+            }
+          )
+          .order(
+            "created_at",
+            {
+              ascending: true
+            }
+          );
+
 
       if (result.error) {
         throw result.error;
       }
 
-      packages = Array.isArray(result.data)
-        ? result.data
-        : [];
+
+      packages =
+        Array.isArray(result.data)
+          ? result.data
+          : [];
+
 
       renderPackages();
+
 
     } catch (error) {
 
@@ -699,6 +930,7 @@
         "[GEN-Z.AI] Failed loading credit packages:",
         error
       );
+
 
       if (container) {
 
@@ -711,6 +943,7 @@
 
       }
 
+
       showMessage(
         "Paket credit tidak dapat dimuat dari database.",
         "error"
@@ -718,48 +951,106 @@
     }
   }
 
+
+  /* =======================================================
+     LOAD PROFILE
+     ======================================================= */
+
   async function loadProfile() {
 
-    const result =
-      await supabaseClient.auth.getSession();
+    /*
+     * Navigation sudah melakukan validasi session.
+     *
+     * Gunakan global state jika tersedia.
+     */
 
-    if (result.error) {
-      throw result.error;
+    if (
+      window.GENZ_NAVIGATION_USER
+    ) {
+
+      currentUser =
+        window.GENZ_NAVIGATION_USER;
     }
 
-    const session =
-      result.data && result.data.session;
 
-    if (!session || !session.user) {
+    if (
+      window.GENZ_NAVIGATION_PROFILE
+    ) {
 
-      window.location.href =
-        "./login.html";
-
-      return false;
+      currentProfile =
+        window.GENZ_NAVIGATION_PROFILE;
     }
 
-    currentUser = session.user;
 
-    const profileResult =
-      await supabaseClient
-        .from("profiles")
-        .select(`
-          id,
-          email,
-          name,
-          role,
-          credits,
-          status
-        `)
-        .eq("id", currentUser.id)
-        .maybeSingle();
+    /*
+     * Fallback session.
+     */
 
-    if (profileResult.error) {
-      throw profileResult.error;
+    if (!currentUser) {
+
+      const sessionResult =
+        await supabaseClient.auth.getSession();
+
+
+      if (sessionResult.error) {
+        throw sessionResult.error;
+      }
+
+
+      const session =
+        sessionResult
+          ?.data
+          ?.session;
+
+
+      if (
+        !session ||
+        !session.user
+      ) {
+
+        return false;
+      }
+
+
+      currentUser =
+        session.user;
     }
 
-    currentProfile =
-      profileResult.data;
+
+    /*
+     * Kalau profile belum tersedia dari navigation,
+     * baca profile sendiri.
+     */
+
+    if (!currentProfile) {
+
+      const profileResult =
+        await supabaseClient
+          .from("profiles")
+          .select(`
+            id,
+            email,
+            name,
+            role,
+            credits,
+            status
+          `)
+          .eq(
+            "id",
+            currentUser.id
+          )
+          .maybeSingle();
+
+
+      if (profileResult.error) {
+        throw profileResult.error;
+      }
+
+
+      currentProfile =
+        profileResult.data;
+    }
+
 
     if (!currentProfile) {
 
@@ -771,14 +1062,24 @@
       return false;
     }
 
+
+    /*
+     * Status kosong tetap dianggap aktif.
+     */
+
     const status =
       String(
         currentProfile.status || ""
-      ).toLowerCase();
+      )
+        .trim()
+        .toLowerCase();
+
 
     if (
       status &&
-      status !== "active"
+      status !== "active" &&
+      status !== "aktif" &&
+      status !== "enabled"
     ) {
 
       showMessage(
@@ -789,21 +1090,37 @@
       return false;
     }
 
+
+    /*
+     * Role.
+     */
+
     const role =
       String(
         currentProfile.role || "USER"
-      ).toUpperCase();
+      )
+        .trim()
+        .toUpperCase();
+
+
+    /*
+     * Navigation sudah menangani role,
+     * tetapi halaman ini tetap mempertahankan
+     * proteksi lokal.
+     */
 
     if (
       role === "ADMIN" ||
       role === "OWNER"
     ) {
 
-      window.location.href =
-        "../admin/dashboard.html";
+      window.location.replace(
+        "/admin/dashboard.html"
+      );
 
       return false;
     }
+
 
     if (role !== "USER") {
 
@@ -815,22 +1132,52 @@
       return false;
     }
 
-    document.getElementById(
-      "balanceCredits"
-    ).textContent =
-      formatCredits(
-        currentProfile.credits
+
+    /*
+     * Balance.
+     */
+
+    const balance =
+      document.getElementById(
+        "balanceCredits"
       );
 
-    document.getElementById(
-      "userEmail"
-    ).textContent =
-      currentProfile.email ||
-      currentUser.email ||
-      "-";
+
+    if (balance) {
+
+      balance.textContent =
+        formatCredits(
+          currentProfile.credits
+        );
+    }
+
+
+    /*
+     * Email.
+     */
+
+    const email =
+      document.getElementById(
+        "userEmail"
+      );
+
+
+    if (email) {
+
+      email.textContent =
+        currentProfile.email ||
+        currentUser.email ||
+        "-";
+    }
+
 
     return true;
   }
+
+
+  /* =======================================================
+     SUBMIT TOP UP
+     ======================================================= */
 
   async function submitTopup() {
 
@@ -844,6 +1191,7 @@
       return;
     }
 
+
     if (!selectedPackageId) {
 
       showMessage(
@@ -853,6 +1201,7 @@
 
       return;
     }
+
 
     if (
       !selectedPackageName ||
@@ -868,33 +1217,65 @@
       return;
     }
 
+
     const button =
       document.getElementById(
         "submitTopup"
       );
 
-    if (!button) return;
+
+    if (!button) {
+      return;
+    }
+
 
     button.disabled = true;
+
     button.textContent =
       "Mengirim pengajuan...";
 
+
     clearMessage();
+
 
     try {
 
+      /*
+       * Jangan mengambil nominal dari input user.
+       *
+       * Nilai berasal dari paket yang dipilih
+       * dari database.
+       */
+
       const payload = {
-        user_id: currentUser.id,
-        package_name: selectedPackageName,
-        credits: selectedCredits,
-        amount: Math.round(selectedPrice),
-        status: "pending"
+
+        user_id:
+          currentUser.id,
+
+        package_name:
+          selectedPackageName,
+
+        credits:
+          selectedCredits,
+
+        amount:
+          Math.round(
+            selectedPrice
+          ),
+
+        status:
+          "pending"
       };
+
 
       const result =
         await supabaseClient
-          .from("topup_requests")
-          .insert(payload)
+          .from(
+            "topup_requests"
+          )
+          .insert(
+            payload
+          )
           .select(`
             id,
             user_id,
@@ -906,27 +1287,50 @@
           `)
           .single();
 
+
       if (result.error) {
         throw result.error;
       }
+
 
       showMessage(
         "Pengajuan top up berhasil dikirim. Silakan tunggu proses dari admin.",
         "success"
       );
 
-      selectedPackageId = null;
-      selectedPackageName = "";
-      selectedCredits = 0;
-      selectedPrice = 0;
+
+      /*
+       * Reset pilihan.
+       */
+
+      selectedPackageId =
+        null;
+
+      selectedPackageName =
+        "";
+
+      selectedCredits =
+        0;
+
+      selectedPrice =
+        0;
+
 
       document
-        .querySelectorAll(".package-card")
+        .querySelectorAll(
+          ".package-card"
+        )
         .forEach(function (card) {
-          card.classList.remove("selected");
+
+          card.classList.remove(
+            "selected"
+          );
+
         });
 
+
       updateSelectedInfo();
+
 
     } catch (error) {
 
@@ -935,66 +1339,126 @@
         error
       );
 
+
       let message =
         "Pengajuan top up gagal dikirim.";
 
-      if (error && error.message) {
 
-        if (
-          error.message
-            .toLowerCase()
-            .includes("row-level security")
-        ) {
+      const errorMessage =
+        String(
+          error?.message || ""
+        );
 
-          message =
-            "Pengajuan ditolak oleh keamanan database. Policy topup_requests perlu diperbaiki.";
 
-        } else {
+      const lowerMessage =
+        errorMessage.toLowerCase();
 
-          message =
-            "Pengajuan top up gagal: " +
-            error.message;
-        }
+
+      if (
+        lowerMessage.includes(
+          "row-level security"
+        ) ||
+        lowerMessage.includes(
+          "permission denied"
+        ) ||
+        lowerMessage.includes(
+          "violates row-level security policy"
+        )
+      ) {
+
+        message =
+          "Pengajuan ditolak oleh keamanan database. Policy topup_requests perlu diperbaiki.";
+
+      } else if (errorMessage) {
+
+        message =
+          "Pengajuan top up gagal: " +
+          errorMessage;
       }
+
 
       showMessage(
         message,
         "error"
       );
 
+
     } finally {
 
       button.textContent =
         "Ajukan Top Up";
 
+
       updateSubmitState();
     }
   }
+
+
+  /* =======================================================
+     INIT
+     ======================================================= */
 
   async function init() {
 
     try {
 
+      /*
+       * Pastikan navigation sudah selesai
+       * jika promise tersedia.
+       */
+
+      if (
+        window.GENZNavigationReady &&
+        typeof
+          window.GENZNavigationReady.then ===
+            "function"
+      ) {
+
+        await window.GENZNavigationReady;
+      }
+
+
+      /*
+       * Ambil shared Supabase client.
+       */
+
       if (!initSupabase()) {
 
         throw new Error(
-          "Supabase client tidak tersedia."
+          "Shared Supabase client tidak tersedia."
         );
       }
 
+
+      /*
+       * Validasi profile.
+       */
+
       const authenticated =
         await loadProfile();
+
 
       if (!authenticated) {
         return;
       }
 
+
+      /*
+       * Load paket.
+       */
+
       await loadPackages();
+
+
+      /*
+       * Submit button.
+       */
 
       const button =
         document.getElementById(
           "submitTopup"
         );
+
 
       if (button) {
 
@@ -1004,12 +1468,14 @@
         );
       }
 
+
     } catch (error) {
 
       console.error(
         "[GEN-Z.AI] Top Up initialization failed:",
         error
       );
+
 
       showMessage(
         "Halaman Top Up gagal dimuat. Silakan periksa konfigurasi Supabase.",
@@ -1018,20 +1484,29 @@
     }
   }
 
+
+  /* =======================================================
+     START
+     ======================================================= */
+
   if (
-    document.readyState === "loading"
+    document.readyState ===
+    "loading"
   ) {
 
     document.addEventListener(
       "DOMContentLoaded",
-      init
+      init,
+      {
+        once: true
+      }
     );
 
   } else {
 
     init();
-
   }
+
 
 })();
 </script>
