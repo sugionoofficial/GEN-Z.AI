@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
@@ -9,32 +10,48 @@
 
   <title>Top Up Credit - GEN-Z.AI</title>
 
+
   <!-- =====================================================
        SUPABASE
        ===================================================== -->
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 
   <!-- =====================================================
        GEN-Z CONFIG
        ===================================================== -->
+
   <script src="../assets/js/config.js"></script>
+
 
   <!-- =====================================================
        SHARED NAVIGATION
        ===================================================== -->
+
   <script src="../navigation/navigation.js"></script>
 
+
   <style>
+
     * {
       box-sizing: border-box;
     }
 
+
     body {
       margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
+
+      font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
       background: #0b1020;
+
       color: #fff;
     }
+
 
     /*
      * navigation/navigation.js menggunakan
@@ -43,76 +60,117 @@
      * Jangan membuat sidebar lokal di halaman ini.
      */
 
+
     .main {
       width: 100%;
+
       padding: 30px;
+
       min-width: 0;
     }
+
 
     .page-header {
       margin-bottom: 25px;
     }
 
+
     .page-header h1 {
       margin: 0 0 7px;
+
       font-size: 28px;
     }
 
+
     .page-header p {
       margin: 0;
+
       color: #8f9ab0;
     }
 
-    .balance-card {
-      background: linear-gradient(
-        135deg,
-        #171d31,
-        #111827
-      );
 
-      border: 1px solid rgba(255,255,255,.08);
+    .balance-card {
+
+      background:
+        linear-gradient(
+          135deg,
+          #171d31,
+          #111827
+        );
+
+      border:
+        1px solid
+        rgba(255,255,255,.08);
+
       border-radius: 15px;
+
       padding: 22px;
+
       margin-bottom: 25px;
     }
 
+
     .balance-label {
+
       color: #8f9ab0;
+
       font-size: 13px;
+
       margin-bottom: 8px;
     }
 
+
     .balance {
+
       font-size: 32px;
+
       font-weight: 700;
     }
 
+
     .balance small {
+
       color: #9ca3af;
+
       font-size: 14px;
+
       font-weight: 400;
     }
 
+
     .section-title {
+
       font-size: 18px;
+
       font-weight: 700;
+
       margin: 0 0 15px;
     }
 
+
     .packages {
+
       display: grid;
+
       grid-template-columns:
-        repeat(auto-fit, minmax(240px, 1fr));
+        repeat(
+          auto-fit,
+          minmax(240px, 1fr)
+        );
 
       gap: 16px;
     }
+
 
     /* =====================================================
        PACKAGE CARD
        ===================================================== */
 
+
     .package-card {
+
       position: relative;
+
       overflow: hidden;
 
       background:
@@ -122,8 +180,12 @@
           #111827
         );
 
-      border: 1px solid rgba(255,255,255,.08);
+      border:
+        1px solid
+        rgba(255,255,255,.08);
+
       border-radius: 16px;
+
       padding: 20px;
 
       cursor: pointer;
@@ -134,52 +196,77 @@
         box-shadow .2s ease;
     }
 
+
     .package-card:hover {
-      border-color: rgba(139,92,246,.55);
+
+      border-color:
+        rgba(139,92,246,.55);
 
       transform:
         translateY(-3px);
 
       box-shadow:
-        0 12px 30px rgba(0,0,0,.22);
+        0 12px 30px
+        rgba(0,0,0,.22);
     }
 
+
     .package-card.selected {
-      border-color: #8b5cf6;
+
+      border-color:
+        #8b5cf6;
 
       box-shadow:
         0 0 0 1px #8b5cf6,
-        0 12px 35px rgba(139,92,246,.16);
+        0 12px 35px
+        rgba(139,92,246,.16);
     }
+
 
     /* =====================================================
        PACKAGE TOP
        ===================================================== */
 
+
     .package-top {
+
       display: flex;
+
       align-items: flex-start;
+
       justify-content: space-between;
+
       gap: 12px;
+
       margin-bottom: 15px;
     }
 
+
     .package-identity {
+
       display: flex;
+
       align-items: center;
+
       gap: 12px;
+
       min-width: 0;
     }
 
+
     .package-logo {
+
       width: 48px;
+
       height: 48px;
 
       flex:
         0 0 48px;
 
       display: flex;
+
       align-items: center;
+
       justify-content: center;
 
       border-radius: 13px;
@@ -192,56 +279,80 @@
         );
 
       border:
-        1px solid rgba(255,255,255,.08);
+        1px solid
+        rgba(255,255,255,.08);
 
       overflow: hidden;
 
       font-size: 24px;
+
       line-height: 1;
     }
 
+
     .package-logo img {
+
       width: 100%;
+
       height: 100%;
+
       object-fit: cover;
+
       display: block;
     }
 
+
     .package-title-wrap {
+
       min-width: 0;
     }
 
+
     .package-name {
+
       font-size: 18px;
+
       font-weight: 700;
+
       line-height: 1.25;
+
       word-break: break-word;
     }
 
+
     .package-category {
+
       margin-top: 4px;
 
       color: #8f9ab0;
 
       font-size: 11px;
+
       line-height: 1.3;
 
       text-transform: uppercase;
+
       letter-spacing: .04em;
     }
+
 
     /* =====================================================
        BADGE
        ===================================================== */
 
+
     .package-badge {
+
       display: inline-flex;
+
       align-items: center;
+
       justify-content: center;
 
       flex-shrink: 0;
 
       font-size: 10px;
+
       font-weight: 700;
 
       padding: 5px 8px;
@@ -257,54 +368,87 @@
       white-space: nowrap;
     }
 
+
     .package-badge.empty {
+
       display: none;
     }
+
 
     /* =====================================================
        CREDIT
        ===================================================== */
 
+
     .package-credit {
+
       font-size: 29px;
+
       font-weight: 700;
+
       line-height: 1.15;
+
       margin-bottom: 12px;
     }
 
+
     .package-credit span {
+
       font-size: 13px;
+
       color: #8f9ab0;
+
       font-weight: 400;
     }
+
 
     /* =====================================================
        PRICE
        ===================================================== */
 
+
     .package-price-wrap {
+
       display: flex;
+
       flex-direction: column;
+
       gap: 5px;
+
       margin-bottom: 10px;
     }
 
+
     .package-price-old {
+
       color: #6f7a8e;
+
       font-size: 13px;
-      text-decoration: line-through;
-      text-decoration-thickness: 1px;
+
+      text-decoration:
+        line-through;
+
+      text-decoration-thickness:
+        1px;
     }
 
+
     .package-price {
+
       font-size: 20px;
+
       font-weight: 700;
+
       color: #f8fafc;
     }
 
+
     .package-discount {
+
       display: inline-flex;
+
       align-items: center;
+
       width: fit-content;
 
       padding: 4px 7px;
@@ -315,45 +459,62 @@
         rgba(34,197,94,.12);
 
       border:
-        1px solid rgba(34,197,94,.18);
+        1px solid
+        rgba(34,197,94,.18);
 
       color:
         #86efac;
 
       font-size: 11px;
+
       font-weight: 700;
     }
 
+
     .package-no-discount {
+
       font-size: 20px;
+
       font-weight: 700;
+
       color: #d8dce6;
     }
+
 
     /* =====================================================
        DESCRIPTION
        ===================================================== */
 
+
     .package-description {
+
       color: #7f8ba1;
+
       font-size: 12px;
+
       line-height: 1.5;
+
       margin-top: 12px;
     }
+
 
     /* =====================================================
        SELECTED INDICATOR
        ===================================================== */
 
+
     .package-selected {
+
       display: none;
 
       position: absolute;
 
       right: 14px;
+
       bottom: 14px;
 
       width: 22px;
+
       height: 22px;
 
       border-radius: 50%;
@@ -361,22 +522,30 @@
       background: #8b5cf6;
 
       align-items: center;
+
       justify-content: center;
 
       font-size: 12px;
+
       font-weight: 700;
     }
 
-    .package-card.selected .package-selected {
+
+    .package-card.selected
+    .package-selected {
+
       display: flex;
     }
+
 
     /* =====================================================
        EMPTY / LOADING
        ===================================================== */
 
+
     .loading,
     .empty {
+
       grid-column: 1 / -1;
 
       padding: 30px;
@@ -388,34 +557,44 @@
       background: #111827;
 
       border:
-        1px solid rgba(255,255,255,.08);
+        1px solid
+        rgba(255,255,255,.08);
 
       border-radius: 14px;
     }
+
 
     /* =====================================================
        PAYMENT
        ===================================================== */
 
+
     .payment-card {
+
       margin-top: 25px;
 
       background: #111827;
 
       border:
-        1px solid rgba(255,255,255,.08);
+        1px solid
+        rgba(255,255,255,.08);
 
       border-radius: 14px;
 
       padding: 20px;
     }
 
+
     .payment-card h3 {
+
       margin: 0 0 10px;
+
       font-size: 16px;
     }
 
+
     .payment-card p {
+
       margin: 5px 0;
 
       color: #aab3c4;
@@ -425,7 +604,9 @@
       font-size: 14px;
     }
 
+
     .selected-info {
+
       margin-top: 12px !important;
 
       padding: 12px 14px;
@@ -436,16 +617,22 @@
         rgba(139,92,246,.08);
 
       border:
-        1px solid rgba(139,92,246,.15);
+        1px solid
+        rgba(139,92,246,.15);
 
-      color: #c4b5fd !important;
+      color:
+        #c4b5fd !important;
     }
 
+
     .submit-area {
+
       margin-top: 20px;
     }
 
+
     .submit-btn {
+
       width: 100%;
 
       border: 0;
@@ -467,20 +654,28 @@
       transition: .2s;
     }
 
+
     .submit-btn:hover {
+
       background: #7c3aed;
     }
 
+
     .submit-btn:disabled {
+
       opacity: .55;
+
       cursor: not-allowed;
     }
+
 
     /* =====================================================
        MESSAGE
        ===================================================== */
 
+
     .message {
+
       display: none;
 
       margin-top: 15px;
@@ -494,11 +689,15 @@
       line-height: 1.5;
     }
 
+
     .message.show {
+
       display: block;
     }
 
+
     .message.info {
+
       background:
         rgba(59,130,246,.12);
 
@@ -506,10 +705,13 @@
         #93c5fd;
 
       border:
-        1px solid rgba(59,130,246,.2);
+        1px solid
+        rgba(59,130,246,.2);
     }
 
+
     .message.success {
+
       background:
         rgba(34,197,94,.12);
 
@@ -517,10 +719,13 @@
         #86efac;
 
       border:
-        1px solid rgba(34,197,94,.2);
+        1px solid
+        rgba(34,197,94,.2);
     }
 
+
     .message.error {
+
       background:
         rgba(239,68,68,.12);
 
@@ -528,14 +733,18 @@
         #fca5a5;
 
       border:
-        1px solid rgba(239,68,68,.2);
+        1px solid
+        rgba(239,68,68,.2);
     }
+
 
     /* =====================================================
        USER INFO
        ===================================================== */
 
+
     .user-info {
+
       margin-top: 25px;
 
       color: #7f8ba1;
@@ -543,54 +752,74 @@
       font-size: 12px;
     }
 
+
     /* =====================================================
        MOBILE
        ===================================================== */
 
+
     @media (max-width: 768px) {
 
       .main {
+
         padding:
           75px 20px 20px;
       }
 
+
       .packages {
+
         grid-template-columns:
           1fr;
       }
 
+
       .page-header h1 {
+
         font-size: 24px;
       }
 
     }
 
+
     @media (max-width: 480px) {
 
       .main {
+
         padding:
           70px 14px 20px;
       }
 
+
       .package-card {
+
         padding: 17px;
       }
 
+
       .package-logo {
+
         width: 44px;
+
         height: 44px;
+
         flex-basis: 44px;
       }
 
     }
+
   </style>
+
 </head>
 
+
 <body>
+
 
   <!-- =====================================================
        SHARED NAVIGATION
        ===================================================== -->
+
 
   <div id="genz-navigation"></div>
 
@@ -599,7 +828,9 @@
        MAIN CONTENT
        ===================================================== -->
 
+
   <main class="main">
+
 
     <div class="page-header">
 
@@ -618,11 +849,13 @@
          BALANCE
          =================================================== -->
 
+
     <section class="balance-card">
 
       <div class="balance-label">
         Saldo Credit Saat Ini
       </div>
+
 
       <div class="balance">
 
@@ -643,11 +876,13 @@
          PACKAGES
          =================================================== -->
 
+
     <section>
 
       <h2 class="section-title">
         Pilih Paket Credit
       </h2>
+
 
       <div
         id="packages"
@@ -667,16 +902,19 @@
          PAYMENT / SUBMIT
          =================================================== -->
 
+
     <section class="payment-card">
 
       <h3>
         Informasi Pembayaran
       </h3>
 
+
       <p>
         Setelah memilih paket, lanjutkan pengajuan top up.
         Pengajuan akan masuk ke sistem admin untuk diproses.
       </p>
+
 
       <p
         id="selectedPackageInfo"
@@ -712,6 +950,7 @@
          USER INFO
          =================================================== -->
 
+
     <div class="user-info">
 
       Login sebagai:
@@ -725,7 +964,9 @@
   </main>
 
 
+
 <script>
+
 (function () {
 
   "use strict";
@@ -734,6 +975,7 @@
   /* =======================================================
      STATE
      ======================================================= */
+
 
   let supabaseClient = null;
 
@@ -750,8 +992,9 @@
   let selectedCredits = 0;
 
   /*
-   * selectedPrice adalah harga FINAL setelah diskon.
+   * Harga FINAL setelah diskon.
    */
+
   let selectedPrice = 0;
 
   let selectedOriginalPrice = 0;
@@ -759,9 +1002,11 @@
   let selectedDiscountPercent = 0;
 
 
+
   /* =======================================================
      SUPABASE
      ======================================================= */
+
 
   function initSupabase() {
 
@@ -839,6 +1084,7 @@
       window.GENZ_SUPABASE =
         supabaseClient;
 
+
       window.supabaseClient =
         supabaseClient;
 
@@ -851,9 +1097,11 @@
   }
 
 
+
   /* =======================================================
      UTILITIES
      ======================================================= */
+
 
   function escapeHtml(value) {
 
@@ -935,22 +1183,17 @@
 
     element.textContent = "";
 
+
     element.className =
       "message";
   }
+
 
 
   /* =======================================================
      PACKAGE DATA NORMALIZATION
      ======================================================= */
 
-  /*
-   * Database package schema bisa berkembang.
-   *
-   * Fungsi ini mendukung beberapa nama field umum
-   * tanpa membuat query Supabase gagal hanya karena
-   * satu nama kolom tambahan belum tersedia.
-   */
 
   function getFirstValue(
     object,
@@ -988,59 +1231,85 @@
   }
 
 
+
+  /* =======================================================
+     PRICE + DISCOUNT NORMALIZATION
+     ======================================================= */
+
+
   function normalizeDiscount(pkg) {
 
     /*
-     * Prioritas field percentage.
+     * -------------------------------------------------------
+     * HARGA NORMAL
+     * -------------------------------------------------------
+     *
+     * Prioritas:
+     *
+     * original_price
+     * normal_price
+     * base_price
+     * price
+     *
+     * Yang paling penting:
+     * kalau field tambahan tidak ada,
+     * jangan sampai Number(null) menjadi 0.
      */
 
-    const percentageValue =
+    const originalRaw =
+      getFirstValue(
+        pkg,
+        [
+          "original_price",
+          "normal_price",
+          "base_price",
+          "price"
+        ]
+      );
+
+
+    let originalPrice =
+      Number(originalRaw);
+
+
+    if (
+      !Number.isFinite(originalPrice) ||
+      originalPrice < 0
+    ) {
+
+      originalPrice = 0;
+    }
+
+
+    originalPrice =
+      Math.round(
+        originalPrice
+      );
+
+
+
+    /*
+     * -------------------------------------------------------
+     * DISKON PERSENTASE
+     * -------------------------------------------------------
+     */
+
+    let discountRaw =
       getFirstValue(
         pkg,
         [
           "discount_percent",
           "discount_percentage",
           "discountPercent",
-          "discountPercentage"
+          "discountPercentage",
+          "discount"
         ]
       );
 
 
     let percent =
-      Number(
-        percentageValue
-      );
+      Number(discountRaw);
 
-
-    /*
-     * Jika field percentage tidak ada,
-     * coba field "discount".
-     */
-
-    if (
-      !Number.isFinite(percent) ||
-      percent < 0
-    ) {
-
-      const discountValue =
-        getFirstValue(
-          pkg,
-          [
-            "discount"
-          ]
-        );
-
-
-      percent =
-        Number(
-          discountValue
-        );
-    }
-
-
-    /*
-     * Diskon persen dibatasi 0-100.
-     */
 
     if (
       !Number.isFinite(percent) ||
@@ -1052,62 +1321,81 @@
 
 
     if (percent > 100) {
+
       percent = 100;
     }
 
 
-    /*
-     * Harga awal.
-     */
-
-    const originalPrice =
-      Number(
-        getFirstValue(
-          pkg,
-          [
-            "original_price",
-            "normal_price",
-            "base_price",
-            "price"
-          ]
-        )
-      ) || 0;
-
 
     /*
-     * Jika database sudah menyediakan harga final,
-     * gunakan harga tersebut sebagai prioritas.
+     * -------------------------------------------------------
+     * HARGA FINAL EKSPLISIT
+     * -------------------------------------------------------
+     *
+     * Jangan:
+     *
+     * Number(null)
+     *
+     * karena:
+     *
+     * Number(null) === 0
+     *
+     * Inilah yang sebelumnya menyebabkan
+     * harga package menjadi Rp 0.
      */
 
-    const explicitFinalPrice =
-      Number(
-        getFirstValue(
-          pkg,
-          [
-            "discounted_price",
-            "final_price",
-            "sale_price"
-          ]
-        )
+    const explicitFinalRaw =
+      getFirstValue(
+        pkg,
+        [
+          "discounted_price",
+          "final_price",
+          "sale_price"
+        ]
       );
 
 
-    let finalPrice;
+    let finalPrice = null;
 
+
+    /*
+     * Hanya gunakan harga final jika field
+     * memang benar-benar tersedia.
+     */
 
     if (
-      Number.isFinite(
-        explicitFinalPrice
-      ) &&
-      explicitFinalPrice >= 0
+      explicitFinalRaw !== null &&
+      explicitFinalRaw !== undefined &&
+      String(explicitFinalRaw).trim() !== ""
     ) {
 
-      finalPrice =
-        Math.round(
-          explicitFinalPrice
-        );
+      const parsedFinal =
+        Number(explicitFinalRaw);
 
-    } else if (
+
+      if (
+        Number.isFinite(parsedFinal) &&
+        parsedFinal >= 0
+      ) {
+
+        finalPrice =
+          Math.round(
+            parsedFinal
+          );
+      }
+    }
+
+
+
+    /*
+     * -------------------------------------------------------
+     * JIKA TIDAK ADA HARGA FINAL
+     * HITUNG DARI DISKON
+     * -------------------------------------------------------
+     */
+
+    if (
+      finalPrice === null &&
       percent > 0 &&
       originalPrice > 0
     ) {
@@ -1121,24 +1409,57 @@
             100
           )
         );
-
-    } else {
-
-      finalPrice =
-        Math.round(
-          originalPrice
-        );
     }
 
 
+
     /*
-     * Jika harga final ternyata lebih tinggi
-     * dari harga normal, jangan tampilkan sebagai diskon.
+     * -------------------------------------------------------
+     * TANPA DISKON
+     * -------------------------------------------------------
+     */
+
+    if (finalPrice === null) {
+
+      finalPrice =
+        originalPrice;
+    }
+
+
+
+    /*
+     * -------------------------------------------------------
+     * VALIDASI HARGA FINAL
+     * -------------------------------------------------------
      */
 
     if (
-      finalPrice >= originalPrice &&
-      originalPrice > 0
+      !Number.isFinite(finalPrice) ||
+      finalPrice < 0
+    ) {
+
+      finalPrice =
+        originalPrice;
+    }
+
+
+    finalPrice =
+      Math.round(
+        finalPrice
+      );
+
+
+
+    /*
+     * -------------------------------------------------------
+     * FINAL PRICE TIDAK BOLEH LEBIH BESAR
+     * DARI HARGA NORMAL
+     * -------------------------------------------------------
+     */
+
+    if (
+      originalPrice > 0 &&
+      finalPrice >= originalPrice
     ) {
 
       percent = 0;
@@ -1148,21 +1469,60 @@
     }
 
 
+
+    /*
+     * -------------------------------------------------------
+     * JIKA ADA HARGA FINAL TAPI TIDAK ADA PERSENTASE,
+     * HITUNG PERSENTASE SECARA OTOMATIS.
+     *
+     * Ini membuat UI tetap bisa menampilkan:
+     *
+     * Hemat 20%
+     *
+     * walaupun admin hanya menyimpan
+     * original_price dan discounted_price.
+     * -------------------------------------------------------
+     */
+
+    if (
+      percent <= 0 &&
+      originalPrice > 0 &&
+      finalPrice >= 0 &&
+      finalPrice < originalPrice
+    ) {
+
+      percent =
+        Math.round(
+          (
+            (
+              originalPrice -
+              finalPrice
+            ) /
+            originalPrice
+          ) *
+          100
+        );
+    }
+
+
+    if (percent > 100) {
+
+      percent = 100;
+    }
+
+
     return {
+
       originalPrice:
         Math.max(
           0,
-          Math.round(
-            originalPrice
-          )
+          originalPrice
         ),
 
       finalPrice:
         Math.max(
           0,
-          Math.round(
-            finalPrice
-          )
+          finalPrice
         ),
 
       percent:
@@ -1173,8 +1533,15 @@
             percent
           )
         )
+
     };
   }
+
+
+
+  /* =======================================================
+     PACKAGE CATEGORY
+     ======================================================= */
 
 
   function getPackageCategory(pkg) {
@@ -1193,13 +1560,12 @@
 
 
     if (category) {
-      return String(category);
+
+      return String(
+        category
+      );
     }
 
-
-    /*
-     * Fallback kategori berdasarkan nama paket.
-     */
 
     const name =
       String(
@@ -1220,7 +1586,6 @@
 
 
     if (
-      name.includes("creator") ||
       name.includes("creator")
     ) {
 
@@ -1238,7 +1603,6 @@
 
 
     if (
-      name.includes("premium") ||
       name.includes("premium")
     ) {
 
@@ -1259,15 +1623,16 @@
   }
 
 
+
+  /* =======================================================
+     CATEGORY ICON
+     ======================================================= */
+
+
   function getCategoryIcon(
     category,
     pkg
   ) {
-
-    /*
-     * Jika database menyimpan emoji/icon,
-     * gunakan terlebih dahulu.
-     */
 
     const icon =
       getFirstValue(
@@ -1282,15 +1647,17 @@
 
 
     if (icon) {
-      return String(icon);
+
+      return String(
+        icon
+      );
     }
 
 
     const value =
       String(
         category || ""
-      )
-      .toLowerCase();
+      ).toLowerCase();
 
 
     if (
@@ -1341,6 +1708,12 @@
   }
 
 
+
+  /* =======================================================
+     LOGO URL
+     ======================================================= */
+
+
   function getLogoUrl(pkg) {
 
     const value =
@@ -1358,17 +1731,16 @@
 
 
     if (!value) {
+
       return "";
     }
 
 
     const url =
-      String(value).trim();
+      String(
+        value
+      ).trim();
 
-
-    /*
-     * Hanya gunakan URL gambar yang aman.
-     */
 
     if (
       url.startsWith("https://") ||
@@ -1384,18 +1756,30 @@
   }
 
 
+
+  /* =======================================================
+     NORMALIZE PACKAGE
+     ======================================================= */
+
+
   function getNormalizedPackage(pkg) {
 
     const discount =
-      normalizeDiscount(pkg);
+      normalizeDiscount(
+        pkg
+      );
 
 
     const category =
-      getPackageCategory(pkg);
+      getPackageCategory(
+        pkg
+      );
 
 
     const logoUrl =
-      getLogoUrl(pkg);
+      getLogoUrl(
+        pkg
+      );
 
 
     return {
@@ -1427,9 +1811,11 @@
   }
 
 
+
   /* =======================================================
      PACKAGE SELECTION
      ======================================================= */
+
 
   function updateSubmitState() {
 
@@ -1447,6 +1833,7 @@
     button.disabled =
       !selectedPackageId;
   }
+
 
 
   function updateSelectedInfo() {
@@ -1508,10 +1895,13 @@
   }
 
 
+
   function selectPackage(pkg) {
 
     const normalized =
-      getNormalizedPackage(pkg);
+      getNormalizedPackage(
+        pkg
+      );
 
 
     selectedPackageId =
@@ -1547,17 +1937,36 @@
 
 
     /*
-     * Pastikan harga valid.
+     * Pengaman terakhir.
+     *
+     * Jika finalPrice 0 tetapi price database
+     * valid, gunakan price.
      */
 
     if (
-      selectedPrice <= 0
+      selectedPrice <= 0 &&
+      Number(normalized.price) > 0
     ) {
 
       selectedPrice =
         Number(
           normalized.price
-        ) || 0;
+        );
+
+
+      /*
+       * Jika fallback menggunakan price,
+       * dan belum ada harga normal,
+       * sinkronkan harga normal.
+       */
+
+      if (
+        selectedOriginalPrice <= 0
+      ) {
+
+        selectedOriginalPrice =
+          selectedPrice;
+      }
     }
 
 
@@ -1565,17 +1974,20 @@
       .querySelectorAll(
         ".package-card"
       )
-      .forEach(function (card) {
+      .forEach(
+        function (card) {
 
-        card.classList.toggle(
-          "selected",
-          card.dataset.packageId ===
-            String(
-              normalized.id
-            )
-        );
+          card.classList.toggle(
+            "selected",
 
-      });
+            card.dataset.packageId ===
+              String(
+                normalized.id
+              )
+          );
+
+        }
+      );
 
 
     updateSelectedInfo();
@@ -1586,14 +1998,18 @@
   }
 
 
+
   /* =======================================================
      RENDER PACKAGE LOGO
      ======================================================= */
 
+
   function renderPackageLogo(pkg) {
 
     const normalized =
-      getNormalizedPackage(pkg);
+      getNormalizedPackage(
+        pkg
+      );
 
 
     if (
@@ -1623,9 +2039,11 @@
   }
 
 
+
   /* =======================================================
      RENDER PACKAGES
      ======================================================= */
+
 
   function renderPackages() {
 
@@ -1656,14 +2074,18 @@
       selectedPackageName =
         "";
 
+
       selectedCredits =
         0;
+
 
       selectedPrice =
         0;
 
+
       selectedOriginalPrice =
         0;
+
 
       selectedDiscountPercent =
         0;
@@ -1679,48 +2101,56 @@
 
     container.innerHTML =
       packages
-        .map(function (rawPackage) {
+        .map(
+          function (rawPackage) {
 
-          const pkg =
-            getNormalizedPackage(
-              rawPackage
-            );
-
-
-          const badge =
-            String(
-              pkg.badge || ""
-            ).trim();
+            const pkg =
+              getNormalizedPackage(
+                rawPackage
+              );
 
 
-          const category =
-            String(
-              pkg.category || ""
-            ).trim();
+            const badge =
+              String(
+                pkg.badge || ""
+              ).trim();
 
 
-          const description =
-            String(
-              pkg.description || ""
-            ).trim();
+            const category =
+              String(
+                pkg.category || ""
+              ).trim();
 
 
-          const hasDiscount =
-            pkg.discountPercent > 0 &&
-            pkg.originalPrice > pkg.finalPrice;
+            const description =
+              String(
+                pkg.description || ""
+              ).trim();
 
 
-          const priceHtml =
-            hasDiscount
-              ? `
+            const hasDiscount =
+              pkg.discountPercent > 0 &&
+              pkg.originalPrice > pkg.finalPrice;
+
+
+            let priceHtml;
+
+
+            if (hasDiscount) {
+
+              priceHtml = `
                 <div class="package-price-wrap">
 
                   <div class="package-price-old">
-                    ${formatRupiah(pkg.originalPrice)}
+                    ${formatRupiah(
+                      pkg.originalPrice
+                    )}
                   </div>
 
                   <div class="package-price">
-                    ${formatRupiah(pkg.finalPrice)}
+                    ${formatRupiah(
+                      pkg.finalPrice
+                    )}
                   </div>
 
                   <div class="package-discount">
@@ -1728,101 +2158,119 @@
                   </div>
 
                 </div>
-              `
-              : `
+              `;
+
+            } else {
+
+              priceHtml = `
                 <div class="package-price-wrap">
 
                   <div class="package-no-discount">
-                    ${formatRupiah(pkg.finalPrice)}
+                    ${formatRupiah(
+                      pkg.finalPrice
+                    )}
                   </div>
 
                 </div>
               `;
+            }
 
 
-          return `
-            <div
-              class="package-card"
-              data-package-id="${escapeHtml(pkg.id)}"
-            >
+            return `
+              <div
+                class="package-card"
+                data-package-id="${escapeHtml(pkg.id)}"
+              >
 
-              <div class="package-top">
+                <div class="package-top">
 
-                <div class="package-identity">
+                  <div class="package-identity">
 
-                  ${renderPackageLogo(pkg)}
+                    ${renderPackageLogo(pkg)}
 
-                  <div class="package-title-wrap">
+                    <div class="package-title-wrap">
 
-                    <div class="package-name">
-                      ${escapeHtml(pkg.name)}
+                      <div class="package-name">
+                        ${escapeHtml(
+                          pkg.name
+                        )}
+                      </div>
+
+
+                      ${
+                        category
+                          ? `
+                            <div class="package-category">
+                              ${escapeHtml(
+                                category
+                              )}
+                            </div>
+                          `
+                          : ""
+                      }
+
                     </div>
 
-                    ${
-                      category
-                        ? `
-                          <div class="package-category">
-                            ${escapeHtml(category)}
-                          </div>
-                        `
-                        : ""
-                    }
-
                   </div>
+
+
+                  ${
+                    badge
+                      ? `
+                        <div class="package-badge">
+                          ${escapeHtml(
+                            badge
+                          )}
+                        </div>
+                      `
+                      : `
+                        <div class="package-badge empty">
+                          -
+                        </div>
+                      `
+                  }
 
                 </div>
 
 
+                <div class="package-credit">
+
+                  ${formatCredits(
+                    pkg.credits
+                  )}
+
+                  <span>
+                    credit
+                  </span>
+
+                </div>
+
+
+                ${priceHtml}
+
+
                 ${
-                  badge
+                  description
                     ? `
-                      <div class="package-badge">
-                        ${escapeHtml(badge)}
+                      <div class="package-description">
+                        ${escapeHtml(
+                          description
+                        )}
                       </div>
                     `
-                    : `
-                      <div class="package-badge empty">
-                        -
-                      </div>
-                    `
+                    : ""
                 }
 
-              </div>
 
-
-              <div class="package-credit">
-
-                ${formatCredits(pkg.credits)}
-
-                <span>
-                  credit
-                </span>
+                <div class="package-selected">
+                  ✓
+                </div>
 
               </div>
+            `;
 
-
-              ${priceHtml}
-
-
-              ${
-                description
-                  ? `
-                    <div class="package-description">
-                      ${escapeHtml(description)}
-                    </div>
-                  `
-                  : ""
-              }
-
-
-              <div class="package-selected">
-                ✓
-              </div>
-
-            </div>
-          `;
-
-        })
+          }
+        )
         .join("");
 
 
@@ -1830,43 +2278,50 @@
       .querySelectorAll(
         ".package-card"
       )
-      .forEach(function (card) {
+      .forEach(
+        function (card) {
 
-        card.addEventListener(
-          "click",
-          function () {
+          card.addEventListener(
+            "click",
+            function () {
 
-            const id =
-              card.dataset.packageId;
-
-
-            const pkg =
-              packages.find(
-                function (item) {
-
-                  return (
-                    String(item.id) ===
-                    String(id)
-                  );
-
-                }
-              );
+              const id =
+                card.dataset.packageId;
 
 
-            if (pkg) {
-              selectPackage(pkg);
+              const pkg =
+                packages.find(
+                  function (item) {
+
+                    return (
+                      String(item.id) ===
+                      String(id)
+                    );
+
+                  }
+                );
+
+
+              if (pkg) {
+
+                selectPackage(
+                  pkg
+                );
+              }
+
             }
+          );
 
-          }
-        );
-
-      });
+        }
+      );
   }
+
 
 
   /* =======================================================
      LOAD PACKAGES
      ======================================================= */
+
 
   async function loadPackages() {
 
@@ -1879,12 +2334,17 @@
     try {
 
       /*
-       * Gunakan select("*") supaya halaman user
-       * tidak rusak hanya karena admin menambahkan
-       * field baru seperti discount, category,
-       * logo_url, dan sebagainya.
+       * Ambil semua field.
        *
-       * Semua validasi field dilakukan di JavaScript.
+       * Ini memungkinkan package admin
+       * mempunyai:
+       *
+       * category
+       * logo
+       * discount
+       * original_price
+       * discounted_price
+       * dll.
        */
 
       const result =
@@ -1912,19 +2372,21 @@
 
 
       if (result.error) {
+
         throw result.error;
       }
 
 
       packages =
-        Array.isArray(result.data)
+        Array.isArray(
+          result.data
+        )
           ? result.data
           : [];
 
 
       /*
-       * Normalisasi paket sekali setelah
-       * data diterima.
+       * Normalisasi data.
        */
 
       packages =
@@ -1958,7 +2420,6 @@
             Silakan coba lagi.
           </div>
         `;
-
       }
 
 
@@ -1970,16 +2431,16 @@
   }
 
 
+
   /* =======================================================
      LOAD PROFILE
      ======================================================= */
+
 
   async function loadProfile() {
 
     /*
      * Navigation sudah melakukan validasi session.
-     *
-     * Gunakan global state jika tersedia.
      */
 
     if (
@@ -2011,6 +2472,7 @@
 
 
       if (sessionResult.error) {
+
         throw sessionResult.error;
       }
 
@@ -2036,8 +2498,8 @@
 
 
     /*
-     * Kalau profile belum tersedia dari navigation,
-     * baca profile sendiri.
+     * Kalau profile belum tersedia
+     * dari navigation.
      */
 
     if (!currentProfile) {
@@ -2061,6 +2523,7 @@
 
 
       if (profileResult.error) {
+
         throw profileResult.error;
       }
 
@@ -2082,15 +2545,15 @@
 
 
     /*
-     * Status kosong tetap dianggap aktif.
+     * Status kosong dianggap aktif.
      */
 
     const status =
       String(
         currentProfile.status || ""
       )
-        .trim()
-        .toLowerCase();
+      .trim()
+      .toLowerCase();
 
 
     if (
@@ -2117,8 +2580,8 @@
       String(
         currentProfile.role || "USER"
       )
-        .trim()
-        .toUpperCase();
+      .trim()
+      .toUpperCase();
 
 
     /*
@@ -2138,7 +2601,9 @@
     }
 
 
-    if (role !== "USER") {
+    if (
+      role !== "USER"
+    ) {
 
       showMessage(
         "Akun tidak memiliki akses ke halaman ini.",
@@ -2191,9 +2656,11 @@
   }
 
 
+
   /* =======================================================
      SUBMIT TOP UP
      ======================================================= */
+
 
   async function submitTopup() {
 
@@ -2247,6 +2714,7 @@
 
     button.disabled = true;
 
+
     button.textContent =
       "Mengirim pengajuan...";
 
@@ -2257,11 +2725,7 @@
     try {
 
       /*
-       * Nilai nominal berasal dari paket
-       * database yang dipilih.
-       *
-       * selectedPrice adalah harga FINAL
-       * setelah diskon.
+       * selectedPrice adalah harga FINAL.
        */
 
       const payload = {
@@ -2306,6 +2770,7 @@
 
 
       if (result.error) {
+
         throw result.error;
       }
 
@@ -2323,17 +2788,22 @@
       selectedPackageId =
         null;
 
+
       selectedPackageName =
         "";
+
 
       selectedCredits =
         0;
 
+
       selectedPrice =
         0;
 
+
       selectedOriginalPrice =
         0;
+
 
       selectedDiscountPercent =
         0;
@@ -2343,13 +2813,15 @@
         .querySelectorAll(
           ".package-card"
         )
-        .forEach(function (card) {
+        .forEach(
+          function (card) {
 
-          card.classList.remove(
-            "selected"
-          );
+            card.classList.remove(
+              "selected"
+            );
 
-        });
+          }
+        );
 
 
       updateSelectedInfo();
@@ -2392,7 +2864,9 @@
         message =
           "Pengajuan ditolak oleh keamanan database. Policy topup_requests perlu diperbaiki.";
 
-      } else if (errorMessage) {
+      } else if (
+        errorMessage
+      ) {
 
         message =
           "Pengajuan top up gagal: " +
@@ -2417,9 +2891,11 @@
   }
 
 
+
   /* =======================================================
      INIT
      ======================================================= */
+
 
   async function init() {
 
@@ -2461,6 +2937,7 @@
 
 
       if (!authenticated) {
+
         return;
       }
 
@@ -2507,9 +2984,11 @@
   }
 
 
+
   /* =======================================================
      START
      ======================================================= */
+
 
   if (
     document.readyState ===
@@ -2531,6 +3010,7 @@
 
 
 })();
+
 </script>
 
 </body>
