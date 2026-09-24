@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Top Up Credit - GEN-Z.AI</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../assets/js/config.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            font-family:
+                Inter,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            background: #0b0f19;
+            color: #f8fafc;
+        }
+
+        body {
+            overflow-x: hidden;
+        }
+
+        .page {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .title-wrap h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .title-wrap p {
+            margin: 8px 0 0;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: 0;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .btn {
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+        }
+
+        .btn-success {
+            background: #16a34a;
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: #fff;
+        }
+
+        .btn-warning {
+            background: #d97706;
+            color: #fff;
+        }
+
+        .btn-small {
+            min-height: 34px;
+            padding: 0 11px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .stat-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 25px;
+            font-weight: 700;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .search-box input,
+        .filter select {
+            width: 100%;
+            height: 42px;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            background: #111827;
+            color: #f8fafc;
+            padding: 0 13px;
+            outline: none;
+        }
+
+        .search-box input:focus,
+        .filter select:focus {
+            border-color: #3b82f6;
+        }
+
+        .filter {
+            width: 180px;
+        }
+
+        .table-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1050px;
+        }
+
+        th,
+        td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #1f2937;
+            white-space: nowrap;
+        }
+
+        th {
+            color: #94a3b8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            background: #0f172a;
+        }
+
+        td {
+            font-size: 14px;
+            color: #e2e8f0;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #f8fafc;
+        }
+
+        .user-email {
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .credits {
+            font-weight: 700;
+            color: #60a5fa;
+        }
+
+        .amount {
+            font-weight: 600;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+        }
+
+        .status-approved {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .status-rejected {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+
+        .actions {
+            display: flex;
+            gap: 7px;
+        }
+
+        .empty {
+            padding: 60px 20px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        .loading {
+            padding: 50px 20px;
+            text-align: center;
+            color: #94a3b8;
+        }
+
+        .toast {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 9999;
+            max-width: 420px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #334155;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+            display: none;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .toast.success {
+            border-color: #16a34a;
+        }
+
+        .toast.error {
+            border-color: #dc2626;
+        }
+
+        .toast.info {
+            border-color: #2563eb;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.72);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            width: min(560px, 100%);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .close-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #1e293b;
+            color: #cbd5e1;
+            font-size: 20px;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 7px;
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            min-height: 44px;
+            border: 1px solid #334155;
+            border-radius: 9px;
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 10px 12px;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: #3b82f6;
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .readonly {
+            opacity: 0.75;
+        }
+
+        .modal-footer {
+            padding: 16px 20px 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .danger-note {
+            margin-top: 8px;
+            color: #f87171;
+            font-size: 12px;
+        }
+
+        @media (max-width: 900px) {
+            .stats {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
+
+            .page {
+                padding: 20px;
+            }
+
+            .page-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .page {
+                padding: 14px;
+            }
+
+            .header-actions {
+                width: 100%;
+            }
+
+            .header-actions .btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="navigation"></div>
+
+<main id="adminPage" class="page" style="display:none;">
+
+    <div class="page-header">
+        <div class="title-wrap">
+            <h1>Top Up Credit</h1>
+            <p>
+                Kelola pengajuan top up credit pengguna GEN-Z.AI.
+            </p>
+        </div>
+
+        <div class="header-actions">
+            <button
+                type="button"
+                class="btn btn-secondary"
+                id="refreshButton"
+            >
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <section class="stats">
+
+        <div class="stat-card">
+            <div class="stat-label">
+                Total Pengajuan
+            </div>
+            <div
+                class="stat-value"
+                id="statTotal"
+            >
+                0
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">
+                Pending
+            </div>
+            <div
+                class="stat-value"
+                id="statPending"
+            >
+                0
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">
+                Approved
+            </div>
+            <div
+                class="stat-value"
+                id="statApproved"
+            >
+                0
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">
+                Total Credit Approved
+            </div>
+            <div
+                class="stat-value"
+                id="statCredits"
+            >
+                0
+            </div>
+        </div>
+
+    </section>
+
+    <div class="toolbar">
+
+        <div class="search-box">
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Cari nama, email, package..."
+                autocomplete="off"
+            >
+        </div>
+
+        <div class="filter">
+            <select id="statusFilter">
+                <option value="">Semua Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+        </div>
+
+    </div>
+
+    <section class="table-card">
+
+        <div
+            id="loadingState"
+            class="loading"
+        >
+            Memuat data top up...
+        </div>
+
+        <div
+            id="emptyState"
+            class="empty"
+            style="display:none;"
+        >
+            Belum ada pengajuan top up.
+        </div>
+
+        <div
+            id="tableWrap"
+            class="table-wrap"
+            style="display:none;"
+        >
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Package</th>
+                        <th>Credit</th>
+                        <th>Nominal</th>
+                        <th>Status</th>
+                        <th>Dibuat</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+
+                <tbody id="topupTableBody"></tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+<div
+    id="editModal"
+    class="modal-overlay"
+>
+
+    <div class="modal">
+
+        <div class="modal-header">
+
+            <h2>Edit Top Up</h2>
+
+            <button
+                type="button"
+                class="close-btn"
+                id="closeModalButton"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <input
+                type="hidden"
+                id="editId"
+            >
+
+            <div class="form-group">
+                <label>User</label>
+                <input
+                    type="text"
+                    class="form-control readonly"
+                    id="editUser"
+                    readonly
+                >
+            </div>
+
+            <div class="form-group">
+                <label>Package</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="editPackage"
+                >
+            </div>
+
+            <div class="form-group">
+                <label>Credit</label>
+                <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    class="form-control"
+                    id="editCredits"
+                >
+            </div>
+
+            <div class="form-group">
+                <label>Nominal Pembayaran</label>
+                <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    class="form-control"
+                    id="editAmount"
+                >
+            </div>
+
+            <div class="form-group">
+                <label>Status</label>
+                <select
+                    class="form-control"
+                    id="editStatus"
+                >
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+
+                <div class="danger-note">
+                    Untuk keamanan, perubahan menjadi Approved
+                    melalui tombol Approve pada daftar.
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Catatan Admin</label>
+                <textarea
+                    class="form-control"
+                    id="editNote"
+                    placeholder="Catatan internal admin..."
+                ></textarea>
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button
+                type="button"
+                class="btn btn-secondary"
+                id="cancelEditButton"
+            >
+                Batal
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-primary"
+                id="saveEditButton"
+            >
+                Simpan Perubahan
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div
+    id="toast"
+    class="toast"
+></div>
+
+<script>
+(function () {
+    "use strict";
+
+    let supabaseClient = null;
+    let currentRole = null;
+    let topups = [];
+    let filteredTopups = [];
+    let currentEditId = null;
+
+    const DEFAULT_CONFIG_ERROR =
+        "Konfigurasi Supabase belum tersedia.";
+
+    function getConfig() {
+        return window.GENZ_CONFIG || {};
+    }
+
+    function getSupabaseClient() {
+
+        if (window.GENZ_SUPABASE) {
+            return window.GENZ_SUPABASE;
+        }
+
+        if (window.supabaseClient) {
+            return window.supabaseClient;
+        }
+
+        const config = getConfig();
+
+        const url =
+            config.SUPABASE_URL ||
+            config.supabaseUrl ||
+            "";
+
+        const key =
+            config.SUPABASE_KEY ||
+            config.supabaseKey ||
+            "";
+
+        if (!url || !key) {
+            throw new Error(DEFAULT_CONFIG_ERROR);
+        }
+
+        if (
+            !window.supabase ||
+            typeof window.supabase.createClient !== "function"
+        ) {
+            throw new Error(
+                "Library Supabase belum tersedia."
+            );
+        }
+
+        const client =
+            window.supabase.createClient(url, key);
+
+        window.GENZ_SUPABASE = client;
+        window.supabaseClient = client;
+
+        return client;
+    }
+
+    function showToast(message, type) {
+
+        const toast =
+            document.getElementById("toast");
+
+        toast.textContent = message;
+        toast.className =
+            "toast show " +
+            (type || "info");
+
+        clearTimeout(
+            showToast.timer
+        );
+
+        showToast.timer =
+            setTimeout(function () {
+                toast.className = "toast";
+            }, 4000);
+    }
+
+    function formatNumber(value) {
+
+        return Number(value || 0)
+            .toLocaleString("id-ID");
+    }
+
+    function formatCurrency(value) {
+
+        return "Rp" +
+            Number(value || 0)
+                .toLocaleString("id-ID");
+    }
+
+    function formatDate(value) {
+
+        if (!value) {
+            return "-";
+        }
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return "-";
+        }
+
+        return date.toLocaleString(
+            "id-ID",
+            {
+                dateStyle: "medium",
+                timeStyle: "short"
+            }
+        );
+    }
+
+    function escapeHtml(value) {
+
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function normalizeStatus(status) {
+
+        return String(status || "")
+            .trim()
+            .toLowerCase();
+    }
+
+    function statusLabel(status) {
+
+        const normalized =
+            normalizeStatus(status);
+
+        if (normalized === "approved") {
+            return "Approved";
+        }
+
+        if (normalized === "rejected") {
+            return "Rejected";
+        }
+
+        return "Pending";
+    }
+
+    function statusClass(status) {
+
+        const normalized =
+            normalizeStatus(status);
+
+        if (normalized === "approved") {
+            return "status-approved";
+        }
+
+        if (normalized === "rejected") {
+            return "status-rejected";
+        }
+
+        return "status-pending";
+    }
+
+    function getUserDisplay(row) {
+
+        const profile =
+            row.profiles || {};
+
+        const name =
+            profile.name ||
+            profile.full_name ||
+            "User";
+
+        const email =
+            profile.email ||
+            row.user_email ||
+            "-";
+
+        return {
+            name,
+            email
+        };
+    }
+
+    async function loadTopups() {
+
+        const loading =
+            document.getElementById("loadingState");
+
+        const empty =
+            document.getElementById("emptyState");
+
+        const table =
+            document.getElementById("tableWrap");
+
+        loading.style.display = "block";
+        empty.style.display = "none";
+        table.style.display = "none";
+
+        try {
+
+            const {
+                data,
+                error
+            } = await supabaseClient
+                .from("topup_requests")
+                .select(`
+                    id,
+                    user_id,
+                    package_name,
+                    credits,
+                    amount,
+                    status,
+                    admin_note,
+                    processed_by,
+                    processed_at,
+                    created_at,
+                    updated_at,
+                    profiles:user_id (
+                        id,
+                        email,
+                        name
+                    )
+                `)
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            topups =
+                Array.isArray(data)
+                    ? data
+                    : [];
+
+            updateStats();
+            applyFilters();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Top Up load error:",
+                error
+            );
+
+            loading.style.display = "none";
+
+            showToast(
+                error.message ||
+                "Gagal memuat data top up.",
+                "error"
+            );
+
+            renderTable([]);
+
+        }
+    }
+
+    function updateStats() {
+
+        const total =
+            topups.length;
+
+        const pending =
+            topups.filter(function (item) {
+                return normalizeStatus(
+                    item.status
+                ) === "pending";
+            }).length;
+
+        const approved =
+            topups.filter(function (item) {
+                return normalizeStatus(
+                    item.status
+                ) === "approved";
+            });
+
+        const approvedCount =
+            approved.length;
+
+        const approvedCredits =
+            approved.reduce(
+                function (sum, item) {
+                    return sum +
+                        Number(
+                            item.credits || 0
+                        );
+                },
+                0
+            );
+
+        document.getElementById(
+            "statTotal"
+        ).textContent =
+            formatNumber(total);
+
+        document.getElementById(
+            "statPending"
+        ).textContent =
+            formatNumber(pending);
+
+        document.getElementById(
+            "statApproved"
+        ).textContent =
+            formatNumber(approvedCount);
+
+        document.getElementById(
+            "statCredits"
+        ).textContent =
+            formatNumber(approvedCredits);
+    }
+
+    function applyFilters() {
+
+        const search =
+            String(
+                document.getElementById(
+                    "searchInput"
+                ).value || ""
+            )
+            .trim()
+            .toLowerCase();
+
+        const status =
+            document.getElementById(
+                "statusFilter"
+            ).value;
+
+        filteredTopups =
+            topups.filter(function (item) {
+
+                const user =
+                    getUserDisplay(item);
+
+                const searchable = [
+                    user.name,
+                    user.email,
+                    item.package_name,
+                    item.status,
+                    item.credits,
+                    item.amount
+                ]
+                .join(" ")
+                .toLowerCase();
+
+                const matchesSearch =
+                    !search ||
+                    searchable.includes(search);
+
+                const matchesStatus =
+                    !status ||
+                    normalizeStatus(
+                        item.status
+                    ) === status;
+
+                return (
+                    matchesSearch &&
+                    matchesStatus
+                );
+            });
+
+        renderTable(filteredTopups);
+    }
+
+    function renderTable(items) {
+
+        const loading =
+            document.getElementById("loadingState");
+
+        const empty =
+            document.getElementById("emptyState");
+
+        const table =
+            document.getElementById("tableWrap");
+
+        const body =
+            document.getElementById(
+                "topupTableBody"
+            );
+
+        loading.style.display = "none";
+
+        body.innerHTML = "";
+
+        if (!items.length) {
+
+            table.style.display = "none";
+            empty.style.display = "block";
+
+            return;
+        }
+
+        empty.style.display = "none";
+        table.style.display = "block";
+
+        items.forEach(function (item) {
+
+            const user =
+                getUserDisplay(item);
+
+            const status =
+                normalizeStatus(
+                    item.status
+                );
+
+            const pending =
+                status === "pending";
+
+            const row =
+                document.createElement("tr");
+
+            row.innerHTML = `
+                <td>
+                    <div class="user-name">
+                        ${escapeHtml(user.name)}
+                    </div>
+                    <div class="user-email">
+                        ${escapeHtml(user.email)}
+                    </div>
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        item.package_name || "-"
+                    )}
+                </td>
+
+                <td>
+                    <span class="credits">
+                        ${formatNumber(item.credits)}
+                    </span>
+                </td>
+
+                <td>
+                    <span class="amount">
+                        ${formatCurrency(item.amount)}
+                    </span>
+                </td>
+
+                <td>
+                    <span class="status ${statusClass(status)}">
+                        ${statusLabel(status)}
+                    </span>
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        formatDate(item.created_at)
+                    )}
+                </td>
+
+                <td>
+                    <div class="actions">
+
+                        ${
+                            pending
+                            ? `
+                                <button
+                                    type="button"
+                                    class="btn btn-small btn-primary"
+                                    data-action="edit"
+                                    data-id="${escapeHtml(item.id)}"
+                                >
+                                    Edit
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-small btn-success"
+                                    data-action="approve"
+                                    data-id="${escapeHtml(item.id)}"
+                                >
+                                    Approve
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-small btn-danger"
+                                    data-action="reject"
+                                    data-id="${escapeHtml(item.id)}"
+                                >
+                                    Reject
+                                </button>
+                            `
+                            : `
+                                <button
+                                    type="button"
+                                    class="btn btn-small btn-secondary"
+                                    data-action="edit"
+                                    data-id="${escapeHtml(item.id)}"
+                                >
+                                    Lihat
+                                </button>
+                            `
+                        }
+
+                    </div>
+                </td>
+            `;
+
+            body.appendChild(row);
+        });
+    }
+
+    function findTopup(id) {
+
+        return topups.find(function (item) {
+            return String(item.id) === String(id);
+        }) || null;
+    }
+
+    function openEditModal(id) {
+
+        const item =
+            findTopup(id);
+
+        if (!item) {
+            showToast(
+                "Data top up tidak ditemukan.",
+                "error"
+            );
+            return;
+        }
+
+        currentEditId =
+            item.id;
+
+        const user =
+            getUserDisplay(item);
+
+        document.getElementById(
+            "editId"
+        ).value = item.id;
+
+        document.getElementById(
+            "editUser"
+        ).value =
+            user.name +
+            " (" +
+            user.email +
+            ")";
+
+        document.getElementById(
+            "editPackage"
+        ).value =
+            item.package_name || "";
+
+        document.getElementById(
+            "editCredits"
+        ).value =
+            Number(item.credits || 0);
+
+        document.getElementById(
+            "editAmount"
+        ).value =
+            Number(item.amount || 0);
+
+        document.getElementById(
+            "editStatus"
+        ).value =
+            normalizeStatus(
+                item.status
+            ) || "pending";
+
+        document.getElementById(
+            "editNote"
+        ).value =
+            item.admin_note || "";
+
+        const isPending =
+            normalizeStatus(
+                item.status
+            ) === "pending";
+
+        document.getElementById(
+            "editPackage"
+        ).disabled = !isPending;
+
+        document.getElementById(
+            "editCredits"
+        ).disabled = !isPending;
+
+        document.getElementById(
+            "editAmount"
+        ).disabled = !isPending;
+
+        document.getElementById(
+            "editStatus"
+        ).disabled = !isPending;
+
+        document.getElementById(
+            "saveEditButton"
+        ).disabled = !isPending;
+
+        document.getElementById(
+            "editModal"
+        ).classList.add("show");
+    }
+
+    function closeEditModal() {
+
+        currentEditId = null;
+
+        document.getElementById(
+            "editModal"
+        ).classList.remove("show");
+    }
+
+    async function saveEdit() {
+
+        if (!currentEditId) {
+            return;
+        }
+
+        const item =
+            findTopup(currentEditId);
+
+        if (!item) {
+            showToast(
+                "Data top up tidak ditemukan.",
+                "error"
+            );
+            return;
+        }
+
+        if (
+            normalizeStatus(item.status) !==
+            "pending"
+        ) {
+            showToast(
+                "Top up yang sudah diproses tidak dapat diedit.",
+                "error"
+            );
+            return;
+        }
+
+        const packageName =
+            document.getElementById(
+                "editPackage"
+            ).value.trim();
+
+        const credits =
+            Number(
+                document.getElementById(
+                    "editCredits"
+                ).value
+            );
+
+        const amount =
+            Number(
+                document.getElementById(
+                    "editAmount"
+                ).value
+            );
+
+        const note =
+            document.getElementById(
+                "editNote"
+            ).value.trim();
+
+        if (
+            !Number.isInteger(credits) ||
+            credits <= 0
+        ) {
+            showToast(
+                "Credit harus berupa angka bulat lebih dari 0.",
+                "error"
+            );
+            return;
+        }
+
+        if (
+            !Number.isFinite(amount) ||
+            amount <= 0
+        ) {
+            showToast(
+                "Nominal pembayaran harus lebih dari 0.",
+                "error"
+            );
+            return;
+        }
+
+        const button =
+            document.getElementById(
+                "saveEditButton"
+            );
+
+        button.disabled = true;
+        button.textContent =
+            "Menyimpan...";
+
+        try {
+
+            const {
+                error
+            } = await supabaseClient
+                .from("topup_requests")
+                .update({
+                    package_name:
+                        packageName,
+                    credits:
+                        credits,
+                    amount:
+                        Math.round(amount),
+                    admin_note:
+                        note,
+                    updated_at:
+                        new Date().toISOString()
+                })
+                .eq(
+                    "id",
+                    currentEditId
+                )
+                .eq(
+                    "status",
+                    "pending"
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            closeEditModal();
+
+            showToast(
+                "Top up berhasil diperbarui.",
+                "success"
+            );
+
+            await loadTopups();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Top Up update error:",
+                error
+            );
+
+            showToast(
+                error.message ||
+                "Gagal menyimpan perubahan.",
+                "error"
+            );
+
+        } finally {
+
+            button.disabled = false;
+            button.textContent =
+                "Simpan Perubahan";
+        }
+    }
+
+    async function approveTopup(id) {
+
+        const item =
+            findTopup(id);
+
+        if (!item) {
+            return;
+        }
+
+        if (
+            normalizeStatus(item.status) !==
+            "pending"
+        ) {
+            showToast(
+                "Top up ini sudah diproses.",
+                "error"
+            );
+            return;
+        }
+
+        const user =
+            getUserDisplay(item);
+
+        const confirmed =
+            window.confirm(
+                "Approve top up " +
+                formatNumber(item.credits) +
+                " credit untuk " +
+                user.email +
+                " senilai " +
+                formatCurrency(item.amount) +
+                "?"
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+
+            /*
+             * Untuk sementara approval dilakukan
+             * melalui update status.
+             *
+             * Jangan gunakan mekanisme ini untuk
+             * production jika credit belum diproses
+             * melalui RPC/database transaction.
+             */
+
+            const {
+                error
+            } = await supabaseClient
+                .from("topup_requests")
+                .update({
+                    status:
+                        "approved",
+                    processed_at:
+                        new Date().toISOString(),
+                    updated_at:
+                        new Date().toISOString()
+                })
+                .eq(
+                    "id",
+                    id
+                )
+                .eq(
+                    "status",
+                    "pending"
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            showToast(
+                "Top up berhasil diubah menjadi Approved.",
+                "success"
+            );
+
+            await loadTopups();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Top Up approve error:",
+                error
+            );
+
+            showToast(
+                error.message ||
+                "Gagal approve top up.",
+                "error"
+            );
+        }
+    }
+
+    async function rejectTopup(id) {
+
+        const item =
+            findTopup(id);
+
+        if (!item) {
+            return;
+        }
+
+        if (
+            normalizeStatus(item.status) !==
+            "pending"
+        ) {
+            showToast(
+                "Top up ini sudah diproses.",
+                "error"
+            );
+            return;
+        }
+
+        const confirmed =
+            window.confirm(
+                "Tolak pengajuan top up ini?"
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+
+            const {
+                error
+            } = await supabaseClient
+                .from("topup_requests")
+                .update({
+                    status:
+                        "rejected",
+                    processed_at:
+                        new Date().toISOString(),
+                    updated_at:
+                        new Date().toISOString()
+                })
+                .eq(
+                    "id",
+                    id
+                )
+                .eq(
+                    "status",
+                    "pending"
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            showToast(
+                "Top up berhasil ditolak.",
+                "success"
+            );
+
+            await loadTopups();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Top Up reject error:",
+                error
+            );
+
+            showToast(
+                error.message ||
+                "Gagal menolak top up.",
+                "error"
+            );
+        }
+    }
+
+    function bindEvents() {
+
+        document.getElementById(
+            "refreshButton"
+        ).addEventListener(
+            "click",
+            loadTopups
+        );
+
+        document.getElementById(
+            "searchInput"
+        ).addEventListener(
+            "input",
+            applyFilters
+        );
+
+        document.getElementById(
+            "statusFilter"
+        ).addEventListener(
+            "change",
+            applyFilters
+        );
+
+        document.getElementById(
+            "closeModalButton"
+        ).addEventListener(
+            "click",
+            closeEditModal
+        );
+
+        document.getElementById(
+            "cancelEditButton"
+        ).addEventListener(
+            "click",
+            closeEditModal
+        );
+
+        document.getElementById(
+            "saveEditButton"
+        ).addEventListener(
+            "click",
+            saveEdit
+        );
+
+        document.getElementById(
+            "editModal"
+        ).addEventListener(
+            "click",
+            function (event) {
+
+                if (
+                    event.target ===
+                    this
+                ) {
+                    closeEditModal();
+                }
+            }
+        );
+
+        document.getElementById(
+            "topupTableBody"
+        ).addEventListener(
+            "click",
+            function (event) {
+
+                const button =
+                    event.target.closest(
+                        "button[data-action]"
+                    );
+
+                if (!button) {
+                    return;
+                }
+
+                const action =
+                    button.dataset.action;
+
+                const id =
+                    button.dataset.id;
+
+                if (action === "edit") {
+                    openEditModal(id);
+                    return;
+                }
+
+                if (action === "approve") {
+                    approveTopup(id);
+                    return;
+                }
+
+                if (action === "reject") {
+                    rejectTopup(id);
+                }
+            }
+        );
+    }
+
+    async function waitForNavigation() {
+
+        if (
+            window.GENZNavigationReady
+        ) {
+            try {
+                await window.GENZNavigationReady;
+                return;
+            } catch (error) {
+                console.warn(
+                    "Navigation ready error:",
+                    error
+                );
+            }
+        }
+
+        for (
+            let i = 0;
+            i < 30;
+            i++
+        ) {
+
+            if (
+                window.GENZ_NAVIGATION_ROLE
+            ) {
+                return;
+            }
+
+            await new Promise(
+                function (resolve) {
+                    setTimeout(
+                        resolve,
+                        100
+                    );
+                }
+            );
+        }
+    }
+
+    async function start() {
+
+        try {
+
+            await waitForNavigation();
+
+            currentRole =
+                String(
+                    window.GENZ_NAVIGATION_ROLE ||
+                    ""
+                )
+                .trim()
+                .toLowerCase();
+
+            const adminPage =
+                document.getElementById(
+                    "adminPage"
+                );
+
+            adminPage.style.display =
+                "block";
+
+            if (
+                currentRole !== "admin" &&
+                currentRole !== "owner"
+            ) {
+
+                adminPage.innerHTML = `
+                    <div class="empty">
+                        Akses hanya tersedia untuk Admin dan Owner.
+                    </div>
+                `;
+
+                return;
+            }
+
+            supabaseClient =
+                getSupabaseClient();
+
+            bindEvents();
+
+            await loadTopups();
+
+        } catch (error) {
+
+            console.error(
+                "GENZ Top Up init error:",
+                error
+            );
+
+            document.getElementById(
+                "adminPage"
+            ).style.display = "block";
+
+            showToast(
+                error.message ||
+                "Gagal membuka halaman Top Up.",
+                "error"
+            );
+        }
+    }
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            start,
+            {
+                once: true
+            }
+        );
+
+    } else {
+
+        start();
+    }
+
+})();
+</script>
+
+<script src="../../navigation/navigation.js"></script>
+
+</body>
+</html>
