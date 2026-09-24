@@ -31,10 +31,6 @@
 
     <!-- =========================================================
          SHARED NAVIGATION
-         =========================================================
-         Penting:
-         navigation.js membaca session Supabase,
-         profile, role, lalu mengisi #navigation.
          ========================================================= -->
 
     <script src="../../navigation/navigation.js"></script>
@@ -491,7 +487,6 @@
 
         }
 
-
     </style>
 
 </head>
@@ -537,7 +532,6 @@
     >
 
         <div class="page-container">
-
 
             <header class="page-header">
 
@@ -908,6 +902,7 @@
 
 
                 loading.remove();
+
             }
 
 
@@ -918,11 +913,7 @@
             function ensureSupabaseClient() {
 
                 /*
-                 * navigation.js seharusnya sudah membuat
-                 * shared client.
-                 *
-                 * Jangan membuat client kedua jika
-                 * shared client tersedia.
+                 * Gunakan shared client terlebih dahulu.
                  */
 
                 if (
@@ -934,6 +925,7 @@
                         window.GENZ_SUPABASE;
 
                     return window.GENZ_SUPABASE;
+
                 }
 
 
@@ -946,6 +938,7 @@
                         window.supabaseClient;
 
                     return window.supabaseClient;
+
                 }
 
 
@@ -966,6 +959,7 @@
                     throw new Error(
                         "Supabase JS library tidak tersedia."
                     );
+
                 }
 
 
@@ -974,6 +968,7 @@
                     throw new Error(
                         "GENZ_CONFIG tidak tersedia."
                     );
+
                 }
 
 
@@ -996,6 +991,7 @@
                     throw new Error(
                         "SUPABASE_URL atau SUPABASE_KEY tidak tersedia."
                     );
+
                 }
 
 
@@ -1021,12 +1017,14 @@
 
 
                 return client;
+
             }
 
 
             function getClient() {
 
                 return ensureSupabaseClient();
+
             }
 
 
@@ -1049,6 +1047,88 @@
                     role === "admin" ||
                     role === "owner"
                 );
+
+            }
+
+
+            /* =====================================================
+               BOOLEAN NORMALIZATION
+               ===================================================== */
+
+            function normalizeBoolean(
+                value,
+                fallback = false
+            ) {
+
+                if (
+                    typeof value ===
+                    "boolean"
+                ) {
+
+                    return value;
+
+                }
+
+
+                if (
+                    typeof value ===
+                    "number"
+                ) {
+
+                    return value === 1;
+
+                }
+
+
+                if (
+                    typeof value ===
+                    "string"
+                ) {
+
+                    const normalized =
+                        value
+                            .trim()
+                            .toLowerCase();
+
+
+                    if (
+                        normalized ===
+                            "true" ||
+                        normalized ===
+                            "1" ||
+                        normalized ===
+                            "yes" ||
+                        normalized ===
+                            "on"
+                    ) {
+
+                        return true;
+
+                    }
+
+
+                    if (
+                        normalized ===
+                            "false" ||
+                        normalized ===
+                            "0" ||
+                        normalized ===
+                            "no" ||
+                        normalized ===
+                            "off" ||
+                        normalized ===
+                            ""
+                    ) {
+
+                        return false;
+
+                    }
+
+                }
+
+
+                return fallback;
+
             }
 
 
@@ -1091,11 +1171,13 @@
                     number =
                         "62" +
                         number.slice(1);
+
                 }
 
 
                 /*
-                 * +62xxxx
+                 * Lindungi format 620...
+                 * agar menjadi 62...
                  */
 
                 if (
@@ -1105,10 +1187,12 @@
                     number =
                         "62" +
                         number.slice(3);
+
                 }
 
 
                 return number;
+
             }
 
 
@@ -1132,8 +1216,9 @@
 
 
                 const active =
-                    Boolean(
-                        isActive?.checked
+                    normalizeBoolean(
+                        isActive?.checked,
+                        false
                     );
 
 
@@ -1205,6 +1290,7 @@
                         result.error.message ||
                         "Gagal membaca konfigurasi Hub Admin."
                     );
+
                 }
 
 
@@ -1214,6 +1300,7 @@
                 )
                     ? result.data[0]
                     : null;
+
             }
 
 
@@ -1249,6 +1336,7 @@
 
 
                     return;
+
                 }
 
 
@@ -1266,8 +1354,20 @@
                     DEFAULT_MESSAGE;
 
 
+                /*
+                 * Jangan gunakan:
+                 *
+                 * existing.is_active !== false
+                 *
+                 * karena string "false" !== false
+                 * sehingga hasilnya salah.
+                 */
+
                 isActive.checked =
-                    existing.is_active !== false;
+                    normalizeBoolean(
+                        existing.is_active,
+                        true
+                    );
 
 
                 updatePreview();
@@ -1287,6 +1387,19 @@
 
                 const client =
                     getClient();
+
+
+                if (
+                    settingsId === null ||
+                    settingsId === undefined ||
+                    settingsId === ""
+                ) {
+
+                    throw new Error(
+                        "ID konfigurasi Hub Admin tidak tersedia untuk verifikasi."
+                    );
+
+                }
 
 
                 const result =
@@ -1314,6 +1427,7 @@
                         result.error.message ||
                         "Konfigurasi tersimpan tetapi gagal diverifikasi."
                     );
+
                 }
 
 
@@ -1326,6 +1440,7 @@
                     throw new Error(
                         "Konfigurasi berhasil diproses tetapi data tidak ditemukan saat verifikasi."
                     );
+
                 }
 
 
@@ -1337,30 +1452,127 @@
 
                 const savedMessage =
                     String(
-                        row.whatsapp_message ||
+                        row.whatsapp_message ??
                         ""
                     ).trim();
 
 
                 const savedActive =
-                    Boolean(
-                        row.is_active
+                    normalizeBoolean(
+                        row.is_active,
+                        false
                     );
+
+
+                const expectedNumber =
+                    normalizePhone(
+                        number
+                    );
+
+
+                const expectedMessage =
+                    String(
+                        message ??
+                        ""
+                    ).trim();
+
+
+                const expectedActive =
+                    normalizeBoolean(
+                        active,
+                        false
+                    );
+
+
+                /*
+                 * Debug lengkap agar jika ada perbedaan,
+                 * sumbernya langsung terlihat di Console.
+                 */
+
+                console.log(
+                    "[GEN-Z.AI] Hub Admin verification:",
+                    {
+                        id:
+                            row.id,
+
+                        expected:
+                            {
+                                whatsapp_number:
+                                    expectedNumber,
+
+                                whatsapp_message:
+                                    expectedMessage,
+
+                                is_active:
+                                    expectedActive
+                            },
+
+                        database:
+                            {
+                                whatsapp_number:
+                                    savedNumber,
+
+                                whatsapp_message:
+                                    savedMessage,
+
+                                is_active:
+                                    savedActive
+                            },
+
+                        rawDatabaseStatus:
+                            row.is_active,
+
+                        rawDatabaseStatusType:
+                            typeof row.is_active
+                    }
+                );
 
 
                 if (
-                    savedNumber !== number ||
-                    savedMessage !== message ||
-                    savedActive !== active
+                    savedNumber !==
+                    expectedNumber
                 ) {
 
                     throw new Error(
-                        "Data berhasil diproses tetapi hasil verifikasi tidak sesuai."
+                        "Nomor WhatsApp tidak sesuai setelah penyimpanan. Nilai database: " +
+                        (
+                            row.whatsapp_number ||
+                            "(kosong)"
+                        )
                     );
+
+                }
+
+
+                if (
+                    savedMessage !==
+                    expectedMessage
+                ) {
+
+                    throw new Error(
+                        "Pesan WhatsApp tidak sesuai setelah penyimpanan."
+                    );
+
+                }
+
+
+                if (
+                    savedActive !==
+                    expectedActive
+                ) {
+
+                    throw new Error(
+                        "Status aktif tidak sesuai setelah penyimpanan. Nilai database: " +
+                        String(
+                            row.is_active
+                        )
+                    );
+
                 }
 
 
                 return true;
+
             }
 
 
@@ -1388,16 +1600,22 @@
 
 
                 const active =
-                    Boolean(
-                        isActive.checked
+                    normalizeBoolean(
+                        isActive.checked,
+                        false
                     );
 
+
+                /* =================================================
+                   VALIDATION
+                   ================================================= */
 
                 if (!number) {
 
                     throw new Error(
                         "Nomor WhatsApp admin wajib diisi."
                     );
+
                 }
 
 
@@ -1410,6 +1628,7 @@
                     throw new Error(
                         "Nomor WhatsApp tidak valid. Gunakan format 628xxxxxxxxxx."
                     );
+
                 }
 
 
@@ -1418,6 +1637,7 @@
                     throw new Error(
                         "Pesan WhatsApp wajib diisi."
                     );
+
                 }
 
 
@@ -1427,6 +1647,10 @@
 
                 updatePreview();
 
+
+                /* =================================================
+                   PAYLOAD
+                   ================================================= */
 
                 const payload = {
 
@@ -1445,10 +1669,9 @@
                 };
 
 
-                /*
-                 * Jika ID belum diketahui,
-                 * cari row existing terlebih dahulu.
-                 */
+                /* =================================================
+                   PASTIKAN SETTINGS ID ADA
+                   ================================================= */
 
                 if (
                     settingsId === null ||
@@ -1470,15 +1693,38 @@
                 }
 
 
-                /*
-                 * UPDATE
-                 */
+                /* =================================================
+                   UPDATE EXISTING ROW
+                   ================================================= */
 
                 if (
                     settingsId !== null &&
                     settingsId !== undefined &&
                     settingsId !== ""
                 ) {
+
+                    console.log(
+                        "[GEN-Z.AI] Hub Admin UPDATE:",
+                        {
+                            id:
+                                settingsId,
+
+                            payload:
+                                payload
+                        }
+                    );
+
+
+                    /*
+                     * Sengaja TIDAK menggunakan .select()
+                     * di UPDATE.
+                     *
+                     * Ini menghindari masalah:
+                     * Cannot coerce the result to a single JSON object
+                     *
+                     * Verifikasi dilakukan melalui SELECT
+                     * terpisah setelah UPDATE.
+                     */
 
                     const updateResult =
                         await client
@@ -1506,15 +1752,23 @@
                             updateResult.error.message ||
                             "Gagal memperbarui konfigurasi Hub Admin."
                         );
+
                     }
 
                 }
 
-                /*
-                 * INSERT
-                 */
+
+                /* =================================================
+                   INSERT NEW ROW
+                   ================================================= */
 
                 else {
+
+                    console.log(
+                        "[GEN-Z.AI] Hub Admin INSERT:",
+                        payload
+                    );
+
 
                     const insertResult =
                         await client
@@ -1538,11 +1792,12 @@
                             insertResult.error.message ||
                             "Gagal membuat konfigurasi Hub Admin."
                         );
+
                     }
 
 
                     /*
-                     * Ambil row kembali.
+                     * Ambil kembali row yang sudah dibuat.
                      *
                      * Tidak menggunakan .select()
                      * pada INSERT agar tidak terkena
@@ -1558,6 +1813,7 @@
                         throw new Error(
                             "Konfigurasi berhasil diproses tetapi row tidak dapat ditemukan kembali."
                         );
+
                     }
 
 
@@ -1567,9 +1823,9 @@
                 }
 
 
-                /*
-                 * Verifikasi terpisah.
-                 */
+                /* =================================================
+                   VERIFIKASI DATABASE
+                   ================================================= */
 
                 await verifySavedData(
                     number,
@@ -1579,6 +1835,7 @@
 
 
                 return true;
+
             }
 
 
@@ -1659,6 +1916,7 @@
 
 
                             return;
+
                         }
 
 
@@ -1682,6 +1940,11 @@
                                 "success"
                             );
 
+
+                            /*
+                             * Reload dari database setelah
+                             * verifikasi berhasil.
+                             */
 
                             await loadSettings();
 
@@ -1839,11 +2102,7 @@
                 /*
                  * =================================================
                  * TAMPILKAN PAGE
-                 * =================================================
-                 *
-                 * Jangan biarkan adminPage tetap display:none
-                 * ketika navigation gagal.
-                 */
+                 * ================================================= */
 
                 if (adminPage) {
 
@@ -1872,6 +2131,7 @@
 
 
                     return;
+
                 }
 
 
@@ -1891,7 +2151,6 @@
                     setStatus(
                         ""
                     );
-
 
                 } catch (error) {
 
