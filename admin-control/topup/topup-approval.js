@@ -4,45 +4,24 @@
    ---------------------------------------------------------
    File:
    admin-control/topup/topup-approval.js
+
+   Tanggung jawab:
+   - Approve top up
+   - Menambah credit user
+   - Mencegah double approval
+   - Rollback status jika penambahan credit gagal
+   - Tidak mengurus UI utama/topup table
    ========================================================= */
 
 (function () {
   "use strict";
 
-  console.log(
-    "[GEN-Z.AI] topup-approval.js loaded"
-  );
-
   async function approve(id) {
-
-    console.log(
-      "[GEN-Z.AI] approveTopup module called:",
-      id
-    );
-
     const ctx = window.GENZ_TOPUP_CONTEXT;
 
-    if (!ctx) {
-      console.error(
-        "[GEN-Z.AI] GENZ_TOPUP_CONTEXT belum tersedia."
-      );
-
-      return;
-    }
-
-    if (typeof ctx.getClient !== "function") {
-      console.error(
-        "[GEN-Z.AI] getClient() tidak tersedia."
-      );
-
-      if (typeof ctx.showToast === "function") {
-        ctx.showToast(
-          "Supabase client belum tersedia.",
-          "error"
-        );
-      }
-
-      return;
+    if (!ctx || typeof ctx.getClient !== "function") {
+      console.error("GENZ_TOPUP_CONTEXT belum tersedia.");
+      return false;
     }
 
     const supabaseClient = ctx.getClient();
@@ -55,12 +34,12 @@
         );
       }
 
-      return;
+      return false;
     }
 
-    /* =====================================================
-       AMBIL DATA TOPUP DARI UI
-       ===================================================== */
+    /* -------------------------------------------------------
+       Cari data top up dari data yang sudah dimuat
+       ------------------------------------------------------- */
 
     const item =
       typeof ctx.findTopup === "function"
@@ -68,42 +47,33 @@
         : null;
 
     if (!item) {
+      ctx.showToast(
+        "Data top up tidak ditemukan.",
+        "error"
+      );
 
-      if (typeof ctx.showToast === "function") {
-        ctx.showToast(
-          "Data top up tidak ditemukan.",
-          "error"
-        );
-      }
-
-      return;
+      return false;
     }
 
-    /* =====================================================
-       CEK STATUS
-       ===================================================== */
+    /* -------------------------------------------------------
+       Pastikan status masih pending
+       ------------------------------------------------------- */
 
-    const status = String(
-      item.status || ""
-    )
-      .trim()
-      .toLowerCase();
+    if (
+      typeof ctx.normalizeStatus === "function" &&
+      ctx.normalizeStatus(item.status) !== "pending"
+    ) {
+      ctx.showToast(
+        "Top up ini sudah diproses.",
+        "error"
+      );
 
-    if (status !== "pending") {
-
-      if (typeof ctx.showToast === "function") {
-        ctx.showToast(
-          "Top up ini sudah diproses.",
-          "error"
-        );
-      }
-
-      return;
+      return false;
     }
 
-    /* =====================================================
-       DATA USER
-       ===================================================== */
+    /* -------------------------------------------------------
+       Data user
+       ------------------------------------------------------- */
 
     const user =
       typeof ctx.getUserDisplay === "function"
@@ -113,21 +83,11 @@
             email: "-"
           };
 
-    const credits = Number(
-      item.credits || 0
-    );
-
-    const amount = Number(
-      item.amount || 0
-    );
-
     const formatNumber =
       typeof ctx.formatNumber === "function"
         ? ctx.formatNumber
         : function (value) {
-            return Number(
-              value || 0
-            ).toLocaleString("id-ID");
+            return Number(value || 0).toLocaleString("id-ID");
           };
 
     const formatCurrency =
@@ -136,161 +96,291 @@
         : function (value) {
             return (
               "Rp" +
-              Number(
-                value || 0
-              ).toLocaleString("id-ID")
+              Number(value || 0).toLocaleString("id-ID")
             );
           };
 
-    /* =====================================================
-       KONFIRMASI
-       ===================================================== */
+    /* -------------------------------------------------------
+       Konfirmasi
+       ------------------------------------------------------- */
 
     const confirmed = window.confirm(
       "Approve top up " +
-        formatNumber(credits) +
+        formatNumber(item.credits) +
         " credit untuk " +
-        (user.email || user.name || "user") +
+        user.email +
         " senilai " +
-        formatCurrency(amount) +
+        formatCurrency(item.amount) +
         "?"
     );
 
     if (!confirmed) {
-      return;
+      return false;
     }
 
-    /* =====================================================
-       RPC
-       ===================================================== */
-
     try {
-
-      if (typeof ctx.showToast === "function") {
-        ctx.showToast(
-          "Memproses approval top up...",
-          "info"
-        );
-      }
-
-      console.log(
-        "[GEN-Z.AI] Calling RPC approve_topup_and_add_credits:",
-        id
-      );
+      /* =====================================================
+         STEP 1
+         Ambil data terbaru dari database
+         ===================================================== */
 
       const {
-        data,
-        error
-      } = await supabaseClient.rpc(
-        "approve_topup_and_add_credits",
-        {
-          p_topup_id: id
-        }
-      );
+        data: fresh,
+        error: freshError
+      } = await supabaseClient
+        .from("topup_requests")
+        .select(
+          "id,user_id,credits,amount,status"
+        )
+        .eq("id", id)
+        .maybeSingle();
 
-      if (error) {
-
-        console.error(
-          "[GEN-Z.AI] RPC error:",
-          error
-        );
-
-        throw error;
+      if (freshError) {
+        throw freshError;
       }
 
-      console.log(
-        "[GEN-Z.AI] RPC result:",
-        data
-      );
+      if (!fresh) {
+        ctx.showToast(
+          "Data top up tidak ditemukan.",
+          "error"
+        );
+
+        return false;
+      }
+
+      /* -----------------------------------------------------
+         Jangan proses ulang jika sudah bukan pending
+         ----------------------------------------------------- */
 
       if (
-        !data ||
-        data.success !== true
+        String(fresh.status || "").toLowerCase() !==
+        "pending"
+      ) {
+        ctx.showToast(
+          "Top up ini sudah diproses.",
+          "error"
+        );
+
+        if (typeof ctx.loadTopups === "function") {
+          await ctx.loadTopups();
+        }
+
+        return false;
+      }
+
+      /* =====================================================
+         STEP 2
+         Validasi credit
+         ===================================================== */
+
+      const creditAmount = Number(fresh.credits);
+
+      if (
+        !Number.isInteger(creditAmount) ||
+        creditAmount <= 0
       ) {
         throw new Error(
-          "Approval top up gagal diproses."
+          "Jumlah credit top up tidak valid."
         );
       }
 
-      /* ===================================================
-         SUKSES
-         =================================================== */
+      /* =====================================================
+         STEP 3
+         Ubah status pending -> approved
+         dengan conditional update
+         ===================================================== */
 
-      const addedCredits = Number(
-        data.added_credits || credits
-      );
+      const now = new Date().toISOString();
 
-      const newCredits = Number(
-        data.new_credits || 0
-      );
+      const {
+        data: approvedRows,
+        error: approveError
+      } = await supabaseClient
+        .from("topup_requests")
+        .update({
+          status: "approved",
+          processed_at: now,
+          updated_at: now
+        })
+        .eq("id", fresh.id)
+        .eq("status", "pending")
+        .select("id");
 
-      if (typeof ctx.showToast === "function") {
-        ctx.showToast(
-          "Top up berhasil disetujui. " +
-            formatNumber(addedCredits) +
-            " credit berhasil ditambahkan. " +
-            "Saldo sekarang " +
-            formatNumber(newCredits) +
-            " credit.",
-          "success"
-        );
+      if (approveError) {
+        throw approveError;
       }
 
-      /* ===================================================
-         RELOAD
-         =================================================== */
+      /* -----------------------------------------------------
+         Jika 0 row berarti kemungkinan diproses proses lain
+         ----------------------------------------------------- */
 
       if (
-        typeof ctx.loadTopups === "function"
+        !approvedRows ||
+        approvedRows.length === 0
       ) {
+        ctx.showToast(
+          "Top up sudah diproses oleh proses lain atau statusnya berubah.",
+          "error"
+        );
+
+        if (typeof ctx.loadTopups === "function") {
+          await ctx.loadTopups();
+        }
+
+        return false;
+      }
+
+      /* =====================================================
+         STEP 4
+         Ambil saldo user terbaru
+         ===================================================== */
+
+      const {
+        data: profile,
+        error: profileError
+      } = await supabaseClient
+        .from("profiles")
+        .select("id,credits")
+        .eq("id", fresh.user_id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      /* -----------------------------------------------------
+         User tidak ditemukan
+         Rollback approval
+         ----------------------------------------------------- */
+
+      if (!profile) {
+        const rollback =
+          await supabaseClient
+            .from("topup_requests")
+            .update({
+              status: "pending",
+              processed_at: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", fresh.id)
+            .eq("status", "approved");
+
+        if (rollback.error) {
+          console.error(
+            "GENZ Top Up rollback error:",
+            rollback.error
+          );
+
+          throw new Error(
+            "Profil user tidak ditemukan dan status top up gagal dikembalikan. Periksa data secara manual."
+          );
+        }
+
+        throw new Error(
+          "Profil user tidak ditemukan."
+        );
+      }
+
+      /* =====================================================
+         STEP 5
+         Hitung saldo baru
+         ===================================================== */
+
+      const currentCredits =
+        Number(profile.credits) || 0;
+
+      const newCredits =
+        currentCredits + creditAmount;
+
+      /* =====================================================
+         STEP 6
+         Tambahkan credit ke profiles
+         ===================================================== */
+
+      const {
+        error: creditError
+      } = await supabaseClient
+        .from("profiles")
+        .update({
+          credits: newCredits
+        })
+        .eq("id", fresh.user_id);
+
+      if (creditError) {
+        /* ---------------------------------------------------
+           Credit gagal.
+           Kembalikan status top up ke pending.
+           --------------------------------------------------- */
+
+        const rollback =
+          await supabaseClient
+            .from("topup_requests")
+            .update({
+              status: "pending",
+              processed_at: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", fresh.id)
+            .eq("status", "approved");
+
+        if (rollback.error) {
+          console.error(
+            "GENZ Top Up rollback after credit error:",
+            rollback.error
+          );
+
+          throw new Error(
+            "Credit user gagal ditambahkan dan status top up juga gagal dikembalikan. Periksa data secara manual."
+          );
+        }
+
+        throw creditError;
+      }
+
+      /* =====================================================
+         STEP 7
+         Berhasil
+         ===================================================== */
+
+      ctx.showToast(
+        "Top up disetujui dan " +
+          formatNumber(creditAmount) +
+          " credit berhasil ditambahkan ke saldo user.",
+        "success"
+      );
+
+      /* -----------------------------------------------------
+         Refresh tabel admin
+         ----------------------------------------------------- */
+
+      if (typeof ctx.loadTopups === "function") {
         await ctx.loadTopups();
       }
 
-    } catch (error) {
+      return true;
 
+    } catch (error) {
       console.error(
-        "[GEN-Z.AI] Approval error:",
+        "GENZ Top Up approval error:",
         error
       );
 
-      let message =
-        error &&
-        error.message
-          ? error.message
-          : "Gagal approve top up.";
+      ctx.showToast(
+        error.message ||
+          "Gagal approve top up.",
+        "error"
+      );
 
-      if (
-        message
-          .toLowerCase()
-          .includes("sudah diproses")
-      ) {
-        message =
-          "Top up ini sudah diproses.";
-      }
-
-      if (
-        typeof ctx.showToast === "function"
-      ) {
-        ctx.showToast(
-          message,
-          "error"
-        );
-      }
-
+      return false;
     }
   }
 
-  /* =======================================================
-     PUBLIC MODULE
-     ======================================================= */
+  /* =========================================================
+     PUBLIC API
+     ========================================================= */
 
   window.GENZ_TOPUP_APPROVAL = {
     approve: approve
   };
-
-  console.log(
-    "[GEN-Z.AI] GENZ_TOPUP_APPROVAL registered:",
-    typeof window.GENZ_TOPUP_APPROVAL.approve
-  );
 
 })();
